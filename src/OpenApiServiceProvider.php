@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
 declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
@@ -279,6 +286,23 @@ class OpenApiServiceProvider extends ServiceProvider
                 findings: $app->make(FindingsCollector::class),
             ),
         );
+
+        $this->app->scoped(
+            PaginatorResponseResolver::class,
+            static function (Container $app): PaginatorResponseResolver {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                return new PaginatorResponseResolver(
+                    returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
+                    schemaFactory: $app->make(PaginatorSchemaFactory::class),
+                    logger: $app->make(LoggerInterface::class),
+                    refSchemaResolvers: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->refSchemaResolvers(),
+                    ),
+                );
+            },
+        );
     }
 
     /**
@@ -389,23 +413,6 @@ class OpenApiServiceProvider extends ServiceProvider
                 schemaFromDataClass: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
             ),
-        );
-
-        $this->app->scoped(
-            PaginatorResponseResolver::class,
-            static function (Container $app): PaginatorResponseResolver {
-                $registry = $app->make(OpenApiRegistry::class);
-
-                return new PaginatorResponseResolver(
-                    returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
-                    schemaFactory: $app->make(PaginatorSchemaFactory::class),
-                    logger: $app->make(LoggerInterface::class),
-                    refSchemaResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers(),
-                    ),
-                );
-            },
         );
     }
 
