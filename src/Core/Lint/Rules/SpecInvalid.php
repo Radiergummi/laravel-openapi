@@ -26,13 +26,13 @@ use Override;
 use RuntimeException;
 
 use function array_slice;
+use function dirname;
 use function file_exists;
 use function file_get_contents;
 use function implode;
 use function in_array;
 use function is_int;
 use function json_decode;
-use function resource_path;
 use function sprintf;
 use function str_contains;
 use function strtoupper;
@@ -47,7 +47,7 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
 
     public function __construct(?string $schemaPath = null)
     {
-        $this->schemaPath = $schemaPath ?? resource_path('openapi/oas-3.1-schema.json');
+        $this->schemaPath = $schemaPath ?? dirname(__DIR__, 4) . '/resources/openapi/oas-3.1-schema.json';
         $this->formatter = new ErrorFormatter();
     }
 
