@@ -46,7 +46,9 @@ it('omits last_page and total for a simple paginator', function (): void {
     expect($names)->toContain('data')
         ->and($names)->toContain('current_page')
         ->and($names)->not->toContain('last_page')
-        ->and($names)->not->toContain('total');
+        ->and($names)->not->toContain('total')
+        ->and($names)->not->toContain('last_page_url')
+        ->and($names)->not->toContain('links');
 });
 
 it('builds a cursor envelope with next_cursor and prev_cursor', function (): void {
@@ -58,7 +60,10 @@ it('builds a cursor envelope with next_cursor and prev_cursor', function (): voi
     expect($names)->toContain('data')
         ->and($names)->toContain('next_cursor')
         ->and($names)->toContain('prev_cursor')
-        ->and($names)->not->toContain('total');
+        ->and($names)->not->toContain('total')
+        ->and($names)->not->toContain('current_page')
+        ->and($names)->not->toContain('from')
+        ->and($names)->not->toContain('to');
 });
 
 it('wires the supplied items into the data array', function (): void {
