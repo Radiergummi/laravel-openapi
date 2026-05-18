@@ -17,7 +17,9 @@ use function is_a;
 enum PaginatorKind
 {
     case LengthAware;
+
     case Simple;
+
     case Cursor;
 
     /**
