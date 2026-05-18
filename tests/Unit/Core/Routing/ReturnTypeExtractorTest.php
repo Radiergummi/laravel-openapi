@@ -24,6 +24,9 @@ class ReturnTypeExtractorFixture
         return new LengthAwarePaginator([], 0, 15);
     }
 
+    /**
+     * @return LengthAwarePaginator a page of results
+     */
     public function noGeneric(): LengthAwarePaginator
     {
         /** @phpstan-ignore-next-line */
