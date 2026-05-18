@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Console;
+
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Command;
+use Symfony\Component\Console\Input\InputArgument;
+
+use function file_exists;
+use function storage_path;
+use function unlink;
+
+#[Description('Remove the generated OpenAPI specification')]
+class ClearCommand extends Command
+{
+    protected $name = 'openapi:clear';
+
+    public function handle(): int
+    {
+        $path = $this->argument(OpenApiGenerateCommand::ARGUMENT_PATH);
+
+        if ($path === '-') {
+            $this->components->warn('Cannot clear stdout output.');
+
+            return self::FAILURE;
+        }
+
+        if (file_exists($path)) {
+            unlink($path);
+        }
+
+        $this->components->info('OpenAPI specification cleared.');
+
+        return self::SUCCESS;
+    }
+
+    protected function configure(): void
+    {
+        $this->addArgument(
+            OpenApiGenerateCommand::ARGUMENT_PATH,
+            InputArgument::OPTIONAL,
+            'Path to the specification file to remove.',
+            storage_path('openapi.yaml'),
+        );
+    }
+}
