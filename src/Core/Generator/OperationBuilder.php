@@ -719,15 +719,11 @@ final readonly class OperationBuilder
      */
     private function mergeTags(array $base, array $additional): array
     {
-        return array_merge($base, $additional)
-                |> array_unique(...)
-                |> (
-                    fn(array $items): array
-                    => array_filter(
-                        $items,
-                        static fn(string $tag): bool => $tag !== '',
-                    )
-                )
-                |> array_values(...);
+        return array_values(
+            array_filter(
+                array_unique(array_merge($base, $additional)),
+                static fn(string $tag): bool => $tag !== '',
+            ),
+        );
     }
 }

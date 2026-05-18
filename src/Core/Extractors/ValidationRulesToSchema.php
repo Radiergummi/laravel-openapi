@@ -95,9 +95,9 @@ final readonly class ValidationRulesToSchema
                 ? explode('|', $fieldRules)
                 : (array) $fieldRules;
 
-            $out[$normalised] = array_merge($existing, $incoming)
-                    |> (static fn(array $r): array => array_unique($r, SORT_REGULAR))
-                    |> array_values(...);
+            $out[$normalised] = array_values(
+                array_unique(array_merge($existing, $incoming), SORT_REGULAR),
+            );
         }
 
         return $out;

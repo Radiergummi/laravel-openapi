@@ -327,10 +327,9 @@ class LintCommand extends Command
             return [];
         }
 
-        return explode(',', $raw)
-                |> (fn(array $args) => array_map('trim', $args))
-                |> array_filter(...)
-                |> array_values(...);
+        return array_values(
+            array_filter(array_map('trim', explode(',', $raw))),
+        );
     }
 
     private function resolveLevel(string $raw, RuleRegistry $registry): int
@@ -578,10 +577,9 @@ class LintCommand extends Command
         $process = new Process(['git', 'diff', '--name-only', $ref . '...HEAD']);
         $process->run();
 
-        return explode(PHP_EOL, $process->getOutput())
-                |> (fn(array $args) => array_map('trim', $args))
-                |> array_filter(...)
-                |> array_values(...);
+        return array_values(
+            array_filter(array_map('trim', explode(PHP_EOL, $process->getOutput()))),
+        );
     }
 
     /**
