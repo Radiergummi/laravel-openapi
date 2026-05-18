@@ -15,6 +15,9 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\MultipleRecordsFoundException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
+use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
+use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
+use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -264,10 +267,16 @@ return [
     | contract; returning true from `shouldSkip()` omits the route from the
     | generated document.
     |
+    | The three shipped filters exclude routes from common dev/admin packages
+    | (Nova, Telescope, Ignition). Each one tolerates its package being absent:
+    | with no config present it simply matches nothing.
+    |
     */
 
     'filters' => [
-        //
+        SkipNovaRoutes::class,
+        SkipTelescopeRoutes::class,
+        SkipIgnitionRoutes::class,
     ],
 
 ];
