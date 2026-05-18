@@ -13,6 +13,8 @@ use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
  * meta}` resource envelope is a separate shape produced only when a
  * `ResourceCollection` wraps a paginator, and is handled by the ApiResources
  * plugin.
+ *
+ * Nullable paginator fields (cursors, page URLs) are modelled as non-nullable for this first cut; OpenAPI 3.1 nullability would be layered in via NullableSchema later.
  */
 final class PaginatorSchemaFactory
 {
@@ -49,6 +51,7 @@ final class PaginatorSchemaFactory
             $properties[] = $this->prop('last_page', ['type' => 'integer']);
             $properties[] = $this->prop('last_page_url', ['type' => 'string']);
             $properties[] = $this->prop('total', ['type' => 'integer']);
+            // links carries {url, label, active} objects; modelled as an untyped array for now.
             $properties[] = $this->prop('links', ['type' => 'array', 'items' => new OA\Items([])]);
         }
 
