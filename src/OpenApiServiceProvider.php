@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of radiergummi/laravel-openapi.
- *
- * @license MIT
- * @copyright (c) 2026 Moritz Friedrich
- */
-
 declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
@@ -20,12 +13,14 @@ use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Core\Extractors;
+use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Core\Lint\LoggingFindingsCollector;
@@ -46,6 +41,7 @@ use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
+use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
@@ -120,6 +116,11 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->app->scoped(
             ThrowsExtractor::class,
             static fn() => ThrowsExtractor::create(),
+        );
+
+        $this->app->scoped(
+            ReturnTypeExtractor::class,
+            static fn() => ReturnTypeExtractor::create(),
         );
 
         $this->app->scoped(SkipNovaRoutes::class, static fn(): SkipNovaRoutes => SkipNovaRoutes::fromConfig());
@@ -388,6 +389,23 @@ class OpenApiServiceProvider extends ServiceProvider
                 schemaFromDataClass: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
             ),
+        );
+
+        $this->app->scoped(
+            PaginatorResponseResolver::class,
+            static function (Container $app): PaginatorResponseResolver {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                return new PaginatorResponseResolver(
+                    returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
+                    schemaFactory: $app->make(PaginatorSchemaFactory::class),
+                    logger: $app->make(LoggerInterface::class),
+                    refSchemaResolvers: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->refSchemaResolvers(),
+                    ),
+                );
+            },
         );
     }
 
