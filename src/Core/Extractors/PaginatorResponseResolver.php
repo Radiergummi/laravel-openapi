@@ -14,6 +14,7 @@ use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
+use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use Throwable;
 
@@ -77,7 +78,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             return null;
         }
 
-        $itemClass = $this->resolveItemClass($descriptor);
+        $itemClass = $this->resolveItemClass($reflector);
 
         if ($itemClass === null) {
             $this->logger->warning(sprintf(
@@ -101,26 +102,29 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     /**
      * @return null|class-string
      */
-    private function resolveItemClass(ActionDescriptor $descriptor): ?string
+    private function resolveItemClass(ReflectionFunctionAbstract $reflector): ?string
     {
-        $reflector = $descriptor->actionReflector;
+        $attribute = $reflector->getAttributes(ResponseResource::class)[0] ?? null;
 
-        if ($reflector !== null) {
-            $attribute = $reflector->getAttributes(ResponseResource::class)[0] ?? null;
+        if ($attribute !== null) {
+            $instance = $attribute->newInstance();
 
-            if ($attribute !== null) {
-                $instance = $attribute->newInstance();
-
-                if (class_exists($instance->class)) {
-                    return $instance->class;
-                }
+            // $instance->collection is intentionally not consulted here — a
+            // paginator envelope is always a collection by definition.
+            if (class_exists($instance->class)) {
+                return $instance->class;
             }
 
-            $generic = $this->returnTypeExtractor->genericArgument($reflector);
+            $this->logger->warning(sprintf(
+                '#[ResponseResource] on a paginator action references unknown class %s; falling back to the @return generic.',
+                $instance->class,
+            ));
+        }
 
-            if ($generic !== null && class_exists($generic)) {
-                return $generic;
-            }
+        $generic = $this->returnTypeExtractor->genericArgument($reflector);
+
+        if ($generic !== null && class_exists($generic)) {
+            return $generic;
         }
 
         return null;
@@ -142,6 +146,9 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             }
         }
 
+        // No registered ref resolver claimed the class (e.g. a plain model).
+        // Return a generic object schema — not a warning, as this is a valid
+        // outcome when the item type is outside the resolver chain.
         return new OA\Items(['type' => 'object']);
     }
 }
