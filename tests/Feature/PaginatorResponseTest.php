@@ -83,7 +83,7 @@ it('documents a length-aware paginator with the flat envelope', function (): voi
 
     expect($schema)->not->toBeNull()
         ->and($schema['type'])->toBe('object')
-        ->and($schema['properties'])->toHaveKeys(['current_page', 'data', 'last_page', 'total', 'per_page'])
+        ->and($schema['properties'])->toHaveKeys(['data', 'per_page', 'path', 'current_page', 'from', 'to', 'first_page_url', 'next_page_url', 'prev_page_url', 'last_page', 'last_page_url', 'total', 'links'])
         ->and($schema['properties']['data']['type'])->toBe('array');
 });
 
@@ -94,7 +94,8 @@ it('resolves the item type from a #[ResponseResource] attribute', function (): v
     $schema = $spec['paths']['/paginator/attribute']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()
-        ->and($schema['properties']['data']['type'])->toBe('array');
+        ->and($schema['properties']['data']['type'])->toBe('array')
+        ->and($schema['properties']['data']['items']['type'])->toBe('object');
 });
 
 it('falls back to a bare 200 when the paginator item type is undeclared', function (): void {
@@ -104,6 +105,7 @@ it('falls back to a bare 200 when the paginator item type is undeclared', functi
     $response = $spec['paths']['/paginator/undeclared']['get']['responses']['200'] ?? null;
 
     expect($response)->not->toBeNull()
+        ->and($response['description'] ?? null)->not->toBeNull()
         ->and($response['content'] ?? [])->not->toHaveKey('application/json');
 });
 
