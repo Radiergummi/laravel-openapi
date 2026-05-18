@@ -1,0 +1,97 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+use Radiergummi\OpenApi\Core\Generator\NullableSchema;
+use OpenApi\Annotations as OA;
+use OpenApi\Generator;
+
+uses()->group('openapi');
+
+// ---------------------------------------------------------------------------
+// Plain-type branch: widen a scalar type to an array including 'null'
+// ---------------------------------------------------------------------------
+
+it('widens a plain string schema to type: [string, null] (Bug 1)', function (): void {
+    $schema = new OA\Schema(['type' => 'string']);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->type)->toBe(['string', 'null'])
+        ->and($result->ref)->toBe(Generator::UNDEFINED);
+});
+
+it('widens a plain integer schema to type: [integer, null]', function (): void {
+    $schema = new OA\Schema(['type' => 'integer']);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->type)->toBe(['integer', 'null']);
+});
+
+it('adds null to an already-array type without duplicating', function (): void {
+    $schema = new OA\Schema(['type' => ['string', 'number']]);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->type)->toBe(['string', 'number', 'null']);
+});
+
+it('does not duplicate null when the type array already contains it', function (): void {
+    $schema = new OA\Schema(['type' => ['string', 'null']]);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->type)->toBe(['string', 'null']);
+});
+
+// ---------------------------------------------------------------------------
+// No-mutation contract: wrap() must never modify the input object
+// ---------------------------------------------------------------------------
+
+it('does not mutate the input schema for the scalar branch', function (): void {
+    $schema = new OA\Schema(['type' => 'string']);
+    NullableSchema::wrap($schema);
+
+    expect($schema->type)->toBe('string');
+});
+
+it('does not mutate the input schema for the type-array branch', function (): void {
+    $schema = new OA\Schema(['type' => ['string', 'number']]);
+    NullableSchema::wrap($schema);
+
+    expect($schema->type)->toBe(['string', 'number']);
+});
+
+// ---------------------------------------------------------------------------
+// $ref branch: wrap in oneOf so extra keywords are not silently ignored
+// ---------------------------------------------------------------------------
+
+it('wraps a $ref schema in oneOf with a null sibling (Bug 1)', function (): void {
+    $schema = new OA\Schema(['ref' => '#/components/schemas/MyModel']);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->ref)->toBe(Generator::UNDEFINED)
+        ->and($result->oneOf)->toHaveCount(2);
+
+    $oneOf = $result->oneOf;
+    expect($oneOf[0]->ref)->toBe('#/components/schemas/MyModel')
+        ->and($oneOf[1]->type)->toBe('null');
+});
+
+// ---------------------------------------------------------------------------
+// Fallback branch: schemas without a plain type are wrapped in oneOf
+// ---------------------------------------------------------------------------
+
+it('wraps a schema with no explicit type in oneOf with a null sibling', function (): void {
+    // A schema that has e.g. oneOf but no top-level type or ref.
+    $inner = new OA\Schema(['type' => 'string']);
+    $schema = new OA\Schema(['oneOf' => [$inner]]);
+    $result = NullableSchema::wrap($schema);
+
+    expect($result->oneOf)->toHaveCount(2)
+        ->and($result->oneOf[1]->type)->toBe('null');
+});

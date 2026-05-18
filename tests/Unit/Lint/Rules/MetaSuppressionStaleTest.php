@@ -1,0 +1,127 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\FindingLocation;
+use Radiergummi\OpenApi\Core\Lint\LintContext;
+use Radiergummi\OpenApi\Core\Lint\Rules\MetaSuppressionStale;
+use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
+use Radiergummi\OpenApi\Core\Lint\SuppressionScope;
+use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
+use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use OpenApi\Annotations as OA;
+
+uses()->group('openapi', 'lint');
+
+function staleContext(SuppressionDirective $directive): LintContext
+{
+    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
+
+    return new LintContext(
+        api: new ApiNode(
+            operations: [],
+            components: [],
+            webhooks: [],
+            declaredTags: [],
+            tagDescriptions: [],
+            raw: $spec,
+        ),
+        index: TreeIndex::empty(),
+        rawSpec: $spec,
+        actionDescriptors: [],
+        suppressions: [$directive],
+    );
+}
+
+function staleDirective(
+    string $ruleId,
+    string $file = 'Controller.php',
+): SuppressionDirective {
+    return new SuppressionDirective(
+        ruleId: $ruleId,
+        reason: 'old issue',
+        scope: SuppressionScope::ClassScope,
+        file: $file,
+        line: 10,
+        targetClass: 'App\\Http\\Controllers\\Controller',
+    );
+}
+
+it('reports its id and level', function (): void {
+    $rule = new MetaSuppressionStale();
+
+    expect($rule->id())->toBe('meta.suppression-stale')
+        ->and($rule->level())->toBe(3);
+});
+
+it('emits a finding when a suppression did not match any finding', function (): void {
+    $ctx = staleContext(staleDirective('response.empty'));
+
+    $rule = new MetaSuppressionStale();
+    $findings = iterator_to_array($rule->check($ctx, []));
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('meta.suppression-stale')
+        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->message)->toContain('response.empty')
+        ->and($findings[0]->message)->toContain('stale')
+        ->and($findings[0]->location->file)->toBe('Controller.php')
+        ->and($findings[0]->location->line)->toBe(10);
+});
+
+it('emits no finding when a suppression matched a finding', function (): void {
+    $matchingFinding = new Finding(
+        ruleId: 'response.empty',
+        level: 0,
+        message: 'No responses',
+        location: new FindingLocation(file: 'Controller.php'),
+    );
+
+    $ctx = staleContext(staleDirective('response.empty'));
+
+    $rule = new MetaSuppressionStale();
+    $findings = iterator_to_array($rule->check($ctx, [$matchingFinding]));
+
+    expect($findings)->toBe([]);
+});
+
+it('emits when finding ruleId does not match the directive', function (): void {
+    $unrelatedFinding = new Finding(
+        ruleId: 'summary.missing',
+        level: 0,
+        message: 'Missing summary',
+        location: new FindingLocation(file: 'Controller.php'),
+    );
+
+    $ctx = staleContext(staleDirective('response.empty'));
+
+    $rule = new MetaSuppressionStale();
+    $findings = iterator_to_array($rule->check($ctx, [$unrelatedFinding]));
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->message)->toContain('response.empty');
+});
+
+it('does not match a finding in a different file', function (): void {
+    $findingInDifferentFile = new Finding(
+        ruleId: 'response.empty',
+        level: 0,
+        message: 'No responses',
+        location: new FindingLocation(file: 'OtherController.php'),
+    );
+
+    $ctx = staleContext(staleDirective('response.empty', file: 'Controller.php'));
+
+    $rule = new MetaSuppressionStale();
+    $findings = iterator_to_array($rule->check($ctx, [$findingInDifferentFile]));
+
+    expect($findings)->toHaveCount(1);
+});

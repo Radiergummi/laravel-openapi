@@ -1,0 +1,33 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
+
+use App\Domain\Action;
+use App\Models\Auth\User;
+
+/**
+ * Fixture Action whose constructor carries {@see WrongScopeFixtureData} — used
+ * to verify that {@see \Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope}
+ * reaches Data classes injected through Domain Actions (not only direct parameters).
+ */
+final class ActionWithWrongScopeData extends Action
+{
+    public function __construct(
+        private readonly User $user,
+        private readonly WrongScopeFixtureData $input,
+    ) {}
+
+    public function handle(): void
+    {
+        $_ = [$this->user, $this->input];
+    }
+}

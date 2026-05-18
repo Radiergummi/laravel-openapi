@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Tests\Fixtures\Discriminator;
+
+use Spatie\LaravelData\Data;
+
+/**
+ * Rectangle variant for the OAPI-027 discriminator fixture.
+ */
+final class RectangleData extends Data
+{
+    public function __construct(
+        public string $type,
+        public float $width,
+        public float $height,
+    ) {}
+}
