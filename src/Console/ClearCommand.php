@@ -15,8 +15,8 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputArgument;
 
+use function config;
 use function file_exists;
-use function storage_path;
 use function unlink;
 
 #[Description('Remove the generated OpenAPI specification')]
@@ -49,7 +49,7 @@ class ClearCommand extends Command
             GenerateCommand::ARGUMENT_PATH,
             InputArgument::OPTIONAL,
             'Path to the specification file to remove.',
-            storage_path('openapi.yaml'),
+            (string) config('openapi.output_path'),
         );
     }
 }

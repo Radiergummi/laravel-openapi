@@ -26,12 +26,12 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Throwable;
 
 use function assert;
+use function config;
 use function dirname;
 use function file_put_contents;
 use function is_string;
 use function is_writable;
 use function realpath;
-use function storage_path;
 
 /**
  * OpenAPI Generate Command
@@ -90,7 +90,7 @@ class GenerateCommand extends Command
             self::ARGUMENT_PATH,
             InputArgument::OPTIONAL,
             'Output path. Pass "-" to print to stdout.',
-            storage_path('openapi.yaml'),
+            (string) config('openapi.output_path'),
         );
 
         $this->addOption(
