@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Core\Routing;
 
 use Illuminate\Pagination\LengthAwarePaginator;
-use phpDocumentor\Reflection\DocBlockFactory;
-use phpDocumentor\Reflection\Types\ContextFactory;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use ReflectionMethod;
 use stdClass;
@@ -38,14 +36,20 @@ class ReturnTypeExtractorFixture
         /** @phpstan-ignore-next-line */
         return new LengthAwarePaginator([], 0, 15);
     }
+
+    /**
+     * @return LengthAwarePaginator<int, stdClass> a keyed page
+     */
+    public function keyedGeneric(): LengthAwarePaginator
+    {
+        /** @phpstan-ignore-next-line */
+        return new LengthAwarePaginator([], 0, 15);
+    }
 }
 
 function makeReturnTypeExtractor(): ReturnTypeExtractor
 {
-    return new ReturnTypeExtractor(
-        DocBlockFactory::createInstance(),
-        new ContextFactory(),
-    );
+    return ReturnTypeExtractor::create();
 }
 
 it('extracts the FQCN of a generic return argument', function (): void {
@@ -65,4 +69,10 @@ it('returns null when the method has no docblock', function (): void {
     $method = new ReflectionMethod(ReturnTypeExtractorFixture::class, 'noDocblock');
 
     expect(makeReturnTypeExtractor()->genericArgument($method))->toBeNull();
+});
+
+it('returns the value type of a two-argument generic', function (): void {
+    $method = new ReflectionMethod(ReturnTypeExtractorFixture::class, 'keyedGeneric');
+
+    expect(makeReturnTypeExtractor()->genericArgument($method))->toBe('stdClass');
 });

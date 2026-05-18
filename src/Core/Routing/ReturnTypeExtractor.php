@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Routing;
 
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
+use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use phpDocumentor\Reflection\Types\Collection;
 use phpDocumentor\Reflection\Types\Context;
@@ -75,5 +76,13 @@ final class ReturnTypeExtractor
         }
 
         return null;
+    }
+
+    public static function create(): self
+    {
+        return new self(
+            docBlockFactory: DocBlockFactory::createInstance(),
+            contextFactory: new ContextFactory(),
+        );
     }
 }
