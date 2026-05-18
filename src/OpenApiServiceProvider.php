@@ -11,6 +11,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
+use Illuminate\Container\Container;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Console\ClearCommand;
+use Radiergummi\OpenApi\Console\GenerateCommand;
+use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Core\Extractors;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
@@ -30,9 +38,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\ParameterNameNamingInconsistent;
 use Radiergummi\OpenApi\Core\Lint\Rules\PathSegmentNamingInconsistent;
 use Radiergummi\OpenApi\Core\Lint\Rules\TagNameNamingInconsistent;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
-use Radiergummi\OpenApi\Console\ClearCommand;
-use Radiergummi\OpenApi\Console\GenerateCommand;
-use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Registry\Plugin;
@@ -45,13 +50,7 @@ use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
 use Radiergummi\OpenApi\Http\DocsController;
-use Radiergummi\OpenApi\Plugins;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataRefSchemaResolver;
-use Illuminate\Container\Container;
-use Illuminate\Routing\Router;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\ServiceProvider;
-use Psr\Log\LoggerInterface;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -105,6 +104,19 @@ class OpenApiServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/openapi.php', 'openapi');
 
+        $this->registerRouting();
+        $this->registerRegistries();
+        $this->registerLintRules();
+        $this->registerExtractors();
+        $this->registerSpatieDataPlugin();
+        $this->registerGenerator();
+    }
+
+    /**
+     * Binds the route introspection services and the route exclusion filters.
+     */
+    private function registerRouting(): void
+    {
         $this->app->scoped(
             ThrowsExtractor::class,
             static fn() => ThrowsExtractor::create(),
@@ -141,7 +153,13 @@ class OpenApiServiceProvider extends ServiceProvider
             UriParameterResolver::class,
             static fn() => new UriParameterResolver(TypeResolver::create()),
         );
+    }
 
+    /**
+     * Binds the plugin/core registry and the lint rule registry derived from it.
+     */
+    private function registerRegistries(): void
+    {
         $this->app->scoped(
             OpenApiRegistry::class,
             static function (Container $app): OpenApiRegistry {
@@ -177,7 +195,13 @@ class OpenApiServiceProvider extends ServiceProvider
                 );
             },
         );
+    }
 
+    /**
+     * Binds the naming-convention lint rules, suppression and findings collectors.
+     */
+    private function registerLintRules(): void
+    {
         $namingRules = [
             OperationIdNamingInconsistent::class   => ['operation_id_case', 'dot'],
             FieldNameNamingInconsistent::class     => ['property_name_case', 'camel'],
@@ -219,7 +243,13 @@ class OpenApiServiceProvider extends ServiceProvider
                 logger: $app->make(LoggerInterface::class),
             ),
         );
+    }
 
+    /**
+     * Binds the schema registry and the operation-data extractors.
+     */
+    private function registerExtractors(): void
+    {
         $this->app->scoped(
             ComponentSchemaRegistry::class,
             static fn() => new ComponentSchemaRegistry(),
@@ -245,7 +275,13 @@ class OpenApiServiceProvider extends ServiceProvider
                 findings: $app->make(FindingsCollector::class),
             ),
         );
+    }
 
+    /**
+     * Binds the Spatie Laravel Data plugin services and request/ref schema resolvers.
+     */
+    private function registerSpatieDataPlugin(): void
+    {
         $this->app->scoped(
             Plugins\SpatieData\DataSyntheticPayloadBuilder::class,
             static fn(Container $app) => new Plugins\SpatieData\DataSyntheticPayloadBuilder(
@@ -345,7 +381,13 @@ class OpenApiServiceProvider extends ServiceProvider
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
             ),
         );
+    }
 
+    /**
+     * Binds the operation builder and the top-level generator that drives the pipeline.
+     */
+    private function registerGenerator(): void
+    {
         $this->app->scoped(
             OperationBuilder::class,
             static function (Container $app): OperationBuilder {
