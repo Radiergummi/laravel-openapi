@@ -53,6 +53,7 @@ use function array_map;
 use function array_merge;
 use function array_unique;
 use function array_values;
+use function class_exists;
 use function config;
 use function explode;
 use function fnmatch;
@@ -164,14 +165,20 @@ class LintCommand extends Command
         $treeBuilder = new SpecTreeBuilder();
         $api = $treeBuilder->build($spec, $descriptors);
 
+        // Resolve registered OAuth scopes from Passport when it is installed.
+        // Passport is an optional dependency: class_exists() on the imported but
+        // absent class is safe and simply returns false. Without Passport the
+        // scope-coverage rules receive an empty list and skip their checks.
+        $registeredScopes = class_exists(Passport::class)
+            ? array_keys(Passport::scopes()->keyBy('id')->all())
+            : [];
+
         // Build tree index
         $index = TreeIndex::build(
             api: $api,
             rawSpec: $spec,
             knownRuleIds: $knownRuleIds,
-            registeredScopes: array_keys(
-                Passport::scopes()->keyBy('id')->all(),
-            ),
+            registeredScopes: $registeredScopes,
         );
 
         // Build lint context

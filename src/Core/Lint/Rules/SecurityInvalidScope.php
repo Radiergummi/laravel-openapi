@@ -37,6 +37,13 @@ final class SecurityInvalidScope implements Rule, OperationRuleVisitor
     {
         $knownScopes = $this->registeredScopes ?? $context->index->registeredScopes;
 
+        // An empty scope list means scope coverage cannot be verified — either
+        // no scopes are registered or Passport is not installed. Skip the check
+        // rather than flagging every spec scope as undefined (false positives).
+        if ($knownScopes === []) {
+            return;
+        }
+
         foreach ($operation->security as $requirement) {
             foreach ($requirement['scopes'] as $scope) {
                 if (in_array($scope, $knownScopes, true)) {

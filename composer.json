@@ -24,6 +24,9 @@
         "pestphp/pest": "^3.0 || ^4.0",
         "pestphp/pest-plugin-laravel": "^3.0 || ^4.0"
     },
+    "suggest": {
+        "laravel/passport": "Enables OAuth scope-coverage validation in `openapi:lint` (^13.0)."
+    },
     "autoload": {
         "psr-4": { "Radiergummi\\OpenApi\\": "src/" }
     },
