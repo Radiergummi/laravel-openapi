@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- Laravel paginator return types (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) are
+  now documented automatically. The paginated item type is resolved from a `#[ResponseResource]`
+  attribute or a `@return Paginator<Item>` PHPDoc generic.
+
 ### Changed
 - PHPStan now runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a blocking CI check.
 - Document generation now skips routes whose controller class cannot be resolved at introspection time, instead of aborting the entire run with a `ReflectionException`.

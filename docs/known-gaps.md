@@ -39,6 +39,13 @@ affects controllers that don't follow the typed-DTO / typed-return convention.
 — a significant build. The attribute-driven escape hatches cover the same cases at the cost of an
 annotation, so this is deferred rather than scheduled.
 
+**Update — narrowed scope:** the generator now reads one PHPDoc tag, `@return Foo<Bar>`,
+to recover the item type of a paginated return value (`LengthAwarePaginator`, `Paginator`,
+`CursorPaginator`). This is the only place the generator looks beyond a native signature; it
+still never reads method bodies. A paginator return type whose item type is declared by
+neither `#[ResponseResource]` nor a `@return` generic falls back to a bare `200 OK` and is
+reported in the generation log.
+
 ---
 
 ## OAPI-038 — Lint rules miss `allOf`-composed schema properties
