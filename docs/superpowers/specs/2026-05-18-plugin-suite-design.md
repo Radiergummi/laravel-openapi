@@ -22,10 +22,13 @@ In scope:
 - `ApiResourcesPlugin` — Eloquent API Resources (`JsonResource` / `ResourceCollection`).
 - `QueryBuilderPlugin` — `spatie/laravel-query-builder` filter/sort/include parameters.
 - `FractalPlugin` — `league/fractal` / `spatie/laravel-fractal` transformers.
-- Core: native PHP enum → schema mapping.
+- Core: PHPDoc generic parsing for return types (`@return Foo<Bar>`).
 - Core: Laravel paginator return types → response envelopes.
 - Tests for all of the above (unit + feature), per the existing `SpatieData`
   plugin coverage pattern.
+
+Native PHP enum → schema mapping is **already implemented** in
+`JsonSchemaFromType` (backed and unit enums) and is therefore not in scope.
 
 Out of scope (other workstreams):
 
@@ -36,10 +39,18 @@ Out of scope (other workstreams):
 
 ## Design principles
 
-- **No method-body inference.** The generator reads signatures only (OAPI-017).
-  API Resources, Fractal transformers, and query-builder calls all define their
-  shape in method bodies; the plugins resolve this with **attributes** instead —
-  the same "convention + attribute escape hatch" model the package already uses.
+- **No method-body inference.** The generator reads signatures and PHPDoc only
+  (OAPI-017). API Resources, Fractal transformers, and query-builder calls all
+  define their shape in method bodies; the plugins resolve this with
+  **attributes** instead — the same "convention + attribute escape hatch" model
+  the package already uses.
+
+- **No primary-response pipeline exists yet.** The package ships zero
+  `PrimaryResponseResolver` implementations; routes without a `#[Response]`
+  attribute get a bare `200 OK`. This workstream builds the first
+  primary-response resolvers (Core paginator resolver, ApiResources resolver,
+  Fractal resolver). They are consulted in registration order, first non-null
+  wins, per the existing `OperationBuilder` contract.
 - **Core stays convention-agnostic.** `src/Core/` must not depend on any plugin
   or third-party package. Plugin-specific code and attributes live under
   `src/Plugins/<Name>/`.
@@ -73,10 +84,12 @@ stay in `src/Core/Attributes/`.
   `JsonResource` subclass. Declares one output key. Class-level (not
   property-level) because a Resource's keys are arbitrary `toArray()` entries,
   not typed class properties.
-- `#[ResourceResponse(resource: UserResource::class, collection: bool)]` —
-  **method-level**, required only when the return type is generic
-  (`JsonResponse`, `AnonymousResourceCollection`). When the method return type
-  *is* the concrete Resource class, the signature suffices.
+- The **existing Core attribute** `#[ResponseResource(class, collection)]`
+  (`src/Core/Attributes/ResponseResource.php`) binds a method to its Resource
+  class when the return type is generic (`JsonResponse`,
+  `AnonymousResourceCollection`) or paginated. The plugin **consumes** this
+  attribute; no new method-level attribute is introduced. When the method
+  return type *is* the concrete Resource class, the signature suffices.
 
 ### QueryBuilder
 
@@ -136,33 +149,55 @@ Each plugin registers rules with stable prefixed string IDs, using the existing
 Severity rule of thumb: "shape entirely unknown" defaults high; "missing
 polish" defaults low. All overridable via `config('openapi.lint.rules')`.
 
-## Section 4 — Core changes: enums & paginators
+## Section 4 — Core changes: PHPDoc generics & paginators
 
-These extend Core's type→schema mapping; no new attributes, no plugin.
+These add Core infrastructure; no new attributes, no plugin. (Enum mapping is
+already implemented and out of scope.)
 
-### Enums
+### PHPDoc generic parsing
 
-When a type resolves to a native PHP `enum`:
+PHP native return types cannot express generics — `function index():
+LengthAwarePaginator` carries no inner type. The inner type lives only in a
+PHPDoc `@return LengthAwarePaginator<UserResource>`. Core gains a small
+PHPDoc-generic parser that, given a `ReflectionFunctionAbstract`, extracts the
+single generic argument of the `@return` type when present.
 
-- Backed enum → schema `type:` of `string` or `integer` (matching the backing
-  type), `enum:` listing the case backing values.
-- Pure enum → `type: string`, `enum:` listing the case names.
+This is the one new "read more than the native signature" capability. It is
+bounded: it reads only the `@return` PHPDoc tag, never method bodies.
 
-Slots into the existing JSON-schema-from-type path.
+### Paginator primary-response resolver
 
-### Paginators
+A new Core `PrimaryResponseResolver` — the **first** one the package ships.
+When a method return type is `LengthAwarePaginator`, `Paginator`, or
+`CursorPaginator` (a native signature — detection needs no PHPDoc):
 
-When a primary-response resolver sees a return type of `LengthAwarePaginator`,
-`Paginator`, or `CursorPaginator`:
+- Wrap the inner item schema in the matching Laravel `toArray()` envelope —
+  the *flat* shape Laravel actually serializes a bare paginator to:
+  - `LengthAwarePaginator` → `current_page`, `data`, `first_page_url`, `from`,
+    `last_page`, `last_page_url`, `links`, `next_page_url`, `path`, `per_page`,
+    `prev_page_url`, `to`, `total`.
+  - `Paginator` (simple) → the same minus `last_page`, `last_page_url`,
+    `total`.
+  - `CursorPaginator` → `data`, `path`, `per_page`, `next_cursor`,
+    `next_page_url`, `prev_cursor`, `prev_page_url`.
+- The `{data, links, meta}` *resource* envelope is a different shape, produced
+  only when a `ResourceCollection` wraps a paginator; that is handled by the
+  ApiResources plugin, not here.
+- The inner item type is resolved with this precedence (**attribute wins**):
+  1. A `#[ResponseResource]` attribute on the method, if present.
+  2. The PHPDoc `@return Paginator<Inner>` generic argument, if present.
+  3. Otherwise the resolver returns `null` (defers to the next resolver) and
+     emits a generation-log warning naming the route, so the gap is visible.
 
-- Wrap the inner item schema in the matching Laravel envelope:
-  - `LengthAwarePaginator` / `Paginator` → `data`, `links`, `meta`.
-  - `CursorPaginator` → `data`, `meta` with cursor links.
-- The inner type comes from the generic parameter
-  (`LengthAwarePaginator<UserResource>`) — a signature, no body inference.
+The inner type is rendered through the existing ref-schema resolvers, so a
+paginated Data class or API Resource composes as a `$ref`.
 
-This also fixes paginated `ResourceCollection` results. `docs/known-gaps.md` is
-updated to reflect the narrowed OAPI-017 surface.
+A generation-log warning — not a lint rule — is the right channel: lint rules
+walk the produced document and cannot distinguish a deferred paginator from a
+genuinely empty endpoint, whereas the generation log exists precisely for
+"could not resolve this during generation".
+
+`docs/known-gaps.md` is updated to reflect the narrowed OAPI-017 surface.
 
 ## Section 5 — Config, dependencies, structure
 
@@ -200,7 +235,10 @@ full prose documentation pass is a separate workstream.
 
 ## Build sequence
 
-1. Core enums + paginators (no dependencies; benefits later plugins).
+Each step becomes its own implementation plan.
+
+1. Core PHPDoc generic parsing + paginator primary-response resolver
+   (no dependencies; benefits later plugins).
 2. `ApiResourcesPlugin` (no third-party dependency; default-enabled).
 3. `QueryBuilderPlugin`.
 4. `FractalPlugin`.
