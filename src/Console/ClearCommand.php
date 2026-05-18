@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
-use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputArgument;
 
@@ -19,10 +18,11 @@ use function config;
 use function file_exists;
 use function unlink;
 
-#[Description('Remove the generated OpenAPI specification')]
 class ClearCommand extends Command
 {
     protected $name = 'openapi:clear';
+
+    protected $description = 'Remove the generated OpenAPI specification';
 
     public function handle(): int
     {

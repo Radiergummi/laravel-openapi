@@ -32,8 +32,6 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
@@ -75,9 +73,9 @@ use const PHP_EOL;
 /**
  * Lints OpenAPI documentation gaps across the API surface.
  */
-#[Description('Lint OpenAPI documentation gaps across the API surface')]
-#[Signature(
-    'openapi:lint
+class LintCommand extends Command
+{
+    protected $signature = 'openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
         {--format= : Output format (cli|json|github; auto-detected by default)}
         {--only= : Restrict to listed rule IDs (comma-separated)}
@@ -85,10 +83,10 @@ use const PHP_EOL;
         {--path= : Restrict to routes matching this URI glob}
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with develop)}
         {--no-suppress : Ignore #[IgnoreLint] attributes}
-        {--list : Print the rule catalog instead of linting}',
-)]
-class LintCommand extends Command
-{
+        {--list : Print the rule catalog instead of linting}';
+
+    protected $description = 'Lint OpenAPI documentation gaps across the API surface';
+
     /**
      * @throws BindingResolutionException
      * @throws InvalidArgumentException

@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Console;
 
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Command;
 use OpenApi\Analysis;
 use OpenApi\Annotations as OA;
@@ -38,7 +37,6 @@ use function realpath;
  *
  * @bundle Radiergummi\OpenApi\Console
  */
-#[Description('Generate an OpenAPI 3.1 document from the application\'s route definitions')]
 class GenerateCommand extends Command
 {
     public const string ARGUMENT_PATH = 'path';
@@ -46,6 +44,8 @@ class GenerateCommand extends Command
     public const string OPTION_FORMAT = 'format';
 
     protected $name = 'openapi:generate';
+
+    protected $description = 'Generate an OpenAPI 3.1 document from the application\'s route definitions';
 
     public function __construct(
         private readonly OpenApiGenerator $generator,
