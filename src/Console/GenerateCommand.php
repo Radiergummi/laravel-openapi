@@ -36,7 +36,7 @@ use function storage_path;
 /**
  * OpenAPI Generate Command
  *
- * @bundle App\Console\Commands
+ * @bundle Radiergummi\OpenApi\Console
  */
 #[Description('Generate an OpenAPI 3.1 document from the application\'s route definitions')]
 class GenerateCommand extends Command
