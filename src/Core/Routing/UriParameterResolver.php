@@ -37,8 +37,8 @@ final readonly class UriParameterResolver
      *
      * @see \Illuminate\Routing\CreatesRegularExpressionRouteConstraints::whereUuid()
      */
-    private const string LARAVEL_UUID_REGEX =
-        '[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}';
+    private const string LARAVEL_UUID_REGEX
+        = '[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}';
 
     /**
      * Regex Laravel's `Route::whereNumber()` writes into `$route->wheres`.

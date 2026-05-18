@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
@@ -18,7 +19,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\Finalizable;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\Resettable;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Override;
 
 use function count;
 use function sprintf;

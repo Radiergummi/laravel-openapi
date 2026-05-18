@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
 use InvalidArgumentException;
+use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
 
 use function array_map;
 use function implode;

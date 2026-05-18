@@ -9,6 +9,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
+use OpenApi\Annotations as OA;
+use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
@@ -18,9 +21,6 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\SpatieData\FilePropertyChecker;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\MultipartFileWithoutMultipart;
-use Illuminate\Routing\Route;
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithFileUploadData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithFileUploadDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\FileUploadFixtureController;

@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
 use Illuminate\Foundation\Http\FormRequest;
+use Radiergummi\OpenApi\Core\Attributes\RequestField;
 
 /**
  * Fixture FormRequest with a mix of rules for unit-test coverage of

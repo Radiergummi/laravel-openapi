@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;

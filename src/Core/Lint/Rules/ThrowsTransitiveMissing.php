@@ -11,15 +11,15 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Override;
 use phpDocumentor\Reflection\DocBlock\Tags\Throws;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use phpDocumentor\Reflection\Types\ContextFactory;
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\LintContext;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
+use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;

@@ -11,13 +11,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use OpenApi\Annotations as OA;
 
 use function in_array;
 use function sprintf;

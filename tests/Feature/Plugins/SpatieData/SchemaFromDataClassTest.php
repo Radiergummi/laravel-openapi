@@ -11,20 +11,20 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 
+use OpenApi\Annotations as OA;
+use OpenApi\Generator;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
-use OpenApi\Annotations as OA;
-use OpenApi\Generator;
-use Psr\Log\NullLogger;
-use Spatie\LaravelData\Support\DataConfig;
-use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Alpha\SelfRefData as AlphaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\MapInputNameFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
+use Spatie\LaravelData\Support\DataConfig;
+use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi', 'plugin:spatie-data');
 

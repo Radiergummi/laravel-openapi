@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Routing\Controller;
+use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Core\Attributes\Example;
 use Radiergummi\OpenApi\Core\Attributes\ExternalDocs;
 use Radiergummi\OpenApi\Core\Attributes\Header;
@@ -23,10 +27,6 @@ use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
 use Radiergummi\OpenApi\Core\Attributes\Security;
 use Radiergummi\OpenApi\Core\Attributes\Webhook;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Routing\Controller;
-use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 
 /**

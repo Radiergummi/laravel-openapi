@@ -9,16 +9,16 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Tests\Fixtures\Action;
+use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Lint\SuppressionScope;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Illuminate\Routing\Route;
-use Spatie\LaravelData\Data;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedFixtureController;
+use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
 

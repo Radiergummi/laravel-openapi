@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controller;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Route as RouteFacade;
 use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
 use Radiergummi\OpenApi\Core\Extractors\StandardResponsesExtractor;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
@@ -19,15 +23,11 @@ use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Routing\Controller;
-use Illuminate\Routing\Route;
-use Illuminate\Support\Facades\Route as RouteFacade;
+use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
+use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 use ReflectionMethod;
 use RuntimeException;
 use Symfony\Component\Yaml\Yaml;
-use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 
 uses()->group('openapi');
 

@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Illuminate\Support\Facades\Route;
-use Symfony\Component\Yaml\Yaml;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Auth\AuthFixtureController;
+use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 

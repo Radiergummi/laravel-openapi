@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
 
 function isUndefined(mixed $value): bool
 {

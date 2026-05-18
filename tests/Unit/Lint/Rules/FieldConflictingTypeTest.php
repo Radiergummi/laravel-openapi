@@ -9,6 +9,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
+use OpenApi\Annotations as OA;
+use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
@@ -16,13 +19,10 @@ use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Illuminate\Routing\Route;
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Spatie\LaravelData\Data;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ConflictingTypeFixtureController;
+use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
 

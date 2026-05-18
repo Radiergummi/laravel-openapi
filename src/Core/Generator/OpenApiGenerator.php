@@ -11,14 +11,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Illuminate\Support\Str;
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\Hide;
 use Radiergummi\OpenApi\Core\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Illuminate\Support\Str;
-use OpenApi\Annotations as OA;
 use ReflectionAttribute;
 use ReflectionException;
 use RuntimeException;

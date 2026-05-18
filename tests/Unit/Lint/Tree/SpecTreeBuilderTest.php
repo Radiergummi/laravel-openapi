@@ -9,15 +9,15 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
+use OpenApi\Context;
+use OpenApi\Generator;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\SpecTreeBuilder;
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use OpenApi\Generator;
 
 uses()->group('openapi', 'lint', 'tree');
 

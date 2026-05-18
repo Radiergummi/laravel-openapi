@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ApiRule as ApiRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Override;
 
 use function array_keys;
 use function array_slice;

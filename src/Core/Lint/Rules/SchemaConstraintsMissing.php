@@ -11,6 +11,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use OpenApi\Annotations as OA;
+use OpenApi\Generator;
+use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
@@ -18,9 +21,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ComponentSchemaRule as Componen
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\FieldRule as FieldRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use OpenApi\Annotations as OA;
-use OpenApi\Generator;
-use Override;
 
 use function is_array;
 use function sprintf;

@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Mockery;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');

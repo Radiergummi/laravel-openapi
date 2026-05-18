@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Illuminate\Foundation\Http\FormRequest;
 
 /**
  * Core request-schema resolver

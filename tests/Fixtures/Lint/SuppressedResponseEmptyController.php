@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
 use Illuminate\Http\JsonResponse;
+use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
 
 /**
  * Fixture identical to {@see ResponseEmptyController} but with an additional

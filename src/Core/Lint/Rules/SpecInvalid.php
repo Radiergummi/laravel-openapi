@@ -11,18 +11,18 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingLocation;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ApiRule as ApiRuleVisitor;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use InvalidArgumentException;
 use JsonException;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 use Override;
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\FindingLocation;
+use Radiergummi\OpenApi\Core\Lint\LintContext;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ApiRule as ApiRuleVisitor;
+use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use RuntimeException;
 
 use function array_slice;

@@ -9,12 +9,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Core\Extractors\StandardResponsesExtractor;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
-use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Tests\Fixtures\FixtureErrorResponseFactory;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
 

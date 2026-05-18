@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\FieldRule as FieldRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use Override;
 
 use function preg_match;
 use function sprintf;

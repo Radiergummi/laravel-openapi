@@ -9,10 +9,10 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route as RoutingRoute;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Illuminate\Routing\Route as RoutingRoute;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
@@ -123,7 +123,7 @@ it('resolves SuppressionCollector with request_payload_indirection wired', funct
     // Without it the collector cannot follow Domain Action indirection, so
     // #[IgnoreLint] on a Data class injected via an Action is silently ignored.
     config()->set('openapi.request_payload_indirection', [
-        \Radiergummi\OpenApi\Tests\Fixtures\Action::class,
+        Radiergummi\OpenApi\Tests\Fixtures\Action::class,
     ]);
     $this->app->forgetScopedInstances();
 

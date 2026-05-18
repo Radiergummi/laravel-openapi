@@ -9,6 +9,7 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\MetaNoSuppressionReason;
 use Radiergummi\OpenApi\Core\Lint\Rules\MetaUnknownRule;
@@ -16,7 +17,6 @@ use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Lint\SuppressionScope;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use OpenApi\Annotations as OA;
 
 uses()->group('openapi', 'lint');
 

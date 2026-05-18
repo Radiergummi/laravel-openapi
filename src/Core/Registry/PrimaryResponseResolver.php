@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Registry;
 
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
 /**
  * Resolves the primary success response (`200 OK`) for a single controller action.

@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use OpenApi\Annotations as OA;
 
 use function array_any;
 use function is_a;

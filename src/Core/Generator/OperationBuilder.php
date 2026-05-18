@@ -11,6 +11,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Deprecated;
+use InvalidArgumentException;
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\BaseExample as BaseExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Example as ExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ExternalDocs as ExternalDocsAttribute;
@@ -33,9 +36,6 @@ use Radiergummi\OpenApi\Core\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
-use Deprecated;
-use InvalidArgumentException;
-use OpenApi\Annotations as OA;
 use ReflectionAttribute;
 use ReflectionException;
 use ReflectionParameter;

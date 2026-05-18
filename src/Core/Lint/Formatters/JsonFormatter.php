@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Formatters;
 
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LinterSummary;
 use JsonException;
 use Override;
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\LinterSummary;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function json_encode;

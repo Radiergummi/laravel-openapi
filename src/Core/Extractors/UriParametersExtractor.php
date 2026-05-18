@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Generator\SchemaDescriptor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Core\Routing\WhereKind;
-use OpenApi\Annotations as OA;
 use ReflectionAttribute;
 use ReflectionParameter;
 

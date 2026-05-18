@@ -9,13 +9,13 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
 use Symfony\Component\TypeInfo\Type\BuiltinType;
 use Symfony\Component\TypeInfo\Type\EnumType;
 use Symfony\Component\TypeInfo\Type\NullableType;
 use Symfony\Component\TypeInfo\TypeIdentifier;
-use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
 
 uses()->group('openapi');
 

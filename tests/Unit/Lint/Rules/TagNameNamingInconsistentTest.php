@@ -9,12 +9,12 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\TagNameNamingInconsistent;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use OpenApi\Annotations as OA;
 
 uses()->group('openapi', 'lint');
 

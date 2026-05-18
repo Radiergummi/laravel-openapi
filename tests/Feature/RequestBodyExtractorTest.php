@@ -11,7 +11,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Radiergummi\OpenApi\Tests\Fixtures\Action;
+use Illuminate\Routing\Route;
+use OpenApi\Annotations as OA;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Extractors\RequestBodyExtractor;
@@ -24,17 +26,15 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataClassRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
-use Illuminate\Routing\Route;
-use OpenApi\Annotations as OA;
-use Psr\Log\NullLogger;
-use ReflectionClass;
-use ReflectionMethod;
-use Spatie\LaravelData\Support\DataConfig;
-use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
+use ReflectionClass;
+use ReflectionMethod;
+use Spatie\LaravelData\Support\DataConfig;
+use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
 

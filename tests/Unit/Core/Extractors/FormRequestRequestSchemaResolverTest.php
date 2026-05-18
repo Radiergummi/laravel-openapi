@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Tests\Fixtures\Action;
+use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -18,7 +18,7 @@ use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;

@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Enums\ComponentType;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
 use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
-use OpenApi\Annotations as OA;
 
 use function array_key_exists;
 use function array_pop;

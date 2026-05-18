@@ -10,13 +10,13 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
-use Spatie\LaravelData\Support\DataConfig;
 use Radiergummi\OpenApi\Tests\Fixtures\AddressFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\CycleAFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\NestedParentData;
 use Radiergummi\OpenApi\Tests\Fixtures\PlainArrayData;
 use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
 use Radiergummi\OpenApi\Tests\Fixtures\ValidationRulesFixtureData;
+use Spatie\LaravelData\Support\DataConfig;
 
 uses()->group('openapi', 'plugin:spatie-data');
 

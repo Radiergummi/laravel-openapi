@@ -9,12 +9,12 @@
 
 declare(strict_types=1);
 
+use OpenApi\Generator;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Attributes\PathParam;
 use Radiergummi\OpenApi\Core\Extractors\UriParametersExtractor;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Routing\UriParameterDescriptor;
-use OpenApi\Generator;
-use Psr\Log\NullLogger;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 

@@ -11,14 +11,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
-use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Illuminate\Validation\Rules\Dimensions;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\Password;
+use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 
 use function array_key_exists;
 use function array_merge;

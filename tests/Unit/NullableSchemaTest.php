@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 
 uses()->group('openapi');
 

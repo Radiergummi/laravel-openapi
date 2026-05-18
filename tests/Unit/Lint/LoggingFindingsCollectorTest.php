@@ -9,10 +9,10 @@
 
 declare(strict_types=1);
 
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\LoggingFindingsCollector;
-use Psr\Log\LoggerInterface;
 
 uses()->group('openapi', 'lint');
 

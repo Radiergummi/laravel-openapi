@@ -11,13 +11,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Routing;
 
-use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Closure;
 use Generator;
 use Illuminate\Container\Container;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Routing\Router;
+use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;

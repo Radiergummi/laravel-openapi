@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 
 use function is_string;
 use function preg_match;

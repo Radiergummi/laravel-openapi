@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Attributes;
 
-use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Attribute;
+use Radiergummi\OpenApi\Core\Enums\MediaType;
 
 /**
  * Documents an additional response for an operation — typically an error

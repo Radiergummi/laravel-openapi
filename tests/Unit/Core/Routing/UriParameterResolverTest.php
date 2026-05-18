@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
 use Illuminate\Contracts\Routing\UrlRoutable;
+use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('routing', 'openapi');

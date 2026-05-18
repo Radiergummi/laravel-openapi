@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Attributes;
 
-use Radiergummi\OpenApi\Core\Generator\SchemaDescriptor;
 use BackedEnum;
+use Radiergummi\OpenApi\Core\Generator\SchemaDescriptor;
 
 /**
  * Abstract base for the scope-specific field attributes.

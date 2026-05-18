@@ -9,12 +9,12 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Log;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
+use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 

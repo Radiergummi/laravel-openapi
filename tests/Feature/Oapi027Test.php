@@ -11,17 +11,17 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
-use Psr\Log\NullLogger;
-use Spatie\LaravelData\Support\DataConfig;
-use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\BaseShapeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\CircleData;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\RectangleData;
+use Spatie\LaravelData\Support\DataConfig;
+use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
 

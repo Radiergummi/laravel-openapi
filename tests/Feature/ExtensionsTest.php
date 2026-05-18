@@ -11,13 +11,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Illuminate\Support\Facades\Route;
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Illuminate\Support\Facades\Route;
-use OpenApi\Annotations as OA;
 use Spatie\LaravelData\Data;
 use Symfony\Component\Yaml\Yaml;
 

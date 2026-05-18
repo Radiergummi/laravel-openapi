@@ -11,12 +11,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Core\Attributes\Header;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Override;
 use ReflectionAttribute;
 
 use function array_merge;

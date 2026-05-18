@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
@@ -18,7 +19,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\SpatieData\FilePropertyChecker;
-use Override;
 use ReflectionException;
 use Spatie\LaravelData\Data;
 

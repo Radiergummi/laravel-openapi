@@ -11,14 +11,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Radiergummi\OpenApi\Attributes as OpenApi;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Symfony\Component\Yaml\Yaml;
+use Radiergummi\OpenApi\Attributes as OpenApi;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixture;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixtureData;
+use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -125,4 +125,3 @@ it('OAPI-011: inline schema wins over ref when both provided', function (): void
         ->and($response['content']['application/json']['schema']['$ref'])
         ->toBe('#/components/schemas/ActionFixtureData');
 });
-

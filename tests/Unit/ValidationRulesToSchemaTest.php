@@ -9,14 +9,14 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Dimensions;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\Password;
+use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
+use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 
 uses()->group('openapi');
 

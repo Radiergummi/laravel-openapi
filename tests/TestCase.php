@@ -12,7 +12,8 @@ use Spatie\LaravelData\LaravelDataServiceProvider;
 abstract class TestCase extends Orchestra
 {
     /**
-     * @param  \Illuminate\Foundation\Application  $app
+     * @param \Illuminate\Foundation\Application $app
+     *
      * @return list<class-string>
      */
     protected function getPackageProviders($app): array

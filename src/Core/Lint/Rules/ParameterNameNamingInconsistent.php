@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
@@ -18,7 +19,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ParameterRule as ParameterRuleV
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\QueryParameterRule as QueryParameterRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
-use Override;
 
 use function in_array;
 use function sprintf;

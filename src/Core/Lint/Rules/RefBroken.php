@@ -11,6 +11,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use OpenApi\Annotations as OA;
+use OpenApi\Generator;
+use Override;
 use Radiergummi\OpenApi\Core\Enums\ComponentType;
 use Radiergummi\OpenApi\Core\Lint\AnnotationWalker;
 use Radiergummi\OpenApi\Core\Lint\Finding;
@@ -18,9 +21,6 @@ use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ApiRule as ApiRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use OpenApi\Annotations as OA;
-use OpenApi\Generator;
-use Override;
 
 use function is_string;
 use function preg_match;

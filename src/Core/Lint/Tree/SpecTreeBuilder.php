@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Tree;
 
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use LogicException;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
 use function array_map;
 use function in_array;

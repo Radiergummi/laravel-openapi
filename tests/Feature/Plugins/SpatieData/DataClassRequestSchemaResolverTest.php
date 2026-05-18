@@ -11,7 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 
-use Radiergummi\OpenApi\Tests\Fixtures\Action;
+use Illuminate\Routing\Route;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
@@ -22,16 +23,15 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataClassRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
-use Illuminate\Routing\Route;
-use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
+use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
+use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
-use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
-use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
 
 uses()->group('openapi', 'plugin:spatie-data');
 

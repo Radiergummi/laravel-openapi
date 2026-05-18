@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use Override;
+use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
 use function strtoupper;
 

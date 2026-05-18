@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\SecurityExtractor;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
+use Radiergummi\OpenApi\Core\Extractors\SecurityExtractor;
 
 uses()->group('openapi');
 

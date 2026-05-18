@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Illuminate\Http\UploadedFile;
+use OpenApi\Annotations as OA;
+use OpenApi\Generator;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Attributes\Discriminator as DiscriminatorAttribute;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
@@ -19,10 +23,6 @@ use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Generator\NullableSchema;
-use Illuminate\Http\UploadedFile;
-use OpenApi\Annotations as OA;
-use OpenApi\Generator;
-use Psr\Log\LoggerInterface;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;

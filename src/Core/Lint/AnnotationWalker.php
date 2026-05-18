@@ -11,9 +11,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
-use Radiergummi\OpenApi\Core\Enums\ComponentType;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Core\Enums\ComponentType;
 
 use function is_array;
 use function property_exists;

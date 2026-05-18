@@ -9,12 +9,12 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
+use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\SpecInvalid;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 
 uses()->group('openapi', 'lint');
 

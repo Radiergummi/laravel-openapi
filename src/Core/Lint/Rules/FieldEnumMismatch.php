@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use BackedEnum;
+use Override;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use BackedEnum;
-use Override;
 use ReflectionNamedType;
 use ReflectionProperty;
 

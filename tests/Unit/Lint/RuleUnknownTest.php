@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
-use Illuminate\Contracts\Validation\ValidationRule;
 
 uses()->group('openapi', 'lint');
 

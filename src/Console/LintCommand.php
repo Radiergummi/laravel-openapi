@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
+use Illuminate\Console\Command;
+use Illuminate\Contracts\Container\BindingResolutionException;
+use InvalidArgumentException;
+use Laravel\Passport\Passport;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Finding;
@@ -32,10 +36,6 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Illuminate\Console\Command;
-use Illuminate\Contracts\Container\BindingResolutionException;
-use InvalidArgumentException;
-use Laravel\Passport\Passport;
 use ReflectionException;
 use Symfony\Component\Process\Exception\LogicException;
 use Symfony\Component\Process\Exception\ProcessSignaledException;
