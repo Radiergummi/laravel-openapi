@@ -1,0 +1,87 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Core\Lint\Rules;
+
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\LintContext;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
+use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Override;
+
+use function array_diff;
+use function count;
+use function sprintf;
+
+/**
+ * Reports when an operation's only OAuth scope is the wildcard `*` and more
+ * specific scopes are available in Passport. Using `*` alone defeats the
+ * purpose of scope-based access control.
+ */
+final class ScopeOverlyBroad implements Rule, OperationRuleVisitor
+{
+    /**
+     * @param null|list<string> $registeredScopes Known scope identifiers.
+     *                                            When null, scopes are resolved
+     *                                            from the context index.
+     */
+    public function __construct(private readonly ?array $registeredScopes = null) {}
+
+    /**
+     * @return iterable<Finding>
+     */
+    #[Override]
+    public function checkOperation(OperationNode $operation, LintContext $context): iterable
+    {
+        $knownScopes = $this->registeredScopes ?? $context->index->registeredScopes;
+
+        // If there are no specific scopes registered (empty, or only the
+        // wildcard regardless of its position), there is nothing to flag.
+        if (array_diff($knownScopes, ['*']) === []) {
+            return;
+        }
+
+        foreach ($operation->security as $requirement) {
+            $scopeList = $requirement['scopes'];
+
+            if (count($scopeList) === 1 && $scopeList[0] === '*') {
+                yield new Finding(
+                    ruleId: $this->id(),
+                    level: $this->level(),
+                    message: sprintf(
+                        'Operation %s %s uses only the wildcard scope "*" — consider using more specific scopes',
+                        $operation->method,
+                        $operation->pathUri,
+                    ),
+                    fixHint: 'Replace the "*" scope with specific scopes from Passport::tokensCan().',
+                );
+            }
+        }
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'scope.overly-broad';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 3;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Operation requires a scope that is broader than the resource warrants.';
+    }
+}
