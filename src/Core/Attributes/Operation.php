@@ -27,9 +27,7 @@ use Attribute;
  * explicitly provided ones. For purely additive tagging, prefer {@see Tag}.
  *
  * **Streaming:** set `streaming: true` to advertise `text/event-stream` as the
- * response content type. This is automatically detected when the controller
- * method's return type is `StreamedResponse`, so the attribute is only needed
- * when the method hides the return type behind a union or `Response` base class.
+ * response content type when generating the OpenAPI spec.
  *
  * ```php
  * // Merge: operation gets both the namespace tag AND 'Search'
@@ -51,10 +49,9 @@ final readonly class Operation
      *                                     Whether they merge or replace depends on {@see $replace}.
      * @param bool              $replace   When true, `$tags` replaces the namespace-derived set
      *                                     entirely. When false (default), they are merged.
-     * @param bool              $streaming When true, the 200 response advertises
-     *                                     `text/event-stream` instead of the default JSON response
-     *                                     media type. Auto-detected when the return type is
-     *                                     `StreamedResponse`.
+     * @param bool              $streaming When true, advertises `text/event-stream` as the
+     *                                     response media type in the OpenAPI spec instead of
+     *                                     the default JSON response media type.
      */
     public function __construct(
         public ?string $summary = null,
