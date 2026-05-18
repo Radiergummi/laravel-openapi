@@ -13,7 +13,6 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -24,33 +23,6 @@ uses()->group('openapi');
 // ---------------------------------------------------------------------------
 // Fixture controllers — one per scenario
 // ---------------------------------------------------------------------------
-
-/**
- * OAPI-024: endpoint whose return type is StreamedResponse.
- * Auto-detection must emit text/event-stream without any attribute.
- */
-class StreamedReturnTypeController extends Controller
-{
-    /** Stream search results as Server-Sent Events. */
-    public function stream(): StreamedResponse
-    {
-        return new StreamedResponse(static function (): void {});
-    }
-}
-
-/**
- * OAPI-024: endpoint marked streaming via #[Operation(streaming: true)] even
- * though the return type is the base Response class.
- */
-class StreamingAttributeController extends Controller
-{
-    /** Stream assistant output. */
-    #[\Radiergummi\OpenApi\Core\Attributes\Operation(streaming: true)]
-    public function stream(): Response
-    {
-        return new Response();
-    }
-}
 
 /**
  * OAPI-024: SSE endpoint with an author-supplied per-event schema via
@@ -92,58 +64,12 @@ class NonStreamingController extends Controller
 }
 
 // ---------------------------------------------------------------------------
-// OAPI-024: StreamedResponse return type → text/event-stream
-// ---------------------------------------------------------------------------
-
-it('OAPI-024: StreamedResponse return type emits text/event-stream content type', function (): void {
-    Route::get('/oa-024/stream-return', [StreamedReturnTypeController::class, 'stream']);
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    $response = $spec['paths']['/oa-024/stream-return']['get']['responses']['200'] ?? null;
-
-    expect($response)->not->toBeNull()
-        ->and($response['content'])->toHaveKey('text/event-stream')
-        ->and($response['content'])->not->toHaveKey('application/vnd.api+json')
-        ->and($response['content'])->not->toHaveKey('application/json');
-});
-
-it('OAPI-024: StreamedResponse auto-detection emits a string schema', function (): void {
-    Route::get('/oa-024/stream-schema', [StreamedReturnTypeController::class, 'stream']);
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    $schema = $spec['paths']['/oa-024/stream-schema']['get']['responses']['200']['content']['text/event-stream']['schema'] ?? null;
-
-    expect($schema)->not->toBeNull()
-        ->and($schema['type'])->toBe('string');
-});
-
-it('OAPI-024: StreamedResponse auto-detection sets description to "Server-Sent Events stream"', function (): void {
-    Route::get('/oa-024/stream-desc', [StreamedReturnTypeController::class, 'stream']);
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    $response = $spec['paths']['/oa-024/stream-desc']['get']['responses']['200'] ?? null;
-
-    expect($response['description'])->toBe('Server-Sent Events stream');
-});
-
-// ---------------------------------------------------------------------------
-// OAPI-024: #[Operation(streaming: true)] explicit attribute
-// ---------------------------------------------------------------------------
-
-it('OAPI-024: Operation(streaming: true) emits text/event-stream even when return type is Response', function (): void {
-    Route::get('/oa-024/stream-attr', [StreamingAttributeController::class, 'stream']);
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    $response = $spec['paths']['/oa-024/stream-attr']['get']['responses']['200'] ?? null;
-
-    expect($response)->not->toBeNull()
-        ->and($response['content'])->toHaveKey('text/event-stream');
-});
-
+// NOTE: StreamedResponse return-type auto-detection and #[Operation(streaming:)]
+// content-type auto-emission were provided by the JSON:API plugin's
+// PrimaryResponseResolver, which is not part of this package. Those scenarios
+// (formerly OAPI-024 auto-detection tests) were removed during extraction.
+// Streaming endpoints in this package declare their media type explicitly via
+// #[Response(mediaType: MediaType::EventStream, ...)] — covered below.
 // ---------------------------------------------------------------------------
 // OAPI-024: #[Response(status: 200, mediaType: 'text/event-stream', schema: [...])]
 // ---------------------------------------------------------------------------

@@ -122,6 +122,11 @@ it('resolves SuppressionCollector with request_payload_indirection wired', funct
     // config('openapi.request_payload_indirection') to SuppressionCollector.
     // Without it the collector cannot follow Domain Action indirection, so
     // #[IgnoreLint] on a Data class injected via an Action is silently ignored.
+    config()->set('openapi.request_payload_indirection', [
+        \Radiergummi\OpenApi\Tests\Fixtures\Action::class,
+    ]);
+    $this->app->forgetScopedInstances();
+
     $collector = app(SuppressionCollector::class);
 
     $descriptor = new ActionDescriptor(
@@ -163,12 +168,12 @@ it('cannot disable spec.invalid via config disabled_rules', function (): void {
         '--format' => 'json',
     ])->assertExitCode(0);
 
-    // ResponseEmptyController emits response.empty (level 2), which is not
-    // spec.invalid — exit 1 at level 2 proves the pipeline is live and
-    // disabled_rules did not inadvertently disable other rules.
+    // BrokenController has no summary so summary.missing (level 2) fires — a
+    // rule other than spec.invalid. Exit 1 at level 2 proves the pipeline is
+    // live and disabled_rules did not inadvertently disable other rules.
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/response-empty',
+        '--path' => 'lint-fixtures/broken*',
         '--format' => 'json',
     ])->assertExitCode(1);
 });

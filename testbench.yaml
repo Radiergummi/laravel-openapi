@@ -1,0 +1,7 @@
+providers:
+  - Spatie\LaravelData\LaravelDataServiceProvider
+  - Laravel\Passport\PassportServiceProvider
+  - Radiergummi\OpenApi\OpenApiServiceProvider
+
+env:
+  - CACHE_STORE=array

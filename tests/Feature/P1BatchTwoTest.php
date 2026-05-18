@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Symfony\Component\Yaml\Yaml;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixture;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixtureData;
 
@@ -70,6 +71,8 @@ class InlineSchemaRefController extends Controller
 // ---------------------------------------------------------------------------
 
 it('OAPI-010: extracts request body from Action constructor Data parameter', function (): void {
+    config()->set('openapi.request_payload_indirection', [Action::class]);
+
     \Illuminate\Support\Facades\Route::post(
         '/oa-p1b2/action-pattern',
         [ActionPatternController::class, 'store'],

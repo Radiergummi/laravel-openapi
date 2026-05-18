@@ -20,7 +20,7 @@ uses()->group('openapi', 'lint');
 
 beforeEach(function (): void {
     $this->schemaPath
-        = dirname(__DIR__, 5) . '/../resources/openapi/oas-3.1-schema.json';
+        = dirname(__DIR__, 4) . '/resources/openapi/oas-3.1-schema.json';
 });
 
 function makeApiNodeForSpec(OA\OpenApi $spec): ApiNode

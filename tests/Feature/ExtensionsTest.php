@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
+use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
@@ -187,10 +188,15 @@ it('passes null sourceClass for named schemas', function (): void {
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    // Named schemas — shared envelopes registered via registerNamed() (e.g. by plugins) —
+    // carry no originating Data/Resource class. The SchemaContext must reflect that.
+    (new ComponentSchemaRegistry())->registerNamed(
+        'SharedEnvelope',
+        new OA\Schema(['type' => 'object']),
+    );
 
-    // Named schemas are always registered without a source class.
     expect($namedCtx)->not->toBeNull()
+        ->and($namedCtx->componentKey)->toBe('SharedEnvelope')
         ->and($namedCtx->sourceClass)->toBeNull();
 });
 

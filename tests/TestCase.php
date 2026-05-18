@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests;
 
+use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
+use Spatie\LaravelData\LaravelDataServiceProvider;
 
 abstract class TestCase extends Orchestra
 {
@@ -15,6 +17,36 @@ abstract class TestCase extends Orchestra
      */
     protected function getPackageProviders($app): array
     {
-        return [OpenApiServiceProvider::class];
+        return [
+            LaravelDataServiceProvider::class,
+            PassportServiceProvider::class,
+            OpenApiServiceProvider::class,
+        ];
+    }
+
+    /**
+     * Mirror the package's example-payload fixtures into the Testbench skeleton app so that
+     * `base_path()`-relative resources resolve.
+     *
+     * Code paths such as {@see \Radiergummi\OpenApi\Core\Generator\ExampleFileLoader} resolve
+     * `file:` example payloads relative to the host-app root. In the test environment the host
+     * app is the Testbench skeleton, so the package fixtures must be made available there.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $source = dirname(__DIR__) . '/tests/Fixtures/OpenApi/example_payloads';
+        $destination = base_path('tests/Fixtures/OpenApi/example_payloads');
+
+        if (!is_dir($source)) {
+            return;
+        }
+
+        @mkdir($destination, 0o777, true);
+
+        foreach ((array) glob($source . '/*') as $file) {
+            @copy($file, $destination . '/' . basename((string) $file));
+        }
     }
 }
