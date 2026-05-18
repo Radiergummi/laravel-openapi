@@ -254,4 +254,20 @@ return [
         'playground' => ['enabled' => env('APP_ENV') === 'local', 'uri' => 'docs'],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Route Filters
+    |--------------------------------------------------------------------------
+    |
+    | Filters excluded from route discovery. Each entry is either an instance
+    | or a container-resolvable class name implementing the RouteFilter
+    | contract; returning true from `shouldSkip()` omits the route from the
+    | generated document.
+    |
+    */
+
+    'filters' => [
+        //
+    ],
+
 ];
