@@ -11,8 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use App\Domain\Action;
-use App\Models\Auth\User;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\User;
 
 /**
  * Fixture Action class whose constructor carries an {@see ActionFixtureData}

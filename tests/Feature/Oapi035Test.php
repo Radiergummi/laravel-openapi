@@ -14,7 +14,6 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Plugins\JsonApi\QueryParametersExtractor;
 
 uses()->group('openapi');
 
@@ -44,20 +43,6 @@ it('OAPI-035: ComponentSchemaRegistry is fresh after forgetScopedInstances', fun
 
     expect($second)->not->toBe($first)
         ->and($second->isRegisteredOrReserved($sentinel))->toBeFalse('state from the first run must not bleed into the second');
-});
-
-it('OAPI-035: QueryParametersExtractor is fresh after forgetScopedInstances', function (): void {
-    $first = app(QueryParametersExtractor::class);
-    $second_before_reset = app(QueryParametersExtractor::class);
-
-    // Within the same scope the container must return the same instance.
-    expect($second_before_reset)->toBe($first);
-
-    app()->forgetScopedInstances();
-
-    $after_reset = app(QueryParametersExtractor::class);
-
-    expect($after_reset)->not->toBe($first);
 });
 
 it('OAPI-035: ExampleFileLoader is fresh after forgetScopedInstances', function (): void {

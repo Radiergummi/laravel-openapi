@@ -27,7 +27,6 @@ beforeEach(function (): void {
     Route::post('/oa-fixture/webhook', [AuthoringFixtureController::class, 'webhookAction']);
     Route::get('/oa-fixture/throwing', [AuthoringFixtureController::class, 'throwingAction'])
         ->middleware(['auth:api', 'scope:projects', 'throttle:api']);
-    Route::get('/oa-fixture/explicit-resource', [AuthoringFixtureController::class, 'explicitResourceAction']);
     Route::get('/oa-fixture/throws-fixture', [AuthoringFixtureController::class, 'throwsFixtureAction']);
     Route::post('/oa-fixture/linked', [AuthoringFixtureController::class, 'linkedAction']);
     Route::post('/oa-fixture/multi-linked', [AuthoringFixtureController::class, 'multiLinkedAction']);
@@ -138,29 +137,12 @@ it('emits middleware-derived 401, 403, and 429 responses', function (): void {
         ->and($responses['429']['$ref'])->toBe('#/components/responses/TooManyRequests');
 });
 
-it('registers the shared JsonApiError schema as a component', function (): void {
-    expect($this->spec['components']['schemas'])->toHaveKey('JsonApiError')
-        ->and($this->spec['components']['schemas']['JsonApiError']['type'])->toBe('object')
-        ->and($this->spec['components']['schemas']['JsonApiError']['required'])->toBe(['errors']);
-});
-
-it('uses the explicit ResponseResource attribute over heuristics', function (): void {
-    $operation = $this->spec['paths']['/oa-fixture/explicit-resource']['get'];
-    $schema    = $operation['responses']['200']['content']['application/vnd.api+json']['schema'];
-
-    // collection: true was supplied → expect a collection envelope with `data: array`.
-    expect($schema['properties']['data']['type'])->toBe('array')
-        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/FieldFixtureResource');
-});
-
 it('resolves #[Throws] attribute from the exception class via use-statement resolution', function (): void {
     $responses = $this->spec['paths']['/oa-fixture/throws-fixture']['get']['responses'];
 
     expect($responses)
         ->toHaveKey('418')
-        ->and($responses['418']['description'])->toBe("I'm a teapot")
-        ->and($responses['418']['content']['application/vnd.api+json']['schema']['$ref'])
-        ->toBe('#/components/schemas/JsonApiError');
+        ->and($responses['418']['description'])->toBe("I'm a teapot");
 });
 
 it('omits routes marked with bare #[Hide]', function (): void {

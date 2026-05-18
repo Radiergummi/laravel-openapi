@@ -44,7 +44,7 @@ function metaRulesDirective(
         scope: SuppressionScope::ClassScope,
         file: 'F.php',
         line: 5,
-        targetClass: 'App\\Foo',
+        targetClass: 'Acme\\Foo',
     );
 }
 

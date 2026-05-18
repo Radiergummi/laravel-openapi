@@ -19,7 +19,7 @@ uses()->group('openapi');
 // ---------------------------------------------------------------------------
 
 /**
- * A generic indirection wrapper (stand-in for App\Domain\Action).
+ * A generic indirection wrapper (stand-in for a Domain Action base class).
  *
  * @internal
  */

@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use App\Domain\Action;
-use App\Models\Auth\User;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\User;
 
 /**
  * Fixture Action whose constructor carries {@see NoEffectFixtureData} —

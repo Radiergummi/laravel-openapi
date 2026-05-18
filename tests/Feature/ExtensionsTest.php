@@ -189,7 +189,7 @@ it('passes null sourceClass for named schemas', function (): void {
 
     app(OpenApiGenerator::class)->generate();
 
-    // Named schemas (e.g. JsonApiError) are always registered without a source class.
+    // Named schemas are always registered without a source class.
     expect($namedCtx)->not->toBeNull()
         ->and($namedCtx->sourceClass)->toBeNull();
 });

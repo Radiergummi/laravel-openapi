@@ -51,7 +51,7 @@ function staleDirective(
         scope: SuppressionScope::ClassScope,
         file: $file,
         line: 10,
-        targetClass: 'App\\Http\\Controllers\\Controller',
+        targetClass: 'Acme\\Http\\Controllers\\Controller',
     );
 }
 

@@ -18,8 +18,6 @@ use Illuminate\Routing\Controller;
 use Symfony\Component\Yaml\Yaml;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixture;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\FieldFixtureCollection;
-use Radiergummi\OpenApi\Tests\Fixtures\FieldFixtureResource;
 
 uses()->group('openapi');
 
@@ -64,30 +62,6 @@ class InlineSchemaRefController extends Controller
     public function show(): JsonResponse
     {
         return new JsonResponse();
-    }
-}
-
-/**
- * OAPI-012: union return type — one ApiResource branch + one JsonResponse branch.
- */
-class UnionReturnTypeController extends Controller
-{
-    public function show(): FieldFixtureResource|JsonResponse
-    {
-        return new JsonResponse();
-    }
-}
-
-/**
- * OAPI-015: collection endpoint whose route has a model-bound URI param
- * ({project}). Old logic returned false (single resource); new logic checks the
- * return type first and should return true.
- */
-class SubResourceCollectionController extends Controller
-{
-    public function index(string $project): FieldFixtureCollection
-    {
-        return new FieldFixtureCollection(collect());
     }
 }
 
@@ -149,48 +123,3 @@ it('OAPI-011: inline schema wins over ref when both provided', function (): void
         ->toBe('#/components/schemas/ActionFixtureData');
 });
 
-it('OAPI-012: union return type produces oneOf with resource and open schema branches', function (): void {
-    \Illuminate\Support\Facades\Route::get(
-        '/oa-p1b2/union-return',
-        [UnionReturnTypeController::class, 'show'],
-    );
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    $schema = $spec['paths']['/oa-p1b2/union-return']['get']['responses']['200']['content']['application/vnd.api+json']['schema'] ?? null;
-
-    expect($schema)->not->toBeNull()
-        ->and($schema)->toHaveKey('oneOf')
-        ->and($schema['oneOf'])->toHaveCount(2);
-
-    // One branch must be the JSON:API envelope wrapping FieldFixtureResource.
-    $refBranch = collect($schema['oneOf'])->first(
-        fn(array $s): bool => isset($s['properties']['data']['$ref'])
-            && str_contains($s['properties']['data']['$ref'], 'FieldFixtureResource'),
-    );
-    expect($refBranch)->not->toBeNull();
-
-    // The other branch must be the open schema for JsonResponse.
-    $openBranch = collect($schema['oneOf'])->first(
-        fn(array $s): bool => !isset($s['properties']) && !isset($s['$ref']),
-    );
-    expect($openBranch)->not->toBeNull();
-});
-
-it('OAPI-015: collection return type detected as collection even with model-bound URI param', function (): void {
-    \Illuminate\Support\Facades\Route::get(
-        '/oa-p1b2/projects/{project}/entries',
-        [SubResourceCollectionController::class, 'index'],
-    );
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    // ResponseSchemaExtractor falls back to placeholder when no resource class
-    // is resolved — but isCollectionEndpoint() must return true for the
-    // ResourceClassResolver. We verify indirectly: if the schema has a
-    // data: { type: array } envelope it's a collection; data: { $ref } is single.
-    // Since FieldFixtureCollection doesn't carry a #[UseResource] and doesn't
-    // resolve via heuristics (no model binding), the extractor returns a
-    // placeholder 200 OK — which is fine. The real test is the unit test below.
-    expect($spec['paths'])->toHaveKey('/oa-p1b2/projects/{project}/entries');
-});

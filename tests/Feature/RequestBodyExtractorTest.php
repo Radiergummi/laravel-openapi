@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use App\Domain\Action;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Extractors\RequestBodyExtractor;

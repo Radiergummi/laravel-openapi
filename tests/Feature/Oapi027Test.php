@@ -14,18 +14,14 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Plugins\JsonApi\SchemaFromApiResource;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
 use Psr\Log\NullLogger;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
-use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\BaseEventResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\BaseShapeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\CircleData;
-use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\MessageEventResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\RectangleData;
-use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\StatusEventResource;
 
 uses()->group('openapi');
 
@@ -47,15 +43,6 @@ function oapi027DataRegistry(): ComponentSchemaRegistry
     );
 
     $builder->build(BaseShapeData::class);
-
-    return $registry;
-}
-
-function oapi027ResourceRegistry(): ComponentSchemaRegistry
-{
-    $registry = new ComponentSchemaRegistry();
-    $extractor = new SchemaFromApiResource($registry);
-    $extractor->build(BaseEventResource::class);
 
     return $registry;
 }
@@ -143,53 +130,4 @@ it('OAPI-027: variant Data class schemas are flat objects with their own propert
         ->and($rectangle)->toHaveKey('properties')
         ->and($rectangle['properties'])->toHaveKey('width')
         ->and($rectangle['properties'])->toHaveKey('height');
-});
-
-// ---------------------------------------------------------------------------
-// ApiResource (SchemaFromApiResource) tests
-// ---------------------------------------------------------------------------
-
-it('OAPI-027: base ApiResource with #[Discriminator] emits oneOf instead of a flat JSON:API object', function (): void {
-    $registry = oapi027ResourceRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseEventResource::class);
-
-    expect($decoded)->toHaveKey('oneOf')
-        ->and($decoded)->not->toHaveKey('properties');
-});
-
-it('OAPI-027: base ApiResource oneOf lists $ref entries for each variant', function (): void {
-    $registry = oapi027ResourceRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseEventResource::class);
-
-    $refs = array_column($decoded['oneOf'], '$ref');
-
-    expect($refs)->toContain('#/components/schemas/MessageEventResource')
-        ->and($refs)->toContain('#/components/schemas/StatusEventResource');
-});
-
-it('OAPI-027: base ApiResource emits discriminator.propertyName', function (): void {
-    $registry = oapi027ResourceRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseEventResource::class);
-
-    expect($decoded)->toHaveKey('discriminator')
-        ->and($decoded['discriminator']['propertyName'])->toBe('type');
-});
-
-it('OAPI-027: base ApiResource discriminator.mapping points to $ref strings', function (): void {
-    $registry = oapi027ResourceRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseEventResource::class);
-
-    $mapping = $decoded['discriminator']['mapping'] ?? [];
-
-    expect($mapping)->toHaveKey('message')
-        ->and($mapping['message'])->toBe('#/components/schemas/MessageEventResource')
-        ->and($mapping)->toHaveKey('status')
-        ->and($mapping['status'])->toBe('#/components/schemas/StatusEventResource');
-});
-
-it('OAPI-027: variant ApiResource schemas are registered as independent component schemas', function (): void {
-    $registry = oapi027ResourceRegistry();
-
-    expect($registry->isRegisteredOrReserved(MessageEventResource::class))->toBeTrue()
-        ->and($registry->isRegisteredOrReserved(StatusEventResource::class))->toBeTrue();
 });

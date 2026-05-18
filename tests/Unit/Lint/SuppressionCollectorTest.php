@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use App\Domain\Action;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Lint\SuppressionScope;

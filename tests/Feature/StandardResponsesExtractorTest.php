@@ -14,8 +14,8 @@ use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
-use Radiergummi\OpenApi\Plugins\JsonApi\JsonApiErrorResponseFactory;
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Tests\Fixtures\FixtureErrorResponseFactory;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
 
 uses()->group('openapi', 'openapi-standard-responses-extractor');
@@ -35,7 +35,7 @@ function makeExtractor(array $exceptionMap = [], array $middlewareMap = []): Sta
     return new StandardResponsesExtractor(
         registry: $registry,
         findings: new ArrayFindingsCollector(),
-        errorResponseFactories: [new JsonApiErrorResponseFactory($registry)],
+        errorResponseFactories: [new FixtureErrorResponseFactory($registry)],
         exceptionMap: $exceptionMap,
         middlewareMap: $middlewareMap,
     );

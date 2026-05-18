@@ -14,7 +14,6 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Plugins\JsonApi\SchemaFromApiResource;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
 use OpenApi\Annotations as OA;
@@ -23,7 +22,6 @@ use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedFieldFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedFieldFixtureResource;
 use Radiergummi\OpenApi\Tests\Fixtures\StatusFixtureEnum;
 
 uses()->group('openapi');
@@ -93,47 +91,6 @@ it('OAPI-031: @deprecated PHPDoc on a Data property emits deprecated: true on th
 
     expect($props)->toHaveKey('legacy');
     expect($props['legacy']->deprecated)->toBeTrue();
-});
-
-// ---------------------------------------------------------------------------
-// OAPI-031: per-field #[\Deprecated] on ApiResource FIELD_* constants
-// ---------------------------------------------------------------------------
-
-function oapi031BuildResourceSchema(string $resourceClass): OA\Schema
-{
-    $registry  = new ComponentSchemaRegistry();
-    $extractor = new SchemaFromApiResource($registry);
-    $extractor->build($resourceClass);
-
-    return $registry->all()[0];
-}
-
-/**
- * @return array<string, mixed>
- */
-function oapi031AttributeProperties(string $resourceClass): array
-{
-    $schema  = oapi031BuildResourceSchema($resourceClass);
-    $decoded = json_decode($schema->toJson(), associative: true, flags: JSON_THROW_ON_ERROR);
-
-    return $decoded['properties']['attributes']['schema']['properties']
-        ?? $decoded['properties']['attributes']['properties']
-        ?? [];
-}
-
-it('OAPI-031: non-deprecated ApiResource FIELD_* constant does not emit deprecated: true', function (): void {
-    $props = oapi031AttributeProperties(DeprecatedFieldFixtureResource::class);
-
-    expect($props)->toHaveKey('active');
-    expect($props['active'])->not->toHaveKey('deprecated');
-});
-
-it('OAPI-031: #[\\Deprecated] on ApiResource FIELD_* constant emits deprecated: true on the property', function (): void {
-    $props = oapi031AttributeProperties(DeprecatedFieldFixtureResource::class);
-
-    expect($props)->toHaveKey('legacy');
-    expect($props['legacy'])->toHaveKey('deprecated');
-    expect($props['legacy']['deprecated'])->toBeTrue();
 });
 
 // ---------------------------------------------------------------------------

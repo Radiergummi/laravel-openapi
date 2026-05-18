@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use App\Domain\Action;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;

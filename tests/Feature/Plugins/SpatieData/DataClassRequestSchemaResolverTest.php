@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 
-use App\Domain\Action;
+use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
@@ -152,8 +152,8 @@ it('returns null when the ActionDescriptor has no method', function (): void {
 // OAPI-010: Action constructor descent (indirection via scanner)
 // ---------------------------------------------------------------------------
 
-it('extracts a Data class from an Action constructor when the scanner is configured with App\\Domain\\Action', function (): void {
-    // ActionFixture extends App\Domain\Action and carries ActionFixtureData in its constructor.
+it('extracts a Data class from an Action constructor when the scanner is configured with an indirection class', function (): void {
+    // ActionFixture extends the package-local Action fixture and carries ActionFixtureData in its constructor.
     // The resolver must find ActionFixtureData via the scanner's indirection descent.
     $controller = new class () {
         public function store(\Radiergummi\OpenApi\Tests\Fixtures\ActionFixture $action): void {}

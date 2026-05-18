@@ -20,7 +20,6 @@ use Radiergummi\OpenApi\Core\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Core\Attributes\RequestBody;
 use Radiergummi\OpenApi\Core\Attributes\Response;
 use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Core\Attributes\Security;
 use Radiergummi\OpenApi\Core\Attributes\Webhook;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -28,7 +27,6 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Tests\Fixtures\FieldFixtureResource;
 use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 
 /**
@@ -79,12 +77,6 @@ class AuthoringFixtureController extends Controller
      * @noinspection PhpDocRedundantThrowsInspection
      */
     public function throwingAction(): array
-    {
-        return [];
-    }
-
-    #[ResponseResource(FieldFixtureResource::class, collection: true)]
-    public function explicitResourceAction(): array
     {
         return [];
     }

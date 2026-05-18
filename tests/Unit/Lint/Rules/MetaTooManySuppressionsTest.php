@@ -47,7 +47,7 @@ function tooManyDirectives(int $count, string $file): array
             scope: SuppressionScope::ClassScope,
             file: $file,
             line: $i + 1,
-            targetClass: 'App\\Foo',
+            targetClass: 'Acme\\Foo',
         );
     }
 

@@ -13,7 +13,6 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Plugins\JsonApi\JsonApiPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataClassRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 
@@ -23,13 +22,12 @@ it('exposes lint.level defaulting to 1', function (): void {
     expect(config('openapi.lint.level'))->toBe(1);
 });
 
-it('lists both default plugins in config', function (): void {
+it('lists the default plugins in config', function (): void {
     expect(config('openapi.plugins'))
-        ->toContain(SpatieDataPlugin::class)
-        ->toContain(JsonApiPlugin::class);
+        ->toContain(SpatieDataPlugin::class);
 });
 
-it('resolves a registry with core and plugin resolvers when both plugins are enabled', function (): void {
+it('resolves a registry with core and plugin resolvers when the plugins are enabled', function (): void {
     $registry = app(OpenApiRegistry::class);
 
     expect($registry->requestSchemaResolvers())

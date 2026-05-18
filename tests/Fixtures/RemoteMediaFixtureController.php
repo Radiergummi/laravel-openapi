@@ -11,12 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use App\Http\Requests\Global\RemoteMediaRequest;
 use Illuminate\Routing\Controller;
 
 class RemoteMediaFixtureController extends Controller
 {
-    public function store(RemoteMediaRequest $request): array
+    public function store(RemoteMediaFixtureRequest $request): array
     {
         return [];
     }

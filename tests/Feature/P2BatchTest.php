@@ -132,22 +132,6 @@ it('OAPI-018: known status codes produce components.responses entries', function
         ->and($responses['429']['$ref'])->toBe('#/components/responses/TooManyRequests');
 });
 
-it('OAPI-018: component response body references the shared JsonApiError schema', function (): void {
-    RouteFacade::get(
-        '/oa-p2/create-cmp',
-        [P2FixtureController::class, 'createAction'],
-    )->middleware(['auth:api']);
-
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
-
-    $unauthorized = $spec['components']['responses']['Unauthorized'] ?? null;
-
-    expect($unauthorized)->not
-        ->toBeNull()
-        ->and($unauthorized['content']['application/vnd.api+json']['schema']['$ref'])
-        ->toBe('#/components/schemas/JsonApiError');
-});
-
 it('OAPI-018: unknown status codes are still inlined (no component name mapped)', function (): void {
     RouteFacade::get(
         '/oa-p2/teapot',
@@ -163,9 +147,7 @@ it('OAPI-018: unknown status codes are still inlined (no component name mapped)'
         ->toHaveKey('418')
         ->and($responses['418'])->not
         ->toHaveKey('$ref')
-        ->and($responses['418']['description'])->toBe("I'm a teapot")
-        ->and($responses['418']['content']['application/vnd.api+json']['schema']['$ref'])
-        ->toBe('#/components/schemas/JsonApiError');
+        ->and($responses['418']['description'])->toBe("I'm a teapot");
 });
 
 it('OAPI-018: each additional operation reuses the same component ref (deduplication)', function (): void {
