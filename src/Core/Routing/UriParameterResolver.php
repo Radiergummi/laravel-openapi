@@ -13,13 +13,8 @@ namespace Radiergummi\OpenApi\Core\Routing;
 
 use BackedEnum;
 use Illuminate\Contracts\Routing\UrlRoutable;
-use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionParameter;
-use Spatie\RouteAttributes\Attributes\Where;
-use Spatie\RouteAttributes\Attributes\WhereIn;
-use Spatie\RouteAttributes\Attributes\WhereNumber;
-use Spatie\RouteAttributes\Attributes\WhereUuid;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\Type\BackedEnumType;
@@ -30,19 +25,35 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Throwable;
 
 use function array_map;
+use function explode;
 use function is_subclass_of;
+use function preg_match;
+use function str_contains;
 
 final readonly class UriParameterResolver
 {
+    /**
+     * Regex Laravel's `Route::whereUuid()` writes into `$route->wheres`.
+     *
+     * @see \Illuminate\Routing\CreatesRegularExpressionRouteConstraints::whereUuid()
+     */
+    private const string LARAVEL_UUID_REGEX =
+        '[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}';
+
+    /**
+     * Regex Laravel's `Route::whereNumber()` writes into `$route->wheres`.
+     *
+     * @see \Illuminate\Routing\CreatesRegularExpressionRouteConstraints::whereNumber()
+     */
+    private const string LARAVEL_NUMBER_REGEX = '[0-9]+';
+
     public function __construct(
         private TypeResolver $typeResolver,
     ) {}
 
     /**
      * @param null|string $whereConstraint Raw regex from `$route->wheres[]`, or null when no
-     *                                     constraint is registered on the route (even if a `Where*`
-     *                                     attribute exists — some are not pushed
-     *                                     into `$route->wheres`).
+     *                                     constraint is registered on the route.
      *
      * @throws UnsupportedException When symfony/type-info cannot resolve the reflection type.
      */
@@ -58,12 +69,7 @@ final readonly class UriParameterResolver
             ? $type->getWrappedType()
             : $type;
 
-        $whereAttribute = $this->findWhereAttributeFor($parameter);
-
-        [$resolvedConstraint, $whereKind] = $this->resolveConstraint(
-            $whereAttribute,
-            $whereConstraint,
-        );
+        [$resolvedConstraint, $whereKind] = $this->resolveConstraint($whereConstraint);
 
         [$modelClass, $routeKeyName] = $this->resolveModelBinding($innerType);
         $enumCases = $this->resolveEnumCases($innerType);
@@ -98,59 +104,62 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * The param-name filter is critical: class-level `#[WhereUuid('project')]` must not match a
-     * sibling parameter like `$rfiProcess`.
+     * Classifies the route's native constraint regex (from `$route->wheres[]`) into a
+     * {@see WhereKind}. Laravel's `Route::where*()` helpers — and Spatie's `#[Where*]`
+     * attributes, which delegate to them — each write a known regex string, so the kind
+     * can be derived from the regex alone without any attribute reflection.
+     *
+     * @return array{null|string, null|WhereKind}
      */
-    private function findWhereAttributeFor(ReflectionParameter $parameter): ?ReflectionAttribute
+    private function resolveConstraint(?string $routeWhereConstraint): array
     {
-        $name = $parameter->getName();
-
-        $candidates = [
-            ...$parameter->getAttributes(),
-            ...$parameter->getDeclaringFunction()->getAttributes(),
-            ...$parameter->getDeclaringClass()?->getAttributes() ?? [],
-        ];
-
-        $found = null;
-
-        foreach ($candidates as $attr) {
-            if (!is_subclass_of($attr->getName(), Where::class)) {
-                continue;
-            }
-
-            $instance = $attr->newInstance();
-
-            if ($instance->param === $name) {
-                $found = $attr;
-            }
+        if ($routeWhereConstraint === null) {
+            return [null, null];
         }
 
-        return $found;
+        return [$routeWhereConstraint, $this->classifyConstraint($routeWhereConstraint)];
     }
 
     /**
-     * @return array{null|string, null|WhereKind}
+     * Maps a raw constraint regex to a {@see WhereKind}. Falls back to {@see WhereKind::Custom}
+     * for anything that is not an exact match for a known Laravel pattern.
      */
-    private function resolveConstraint(
-        ?ReflectionAttribute $whereAttribute,
-        ?string $routeWhereConstraint,
-    ): array {
-        if ($whereAttribute !== null) {
-            $instance = $whereAttribute->newInstance();
-
-            return match ($whereAttribute->getName()) {
-                WhereUuid::class => [$instance->constraint, WhereKind::Uuid],
-                WhereNumber::class => [$instance->constraint, WhereKind::Number],
-                WhereIn::class => [$instance->constraint, WhereKind::In],
-                default => [$instance->constraint, WhereKind::Custom],
-            };
+    private function classifyConstraint(string $regex): WhereKind
+    {
+        if ($regex === self::LARAVEL_UUID_REGEX) {
+            return WhereKind::Uuid;
         }
 
-        if ($routeWhereConstraint !== null) {
-            return [$routeWhereConstraint, WhereKind::Custom];
+        if ($regex === self::LARAVEL_NUMBER_REGEX) {
+            return WhereKind::Number;
         }
 
-        return [null, null];
+        if ($this->isLiteralAlternation($regex)) {
+            return WhereKind::In;
+        }
+
+        return WhereKind::Custom;
+    }
+
+    /**
+     * Detects the shape `Route::whereIn()` produces: alternatives joined by `|` where every
+     * alternative is a plain literal. Conservative — any regex metacharacter in an
+     * alternative disqualifies the whole string, so genuine custom regexes fall through to
+     * {@see WhereKind::Custom}.
+     */
+    private function isLiteralAlternation(string $regex): bool
+    {
+        if (!str_contains($regex, '|')) {
+            return false;
+        }
+
+        foreach (explode('|', $regex) as $alternative) {
+            if ($alternative === '' || preg_match('/[\[\](){}\\\\+*?.^$]/', $alternative) === 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
