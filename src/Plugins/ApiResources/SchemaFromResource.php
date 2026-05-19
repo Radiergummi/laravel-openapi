@@ -14,7 +14,6 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use ReflectionClass;
@@ -48,28 +47,7 @@ final readonly class SchemaFromResource
      */
     public function build(string $resourceClass): string
     {
-        if ($this->registry->isInProgress($resourceClass)) {
-            return $this->registry->reserveKey($resourceClass);
-        }
-
-        if ($this->registry->isRegisteredOrReserved($resourceClass)) {
-            /** @var string $key */
-            $key = $this->registry->keyFor($resourceClass);
-
-            return $key;
-        }
-
-        $this->registry->markInProgress($resourceClass);
-
-        $schema = $this->buildSchema($resourceClass);
-
-        $this->registry->register($resourceClass, $schema);
-        $this->registry->markComplete($resourceClass);
-
-        /** @var string $key */
-        $key = $this->registry->keyFor($resourceClass);
-
-        return $key;
+        return $this->registry->buildOnce($resourceClass, fn(): OA\Schema => $this->buildSchema($resourceClass));
     }
 
     /**
@@ -131,17 +109,8 @@ final readonly class SchemaFromResource
             return $property;
         }
 
-        $props = ['property' => $field->name];
-
-        foreach ($field->descriptor()->toOpenApi() as $key => $value) {
-            $props[$key] = $value;
-        }
-
-        $property = new OA\Property($props);
-
-        if ($field->nullable === true) {
-            NullableSchema::applyTo($property);
-        }
+        $property = new OA\Property(['property' => $field->name]);
+        $field->descriptor()->applyTo($property);
 
         return $property;
     }

@@ -48,7 +48,6 @@ use function array_any;
 use function array_key_exists;
 use function assert;
 use function is_a;
-use function is_string;
 use function preg_match;
 use function sprintf;
 
@@ -94,33 +93,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
      */
     public function build(string $dataClass): string
     {
-        // Cycle guard: if we're already processing this class, reserve (or reuse) the disambiguated
-        // key without storing a schema yet — the caller can emit a $ref using the returned key, and
-        // register() below will fill in the real schema once buildSchema() completes.
-        if ($this->registry->isInProgress($dataClass)) {
-            return $this->registry->reserveKey($dataClass);
-        }
-
-        // Already registered — return the existing component key.
-        if ($this->registry->isRegisteredOrReserved($dataClass)) {
-            /** @var string $key */
-            $key = $this->registry->keyFor($dataClass);
-
-            return $key;
-        }
-
-        $this->registry->markInProgress($dataClass);
-
-        $schema = $this->buildSchema($dataClass);
-
-        // Register before markComplete so keyFor() works inside recursion.
-        $this->registry->register($dataClass, $schema);
-        $this->registry->markComplete($dataClass);
-
-        $key = $this->registry->keyFor($dataClass);
-        assert(is_string($key));
-
-        return $key;
+        return $this->registry->buildOnce($dataClass, fn(): OA\Schema => $this->buildSchema($dataClass));
     }
 
     /**
@@ -768,15 +741,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             return;
         }
 
-        $descriptor = $attributes[0]->newInstance()->descriptor();
-
-        foreach ($descriptor->toOpenApi() as $field => $value) {
-            $property->{$field} = $value;
-        }
-
-        if ($descriptor->nullable === true) {
-            NullableSchema::applyTo($property);
-        }
+        $attributes[0]->newInstance()->descriptor()->applyTo($property);
     }
 
     private function containsOptional(Type $type): bool

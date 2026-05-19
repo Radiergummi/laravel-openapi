@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Log;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
@@ -142,15 +141,7 @@ final readonly class SchemaFromFormRequest
             $property = $this->buildProperty($fieldName, $descriptor);
 
             if (array_key_exists($fieldName, $constantOverrides)) {
-                $override = $constantOverrides[$fieldName]->descriptor();
-
-                foreach ($override->toOpenApi() as $k => $v) {
-                    $property->{$k} = $v;
-                }
-
-                if ($override->nullable === true) {
-                    NullableSchema::applyTo($property);
-                }
+                $constantOverrides[$fieldName]->descriptor()->applyTo($property);
             }
 
             $properties[]                 = $property;

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Closure;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Enums\ComponentType;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
@@ -196,6 +197,47 @@ final class ComponentSchemaRegistry
     public function allResponses(): array
     {
         return array_values($this->responses);
+    }
+
+    /**
+     * Cycle-guarded build-and-register: invokes `$factory` exactly once to produce the schema, then
+     * registers it under the disambiguated component key and returns the key.
+     *
+     * If `$className` is being built higher up the call stack (recursive `$ref`), the reserved key
+     * is returned without invoking the factory — the caller can emit a `$ref` pointing at the same
+     * key {@see register()} will ultimately assign. Already-registered classes also short-circuit.
+     *
+     * Exceptions from `$factory` propagate, but `inProgress` is always cleared so a later retry
+     * for the same class is not stuck.
+     *
+     * @param class-string         $className
+     * @param Closure(): OA\Schema $factory
+     */
+    public function buildOnce(string $className, Closure $factory): string
+    {
+        if ($this->isInProgress($className)) {
+            return $this->reserveKey($className);
+        }
+
+        if ($this->isRegisteredOrReserved($className)) {
+            /** @var string $key */
+            $key = $this->keyFor($className);
+
+            return $key;
+        }
+
+        $this->markInProgress($className);
+
+        try {
+            $this->register($className, $factory());
+        } finally {
+            $this->markComplete($className);
+        }
+
+        /** @var string $key */
+        $key = $this->keyFor($className);
+
+        return $key;
     }
 
     /**
