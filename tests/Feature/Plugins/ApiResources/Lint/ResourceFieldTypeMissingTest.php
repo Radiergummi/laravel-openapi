@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
+
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
+use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use ReflectionClass;
+use ReflectionMethod;
+
+uses()->group('openapi', 'plugin:api-resources');
+
+#[ResourceField('id', type: 'integer')]
+#[ResourceField('mystery')]
+class TypelessFieldResource extends JsonResource {}
+
+class TypelessFieldController
+{
+    public function show(): TypelessFieldResource
+    { /** @phpstan-ignore-next-line */ return new TypelessFieldResource(null);
+    }
+}
+
+it('flags a #[ResourceField] with no type', function (): void {
+    $descriptor = new ActionDescriptor(
+        route: new Route(['GET'], '/typeless', []),
+        controller: new ReflectionClass(TypelessFieldController::class),
+        method: new ReflectionMethod(TypelessFieldController::class, 'show'),
+        summary: null,
+        description: null,
+    );
+
+    $rule = new ResourceFieldTypeMissing(new ResourceClassLocator());
+    $findings = iterator_to_array($rule->checkOperation(
+        OperationNodeFactory::forDescriptor($descriptor),
+        OperationNodeFactory::emptyContext(),
+    ));
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('resource.field-type-missing')
+        ->and($findings[0]->message)->toContain('mystery');
+});
