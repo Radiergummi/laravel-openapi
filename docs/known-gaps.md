@@ -53,6 +53,14 @@ generator reads declarations, not runtime behaviour. Resources without `#[Resour
 attributes are documented with an empty schema and reported by the `resource.fields-undeclared`
 lint rule.
 
+**QueryBuilder:** the optional `QueryBuilderPlugin` derives `filter[…]` / `sort` / `include`
+query parameters from `#[AllowedFilter]`, `#[AllowedSort]`, and `#[AllowedInclude]` attributes on
+the controller method — not from the `QueryBuilder::for(…)->allowed…()` chain in the method
+body. Detection for the `query-builder.params-undeclared` lint rule is conservative: it keys off
+an injected `Spatie\QueryBuilder\QueryBuilder` parameter (matched by FQCN string, no package
+load required) rather than guessing intent from method bodies. The common
+`QueryBuilder::for(...)` pattern that does not inject the builder is therefore not flagged.
+
 ---
 
 ## OAPI-038 — Lint rules miss `allOf`-composed schema properties

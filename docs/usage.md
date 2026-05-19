@@ -64,6 +64,7 @@ The built-in plugins:
 |---|---|---|
 | **SpatieData** | `Plugins\SpatieData\SpatieDataPlugin` | `DataClassRequestSchemaResolver`, `DataRefSchemaResolver`, `Data::class` as a payload base, lint rules: `field.attribute-wrong-scope` (level 1), `multipart.file-without-multipart` (level 1) |
 | **ApiResources** | `Plugins\ApiResources\ApiResourcesPlugin` | `ResourceResponseResolver`, `ResourceRefSchemaResolver`, lint rules: `resource.fields-undeclared` (level 1), `resource.field-type-missing` (level 2), `resource.response-ambiguous` (level 1) |
+| **QueryBuilder** (opt-in) | `Plugins\QueryBuilder\QueryBuilderPlugin` | `QueryBuilderParameterResolver`, lint rules: `query-builder.params-undeclared` (level 2), `query-builder.filter-type-missing` (level 3) |
 
 Plugins are listed in `config/openapi.plugins` and resolved from the container. `CoreRegistration`
 runs first (registering `FormRequestRequestSchemaResolver` and all core lint rules), then each
@@ -420,6 +421,33 @@ public function index(): JsonResponse { … }
 Single responses wrap fields in `{ data: {…} }`; collection responses wrap them in
 `{ data: [{…}], links: {…}, meta: {…} }`. Omitting `#[ResourceField]` attributes triggers the
 `resource.fields-undeclared` lint rule (level 1).
+
+### Document `spatie/laravel-query-builder` parameters
+
+The `QueryBuilderPlugin` is shipped disabled. Enable it in two steps:
+
+1. `composer require spatie/laravel-query-builder` (the package itself).
+2. Uncomment the `QueryBuilderPlugin::class` entry under `plugins` in `config/openapi.php`.
+
+Then declare the accepted parameters on the controller method:
+
+```php
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
+
+#[AllowedFilter('status', type: 'string')]
+#[AllowedFilter('created_after', type: 'string', format: 'date')]
+#[AllowedSort(['name', 'created_at'])]
+#[AllowedInclude(['owner', 'tags'])]
+public function index(QueryBuilder $query): JsonResponse { … }
+```
+
+Each `#[AllowedFilter]` becomes one `filter[name]` query parameter; `#[AllowedSort]` becomes the
+`sort` parameter (comma-separated, with the listed fields as `enum`); `#[AllowedInclude]` becomes
+`include` the same way. A method that injects `QueryBuilder` but declares none of the three
+triggers `query-builder.params-undeclared` (level 2); an `#[AllowedFilter]` without a `type`
+triggers `query-builder.filter-type-missing` (level 3).
 
 ### Programmatic hook points
 

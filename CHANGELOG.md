@@ -15,6 +15,12 @@ All notable changes to this project are documented here.
   collections the `{data, links, meta}` envelope. Three lint rules
   (`resource.fields-undeclared`, `resource.field-type-missing`,
   `resource.response-ambiguous`) report incomplete declarations.
+- `spatie/laravel-query-builder` filter/sort/include query parameters are now
+  documented via the optional `QueryBuilderPlugin` (shipped disabled — uncomment
+  it in `config/openapi.php` after installing the package). Endpoints declare
+  parameters with `#[AllowedFilter]`, `#[AllowedSort]`, and `#[AllowedInclude]`.
+  Two lint rules (`query-builder.params-undeclared`,
+  `query-builder.filter-type-missing`) report incomplete declarations.
 
 ### Changed
 - PHPStan now runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a blocking CI check.
