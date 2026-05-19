@@ -13,6 +13,8 @@ namespace Radiergummi\OpenApi\Core\Generator;
 
 use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
+use OpenApi\Context;
+use OpenApi\Generator;
 use Radiergummi\OpenApi\Core\Attributes\Hide;
 use Radiergummi\OpenApi\Core\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
@@ -53,6 +55,11 @@ final readonly class OpenApiGenerator
     /**
      * Generates the OpenAPI document.
      *
+     * The build runs with a swagger-php {@see Context} pinned to OpenAPI 3.1. swagger-php's
+     * context defaults to 3.0, under which serialisation down-converts a 3.1 nullable type
+     * union (`type: ['string', 'null']`) to the `nullable: true` keyword that 3.1 removed.
+     * Installing a 3.1 context for the duration of the build keeps the 3.1 type-union form.
+     *
      * @param list<callable(ActionDescriptor): bool> $filters Additional filters applied on top
      *                                                        of RouteIntrospector's defaults.
      *
@@ -62,6 +69,28 @@ final readonly class OpenApiGenerator
      * @throws UnsupportedException
      */
     public function generate(array $filters = []): OA\OpenApi
+    {
+        $previousContext = Generator::$context;
+        Generator::$context = new Context(['version' => OA\OpenApi::VERSION_3_1_0]);
+
+        try {
+            return $this->assembleDocument($filters);
+        } finally {
+            Generator::$context = $previousContext;
+        }
+    }
+
+    /**
+     * Builds and returns the OpenAPI document tree.
+     *
+     * @param list<callable(ActionDescriptor): bool> $filters
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws UnsupportedException
+     */
+    private function assembleDocument(array $filters): OA\OpenApi
     {
         $this->schemaRegistry->reset();
         $this->operationBuilder->reset();
