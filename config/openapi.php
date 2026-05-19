@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
+use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -225,6 +226,7 @@ return [
 
     'plugins' => [
         SpatieDataPlugin::class,
+        ApiResourcesPlugin::class,
     ],
 
     /*

@@ -112,6 +112,7 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerLintRules();
         $this->registerExtractors();
         $this->registerSpatieDataPlugin();
+        $this->registerApiResourcesPlugin();
         $this->registerGenerator();
     }
 
@@ -412,6 +413,55 @@ class OpenApiServiceProvider extends ServiceProvider
             static fn(Container $app) => new DataRefSchemaResolver(
                 schemaFromDataClass: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
+            ),
+        );
+    }
+
+    /**
+     * Binds the ApiResources plugin services.
+     *
+     * `SchemaFromResource` receives every ref resolver except this plugin's own
+     * `ResourceRefSchemaResolver`: it handles nested resources by direct
+     * recursion, and injecting its own resolver would form a construction cycle.
+     */
+    private function registerApiResourcesPlugin(): void
+    {
+        $this->app->scoped(
+            Plugins\ApiResources\SchemaFromResource::class,
+            static function (Container $app): Plugins\ApiResources\SchemaFromResource {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                $resolvers = [];
+
+                foreach ($registry->refSchemaResolvers() as $class) {
+                    if ($class === Plugins\ApiResources\ResourceRefSchemaResolver::class) {
+                        continue;
+                    }
+
+                    $resolvers[] = $app->make($class);
+                }
+
+                return new Plugins\ApiResources\SchemaFromResource(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    refSchemaResolvers: $resolvers,
+                );
+            },
+        );
+
+        $this->app->scoped(
+            Plugins\ApiResources\ResourceRefSchemaResolver::class,
+            static fn(Container $app) => new Plugins\ApiResources\ResourceRefSchemaResolver(
+                schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\ApiResources\ResourceResponseResolver::class,
+            static fn(Container $app) => new Plugins\ApiResources\ResourceResponseResolver(
+                locator: $app->make(Plugins\ApiResources\ResourceClassLocator::class),
+                schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
+                envelopeFactory: $app->make(Plugins\ApiResources\ResourceEnvelopeFactory::class),
+                logger: $app->make(LoggerInterface::class),
             ),
         );
     }
