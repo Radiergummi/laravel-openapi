@@ -31,12 +31,20 @@ use function is_a;
 final class PayloadParameterScanner
 {
     /**
-     * Per-method result cache, keyed by `Class::method`. The scanner is bound `scoped`, so the
-     * cache lives for a single generation run and is discarded with the instance.
+     * Per-method `candidates()` cache, keyed by `Class::method`. The scanner is bound `scoped`,
+     * so the cache lives for a single generation run and is discarded with the instance.
      *
      * @var array<string, list<class-string>>
      */
     private array $memo = [];
+
+    /**
+     * Per-method `directCandidates()` cache, keyed by `Class::method`. Separate from `$memo`
+     * because direct-only callers (lint rules) shouldn't pay for indirection descent.
+     *
+     * @var array<string, list<class-string>>
+     */
+    private array $directMemo = [];
 
     /**
      * @param list<class-string> $indirectionClasses Base class-strings whose constructors
@@ -57,7 +65,23 @@ final class PayloadParameterScanner
      */
     public function candidates(ReflectionMethod $method): array
     {
-        return $this->memo[$method->class . '::' . $method->name] ??= $this->scan($method);
+        return $this->memo[$method->class . '::' . $method->name] ??= [
+            ...$this->directCandidates($method),
+            ...$this->indirectCandidates($method),
+        ];
+    }
+
+    /**
+     * Returns class-strings appearing directly in the method's parameter list — no indirection
+     * descent. Use this when a caller cares about what the controller method literally injects
+     * (e.g. a lint rule keying off `QueryBuilder` or `Request`), independent of any
+     * Domain-Action constructor it might wrap.
+     *
+     * @return list<class-string>
+     */
+    public function directCandidates(ReflectionMethod $method): array
+    {
+        return $this->directMemo[$method->class . '::' . $method->name] ??= $this->scanDirect($method);
     }
 
     /**
@@ -80,12 +104,10 @@ final class PayloadParameterScanner
     /**
      * @return list<class-string>
      */
-    private function scan(ReflectionMethod $method): array
+    private function scanDirect(ReflectionMethod $method): array
     {
         /** @var list<class-string> $direct */
         $direct = [];
-        /** @var list<class-string> $fromIndirection */
-        $fromIndirection = [];
 
         foreach ($method->getParameters() as $parameter) {
             $type = $parameter->getType();
@@ -97,11 +119,24 @@ final class PayloadParameterScanner
             /** @var class-string $className */
             $className = $type->getName();
             $direct[] = $className;
+        }
 
-            if ($this->indirectionClasses === []) {
-                continue;
-            }
+        return $direct;
+    }
 
+    /**
+     * @return list<class-string>
+     */
+    private function indirectCandidates(ReflectionMethod $method): array
+    {
+        if ($this->indirectionClasses === []) {
+            return [];
+        }
+
+        /** @var list<class-string> $fromIndirection */
+        $fromIndirection = [];
+
+        foreach ($this->directCandidates($method) as $className) {
             foreach ($this->indirectionClasses as $base) {
                 if (!is_a($className, $base, allow_string: true)) {
                     continue;
@@ -129,6 +164,6 @@ final class PayloadParameterScanner
             }
         }
 
-        return [...$direct, ...$fromIndirection];
+        return $fromIndirection;
     }
 }

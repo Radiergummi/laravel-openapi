@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder\Lint;
 
+use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -39,7 +40,7 @@ class ParamsUndeclaredController
 it('flags a method injecting QueryBuilder with no query-builder attributes', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(ParamsUndeclaredController::class, 'undeclared');
 
-    $rule = new QueryBuilderParamsUndeclared();
+    $rule = new QueryBuilderParamsUndeclared(new PayloadParameterScanner());
     $findings = iterator_to_array($rule->checkOperation(
         OperationNodeFactory::forDescriptor($descriptor),
         OperationNodeFactory::emptyContext(),
@@ -52,7 +53,7 @@ it('flags a method injecting QueryBuilder with no query-builder attributes', fun
 it('does not flag a method that declares query-builder attributes', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(ParamsUndeclaredController::class, 'declared');
 
-    $rule = new QueryBuilderParamsUndeclared();
+    $rule = new QueryBuilderParamsUndeclared(new PayloadParameterScanner());
     $findings = iterator_to_array($rule->checkOperation(
         OperationNodeFactory::forDescriptor($descriptor),
         OperationNodeFactory::emptyContext(),

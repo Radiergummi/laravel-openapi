@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules;
 
 use Override;
+use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
@@ -20,9 +21,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use ReflectionMethod;
-use ReflectionNamedType;
 
+use function in_array;
 use function sprintf;
 
 /**
@@ -32,12 +32,16 @@ use function sprintf;
  * that the generated document does not describe.
  *
  * Detection is deliberately conservative: it keys off an injected `QueryBuilder`
- * parameter (matched by FQCN string, so the package need not be installed),
- * not a body-inference heuristic.
+ * parameter (matched by FQCN string via {@see PayloadParameterScanner}, so the
+ * package need not be installed), not a body-inference heuristic.
  */
 final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
 {
     private const string QUERY_BUILDER_CLASS = 'Spatie\\QueryBuilder\\QueryBuilder';
+
+    public function __construct(
+        private PayloadParameterScanner $scanner,
+    ) {}
 
     /**
      * @return iterable<Finding>
@@ -51,7 +55,7 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
             return;
         }
 
-        if (!$this->injectsQueryBuilder($method)) {
+        if (!in_array(self::QUERY_BUILDER_CLASS, $this->scanner->directCandidates($method), true)) {
             return;
         }
 
@@ -73,19 +77,6 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
             ),
             fixHint: 'Declare the accepted parameters with #[AllowedFilter], #[AllowedSort], and #[AllowedInclude].',
         );
-    }
-
-    private function injectsQueryBuilder(ReflectionMethod $method): bool
-    {
-        foreach ($method->getParameters() as $parameter) {
-            $type = $parameter->getType();
-
-            if ($type instanceof ReflectionNamedType && $type->getName() === self::QUERY_BUILDER_CLASS) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     #[Override]
