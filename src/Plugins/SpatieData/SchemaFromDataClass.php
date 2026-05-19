@@ -266,7 +266,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
         $variantKeys = [];
 
         foreach ($discriminator->mapping as $variantClass) {
-            $variantKeys[$variantClass] = $this->build($variantClass); // @phpstan-ignore argument.type
+            assert(is_a($variantClass, Data::class, allow_string: true));
+            $variantKeys[$variantClass] = $this->build($variantClass);
         }
 
         return $discriminator->assemble($variantKeys);
