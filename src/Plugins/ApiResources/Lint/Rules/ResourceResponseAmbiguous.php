@@ -15,7 +15,7 @@ use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 
@@ -26,7 +26,7 @@ use function sprintf;
  * `#[ResponseResource]` naming the item class — the response shape cannot be
  * derived and the endpoint falls back to a bare `200 OK`.
  */
-final readonly class ResourceResponseAmbiguous implements Rule, OperationRule
+final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVisitor
 {
     public function __construct(
         private ResourceClassLocator $locator,

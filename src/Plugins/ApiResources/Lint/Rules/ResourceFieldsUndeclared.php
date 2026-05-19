@@ -15,7 +15,7 @@ use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
@@ -27,7 +27,7 @@ use function sprintf;
  * Flags an operation whose resource response class declares no
  * `#[ResourceField]` — the response shape is unknown, yielding an empty schema.
  */
-final readonly class ResourceFieldsUndeclared implements Rule, OperationRule
+final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
 {
     public function __construct(
         private ResourceClassLocator $locator,
