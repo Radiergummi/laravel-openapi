@@ -933,14 +933,12 @@ final class SpecTreeBuilder
      */
     private function extractRef(OA\Schema|array|string|null $schema): ?string
     {
-        // @phpstan-ignore-next-line identical.alwaysFalse
         if ($schema === null || $schema === Generator::UNDEFINED) {
             return null;
         }
 
-        $ref = $schema->ref ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
+        $ref = $schema->ref ?? Generator::UNDEFINED;
 
-        // @phpstan-ignore-next-line identical.alwaysFalse
         if (
             $ref === Generator::UNDEFINED
             || $ref === null // @phpstan-ignore identical.alwaysFalse

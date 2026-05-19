@@ -135,7 +135,7 @@ final class NullableSchema
                     $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
                 }
 
-                $target->type  = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                $target->type  = Generator::UNDEFINED;
                 $target->oneOf = [
                     $inner,
                     new OA\Schema(['type' => 'null']),

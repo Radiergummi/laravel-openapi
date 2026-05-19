@@ -222,7 +222,7 @@ final class FieldDescriptor
                         $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
                     }
 
-                    $target->type  = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                    $target->type  = Generator::UNDEFINED;
                     $target->oneOf = [
                         $inner,
                         new OA\Schema(['type' => 'null']),
