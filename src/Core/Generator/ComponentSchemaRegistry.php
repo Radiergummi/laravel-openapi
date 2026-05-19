@@ -95,10 +95,9 @@ final class ComponentSchemaRegistry
     /**
      * Reserves the disambiguated component key for `$className` without storing a schema.
      *
-     * Used by the cycle guard in {@see \Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass}:
-     * calling this before recursing ensures that `keyFor()` returns the correct (possibly
-     * disambiguated) key even while the real schema is still being built, so that the cycle-guard
-     * `$ref` points to the same key that {@see register()} will ultimately assign.
+     * Used internally by {@see self::buildOnce()} as part of the cycle guard: returning a
+     * reserved key on recursive re-entry lets the caller emit a `$ref` pointing at the same
+     * key {@see register()} will ultimately assign.
      *
      * Idempotent — a second call for the same class is a no-op.
      *
@@ -207,23 +206,16 @@ final class ComponentSchemaRegistry
      * is returned without invoking the factory — the caller can emit a `$ref` pointing at the same
      * key {@see register()} will ultimately assign. Already-registered classes also short-circuit.
      *
-     * Exceptions from `$factory` propagate, but `inProgress` is always cleared so a later retry
-     * for the same class is not stuck.
+     * Exceptions from `$factory` propagate, but the in-progress flag is always cleared so a
+     * later retry for the same class is not stuck.
      *
      * @param class-string         $className
      * @param Closure(): OA\Schema $factory
      */
     public function buildOnce(string $className, Closure $factory): string
     {
-        if ($this->isInProgress($className)) {
+        if ($this->isInProgress($className) || $this->isRegisteredOrReserved($className)) {
             return $this->reserveKey($className);
-        }
-
-        if ($this->isRegisteredOrReserved($className)) {
-            /** @var string $key */
-            $key = $this->keyFor($className);
-
-            return $key;
         }
 
         $this->markInProgress($className);
@@ -234,10 +226,7 @@ final class ComponentSchemaRegistry
             $this->markComplete($className);
         }
 
-        /** @var string $key */
-        $key = $this->keyFor($className);
-
-        return $key;
+        return $this->reserveKey($className);
     }
 
     /**
@@ -257,7 +246,7 @@ final class ComponentSchemaRegistry
     /**
      * @param class-string $className
      */
-    public function markInProgress(string $className): void
+    private function markInProgress(string $className): void
     {
         $this->inProgress[$className] = true;
     }
@@ -265,7 +254,7 @@ final class ComponentSchemaRegistry
     /**
      * @param class-string $className
      */
-    public function isInProgress(string $className): bool
+    private function isInProgress(string $className): bool
     {
         return array_key_exists($className, $this->inProgress);
     }
@@ -273,7 +262,7 @@ final class ComponentSchemaRegistry
     /**
      * @param class-string $className
      */
-    public function markComplete(string $className): void
+    private function markComplete(string $className): void
     {
         unset($this->inProgress[$className]);
     }

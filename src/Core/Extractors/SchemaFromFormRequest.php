@@ -35,7 +35,9 @@ use function sprintf;
  * If instantiation or `rules()` throws, a placeholder schema is registered and a warning is
  * logged — one bad FormRequest must not abort the full generation run.
  *
- * FormRequests are flat, so the cycle-guard from {@see \Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass} is not needed.
+ * FormRequests are flat — they do not contain other FormRequests — so the recursive cycle guard
+ * inside {@see ComponentSchemaRegistry::buildOnce()} is a no-op in this caller. Using it anyway
+ * keeps registration idempotent and consistent with the Data-class / API-Resource code paths.
  */
 final readonly class SchemaFromFormRequest
 {
@@ -49,19 +51,12 @@ final readonly class SchemaFromFormRequest
      */
     public function build(string $formRequestClass): OA\Schema
     {
-        if ($this->registry->isRegisteredOrReserved($formRequestClass)) {
-            $key = $this->registry->keyFor($formRequestClass);
+        $key = $this->registry->buildOnce(
+            $formRequestClass,
+            fn(): OA\Schema => $this->buildSchema($formRequestClass),
+        );
 
-            return new OA\Schema(['ref' => "#/components/schemas/{$key}"]);
-        }
-
-        $schema = $this->buildSchema($formRequestClass);
-
-        $this->registry->register($formRequestClass, $schema);
-
-        $key = $this->registry->keyFor($formRequestClass);
-
-        return new OA\Schema(['ref' => "#/components/schemas/{$key}"]);
+        return new OA\Schema(['ref' => $this->registry->qualifyKey($key)]);
     }
 
     /**
