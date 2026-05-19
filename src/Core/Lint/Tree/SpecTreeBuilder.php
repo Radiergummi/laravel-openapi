@@ -344,7 +344,7 @@ final class SpecTreeBuilder
                     continue;
                 }
 
-                if ($mediaType->mediaType !== Generator::UNDEFINED) {
+                if ($mediaType instanceof OA\MediaType && $mediaType->mediaType !== Generator::UNDEFINED) {
                     $contentTypes[] = $mediaType->mediaType;
                 }
 
