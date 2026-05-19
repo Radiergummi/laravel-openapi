@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use Radiergummi\OpenApi\Core\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
@@ -68,11 +69,20 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
 
     private function filterParameter(AllowedFilter $filter): OA\Parameter
     {
+        $descriptor = $filter->descriptor();
+        $schema = new OA\Schema(['type' => 'string', ...$descriptor->toOpenApi()]);
+
+        // Descriptor::toOpenApi() omits `nullable`; the OAS 3.1 `type: [..., 'null']`
+        // shape is applied here so a `nullable: true` filter widens its wire schema.
+        if ($descriptor->nullable === true) {
+            NullableSchema::applyTo($schema);
+        }
+
         return new OA\Parameter([
             'name' => sprintf('filter[%s]', $filter->name),
             'in' => 'query',
             'required' => false,
-            'schema' => new OA\Schema(['type' => 'string', ...$filter->descriptor()->toOpenApi()]),
+            'schema' => $schema,
         ]);
     }
 

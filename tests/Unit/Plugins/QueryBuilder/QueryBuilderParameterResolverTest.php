@@ -83,3 +83,27 @@ it('returns an empty array when no query-builder attributes are present', functi
     expect((new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor))
         ->toBe([]);
 });
+
+class QbNullableFilterController
+{
+    #[AllowedFilter('cursor', type: 'string', nullable: true, minimum: 1, maximum: 100)]
+    public function index(): void {}
+}
+
+it('widens a nullable AllowedFilter schema to the [type, null] shape and forwards numeric bounds', function (): void {
+    $descriptor = ActionDescriptorFactory::forControllerMethod(QbNullableFilterController::class, 'index');
+    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
+
+    $cursor = null;
+
+    foreach ($params as $p) {
+        if ($p->name === 'filter[cursor]') {
+            $cursor = $p;
+        }
+    }
+
+    expect($cursor)->not->toBeNull()
+        ->and($cursor->schema->type)->toBe(['string', 'null'])
+        ->and($cursor->schema->minimum)->toBe(1)
+        ->and($cursor->schema->maximum)->toBe(100);
+});
