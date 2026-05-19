@@ -42,9 +42,9 @@ final class ActionDescriptor
     }
 
     /**
-     * @param ReflectionClass<object>|null $controller
-     * @param list<string>                 $throws Fully-qualified exception class names resolved from
-     *                                             the action's `@throws` lines.
+     * @param null|ReflectionClass<object> $controller
+     * @param list<string>                 $throws     Fully-qualified exception class names resolved from
+     *                                                 the action's `@throws` lines.
      */
     public function __construct(
         public readonly Route $route,

@@ -84,8 +84,8 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
      * Emits a finding for every deprecated authoring attribute in the list.
      *
      * @param ReflectionAttribute<object>[] $attributes
-     * @param string                $location   Where the attribute sits, for the message
-     *                                          (e.g. `Controller::method()` or `class Controller`)
+     * @param string                        $location   Where the attribute sits, for the message
+     *                                                  (e.g. `Controller::method()` or `class Controller`)
      *
      * @return iterable<Finding>
      *

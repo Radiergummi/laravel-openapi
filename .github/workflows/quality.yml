@@ -19,5 +19,4 @@ jobs:
       - name: Pint (lint)
         run: vendor/bin/pint --test
       - name: PHPStan
-        continue-on-error: true
         run: vendor/bin/phpstan analyse --no-progress
