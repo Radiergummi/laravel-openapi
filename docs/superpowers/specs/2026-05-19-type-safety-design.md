@@ -6,9 +6,9 @@
 
 ## Goal
 
-Clear the existing PHPStan backlog so `composer analyse` exits cleanly at
-level 6, then make PHPStan CI-blocking so the codebase stays clean. The
-analysis level is **not** raised — the bar stays at level 6.
+Raise PHPStan from level 6 to level 8, clear every finding so `composer
+analyse` exits cleanly, then make PHPStan CI-blocking so the codebase stays
+clean.
 
 This spec covers only the type-safety / static-analysis cleanup. The test
 suite, documentation, plugins, and example apps are separate workstreams with
@@ -32,6 +32,12 @@ extension, `paths: src`). They fall into two groups:
   `deadCode.unreachable` (3), `ignore.unmatchedIdentifier` (3),
   `ignore.unmatchedLine` (2), `return.missing` (1), `arrayValues.list` (1).
 
+This 216 count is the **level-6** picture. Raising to level 8 will surface
+additional errors — primarily null-safety (`possibly null` accesses, missing
+null checks) and tighter type-narrowing findings. Their exact count and
+identifiers are not known until the level is raised; enumerating and fixing
+them is part of this workstream (Section 2).
+
 CI currently runs PHPStan with `continue-on-error: true` in
 `.github/workflows/quality.yml`; `CONTRIBUTING.md` and `CLAUDE.md` document
 the backlog as known and non-blocking.
@@ -40,7 +46,9 @@ the backlog as known and non-blocking.
 
 In scope:
 
-- Fix the ~32 genuine PHPStan errors individually.
+- Raise the PHPStan level from 6 to 8 in `phpstan.neon`.
+- Fix the ~32 genuine level-6 errors individually.
+- Fix every additional error level 8 surfaces.
 - Resolve the ~184 PHPDoc-certainty errors by setting
   `treatPhpDocTypesAsCertain: false`, after a spot-check confirms they are
   genuine defensive guards.
@@ -48,19 +56,20 @@ In scope:
 
 Out of scope:
 
-- Raising the PHPStan level above 6.
+- Raising the PHPStan level above 8 (level 9 / `max`).
 - Adding `phpstan-strict-rules` or bleeding-edge rules.
 - Test-suite expansion (workstream 3).
-- The plugin code from workstream 1 — that code must land already clean;
-  once this workstream makes CI blocking, the gate enforces it.
+- The plugin code from workstream 1 — that code must land already clean at
+  level 8; once this workstream makes CI blocking, the gate enforces it.
 
 ## Design principles
 
-- **No level raise.** Level 6 is the agreed bar; this workstream brings the
-  codebase *to* a clean level 6, it does not move the bar.
-- **Behavior-preserving.** The genuine fixes are type annotations and dead-code
-  removal. `composer test` must stay green throughout; any fix that changes
-  observable behavior is flagged and gets a `CHANGELOG.md` entry.
+- **Level 8 is the bar.** This workstream raises the level to 8 and brings the
+  codebase to a clean level-8 state. It does not go further (level 9 / strict
+  rules are out of scope).
+- **Behavior-preserving.** The fixes are type annotations, null guards, and
+  dead-code removal. `composer test` must stay green throughout; any fix that
+  changes observable behavior is flagged and gets a `CHANGELOG.md` entry.
 - **Keep the signal where it matters.** The flag flip is the standard setting
   for a codebase doing defensive runtime checks against reflection and
   swagger-php data, whose PHPDoc types are not guaranteed at runtime — but it
@@ -87,9 +96,11 @@ the identifiers (`identical.alwaysFalse`, `function.alreadyNarrowedType`,
   truly is unreachable) → widen triage to find and remove those sites first,
   then flip the flag for the remainder.
 
-## Section 2 — Genuine errors (~32)
+## Section 2 — Genuine errors
 
-Fixed individually; unaffected by the flag.
+### Level-6 backlog (~32)
+
+Fixed individually; unaffected by the certainty flag.
 
 - **`missingType.generics` (17) + `missingType.iterableValue` (5)** — add the
   missing generic / iterable type parameters. Known sites include
@@ -102,6 +113,16 @@ Fixed individually; unaffected by the flag.
 - **`ignore.unmatchedIdentifier` (3) + `ignore.unmatchedLine` (2)** — remove the
   now-stale `@phpstan-ignore` lines.
 
+### Level-8 additions
+
+Raising to level 8 enables stricter checks — chiefly null-safety: property and
+method accesses on possibly-null values, missing null checks, and tighter type
+narrowing. The full set is enumerated by running `composer analyse` after the
+level is raised. Each finding is fixed at its source: add a null guard, narrow
+the type, or correct the annotation — never silenced with a blanket ignore.
+If a finding reveals a latent bug (a genuinely reachable null dereference),
+that fix is behavior-changing and gets a `CHANGELOG.md` entry.
+
 ## Section 3 — CI enforcement
 
 - Remove `continue-on-error: true` from the PHPStan step in
@@ -109,21 +130,25 @@ Fixed individually; unaffected by the flag.
 - Update `CONTRIBUTING.md` — remove the text describing the backlog as known
   and non-blocking; PHPStan is now a hard gate alongside Pint.
 - Update `CLAUDE.md` — the line stating "PHPStan is non-blocking in CI … known
-  pre-existing backlog" becomes "PHPStan is CI-blocking at level 6; keep it
+  pre-existing backlog" becomes "PHPStan is CI-blocking at level 8; keep it
   clean."
 
 ## Verification
 
-- `composer analyse` exits 0 (no errors).
-- `composer test` stays green — the genuine fixes are behavior-preserving.
+- `composer analyse` exits 0 (no errors) at level 8.
+- `composer test` stays green — the fixes are behavior-preserving.
 - `composer lint` reports no violations.
 
 ## Build sequence
 
 Each step leaves the suite green.
 
-1. Fix the ~32 genuine errors while PHPStan still shows the full picture.
+1. Fix the ~32 genuine level-6 errors while PHPStan still shows the full
+   level-6 picture.
 2. Spot-check the certainty-error sample; flip `treatPhpDocTypesAsCertain`
-   (widening triage first if the sample reveals dead code).
-3. Confirm `composer analyse` exits 0.
-4. Flip CI to blocking; update `CONTRIBUTING.md` and `CLAUDE.md`.
+   (widening triage first if the sample reveals dead code). Confirm level 6 is
+   clean.
+3. Raise the level to 8 in `phpstan.neon`; enumerate and fix every error it
+   surfaces.
+4. Confirm `composer analyse` exits 0 at level 8.
+5. Flip CI to blocking; update `CONTRIBUTING.md` and `CLAUDE.md`.
