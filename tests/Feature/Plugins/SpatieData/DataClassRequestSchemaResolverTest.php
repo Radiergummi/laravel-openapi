@@ -27,6 +27,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -65,13 +66,7 @@ function makeDataClassResolver(): DataClassRequestSchemaResolver
  */
 function makeDataClassDescriptor(string $class, string $methodName): ActionDescriptor
 {
-    return new ActionDescriptor(
-        route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($class),
-        method: new ReflectionMethod($class, $methodName),
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forControllerMethod($class, $methodName, 'test', ['POST']);
 }
 
 // ---------------------------------------------------------------------------

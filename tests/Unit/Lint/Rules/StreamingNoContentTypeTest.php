@@ -19,22 +19,16 @@ use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\StreamingFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint');
 
 function makeStreamingDescriptor(string $method, string $routeName): ActionDescriptor
 {
-    $reflection = new ReflectionMethod(StreamingFixtureController::class, $method);
     $route = new Route(['GET'], '/fixture', [StreamingFixtureController::class, $method]);
     $route->name($routeName);
 
-    return new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forRoute($route, StreamingFixtureController::class, $method);
 }
 
 function makeStreamingRawOperation(string $operationId, ?string $contentType = null): OA\Operation

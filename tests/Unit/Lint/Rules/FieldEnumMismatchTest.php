@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -22,6 +21,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithEnumMismatchData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithEnumMismatchDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\EnumMismatchFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
@@ -29,20 +29,6 @@ uses()->group('openapi', 'lint');
 function makeDirectScannerForEnumMismatch(): PayloadParameterScanner
 {
     return new PayloadParameterScanner(indirectionClasses: []);
-}
-
-function makeEnumMismatchDescriptor(string $method): ActionDescriptor
-{
-    $reflection = new ReflectionMethod(EnumMismatchFixtureController::class, $method);
-    $route = new Route(['PUT'], '/fixture', [EnumMismatchFixtureController::class, $method]);
-
-    return new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
 }
 
 function makeEnumMismatchOperation(?ActionDescriptor $descriptor): OperationNode
@@ -89,7 +75,7 @@ it('reports its id and level', function (): void {
 
 it('emits a finding when RequestField enum values do not match BackedEnum cases', function (): void {
     $rule = new FieldEnumMismatch(makeDirectScannerForEnumMismatch());
-    $descriptor = makeEnumMismatchDescriptor('withMismatch');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(EnumMismatchFixtureController::class, 'withMismatch', '/fixture', ['PUT']);
     $operation = makeEnumMismatchOperation($descriptor);
     $context = makeEnumMismatchContext();
 
@@ -115,7 +101,7 @@ it('emits no findings when there is no descriptor on the operation', function ()
 
 it('emits no findings when the method has no Data class parameters', function (): void {
     $rule = new FieldEnumMismatch(makeDirectScannerForEnumMismatch());
-    $descriptor = makeEnumMismatchDescriptor('withoutData');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(EnumMismatchFixtureController::class, 'withoutData', '/fixture', ['PUT']);
     $operation = makeEnumMismatchOperation($descriptor);
     $context = makeEnumMismatchContext();
 
@@ -126,7 +112,7 @@ it('emits no findings when the method has no Data class parameters', function ()
 
 it('does not flag matching enums, properties without enum, or non-BackedEnum types', function (): void {
     $rule = new FieldEnumMismatch(makeDirectScannerForEnumMismatch());
-    $descriptor = makeEnumMismatchDescriptor('withMismatch');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(EnumMismatchFixtureController::class, 'withMismatch', '/fixture', ['PUT']);
     $operation = makeEnumMismatchOperation($descriptor);
     $context = makeEnumMismatchContext();
 
@@ -140,7 +126,7 @@ it('does not flag matching enums, properties without enum, or non-BackedEnum typ
 
 it('reports missing enum case values in the finding message', function (): void {
     $rule = new FieldEnumMismatch(makeDirectScannerForEnumMismatch());
-    $descriptor = makeEnumMismatchDescriptor('withMismatch');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(EnumMismatchFixtureController::class, 'withMismatch', '/fixture', ['PUT']);
     $operation = makeEnumMismatchOperation($descriptor);
     $context = makeEnumMismatchContext();
 
@@ -151,15 +137,7 @@ it('reports missing enum case values in the finding message', function (): void 
 });
 
 it('emits a finding for a Data class injected through a Domain Action', function (): void {
-    $reflection = new ReflectionMethod(ActionWithEnumMismatchDataController::class, 'create');
-    $route = new Route(['POST'], '/fixture', [ActionWithEnumMismatchDataController::class, 'create']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithEnumMismatchDataController::class, 'create', '/fixture', ['POST']);
     $operation = makeEnumMismatchOperation($descriptor);
     $context = makeEnumMismatchContext();
 

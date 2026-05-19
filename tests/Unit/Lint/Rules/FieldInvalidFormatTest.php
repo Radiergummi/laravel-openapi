@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -22,6 +21,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithInvalidFormatData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithInvalidFormatDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidFormatFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
@@ -29,20 +29,6 @@ uses()->group('openapi', 'lint');
 function makeDirectScannerForInvalidFormat(): PayloadParameterScanner
 {
     return new PayloadParameterScanner(indirectionClasses: []);
-}
-
-function makeInvalidFormatDescriptor(string $method): ActionDescriptor
-{
-    $reflection = new ReflectionMethod(InvalidFormatFixtureController::class, $method);
-    $route = new Route(['POST'], '/fixture', [InvalidFormatFixtureController::class, $method]);
-
-    return new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
 }
 
 function makeInvalidFormatOperation(?ActionDescriptor $descriptor): OperationNode
@@ -89,7 +75,7 @@ it('reports its id and level', function (): void {
 
 it('emits a finding when RequestField declares an unrecognized format', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = makeInvalidFormatDescriptor('withInvalidFormat');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withInvalidFormat', '/fixture', ['POST']);
     $operation = makeInvalidFormatOperation($descriptor);
     $context = makeInvalidFormatContext();
 
@@ -114,7 +100,7 @@ it('emits no findings when there is no descriptor on the operation', function ()
 
 it('emits no findings when the method has no Data class parameters', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = makeInvalidFormatDescriptor('withoutData');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withoutData', '/fixture', ['POST']);
     $operation = makeInvalidFormatOperation($descriptor);
     $context = makeInvalidFormatContext();
 
@@ -125,7 +111,7 @@ it('emits no findings when the method has no Data class parameters', function ()
 
 it('does not flag valid formats or properties without a format', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = makeInvalidFormatDescriptor('withInvalidFormat');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withInvalidFormat', '/fixture', ['POST']);
     $operation = makeInvalidFormatOperation($descriptor);
     $context = makeInvalidFormatContext();
 
@@ -138,7 +124,7 @@ it('does not flag valid formats or properties without a format', function (): vo
 
 it('provides a fix hint listing valid formats', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = makeInvalidFormatDescriptor('withInvalidFormat');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withInvalidFormat', '/fixture', ['POST']);
     $operation = makeInvalidFormatOperation($descriptor);
     $context = makeInvalidFormatContext();
 
@@ -149,15 +135,7 @@ it('provides a fix hint listing valid formats', function (): void {
 });
 
 it('emits a finding for a Data class injected through a Domain Action', function (): void {
-    $reflection = new ReflectionMethod(ActionWithInvalidFormatDataController::class, 'create');
-    $route = new Route(['POST'], '/fixture', [ActionWithInvalidFormatDataController::class, 'create']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithInvalidFormatDataController::class, 'create', '/fixture', ['POST']);
     $operation = makeInvalidFormatOperation($descriptor);
     $context = makeInvalidFormatContext();
 

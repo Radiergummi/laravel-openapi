@@ -13,12 +13,10 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
-use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use ReflectionClass;
-use ReflectionMethod;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use stdClass;
 
 class LocatorFixtureResource extends JsonResource {}
@@ -54,13 +52,7 @@ class LocatorFixtureController
 
 function locatorDescriptor(string $method): ActionDescriptor
 {
-    return new ActionDescriptor(
-        route: new Route(['GET'], '/x', []),
-        controller: new ReflectionClass(LocatorFixtureController::class),
-        method: new ReflectionMethod(LocatorFixtureController::class, $method),
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forControllerMethod(LocatorFixtureController::class, $method);
 }
 
 it('locates a single resource from the return type', function (): void {

@@ -9,29 +9,16 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Lint\SuppressionScope;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
-use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
-
-function suppressionDescriptor(string $method): ActionDescriptor
-{
-    return new ActionDescriptor(
-        route: new Route('GET', 'test', []),
-        controller: new ReflectionClass(SuppressedFixtureController::class),
-        method: new ReflectionMethod(SuppressedFixtureController::class, $method),
-        summary: null,
-        description: null,
-    );
-}
 
 /**
  * @param list<SuppressionDirective> $directives
@@ -48,7 +35,7 @@ function directivesForRule(array $directives, string $ruleId): array
 
 it('collects a method-scoped directive', function (): void {
     $directives = (new SuppressionCollector([Data::class]))->collect([
-        suppressionDescriptor('methodWithSuppression'),
+        ActionDescriptorFactory::forControllerMethod(SuppressedFixtureController::class, 'methodWithSuppression', 'test'),
     ]);
 
     $method = directivesForRule($directives, 'response.empty');
@@ -63,7 +50,7 @@ it('collects a method-scoped directive', function (): void {
 
 it('collects a class-scoped directive from the controller', function (): void {
     $directives = (new SuppressionCollector([Data::class]))->collect([
-        suppressionDescriptor('methodWithoutSuppression'),
+        ActionDescriptorFactory::forControllerMethod(SuppressedFixtureController::class, 'methodWithoutSuppression', 'test'),
     ]);
 
     $class = directivesForRule($directives, 'tag.duplicate');
@@ -76,7 +63,7 @@ it('collects a class-scoped directive from the controller', function (): void {
 
 it('does not collect a method directive for an un-annotated method', function (): void {
     $directives = (new SuppressionCollector([Data::class]))->collect([
-        suppressionDescriptor('methodWithoutSuppression'),
+        ActionDescriptorFactory::forControllerMethod(SuppressedFixtureController::class, 'methodWithoutSuppression', 'test'),
     ]);
 
     expect(directivesForRule($directives, 'response.empty'))->toBe([]);
@@ -84,7 +71,7 @@ it('does not collect a method directive for an un-annotated method', function ()
 
 it('collects class and property directives through a Data parameter', function (): void {
     $directives = (new SuppressionCollector([Data::class]))->collect([
-        suppressionDescriptor('methodWithDataParam'),
+        ActionDescriptorFactory::forControllerMethod(SuppressedFixtureController::class, 'methodWithDataParam', 'test'),
     ]);
 
     $property = directivesForRule($directives, 'field.invalid-format');
@@ -100,8 +87,8 @@ it('collects class and property directives through a Data parameter', function (
 
 it('deduplicates directives across descriptors sharing a class and method', function (): void {
     $directives = (new SuppressionCollector([Data::class]))->collect([
-        suppressionDescriptor('methodWithSuppression'),
-        suppressionDescriptor('methodWithSuppression'),
+        ActionDescriptorFactory::forControllerMethod(SuppressedFixtureController::class, 'methodWithSuppression', 'test'),
+        ActionDescriptorFactory::forControllerMethod(SuppressedFixtureController::class, 'methodWithSuppression', 'test'),
     ]);
 
     expect(directivesForRule($directives, 'response.empty'))->toHaveCount(1)
@@ -112,12 +99,11 @@ it('collects class and property directives through a Domain Action parameter', f
     // ActionWithSuppressedData is a Domain Action whose constructor carries
     // SuppressedFixtureData. The collector must follow the indirection and
     // reach the #[IgnoreLint] directives on the Data class and its properties.
-    $descriptor = new ActionDescriptor(
-        route: new Route('POST', 'test', []),
-        controller: new ReflectionClass(ActionWithSuppressedDataController::class),
-        method: new ReflectionMethod(ActionWithSuppressedDataController::class, 'create'),
-        summary: null,
-        description: null,
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        ActionWithSuppressedDataController::class,
+        'create',
+        'test',
+        ['POST'],
     );
 
     $directives = (new SuppressionCollector(

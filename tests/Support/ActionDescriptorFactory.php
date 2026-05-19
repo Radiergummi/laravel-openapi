@@ -39,8 +39,31 @@ final class ActionDescriptorFactory
         ?string $summary = null,
         ?string $description = null,
     ): ActionDescriptor {
-        return new ActionDescriptor(
+        return self::forRoute(
             route: new Route($verbs, $uri, []),
+            controller: $controller,
+            method: $method,
+            summary: $summary,
+            description: $description,
+        );
+    }
+
+    /**
+     * A descriptor for a controller method bound to a caller-built `Route`.
+     * Use this when the route carries test-specific state (middleware, route
+     * parameters, named bindings) the placeholder route can't represent.
+     *
+     * @param class-string $controller
+     */
+    public static function forRoute(
+        Route $route,
+        string $controller,
+        string $method,
+        ?string $summary = null,
+        ?string $description = null,
+    ): ActionDescriptor {
+        return new ActionDescriptor(
+            route: $route,
             controller: new ReflectionClass($controller),
             method: new ReflectionMethod($controller, $method),
             summary: $summary,

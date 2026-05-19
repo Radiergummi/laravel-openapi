@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
@@ -17,8 +16,8 @@ use Radiergummi\OpenApi\Core\Lint\Rules\HeaderInvalidName;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidHeaderNameController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint');
 
@@ -37,16 +36,7 @@ function makeHeaderInvalidNameContext(): LintContext
 
 function makeOperationNodeForHeaderInvalidName(string $methodName): OperationNode
 {
-    $reflection = new ReflectionMethod(InvalidHeaderNameController::class, $methodName);
-    $route = new Route(['GET'], '/fixture', [InvalidHeaderNameController::class, $methodName]);
-
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidHeaderNameController::class, $methodName, '/fixture');
 
     return new OperationNode(
         pathUri: '/fixture',

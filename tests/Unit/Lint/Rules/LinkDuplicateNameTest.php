@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
@@ -17,23 +16,14 @@ use Radiergummi\OpenApi\Core\Lint\Rules\LinkDuplicateName;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DuplicateLinkNameController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint');
 
 function makeLinkDuplicateNameOperation(string $method): OperationNode
 {
-    $reflection = new ReflectionMethod(DuplicateLinkNameController::class, $method);
-    $route = new Route(['GET'], '/fixture', [DuplicateLinkNameController::class, $method]);
-
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(DuplicateLinkNameController::class, $method, '/fixture');
 
     return new OperationNode(
         pathUri: '/fixture',

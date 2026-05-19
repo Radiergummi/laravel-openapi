@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -22,6 +21,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\NoEffectFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
@@ -29,20 +29,6 @@ uses()->group('openapi', 'lint');
 function makeDirectScannerForNoEffect(): PayloadParameterScanner
 {
     return new PayloadParameterScanner(indirectionClasses: []);
-}
-
-function makeNoEffectDescriptor(string $method): ActionDescriptor
-{
-    $reflection = new ReflectionMethod(NoEffectFixtureController::class, $method);
-    $route = new Route(['GET'], '/fixture', [NoEffectFixtureController::class, $method]);
-
-    return new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
 }
 
 function makeNoEffectOperation(?ActionDescriptor $descriptor): OperationNode
@@ -89,7 +75,7 @@ it('reports its id and level', function (): void {
 
 it('emits a finding when RequestField has all default values', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = makeNoEffectDescriptor('withNoEffect');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withNoEffect', '/fixture');
     $operation = makeNoEffectOperation($descriptor);
     $context = makeNoEffectContext();
 
@@ -114,7 +100,7 @@ it('emits no findings when there is no descriptor on the operation', function ()
 
 it('emits no findings when the method has no Data class parameters', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = makeNoEffectDescriptor('withoutData');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withoutData', '/fixture');
     $operation = makeNoEffectOperation($descriptor);
     $context = makeNoEffectContext();
 
@@ -125,7 +111,7 @@ it('emits no findings when the method has no Data class parameters', function ()
 
 it('does not flag RequestField attributes that have at least one parameter set', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = makeNoEffectDescriptor('withNoEffect');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withNoEffect', '/fixture');
     $operation = makeNoEffectOperation($descriptor);
     $context = makeNoEffectContext();
 
@@ -138,7 +124,7 @@ it('does not flag RequestField attributes that have at least one parameter set',
 
 it('provides a fix hint suggesting removal or adding a parameter', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = makeNoEffectDescriptor('withNoEffect');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withNoEffect', '/fixture');
     $operation = makeNoEffectOperation($descriptor);
     $context = makeNoEffectContext();
 
@@ -149,15 +135,7 @@ it('provides a fix hint suggesting removal or adding a parameter', function (): 
 });
 
 it('emits a finding for a Data class injected through a Domain Action', function (): void {
-    $reflection = new ReflectionMethod(ActionWithNoEffectDataController::class, 'create');
-    $route = new Route(['POST'], '/fixture', [ActionWithNoEffectDataController::class, 'create']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithNoEffectDataController::class, 'create', '/fixture', ['POST']);
     $operation = makeNoEffectOperation($descriptor);
     $context = makeNoEffectContext();
 

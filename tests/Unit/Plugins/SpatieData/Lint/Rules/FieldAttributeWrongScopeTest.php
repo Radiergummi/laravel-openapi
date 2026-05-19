@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -17,11 +16,11 @@ use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithWrongScopeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithWrongScopeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\WrongScopeFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint', 'plugin:spatie-data');
@@ -37,16 +36,7 @@ function makeDirectOnlyScanner(): PayloadParameterScanner
 
 function makeWrongScopeOperation(string $method): OperationNode
 {
-    $reflection = new ReflectionMethod(WrongScopeFixtureController::class, $method);
-    $route      = new Route(['GET'], '/fixture', [WrongScopeFixtureController::class, $method]);
-
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(WrongScopeFixtureController::class, $method, '/fixture');
 
     return new OperationNode(
         pathUri: '/api/v0/test',
@@ -124,16 +114,7 @@ it('flags PathParam on a Data-class property injected through a Domain Action', 
     // WrongScopeFixtureData (carried by ActionWithWrongScopeData's constructor) has
     // a misplaced #[PathParam] on its $misplaced property. The scanner must descend
     // into the Action constructor to reach it.
-    $reflection = new ReflectionMethod(ActionWithWrongScopeDataController::class, 'create');
-    $route      = new Route(['POST'], '/fixture', [ActionWithWrongScopeDataController::class, 'create']);
-
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithWrongScopeDataController::class, 'create', '/fixture', ['POST']);
 
     $operation = new OperationNode(
         pathUri: '/api/v0/test',

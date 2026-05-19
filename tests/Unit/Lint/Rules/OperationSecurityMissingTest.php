@@ -19,6 +19,7 @@ use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\OperationSecurityMissingController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint');
 
@@ -74,13 +75,7 @@ it('emits a finding when a route has auth middleware and no security is declared
     $route = new Route(['GET'], '/protected', [OperationSecurityMissingController::class, 'protectedAction']);
     $route->middleware(['auth:api', 'scope:read']);
 
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(OperationSecurityMissingController::class),
-        method: new ReflectionMethod(OperationSecurityMissingController::class, 'protectedAction'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, 'protectedAction');
 
     // Raw operation with security left as UNDEFINED (not declared at all)
     $raw = new OA\Get(['_context' => new Context()]);
@@ -101,13 +96,7 @@ it('emits a finding when a route has scope middleware and no security is declare
     $route = new Route(['GET'], '/scoped', [OperationSecurityMissingController::class, 'protectedAction']);
     $route->middleware(['scope:projects:read']);
 
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(OperationSecurityMissingController::class),
-        method: new ReflectionMethod(OperationSecurityMissingController::class, 'protectedAction'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, 'protectedAction');
 
     $raw = new OA\Get(['_context' => new Context()]);
 
@@ -126,13 +115,7 @@ it('emits no finding when the route has no auth middleware', function (): void {
     $route = new Route(['GET'], '/open', [OperationSecurityMissingController::class, 'publicAction']);
     $route->middleware(['throttle:60,1']);
 
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(OperationSecurityMissingController::class),
-        method: new ReflectionMethod(OperationSecurityMissingController::class, 'publicAction'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, 'publicAction');
 
     $raw = new OA\Get(['_context' => new Context()]);
 
@@ -150,13 +133,7 @@ it('emits no finding when #[PublicEndpoint] is present (explicit security: [])',
     $route = new Route(['GET'], '/explicit-public', [OperationSecurityMissingController::class, 'explicitlyPublicAction']);
     $route->middleware(['auth:api']);
 
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(OperationSecurityMissingController::class),
-        method: new ReflectionMethod(OperationSecurityMissingController::class, 'explicitlyPublicAction'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, 'explicitlyPublicAction');
 
     // #[PublicEndpoint] emits security: [] — an explicit empty array, not UNDEFINED
     $raw = new OA\Get(['_context' => new Context(), 'security' => []]);
@@ -175,13 +152,7 @@ it('emits no finding when the operation has a non-empty security requirement', f
     $route = new Route(['GET'], '/with-security', [OperationSecurityMissingController::class, 'protectedAction']);
     $route->middleware(['auth:api', 'scope:read']);
 
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(OperationSecurityMissingController::class),
-        method: new ReflectionMethod(OperationSecurityMissingController::class, 'protectedAction'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, 'protectedAction');
 
     // Operation already declares a security requirement
     $raw = new OA\Get(['_context' => new Context(), 'security' => [['bearerAuth' => []]]]);
@@ -200,13 +171,7 @@ it('emits no finding for webhooks', function (): void {
     $route = new Route(['GET'], '/webhook', [OperationSecurityMissingController::class, 'protectedAction']);
     $route->middleware(['auth:api']);
 
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(OperationSecurityMissingController::class),
-        method: new ReflectionMethod(OperationSecurityMissingController::class, 'protectedAction'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, 'protectedAction');
 
     $raw = new OA\Get(['_context' => new Context()]);
 
