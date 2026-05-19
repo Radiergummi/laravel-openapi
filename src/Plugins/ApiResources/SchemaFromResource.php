@@ -31,14 +31,14 @@ use function is_a;
  * (which deliberately excludes {@see ResourceRefSchemaResolver} to avoid a
  * container construction cycle).
  */
-final class SchemaFromResource
+final readonly class SchemaFromResource
 {
     /**
      * @param list<RefSchemaResolver> $refSchemaResolvers Registered ref resolvers, minus this plugin's own.
      */
     public function __construct(
-        private readonly ComponentSchemaRegistry $registry,
-        private readonly array $refSchemaResolvers = [],
+        private ComponentSchemaRegistry $registry,
+        private array $refSchemaResolvers = [],
     ) {}
 
     /**
@@ -153,7 +153,7 @@ final class SchemaFromResource
     {
         if (is_a($class, JsonResource::class, allow_string: true)) {
             /** @var class-string<JsonResource> $class */
-            return $this->registry->qualifyKey($this->build($class));
+            return $this->buildRef($class);
         }
 
         foreach ($this->refSchemaResolvers as $resolver) {

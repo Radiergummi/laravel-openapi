@@ -15,6 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionType;
 
@@ -40,7 +41,7 @@ final readonly class ResourceClassLocator
         $returnType = $reflector->getReturnType();
         $returnsCollection = $this->isCollectionType($returnType);
 
-        $attribute = $this->readResponseResource($descriptor);
+        $attribute = $this->readResponseResource($reflector, $descriptor);
 
         if (
             $attribute !== null
@@ -73,11 +74,11 @@ final readonly class ResourceClassLocator
         return new ResourceTarget(resourceClass: $name, isCollection: false);
     }
 
-    private function readResponseResource(ActionDescriptor $descriptor): ?ResponseResource
-    {
-        $reflector = $descriptor->actionReflector;
-
-        $source = $reflector?->getAttributes(ResponseResource::class)[0] ?? null;
+    private function readResponseResource(
+        ReflectionFunctionAbstract $reflector,
+        ActionDescriptor $descriptor,
+    ): ?ResponseResource {
+        $source = $reflector->getAttributes(ResponseResource::class)[0] ?? null;
 
         if ($source === null && $descriptor->controller !== null) {
             $source = $descriptor->controller->getAttributes(ResponseResource::class)[0] ?? null;
