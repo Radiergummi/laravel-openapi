@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\SchemaFromResource;
 
@@ -25,6 +26,12 @@ class SchemaProjectResource extends JsonResource {}
 
 #[ResourceField('id', type: 'integer')]
 class SchemaOwnerResource extends JsonResource {}
+
+#[ResourceField('tag', type: SchemaNonResourceModel::class)]
+class SchemaWithExternalRefResource extends JsonResource {}
+
+/** Not a JsonResource — resolved via RefSchemaResolver */
+class SchemaNonResourceModel {}
 
 it('builds an object schema from #[ResourceField] attributes', function (): void {
     $registry = new ComponentSchemaRegistry();
@@ -67,4 +74,40 @@ it('emits a $ref for a nested resource and registers it', function (): void {
 
     $keys = array_map(static fn(OA\Schema $s): string => $s->schema, $registry->all());
     expect($keys)->toContain('SchemaOwnerResource');
+});
+
+it('resolves a non-resource field type via an injected RefSchemaResolver', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $stub = new class () implements RefSchemaResolver {
+        public function resolveRef(string $class): ?string
+        {
+            return $class === SchemaNonResourceModel::class
+                ? '#/components/schemas/SchemaNonResourceModel'
+                : null;
+        }
+    };
+
+    $key = (new SchemaFromResource($registry, [$stub]))->build(SchemaWithExternalRefResource::class);
+
+    $schema = null;
+
+    foreach ($registry->all() as $candidate) {
+        if ($candidate->schema === $key) {
+            $schema = $candidate;
+        }
+    }
+
+    expect($schema)->toBeInstanceOf(OA\Schema::class);
+
+    $tagProperty = null;
+
+    foreach ($schema->properties as $property) {
+        if ($property->property === 'tag') {
+            $tagProperty = $property;
+        }
+    }
+
+    expect($tagProperty)->toBeInstanceOf(OA\Property::class)
+        ->and($tagProperty->ref)->toBe('#/components/schemas/SchemaNonResourceModel');
 });

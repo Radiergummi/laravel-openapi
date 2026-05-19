@@ -41,7 +41,11 @@ final readonly class ResourceClassLocator
 
         $attribute = $this->readResponseResource($descriptor);
 
-        if ($attribute !== null && class_exists($attribute->class)) {
+        if (
+            $attribute !== null
+            && class_exists($attribute->class)
+            && is_a($attribute->class, JsonResource::class, allow_string: true)
+        ) {
             return new ResourceTarget(
                 resourceClass: $attribute->class,
                 isCollection: $attribute->collection ?? $returnsCollection,

@@ -19,6 +19,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 use ReflectionClass;
 use ReflectionMethod;
+use stdClass;
 
 class LocatorFixtureResource extends JsonResource {}
 class LocatorFixtureCollection extends ResourceCollection {}
@@ -39,6 +40,13 @@ class LocatorFixtureController
     }
 
     public function notAResource(): string
+    {
+        return '';
+    }
+
+    /** @phpstan-ignore-next-line */
+    #[ResponseResource(stdClass::class)]
+    public function attributedNonResource(): string
     {
         return '';
     }
@@ -79,4 +87,8 @@ it('resolves the item class from a #[ResponseResource] attribute', function (): 
 
 it('returns null when the action does not return a resource', function (): void {
     expect((new ResourceClassLocator())->locate(locatorDescriptor('notAResource')))->toBeNull();
+});
+
+it('returns null when #[ResponseResource] names a non-JsonResource class', function (): void {
+    expect((new ResourceClassLocator())->locate(locatorDescriptor('attributedNonResource')))->toBeNull();
 });
