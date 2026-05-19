@@ -61,7 +61,7 @@ final class SpecTreeWalker
     /**
      * Rules indexed by visitor interface for O(1) dispatch.
      *
-     * @var array<class-string<Rule>, Rule[]>
+     * @var array<class-string, Rule[]>
      */
     private array $visitors = [];
 

@@ -56,7 +56,7 @@ final class FieldDescriptor
     public bool $isFile = false;
 
     /**
-     * @var null|list<int|string> Enum values from `in:a,b,c`, `Rule::in()`, or `Rule::enum()`.
+     * @var null|list<float|int|string> Enum values from `in:a,b,c`, `Rule::in()`, or `Rule::enum()`.
      */
     public ?array $enum = null;
 

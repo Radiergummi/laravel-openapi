@@ -61,6 +61,9 @@ final class OpenApiRegistry
      */
     private array $rules = [];
 
+    /**
+     * @param class-string<RequestSchemaResolver> $class
+     */
     public function addRequestSchemaResolver(string $class): void
     {
         if (!in_array($class, $this->requestSchemaResolvers, strict: true)) {
@@ -68,6 +71,9 @@ final class OpenApiRegistry
         }
     }
 
+    /**
+     * @param class-string<RefSchemaResolver> $class
+     */
     public function addRefSchemaResolver(string $class): void
     {
         if (!in_array($class, $this->refSchemaResolvers, strict: true)) {
@@ -75,6 +81,9 @@ final class OpenApiRegistry
         }
     }
 
+    /**
+     * @param class-string<QueryParameterResolver> $class
+     */
     public function addQueryParameterResolver(string $class): void
     {
         if (!in_array($class, $this->queryParameterResolvers, strict: true)) {
@@ -82,6 +91,9 @@ final class OpenApiRegistry
         }
     }
 
+    /**
+     * @param class-string<PrimaryResponseResolver> $class
+     */
     public function addPrimaryResponseResolver(string $class): void
     {
         if (!in_array($class, $this->primaryResponseResolvers, strict: true)) {
@@ -89,6 +101,9 @@ final class OpenApiRegistry
         }
     }
 
+    /**
+     * @param class-string $class
+     */
     public function addPayloadClass(string $class): void
     {
         if (!in_array($class, $this->payloadClasses, strict: true)) {
@@ -96,6 +111,9 @@ final class OpenApiRegistry
         }
     }
 
+    /**
+     * @param class-string<ErrorResponseFactory> $class
+     */
     public function addErrorResponseFactory(string $class): void
     {
         if (!in_array($class, $this->errorResponseFactories, strict: true)) {
@@ -103,6 +121,9 @@ final class OpenApiRegistry
         }
     }
 
+    /**
+     * @param class-string $class
+     */
     public function addRule(string $class): void
     {
         if (!in_array($class, $this->rules, strict: true)) {
