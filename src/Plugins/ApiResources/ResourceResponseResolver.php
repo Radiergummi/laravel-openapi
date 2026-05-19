@@ -1,0 +1,71 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Plugins\ApiResources;
+
+use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Core\Enums\MediaType;
+use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Throwable;
+
+use function sprintf;
+
+/**
+ * Resolves an Eloquent API Resource return type into its `200 OK` response.
+ *
+ * Defers (returns null) when the action is not a resource endpoint, or when it
+ * returns a collection type whose item class is undeclared — the latter is
+ * reported by the `resource.response-ambiguous` lint rule.
+ */
+final readonly class ResourceResponseResolver implements PrimaryResponseResolver
+{
+    public function __construct(
+        private ResourceClassLocator $locator,
+        private SchemaFromResource $schemaFromResource,
+        private ResourceEnvelopeFactory $envelopeFactory,
+        private LoggerInterface $logger,
+    ) {}
+
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    {
+        try {
+            $target = $this->locator->locate($descriptor);
+
+            if ($target === null || $target->isAmbiguous()) {
+                return null;
+            }
+
+            /** @var class-string<\Illuminate\Http\Resources\Json\JsonResource> $resourceClass */
+            $resourceClass = $target->resourceClass;
+            $ref = '#/components/schemas/' . $this->schemaFromResource->build($resourceClass);
+
+            $envelope = $target->isCollection
+                ? $this->envelopeFactory->collection($ref)
+                : $this->envelopeFactory->single($ref);
+
+            return new OA\Response([
+                'response' => '200',
+                'description' => 'OK',
+                'content' => [MediaType::Json->schema($envelope)],
+            ]);
+        } catch (Throwable $e) {
+            $this->logger->warning(sprintf(
+                'ResourceResponseResolver failed for route %s: %s',
+                $descriptor->route->uri(),
+                $e->getMessage(),
+            ));
+
+            return null;
+        }
+    }
+}
