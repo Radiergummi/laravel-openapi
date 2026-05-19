@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
 use function implode;
 use function sprintf;
@@ -46,7 +47,8 @@ final class PublicEndpointContradictsMw implements Rule, OperationRuleVisitor
             return;
         }
 
-        $conflicting = $this->findConflictingMiddleware($operation);
+        $descriptor = $operation->descriptor;
+        $conflicting = $this->findConflictingMiddleware($descriptor);
 
         if ($conflicting === []) {
             return;
@@ -57,8 +59,8 @@ final class PublicEndpointContradictsMw implements Rule, OperationRuleVisitor
             level: $this->level(),
             message: sprintf(
                 '%s::%s() is marked #[PublicEndpoint] but the route has conflicting middleware: %s',
-                $operation->descriptor->controller?->getShortName() ?? '(unknown)',
-                $operation->descriptor->method?->getName() ?? '(unknown)',
+                $descriptor->controller?->getShortName() ?? '(unknown)',
+                $descriptor->method?->getName() ?? '(unknown)',
                 implode(', ', $conflicting),
             ),
             fixHint: 'Remove the #[PublicEndpoint] attribute or remove the auth/scope middleware from the route.',
@@ -71,9 +73,9 @@ final class PublicEndpointContradictsMw implements Rule, OperationRuleVisitor
      *
      * @return list<string>
      */
-    private function findConflictingMiddleware(OperationNode $operation): array
+    private function findConflictingMiddleware(ActionDescriptor $descriptor): array
     {
-        $middleware = $operation->descriptor->route->middleware();
+        $middleware = $descriptor->route->middleware();
         $conflicting = [];
 
         foreach ($middleware as $mw) {

@@ -56,7 +56,7 @@ final class FieldDescriptor
     public bool $isFile = false;
 
     /**
-     * @var null|list<int|string> Enum values from `in:a,b,c`, `Rule::in()`, or `Rule::enum()`.
+     * @var null|list<float|int|string> Enum values from `in:a,b,c`, `Rule::in()`, or `Rule::enum()`.
      */
     public ?array $enum = null;
 
@@ -222,7 +222,7 @@ final class FieldDescriptor
                         $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
                     }
 
-                    $target->type  = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                    $target->type  = Generator::UNDEFINED;
                     $target->oneOf = [
                         $inner,
                         new OA\Schema(['type' => 'null']),

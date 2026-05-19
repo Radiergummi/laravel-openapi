@@ -108,6 +108,10 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         $baseSchemaName = $schema->schema !== Generator::UNDEFINED ? $schema->schema : '(unknown)';
 
         foreach ($discriminator->mapping as $discriminatorValue => $ref) {
+            if (!is_string($ref)) {
+                continue;
+            }
+
             $targetSchemaName = $this->resolveRefToSchemaName($ref);
 
             if ($targetSchemaName === null) {
@@ -244,7 +248,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             // If this allOf entry is a $ref, resolve it to the actual schema first
             $ref = $sub->ref;
 
-            if ($ref !== Generator::UNDEFINED && $ref !== null) {
+            if ($ref !== Generator::UNDEFINED && is_string($ref)) {
                 $refName = $this->resolveRefToSchemaName($ref);
 
                 if ($refName !== null) {

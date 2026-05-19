@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -65,18 +66,21 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
             return;
         }
 
-        if ($operation->descriptor === null || $operation->descriptor->method === null) {
+        $descriptor = $operation->descriptor;
+        $method = $descriptor?->method;
+
+        if ($descriptor === null || $method === null) {
             return;
         }
 
-        foreach ($operation->descriptor->method->getParameters() as $parameter) {
+        foreach ($method->getParameters() as $parameter) {
             $actionClass = $this->resolveActionClass($parameter);
 
             if ($actionClass === null) {
                 continue;
             }
 
-            yield from $this->compareThrows($operation, $actionClass);
+            yield from $this->compareThrows($descriptor, $method, $actionClass);
         }
     }
 
@@ -128,8 +132,11 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
      *
      * @return iterable<Finding>
      */
-    private function compareThrows(OperationNode $operation, string $actionClass): iterable
-    {
+    private function compareThrows(
+        ActionDescriptor $descriptor,
+        ReflectionMethod $method,
+        string $actionClass,
+    ): iterable {
         try {
             $handleMethod = new ReflectionMethod($actionClass, 'handle');
         } catch (ReflectionException) {
@@ -156,10 +163,12 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
         // Normalize the controller's declared throws to bare FQCNs
         $controllerThrows = array_map(
             static fn(string $fqcn): string => ltrim($fqcn, '\\'),
-            $operation->descriptor->throws,
+            $descriptor->throws,
         );
 
         $actionShortName = $handleMethod->getDeclaringClass()->getShortName();
+        $controllerShortName = $descriptor->controller?->getShortName() ?? '(unknown)';
+        $methodName = $method->getName();
 
         foreach ($throwsTags as $tag) {
             if (!$tag instanceof Throws) {
@@ -179,14 +188,14 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
                     '%s::handle() declares @throws %s, but %s::%s() does not redeclare it',
                     $actionShortName,
                     $exceptionType,
-                    $operation->descriptor->controller?->getShortName() ?? '(unknown)',
-                    $operation->descriptor->method->getName(),
+                    $controllerShortName,
+                    $methodName,
                 ),
                 fixHint: sprintf(
                     'Add @throws %s to %s::%s() or add a matching #[ExceptionResponse] attribute.',
                     $exceptionType,
-                    $operation->descriptor->controller?->getShortName() ?? '(unknown)',
-                    $operation->descriptor->method->getName(),
+                    $controllerShortName,
+                    $methodName,
                 ),
             );
         }

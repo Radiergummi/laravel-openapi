@@ -91,10 +91,11 @@ final class CliFormatter implements Formatter
     /**
      * @param list<Finding> $findings
      *
-     * @return array<string, Finding[]>
+     * @return array<string, list<Finding>>
      */
     private function groupByFile(array $findings): array
     {
+        /** @var array<string, list<Finding>> $grouped */
         $grouped = [];
 
         foreach ($findings as $finding) {
@@ -214,7 +215,7 @@ final class CliFormatter implements Formatter
         $location = $finding->location;
         $parts = [];
 
-        if ($hasFile && $location->line !== null) {
+        if ($hasFile && $location->line !== null && $location->file !== null) {
             $parts[] = $this->fileLink($location->file, $location->line);
         }
 

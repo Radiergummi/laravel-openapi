@@ -344,7 +344,7 @@ final class SpecTreeBuilder
                     continue;
                 }
 
-                if ($mediaType->mediaType !== Generator::UNDEFINED) {
+                if ($mediaType instanceof OA\MediaType && $mediaType->mediaType !== Generator::UNDEFINED) {
                     $contentTypes[] = $mediaType->mediaType;
                 }
 
@@ -357,7 +357,7 @@ final class SpecTreeBuilder
 
                         if ($ref !== null) {
                             $schemaRef = $ref;
-                        } else {
+                        } elseif ($schema instanceof OA\Schema) {
                             $fields = $this->buildFields($schema);
                         }
                     }
@@ -455,7 +455,7 @@ final class SpecTreeBuilder
 
                             if ($ref !== null) {
                                 $schemaRef = $ref;
-                            } else {
+                            } elseif ($schema instanceof OA\Schema) {
                                 $fields = $this->buildFields($schema);
                             }
                         }
@@ -786,7 +786,7 @@ final class SpecTreeBuilder
                     $result[] = [
                         'scheme' => (string) $scheme,
                         'scopes' => is_array($scopes)
-                            ? array_map('strval', $scopes)
+                            ? array_values(array_map('strval', $scopes))
                             : [],
                     ];
                 }
@@ -928,17 +928,17 @@ final class SpecTreeBuilder
     /**
      * Extract a $ref component name from a schema.
      * Returns the component name (e.g., "User") or null if not a $ref.
+     *
+     * @param null|array<string, mixed>|OA\Schema|string $schema
      */
     private function extractRef(OA\Schema|array|string|null $schema): ?string
     {
-        // @phpstan-ignore-next-line identical.alwaysFalse
         if ($schema === null || $schema === Generator::UNDEFINED) {
             return null;
         }
 
-        $ref = $schema->ref ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
+        $ref = $schema->ref ?? Generator::UNDEFINED;
 
-        // @phpstan-ignore-next-line identical.alwaysFalse
         if (
             $ref === Generator::UNDEFINED
             || $ref === null // @phpstan-ignore identical.alwaysFalse
@@ -1025,7 +1025,7 @@ final class SpecTreeBuilder
             return null;
         }
 
-        return $enum;
+        return array_values($enum);
     }
 
     private function isNullable(OA\Schema $schema): bool

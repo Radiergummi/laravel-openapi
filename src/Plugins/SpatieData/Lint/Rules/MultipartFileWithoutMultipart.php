@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleV
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\SpatieData\FilePropertyChecker;
 use ReflectionException;
+use ReflectionMethod;
 use Spatie\LaravelData\Data;
 
 use function sprintf;
@@ -56,7 +57,7 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
             return;
         }
 
-        if (!$this->methodAcceptsFileUploadData($operation)) {
+        if (!$this->methodAcceptsFileUploadData($operation->descriptor->method)) {
             return;
         }
 
@@ -88,10 +89,10 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
      *
      * @throws ReflectionException
      */
-    private function methodAcceptsFileUploadData(OperationNode $operation): bool
+    private function methodAcceptsFileUploadData(ReflectionMethod $method): bool
     {
         $dataClass = $this->scanner->candidateOfType(
-            $operation->descriptor->method,
+            $method,
             Data::class,
         );
 

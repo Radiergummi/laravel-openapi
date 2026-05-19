@@ -355,7 +355,9 @@ final readonly class OperationBuilder
 
         if ($override->mediaType !== null && is_array($auto->content)) {
             foreach ($auto->content as $media) {
-                $media->mediaType = $override->mediaType->value;
+                if ($media instanceof OA\MediaType) {
+                    $media->mediaType = $override->mediaType->value;
+                }
             }
         }
 
@@ -397,7 +399,9 @@ final readonly class OperationBuilder
         $examples = $this->collectExamples($instances);
 
         foreach ($content as $media) {
-            $media->examples = $examples;
+            if ($media instanceof OA\MediaType) {
+                $media->examples = $examples;
+            }
         }
     }
 
@@ -452,7 +456,9 @@ final readonly class OperationBuilder
             $examples = $this->collectExamples($byStatus[$status]);
 
             foreach ($content as $media) {
-                $media->examples = $examples;
+                if ($media instanceof OA\MediaType) {
+                    $media->examples = $examples;
+                }
             }
         }
     }
@@ -690,6 +696,7 @@ final readonly class OperationBuilder
         return $instance->message ?? '';
     }
 
+    /** @return null|ReflectionAttribute<Deprecated> */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
         if ($descriptor->actionReflector !== null) {

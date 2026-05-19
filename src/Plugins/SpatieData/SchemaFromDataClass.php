@@ -266,6 +266,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         $variantKeys = [];
 
         foreach ($discriminator->mapping as $variantClass) {
+            assert(is_a($variantClass, Data::class, allow_string: true));
             $variantKeys[$variantClass] = $this->build($variantClass);
         }
 
@@ -303,6 +304,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
+     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
+     *
      * @throws ReflectionException
      * @throws UnsupportedException
      */
@@ -347,6 +350,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
+     * @param ObjectType<class-string> $type
+     *
      * @throws ReflectionException
      * @throws UnsupportedException
      */

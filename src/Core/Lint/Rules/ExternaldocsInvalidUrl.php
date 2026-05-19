@@ -46,7 +46,7 @@ final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
         $classAttributes
             = $operation->descriptor->controller?->getAttributes(ExternalDocs::class) ?? [];
 
-        /** @var ReflectionAttribute[] $attributes */
+        /** @var ReflectionAttribute<ExternalDocs>[] $attributes */
         $attributes = array_merge($classAttributes, $methodAttributes);
 
         if ($attributes === []) {

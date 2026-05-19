@@ -91,7 +91,7 @@ final readonly class SecurityExtractor
     public function forRoute(Route $route): array
     {
         $middleware = $this->expandGroups(
-            $route->gatherMiddleware(),
+            array_values($route->gatherMiddleware()),
             $this->router->getMiddlewareGroups(),
         );
         $scopes = $this->extractScopes($middleware);
@@ -124,7 +124,7 @@ final readonly class SecurityExtractor
 
         foreach ($middleware as $entry) {
             if (isset($groups[$entry])) {
-                foreach ($this->expandGroups($groups[$entry], $groups, $depth + 1) as $expanded) {
+                foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
                     $result[] = $expanded;
                 }
             } else {

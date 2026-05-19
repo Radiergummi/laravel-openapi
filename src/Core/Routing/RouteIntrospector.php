@@ -55,6 +55,8 @@ final readonly class RouteIntrospector
             $routes = $routes
                 ->toCompiledRouteCollection($this->router, $this->container)
                 ->getRoutes();
+        } else {
+            $routes = $routes->getRoutes();
         }
 
         foreach ($routes as $route) {
@@ -100,6 +102,16 @@ final readonly class RouteIntrospector
                 );
             }
 
+            return new ActionDescriptor(
+                route: $route,
+                controller: null,
+                method: null,
+                summary: null,
+                description: null,
+            );
+        }
+
+        if (!class_exists($controllerClass)) {
             return new ActionDescriptor(
                 route: $route,
                 controller: null,

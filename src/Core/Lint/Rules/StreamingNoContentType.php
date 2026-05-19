@@ -106,7 +106,8 @@ final class StreamingNoContentType implements Rule, OperationRuleVisitor
                 }
 
                 if (
-                    $mediaType->mediaType !== Generator::UNDEFINED
+                    $mediaType instanceof OA\MediaType
+                    && $mediaType->mediaType !== Generator::UNDEFINED
                     && $mediaType->mediaType === 'text/event-stream'
                 ) {
                     return true;

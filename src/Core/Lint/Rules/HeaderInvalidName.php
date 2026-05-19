@@ -52,7 +52,7 @@ final class HeaderInvalidName implements Rule, OperationRuleVisitor
         $methodAttributes = $descriptor->method->getAttributes(Header::class);
         $classAttributes = $descriptor->controller?->getAttributes(Header::class) ?? [];
 
-        /** @var ReflectionAttribute[] $attributes */
+        /** @var ReflectionAttribute<Header>[] $attributes */
         $attributes = array_merge($classAttributes, $methodAttributes);
 
         if ($attributes === []) {
