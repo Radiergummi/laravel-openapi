@@ -88,6 +88,9 @@ final readonly class LinterSummary implements Arrayable, JsonSerializable
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     #[Override]
     public function jsonSerialize(): array
     {

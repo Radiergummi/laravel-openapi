@@ -101,6 +101,9 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     #[Override]
     public function jsonSerialize(): array
     {

@@ -928,6 +928,8 @@ final class SpecTreeBuilder
     /**
      * Extract a $ref component name from a schema.
      * Returns the component name (e.g., "User") or null if not a $ref.
+     *
+     * @param OA\Schema|array<string, mixed>|string|null $schema
      */
     private function extractRef(OA\Schema|array|string|null $schema): ?string
     {
