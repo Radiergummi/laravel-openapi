@@ -68,17 +68,11 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
 
     private function filterParameter(AllowedFilter $filter): OA\Parameter
     {
-        $schemaProps = $filter->descriptor()->toOpenApi();
-
-        if (!isset($schemaProps['type'])) {
-            $schemaProps['type'] = 'string';
-        }
-
         return new OA\Parameter([
             'name' => sprintf('filter[%s]', $filter->name),
             'in' => 'query',
             'required' => false,
-            'schema' => new OA\Schema($schemaProps),
+            'schema' => new OA\Schema(['type' => 'string', ...$filter->descriptor()->toOpenApi()]),
         ]);
     }
 
