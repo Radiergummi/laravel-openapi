@@ -127,8 +127,9 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
 
     /**
      * Check whether the given attribute class is marked deprecated.
+     *
+     * @param ReflectionClass<object> $reflection
      */
-    /** @param ReflectionClass<object> $reflection */
     private function isDeprecated(ReflectionClass $reflection): bool
     {
         if ($reflection->getAttributes(Deprecated::class) !== []) {

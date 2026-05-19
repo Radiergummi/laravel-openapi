@@ -303,7 +303,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * @param CollectionType<BuiltinType<TypeIdentifier>|ObjectType<class-string>> $type
+     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
      *
      * @throws ReflectionException
      * @throws UnsupportedException
