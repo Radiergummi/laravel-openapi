@@ -26,16 +26,23 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 final class OperationNodeFactory
 {
     /**
-     * A minimal `OperationNode` carrying `$descriptor`. Every document-shaped
-     * field is empty: the plugin lint rules resolve everything from the
-     * descriptor's reflection, not from the produced operation.
+     * An `OperationNode` carrying `$descriptor`. Document-shaped fields are empty
+     * by default — most lint rules resolve everything from the descriptor's
+     * reflection rather than from the produced operation. Optional overrides let
+     * tests vary the HTTP method, the document-side `pathUri` / `operationId`,
+     * or the `raw` swagger-php operation when a rule actually inspects them.
      */
-    public static function forDescriptor(ActionDescriptor $descriptor): OperationNode
-    {
+    public static function forDescriptor(
+        ActionDescriptor $descriptor,
+        string $method = 'GET',
+        ?string $pathUri = null,
+        ?string $operationId = null,
+        ?OA\Operation $raw = null,
+    ): OperationNode {
         return new OperationNode(
-            pathUri: $descriptor->route->uri(),
-            method: 'GET',
-            operationId: null,
+            pathUri: $pathUri ?? $descriptor->route->uri(),
+            method: $method,
+            operationId: $operationId,
             summary: null,
             description: null,
             deprecated: false,
@@ -46,16 +53,19 @@ final class OperationNodeFactory
             security: [],
             tags: [],
             descriptor: $descriptor,
-            raw: new OA\Get(['_context' => new Context()]),
+            raw: $raw ?? self::rawForMethod($method),
             webhook: false,
         );
     }
 
     /**
      * A minimal valid `LintContext`. The plugin lint rules never read it, but
-     * `checkOperation()` requires a non-null instance.
+     * `checkOperation()` requires a non-null instance. `$payloadClasses` lets
+     * tests opt in to the Data-plugin payload-class detection path.
+     *
+     * @param list<class-string> $payloadClasses
      */
-    public static function emptyContext(): LintContext
+    public static function emptyContext(array $payloadClasses = []): LintContext
     {
         $spec = new OA\OpenApi(['openapi' => '3.1.0']);
 
@@ -72,6 +82,22 @@ final class OperationNodeFactory
             rawSpec: $spec,
             actionDescriptors: [],
             suppressions: [],
+            payloadClasses: $payloadClasses,
         );
+    }
+
+    private static function rawForMethod(string $method): OA\Operation
+    {
+        $context = ['_context' => new Context()];
+
+        return match (strtoupper($method)) {
+            'POST' => new OA\Post($context),
+            'PUT' => new OA\Put($context),
+            'DELETE' => new OA\Delete($context),
+            'PATCH' => new OA\Patch($context),
+            'HEAD' => new OA\Head($context),
+            'OPTIONS' => new OA\Options($context),
+            default => new OA\Get($context),
+        };
     }
 }

@@ -9,52 +9,12 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\ExternaldocsInvalidUrl;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidExternalDocsController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeExternaldocsOperationNode(ActionDescriptor $descriptor): OperationNode
-{
-    return new OperationNode(
-        pathUri: '/fixture',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: new OA\Get(['_context' => new Context()]),
-        webhook: false,
-    );
-}
-
-function makeContextForExternaldocs(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('has the correct rule id and level', function (): void {
     $rule = new ExternaldocsInvalidUrl();
@@ -66,8 +26,8 @@ it('has the correct rule id and level', function (): void {
 it('emits no findings for a valid URL', function (): void {
     $rule = new ExternaldocsInvalidUrl();
     $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withValidUrl', '/fixture');
-    $operation = makeExternaldocsOperationNode($descriptor);
-    $context = makeContextForExternaldocs();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -79,8 +39,8 @@ it('emits no findings for a valid URL', function (): void {
 it('emits a finding for an invalid URL', function (): void {
     $rule = new ExternaldocsInvalidUrl();
     $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withInvalidUrl', '/fixture');
-    $operation = makeExternaldocsOperationNode($descriptor);
-    $context = makeContextForExternaldocs();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -95,8 +55,8 @@ it('emits a finding for an invalid URL', function (): void {
 it('emits a finding for an empty URL', function (): void {
     $rule = new ExternaldocsInvalidUrl();
     $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withEmptyUrl', '/fixture');
-    $operation = makeExternaldocsOperationNode($descriptor);
-    $context = makeContextForExternaldocs();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -109,8 +69,8 @@ it('emits a finding for an empty URL', function (): void {
 it('emits no findings when a method has no ExternalDocs attribute', function (): void {
     $rule = new ExternaldocsInvalidUrl();
     $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withoutExternalDocs', '/fixture');
-    $operation = makeExternaldocsOperationNode($descriptor);
-    $context = makeContextForExternaldocs();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),

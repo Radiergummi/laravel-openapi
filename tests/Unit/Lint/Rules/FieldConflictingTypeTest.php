@@ -12,16 +12,13 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ConflictingTypeFixtureController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint');
@@ -29,41 +26,6 @@ uses()->group('openapi', 'lint');
 function makeDirectScannerForConflictingType(): PayloadParameterScanner
 {
     return new PayloadParameterScanner(indirectionClasses: []);
-}
-
-function makeConflictingTypeOperation(?ActionDescriptor $descriptor): OperationNode
-{
-    return new OperationNode(
-        pathUri: '/api/v0/test',
-        method: 'POST',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: new OA\Post(['_context' => new Context()]),
-        webhook: false,
-    );
-}
-
-function makeConflictingTypeContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-        payloadClasses: [Data::class],
-    );
 }
 
 it('reports its id and level', function (): void {
@@ -76,8 +38,8 @@ it('reports its id and level', function (): void {
 it('emits a finding when RequestField type contradicts the PHP type', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
     $descriptor = ActionDescriptorFactory::forControllerMethod(ConflictingTypeFixtureController::class, 'withConflict', '/fixture');
-    $operation = makeConflictingTypeOperation($descriptor);
-    $context = makeConflictingTypeContext();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -91,8 +53,24 @@ it('emits a finding when RequestField type contradicts the PHP type', function (
 
 it('emits no findings when there is no descriptor on the operation', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
-    $operation = makeConflictingTypeOperation(null);
-    $context = makeConflictingTypeContext();
+    $operation = new OperationNode(
+        pathUri: '/api/v0/test',
+        method: 'POST',
+        operationId: null,
+        summary: null,
+        description: null,
+        deprecated: false,
+        parameters: [],
+        queryParameters: [],
+        requestBody: null,
+        responses: [],
+        security: [],
+        tags: [],
+        descriptor: null,
+        raw: new OA\Post(['_context' => new Context()]),
+        webhook: false,
+    );
+    $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -102,8 +80,8 @@ it('emits no findings when there is no descriptor on the operation', function ()
 it('emits no findings when the method has no Data class parameters', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
     $descriptor = ActionDescriptorFactory::forControllerMethod(ConflictingTypeFixtureController::class, 'withoutData', '/fixture');
-    $operation = makeConflictingTypeOperation($descriptor);
-    $context = makeConflictingTypeContext();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -113,8 +91,8 @@ it('emits no findings when the method has no Data class parameters', function ()
 it('does not flag matching types or properties without explicit type', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
     $descriptor = ActionDescriptorFactory::forControllerMethod(ConflictingTypeFixtureController::class, 'withConflict', '/fixture');
-    $operation = makeConflictingTypeOperation($descriptor);
-    $context = makeConflictingTypeContext();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -127,8 +105,8 @@ it('does not flag matching types or properties without explicit type', function 
 it('provides a fix hint with the expected type', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
     $descriptor = ActionDescriptorFactory::forControllerMethod(ConflictingTypeFixtureController::class, 'withConflict', '/fixture');
-    $operation = makeConflictingTypeOperation($descriptor);
-    $context = makeConflictingTypeContext();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -137,8 +115,8 @@ it('provides a fix hint with the expected type', function (): void {
 
 it('emits a finding for a Data class injected through a Domain Action', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithConflictingTypeDataController::class, 'create', '/fixture', ['POST']);
-    $operation = makeConflictingTypeOperation($descriptor);
-    $context = makeConflictingTypeContext();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     // Scanner descends into ActionWithConflictingTypeData's constructor to find ConflictingTypeFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithConflictingTypeData::class]);

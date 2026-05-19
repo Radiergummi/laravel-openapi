@@ -9,18 +9,14 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithWrongScopeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithWrongScopeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\WrongScopeFixtureController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi', 'lint', 'plugin:spatie-data');
@@ -38,37 +34,7 @@ function makeWrongScopeOperation(string $method): OperationNode
 {
     $descriptor = ActionDescriptorFactory::forControllerMethod(WrongScopeFixtureController::class, $method, '/fixture');
 
-    return new OperationNode(
-        pathUri: '/api/v0/test',
-        method: 'POST',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: new OA\Post(['_context' => new Context()]),
-        webhook: false,
-    );
-}
-
-function makeWrongScopeContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-        payloadClasses: [Data::class],
-    );
+    return OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
 }
 
 it('reports its id and level', function (): void {
@@ -81,7 +47,7 @@ it('reports its id and level', function (): void {
 it('flags RequestField on a route parameter', function (): void {
     $findings = iterator_to_array((new FieldAttributeWrongScope(makeDirectOnlyScanner()))->checkOperation(
         makeWrongScopeOperation('requestFieldOnRouteParam'),
-        makeWrongScopeContext(),
+        OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
     ));
 
     expect($findings)->toHaveCount(1)
@@ -93,7 +59,7 @@ it('flags RequestField on a route parameter', function (): void {
 it('flags PathParam on a Data-class property', function (): void {
     $findings = iterator_to_array((new FieldAttributeWrongScope(makeDirectOnlyScanner()))->checkOperation(
         makeWrongScopeOperation('pathParamOnDataProperty'),
-        makeWrongScopeContext(),
+        OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
     ));
 
     expect($findings)->toHaveCount(1)
@@ -104,7 +70,7 @@ it('flags PathParam on a Data-class property', function (): void {
 it('does not flag correctly-scoped attributes', function (): void {
     $findings = iterator_to_array((new FieldAttributeWrongScope(makeDirectOnlyScanner()))->checkOperation(
         makeWrongScopeOperation('correct'),
-        makeWrongScopeContext(),
+        OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
     ));
 
     expect($findings)->toBe([]);
@@ -116,29 +82,16 @@ it('flags PathParam on a Data-class property injected through a Domain Action', 
     // into the Action constructor to reach it.
     $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithWrongScopeDataController::class, 'create', '/fixture', ['POST']);
 
-    $operation = new OperationNode(
-        pathUri: '/api/v0/test',
-        method: 'POST',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: new OA\Post(['_context' => new Context()]),
-        webhook: false,
-    );
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
 
     // Scanner configured with Action::class as an indirection base so it descends
     // into ActionWithWrongScopeData's constructor and finds WrongScopeFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithWrongScopeData::class]);
     $findings = iterator_to_array(
-        (new FieldAttributeWrongScope($scanner))->checkOperation($operation, makeWrongScopeContext()),
+        (new FieldAttributeWrongScope($scanner))->checkOperation(
+            $operation,
+            OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
+        ),
     );
 
     expect($findings)->toHaveCount(1)

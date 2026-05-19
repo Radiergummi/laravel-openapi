@@ -11,49 +11,19 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\HeaderInvalidName;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidHeaderNameController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeHeaderInvalidNameContext(): LintContext
-{
-    $spec = new OA\OpenApi(['_context' => new Context()]);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 function makeOperationNodeForHeaderInvalidName(string $methodName): OperationNode
 {
     $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidHeaderNameController::class, $methodName, '/fixture');
 
-    return new OperationNode(
-        pathUri: '/fixture',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: new OA\Get(['_context' => new Context()]),
-    );
+    return OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
 }
 
 it('has the correct rule id and level', function (): void {
@@ -65,7 +35,7 @@ it('has the correct rule id and level', function (): void {
 it('emits no findings for valid header names', function (): void {
     $rule = new HeaderInvalidName();
     $operation = makeOperationNodeForHeaderInvalidName('withValidHeaders');
-    $context = makeHeaderInvalidNameContext();
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -75,7 +45,7 @@ it('emits no findings for valid header names', function (): void {
 it('emits a finding for a header name with spaces', function (): void {
     $rule = new HeaderInvalidName();
     $operation = makeOperationNodeForHeaderInvalidName('withInvalidHeaderSpace');
-    $context = makeHeaderInvalidNameContext();
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -92,7 +62,7 @@ it('emits a finding for a header name with spaces', function (): void {
 it('emits a finding for an empty header name', function (): void {
     $rule = new HeaderInvalidName();
     $operation = makeOperationNodeForHeaderInvalidName('withEmptyHeaderName');
-    $context = makeHeaderInvalidNameContext();
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -102,7 +72,7 @@ it('emits a finding for an empty header name', function (): void {
 it('emits findings only for invalid headers in a mixed set', function (): void {
     $rule = new HeaderInvalidName();
     $operation = makeOperationNodeForHeaderInvalidName('withMixedHeaders');
-    $context = makeHeaderInvalidNameContext();
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -112,7 +82,7 @@ it('emits findings only for invalid headers in a mixed set', function (): void {
 it('emits no findings when a method has no header attributes', function (): void {
     $rule = new HeaderInvalidName();
     $operation = makeOperationNodeForHeaderInvalidName('withoutHeaders');
-    $context = makeHeaderInvalidNameContext();
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -121,7 +91,7 @@ it('emits no findings when a method has no header attributes', function (): void
 
 it('emits no findings when operation has no descriptor', function (): void {
     $rule = new HeaderInvalidName();
-    $context = makeHeaderInvalidNameContext();
+    $context = OperationNodeFactory::emptyContext();
 
     $operation = new OperationNode(
         pathUri: '/test',

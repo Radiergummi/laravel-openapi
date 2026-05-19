@@ -9,53 +9,13 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedAttribute;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DeprecatedAttrClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DeprecatedAttrController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeDeprecatedAttrOperationNode(ActionDescriptor $descriptor): OperationNode
-{
-    return new OperationNode(
-        pathUri: '/fixture',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: new OA\Get(['_context' => new Context()]),
-        webhook: false,
-    );
-}
-
-function makeContextForDeprecatedAttr(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedAttribute('Radiergummi\\OpenApi\\Tests\\Fixtures\\Lint\\');
@@ -67,8 +27,8 @@ it('has the correct rule id and level', function (): void {
 it('emits a finding when a method uses a deprecated OpenAPI attribute', function (): void {
     $rule = new DeprecatedAttribute('Radiergummi\\OpenApi\\Tests\\Fixtures\\Lint\\');
     $descriptor = ActionDescriptorFactory::forControllerMethod(DeprecatedAttrController::class, 'withDeprecatedAttribute', '/fixture');
-    $operation = makeDeprecatedAttrOperationNode($descriptor);
-    $context = makeContextForDeprecatedAttr();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -84,8 +44,8 @@ it('emits a finding when a method uses a deprecated OpenAPI attribute', function
 it('emits no findings when a method uses a non-deprecated OpenAPI attribute', function (): void {
     $rule = new DeprecatedAttribute('Radiergummi\\OpenApi\\Tests\\Fixtures\\Lint\\');
     $descriptor = ActionDescriptorFactory::forControllerMethod(DeprecatedAttrController::class, 'withNonDeprecatedAttribute', '/fixture');
-    $operation = makeDeprecatedAttrOperationNode($descriptor);
-    $context = makeContextForDeprecatedAttr();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -97,8 +57,8 @@ it('emits no findings when a method uses a non-deprecated OpenAPI attribute', fu
 it('emits no findings when a method has no attributes', function (): void {
     $rule = new DeprecatedAttribute('Radiergummi\\OpenApi\\Tests\\Fixtures\\Lint\\');
     $descriptor = ActionDescriptorFactory::forControllerMethod(DeprecatedAttrController::class, 'withoutAttributes', '/fixture');
-    $operation = makeDeprecatedAttrOperationNode($descriptor);
-    $context = makeContextForDeprecatedAttr();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -111,8 +71,8 @@ it('uses class-level message wording when the deprecated attribute is on the con
     $rule = new DeprecatedAttribute('Radiergummi\\OpenApi\\Tests\\Fixtures\\Lint\\');
 
     $descriptor = ActionDescriptorFactory::forControllerMethod(DeprecatedAttrClassController::class, 'index', '/fixture');
-    $operation = makeDeprecatedAttrOperationNode($descriptor);
-    $context = makeContextForDeprecatedAttr();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
@@ -125,8 +85,8 @@ it('uses class-level message wording when the deprecated attribute is on the con
 it('uses method-level message wording when the deprecated attribute is on the method', function (): void {
     $rule = new DeprecatedAttribute('Radiergummi\\OpenApi\\Tests\\Fixtures\\Lint\\');
     $descriptor = ActionDescriptorFactory::forControllerMethod(DeprecatedAttrController::class, 'withDeprecatedAttribute', '/fixture');
-    $operation = makeDeprecatedAttrOperationNode($descriptor);
-    $context = makeContextForDeprecatedAttr();
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
