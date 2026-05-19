@@ -55,6 +55,8 @@ final readonly class RouteIntrospector
             $routes = $routes
                 ->toCompiledRouteCollection($this->router, $this->container)
                 ->getRoutes();
+        } else {
+            $routes = $routes->getRoutes();
         }
 
         foreach ($routes as $route) {

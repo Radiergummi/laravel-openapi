@@ -786,7 +786,7 @@ final class SpecTreeBuilder
                     $result[] = [
                         'scheme' => (string) $scheme,
                         'scopes' => is_array($scopes)
-                            ? array_map('strval', $scopes)
+                            ? array_values(array_map('strval', $scopes))
                             : [],
                     ];
                 }
@@ -1025,7 +1025,7 @@ final class SpecTreeBuilder
             return null;
         }
 
-        return $enum;
+        return array_values($enum);
     }
 
     private function isNullable(OA\Schema $schema): bool
