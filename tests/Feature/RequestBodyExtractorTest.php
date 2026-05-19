@@ -32,8 +32,6 @@ use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
-use ReflectionClass;
-use ReflectionMethod;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -153,12 +151,10 @@ it('uses application/json for a plain FormRequest without file fields', function
     };
 
     [$extractor] = makeRequestBodyExtractor();
-    $descriptor  = new ActionDescriptor(
+    $descriptor  = ActionDescriptorFactory::forRoute(
         route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($controller),
-        method: new ReflectionMethod($controller, 'store'),
-        summary: null,
-        description: null,
+        controller: $controller::class,
+        method: 'store',
     );
 
     $result = $extractor->extractFromMethod($descriptor);

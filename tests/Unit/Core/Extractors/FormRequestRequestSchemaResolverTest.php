@@ -73,12 +73,10 @@ it('uses application/json media type for a plain FormRequest', function (): void
     };
 
     $resolver   = makeFormRequestResolver();
-    $descriptor = new ActionDescriptor(
+    $descriptor = ActionDescriptorFactory::forRoute(
         route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($controller),
-        method: new ReflectionMethod($controller, 'store'),
-        summary: null,
-        description: null,
+        controller: $controller::class,
+        method: 'store',
     );
 
     $result = $resolver->resolveRequestSchema($descriptor);

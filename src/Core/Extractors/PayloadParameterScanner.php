@@ -18,15 +18,18 @@ use ReflectionNamedType;
 use function is_a;
 
 /**
- * Scans a controller method's parameter list for candidate request-payload class-strings.
+ * Scans a controller method's parameter list for injected class-strings.
  *
- * Two passes are performed in order:
+ * Two passes are available:
  *
- * 1. **Direct params** — every parameter of `$method` whose type is a non-builtin
- *    {@see ReflectionNamedType} is included as-is.
- * 2. **Indirection descent** — for every direct param whose class `is_a()` one of the configured
- *    `$indirectionClasses`, that class's constructor is reflected and its non-builtin named-type
- *    parameters are appended.
+ * 1. **Direct params** ({@see self::directCandidates()}) — every parameter of `$method` whose
+ *    type is a non-builtin {@see ReflectionNamedType} is returned as-is. This is the right
+ *    pass for callers that ask "is X literally injected here?" (lint rules keying off
+ *    `QueryBuilder`, `Request`, etc.).
+ * 2. **Indirection descent** ({@see self::candidates()}) — additionally, for every direct param
+ *    whose class `is_a()` one of the configured `$indirectionClasses`, that class's constructor
+ *    is reflected and its non-builtin named-type parameters are appended. This is the right
+ *    pass for callers that ask "what request-payload class does this method ultimately receive?".
  */
 final class PayloadParameterScanner
 {
@@ -39,8 +42,9 @@ final class PayloadParameterScanner
     private array $memo = [];
 
     /**
-     * Per-method `directCandidates()` cache, keyed by `Class::method`. Separate from `$memo`
-     * because direct-only callers (lint rules) shouldn't pay for indirection descent.
+     * Per-method `directCandidates()` cache, keyed by `Class::method`. Distinct from `$memo`
+     * because `directCandidates()` and `candidates()` return different lists (direct-only vs.
+     * direct + indirect) — one cache can't satisfy both, so each method memoizes its own result.
      *
      * @var array<string, list<class-string>>
      */
