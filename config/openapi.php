@@ -227,6 +227,9 @@ return [
     'plugins' => [
         SpatieDataPlugin::class,
         ApiResourcesPlugin::class,
+
+        // Requires `composer require spatie/laravel-query-builder`. Uncomment to enable:
+        // \Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin::class,
     ],
 
     /*
