@@ -15,8 +15,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use ReflectionFunctionAbstract;
 use ReflectionNamedType;
+use ReflectionType;
 
 use function class_exists;
 use function is_a;
@@ -37,7 +37,8 @@ final readonly class ResourceClassLocator
             return null;
         }
 
-        $returnsCollection = $this->returnTypeIsCollection($reflector);
+        $returnType = $reflector->getReturnType();
+        $returnsCollection = $this->isCollectionType($returnType);
 
         $attribute = $this->readResponseResource($descriptor);
 
@@ -52,8 +53,6 @@ final readonly class ResourceClassLocator
             );
         }
 
-        $returnType = $reflector->getReturnType();
-
         if (!$returnType instanceof ReflectionNamedType || $returnType->isBuiltin()) {
             return null;
         }
@@ -64,7 +63,7 @@ final readonly class ResourceClassLocator
             return null;
         }
 
-        if (is_a($name, ResourceCollection::class, allow_string: true)) {
+        if ($returnsCollection) {
             // Collection return type with no #[ResponseResource]: the item
             // class is not recoverable from the signature — ambiguous.
             return new ResourceTarget(resourceClass: null, isCollection: true);
@@ -87,10 +86,8 @@ final readonly class ResourceClassLocator
         return $source?->newInstance();
     }
 
-    private function returnTypeIsCollection(ReflectionFunctionAbstract $reflector): bool
+    private function isCollectionType(?ReflectionType $returnType): bool
     {
-        $returnType = $reflector->getReturnType();
-
         return $returnType instanceof ReflectionNamedType
             && !$returnType->isBuiltin()
             && is_a($returnType->getName(), ResourceCollection::class, allow_string: true);

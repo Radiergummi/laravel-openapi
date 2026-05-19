@@ -29,7 +29,7 @@ use function is_a;
  * Nested `JsonResource` field types recurse through {@see build()} directly;
  * other class-string field types are resolved via the injected resolver list
  * (which deliberately excludes {@see ResourceRefSchemaResolver} to avoid a
- * container construction cycle — see the plan's architecture note).
+ * container construction cycle).
  */
 final class SchemaFromResource
 {
@@ -70,6 +70,16 @@ final class SchemaFromResource
         $key = $this->registry->keyFor($resourceClass);
 
         return $key;
+    }
+
+    /**
+     * Registers the resource and returns its qualified `$ref` string.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     */
+    public function buildRef(string $resourceClass): string
+    {
+        return $this->registry->qualifyKey($this->build($resourceClass));
     }
 
     /**

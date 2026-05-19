@@ -47,7 +47,7 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
 
             /** @var class-string<\Illuminate\Http\Resources\Json\JsonResource> $resourceClass */
             $resourceClass = $target->resourceClass;
-            $ref = '#/components/schemas/' . $this->schemaFromResource->build($resourceClass);
+            $ref = $this->schemaFromResource->buildRef($resourceClass);
 
             $envelope = $target->isCollection
                 ? $this->envelopeFactory->collection($ref)

@@ -18,7 +18,7 @@ use OpenApi\Annotations as OA;
  * Resource responses into. The single shape is `{data}`; the collection shape
  * models the paginated `{data, links, meta}` form (the dominant convention).
  */
-final class ResourceEnvelopeFactory
+final readonly class ResourceEnvelopeFactory
 {
     public function single(string $ref): OA\Schema
     {

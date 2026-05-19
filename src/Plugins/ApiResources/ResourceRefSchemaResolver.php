@@ -33,6 +33,6 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
         }
 
         /** @var class-string<JsonResource> $class */
-        return '#/components/schemas/' . $this->schemaFromResource->build($class);
+        return $this->schemaFromResource->buildRef($class);
     }
 }
