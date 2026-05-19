@@ -11,13 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
-use ReflectionClass;
-use ReflectionMethod;
 use stdClass;
 
 uses()->group('openapi', 'plugin:query-builder');
@@ -39,21 +36,12 @@ class ParamsUndeclaredController
     public function declared(\Spatie\QueryBuilder\QueryBuilder $query): void {}
 }
 
-function paramsUndeclaredDescriptor(string $method): ActionDescriptor
-{
-    return new ActionDescriptor(
-        route: new Route(['GET'], '/x', []),
-        controller: new ReflectionClass(ParamsUndeclaredController::class),
-        method: new ReflectionMethod(ParamsUndeclaredController::class, $method),
-        summary: null,
-        description: null,
-    );
-}
-
 it('flags a method injecting QueryBuilder with no query-builder attributes', function (): void {
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ParamsUndeclaredController::class, 'undeclared');
+
     $rule = new QueryBuilderParamsUndeclared();
     $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor(paramsUndeclaredDescriptor('undeclared')),
+        OperationNodeFactory::forDescriptor($descriptor),
         OperationNodeFactory::emptyContext(),
     ));
 
@@ -62,9 +50,11 @@ it('flags a method injecting QueryBuilder with no query-builder attributes', fun
 });
 
 it('does not flag a method that declares query-builder attributes', function (): void {
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ParamsUndeclaredController::class, 'declared');
+
     $rule = new QueryBuilderParamsUndeclared();
     $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor(paramsUndeclaredDescriptor('declared')),
+        OperationNodeFactory::forDescriptor($descriptor),
         OperationNodeFactory::emptyContext(),
     ));
 

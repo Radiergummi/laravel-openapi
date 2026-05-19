@@ -11,15 +11,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder;
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderParameterResolver;
-use ReflectionClass;
-use ReflectionMethod;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 class QbResolverController
 {
@@ -32,17 +29,6 @@ class QbResolverController
     public function bare(): void {}
 }
 
-function qbDescriptor(string $method): ActionDescriptor
-{
-    return new ActionDescriptor(
-        route: new Route(['GET'], '/x', []),
-        controller: new ReflectionClass(QbResolverController::class),
-        method: new ReflectionMethod(QbResolverController::class, $method),
-        summary: null,
-        description: null,
-    );
-}
-
 /** @return list<string> */
 function parameterNames(array $parameters): array
 {
@@ -50,15 +36,16 @@ function parameterNames(array $parameters): array
 }
 
 it('emits a filter[...] parameter per #[AllowedFilter]', function (): void {
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters(qbDescriptor('index'));
-    $names = parameterNames($params);
+    $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
+    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
 
-    expect($names)->toContain('filter[status]')
-        ->and($names)->toContain('filter[priority]');
+    expect(parameterNames($params))->toContain('filter[status]')
+        ->and(parameterNames($params))->toContain('filter[priority]');
 });
 
 it('emits a single sort parameter with the allowed fields as enum', function (): void {
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters(qbDescriptor('index'));
+    $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
+    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
 
     $sort = null;
 
@@ -74,7 +61,8 @@ it('emits a single sort parameter with the allowed fields as enum', function ():
 });
 
 it('emits a single include parameter with the allowed relations as enum', function (): void {
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters(qbDescriptor('index'));
+    $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
+    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
 
     $include = null;
 
@@ -90,6 +78,8 @@ it('emits a single include parameter with the allowed relations as enum', functi
 });
 
 it('returns an empty array when no query-builder attributes are present', function (): void {
-    expect((new QueryBuilderParameterResolver())->resolveQueryParameters(qbDescriptor('bare')))
+    $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'bare');
+
+    expect((new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor))
         ->toBe([]);
 });
