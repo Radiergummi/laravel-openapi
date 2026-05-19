@@ -678,6 +678,8 @@ All built-in rule IDs (run `php artisan openapi:lint --list` for the live catalo
 | `publicendpoint.contradicts-middleware` | 1 | #[PublicEndpoint] is present but the route has auth/scope middleware. |
 | `request-body.no-content` | 1 | A requestBody object has no media-type entries. |
 | `request-body.on-get-or-delete` | 1 | GET or DELETE operation has a request body. |
+| `resource.fields-undeclared` | 1 | An API Resource used as a response declares no #[ResourceField] attributes. |
+| `resource.response-ambiguous` | 1 | A resource collection response has no #[ResponseResource] naming its item class. |
 | `response.no-error` | 1 | Operation has no error responses (4xx/5xx). |
 | `response.resource.indeterminate` | 1 | Controller return type cannot be resolved to a concrete response resource. |
 | `responseresource.unresolvable` | 1 | #[ResponseResource] references a class that is not a resolvable response resource. |
@@ -695,6 +697,7 @@ All built-in rule IDs (run `php artisan openapi:lint --list` for the live catalo
 | `parameter.description-missing` | 2 | Parameter has no description. |
 | `request-body.description-missing` | 2 | requestBody has no description. |
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
+| `resource.field-type-missing` | 2 | A #[ResourceField] is declared without a resolvable type. |
 | `response.empty` | 2 | Non-DELETE action has no resolvable response schema. Return a typed resource or add #[Response]. |
 | `response.no-success` | 2 | Operation has no 2xx response. |
 | `response.redirect-without-location` | 2 | 3xx response has no Location header. |
