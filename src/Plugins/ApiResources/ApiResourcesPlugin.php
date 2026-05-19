@@ -13,6 +13,9 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Registry\Plugin;
+use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
+use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
+use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
 
 /**
  * Teaches the OpenAPI core to document Eloquent API Resources
@@ -24,6 +27,8 @@ final class ApiResourcesPlugin implements Plugin
     {
         $registry->addRefSchemaResolver(ResourceRefSchemaResolver::class);
         $registry->addPrimaryResponseResolver(ResourceResponseResolver::class);
-        // The three lint rules are added in Task 13, once their classes exist.
+        $registry->addRule(ResourceFieldsUndeclared::class);
+        $registry->addRule(ResourceFieldTypeMissing::class);
+        $registry->addRule(ResourceResponseAmbiguous::class);
     }
 }
