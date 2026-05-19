@@ -14,13 +14,14 @@ namespace Radiergummi\OpenApi\Core\Routing;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
-use phpDocumentor\Reflection\Types\Collection;
+use phpDocumentor\Reflection\PseudoTypes\Generic;
 use phpDocumentor\Reflection\Types\Context;
 use phpDocumentor\Reflection\Types\ContextFactory;
 use phpDocumentor\Reflection\Types\Object_;
 use ReflectionFunctionAbstract;
 use UnexpectedValueException;
 
+use function end;
 use function ltrim;
 
 /**
@@ -71,11 +72,15 @@ final class ReturnTypeExtractor
 
             $type = $tag->getType();
 
-            if (!$type instanceof Collection) {
+            if (!$type instanceof Generic) {
                 continue;
             }
 
-            $valueType = $type->getValueType();
+            // `Foo<Bar>` yields one type argument, `Foo<Key, Value>` two — the
+            // value type is always the last, so a keyed collection resolves to
+            // its element type rather than its key type.
+            $arguments = $type->getTypes();
+            $valueType = end($arguments);
 
             if ($valueType instanceof Object_ && $valueType->getFqsen() !== null) {
                 return ltrim((string) $valueType->getFqsen(), '\\');
