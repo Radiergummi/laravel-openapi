@@ -58,11 +58,12 @@ interface Plugin
 }
 ```
 
-The one built-in plugin:
+The built-in plugins:
 
 | Plugin | Class | Registers |
 |---|---|---|
 | **SpatieData** | `Plugins\SpatieData\SpatieDataPlugin` | `DataClassRequestSchemaResolver`, `DataRefSchemaResolver`, `Data::class` as a payload base, lint rules: `field.attribute-wrong-scope` (level 1), `multipart.file-without-multipart` (level 1) |
+| **ApiResources** | `Plugins\ApiResources\ApiResourcesPlugin` | `JsonResourcePrimaryResponseResolver`, `JsonResourceRefSchemaResolver`, lint rules: `resource.fields-undeclared` (level 1), `resource.field-type-missing` (level 2), `resource.response-ambiguous` (level 1) |
 
 Plugins are listed in `config/openapi.plugins` and resolved from the container. `CoreRegistration`
 runs first (registering `FormRequestRequestSchemaResolver` and all core lint rules), then each
@@ -384,6 +385,41 @@ public function index(Request $request): JsonResponse { … }
 ```
 
 Use this when the resource-resolution heuristic fails (you'll see warnings during generation if so).
+
+### Document an Eloquent API Resource (`JsonResource`)
+
+The `ApiResourcesPlugin` is enabled by default. Controllers that return a typed `JsonResource`
+subclass are documented automatically — no attribute needed for the response envelope.
+
+To declare the fields the resource emits, add `#[ResourceField]` attributes at the class level:
+
+```php
+use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+
+#[ResourceField('id', type: 'integer')]
+#[ResourceField('name', type: 'string', description: 'Display name.')]
+#[ResourceField('created_at', type: 'string', format: 'date-time')]
+class ProjectResource extends JsonResource { … }
+```
+
+For a field whose type is another resource, pass its class-string as `type`:
+
+```php
+#[ResourceField('owner', type: UserResource::class, description: 'Owning user.')]
+class ProjectResource extends JsonResource { … }
+```
+
+For collection endpoints that return a `JsonResponse` or an untyped value, tell the generator
+which resource and envelope to use:
+
+```php
+#[OpenApi\ResponseResource(ProjectResource::class, collection: true)]
+public function index(): JsonResponse { … }
+```
+
+Single responses wrap fields in `{ data: {…} }`; collection responses wrap them in
+`{ data: [{…}], links: {…}, meta: {…} }`. Omitting `#[ResourceField]` attributes triggers the
+`resource.fields-undeclared` lint rule (level 1).
 
 ### Programmatic hook points
 

@@ -46,6 +46,13 @@ still never reads method bodies. A paginator return type whose item type is decl
 neither `#[ResponseResource]` nor a `@return` generic falls back to a bare `200 OK` and is
 reported in the generation log.
 
+**API Resources:** the `ApiResourcesPlugin` derives the response schema for `JsonResource`
+subclasses from `#[ResourceField]` attributes declared on the resource class, not from the
+resource's `toArray()` body. This is consistent with the no-method-body-inference rule: the
+generator reads declarations, not runtime behaviour. Resources without `#[ResourceField]`
+attributes are documented with an empty schema and reported by the `resource.fields-undeclared`
+lint rule.
+
 ---
 
 ## OAPI-038 — Lint rules miss `allOf`-composed schema properties

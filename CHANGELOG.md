@@ -8,6 +8,13 @@ All notable changes to this project are documented here.
 - Laravel paginator return types (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) are
   now documented automatically. The paginated item type is resolved from a `#[ResponseResource]`
   attribute or a `@return Paginator<Item>` PHPDoc generic.
+- Eloquent API Resources (`JsonResource` / `ResourceCollection`) are now
+  documented automatically via the default-enabled `ApiResourcesPlugin`. Each
+  resource declares its output keys with repeatable class-level
+  `#[ResourceField]` attributes; single responses emit the `{data}` envelope and
+  collections the `{data, links, meta}` envelope. Three lint rules
+  (`resource.fields-undeclared`, `resource.field-type-missing`,
+  `resource.response-ambiguous`) report incomplete declarations.
 
 ### Changed
 - PHPStan now runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a blocking CI check.
