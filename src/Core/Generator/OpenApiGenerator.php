@@ -236,7 +236,7 @@ final readonly class OpenApiGenerator
     }
 
     /**
-     * @param ReflectionAttribute[] $attributes
+     * @param ReflectionAttribute<Hide>[] $attributes
      */
     private function matchesHide(array $attributes, string $env): bool
     {

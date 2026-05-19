@@ -75,7 +75,11 @@ abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
         }
     }
 
-    /** @return iterable<Finding> */
+    /**
+     * @param ReflectionClass<object> $class
+     *
+     * @return iterable<Finding>
+     */
     private function checkDataClass(ReflectionClass $class, OperationNode $operation): iterable
     {
         foreach ($class->getProperties() as $property) {

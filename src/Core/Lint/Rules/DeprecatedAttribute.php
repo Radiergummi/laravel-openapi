@@ -83,7 +83,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
     /**
      * Emits a finding for every deprecated authoring attribute in the list.
      *
-     * @param ReflectionAttribute[] $attributes
+     * @param ReflectionAttribute<object>[] $attributes
      * @param string                $location   Where the attribute sits, for the message
      *                                          (e.g. `Controller::method()` or `class Controller`)
      *
@@ -128,6 +128,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
     /**
      * Check whether the given attribute class is marked deprecated.
      */
+    /** @param ReflectionClass<object> $reflection */
     private function isDeprecated(ReflectionClass $reflection): bool
     {
         if ($reflection->getAttributes(Deprecated::class) !== []) {

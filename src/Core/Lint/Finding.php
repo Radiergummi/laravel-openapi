@@ -15,6 +15,9 @@ use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use Override;
 
+/**
+ * @implements Arrayable<string, mixed>
+ */
 final readonly class Finding implements Arrayable, JsonSerializable
 {
     /**

@@ -690,6 +690,7 @@ final readonly class OperationBuilder
         return $instance->message ?? '';
     }
 
+    /** @return ReflectionAttribute<Deprecated>|null */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
         if ($descriptor->actionReflector !== null) {

@@ -20,6 +20,9 @@ use function array_keys;
 use function count;
 use function ksort;
 
+/**
+ * @implements Arrayable<string, mixed>
+ */
 final readonly class LinterSummary implements Arrayable, JsonSerializable
 {
     /**

@@ -125,6 +125,7 @@ final readonly class JsonSchemaFromType
         ]);
     }
 
+    /** @param BuiltinType<TypeIdentifier> $type */
     private function fromBuiltinType(BuiltinType $type): OA\Schema
     {
         return match ($type->getTypeIdentifier()) {
@@ -137,6 +138,7 @@ final readonly class JsonSchemaFromType
         };
     }
 
+    /** @param BuiltinType<TypeIdentifier> $type */
     private function unmappedBuiltin(BuiltinType $type): OA\Schema
     {
         $name = $type->getTypeIdentifier()->value;
@@ -148,6 +150,7 @@ final readonly class JsonSchemaFromType
         ]);
     }
 
+    /** @param ObjectType<class-string> $type */
     private function fromObjectType(ObjectType $type): OA\Schema
     {
         $className = $type->getClassName();

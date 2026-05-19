@@ -19,6 +19,9 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
 use function strtoupper;
 
+/**
+ * @implements Arrayable<string, mixed>
+ */
 final readonly class FindingLocation implements Arrayable, JsonSerializable
 {
     public function __construct(

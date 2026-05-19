@@ -18,6 +18,9 @@ use function array_filter;
 use function in_array;
 use function strtoupper;
 
+/**
+ * @implements Arrayable<string, mixed>
+ */
 final readonly class OperationDescriptor implements Arrayable
 {
     /**
