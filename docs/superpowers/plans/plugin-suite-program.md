@@ -4,7 +4,7 @@
 > ground rules, the locked cross-cutting decisions, the build order, and the live
 > status. The individual plan files assume you have read this.
 
-**Last updated:** 2026-05-19 — build steps 1–2 complete on the branch; steps 3–5 planned, not started.
+**Last updated:** 2026-05-19 — build steps 1–3 complete on the branch; steps 4–5 planned, not started.
 
 ---
 
@@ -26,7 +26,7 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
 |---|---|---|
 | 1 — Core PHPDoc generics + paginator resolver | `2026-05-18-core-phpdoc-generics-and-paginators.md` | ✅ **Complete** (on branch, not merged) |
 | 2 — `ApiResourcesPlugin` | `2026-05-19-apiresources-plugin.md` | ✅ **Complete** (on branch, not merged) |
-| 3 — `QueryBuilderPlugin` | `2026-05-19-querybuilder-plugin.md` | ⬜ Not started — plan ready |
+| 3 — `QueryBuilderPlugin` | `2026-05-19-querybuilder-plugin.md` | ✅ **Complete** (on branch, not merged) |
 | 4 — `FractalPlugin` | `2026-05-19-fractal-plugin.md` | ⬜ Not started — plan ready |
 | 5 — composer.json + config wiring | `2026-05-19-plugin-suite-wiring.md` | ⬜ Not started — plan ready |
 
@@ -46,7 +46,13 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
   default-enabled. The shared `tests/Support/OperationNodeFactory` helper exists.
   Full suite green (`composer test`), Pint clean, PHPStan level 8 clean. The
   branch is **not yet merged to `main`** and has no PR.
-- Steps 3–5 are planned but no code exists yet.
+- **Step 3 is done on the branch:** `QueryBuilderPlugin` with `#[AllowedFilter]`,
+  `#[AllowedSort]`, `#[AllowedInclude]`, `QueryBuilderParameterResolver`, and the
+  two lint rules `query-builder.params-undeclared` (level 2) and
+  `query-builder.filter-type-missing` (level 3). Shipped commented-out in
+  `config/openapi.php`. Full suite green (1064 tests), Pint clean, PHPStan
+  level 8 clean.
+- Steps 4–5 are planned but no code exists yet.
 
 ## Shared ground rules (apply to every plan)
 
