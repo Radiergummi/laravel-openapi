@@ -393,9 +393,6 @@ final class ComponentSchemaRegistry
             : "{$prefix}.{$basename}.{$hash}";
     }
 
-    /**
-     * @param class-string $forClass
-     */
     private function isKeyTaken(string $key, string $forClass): bool
     {
         $owner = $this->keyToClass[$key] ?? null;

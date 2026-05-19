@@ -223,9 +223,12 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): SuppressionCollector {
                 $registry = $app->make(OpenApiRegistry::class);
 
+                /** @var list<class-string> $indirectionClasses */
+                $indirectionClasses = (array) config('openapi.request_payload_indirection', []);
+
                 return new SuppressionCollector(
                     payloadClasses: $registry->payloadClasses(),
-                    indirectionClasses: (array) config('openapi.request_payload_indirection', []),
+                    indirectionClasses: $indirectionClasses,
                 );
             },
         );
@@ -309,9 +312,14 @@ class OpenApiServiceProvider extends ServiceProvider
 
         $this->app->scoped(
             PayloadParameterScanner::class,
-            static fn(): PayloadParameterScanner => new PayloadParameterScanner(
-                indirectionClasses: (array) config('openapi.request_payload_indirection', []),
-            ),
+            static function (): PayloadParameterScanner {
+                /** @var list<class-string> $indirectionClasses */
+                $indirectionClasses = (array) config('openapi.request_payload_indirection', []);
+
+                return new PayloadParameterScanner(
+                    indirectionClasses: $indirectionClasses,
+                );
+            },
         );
 
         $this->app->scoped(

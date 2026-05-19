@@ -109,6 +109,16 @@ final readonly class RouteIntrospector
             );
         }
 
+        if (!class_exists($controllerClass)) {
+            return new ActionDescriptor(
+                route: $route,
+                controller: null,
+                method: null,
+                summary: null,
+                description: null,
+            );
+        }
+
         $classReflection = new ReflectionClass($controllerClass);
 
         // Invocable controller: getActionMethod() returns the class name itself

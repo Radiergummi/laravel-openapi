@@ -22,7 +22,9 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\FieldRule as FieldRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
 
+use function array_find;
 use function is_array;
+use function is_string;
 use function sprintf;
 
 /**
@@ -76,7 +78,15 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             return;
         }
 
-        $type = $schema->type !== Generator::UNDEFINED ? $schema->type : null;
+        $rawType = $schema->type !== Generator::UNDEFINED ? $schema->type : null;
+
+        if (is_array($rawType)) {
+            $type = array_find($rawType, static fn(string $t): bool => $t !== 'null');
+        } elseif (is_string($rawType)) {
+            $type = $rawType;
+        } else {
+            $type = null;
+        }
         $format = $schema->format !== Generator::UNDEFINED ? $schema->format : null;
         $enum = $schema->enum !== Generator::UNDEFINED && is_array($schema->enum)
             ? $schema->enum

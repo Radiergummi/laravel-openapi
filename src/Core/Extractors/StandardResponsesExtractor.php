@@ -130,7 +130,7 @@ final readonly class StandardResponsesExtractor
             }
         }
 
-        $middleware = $descriptor->route->gatherMiddleware();
+        $middleware = array_values($descriptor->route->gatherMiddleware());
 
         if (isset($this->middlewareMap['auth']) && $this->hasAuthMiddleware($middleware)) {
             $this->addOnce($byStatus, $this->middlewareMap['auth']);
@@ -267,6 +267,10 @@ final readonly class StandardResponsesExtractor
     private function isVendorOrBuiltin(string $fqcn): bool
     {
         try {
+            if (!class_exists($fqcn)) {
+                return true;
+            }
+
             $file = new ReflectionClass($fqcn)->getFileName();
         } catch (ReflectionException) {
             return true;

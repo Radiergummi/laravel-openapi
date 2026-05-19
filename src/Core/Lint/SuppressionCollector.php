@@ -202,7 +202,7 @@ final class SuppressionCollector
             static fn(string $base): bool => is_a($className, $base, allow_string: true),
         );
 
-        if ($isPayload) {
+        if ($isPayload && class_exists($className)) {
             $this->fromClass(new ReflectionClass($className), withProperties: true, directives: $directives, seen: $seen);
 
             return;
@@ -215,7 +215,7 @@ final class SuppressionCollector
             static fn(string $base): bool => is_a($className, $base, allow_string: true),
         );
 
-        if (!$isIndirection) {
+        if (!$isIndirection || !class_exists($className)) {
             return;
         }
 

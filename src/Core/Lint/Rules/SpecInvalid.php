@@ -26,6 +26,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use RuntimeException;
 
 use function array_slice;
+use function array_values;
 use function dirname;
 use function file_exists;
 use function file_get_contents;
@@ -241,7 +242,7 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
      */
     private function errorToFinding(ValidationError $error, array $descriptorIndex): Finding
     {
-        $path = $error->data()->fullPath();
+        $path = array_values($error->data()->fullPath());
         $interpolatedMessage = $this->formatter->formatErrorMessage($error);
         $keyword = $error->keyword();
 

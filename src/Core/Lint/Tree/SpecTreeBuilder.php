@@ -357,7 +357,7 @@ final class SpecTreeBuilder
 
                         if ($ref !== null) {
                             $schemaRef = $ref;
-                        } else {
+                        } elseif ($schema instanceof OA\Schema) {
                             $fields = $this->buildFields($schema);
                         }
                     }
@@ -455,7 +455,7 @@ final class SpecTreeBuilder
 
                             if ($ref !== null) {
                                 $schemaRef = $ref;
-                            } else {
+                            } elseif ($schema instanceof OA\Schema) {
                                 $fields = $this->buildFields($schema);
                             }
                         }

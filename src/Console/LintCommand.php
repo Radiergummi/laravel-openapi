@@ -235,7 +235,7 @@ class LintCommand extends Command
 
         // Apply suppressions
         if (!$this->option('no-suppress')) {
-            $findings = $this->applySuppressions($findings, $suppressions);
+            $findings = $this->applySuppressions(array_values($findings), $suppressions);
         }
 
         // Filter to threshold
