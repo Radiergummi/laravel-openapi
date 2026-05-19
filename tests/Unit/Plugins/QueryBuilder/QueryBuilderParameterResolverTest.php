@@ -73,10 +73,20 @@ it('emits a single sort parameter with the allowed fields as enum', function ():
         ->and($sort->schema->items->enum)->toBe(['name', 'created_at']);
 });
 
-it('emits a single include parameter', function (): void {
+it('emits a single include parameter with the allowed relations as enum', function (): void {
     $params = (new QueryBuilderParameterResolver())->resolveQueryParameters(qbDescriptor('index'));
 
-    expect(parameterNames($params))->toContain('include');
+    $include = null;
+
+    foreach ($params as $p) {
+        if ($p->name === 'include') {
+            $include = $p;
+        }
+    }
+
+    expect($include)->not->toBeNull()
+        ->and($include->in)->toBe('query')
+        ->and($include->schema->items->enum)->toBe(['owner']);
 });
 
 it('returns an empty array when no query-builder attributes are present', function (): void {
