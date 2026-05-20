@@ -113,6 +113,7 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerExtractors();
         $this->registerSpatieDataPlugin();
         $this->registerApiResourcesPlugin();
+        $this->registerFractalPlugin();
         $this->registerGenerator();
     }
 
@@ -471,6 +472,59 @@ class OpenApiServiceProvider extends ServiceProvider
                 locator: $app->make(Plugins\ApiResources\ResourceClassLocator::class),
                 schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
                 envelopeFactory: $app->make(Plugins\ApiResources\ResourceEnvelopeFactory::class),
+                logger: $app->make(LoggerInterface::class),
+            ),
+        );
+    }
+
+    /**
+     * Binds the Fractal plugin services.
+     *
+     * `SchemaFromTransformer` receives every ref resolver except this plugin's
+     * own `TransformerRefSchemaResolver` — it recurses for nested transformers
+     * directly, and injecting its own resolver would form a construction cycle.
+     */
+    private function registerFractalPlugin(): void
+    {
+        $this->app->scoped(
+            Plugins\Fractal\SchemaFromTransformer::class,
+            static function (Container $app): Plugins\Fractal\SchemaFromTransformer {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                $resolvers = [];
+
+                foreach ($registry->refSchemaResolvers() as $class) {
+                    if ($class === Plugins\Fractal\TransformerRefSchemaResolver::class) {
+                        continue;
+                    }
+
+                    $resolvers[] = $app->make($class);
+                }
+
+                return new Plugins\Fractal\SchemaFromTransformer(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    refSchemaResolvers: $resolvers,
+                );
+            },
+        );
+
+        $this->app->scoped(
+            Plugins\Fractal\FractalEnvelopeFactory::class,
+            static fn(): Plugins\Fractal\FractalEnvelopeFactory => new Plugins\Fractal\FractalEnvelopeFactory(),
+        );
+
+        $this->app->scoped(
+            Plugins\Fractal\TransformerRefSchemaResolver::class,
+            static fn(Container $app) => new Plugins\Fractal\TransformerRefSchemaResolver(
+                schemaFromTransformer: $app->make(Plugins\Fractal\SchemaFromTransformer::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\Fractal\FractalResponseResolver::class,
+            static fn(Container $app) => new Plugins\Fractal\FractalResponseResolver(
+                schemaFromTransformer: $app->make(Plugins\Fractal\SchemaFromTransformer::class),
+                envelopeFactory: $app->make(Plugins\Fractal\FractalEnvelopeFactory::class),
                 logger: $app->make(LoggerInterface::class),
             ),
         );

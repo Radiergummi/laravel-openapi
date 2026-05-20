@@ -259,6 +259,9 @@ return [
 
         // Requires `composer require spatie/laravel-query-builder`. Uncomment to enable:
         // \Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin::class,
+
+        // Requires `composer require league/fractal`. Uncomment to enable:
+        // \Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin::class,
     ],
 
     /*
