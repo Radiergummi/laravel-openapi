@@ -55,7 +55,6 @@ final class FlightController
     #[AllowedSort(['departs_at', 'number'])]
     #[AllowedInclude(['bookings'])]
     #[PublicEndpoint]
-    #[ResponseAttribute(status: 200, description: 'A page of flights', ref: FlightData::class)]
     public function index(): DataCollection
     {
         $paginator = QueryBuilder::for(Flight::class)
@@ -82,7 +81,6 @@ final class FlightController
      */
     #[Operation(operationId: 'flights.show')]
     #[PublicEndpoint]
-    #[ResponseAttribute(status: 200, description: 'The flight', ref: FlightData::class)]
     #[ResponseExample(
         status: 200,
         name: 'lh400-from-file',
@@ -121,7 +119,6 @@ final class FlightController
      * @throws ModelNotFoundException When the flight does not exist.
      */
     #[Security(['flights:write'])]
-    #[ResponseAttribute(status: 200, description: 'The updated flight', ref: FlightData::class)]
     public function update(Request $request, string $flight): FlightData
     {
         $model = Flight::query()->findOrFail($flight);

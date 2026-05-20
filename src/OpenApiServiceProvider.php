@@ -415,6 +415,16 @@ class OpenApiServiceProvider extends ServiceProvider
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
             ),
         );
+
+        $this->app->scoped(
+            Plugins\SpatieData\DataResponseResolver::class,
+            static fn(Container $app) => new Plugins\SpatieData\DataResponseResolver(
+                refResolver: $app->make(DataRefSchemaResolver::class),
+                returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
+                schemaFactory: $app->make(PaginatorSchemaFactory::class),
+                logger: $app->make(LoggerInterface::class),
+            ),
+        );
     }
 
     /**

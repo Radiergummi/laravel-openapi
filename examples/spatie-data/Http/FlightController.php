@@ -35,7 +35,6 @@ final class FlightController
      *
      * @return DataCollection<int, FlightData>
      */
-    #[ResponseAttribute(status: 200, description: 'A page of flights', ref: FlightData::class)]
     public function index(): DataCollection
     {
         $flights = Flight::query()->orderBy('departs_at')->paginate();
@@ -51,7 +50,6 @@ final class FlightController
      *
      * @throws ModelNotFoundException When the flight does not exist.
      */
-    #[ResponseAttribute(status: 200, description: 'The flight', ref: FlightData::class)]
     #[ResponseExample(
         status: 200,
         name: FlightDataExample::NAME,
@@ -84,7 +82,6 @@ final class FlightController
      *
      * @throws ModelNotFoundException When the flight does not exist.
      */
-    #[ResponseAttribute(status: 200, description: 'The updated flight', ref: FlightData::class)]
     public function update(UpdateFlightData $data, string $flight): FlightData
     {
         $model = Flight::query()->findOrFail($flight);

@@ -43,7 +43,6 @@ final class BookingController
      * @throws ModelNotFoundException When the flight does not exist.
      */
     #[PublicEndpoint]
-    #[ResponseAttribute(status: 200, description: 'The flight bookings', ref: BookingData::class)]
     public function index(string $flight): DataCollection
     {
         $bookings = Flight::query()->findOrFail($flight)->bookings()->orderBy('seat')->get();

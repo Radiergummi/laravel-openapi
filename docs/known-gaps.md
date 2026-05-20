@@ -9,7 +9,7 @@ welcome.
 | [OAPI-017](#oapi-017--no-method-body-inference) | No method-body inference | Open |
 | [OAPI-038](#oapi-038--lint-rules-miss-allof-composed-schema-properties) | Lint rules miss `allOf`-composed schema properties | Open |
 | [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Closed |
-| [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Open |
+| [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Closed |
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Open |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
 | [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Closed |
@@ -114,33 +114,17 @@ appear as documented query parameters on `GET /flights`.
 
 ## OAPI-040 — No `DataResponseResolver` for Spatie Data return types
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** The `SpatieData` plugin handles request bodies (via `DataClassRequestSchemaResolver`)
-and reusable schema refs (via `DataRefSchemaResolver`) but does not auto-derive a primary
-response from a Data return type. A controller method declared
-
-```php
-public function show(string $flight): FlightData { … }
-```
-
-emits a `200 OK` with an empty schema. To get the FlightData schema on the response the author
-must add an explicit `#[Response(status: 200, ref: FlightData::class)]` — repetitive when every
-read endpoint returns a Data class.
-
-`ApiResources` ships an equivalent for `JsonResource` (`ResourceResponseResolver`); the
-SpatieData plugin lacks the symmetric piece.
-
-**Workarounds:**
-
-- Annotate the method with `#[Response(ref: SomeData::class)]`.
-- Wrap the return in a `JsonResource` so the ApiResources plugin's existing resolver kicks in
-  (loses the Data benefits).
-
-**Why it's open:** Discovered while building the `examples/spatie-data/` and `examples/combined/`
-showcases. The fix is a `PrimaryResponseResolver` that detects `Data` / `DataCollection` return
-types and emits a `$ref` to the appropriate component schema — mirroring
-`ResourceResponseResolver` against the `DataRefSchemaResolver`'s schema pool.
+**Resolved in:** the `feature/plugin-suite` branch. `DataResponseResolver` now ships in
+`src/Plugins/SpatieData/` and is registered by `SpatieDataPlugin::register()`. It detects three
+return-type shapes: a `Data` subclass becomes a `$ref` to the Data component schema; a
+`DataCollection<int, Item>` becomes an array of `$ref`s (item class read from the `@return`
+PHPDoc generic); and `PaginatedDataCollection<…>` / `CursorPaginatedDataCollection<…>` produce
+the corresponding length-aware or cursor paginator envelope via `PaginatorSchemaFactory`. The
+`examples/spatie-data/` and `examples/combined/` flavors were migrated to rely on the resolver;
+the `#[Response(ref: SomeData::class)]` workarounds on Data-returning actions were removed.
+Explicit `#[Response]` attributes still take precedence over the auto-derived response.
 
 ---
 

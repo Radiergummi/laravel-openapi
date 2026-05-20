@@ -5,6 +5,11 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `DataResponseResolver` (SpatieData plugin) — auto-derives the primary `200 OK` response from a
+  Spatie `Data` return type, a `DataCollection<int, Item>` (item class read from the `@return`
+  PHPDoc generic), or a `PaginatedDataCollection` / `CursorPaginatedDataCollection` (renders the
+  matching paginator envelope). Mirrors the ApiResources plugin's `ResourceResponseResolver`.
+  Explicit `#[Response]` attributes still take precedence. (OAPI-040)
 - `CoreQueryParameterResolver` — reflects `#[QueryParam]` attributes off controller methods (and
   classes, for shared parameters declared once) and emits OpenAPI query-parameter entries with
   the attribute's full `FieldAttribute` surface (type, format, enum, default, nullable, bounds).

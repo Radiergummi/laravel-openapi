@@ -85,11 +85,13 @@ paths:
                 - bookings
       responses:
         '200':
-          description: 'A page of flights'
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FlightData'
+                type: array
+                items:
+                  $ref: '#/components/schemas/FlightData'
       security: []
     post:
       tags:
@@ -142,7 +144,7 @@ paths:
             type: string
       responses:
         '200':
-          description: 'The flight'
+          description: OK
           content:
             application/json:
               schema:
@@ -195,7 +197,7 @@ paths:
             type: string
       responses:
         '200':
-          description: 'The updated flight'
+          description: OK
           content:
             application/json:
               schema:
@@ -225,11 +227,13 @@ paths:
             type: string
       responses:
         '200':
-          description: 'The flight bookings'
+          description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookingData'
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingData'
         '404':
           $ref: '#/components/responses/NotFound'
       security: []
