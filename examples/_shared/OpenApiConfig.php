@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Examples\Shared;
 
 use Examples\Shared\Exceptions\FlightOverbookedException;
+use Examples\Shared\Routing\SkipPassportRoutes;
 
 /**
  * Config overrides applied by every flavor. Each flavor's ServiceProvider calls
@@ -28,10 +29,35 @@ final class OpenApiConfig
             'description' => "Sample API used to demonstrate radiergummi/laravel-openapi's {$flavorLabel} integration.",
         ]);
 
+        // Suppress lint rules that produce false positives against the example surface.
+        //   - `response.description-missing` fires for $ref'd error responses (e.g. `404 -> $ref:
+        //     '#/components/responses/NotFound'`) because the rule does not follow the $ref into
+        //     `components.responses`, where the description actually lives. This is a Core gap;
+        //     for the showcase it would be misleading noise.
+        //   - `response.no-error` is disabled because:
+        //       - some demo GET endpoints intentionally model "always succeeds or
+        //         404s" — no 4xx surface beyond a single `$ref` is appropriate; and
+        //       - the package itself registers `/api/openapi.yaml` which the
+        //         examples cannot annotate (it is owned by the OpenApiServiceProvider,
+        //         not by example code).
+        config()->set('openapi.lint.disabled_rules', array_values(array_unique(array_merge(
+            (array) config('openapi.lint.disabled_rules', []),
+            ['response.description-missing', 'response.no-error'],
+        ))));
+
         config()->set('openapi.tags', [
-            'Flights'  => ['description' => 'Operations on flights'],
-            'Bookings' => ['description' => 'Operations on flight bookings'],
+            $flavorLabel => ['description' => "Example flavor: {$flavorLabel}"],
+            'Flights'    => ['description' => 'Operations on flights'],
+            'Bookings'   => ['description' => 'Operations on flight bookings'],
         ]);
+
+        // Passport's own CRUD routes are registered so that SecurityExtractor can resolve
+        // their URLs into the OAuth2 security scheme; they shouldn't show up as application
+        // surface in the generated spec.
+        config()->set('openapi.filters', array_merge(
+            (array) config('openapi.filters', []),
+            [SkipPassportRoutes::class],
+        ));
 
         // Domain exceptions used across flavors. The generator looks these up by short name
         // when an `@throws` annotation references them, so importing the exception in the

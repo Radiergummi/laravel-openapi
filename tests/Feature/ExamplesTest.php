@@ -31,7 +31,7 @@ dataset('flavors', [
 
 it('produces a snapshot that matches the committed yaml', function (string $serviceProvider, string $flavor): void {
     $app = TestbenchBoot::boot($serviceProvider);
-    $snapshot = base_path("examples/{$flavor}/openapi.yaml");
+    $snapshot = dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml";
     $temp = tempnam(sys_get_temp_dir(), 'openapi-');
 
     try {
@@ -48,7 +48,7 @@ it('produces a snapshot that matches the committed yaml', function (string $serv
 })->with('flavors');
 
 it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, string $flavor): void {
-    $snapshot = base_path("examples/{$flavor}/openapi.yaml");
+    $snapshot = dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml";
     $parsed = Yaml::parseFile($snapshot);
 
     expect($parsed['openapi'])->toStartWith('3.1')
@@ -57,7 +57,7 @@ it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, s
 
 it('lints clean', function (string $serviceProvider, string $flavor): void {
     $app = TestbenchBoot::boot($serviceProvider);
-    config()->set('openapi.output_path', base_path("examples/{$flavor}/openapi.yaml"));
+    config()->set('openapi.output_path', dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml");
 
     $status = $app->make(Kernel::class)->call('openapi:lint');
 

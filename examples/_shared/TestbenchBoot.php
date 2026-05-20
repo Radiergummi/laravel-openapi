@@ -14,8 +14,10 @@ namespace Examples\Shared;
 use Examples\Shared\Database\Seeder;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
+use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\Foundation\Application as TestbenchApplication;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
+use Spatie\LaravelData\LaravelDataServiceProvider;
 
 /**
  * Boots a real Laravel container (via Testbench) configured for one example
@@ -28,6 +30,14 @@ final class TestbenchBoot
      */
     public static function boot(string $serviceProvider): Application
     {
+        // Pin APP_ENV to `testing` before Testbench boots. This (a) makes the OpenApi service
+        // provider skip the dev-only playground route (which would otherwise show up in
+        // generated specs when run via the `composer examples:*` scripts but not when the
+        // suite is exercised from tests), and (b) lets spatie/laravel-data short-circuit its
+        // structure cache (it gates on `runningUnitTests()`, which keys off env=testing).
+        $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'testing';
+        putenv('APP_ENV=testing');
+
         // Use Testbench's default skeleton (which has bootstrap/cache, storage, etc.) as
         // the base path. Migrations are loaded by absolute path so the basePath choice
         // does not matter for them.
@@ -36,6 +46,8 @@ final class TestbenchBoot
             options: ['enables-package-discoveries' => false],
         );
 
+        $app->register(LaravelDataServiceProvider::class);
+        $app->register(PassportServiceProvider::class);
         $app->register(OpenApiServiceProvider::class);
         $app->register($serviceProvider);
 
@@ -48,6 +60,11 @@ final class TestbenchBoot
             'database' => ':memory:',
             'prefix'   => '',
         ]);
+
+        // Keep caches in memory so spatie/laravel-data's structure-cache doesn't try to write
+        // to the (non-existent) `cache` database table that Testbench would otherwise resolve.
+        config()->set('cache.default', 'array');
+        config()->set('data.structure_caching.enabled', false);
 
         $app->make(Kernel::class)->call('migrate', [
             '--path'     => dirname(__DIR__) . '/_shared/Database/migrations',
