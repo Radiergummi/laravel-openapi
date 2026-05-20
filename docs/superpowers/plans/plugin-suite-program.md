@@ -4,7 +4,7 @@
 > ground rules, the locked cross-cutting decisions, the build order, and the live
 > status. The individual plan files assume you have read this.
 
-**Last updated:** 2026-05-20 — build steps 1–4 complete on the branch; step 5 planned, not started.
+**Last updated:** 2026-05-20 — build steps 1–5 complete on the branch; plugin-suite program implementation done, awaiting merge.
 
 ---
 
@@ -28,7 +28,7 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
 | 2 — `ApiResourcesPlugin` | `2026-05-19-apiresources-plugin.md` | ✅ **Complete** (on branch, not merged) |
 | 3 — `QueryBuilderPlugin` | `2026-05-19-querybuilder-plugin.md` | ✅ **Complete** (on branch, not merged) |
 | 4 — `FractalPlugin` | `2026-05-19-fractal-plugin.md` | ✅ **Complete** (on branch, not merged) |
-| 5 — composer.json + config wiring | `2026-05-19-plugin-suite-wiring.md` | ⬜ Not started — plan ready |
+| 5 — composer.json + config wiring | `2026-05-19-plugin-suite-wiring.md` | ✅ **Complete** (on branch, not merged) |
 
 **Status legend:** ⬜ not started · 🔄 in progress · ✅ complete · ⛔ blocked.
 **When you finish a plan (or a notable chunk), update this table and the "Last updated" line.**

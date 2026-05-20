@@ -38,7 +38,7 @@
 **Files:**
 - Modify: `composer.json`, `composer.lock`
 
-- [ ] **Step 1: Add the packages to `require-dev`**
+- [x] **Step 1: Add the packages to `require-dev`**
 
 Run:
 
@@ -62,7 +62,7 @@ Expected: the three packages are added to `require-dev` in `composer.json` (alph
     },
 ```
 
-- [ ] **Step 2: Run the full suite to confirm the new packages do not regress anything**
+- [x] **Step 2: Run the full suite to confirm the new packages do not regress anything**
 
 Run: `composer test && vendor/bin/pint --test && composer analyse`
 Expected: suite green; Pint clean; PHPStan clean.
@@ -72,7 +72,7 @@ The QueryBuilder and Fractal lint-rule tests (`QueryBuilderParamsUndeclaredTest`
 Run: `vendor/bin/pest --group plugin:query-builder --group plugin:fractal`
 Expected: all QueryBuilder and Fractal tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add composer.json composer.lock
@@ -88,7 +88,7 @@ git commit -m "build: add query-builder and fractal packages to require-dev"
 **Files:**
 - Modify: `composer.json`
 
-- [ ] **Step 1: Add the `suggest` entries**
+- [x] **Step 1: Add the `suggest` entries**
 
 Edit the `suggest` block in `composer.json` to read (alphabetical order, matching the existing two entries):
 
@@ -102,12 +102,12 @@ Edit the `suggest` block in `composer.json` to read (alphabetical order, matchin
     },
 ```
 
-- [ ] **Step 2: Validate `composer.json`**
+- [x] **Step 2: Validate `composer.json`**
 
 Run: `composer validate --strict`
 Expected: `./composer.json is valid`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add composer.json
@@ -123,7 +123,7 @@ The `config/openapi.php` `plugins` array was edited by build steps 2–4. Confir
 **Files:**
 - Verify (modify only if drifted): `config/openapi.php`
 
-- [ ] **Step 1: Confirm the `plugins` array**
+- [x] **Step 1: Confirm the `plugins` array**
 
 Open `config/openapi.php`. The `plugins` array must be exactly:
 
@@ -142,11 +142,11 @@ Open `config/openapi.php`. The `plugins` array must be exactly:
 
 and the `use` block must import `SpatieDataPlugin` and `ApiResourcesPlugin` (the two enabled plugins) but **not** the commented-out plugins (they are referenced by FQCN in the comment, so no unused import is introduced). If any of this drifted during build steps 2–4, correct it now.
 
-- [ ] **Step 2: Confirm the default lint level still excludes the noisy new rules**
+- [x] **Step 2: Confirm the default lint level still excludes the noisy new rules**
 
 The new Medium/Low lint rules (`resource.field-type-missing`, `query-builder.params-undeclared`, `query-builder.filter-type-missing`, `fractal.include-transformer-missing`) have `level()` ≥ 2 and so are off at the shipped default `lint.level => 1`. No config change is needed — confirm `config('openapi.lint.level')` is still `1`.
 
-- [ ] **Step 3: Commit (only if Step 1 required a correction)**
+- [x] **Step 3: Commit (only if Step 1 required a correction)**
 
 ```bash
 git add config/openapi.php
@@ -164,7 +164,7 @@ Generate a single document with **every** plugin active (the two default plugins
 **Files:**
 - Create: `tests/Feature/Plugins/PluginSuiteIntegrationTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -273,12 +273,12 @@ it('generates one document with every plugin active', function (): void {
 });
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/PluginSuiteIntegrationTest.php`
 Expected: PASS — 1 test.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 vendor/bin/pint
@@ -293,7 +293,7 @@ git commit -m "test: capstone integration test for the full plugin suite"
 **Files:**
 - Modify: `CHANGELOG.md`, `docs/usage.md`
 
-- [ ] **Step 1: Add a `CHANGELOG.md` entry**
+- [x] **Step 1: Add a `CHANGELOG.md` entry**
 
 Under `## [Unreleased]` → `### Changed`, append:
 
@@ -303,7 +303,7 @@ Under `## [Unreleased]` → `### Changed`, append:
   the matching plugin in `config/openapi.php` to enable it.
 ```
 
-- [ ] **Step 2: Add an "Available plugins" summary to `docs/usage.md`**
+- [x] **Step 2: Add an "Available plugins" summary to `docs/usage.md`**
 
 Add a short table near the plugin documentation added by build steps 2–4:
 
@@ -318,12 +318,12 @@ Add a short table near the plugin documentation added by build steps 2–4:
 
 Keep prose minimal — the full documentation pass is a separate workstream.
 
-- [ ] **Step 3: Run the full suite a final time**
+- [x] **Step 3: Run the full suite a final time**
 
 Run: `composer test && vendor/bin/pint --test && composer analyse`
 Expected: suite green; Pint clean; PHPStan clean.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add CHANGELOG.md docs/usage.md
