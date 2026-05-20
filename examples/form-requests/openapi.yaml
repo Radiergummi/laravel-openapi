@@ -1,0 +1,444 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – FormRequests Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's FormRequests integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  /api/openapi.yaml:
+    get:
+      tags:
+        - OpenApi
+      summary: 'Serves the generated OpenAPI 3.1 specification as YAML.'
+      description: "In local development, the spec is generated on every request so changes to controllers and\nschemas are reflected immediately. Everywhere else, the spec is built at deploy time by the\n`openapi:generate` command and served as a static file with etag/last-modified semantics. A\nmissing file in a deployed environment indicates a broken build."
+      operationId: openapi.spec
+      parameters: []
+      responses:
+        '200':
+          description: OK
+      security: []
+  /api/flights:
+    get:
+      tags:
+        - FormRequests
+        - Flights
+      summary: 'List flights.'
+      description: "Returns a paginated collection of all known flights wrapped in the\nstandard JsonResource `{data, links, meta}` envelope."
+      operationId: get_api_flights
+      parameters:
+        -
+          name: X-Request-Id
+          in: header
+          description: 'Optional client-supplied correlation id echoed back on every response.'
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/FlightResource' } }
+                  links: { properties: { first: { type: string }, last: { type: string }, prev: { type: string }, next: { type: string } }, type: object }
+                  meta: { properties: { current_page: { type: integer }, from: { type: integer }, last_page: { type: integer }, path: { type: string }, per_page: { type: integer }, to: { type: integer }, total: { type: integer } }, type: object }
+                type: object
+      security: []
+    post:
+      tags:
+        - FormRequests
+        - Flights
+      summary: 'Create a new flight.'
+      description: "Persists a new flight record from a typed FormRequest and returns the\ncreated resource. The 201 status is documented via #[Response] because\nthe auto-derived response is always 200."
+      operationId: post_api_flights
+      parameters:
+        -
+          name: X-Request-Id
+          in: header
+          description: 'Optional client-supplied correlation id echoed back on every response.'
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreFlightRequest'
+      responses:
+        '201':
+          description: 'The created flight'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightResource'
+      security: []
+  '/api/flights/{flight}':
+    get:
+      tags:
+        - FormRequests
+        - Flights
+      summary: 'Show a single flight.'
+      operationId: get_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: X-Request-Id
+          in: header
+          description: 'Optional client-supplied correlation id echoed back on every response.'
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { $ref: '#/components/schemas/FlightResource' }
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    delete:
+      tags:
+        - FormRequests
+        - Flights
+      summary: 'Cancel a flight.'
+      operationId: delete_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: X-Request-Id
+          in: header
+          description: 'Optional client-supplied correlation id echoed back on every response.'
+          required: false
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The flight was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    patch:
+      tags:
+        - FormRequests
+        - Flights
+      summary: 'Update an existing flight.'
+      description: 'Accepts a partial payload validated by UpdateFlightRequest.'
+      operationId: patch_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: X-Request-Id
+          in: header
+          description: 'Optional client-supplied correlation id echoed back on every response.'
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFlightRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { $ref: '#/components/schemas/FlightResource' }
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+  '/api/flights/{flight}/bookings':
+    get:
+      tags:
+        - FormRequests
+        - Bookings
+      summary: 'List bookings for a flight.'
+      operationId: get_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookingResource' } }
+                  links: { properties: { first: { type: string }, last: { type: string }, prev: { type: string }, next: { type: string } }, type: object }
+                  meta: { properties: { current_page: { type: integer }, from: { type: integer }, last_page: { type: integer }, path: { type: string }, per_page: { type: integer }, to: { type: integer }, total: { type: integer } }, type: object }
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    post:
+      tags:
+        - FormRequests
+        - Bookings
+      summary: 'Create a new booking on a flight.'
+      description: "Validates via StoreBookingRequest and enforces the 200-seat capacity\nby raising FlightOverbookedException — the @throws annotation drives\nthe 409 response in the spec via the exception-response map configured\nin OpenApiConfig."
+      operationId: post_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreBookingRequest'
+      responses:
+        '201':
+          description: 'The created booking'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResource'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      security: []
+  '/api/bookings/{booking}':
+    delete:
+      tags:
+        - FormRequests
+        - Bookings
+      summary: 'Cancel a booking.'
+      operationId: delete_api_bookings_booking_
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The booking was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+components:
+  schemas:
+    FlightResource:
+      required:
+        - id
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        id:
+          description: 'Server-assigned flight identifier.'
+          type: string
+          format: uuid
+        number:
+          description: 'IATA-style flight number.'
+          type: string
+          example: LH123
+        origin:
+          description: 'Three-letter IATA origin code.'
+          type: string
+          example: FRA
+        destination:
+          description: 'Three-letter IATA destination code.'
+          type: string
+          example: JFK
+        departs_at:
+          description: 'Scheduled departure timestamp.'
+          type: string
+          format: date-time
+        arrives_at:
+          description: 'Scheduled arrival timestamp.'
+          type: string
+          format: date-time
+        status:
+          description: 'Operational status.'
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          description: 'Aircraft model / type designator.'
+          type: string
+      type: object
+    StoreFlightRequest:
+      required:
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        number:
+          description: 'IATA-style flight number, e.g. LH123.'
+          type: string
+          pattern: '^[A-Z]{2}\d{1,4}$'
+          example: LH123
+        origin:
+          description: 'Three-letter IATA code of the origin airport.'
+          type: string
+          example: FRA
+          maxLength: 3
+          minLength: 3
+        destination:
+          description: 'Three-letter IATA code of the destination airport.'
+          type: string
+          example: JFK
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          description: 'Scheduled departure timestamp.'
+          type: string
+          format: date-time
+        arrives_at:
+          description: 'Scheduled arrival timestamp; must be after departs_at.'
+          type: string
+          format: date-time
+        status:
+          description: 'Operational status of the flight.'
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          description: 'Aircraft model / type designator.'
+          type: string
+          example: 'Boeing 747-400'
+      type: object
+    UpdateFlightRequest:
+      properties:
+        status:
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          type: string
+      type: object
+    BookingResource:
+      required:
+        - id
+        - flight_id
+        - passenger_name
+        - seat
+        - created_at
+      properties:
+        id:
+          description: 'Server-assigned booking identifier.'
+          type: string
+          format: uuid
+        flight_id:
+          description: 'Identifier of the flight this booking belongs to.'
+          type: string
+          format: uuid
+        passenger_name:
+          description: 'Full name of the passenger.'
+          type: string
+          maxLength: 200
+          minLength: 1
+        seat:
+          description: 'Seat assignment, e.g. 12A.'
+          type: string
+          pattern: '^\d{1,3}[A-Z]$'
+        created_at:
+          description: 'Booking creation timestamp.'
+          type: string
+          format: date-time
+      type: object
+    StoreBookingRequest:
+      required:
+        - passenger_name
+        - seat
+      properties:
+        passenger_name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        seat:
+          type: string
+          pattern: '^\d{1,3}[A-Z]$'
+      type: object
+  responses:
+    NotFound:
+      description: 'Resource not found'
+    Conflict:
+      description: 'Flight is fully booked'
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {  }
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {  }
+tags:
+  -
+    name: FormRequests
+    description: 'Example flavor: FormRequests'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'
