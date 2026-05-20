@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `openapi.security_schemes` config map — registers OpenAPI security schemes by name. Each entry
+  is passed through to swagger-php's `OA\SecurityScheme`; the map key becomes `securityScheme`.
+  Entries are merged with the Passport-derived `oauth2` / `oauth2ClientCredentials` pair (emitted
+  only when Passport is installed and its named routes are registered); config entries win on
+  key collision. `#[Security]` now accepts an optional `scheme:` parameter naming which
+  configured scheme the requirement targets — existing `#[Security(['scope'])]` usages keep
+  working against the project default scheme. (OAPI-042)
 - `#[ResponseHeader]` authoring attribute — repeatable on methods/functions, declares a header
   on the response whose `status:` it targets (defaults to 200). Carries `name`, `description`,
   `type`, `format`, `example`, `required`, `deprecated`. Replaces the request-`#[Header]`

@@ -24,6 +24,8 @@ function makeSecurityExtractor(array $groups = []): SecurityExtractor
 {
     $router = Mockery::mock(Router::class);
     $router->allows('getMiddlewareGroups')->andReturn($groups)->byDefault();
+    // Report Passport's named routes as registered so the legacy two-scheme requirement applies.
+    $router->allows('has')->andReturn(true)->byDefault();
 
     return new SecurityExtractor(router: $router);
 }
@@ -103,4 +105,58 @@ it('does not crash when gatherMiddleware returns an empty list', function (): vo
     $route     = new Route(['GET'], 'api/v0/open', []);
 
     expect($extractor->forRoute($route))->toBeEmpty();
+});
+
+// ─── Config-driven security_schemes ──────────────────────────────────────────
+
+it('emits config-declared security schemes from openapi.security_schemes', function (): void {
+    config()->set('openapi.security_schemes', [
+        'bearer' => [
+            'type'         => 'http',
+            'scheme'       => 'bearer',
+            'bearerFormat' => 'JWT',
+        ],
+    ]);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+    $names     = array_map(static fn($s) => $s->securityScheme, $extractor->buildSchemes());
+
+    expect($names)->toContain('bearer');
+});
+
+it('merges config-declared schemes with Passport-derived ones', function (): void {
+    config()->set('openapi.security_schemes', [
+        'bearer' => ['type' => 'http', 'scheme' => 'bearer'],
+    ]);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+    $names     = array_map(static fn($s) => $s->securityScheme, $extractor->buildSchemes());
+
+    expect($names)
+        ->toContain('bearer')
+        ->and($names)->toContain('oauth2')
+        ->and($names)->toContain('oauth2ClientCredentials');
+});
+
+it('lets a config entry override a Passport-derived scheme on key collision', function (): void {
+    config()->set('openapi.security_schemes', [
+        'oauth2' => ['type' => 'apiKey', 'name' => 'X-API-Key', 'in' => 'header'],
+    ]);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    $byName = [];
+
+    foreach ($extractor->buildSchemes() as $scheme) {
+        $byName[$scheme->securityScheme] = $scheme;
+    }
+
+    expect($byName['oauth2']->type)->toBe('apiKey');
+});
+
+it('targets the explicit scheme name when requirementForScopes is called with $scheme', function (): void {
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    expect($extractor->requirementForScopes(['read'], scheme: 'bearer'))
+        ->toBe([['bearer' => ['read']]]);
 });

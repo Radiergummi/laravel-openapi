@@ -122,10 +122,7 @@ paths:
               description: 'Fetch the just-created flight by its returned id.'
       security:
         -
-          oauth2:
-            - 'flights:write'
-        -
-          oauth2ClientCredentials:
+          bearer:
             - 'flights:write'
   '/api/flights/{flight}':
     get:
@@ -177,10 +174,7 @@ paths:
           $ref: '#/components/responses/NotFound'
       security:
         -
-          oauth2:
-            - 'flights:write'
-        -
-          oauth2ClientCredentials:
+          bearer:
             - 'flights:write'
     patch:
       tags:
@@ -206,10 +200,7 @@ paths:
           $ref: '#/components/responses/NotFound'
       security:
         -
-          oauth2:
-            - 'flights:write'
-        -
-          oauth2ClientCredentials:
+          bearer:
             - 'flights:write'
   '/api/flights/{flight}/bookings':
     get:
@@ -270,10 +261,7 @@ paths:
           $ref: '#/components/responses/Conflict'
       security:
         -
-          oauth2:
-            - 'bookings:write'
-        -
-          oauth2ClientCredentials:
+          bearer:
             - 'bookings:write'
   '/api/bookings/{booking}':
     delete:
@@ -296,10 +284,7 @@ paths:
           $ref: '#/components/responses/NotFound'
       security:
         -
-          oauth2:
-            - 'bookings:write'
-        -
-          oauth2ClientCredentials:
+          bearer:
             - 'bookings:write'
   '/api/bookings/{booking}/boarding-pass':
     post:
@@ -333,10 +318,7 @@ paths:
           $ref: '#/components/responses/NotFound'
       security:
         -
-          oauth2:
-            - 'bookings:write'
-        -
-          oauth2ClientCredentials:
+          bearer:
             - 'bookings:write'
 components:
   schemas:
@@ -489,6 +471,11 @@ components:
         clientCredentials:
           tokenUrl: 'http://localhost/oauth/token'
           scopes: {  }
+    bearer:
+      type: http
+      description: 'Bearer JWT issued by the auth service.'
+      bearerFormat: JWT
+      scheme: bearer
 tags:
   -
     name: Combined

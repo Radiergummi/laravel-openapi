@@ -140,7 +140,7 @@ All attributes live in `Radiergummi\OpenApi\Core\Attributes`. Import with
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
 | `Header` | method | yes | Document a custom response header. |
-| `Security` | class, method | no | Override the auto-derived OAuth scopes. Pass an empty list for "token required, no specific scope". |
+| `Security` | class, method | no | Override the auto-derived scopes. Pass an empty list for "token required, no specific scope". Optional `scheme:` parameter targets a specific scheme name from `openapi.security_schemes` (or one of the Passport-derived defaults); omit for the project default. See [Declare custom security schemes](#declare-custom-security-schemes). |
 | `PublicEndpoint` | class, method | no | Mark as public (no auth advertised) even if middleware would imply otherwise. |
 | `Hide` | class, method | no | Exclude from the spec. `environments: ['production']` hides only in those environments. Pass no argument to hide unconditionally. |
 | `ExternalDocs` | method | no | Add an "external documentation" link to the operation. |
@@ -373,6 +373,38 @@ public function dangerous(): JsonResponse { … }
 ```
 
 Pass no argument (`#[OpenApi\Hide]`) to hide unconditionally.
+
+### Declare custom security schemes
+
+By default the package emits Laravel Passport's `oauth2` (Authorization Code) and
+`oauth2ClientCredentials` schemes when Passport is installed. Apps using a different auth
+shape — plain bearer JWT, API key, basic auth — declare additional schemes via the
+`openapi.security_schemes` config map:
+
+```php
+// config/openapi.php
+'security_schemes' => [
+    'bearer' => [
+        'type'         => 'http',
+        'scheme'       => 'bearer',
+        'bearerFormat' => 'JWT',
+        'description'  => 'Bearer JWT issued by the auth service.',
+    ],
+],
+```
+
+Each entry passes through to swagger-php's `OA\SecurityScheme` unchanged; the map key
+becomes the scheme name. Config entries are merged with the Passport-derived pair (config
+wins on key collision), and operations point at a specific scheme through `#[Security]`:
+
+```php
+#[OpenApi\Security(['flights:write'], scheme: 'bearer')]
+public function store(StoreFlightRequest $request): FlightData { … }
+```
+
+Omit `scheme:` to fall back to the project default (Passport's pair when available, otherwise
+the first config-declared scheme). The combined-flavor example
+(`examples/combined/`) demonstrates both halves end-to-end.
 
 ### Document an inbound webhook
 

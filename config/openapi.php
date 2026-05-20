@@ -137,6 +137,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Security Schemes
+    |--------------------------------------------------------------------------
+    |
+    | Each entry registers one OpenAPI security scheme. The map key is the
+    | scheme name referenced by `#[Security(scheme: '...')]` (and by operation
+    | `security:` blocks); the value is the OAS 3.1 security-scheme shape —
+    | passed through to swagger-php's `OA\SecurityScheme` constructor unchanged.
+    | See https://spec.openapis.org/oas/v3.1.0#security-scheme-object.
+    |
+    | These entries are MERGED with the Passport-derived `oauth2` and
+    | `oauth2ClientCredentials` schemes when Laravel Passport is installed.
+    | Config entries take precedence on name collision, so an `'oauth2' => […]`
+    | entry here replaces the Passport-derived one.
+    |
+    */
+
+    'security_schemes' => [
+        // Example bearer-JWT scheme:
+        //
+        // 'bearer' => [
+        //     'type'         => 'http',
+        //     'scheme'       => 'bearer',
+        //     'bearerFormat' => 'JWT',
+        // ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Lint Configuration
     |--------------------------------------------------------------------------
     |

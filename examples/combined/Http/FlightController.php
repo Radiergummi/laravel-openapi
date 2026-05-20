@@ -100,7 +100,7 @@ final class FlightController
      * {@see FlightData} (Data out). The `#[Link]` advertises that the response
      * `id` can be fed straight into the `flights.show` operation.
      */
-    #[Security(['flights:write'])]
+    #[Security(['flights:write'], scheme: 'bearer')]
     #[Link(
         name: 'self',
         operationId: 'flights.show',
@@ -118,7 +118,7 @@ final class FlightController
      *
      * @throws ModelNotFoundException When the flight does not exist.
      */
-    #[Security(['flights:write'])]
+    #[Security(['flights:write'], scheme: 'bearer')]
     public function update(Request $request, string $flight): FlightData
     {
         $model = Flight::query()->findOrFail($flight);
@@ -140,7 +140,7 @@ final class FlightController
      *
      * @throws ModelNotFoundException When the flight does not exist.
      */
-    #[Security(['flights:write'])]
+    #[Security(['flights:write'], scheme: 'bearer')]
     #[ResponseAttribute(status: 204, description: 'The flight was cancelled')]
     public function destroy(string $flight): Response
     {

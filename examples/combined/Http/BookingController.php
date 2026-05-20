@@ -62,7 +62,7 @@ final class BookingController
      * @throws FlightOverbookedException When the flight has no remaining seats.
      * @throws ModelNotFoundException    When the flight does not exist.
      */
-    #[Security(['bookings:write'])]
+    #[Security(['bookings:write'], scheme: 'bearer')]
     #[ResponseAttribute(status: 201, description: 'The created booking', ref: BookingData::class)]
     public function store(StoreBookingRequest $request, string $flight): BookingData
     {
@@ -87,7 +87,7 @@ final class BookingController
      *
      * @throws ModelNotFoundException When the booking does not exist.
      */
-    #[Security(['bookings:write'])]
+    #[Security(['bookings:write'], scheme: 'bearer')]
     #[ResponseAttribute(status: 200, description: 'The stored boarding-pass path', schema: ['type' => 'object'])]
     public function uploadBoardingPass(UploadBoardingPassRequest $request, string $booking): JsonResponse
     {
@@ -103,7 +103,7 @@ final class BookingController
      *
      * @throws ModelNotFoundException When the booking does not exist.
      */
-    #[Security(['bookings:write'])]
+    #[Security(['bookings:write'], scheme: 'bearer')]
     #[ResponseAttribute(status: 204, description: 'The booking was cancelled')]
     public function destroy(string $booking): Response
     {

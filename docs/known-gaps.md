@@ -11,7 +11,7 @@ welcome.
 | [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Closed |
 | [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Closed |
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Closed |
-| [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
+| [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Closed |
 | [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Closed |
 
 ---
@@ -144,31 +144,24 @@ form-requests flavor's `POST /flights` now declares `Location` on its 201 via
 
 ## OAPI-042 — `#[Security]` cannot name a scheme; security schemes hard-coded to Passport
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** Two related limitations:
+**Resolved in:** the `feature/plugin-suite` branch. Two changes ship together:
 
-1. `#[Security]` takes a `list<string>` of OAuth scopes — it has no parameter for the security
-   scheme name. Callers cannot say "this operation requires a bearer JWT" because the choice of
-   *scheme* is not theirs to make.
-2. `SecurityExtractor::buildSchemes()` is hard-coded to emit two schemes named `oauth2` and
-   `oauth2ClientCredentials` (derived from Laravel Passport). There is no config key — no
-   `openapi.security_schemes` — to register additional schemes (e.g. plain `bearer` JWT,
-   `apiKey`, basic auth) or override the Passport defaults.
+1. New `openapi.security_schemes` config map. Each entry maps a scheme name to the OAS 3.1
+   security-scheme shape and is passed through to swagger-php's `OA\SecurityScheme` unchanged.
+   `SecurityExtractor::buildSchemes()` now merges these entries with the Passport-derived
+   `oauth2` / `oauth2ClientCredentials` pair (which is itself emitted only when Passport is
+   installed and its named routes are registered). Config entries win on key collision.
+2. `#[Security]` gained an optional `scheme:` parameter naming which configured scheme the
+   requirement targets. When omitted the requirement falls back to the project default
+   (Passport's pair if available, otherwise the first config-declared scheme), so
+   `new Security(['scope'])` keeps working.
 
-In combination: a non-Passport app can declare `#[Security(['read:thing'])]` but the resulting
-spec references Passport-derived schemes the app does not actually use.
-
-**Workarounds:**
-
-- Live with the Passport-named schemes in the spec.
-- Post-process the generated YAML/JSON to rewrite `securitySchemes` and operation `security`
-  blocks.
-
-**Why it's open:** Discovered while building the `examples/combined/` showcase. The fix has two
-halves: (a) introduce an `openapi.security_schemes` config key consumed by `SecurityExtractor`
-and (b) add an optional `scheme:` parameter to `#[Security]` (defaulting to the project's first
-registered scheme so existing usage doesn't change). Not yet scheduled.
+The `examples/combined/` showcase was migrated to register a plain bearer-JWT scheme via config
+and reference it through `#[Security(['flights:write'], scheme: 'bearer')]`; the generated
+snapshot now carries a `bearer` entry under `components.securitySchemes` alongside the
+Passport-derived pair, and the write endpoints reference `security: [{bearer: […]}]`.
 
 ---
 

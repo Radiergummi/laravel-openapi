@@ -262,7 +262,7 @@ final readonly class OperationBuilder
         $security = $this->readAttribute($descriptor, SecurityAttribute::class);
 
         if ($security instanceof SecurityAttribute) {
-            return $this->securityExtractor->requirementForScopes($security->scopes);
+            return $this->securityExtractor->requirementForScopes($security->scopes, $security->scheme);
         }
 
         return $this->securityExtractor->forRoute($descriptor->route);

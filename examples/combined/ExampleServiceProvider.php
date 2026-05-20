@@ -33,12 +33,9 @@ use function mkdir;
  * resolves `file:` arguments via `base_path()` — can find them at
  * spec-generation time.
  *
- * Security-scheme caveat: Core currently emits the OAuth2 schemes hard-coded
- * by {@see \Radiergummi\OpenApi\Core\Extractors\SecurityExtractor::buildSchemes()};
- * there is no config hook for additional schemes such as bearer/JWT. The
- * flavor therefore uses `#[Security([…scopes])]` against those default schemes
- * and `#[PublicEndpoint]` for anonymous routes. Allowing arbitrary
- * config-registered security schemes is tracked separately.
+ * Registers a `bearer` JWT security scheme via `openapi.security_schemes`
+ * and points the write endpoints at it through `#[Security(…, scheme: 'bearer')]`,
+ * showcasing the config-driven scheme-registration path.
  */
 final class ExampleServiceProvider extends ServiceProvider
 {
@@ -50,6 +47,15 @@ final class ExampleServiceProvider extends ServiceProvider
             (array) config('openapi.plugins', []),
             [QueryBuilderPlugin::class],
         ));
+
+        config()->set('openapi.security_schemes', [
+            'bearer' => [
+                'type'         => 'http',
+                'scheme'       => 'bearer',
+                'bearerFormat' => 'JWT',
+                'description'  => 'Bearer JWT issued by the auth service.',
+            ],
+        ]);
 
         $this->mirrorExamplePayloads();
 
