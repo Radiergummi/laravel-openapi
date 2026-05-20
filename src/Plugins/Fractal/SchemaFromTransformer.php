@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
+use Closure;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
@@ -27,17 +28,22 @@ use function class_exists;
  *
  * Nested transformer-shaped field types (classes carrying `#[TransformerField]`)
  * recurse through {@see build()} directly; other class-string types resolve via
- * the injected resolver list (which excludes {@see TransformerRefSchemaResolver}
- * — see the plan's architecture note).
+ * the injected resolver factory — a `Closure` returning the registered
+ * resolvers minus this plugin's own {@see TransformerRefSchemaResolver}. The
+ * list is lazy by design: the eager equivalent forms a cross-plugin
+ * construction cycle with `SchemaFromResource`, because each plugin's own
+ * `RefSchemaResolver` references the other plugin's `SchemaFrom*` builder
+ * (filtering out only the same-plugin resolver is not enough). Invoking the
+ * factory at use time lets the container finish constructing both sides first.
  */
 final readonly class SchemaFromTransformer
 {
     /**
-     * @param list<RefSchemaResolver> $refSchemaResolvers Registered ref resolvers, minus this plugin's own.
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref resolvers, minus this plugin's own.
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
-        private array $refSchemaResolvers = [],
+        private Closure $refSchemaResolvers,
     ) {}
 
     /**
@@ -147,7 +153,7 @@ final readonly class SchemaFromTransformer
             return $this->buildRef($class);
         }
 
-        foreach ($this->refSchemaResolvers as $resolver) {
+        foreach (($this->refSchemaResolvers)() as $resolver) {
             $ref = $resolver->resolveRef($class);
 
             if ($ref !== null) {

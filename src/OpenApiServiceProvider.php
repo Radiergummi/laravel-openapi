@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
+use Closure;
 use Illuminate\Container\Container;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
@@ -480,9 +481,14 @@ class OpenApiServiceProvider extends ServiceProvider
     /**
      * Binds the Fractal plugin services.
      *
-     * `SchemaFromTransformer` receives every ref resolver except this plugin's
-     * own `TransformerRefSchemaResolver` — it recurses for nested transformers
-     * directly, and injecting its own resolver would form a construction cycle.
+     * `SchemaFromTransformer` receives a LAZY factory for the ref-resolver
+     * list — every registered ref resolver except this plugin's own
+     * `TransformerRefSchemaResolver`. Eager construction would form a
+     * cross-plugin construction cycle with `SchemaFromResource` (each plugin's
+     * builder lists the other plugin's resolver). Deferring resolution to
+     * first use lets the container finish constructing both sides first; the
+     * factory memoises its result with a closure-local static so repeated
+     * resolveClassRef calls don't re-walk the registry.
      */
     private function registerFractalPlugin(): void
     {
@@ -491,19 +497,32 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): Plugins\Fractal\SchemaFromTransformer {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                $resolvers = [];
+                /** @var Closure(): list<Core\Registry\RefSchemaResolver> $resolversFactory */
+                $resolversFactory = static function () use ($app, $registry): array {
+                    /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
+                    static $cache = null;
 
-                foreach ($registry->refSchemaResolvers() as $class) {
-                    if ($class === Plugins\Fractal\TransformerRefSchemaResolver::class) {
-                        continue;
+                    if ($cache !== null) {
+                        return $cache;
                     }
 
-                    $resolvers[] = $app->make($class);
-                }
+                    /** @var list<Core\Registry\RefSchemaResolver> $resolvers */
+                    $resolvers = [];
+
+                    foreach ($registry->refSchemaResolvers() as $class) {
+                        if ($class === Plugins\Fractal\TransformerRefSchemaResolver::class) {
+                            continue;
+                        }
+
+                        $resolvers[] = $app->make($class);
+                    }
+
+                    return $cache = $resolvers;
+                };
 
                 return new Plugins\Fractal\SchemaFromTransformer(
                     registry: $app->make(ComponentSchemaRegistry::class),
-                    refSchemaResolvers: $resolvers,
+                    refSchemaResolvers: $resolversFactory,
                 );
             },
         );

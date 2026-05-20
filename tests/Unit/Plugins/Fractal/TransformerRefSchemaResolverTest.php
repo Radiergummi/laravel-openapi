@@ -18,7 +18,7 @@ function makeTransformerRefResolver(): TransformerRefSchemaResolver
 {
     $registry = new ComponentSchemaRegistry();
 
-    return new TransformerRefSchemaResolver(new SchemaFromTransformer($registry, []));
+    return new TransformerRefSchemaResolver(new SchemaFromTransformer($registry, static fn(): array => []));
 }
 
 it('resolves a transformer-shaped class to a components ref', function (): void {

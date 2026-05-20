@@ -85,6 +85,17 @@ the maintainer before deviating — do not silently change course.
    **recurses directly** for its own type, and is injected a `RefSchemaResolver`
    list with **its own resolver filtered out** (done in the service-provider
    binding).
+   - **Cross-plugin cycle (added 2026-05-20):** filtering out only the
+     same-plugin resolver is **not enough once two plugins coexist**. Each
+     plugin's `RefSchemaResolver` references the other plugin's `SchemaFromX`
+     builder, so eager construction of one closure re-enters the other's
+     mid-construction closure → infinite recursion → OOM. **The resolver list
+     must be a lazy `Closure(): list<RefSchemaResolver>`**, not an eagerly
+     resolved array. `SchemaFromTransformer` uses this pattern; the
+     service-provider binding wraps the registry iteration in a memoised
+     closure. Future plugin schema builders MUST follow the same pattern, and
+     `SchemaFromResource` should be migrated to the same pattern next time it
+     is touched.
 2. **Plugins are package-free at generation time.** A plugin reads **only its own
    attributes** — never the third-party convention class. `QueryBuilderPlugin`
    never references `Spatie\QueryBuilder\QueryBuilder`; `FractalPlugin` never
