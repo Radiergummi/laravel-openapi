@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Generator;
 
 use BackedEnum;
+use OpenApi\Annotations as OA;
 
 /**
  * Carries all JSON-Schema field metadata expressible via scoped field
@@ -84,5 +85,44 @@ final readonly class SchemaDescriptor
         }
 
         return $out;
+    }
+
+    /**
+     * Applies this descriptor's non-null fields onto an existing `OA\Property`, and switches the
+     * property to the nullable shape when `$this->nullable === true`.
+     *
+     * Used by the field-attribute consumers ({@see RequestField}, {@see ResponseField},
+     * {@see ResourceField}, {@see RequestField}-on-constants) to mutate a `new OA\Property([…])`
+     * into its fully-described form without each caller re-implementing the `toOpenApi()` + nullable
+     * dance.
+     */
+    public function applyTo(OA\Property $property): void
+    {
+        foreach ($this->toOpenApi() as $field => $value) {
+            $property->{$field} = $value;
+        }
+
+        if ($this->nullable === true) {
+            NullableSchema::applyTo($property);
+        }
+    }
+
+    /**
+     * Builds a standalone `OA\Schema` from this descriptor, applying the OAS 3.1
+     * `type: [..., 'null']` shape when `$this->nullable === true`.
+     *
+     * `toOpenApi()` deliberately omits `nullable`; this helper is the canonical
+     * place to apply it for callers that produce a `Schema` (parameter resolvers)
+     * rather than a `Property` ({@see applyTo()}).
+     */
+    public function toSchema(): OA\Schema
+    {
+        $schema = new OA\Schema(['type' => 'string', ...$this->toOpenApi()]);
+
+        if ($this->nullable === true) {
+            NullableSchema::applyTo($schema);
+        }
+
+        return $schema;
     }
 }

@@ -9,16 +9,15 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route as RoutingRoute;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ResponseEmptyController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedResponseEmptyController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint');
 
@@ -129,12 +128,11 @@ it('resolves SuppressionCollector with request_payload_indirection wired', funct
 
     $collector = app(SuppressionCollector::class);
 
-    $descriptor = new ActionDescriptor(
-        route: new RoutingRoute('POST', 'test', []),
-        controller: new ReflectionClass(ActionWithSuppressedDataController::class),
-        method: new ReflectionMethod(ActionWithSuppressedDataController::class, 'create'),
-        summary: null,
-        description: null,
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        ActionWithSuppressedDataController::class,
+        'create',
+        'test',
+        ['POST'],
     );
 
     $directives = $collector->collect([$descriptor]);

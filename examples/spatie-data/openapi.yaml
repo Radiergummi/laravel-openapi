@@ -1,0 +1,411 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – SpatieData Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's SpatieData integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  /api/openapi.yaml:
+    get:
+      tags:
+        - OpenApi
+      summary: 'Serves the generated OpenAPI 3.1 specification as YAML.'
+      description: "In local development, the spec is generated on every request so changes to controllers and\nschemas are reflected immediately. Everywhere else, the spec is built at deploy time by the\n`openapi:generate` command and served as a static file with etag/last-modified semantics. A\nmissing file in a deployed environment indicates a broken build."
+      operationId: openapi.spec
+      parameters: []
+      responses:
+        '200':
+          description: OK
+      security: []
+  /api/flights:
+    get:
+      tags:
+        - SpatieData
+        - Flights
+      summary: 'List flights.'
+      description: 'Returns a page of flights as a Spatie `DataCollection` of {@see FlightData}.'
+      externalDocs:
+        description: 'Public API reference'
+        url: 'https://example.com/docs/flights'
+      operationId: get_api_flights
+      parameters: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FlightData'
+      security: []
+    post:
+      tags:
+        - SpatieData
+        - Flights
+      summary: 'Create a new flight.'
+      description: "Validates the payload through {@see CreateFlightData} and returns the\npersisted flight wrapped in a {@see FlightData}."
+      externalDocs:
+        description: 'Public API reference'
+        url: 'https://example.com/docs/flights'
+      operationId: post_api_flights
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFlightData'
+      responses:
+        '201':
+          description: 'The created flight'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+      security: []
+  '/api/flights/{flight}':
+    get:
+      tags:
+        - SpatieData
+        - Flights
+      summary: 'Show a single flight.'
+      externalDocs:
+        description: 'Public API reference'
+        url: 'https://example.com/docs/flights'
+      operationId: get_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+              examples:
+                lh400:
+                  summary: 'LH400 — Frankfurt to New York'
+                  description: 'Lufthansa 400, the daily long-haul to JFK on an A330.'
+                  value: { id: 0190f3d0-1234-7000-8000-000000000001, number: LH400, origin: FRA, destination: JFK, departs_at: '2026-06-01T10:30:00Z', arrives_at: '2026-06-01T13:15:00Z', status: scheduled, aircraft_type: A330 }
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    delete:
+      tags:
+        - SpatieData
+        - Flights
+      summary: 'Cancel a flight.'
+      externalDocs:
+        description: 'Public API reference'
+        url: 'https://example.com/docs/flights'
+      operationId: delete_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The flight was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    patch:
+      tags:
+        - SpatieData
+        - Flights
+      summary: 'Update an existing flight.'
+      description: "Accepts a partial payload validated by {@see UpdateFlightData}; only the\nsupplied properties are persisted thanks to `Optional` unions."
+      externalDocs:
+        description: 'Public API reference'
+        url: 'https://example.com/docs/flights'
+      operationId: patch_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFlightData'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+  '/api/flights/{flight}/bookings':
+    get:
+      tags:
+        - SpatieData
+        - Bookings
+      summary: 'List bookings for a flight.'
+      operationId: get_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookingData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    post:
+      tags:
+        - SpatieData
+        - Bookings
+      summary: 'Create a new booking on a flight.'
+      description: "Validates via {@see CreateBookingData} and enforces the 200-seat\ncapacity by raising {@see FlightOverbookedException} — the `@throws`\nannotation drives the 409 response through the exception-response map."
+      operationId: post_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingData'
+      responses:
+        '201':
+          description: 'The created booking'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      security: []
+  '/api/bookings/{booking}':
+    delete:
+      tags:
+        - SpatieData
+        - Bookings
+      summary: 'Cancel a booking.'
+      operationId: delete_api_bookings_booking_
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The booking was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+components:
+  schemas:
+    FlightData:
+      required:
+        - id
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        id:
+          type: string
+        number:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        departs_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+        arrives_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+        status:
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          type: string
+        aircraft:
+          type:
+            - string
+            - 'null'
+          deprecated: true
+      type: object
+    CreateFlightData:
+      required:
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        number:
+          type: string
+          pattern: '^[A-Z]{2}\d{1,4}$'
+        origin:
+          type: string
+          maxLength: 3
+          minLength: 3
+        destination:
+          type: string
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+          format: date
+        arrives_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          type: string
+      type: object
+    UpdateFlightData:
+      properties:
+        number:
+          type: string
+          pattern: '^[A-Z]{2}\d{1,4}$'
+        origin:
+          type: string
+          maxLength: 3
+          minLength: 3
+        destination:
+          type: string
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+        arrives_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+        status:
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          type: string
+      type: object
+    BookingData:
+      required:
+        - id
+        - flight_id
+        - passenger_name
+        - seat
+        - created_at
+      properties:
+        id:
+          type: string
+        flight_id:
+          type: string
+        passenger_name:
+          type: string
+        seat:
+          type: string
+        created_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+      type: object
+    CreateBookingData:
+      required:
+        - passenger_name
+        - seat
+      properties:
+        passenger_name:
+          type: string
+          maxLength: 200
+        seat:
+          type: string
+          pattern: '^\d{1,3}[A-Z]$'
+      type: object
+  responses:
+    NotFound:
+      description: 'Resource not found'
+    Conflict:
+      description: 'Flight is fully booked'
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {  }
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {  }
+tags:
+  -
+    name: SpatieData
+    description: 'Example flavor: SpatieData'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'

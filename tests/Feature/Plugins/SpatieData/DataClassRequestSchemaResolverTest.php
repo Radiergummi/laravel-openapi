@@ -27,9 +27,8 @@ use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
-use ReflectionClass;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use ReflectionException;
-use ReflectionMethod;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -65,13 +64,7 @@ function makeDataClassResolver(): DataClassRequestSchemaResolver
  */
 function makeDataClassDescriptor(string $class, string $methodName): ActionDescriptor
 {
-    return new ActionDescriptor(
-        route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($class),
-        method: new ReflectionMethod($class, $methodName),
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forControllerMethod($class, $methodName, 'test', ['POST']);
 }
 
 // ---------------------------------------------------------------------------
@@ -160,12 +153,10 @@ it('extracts a Data class from an Action constructor when the scanner is configu
     };
 
     $resolver   = makeDataClassResolver();
-    $descriptor = new ActionDescriptor(
+    $descriptor = ActionDescriptorFactory::forRoute(
         route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($controller),
-        method: new ReflectionMethod($controller, 'store'),
-        summary: null,
-        description: null,
+        controller: $controller::class,
+        method: 'store',
     );
 
     $result = $resolver->resolveRequestSchema($descriptor);

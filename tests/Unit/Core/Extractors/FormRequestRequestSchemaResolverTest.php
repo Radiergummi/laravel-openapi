@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi');
 
@@ -47,13 +48,7 @@ function makeFormRequestResolver(): FormRequestRequestSchemaResolver
 
 function makeFormRequestDescriptor(string $class, string $methodName): ActionDescriptor
 {
-    return new ActionDescriptor(
-        route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($class),
-        method: new ReflectionMethod($class, $methodName),
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forControllerMethod($class, $methodName, 'test', ['POST']);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,12 +73,10 @@ it('uses application/json media type for a plain FormRequest', function (): void
     };
 
     $resolver   = makeFormRequestResolver();
-    $descriptor = new ActionDescriptor(
+    $descriptor = ActionDescriptorFactory::forRoute(
         route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($controller),
-        method: new ReflectionMethod($controller, 'store'),
-        summary: null,
-        description: null,
+        controller: $controller::class,
+        method: 'store',
     );
 
     $result = $resolver->resolveRequestSchema($descriptor);

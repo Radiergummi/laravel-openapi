@@ -1,0 +1,249 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – Vanilla Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's Vanilla integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  /api/openapi.yaml:
+    get:
+      tags:
+        - OpenApi
+      summary: 'Serves the generated OpenAPI 3.1 specification as YAML.'
+      description: "In local development, the spec is generated on every request so changes to controllers and\nschemas are reflected immediately. Everywhere else, the spec is built at deploy time by the\n`openapi:generate` command and served as a static file with etag/last-modified semantics. A\nmissing file in a deployed environment indicates a broken build."
+      operationId: openapi.spec
+      parameters: []
+      responses:
+        '200':
+          description: OK
+      security: []
+  /api/flights:
+    get:
+      tags:
+        - Vanilla
+        - Flights
+      summary: 'List flights.'
+      description: 'Returns a paginated list of all known flights.'
+      operationId: get_api_flights
+      parameters:
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+            minimum: 1
+      responses:
+        '200':
+          description: 'A page of flights'
+          content:
+            application/json:
+              schema:
+                type: object
+      security: []
+    post:
+      tags:
+        - Vanilla
+        - Flights
+      summary: 'Create a new flight.'
+      description: "Persists a new flight record with the supplied schedule and status.\nReturns the created resource with its server-assigned UUID."
+      operationId: post_api_flights
+      parameters: []
+      responses:
+        '201':
+          description: 'The created flight'
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/flights/{flight}':
+    get:
+      tags:
+        - Vanilla
+        - Flights
+      summary: 'Show a single flight.'
+      operationId: flights.show
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The flight'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    delete:
+      tags:
+        - Vanilla
+        - Flights
+      operationId: delete_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The flight was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    patch:
+      tags:
+        - Vanilla
+        - Flights
+      summary: 'Update an existing flight.'
+      operationId: patch_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The updated flight'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/flights/{flight}/bookings':
+    get:
+      tags:
+        - Vanilla
+        - Bookings
+      summary: 'List bookings for a flight.'
+      operationId: get_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "The flight's bookings"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    post:
+      tags:
+        - Vanilla
+        - Bookings
+      summary: 'Create a new booking on a flight.'
+      operationId: post_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: 'The created booking'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/bookings/{booking}':
+    delete:
+      tags:
+        - Vanilla
+        - Bookings
+      summary: 'Cancel a booking.'
+      operationId: delete_api_bookings_booking_
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The booking was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+components:
+  responses:
+    NotFound:
+      description: 'Resource not found'
+    ValidationFailed:
+      description: 'Validation failed'
+    Conflict:
+      description: 'Flight is fully booked'
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {  }
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {  }
+tags:
+  -
+    name: Vanilla
+    description: 'Example flavor: Vanilla'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'

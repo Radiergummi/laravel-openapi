@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
+use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedAttributeFieldFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedFieldFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\StatusFixtureEnum;
 use Spatie\LaravelData\Support\DataConfig;
@@ -91,6 +92,34 @@ it('OAPI-031: @deprecated PHPDoc on a Data property emits deprecated: true on th
 
     expect($props)->toHaveKey('legacy');
     expect($props['legacy']->deprecated)->toBeTrue();
+});
+
+// ---------------------------------------------------------------------------
+// OAPI-043: #[Deprecated] attribute on Data properties (symmetric to PHPDoc)
+// ---------------------------------------------------------------------------
+
+it('OAPI-043: #[Deprecated] on a Data property emits deprecated: true on the property schema', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $builder  = makeDataSchemaBuilder($registry);
+    $builder->build(DeprecatedAttributeFieldFixtureData::class);
+
+    $schema = $registry->all()[0];
+    $props  = oapi031PropertiesByName($schema);
+
+    expect($props)->toHaveKey('legacy');
+    expect($props['legacy']->deprecated)->toBeTrue();
+});
+
+it('OAPI-043: non-deprecated Data property does not have deprecated: true', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $builder  = makeDataSchemaBuilder($registry);
+    $builder->build(DeprecatedAttributeFieldFixtureData::class);
+
+    $schema = $registry->all()[0];
+    $props  = oapi031PropertiesByName($schema);
+
+    expect($props)->toHaveKey('active');
+    expect($props['active']->deprecated)->not->toBeTrue();
 });
 
 // ---------------------------------------------------------------------------

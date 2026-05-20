@@ -25,8 +25,8 @@ use Attribute;
  * #[OpenApi\Header('X-Tenant-Id', required: true, example: 'acme-corp')]
  * ```
  *
- * For response headers (rate-limit, ETag, Location) use a future
- * `ResponseHeader` attribute — those are scoped per response.
+ * For response headers (rate-limit, ETag, Location) use {@see ResponseHeader}
+ * — those are scoped per response.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Header

@@ -11,10 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
-use Deprecated;
+use Deprecated as NativeDeprecated;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\BaseExample as BaseExampleAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Example as ExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ExternalDocs as ExternalDocsAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Header as HeaderAttribute;
@@ -24,6 +25,7 @@ use Radiergummi\OpenApi\Core\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Core\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ResponseExample as ResponseExampleAttribute;
+use Radiergummi\OpenApi\Core\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Tag as TagAttribute;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -180,6 +182,7 @@ final readonly class OperationBuilder
         // swagger-php's last-write-wins serialization lets #[Response] override generated 401/404.
         $responses = [$primaryResponse, ...$standardResponses, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
+        $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
         if ($operationOverride !== null) {
@@ -259,7 +262,7 @@ final readonly class OperationBuilder
         $security = $this->readAttribute($descriptor, SecurityAttribute::class);
 
         if ($security instanceof SecurityAttribute) {
-            return $this->securityExtractor->requirementForScopes($security->scopes);
+            return $this->securityExtractor->requirementForScopes($security->scopes, $security->scheme);
         }
 
         return $this->securityExtractor->forRoute($descriptor->route);
@@ -275,15 +278,12 @@ final readonly class OperationBuilder
         /** @var array<string, HeaderAttribute> $byName */
         $byName = [];
 
-        if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes(HeaderAttribute::class) as $attr) {
-                $instance = $attr->newInstance();
-                $byName[$instance->name] = $instance;
+        foreach ([$descriptor->controller, $descriptor->method] as $reflector) {
+            if ($reflector === null) {
+                continue;
             }
-        }
 
-        if ($descriptor->method !== null) {
-            foreach ($descriptor->method->getAttributes(HeaderAttribute::class) as $attr) {
+            foreach ($reflector->getAttributes(HeaderAttribute::class) as $attr) {
                 $instance = $attr->newInstance();
                 $byName[$instance->name] = $instance;
             }
@@ -461,6 +461,84 @@ final readonly class OperationBuilder
                 }
             }
         }
+    }
+
+    /**
+     * Attaches `#[ResponseHeader]` attributes declared on the method to the response whose status
+     * matches the attribute's `status:`. Headers without a matching response are dropped silently.
+     *
+     * Per RFC7230, header names are case-insensitive — the swagger-php Header object carries the
+     * casing the author chose.
+     *
+     * @param list<OA\Response> $responses
+     */
+    private function applyResponseHeaders(ActionDescriptor $descriptor, array $responses): void
+    {
+        if ($descriptor->actionReflector === null) {
+            return;
+        }
+
+        $attributes = $descriptor->actionReflector->getAttributes(ResponseHeaderAttribute::class);
+
+        if ($attributes === []) {
+            return;
+        }
+
+        /** @var array<string, list<ResponseHeaderAttribute>> $byStatus */
+        $byStatus = [];
+
+        foreach ($attributes as $attribute) {
+            $instance = $attribute->newInstance();
+            $byStatus[(string) $instance->status][] = $instance;
+        }
+
+        foreach ($responses as $response) {
+            $status = (string) $response->response;
+
+            if (!isset($byStatus[$status])) {
+                continue;
+            }
+
+            $existing = is_array($response->headers) ? $response->headers : [];
+
+            foreach ($byStatus[$status] as $headerAttribute) {
+                $existing[] = $this->buildResponseHeader($headerAttribute);
+            }
+
+            $response->headers = $existing;
+        }
+    }
+
+    private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
+    {
+        $schemaProps = ['type' => $header->type];
+
+        if ($header->format !== null) {
+            $schemaProps['format'] = $header->format;
+        }
+
+        if ($header->example !== null) {
+            $schemaProps['example'] = $header->example;
+        }
+
+        $props = [
+            'header' => $header->name,
+            'schema' => new OA\Schema($schemaProps),
+        ];
+
+        if ($header->description !== null) {
+            $props['description'] = $header->description;
+        }
+
+        if ($header->required !== null) {
+            $props['required'] = $header->required;
+        }
+
+        if ($header->deprecated !== null) {
+            $props['deprecated'] = $header->deprecated;
+        }
+
+        return new OA\Header($props);
     }
 
     /**
@@ -693,25 +771,36 @@ final readonly class OperationBuilder
 
         $instance = $source->newInstance();
 
+        if ($instance instanceof DeprecatedAttribute) {
+            return $instance->reason ?? '';
+        }
+
+        // PHP 8.4 native \Deprecated.
         return $instance->message ?? '';
     }
 
-    /** @return null|ReflectionAttribute<Deprecated> */
+    /**
+     * Returns the first deprecation marker on the method (preferred) or controller class.
+     *
+     * Both the PHP 8.4 native `\Deprecated` and the package's own `#[Deprecated]` are honoured;
+     * method-level attributes always win over class-level ones.
+     *
+     * @return null|ReflectionAttribute<DeprecatedAttribute|NativeDeprecated>
+     */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
-        if ($descriptor->actionReflector !== null) {
-            $actionAttrs = $descriptor->actionReflector->getAttributes(Deprecated::class);
-
-            if ($actionAttrs !== []) {
-                return $actionAttrs[0];
+        // Method-level wins over class-level, so check actionReflector first.
+        foreach ([$descriptor->actionReflector, $descriptor->controller] as $reflector) {
+            if ($reflector === null) {
+                continue;
             }
-        }
 
-        if ($descriptor->controller !== null) {
-            $classAttrs = $descriptor->controller->getAttributes(Deprecated::class);
+            foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
+                $attrs = $reflector->getAttributes($class);
 
-            if ($classAttrs !== []) {
-                return $classAttrs[0];
+                if ($attrs !== []) {
+                    return $attrs[0];
+                }
             }
         }
 

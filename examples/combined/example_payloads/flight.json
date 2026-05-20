@@ -1,0 +1,10 @@
+{
+    "id": "0190f3d0-1234-7000-8000-000000000001",
+    "number": "LH400",
+    "origin": "FRA",
+    "destination": "JFK",
+    "departs_at": "2026-06-01T10:30:00Z",
+    "arrives_at": "2026-06-01T13:15:00Z",
+    "status": "scheduled",
+    "aircraft_type": "A330"
+}

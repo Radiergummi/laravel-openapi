@@ -17,7 +17,9 @@ use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
+use Radiergummi\OpenApi\Core\Routing\Filters\SkipPassportRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
+use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -135,6 +137,34 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Security Schemes
+    |--------------------------------------------------------------------------
+    |
+    | Each entry registers one OpenAPI security scheme. The map key is the
+    | scheme name referenced by `#[Security(scheme: '...')]` (and by operation
+    | `security:` blocks); the value is the OAS 3.1 security-scheme shape —
+    | passed through to swagger-php's `OA\SecurityScheme` constructor unchanged.
+    | See https://spec.openapis.org/oas/v3.1.0#security-scheme-object.
+    |
+    | These entries are MERGED with the Passport-derived `oauth2` and
+    | `oauth2ClientCredentials` schemes when Laravel Passport is installed.
+    | Config entries take precedence on name collision, so an `'oauth2' => […]`
+    | entry here replaces the Passport-derived one.
+    |
+    */
+
+    'security_schemes' => [
+        // Example bearer-JWT scheme:
+        //
+        // 'bearer' => [
+        //     'type'         => 'http',
+        //     'scheme'       => 'bearer',
+        //     'bearerFormat' => 'JWT',
+        // ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Lint Configuration
     |--------------------------------------------------------------------------
     |
@@ -225,6 +255,15 @@ return [
 
     'plugins' => [
         SpatieDataPlugin::class,
+        ApiResourcesPlugin::class,
+
+        // Requires `composer require spatie/laravel-query-builder`. Uncomment to enable:
+        // \Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin::class,
+
+        // Requires either `composer require league/fractal` or
+        // `composer require spatie/laravel-fractal` (which depends on league/fractal).
+        // Uncomment to enable:
+        // \Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin::class,
     ],
 
     /*
@@ -267,9 +306,9 @@ return [
     | contract; returning true from `shouldSkip()` omits the route from the
     | generated document.
     |
-    | The three shipped filters exclude routes from common dev/admin packages
-    | (Nova, Telescope, Ignition). Each one tolerates its package being absent:
-    | with no config present it simply matches nothing.
+    | The four shipped filters exclude routes from common dev/admin/auth
+    | packages (Nova, Telescope, Ignition, Passport). Each one tolerates its
+    | package being absent: with no config present it simply matches nothing.
     |
     */
 
@@ -277,6 +316,7 @@ return [
         SkipNovaRoutes::class,
         SkipTelescopeRoutes::class,
         SkipIgnitionRoutes::class,
+        SkipPassportRoutes::class,
     ],
 
 ];

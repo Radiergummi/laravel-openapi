@@ -16,22 +16,35 @@ use Illuminate\Routing\Router;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 
+use function array_key_first;
 use function array_unique;
 use function array_values;
+use function class_exists;
+use function config;
 use function explode;
+use function is_array;
 use function str_starts_with;
 use function substr;
 
 /**
- * Builds the OAuth 2.0 security schemes for the OpenAPI document and derives per-operation
- * `security` requirements from route middleware.
+ * Builds the security schemes for the OpenAPI document and derives per-operation `security`
+ * requirements from route middleware.
  *
- * Two schemes are emitted (`oauth2` / `oauth2ClientCredentials`), both referencing the same
- * Passport scope catalogue. Every non-public route emits both as OR alternatives.
+ * Two sources contribute to the scheme catalogue:
  *
- * Routes with `auth:api` but no `scope:*` middleware emit an empty scope list — meaning "a valid
- * token is required but no specific scope is checked". This is distinct from `security: []`
- * (public). Routes with neither auth nor scope middleware emit `security: []`.
+ * 1. The `openapi.security_schemes` config map. Each entry maps a scheme name to the OAS 3.1
+ *    security-scheme shape; the array is passed through to {@see OA\SecurityScheme} unchanged.
+ * 2. Passport's `oauth2` / `oauth2ClientCredentials` Authorization-Code and Client-Credentials
+ *    flows, auto-derived when Laravel Passport is installed and its routes are registered.
+ *
+ * Config entries win on name collision. When neither source yields a scheme the catalogue is
+ * empty — the generator still emits a valid document; operations simply reference whatever
+ * scheme names callers point at via `#[Security(scheme:)]`.
+ *
+ * Per-operation requirements (`forRoute()`) come from `auth:*` / `scope:*` / `scopes:*`
+ * middleware. Routes with `auth:api` but no `scope:*` middleware emit an empty scope list —
+ * meaning "a valid token is required but no specific scope is checked". This is distinct from
+ * `security: []` (public). Routes with neither auth nor scope middleware emit `security: []`.
  *
  * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
  * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
@@ -53,36 +66,18 @@ final readonly class SecurityExtractor
      */
     public function buildSchemes(): array
     {
-        $scopes = $this->allScopes();
+        /** @var array<string, OA\SecurityScheme> $schemes */
+        $schemes = [];
 
-        return [
-            new OA\SecurityScheme([
-                'securityScheme' => self::SCHEME_AUTHORIZATION_CODE,
-                'type' => 'oauth2',
-                'description' => 'OAuth 2.0 Authorization Code flow for interactive users.',
-                'flows' => [
-                    new OA\Flow([
-                        'flow' => 'authorizationCode',
-                        'authorizationUrl' => route('passport.authorizations.authorize'),
-                        'tokenUrl' => route('passport.token'),
-                        'refreshUrl' => route('passport.token.refresh'),
-                        'scopes' => $scopes,
-                    ]),
-                ],
-            ]),
-            new OA\SecurityScheme([
-                'securityScheme' => self::SCHEME_CLIENT_CREDENTIALS,
-                'type' => 'oauth2',
-                'description' => 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).',
-                'flows' => [
-                    new OA\Flow([
-                        'flow' => 'clientCredentials',
-                        'tokenUrl' => route('passport.token'),
-                        'scopes' => $scopes,
-                    ]),
-                ],
-            ]),
-        ];
+        foreach ($this->passportSchemes() as $scheme) {
+            $schemes[$scheme->securityScheme] = $scheme;
+        }
+
+        foreach ($this->configSchemes() as $name => $scheme) {
+            $schemes[$name] = $scheme;
+        }
+
+        return array_values($schemes);
     }
 
     /**
@@ -102,6 +97,37 @@ final readonly class SecurityExtractor
         }
 
         return $this->requirementForScopes($scopes);
+    }
+
+    /**
+     * Build the per-operation `security` block targeting a specific scheme (when given) or
+     * the project default (Passport's pair if available, otherwise the first config-declared
+     * scheme).
+     *
+     * @param list<string> $scopes
+     *
+     * @return list<array<string, list<string>>>
+     */
+    public function requirementForScopes(array $scopes, ?string $scheme = null): array
+    {
+        if ($scheme !== null) {
+            return [[$scheme => $scopes]];
+        }
+
+        if ($this->passportAvailable()) {
+            return [
+                [self::SCHEME_AUTHORIZATION_CODE => $scopes],
+                [self::SCHEME_CLIENT_CREDENTIALS => $scopes],
+            ];
+        }
+
+        $defaultScheme = array_key_first($this->configSchemes());
+
+        if ($defaultScheme !== null) {
+            return [[$defaultScheme => $scopes]];
+        }
+
+        return [];
     }
 
     /**
@@ -136,19 +162,6 @@ final readonly class SecurityExtractor
     }
 
     /**
-     * @param list<string> $scopes
-     *
-     * @return list<array<string, list<string>>>
-     */
-    public function requirementForScopes(array $scopes): array
-    {
-        return [
-            [self::SCHEME_AUTHORIZATION_CODE => $scopes],
-            [self::SCHEME_CLIENT_CREDENTIALS => $scopes],
-        ];
-    }
-
-    /**
      * @param list<string> $middleware
      *
      * @return list<string>
@@ -168,6 +181,89 @@ final readonly class SecurityExtractor
         }
 
         return array_values(array_unique($scopes));
+    }
+
+    /**
+     * Build the two Passport-derived OAuth2 schemes. Returns an empty array if Passport is
+     * not installed or its named routes are not registered.
+     *
+     * @return list<OA\SecurityScheme>
+     */
+    private function passportSchemes(): array
+    {
+        if (!$this->passportAvailable()) {
+            return [];
+        }
+
+        $scopes = $this->allScopes();
+
+        return [
+            new OA\SecurityScheme([
+                'securityScheme' => self::SCHEME_AUTHORIZATION_CODE,
+                'type' => 'oauth2',
+                'description' => 'OAuth 2.0 Authorization Code flow for interactive users.',
+                'flows' => [
+                    new OA\Flow([
+                        'flow' => 'authorizationCode',
+                        'authorizationUrl' => route('passport.authorizations.authorize'),
+                        'tokenUrl' => route('passport.token'),
+                        'refreshUrl' => route('passport.token.refresh'),
+                        'scopes' => $scopes,
+                    ]),
+                ],
+            ]),
+            new OA\SecurityScheme([
+                'securityScheme' => self::SCHEME_CLIENT_CREDENTIALS,
+                'type' => 'oauth2',
+                'description' => 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).',
+                'flows' => [
+                    new OA\Flow([
+                        'flow' => 'clientCredentials',
+                        'tokenUrl' => route('passport.token'),
+                        'scopes' => $scopes,
+                    ]),
+                ],
+            ]),
+        ];
+    }
+
+    /**
+     * Schemes registered via `openapi.security_schemes`. Each value is passed through to
+     * {@see OA\SecurityScheme} verbatim; the map key becomes `securityScheme`.
+     *
+     * @return array<string, OA\SecurityScheme>
+     */
+    private function configSchemes(): array
+    {
+        /** @var mixed $raw */
+        $raw = config('openapi.security_schemes', []);
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $schemes = [];
+
+        foreach ($raw as $name => $shape) {
+            if (!is_string($name) || !is_array($shape)) {
+                continue;
+            }
+
+            $schemes[$name] = new OA\SecurityScheme([
+                'securityScheme' => $name,
+                ...$shape,
+            ]);
+        }
+
+        return $schemes;
+    }
+
+    private function passportAvailable(): bool
+    {
+        return class_exists(Passport::class)
+            && $this->router->has('passport.token')
+            && $this->router->has('passport.token.refresh')
+            && $this->router->has('passport.authorizations.authorize');
     }
 
     /**

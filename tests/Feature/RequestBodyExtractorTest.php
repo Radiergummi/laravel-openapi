@@ -31,8 +31,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
-use ReflectionClass;
-use ReflectionMethod;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -81,13 +80,7 @@ function makeRequestBodyExtractor(): array
 
 function makeRequestBodyDescriptor(string $class, string $methodName, string $httpMethod = 'POST'): ActionDescriptor
 {
-    return new ActionDescriptor(
-        route: new Route($httpMethod, 'test', []),
-        controller: new ReflectionClass($class),
-        method: new ReflectionMethod($class, $methodName),
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forControllerMethod($class, $methodName, 'test', [$httpMethod]);
 }
 
 // ---------------------------------------------------------------------------
@@ -158,12 +151,10 @@ it('uses application/json for a plain FormRequest without file fields', function
     };
 
     [$extractor] = makeRequestBodyExtractor();
-    $descriptor  = new ActionDescriptor(
+    $descriptor  = ActionDescriptorFactory::forRoute(
         route: new Route('POST', 'test', []),
-        controller: new ReflectionClass($controller),
-        method: new ReflectionMethod($controller, 'store'),
-        summary: null,
-        description: null,
+        controller: $controller::class,
+        method: 'store',
     );
 
     $result = $extractor->extractFromMethod($descriptor);
@@ -200,12 +191,11 @@ it('does not emit request.empty for GET requests with no body', function (): voi
 it('emits request.empty with the correct route URI and method', function (): void {
     [$extractor, $findings] = makeRequestBodyExtractor();
 
-    $descriptor = new ActionDescriptor(
-        route: new Route('PATCH', 'projects/{project}', []),
-        controller: new ReflectionClass(StandardResponsesFixtureController::class),
-        method: new ReflectionMethod(StandardResponsesFixtureController::class, 'throwsNothing'),
-        summary: null,
-        description: null,
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        StandardResponsesFixtureController::class,
+        'throwsNothing',
+        'projects/{project}',
+        ['PATCH'],
     );
 
     $extractor->extractFromMethod($descriptor);

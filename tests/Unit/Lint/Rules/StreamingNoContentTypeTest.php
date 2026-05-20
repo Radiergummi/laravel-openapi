@@ -12,29 +12,20 @@ declare(strict_types=1);
 use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\StreamingNoContentType;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\StreamingFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
 function makeStreamingDescriptor(string $method, string $routeName): ActionDescriptor
 {
-    $reflection = new ReflectionMethod(StreamingFixtureController::class, $method);
     $route = new Route(['GET'], '/fixture', [StreamingFixtureController::class, $method]);
     $route->name($routeName);
 
-    return new ActionDescriptor(
-        route: $route,
-        controller: $reflection->getDeclaringClass(),
-        method: $reflection,
-        summary: null,
-        description: null,
-    );
+    return ActionDescriptorFactory::forRoute($route, StreamingFixtureController::class, $method);
 }
 
 function makeStreamingRawOperation(string $operationId, ?string $contentType = null): OA\Operation
@@ -65,42 +56,6 @@ function makeStreamingRawOperation(string $operationId, ?string $contentType = n
     ]);
 }
 
-function makeStreamingOperationNode(
-    ActionDescriptor $descriptor,
-    OA\Operation $raw,
-): OperationNode {
-    return new OperationNode(
-        pathUri: '/fixture',
-        method: 'GET',
-        operationId: $descriptor->route->getName(),
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: $descriptor,
-        raw: $raw,
-        webhook: false,
-    );
-}
-
-function makeContextForStreaming(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
 it('has the correct rule id and level', function (): void {
     $rule = new StreamingNoContentType();
 
@@ -112,8 +67,13 @@ it('emits a finding when streaming endpoint has no text/event-stream content typ
     $rule = new StreamingNoContentType();
     $descriptor = makeStreamingDescriptor('stream', 'test.stream');
     $raw = makeStreamingRawOperation('test.stream', 'application/json');
-    $operation = makeStreamingOperationNode($descriptor, $raw);
-    $context = makeContextForStreaming();
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        pathUri: '/fixture',
+        operationId: $descriptor->route->getName(),
+        raw: $raw,
+    );
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -129,8 +89,13 @@ it('emits no findings when streaming endpoint has text/event-stream content type
     $rule = new StreamingNoContentType();
     $descriptor = makeStreamingDescriptor('stream', 'test.stream');
     $raw = makeStreamingRawOperation('test.stream', 'text/event-stream');
-    $operation = makeStreamingOperationNode($descriptor, $raw);
-    $context = makeContextForStreaming();
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        pathUri: '/fixture',
+        operationId: $descriptor->route->getName(),
+        raw: $raw,
+    );
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -143,8 +108,13 @@ it('emits no findings when method is not marked as streaming', function (): void
     $rule = new StreamingNoContentType();
     $descriptor = makeStreamingDescriptor('nonStreaming', 'test.non-streaming');
     $raw = makeStreamingRawOperation('test.non-streaming', 'application/json');
-    $operation = makeStreamingOperationNode($descriptor, $raw);
-    $context = makeContextForStreaming();
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        pathUri: '/fixture',
+        operationId: $descriptor->route->getName(),
+        raw: $raw,
+    );
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -157,8 +127,13 @@ it('emits no findings when method has no Operation attribute', function (): void
     $rule = new StreamingNoContentType();
     $descriptor = makeStreamingDescriptor('noAttribute', 'test.no-attr');
     $raw = makeStreamingRawOperation('test.no-attr', 'application/json');
-    $operation = makeStreamingOperationNode($descriptor, $raw);
-    $context = makeContextForStreaming();
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        pathUri: '/fixture',
+        operationId: $descriptor->route->getName(),
+        raw: $raw,
+    );
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),
@@ -171,8 +146,13 @@ it('emits a finding when streaming endpoint response has no content at all', fun
     $rule = new StreamingNoContentType();
     $descriptor = makeStreamingDescriptor('stream', 'test.stream');
     $raw = makeStreamingRawOperation('test.stream');
-    $operation = makeStreamingOperationNode($descriptor, $raw);
-    $context = makeContextForStreaming();
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        pathUri: '/fixture',
+        operationId: $descriptor->route->getName(),
+        raw: $raw,
+    );
+    $context = OperationNodeFactory::emptyContext();
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, $context),

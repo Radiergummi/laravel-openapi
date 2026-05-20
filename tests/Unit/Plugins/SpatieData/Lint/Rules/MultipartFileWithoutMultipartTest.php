@@ -9,7 +9,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -29,6 +28,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Lint\NestedFileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\NestedFileUploadFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\NoFileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\NoFileUploadFixtureData;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint', 'plugin:spatie-data');
 
@@ -105,14 +105,7 @@ it('reports its id and level', function (): void {
 });
 
 it('emits a finding when a file-upload Data class is used without multipart content type', function (): void {
-    $route = new Route(['POST'], '/upload', [FileUploadFixtureController::class, 'upload']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(FileUploadFixtureController::class),
-        method: new ReflectionMethod(FileUploadFixtureController::class, 'upload'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(FileUploadFixtureController::class, 'upload', '/upload', ['POST']);
 
     $requestBody = new RequestBodyNode(
         contentTypes: ['application/json'],
@@ -143,14 +136,7 @@ it('emits a finding when a file-upload Data class is used without multipart cont
 });
 
 it('emits no finding when a file-upload Data class is used with multipart content type', function (): void {
-    $route = new Route(['POST'], '/upload', [FileUploadFixtureController::class, 'upload']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(FileUploadFixtureController::class),
-        method: new ReflectionMethod(FileUploadFixtureController::class, 'upload'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(FileUploadFixtureController::class, 'upload', '/upload', ['POST']);
 
     $requestBody = new RequestBodyNode(
         contentTypes: ['multipart/form-data'],
@@ -176,14 +162,7 @@ it('emits no finding when a file-upload Data class is used with multipart conten
 });
 
 it('emits no finding when the Data class has no UploadedFile property', function (): void {
-    $route = new Route(['POST'], '/store', [NoFileUploadFixtureController::class, 'store']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(NoFileUploadFixtureController::class),
-        method: new ReflectionMethod(NoFileUploadFixtureController::class, 'store'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(NoFileUploadFixtureController::class, 'store', '/store', ['POST']);
 
     $requestBody = new RequestBodyNode(
         contentTypes: ['application/json'],
@@ -209,14 +188,7 @@ it('emits no finding when the Data class has no UploadedFile property', function
 });
 
 it('emits no finding when the operation has no request body', function (): void {
-    $route = new Route(['POST'], '/upload', [FileUploadFixtureController::class, 'upload']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(FileUploadFixtureController::class),
-        method: new ReflectionMethod(FileUploadFixtureController::class, 'upload'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(FileUploadFixtureController::class, 'upload', '/upload', ['POST']);
 
     $operation = makeMultipartOperationNode($descriptor, null);
     $context = makeContextForMultipart();
@@ -236,14 +208,7 @@ it('emits a finding when an UploadedFile property is inside a nested Data class'
     // Reproduces the false negative: the old code only reflected the DIRECT
     // properties of the top-level Data class, so a nested Data class containing
     // an UploadedFile was not detected.
-    $route = new Route(['POST'], '/upload', [NestedFileUploadFixtureController::class, 'upload']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(NestedFileUploadFixtureController::class),
-        method: new ReflectionMethod(NestedFileUploadFixtureController::class, 'upload'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(NestedFileUploadFixtureController::class, 'upload', '/upload', ['POST']);
 
     $requestBody = new RequestBodyNode(
         contentTypes: ['application/json'],
@@ -271,14 +236,7 @@ it('emits a finding when an UploadedFile property is inside a nested Data class'
 });
 
 it('emits a finding when a file-upload Data class is injected through a Domain Action', function (): void {
-    $route = new Route(['POST'], '/upload', [ActionWithFileUploadDataController::class, 'upload']);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: new ReflectionClass(ActionWithFileUploadDataController::class),
-        method: new ReflectionMethod(ActionWithFileUploadDataController::class, 'upload'),
-        summary: null,
-        description: null,
-    );
+    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithFileUploadDataController::class, 'upload', '/upload', ['POST']);
 
     $requestBody = new RequestBodyNode(
         contentTypes: ['application/json'],

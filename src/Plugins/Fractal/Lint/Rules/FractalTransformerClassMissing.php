@@ -1,0 +1,88 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
+
+use Override;
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\LintContext;
+use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
+use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
+
+use function class_exists;
+use function sprintf;
+
+/**
+ * Flags a `#[FractalResponse]` whose `transformer:` argument names a class that
+ * does not exist — typically a typo (`BookTrnasformer::class`). The
+ * `FractalResponseResolver` logs a warning and returns null in this case, so
+ * the operation silently loses its 200 response. This rule surfaces it during
+ * `openapi:lint` instead.
+ */
+final readonly class FractalTransformerClassMissing implements Rule, OperationRule
+{
+    /**
+     * @return iterable<Finding>
+     */
+    #[Override]
+    public function checkOperation(OperationNode $operation, LintContext $context): iterable
+    {
+        $method = $operation->descriptor?->method;
+
+        if ($operation->webhook || $method === null) {
+            return;
+        }
+
+        $attribute = $method->getAttributes(FractalResponse::class)[0] ?? null;
+
+        if ($attribute === null) {
+            return;
+        }
+
+        $transformer = $attribute->newInstance()->transformer;
+
+        if (class_exists($transformer)) {
+            return;
+        }
+
+        yield new Finding(
+            ruleId: $this->id(),
+            level: $this->level(),
+            message: sprintf(
+                '#[FractalResponse] on %s %s names unknown transformer %s',
+                $operation->method,
+                $operation->pathUri,
+                $transformer,
+            ),
+            fixHint: 'Check the transformer class name for typos and ensure it is autoloadable.',
+        );
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'fractal.transformer-class-missing';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 1;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'A #[FractalResponse] names a transformer class that does not exist.';
+    }
+}

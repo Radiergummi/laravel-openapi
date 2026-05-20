@@ -9,6 +9,13 @@ cases where convention isn't enough.
 This document is the reference for what's auto-derived, when you need to reach for an attribute,
 how the lint system works, and how to extend the subsystem with a new plugin.
 
+## Worked examples
+
+If you want to see this in action against real Laravel code rather than read a reference, check
+out `examples/` in the repository. Each subdirectory is a small Laravel app exposing the same API
+surface with a different stack (vanilla, FormRequest, Spatie Data, QueryBuilder, or a mix) and
+ships its generated `openapi.yaml` next to its code.
+
 ## Architecture Overview
 
 The subsystem is split into a convention-agnostic **Core** (`src/Core/`) and **Plugins**
@@ -58,11 +65,14 @@ interface Plugin
 }
 ```
 
-The one built-in plugin:
+The built-in plugins:
 
 | Plugin | Class | Registers |
 |---|---|---|
 | **SpatieData** | `Plugins\SpatieData\SpatieDataPlugin` | `DataClassRequestSchemaResolver`, `DataRefSchemaResolver`, `Data::class` as a payload base, lint rules: `field.attribute-wrong-scope` (level 1), `multipart.file-without-multipart` (level 1) |
+| **ApiResources** | `Plugins\ApiResources\ApiResourcesPlugin` | `ResourceResponseResolver`, `ResourceRefSchemaResolver`, lint rules: `resource.fields-undeclared` (level 1), `resource.field-type-missing` (level 2), `resource.response-ambiguous` (level 1) |
+| **QueryBuilder** (opt-in) | `Plugins\QueryBuilder\QueryBuilderPlugin` | `QueryBuilderParameterResolver`, lint rules: `query-builder.params-undeclared` (level 2), `query-builder.filter-type-missing` (level 3) |
+| **Fractal** (opt-in) | `Plugins\Fractal\FractalPlugin` | `FractalResponseResolver`, `TransformerRefSchemaResolver`, lint rules: `fractal.response-unbound` (level 2), `fractal.fields-undeclared` (level 1), `fractal.include-transformer-missing` (level 2), `fractal.duplicate-key` (level 1), `fractal.transformer-class-missing` (level 1) |
 
 Plugins are listed in `config/openapi.plugins` and resolved from the container. `CoreRegistration`
 runs first (registering `FormRequestRequestSchemaResolver` and all core lint rules), then each
@@ -131,7 +141,7 @@ All attributes live in `Radiergummi\OpenApi\Core\Attributes`. Import with
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
 | `Header` | method | yes | Document a custom response header. |
-| `Security` | class, method | no | Override the auto-derived OAuth scopes. Pass an empty list for "token required, no specific scope". |
+| `Security` | class, method | no | Override the auto-derived scopes. Pass an empty list for "token required, no specific scope". Optional `scheme:` parameter targets a specific scheme name from `openapi.security_schemes` (or one of the Passport-derived defaults); omit for the project default. See [Declare custom security schemes](#declare-custom-security-schemes). |
 | `PublicEndpoint` | class, method | no | Mark as public (no auth advertised) even if middleware would imply otherwise. |
 | `Hide` | class, method | no | Exclude from the spec. `environments: ['production']` hides only in those environments. Pass no argument to hide unconditionally. |
 | `ExternalDocs` | method | no | Add an "external documentation" link to the operation. |
@@ -365,6 +375,38 @@ public function dangerous(): JsonResponse { … }
 
 Pass no argument (`#[OpenApi\Hide]`) to hide unconditionally.
 
+### Declare custom security schemes
+
+By default the package emits Laravel Passport's `oauth2` (Authorization Code) and
+`oauth2ClientCredentials` schemes when Passport is installed. Apps using a different auth
+shape — plain bearer JWT, API key, basic auth — declare additional schemes via the
+`openapi.security_schemes` config map:
+
+```php
+// config/openapi.php
+'security_schemes' => [
+    'bearer' => [
+        'type'         => 'http',
+        'scheme'       => 'bearer',
+        'bearerFormat' => 'JWT',
+        'description'  => 'Bearer JWT issued by the auth service.',
+    ],
+],
+```
+
+Each entry passes through to swagger-php's `OA\SecurityScheme` unchanged; the map key
+becomes the scheme name. Config entries are merged with the Passport-derived pair (config
+wins on key collision), and operations point at a specific scheme through `#[Security]`:
+
+```php
+#[OpenApi\Security(['flights:write'], scheme: 'bearer')]
+public function store(StoreFlightRequest $request): FlightData { … }
+```
+
+Omit `scheme:` to fall back to the project default (Passport's pair when available, otherwise
+the first config-declared scheme). The combined-flavor example
+(`examples/combined/`) demonstrates both halves end-to-end.
+
 ### Document an inbound webhook
 
 ```php
@@ -384,6 +426,140 @@ public function index(Request $request): JsonResponse { … }
 ```
 
 Use this when the resource-resolution heuristic fails (you'll see warnings during generation if so).
+
+### Available plugins
+
+| Plugin | Default | Requires | Documents |
+|---|---|---|---|
+| `SpatieDataPlugin` | enabled | `spatie/laravel-data` | Data-class request bodies |
+| `ApiResourcesPlugin` | enabled | — (Laravel core) | `JsonResource` / `ResourceCollection` responses |
+| `QueryBuilderPlugin` | disabled | `spatie/laravel-query-builder` | `filter[]` / `sort` / `include` query parameters |
+| `FractalPlugin` | disabled | `league/fractal` | Fractal transformer responses |
+
+### Document an Eloquent API Resource (`JsonResource`)
+
+The `ApiResourcesPlugin` is enabled by default. Controllers that return a typed `JsonResource`
+subclass are documented automatically — no attribute needed for the response envelope.
+
+To declare the fields the resource emits, add `#[ResourceField]` attributes at the class level:
+
+```php
+use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+
+#[ResourceField('id', type: 'integer')]
+#[ResourceField('name', type: 'string', description: 'Display name.')]
+#[ResourceField('created_at', type: 'string', format: 'date-time')]
+class ProjectResource extends JsonResource { … }
+```
+
+For a field whose type is another resource, pass its class-string as `type`:
+
+```php
+#[ResourceField('owner', type: UserResource::class, description: 'Owning user.')]
+class ProjectResource extends JsonResource { … }
+```
+
+For collection endpoints that return a `JsonResponse` or an untyped value, tell the generator
+which resource and envelope to use:
+
+```php
+#[OpenApi\ResponseResource(ProjectResource::class, collection: true)]
+public function index(): JsonResponse { … }
+```
+
+Single responses wrap fields in `{ data: {…} }`; collection responses wrap them in
+`{ data: [{…}], links: {…}, meta: {…} }`. Omitting `#[ResourceField]` attributes triggers the
+`resource.fields-undeclared` lint rule (level 1).
+
+### Document `spatie/laravel-query-builder` parameters
+
+The `QueryBuilderPlugin` is shipped disabled. Enable it in two steps:
+
+1. `composer require spatie/laravel-query-builder` (the package itself).
+2. Uncomment the `QueryBuilderPlugin::class` entry under `plugins` in `config/openapi.php`.
+
+Then declare the accepted parameters on the controller method:
+
+```php
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
+
+#[AllowedFilter('status', type: 'string')]
+#[AllowedFilter('created_after', type: 'string', format: 'date')]
+#[AllowedSort(['name', 'created_at'])]
+#[AllowedInclude(['owner', 'tags'])]
+public function index(QueryBuilder $query): JsonResponse { … }
+```
+
+Each `#[AllowedFilter]` becomes one `filter[name]` query parameter; `#[AllowedSort]` becomes the
+`sort` parameter (comma-separated, with the listed fields as `enum`); `#[AllowedInclude]` becomes
+`include` the same way. A method that injects `QueryBuilder` but declares none of the three
+triggers `query-builder.params-undeclared` (level 2); an `#[AllowedFilter]` without a `type`
+triggers `query-builder.filter-type-missing` (level 3).
+
+### Document `league/fractal` transformer responses
+
+The `FractalPlugin` is shipped disabled. Enable it in two steps:
+
+1. `composer require league/fractal` (the package itself).
+2. Uncomment the `FractalPlugin::class` entry under `plugins` in `config/openapi.php`.
+
+Declare each transformer's output keys on the transformer class with repeatable
+`#[TransformerField]` attributes; declare `availableIncludes` / `defaultIncludes` entries with
+`#[TransformerInclude]`. Bind each endpoint to its transformer with a method-level
+`#[FractalResponse]`:
+
+```php
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
+
+#[TransformerField('id', type: 'integer')]
+#[TransformerField('title', type: 'string', maxLength: 120)]
+#[TransformerInclude('author', transformer: AuthorTransformer::class, default: true)]
+final class BookTransformer extends TransformerAbstract { … }
+
+#[FractalResponse(transformer: BookTransformer::class)]                    // {data}
+public function show(): JsonResponse { … }
+
+#[FractalResponse(transformer: BookTransformer::class, collection: true)]  // {data: [...]}
+public function index(): JsonResponse { … }
+
+#[FractalResponse(transformer: BookTransformer::class, paginated: true)]   // {data: [...], meta.pagination}
+public function paginated(): JsonResponse { … }
+```
+
+The default envelope models Fractal's `DataArraySerializer` plus `IlluminatePaginatorAdapter`.
+Set `serializer:` on `#[FractalResponse]` when the action calls `Manager::setSerializer(…)` to
+switch shape:
+
+```php
+use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
+
+#[FractalResponse(transformer: BookTransformer::class, serializer: Serializer::ArraySerializer)]
+public function arraySingle(): JsonResponse { … }      // bare $ref, no envelope
+
+#[FractalResponse(transformer: BookTransformer::class, collection: true, serializer: Serializer::ArraySerializer)]
+public function arrayCollection(): JsonResponse { … } // top-level array
+
+#[FractalResponse(transformer: BookTransformer::class, serializer: Serializer::JsonApi)]
+public function jsonApiShow(): JsonResponse { … }     // {data: {type, id, attributes: $ref}} as application/vnd.api+json
+```
+
+`Serializer::JsonApi` responses are emitted under `application/vnd.api+json` instead of
+`application/json`. Custom serializers outside the three named cases (project-specific
+subclasses, anything else) fall back to a `#[Response]` override on the action.
+
+Lint rules report incomplete or invalid declarations: a transformer with no
+`#[TransformerField]` triggers `fractal.fields-undeclared` (level 1); a `#[TransformerInclude]`
+with no `transformer:` triggers `fractal.include-transformer-missing` (level 2); a transformer
+that declares the same key in more than one attribute triggers `fractal.duplicate-key` (level 1);
+`#[FractalResponse]` naming a non-existent transformer triggers `fractal.transformer-class-missing`
+(level 1); and a method that injects `League\Fractal\Manager` but declares no `#[FractalResponse]`
+triggers `fractal.response-unbound` (level 2 — opt-in, because the `fractal()` helper and the
+`Spatie\Fractalistic\Fractal` facade are invoked inside method bodies and never inject a
+`Manager`, and the generator does not read method bodies; see OAPI-017 / OAPI-053).
 
 ### Programmatic hook points
 
@@ -642,6 +818,8 @@ All built-in rule IDs (run `php artisan openapi:lint --list` for the live catalo
 | `publicendpoint.contradicts-middleware` | 1 | #[PublicEndpoint] is present but the route has auth/scope middleware. |
 | `request-body.no-content` | 1 | A requestBody object has no media-type entries. |
 | `request-body.on-get-or-delete` | 1 | GET or DELETE operation has a request body. |
+| `resource.fields-undeclared` | 1 | An API Resource used as a response declares no #[ResourceField] attributes. |
+| `resource.response-ambiguous` | 1 | A resource collection response has no #[ResponseResource] naming its item class. |
 | `response.no-error` | 1 | Operation has no error responses (4xx/5xx). |
 | `response.resource.indeterminate` | 1 | Controller return type cannot be resolved to a concrete response resource. |
 | `responseresource.unresolvable` | 1 | #[ResponseResource] references a class that is not a resolvable response resource. |
@@ -659,6 +837,7 @@ All built-in rule IDs (run `php artisan openapi:lint --list` for the live catalo
 | `parameter.description-missing` | 2 | Parameter has no description. |
 | `request-body.description-missing` | 2 | requestBody has no description. |
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
+| `resource.field-type-missing` | 2 | A #[ResourceField] is declared without a resolvable type. |
 | `response.empty` | 2 | Non-DELETE action has no resolvable response schema. Return a typed resource or add #[Response]. |
 | `response.no-success` | 2 | Operation has no 2xx response. |
 | `response.redirect-without-location` | 2 | 3xx response has no Location header. |

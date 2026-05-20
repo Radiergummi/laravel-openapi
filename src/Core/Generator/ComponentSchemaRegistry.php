@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Closure;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Enums\ComponentType;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
@@ -94,10 +95,9 @@ final class ComponentSchemaRegistry
     /**
      * Reserves the disambiguated component key for `$className` without storing a schema.
      *
-     * Used by the cycle guard in {@see \Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass}:
-     * calling this before recursing ensures that `keyFor()` returns the correct (possibly
-     * disambiguated) key even while the real schema is still being built, so that the cycle-guard
-     * `$ref` points to the same key that {@see register()} will ultimately assign.
+     * Used internally by {@see self::buildOnce()} as part of the cycle guard: returning a
+     * reserved key on recursive re-entry lets the caller emit a `$ref` pointing at the same
+     * key {@see register()} will ultimately assign.
      *
      * Idempotent — a second call for the same class is a no-op.
      *
@@ -199,6 +199,37 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * Cycle-guarded build-and-register: invokes `$factory` exactly once to produce the schema, then
+     * registers it under the disambiguated component key and returns the key.
+     *
+     * If `$className` is being built higher up the call stack (recursive `$ref`), the reserved key
+     * is returned without invoking the factory — the caller can emit a `$ref` pointing at the same
+     * key {@see register()} will ultimately assign. Already-registered classes also short-circuit.
+     *
+     * Exceptions from `$factory` propagate, but the in-progress flag is always cleared so a
+     * later retry for the same class is not stuck.
+     *
+     * @param class-string         $className
+     * @param Closure(): OA\Schema $factory
+     */
+    public function buildOnce(string $className, Closure $factory): string
+    {
+        if ($this->isInProgress($className) || $this->isRegisteredOrReserved($className)) {
+            return $this->reserveKey($className);
+        }
+
+        $this->markInProgress($className);
+
+        try {
+            $this->register($className, $factory());
+        } finally {
+            $this->markComplete($className);
+        }
+
+        return $this->reserveKey($className);
+    }
+
+    /**
      * Returns true when the class has had its component key reserved OR its schema fully registered
      *
      * This covers both the "cycle guard" state (key reserved, schema still building) and the
@@ -215,7 +246,7 @@ final class ComponentSchemaRegistry
     /**
      * @param class-string $className
      */
-    public function markInProgress(string $className): void
+    private function markInProgress(string $className): void
     {
         $this->inProgress[$className] = true;
     }
@@ -223,7 +254,7 @@ final class ComponentSchemaRegistry
     /**
      * @param class-string $className
      */
-    public function isInProgress(string $className): bool
+    private function isInProgress(string $className): bool
     {
         return array_key_exists($className, $this->inProgress);
     }
@@ -231,7 +262,7 @@ final class ComponentSchemaRegistry
     /**
      * @param class-string $className
      */
-    public function markComplete(string $className): void
+    private function markComplete(string $className): void
     {
         unset($this->inProgress[$className]);
     }

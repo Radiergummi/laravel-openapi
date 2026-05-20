@@ -26,6 +26,7 @@ final class SpatieDataPlugin implements Plugin
     {
         $registry->addRequestSchemaResolver(DataClassRequestSchemaResolver::class);
         $registry->addRefSchemaResolver(DataRefSchemaResolver::class);
+        $registry->addPrimaryResponseResolver(DataResponseResolver::class);
         $registry->addPayloadClass(Data::class);
         $registry->addRule(MultipartFileWithoutMultipart::class);
         $registry->addRule(FieldAttributeWrongScope::class);

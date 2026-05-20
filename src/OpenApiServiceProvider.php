@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
+use Closure;
 use Illuminate\Container\Container;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
@@ -20,12 +21,14 @@ use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Core\Extractors;
+use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Core\Lint\LoggingFindingsCollector;
@@ -46,6 +49,7 @@ use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
+use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
@@ -109,6 +113,8 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerLintRules();
         $this->registerExtractors();
         $this->registerSpatieDataPlugin();
+        $this->registerApiResourcesPlugin();
+        $this->registerFractalPlugin();
         $this->registerGenerator();
     }
 
@@ -120,6 +126,11 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->app->scoped(
             ThrowsExtractor::class,
             static fn() => ThrowsExtractor::create(),
+        );
+
+        $this->app->scoped(
+            ReturnTypeExtractor::class,
+            static fn() => ReturnTypeExtractor::create(),
         );
 
         $this->app->scoped(SkipNovaRoutes::class, static fn(): SkipNovaRoutes => SkipNovaRoutes::fromConfig());
@@ -278,6 +289,23 @@ class OpenApiServiceProvider extends ServiceProvider
                 findings: $app->make(FindingsCollector::class),
             ),
         );
+
+        $this->app->scoped(
+            PaginatorResponseResolver::class,
+            static function (Container $app): PaginatorResponseResolver {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                return new PaginatorResponseResolver(
+                    returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
+                    schemaFactory: $app->make(PaginatorSchemaFactory::class),
+                    logger: $app->make(LoggerInterface::class),
+                    refSchemaResolvers: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->refSchemaResolvers(),
+                    ),
+                );
+            },
+        );
     }
 
     /**
@@ -387,6 +415,153 @@ class OpenApiServiceProvider extends ServiceProvider
             static fn(Container $app) => new DataRefSchemaResolver(
                 schemaFromDataClass: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\SpatieData\DataResponseResolver::class,
+            static fn(Container $app) => new Plugins\SpatieData\DataResponseResolver(
+                refResolver: $app->make(DataRefSchemaResolver::class),
+                returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
+                logger: $app->make(LoggerInterface::class),
+            ),
+        );
+    }
+
+    /**
+     * Binds the ApiResources plugin services.
+     *
+     * `SchemaFromResource` receives a LAZY factory for the ref-resolver
+     * list — every registered ref resolver except this plugin's own
+     * `ResourceRefSchemaResolver`. Eager construction would form a
+     * cross-plugin construction cycle with `SchemaFromTransformer` (each
+     * plugin's builder lists the other plugin's resolver). Deferring resolution
+     * to first use lets the container finish constructing both sides first; the
+     * factory memoises its result with a closure-local static so repeated
+     * resolveClassRef calls don't re-walk the registry.
+     */
+    private function registerApiResourcesPlugin(): void
+    {
+        $this->app->scoped(
+            Plugins\ApiResources\SchemaFromResource::class,
+            static function (Container $app): Plugins\ApiResources\SchemaFromResource {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                /** @var Closure(): list<Core\Registry\RefSchemaResolver> $resolversFactory */
+                $resolversFactory = static function () use ($app, $registry): array {
+                    /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
+                    static $cache = null;
+
+                    if ($cache !== null) {
+                        return $cache;
+                    }
+
+                    /** @var list<Core\Registry\RefSchemaResolver> $resolvers */
+                    $resolvers = [];
+
+                    foreach ($registry->refSchemaResolvers() as $class) {
+                        if ($class === Plugins\ApiResources\ResourceRefSchemaResolver::class) {
+                            continue;
+                        }
+
+                        $resolvers[] = $app->make($class);
+                    }
+
+                    return $cache = $resolvers;
+                };
+
+                return new Plugins\ApiResources\SchemaFromResource(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    refSchemaResolvers: $resolversFactory,
+                );
+            },
+        );
+
+        $this->app->scoped(
+            Plugins\ApiResources\ResourceRefSchemaResolver::class,
+            static fn(Container $app) => new Plugins\ApiResources\ResourceRefSchemaResolver(
+                schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\ApiResources\ResourceResponseResolver::class,
+            static fn(Container $app) => new Plugins\ApiResources\ResourceResponseResolver(
+                locator: $app->make(Plugins\ApiResources\ResourceClassLocator::class),
+                schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
+                envelopeFactory: $app->make(Plugins\ApiResources\ResourceEnvelopeFactory::class),
+                logger: $app->make(LoggerInterface::class),
+            ),
+        );
+    }
+
+    /**
+     * Binds the Fractal plugin services.
+     *
+     * `SchemaFromTransformer` receives a LAZY factory for the ref-resolver
+     * list — every registered ref resolver except this plugin's own
+     * `TransformerRefSchemaResolver`. Eager construction would form a
+     * cross-plugin construction cycle with `SchemaFromResource` (each plugin's
+     * builder lists the other plugin's resolver). Deferring resolution to
+     * first use lets the container finish constructing both sides first; the
+     * factory memoises its result with a closure-local static so repeated
+     * resolveClassRef calls don't re-walk the registry.
+     */
+    private function registerFractalPlugin(): void
+    {
+        $this->app->scoped(
+            Plugins\Fractal\SchemaFromTransformer::class,
+            static function (Container $app): Plugins\Fractal\SchemaFromTransformer {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                /** @var Closure(): list<Core\Registry\RefSchemaResolver> $resolversFactory */
+                $resolversFactory = static function () use ($app, $registry): array {
+                    /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
+                    static $cache = null;
+
+                    if ($cache !== null) {
+                        return $cache;
+                    }
+
+                    /** @var list<Core\Registry\RefSchemaResolver> $resolvers */
+                    $resolvers = [];
+
+                    foreach ($registry->refSchemaResolvers() as $class) {
+                        if ($class === Plugins\Fractal\TransformerRefSchemaResolver::class) {
+                            continue;
+                        }
+
+                        $resolvers[] = $app->make($class);
+                    }
+
+                    return $cache = $resolvers;
+                };
+
+                return new Plugins\Fractal\SchemaFromTransformer(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    refSchemaResolvers: $resolversFactory,
+                );
+            },
+        );
+
+        $this->app->scoped(
+            Plugins\Fractal\FractalEnvelopeFactory::class,
+            static fn(): Plugins\Fractal\FractalEnvelopeFactory => new Plugins\Fractal\FractalEnvelopeFactory(),
+        );
+
+        $this->app->scoped(
+            Plugins\Fractal\TransformerRefSchemaResolver::class,
+            static fn(Container $app) => new Plugins\Fractal\TransformerRefSchemaResolver(
+                schemaFromTransformer: $app->make(Plugins\Fractal\SchemaFromTransformer::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\Fractal\FractalResponseResolver::class,
+            static fn(Container $app) => new Plugins\Fractal\FractalResponseResolver(
+                schemaFromTransformer: $app->make(Plugins\Fractal\SchemaFromTransformer::class),
+                envelopeFactory: $app->make(Plugins\Fractal\FractalEnvelopeFactory::class),
+                logger: $app->make(LoggerInterface::class),
             ),
         );
     }

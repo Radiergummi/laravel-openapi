@@ -12,6 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Registry;
 
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Core\Generator\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Core\Lint\Rules;
 
 /**
@@ -134,6 +136,8 @@ final class CoreRegistration
     public static function register(OpenApiRegistry $registry): void
     {
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
+        $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
+        $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
 
         foreach (self::RULES as $rule) {
             $registry->addRule($rule);
