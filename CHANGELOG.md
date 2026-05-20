@@ -5,6 +5,9 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `examples/` suite: five runnable flavors (vanilla, form-requests, spatie-data, query-builder, combined)
+  that all expose the same flights+bookings API and ship a generated `openapi.yaml` snapshot.
+  Verified in CI against fresh generation, OpenAPI 3.1 validity, and `openapi:lint`.
 - Laravel paginator return types (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) are
   now documented automatically. The paginated item type is resolved from a `#[ResponseResource]`
   attribute or a `@return Paginator<Item>` PHPDoc generic.

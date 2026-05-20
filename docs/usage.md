@@ -9,6 +9,13 @@ cases where convention isn't enough.
 This document is the reference for what's auto-derived, when you need to reach for an attribute,
 how the lint system works, and how to extend the subsystem with a new plugin.
 
+## Worked examples
+
+If you want to see this in action against real Laravel code rather than read a reference, check
+out `examples/` in the repository. Each subdirectory is a small Laravel app exposing the same API
+surface with a different stack (vanilla, FormRequest, Spatie Data, QueryBuilder, or a mix) and
+ships its generated `openapi.yaml` next to its code.
+
 ## Architecture Overview
 
 The subsystem is split into a convention-agnostic **Core** (`src/Core/`) and **Plugins**
