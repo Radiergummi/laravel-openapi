@@ -34,8 +34,10 @@
     },
     "suggest": {
         "laravel/passport": "Enables OAuth scope-coverage validation in `openapi:lint` (^13.0).",
+        "league/fractal": "Enables the FractalPlugin — documents league/fractal transformer responses.",
         "spatie/laravel-data": "Enables support for Spatie Laravel Data objects as schema components (^4.0).",
-        "spatie/laravel-query-builder": "Enables documentation of #[AllowedFilter]/#[AllowedSort]/#[AllowedInclude] (^6.0)."
+        "spatie/laravel-fractal": "Enables the FractalPlugin with Laravel's fractal() helper integration.",
+        "spatie/laravel-query-builder": "Enables the QueryBuilderPlugin — documents filter/sort/include query parameters."
     },
     "autoload": {
         "psr-4": {
