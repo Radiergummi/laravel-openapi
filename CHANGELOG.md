@@ -68,6 +68,9 @@ All notable changes to this project are documented here.
 - PHPStan now runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a blocking CI check.
 - Document generation now skips routes whose controller class cannot be resolved at introspection time, instead of aborting the entire run with a `ReflectionException`.
 - Upgraded core dependencies to current major versions: `zircote/swagger-php` 6, `symfony/type-info` 8, and `phpdocumentor/reflection-docblock` 6.
+- `league/fractal`, `spatie/laravel-fractal`, and `spatie/laravel-query-builder`
+  are now listed under `suggest` — install the relevant package and uncomment
+  the matching plugin in `config/openapi.php` to enable it.
 
 ### Fixed
 - The `schema.constraints-missing` lint rule now handles OpenAPI 3.1 nullable type arrays (`type: [string, null]`). Previously such schemas caused a `TypeError` and were silently left unchecked.

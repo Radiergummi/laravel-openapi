@@ -427,6 +427,15 @@ public function index(Request $request): JsonResponse { … }
 
 Use this when the resource-resolution heuristic fails (you'll see warnings during generation if so).
 
+### Available plugins
+
+| Plugin | Default | Requires | Documents |
+|---|---|---|---|
+| `SpatieDataPlugin` | enabled | `spatie/laravel-data` | Data-class request bodies |
+| `ApiResourcesPlugin` | enabled | — (Laravel core) | `JsonResource` / `ResourceCollection` responses |
+| `QueryBuilderPlugin` | disabled | `spatie/laravel-query-builder` | `filter[]` / `sort` / `include` query parameters |
+| `FractalPlugin` | disabled | `league/fractal` | Fractal transformer responses |
+
 ### Document an Eloquent API Resource (`JsonResource`)
 
 The `ApiResourcesPlugin` is enabled by default. Controllers that return a typed `JsonResource`
