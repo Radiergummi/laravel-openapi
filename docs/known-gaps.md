@@ -12,7 +12,7 @@ welcome.
 | [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Open |
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Open |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
-| [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Open |
+| [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Closed |
 
 ---
 
@@ -209,25 +209,17 @@ registered scheme so existing usage doesn't change). Not yet scheduled.
 
 ## OAPI-043 — No `#[Deprecated]` authoring attribute
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** OpenAPI 3.1 lets you mark operations and schema properties as deprecated. The
-package emits `deprecated: true` on properties when it sees PHPDoc `@deprecated` (via
-`DocCommentParser`) but there is no `#[Deprecated]` attribute parallel to the other authoring
-attributes. Authors who want to mark something deprecated via attribute (or who don't have
-PHPDoc on the property, e.g. on enum cases or constructor-promoted parameters where PHPDoc
-parsing is awkward) have no symmetric path.
-
-**Workarounds:**
-
-- Use PHPDoc `@deprecated` on properties — works for class properties and Data-class
-  constructor parameters with PHPDoc blocks.
-- Author the `deprecated: true` keyword via a `Transformer` post-processing pass.
-
-**Why it's open:** Discovered while building the `examples/spatie-data/` showcase, which uses
-PHPDoc `@deprecated` on the legacy `aircraft` property in `FlightData`. The fix is a small
-attribute targeting properties / parameters / methods that flips `deprecated: true` on the
-emitted schema or operation. Low priority — the PHPDoc path covers the common case.
+**Resolved in:** the `feature/plugin-suite` branch. The package now ships
+`Radiergummi\OpenApi\Core\Attributes\Deprecated`, valid on methods, functions, properties,
+promoted constructor parameters, and class constants. Placed on a controller method it sets
+`deprecated: true` on the generated operation; placed on a Data-class property or constructor
+parameter it sets `deprecated: true` on the schema property. The attribute is symmetric to the
+PHPDoc `@deprecated` tag (still honoured) and to the PHP 8.4 native `#[\Deprecated]` (still
+honoured on operations) — authors can pick whichever path fits the call site. The
+`examples/spatie-data/` showcase was migrated to the attribute form; the legacy `aircraft`
+property still emits `deprecated: true` in the snapshot.
 
 ---
 

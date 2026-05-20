@@ -11,10 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
-use Deprecated;
+use Deprecated as NativeDeprecated;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\BaseExample as BaseExampleAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Example as ExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ExternalDocs as ExternalDocsAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Header as HeaderAttribute;
@@ -693,25 +694,41 @@ final readonly class OperationBuilder
 
         $instance = $source->newInstance();
 
+        if ($instance instanceof DeprecatedAttribute) {
+            return $instance->reason ?? '';
+        }
+
+        // PHP 8.4 native \Deprecated.
         return $instance->message ?? '';
     }
 
-    /** @return null|ReflectionAttribute<Deprecated> */
+    /**
+     * Returns the first deprecation marker on the method (preferred) or controller class.
+     *
+     * Both the PHP 8.4 native `\Deprecated` and the package's own `#[Deprecated]` are honoured;
+     * method-level attributes always win over class-level ones.
+     *
+     * @return null|ReflectionAttribute<DeprecatedAttribute|NativeDeprecated>
+     */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
         if ($descriptor->actionReflector !== null) {
-            $actionAttrs = $descriptor->actionReflector->getAttributes(Deprecated::class);
+            foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
+                $attrs = $descriptor->actionReflector->getAttributes($class);
 
-            if ($actionAttrs !== []) {
-                return $actionAttrs[0];
+                if ($attrs !== []) {
+                    return $attrs[0];
+                }
             }
         }
 
         if ($descriptor->controller !== null) {
-            $classAttrs = $descriptor->controller->getAttributes(Deprecated::class);
+            foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
+                $attrs = $descriptor->controller->getAttributes($class);
 
-            if ($classAttrs !== []) {
-                return $classAttrs[0];
+                if ($attrs !== []) {
+                    return $attrs[0];
+                }
             }
         }
 

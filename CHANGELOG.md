@@ -5,6 +5,11 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `#[Deprecated]` authoring attribute (in `Radiergummi\OpenApi\Core\Attributes`) — symmetric to
+  the PHPDoc `@deprecated` tag and the PHP 8.4 native `#[\Deprecated]` attribute. Targets
+  methods, functions, properties, promoted constructor parameters, and class constants. Sets
+  `deprecated: true` on the generated operation (method-level) or schema property
+  (property / parameter level). (OAPI-043)
 - `SkipPassportRoutes` route filter registered by default — Laravel Passport's CRUD endpoints
   (route names under the `passport.*` prefix) are filtered out of generated specs alongside
   Nova / Telescope / Ignition. The filter tolerates Passport being absent. (OAPI-044)

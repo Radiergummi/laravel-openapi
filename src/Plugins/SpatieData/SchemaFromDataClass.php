@@ -15,6 +15,7 @@ use Illuminate\Http\UploadedFile;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Core\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Discriminator as DiscriminatorAttribute;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
@@ -26,6 +27,7 @@ use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionParameter;
 use ReflectionProperty;
 use Spatie\LaravelData\Attributes\Computed;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -185,14 +187,15 @@ final class SchemaFromDataClass implements FilePropertyChecker
             $schema = $dataCollectionSchema ?? $this->resolvePropertySchema($effectiveType, $name);
             $oaProperty = $this->schemaToProperty($name, $schema);
 
-            if ($this->isPropertyDeprecated($prop)) {
+            // PHP name keys constructor parameters; the mapping is only on the wire side.
+            $ctorParam = $ctorParams[$phpName] ?? null;
+
+            if ($this->isPropertyDeprecated($prop, $ctorParam)) {
                 $oaProperty->deprecated = true;
             }
 
             $properties[] = $oaProperty;
 
-            // PHP name keys constructor parameters; the mapping is only on the wire side.
-            $ctorParam = $ctorParams[$phpName] ?? null;
             $hasDefault = $ctorParam !== null && $ctorParam->isOptional();
 
             if (!$hasDefault && !$hasOptional) {
@@ -718,13 +721,28 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Detects whether the property's PHPDoc carries a deprecation tag.
+     * Detects whether the property is deprecated.
      *
-     * PHP 8.4's native `#[\Deprecated]` attribute does not support `TARGET_PROPERTY`, so the PHPDoc
-     * tag is the only signal available — and it's also what most IDEs surface.
+     * Three signals are honoured, in order of authoring convenience:
+     *
+     * 1. The package's own `#[Deprecated]` attribute on the property or its promoted constructor
+     *    parameter — the symmetric authoring path.
+     * 2. The PHPDoc `@deprecated` tag on the property — works on every Data class with a
+     *    PHPDoc block, and is what most IDEs surface in completion.
+     *
+     * PHP 8.4's native `#[\Deprecated]` is not consulted here because it does not support
+     * `TARGET_PROPERTY` or `TARGET_PARAMETER`.
      */
-    private function isPropertyDeprecated(ReflectionProperty $prop): bool
+    private function isPropertyDeprecated(ReflectionProperty $prop, ?ReflectionParameter $ctorParam): bool
     {
+        if ($prop->getAttributes(DeprecatedAttribute::class) !== []) {
+            return true;
+        }
+
+        if ($ctorParam !== null && $ctorParam->getAttributes(DeprecatedAttribute::class) !== []) {
+            return true;
+        }
+
         $docComment = $prop->getDocComment();
 
         return $docComment !== false && preg_match('/@deprecated\b/i', $docComment) === 1;
