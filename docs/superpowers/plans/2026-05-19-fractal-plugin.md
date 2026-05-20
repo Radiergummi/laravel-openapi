@@ -58,7 +58,7 @@
 - Create: `src/Plugins/Fractal/Attributes/TransformerField.php`
 - Test: `tests/Unit/Plugins/Fractal/Attributes/TransformerFieldTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -86,12 +86,12 @@ it('is repeatable and targets classes', function (): void {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerFieldTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -172,12 +172,12 @@ final readonly class TransformerField extends FieldAttribute
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerFieldTest.php`
 Expected: PASS — 2 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -200,7 +200,7 @@ git commit -m "feat: add TransformerField attribute for Fractal plugin"
 - Create: `src/Plugins/Fractal/Attributes/FractalResponse.php`
 - Test: `tests/Unit/Plugins/Fractal/Attributes/TransformerIncludeResponseTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -250,12 +250,12 @@ it('targets methods only', function (): void {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerIncludeResponseTest.php`
 Expected: FAIL — classes not found.
 
-- [ ] **Step 3: Write the implementations**
+- [x] **Step 3: Write the implementations**
 
 `src/Plugins/Fractal/Attributes/TransformerInclude.php`:
 
@@ -344,12 +344,12 @@ final readonly class FractalResponse
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerIncludeResponseTest.php`
 Expected: PASS — 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -378,7 +378,7 @@ Per-field semantics:
 - Create: `src/Plugins/Fractal/SchemaFromTransformer.php`
 - Test: `tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -474,12 +474,12 @@ it('exposes buildRef returning a qualified components ref', function (): void {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -639,12 +639,12 @@ final readonly class SchemaFromTransformer
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php`
 Expected: PASS — 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -662,7 +662,7 @@ A `RefSchemaResolver`: claims any **transformer-shaped class** — one carrying 
 - Create: `src/Plugins/Fractal/TransformerRefSchemaResolver.php`
 - Test: `tests/Unit/Plugins/Fractal/TransformerRefSchemaResolverTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -698,12 +698,12 @@ it('returns null for a class with no #[TransformerField]', function (): void {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/TransformerRefSchemaResolverTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -746,12 +746,12 @@ final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/TransformerRefSchemaResolverTest.php`
 Expected: PASS — 2 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -775,7 +775,7 @@ The paginated `meta.pagination` shape models Fractal's `IlluminatePaginatorAdapt
 - Create: `src/Plugins/Fractal/FractalEnvelopeFactory.php`
 - Test: `tests/Unit/Plugins/Fractal/FractalEnvelopeFactoryTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -823,12 +823,12 @@ it('builds a paginated envelope with pagination meta', function (): void {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/FractalEnvelopeFactoryTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -920,12 +920,12 @@ final readonly class FractalEnvelopeFactory
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/FractalEnvelopeFactoryTest.php`
 Expected: PASS — 3 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -948,7 +948,7 @@ Envelope selection (in priority order):
 - Create: `src/Plugins/Fractal/FractalResponseResolver.php`
 - Test: covered by the Task 8 feature test.
 
-- [ ] **Step 1: Write the implementation**
+- [x] **Step 1: Write the implementation**
 
 ```php
 <?php
@@ -1043,12 +1043,12 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
 }
 ```
 
-- [ ] **Step 2: Run lint + analyse**
+- [x] **Step 2: Run lint + analyse**
 
 Run: `vendor/bin/pint && composer analyse`
 Expected: Pint clean; PHPStan clean (the resolver is not yet registered).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/Plugins/Fractal/FractalResponseResolver.php
@@ -1066,7 +1066,7 @@ git commit -m "feat: add FractalResponseResolver primary-response resolver"
 - Modify: `src/OpenApiServiceProvider.php`
 - Modify: `config/openapi.php`
 
-- [ ] **Step 1: Write `FractalPlugin`**
+- [x] **Step 1: Write `FractalPlugin`**
 
 ```php
 <?php
@@ -1101,7 +1101,7 @@ final class FractalPlugin implements Plugin
 }
 ```
 
-- [ ] **Step 2: Add `registerFractalPlugin()` to `OpenApiServiceProvider`**
+- [x] **Step 2: Add `registerFractalPlugin()` to `OpenApiServiceProvider`**
 
 In `register()`, add the call after `registerApiResourcesPlugin();`:
 
@@ -1170,7 +1170,7 @@ Add this method after `registerApiResourcesPlugin()`. As in the ApiResources plu
 
 The four lint rules have no constructor dependencies — they are autowired; no explicit binding is needed.
 
-- [ ] **Step 3: Add the commented-out config entry**
+- [x] **Step 3: Add the commented-out config entry**
 
 In `config/openapi.php`, extend the `plugins` array (which by build steps 2–3 contains `SpatieDataPlugin`, `ApiResourcesPlugin`, and the commented `QueryBuilderPlugin`). Final state:
 
@@ -1187,12 +1187,12 @@ In `config/openapi.php`, extend the `plugins` array (which by build steps 2–3 
     ],
 ```
 
-- [ ] **Step 4: Run lint + analyse**
+- [x] **Step 4: Run lint + analyse**
 
 Run: `vendor/bin/pint && composer analyse`
 Expected: Pint clean; PHPStan clean. (`composer test` fails until Tasks 9–12 create the four lint-rule classes — expected.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/Plugins/Fractal/FractalPlugin.php src/OpenApiServiceProvider.php config/openapi.php
@@ -1210,7 +1210,7 @@ The plugin is disabled by default; the test enables it via a `config()` override
 **Files:**
 - Create: `tests/Feature/Plugins/Fractal/FractalResponseTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -1309,12 +1309,12 @@ it('registers the transformer as a reusable component schema', function (): void
 });
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/Fractal/FractalResponseTest.php`
 Expected: PASS — 4 tests. (If the four lint-rule classes are still missing, complete Tasks 9–12 first.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 vendor/bin/pint
@@ -1332,7 +1332,7 @@ High severity (`level: 1`). Flags an operation bound via `#[FractalResponse]` wh
 - Create: `src/Plugins/Fractal/Lint/Rules/FractalFieldsUndeclared.php`
 - Test: `tests/Unit/Plugins/Fractal/Lint/FractalFieldsUndeclaredTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -1380,12 +1380,12 @@ it('flags a #[FractalResponse] transformer that declares no #[TransformerField]'
 
 > **Test helper:** `OperationNodeFactory::forDescriptor()` is the shared helper introduced in the ApiResources plan (Task 10). Reuse it; create `tests/Support/OperationNodeFactory.php` per that plan's description if it does not yet exist.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalFieldsUndeclaredTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -1476,12 +1476,12 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalFieldsUndeclaredTest.php`
 Expected: PASS — 1 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -1499,7 +1499,7 @@ Medium severity (`level: 2`). Flags any `#[TransformerInclude]` — on the trans
 - Create: `src/Plugins/Fractal/Lint/Rules/FractalIncludeTransformerMissing.php`
 - Test: `tests/Unit/Plugins/Fractal/Lint/FractalIncludeTransformerMissingTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -1550,12 +1550,12 @@ it('flags a #[TransformerInclude] with no transformer class', function (): void 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalIncludeTransformerMissingTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -1649,12 +1649,12 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalIncludeTransformerMissingTest.php`
 Expected: PASS — 1 test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -1674,7 +1674,7 @@ High severity (`level: 1`). Flags a controller method that **injects a `league/f
 - Create: `src/Plugins/Fractal/Lint/Rules/FractalResponseUnbound.php`
 - Test: `tests/Unit/Plugins/Fractal/Lint/FractalResponseUnboundTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -1739,12 +1739,12 @@ it('does not flag a method that declares #[FractalResponse]', function (): void 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalResponseUnboundTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -1850,12 +1850,12 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
 }
 ```
 
-- [ ] **Step 4: Run the test**
+- [x] **Step 4: Run the test**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalResponseUnboundTest.php`
 Expected: PASS — 2 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 vendor/bin/pint
@@ -1875,7 +1875,7 @@ The `SchemaFromTransformer` builder intentionally does not deduplicate (matches 
 - Create: `src/Plugins/Fractal/Lint/Rules/FractalDuplicateKey.php`
 - Test: `tests/Unit/Plugins/Fractal/Lint/FractalDuplicateKeyTest.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -1930,12 +1930,12 @@ it('flags a transformer with a name shared between #[TransformerField] and #[Tra
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalDuplicateKeyTest.php`
 Expected: FAIL — class not found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```php
 <?php
@@ -2045,12 +2045,12 @@ final readonly class FractalDuplicateKey implements Rule, OperationRule
 }
 ```
 
-- [ ] **Step 4: Run the full suite, lint, and analysis**
+- [x] **Step 4: Run the full suite, lint, and analysis**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalDuplicateKeyTest.php && composer test && vendor/bin/pint --test && composer analyse`
 Expected: the new test passes; the full suite is green; Pint clean; PHPStan clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/Plugins/Fractal/Lint/Rules/FractalDuplicateKey.php tests/Unit/Plugins/Fractal/Lint/FractalDuplicateKeyTest.php
@@ -2064,7 +2064,7 @@ git commit -m "feat: add fractal.duplicate-key lint rule"
 **Files:**
 - Modify: `CHANGELOG.md`, `docs/usage.md`, `docs/known-gaps.md`
 
-- [ ] **Step 1: Add a `CHANGELOG.md` entry**
+- [x] **Step 1: Add a `CHANGELOG.md` entry**
 
 Under `## [Unreleased]` → `### Added`, append:
 
@@ -2081,11 +2081,11 @@ Under `## [Unreleased]` → `### Added`, append:
   incomplete or invalid declarations.
 ```
 
-- [ ] **Step 2: Update `docs/usage.md`**
+- [x] **Step 2: Update `docs/usage.md`**
 
 Add a short subsection: how to enable `FractalPlugin` (uncomment in config + `composer require league/fractal`), how to declare the three attributes (`#[TransformerField]`, `#[TransformerInclude]`, `#[FractalResponse]` with its `collection` / `paginated` flags), and a one-line note that `fractal.response-unbound` only fires for `Manager`-injected methods — not for the `fractal()` helper or facade. Keep it to the minimal observable-behaviour description CLAUDE.md mandates.
 
-- [ ] **Step 3: Update `docs/known-gaps.md`**
+- [x] **Step 3: Update `docs/known-gaps.md`**
 
 In the OAPI-017 section, note that Fractal response shapes are derived from `#[TransformerField]` / `#[TransformerInclude]` / `#[FractalResponse]` attributes rather than from `transform()` method bodies or Fractal manager calls.
 
@@ -2094,12 +2094,12 @@ Add two new gap entries under their own headings, formatted to match existing en
 - **OAPI-052: Fractal serializer assumed to be `DataArraySerializer`.** The emitted envelopes — `{data}`, `{data: [...]}`, `{data: [...], meta: {pagination: {…}}}` — model Fractal's default `DataArraySerializer` + `IlluminatePaginatorAdapter`. Other serializers (`JsonApiSerializer`, `ArraySerializer`, custom) produce different shapes and are not modelled; the generated document will not match the runtime output for endpoints using them. Workaround: use `#[Response]` to override the schema for those endpoints.
 - **OAPI-053: `fractal.response-unbound` does not detect `fractal()` helper / facade usage.** The lint rule keys off an injected `League\Fractal\Manager` parameter (a body-free signal). It does not flag methods that use the `fractal()` helper or `Spatie\Fractalistic\Fractal` facade inside the method body, because the generator does not read method bodies (OAPI-017). Endpoints using those patterns will silently produce undocumented Fractal output.
 
-- [ ] **Step 4: Run the full suite once more**
+- [x] **Step 4: Run the full suite once more**
 
 Run: `vendor/bin/pint && composer test && composer analyse`
 Expected: Pint clean; suite green; PHPStan clean.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add CHANGELOG.md docs/usage.md docs/known-gaps.md

@@ -4,7 +4,7 @@
 > ground rules, the locked cross-cutting decisions, the build order, and the live
 > status. The individual plan files assume you have read this.
 
-**Last updated:** 2026-05-19 — build steps 1–3 complete on the branch; steps 4–5 planned, not started.
+**Last updated:** 2026-05-20 — build steps 1–4 complete on the branch; step 5 planned, not started.
 
 ---
 
@@ -27,7 +27,7 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
 | 1 — Core PHPDoc generics + paginator resolver | `2026-05-18-core-phpdoc-generics-and-paginators.md` | ✅ **Complete** (on branch, not merged) |
 | 2 — `ApiResourcesPlugin` | `2026-05-19-apiresources-plugin.md` | ✅ **Complete** (on branch, not merged) |
 | 3 — `QueryBuilderPlugin` | `2026-05-19-querybuilder-plugin.md` | ✅ **Complete** (on branch, not merged) |
-| 4 — `FractalPlugin` | `2026-05-19-fractal-plugin.md` | ⬜ Not started — plan ready |
+| 4 — `FractalPlugin` | `2026-05-19-fractal-plugin.md` | ✅ **Complete** (on branch, not merged) |
 | 5 — composer.json + config wiring | `2026-05-19-plugin-suite-wiring.md` | ⬜ Not started — plan ready |
 
 **Status legend:** ⬜ not started · 🔄 in progress · ✅ complete · ⛔ blocked.
@@ -52,7 +52,16 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
   `query-builder.filter-type-missing` (level 3). Shipped commented-out in
   `config/openapi.php`. Full suite green (1064 tests), Pint clean, PHPStan
   level 8 clean.
-- Steps 4–5 are planned but no code exists yet.
+- **Step 4 is done on the branch:** `FractalPlugin` with `#[TransformerField]`,
+  `#[TransformerInclude]`, `#[FractalResponse]`, `SchemaFromTransformer`,
+  `TransformerRefSchemaResolver`, `FractalEnvelopeFactory`,
+  `FractalResponseResolver`, and the four lint rules `fractal.fields-undeclared`
+  (level 1), `fractal.include-transformer-missing` (level 2),
+  `fractal.response-unbound` (level 1), `fractal.duplicate-key` (level 1).
+  Shipped commented-out in `config/openapi.php`. Full suite green (1142 tests),
+  Pint clean, PHPStan level 8 clean. `CHANGELOG.md`, `docs/usage.md`, and
+  `docs/known-gaps.md` (new OAPI-052 + OAPI-053) updated.
+- Step 5 is planned but no code exists yet.
 
 ## Shared ground rules (apply to every plan)
 
