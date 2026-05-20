@@ -1,0 +1,317 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – QueryBuilder Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's QueryBuilder integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  /api/openapi.yaml:
+    get:
+      tags:
+        - OpenApi
+      summary: 'Serves the generated OpenAPI 3.1 specification as YAML.'
+      description: "In local development, the spec is generated on every request so changes to controllers and\nschemas are reflected immediately. Everywhere else, the spec is built at deploy time by the\n`openapi:generate` command and served as a static file with etag/last-modified semantics. A\nmissing file in a deployed environment indicates a broken build."
+      operationId: openapi.spec
+      parameters: []
+      responses:
+        '200':
+          description: OK
+      security: []
+  /api/flights:
+    get:
+      tags:
+        - QueryBuilder
+        - Flights
+      summary: 'List flights.'
+      description: "Returns a paginated list of flights, filterable and sortable through the\n`spatie/laravel-query-builder` conventions documented by the\n`#[AllowedFilter]`, `#[AllowedSort]` and `#[AllowedInclude]` attributes."
+      operationId: get_api_flights
+      parameters:
+        -
+          name: 'filter[number]'
+          in: query
+          required: false
+          schema:
+            description: 'Exact match on IATA flight designator'
+            type: string
+        -
+          name: 'filter[status]'
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - scheduled
+              - boarding
+              - departed
+              - arrived
+              - cancelled
+        -
+          name: 'filter[origin]'
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 3
+            minLength: 3
+        -
+          name: 'filter[departs_after]'
+          in: query
+          required: false
+          schema:
+            description: 'Only flights departing at or after this timestamp'
+            type:
+              - string
+              - 'null'
+            format: date-time
+        -
+          name: sort
+          in: query
+          description: 'Comma-separated sort fields. Prefix a field with `-` for descending order.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - departs_at
+                - number
+        -
+          name: include
+          in: query
+          description: 'Comma-separated related resources to include.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - bookings
+      responses:
+        '200':
+          description: 'A page of flights'
+          content:
+            application/json:
+              schema:
+                type: object
+      security: []
+    post:
+      tags:
+        - QueryBuilder
+        - Flights
+      summary: 'Create a new flight.'
+      description: 'Persists a new flight record with the supplied schedule and status.'
+      operationId: post_api_flights
+      parameters: []
+      responses:
+        '201':
+          description: 'The created flight'
+          content:
+            application/json:
+              schema:
+                type: object
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/flights/{flight}':
+    get:
+      tags:
+        - QueryBuilder
+        - Flights
+      summary: 'Show a single flight.'
+      operationId: get_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The flight'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    delete:
+      tags:
+        - QueryBuilder
+        - Flights
+      summary: 'Cancel a flight.'
+      operationId: delete_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The flight was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    patch:
+      tags:
+        - QueryBuilder
+        - Flights
+      summary: 'Update an existing flight.'
+      operationId: patch_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The updated flight'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/flights/{flight}/bookings':
+    get:
+      tags:
+        - QueryBuilder
+        - Bookings
+      summary: 'List bookings for a flight.'
+      description: "Filterable by passenger name and sortable by creation timestamp via\n`spatie/laravel-query-builder`."
+      operationId: get_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+        -
+          name: 'filter[passenger_name]'
+          in: query
+          required: false
+          schema:
+            type: string
+        -
+          name: sort
+          in: query
+          description: 'Comma-separated sort fields. Prefix a field with `-` for descending order.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - created_at
+      responses:
+        '200':
+          description: "The flight's bookings"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    post:
+      tags:
+        - QueryBuilder
+        - Bookings
+      summary: 'Create a new booking on a flight.'
+      operationId: post_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: 'The created booking'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/bookings/{booking}':
+    delete:
+      tags:
+        - QueryBuilder
+        - Bookings
+      summary: 'Cancel a booking.'
+      operationId: delete_api_bookings_booking_
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The booking was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+components:
+  responses:
+    NotFound:
+      description: 'Resource not found'
+    ValidationFailed:
+      description: 'Validation failed'
+    Conflict:
+      description: 'Flight is fully booked'
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {  }
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {  }
+tags:
+  -
+    name: QueryBuilder
+    description: 'Example flavor: QueryBuilder'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'
