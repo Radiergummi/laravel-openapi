@@ -21,15 +21,15 @@ welcome.
 | [OAPI-049](#oapi-049--corequeryparameterresolver-and-querybuilderparameterresolver-duplicate-schema-build-code) | `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code | Closed |
 | [OAPI-050](#oapi-050--operationbuilder-issues-many-getattributesclass-calls-per-route) | `OperationBuilder` issues many `getAttributes($class)` calls per route | Open |
 | [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Open |
-| [OAPI-052](#oapi-052--fractal-serializer-assumed-to-be-dataarrayserializer) | Fractal serializer assumed to be `DataArraySerializer` | Open |
-| [OAPI-053](#oapi-053--fractalresponse-unbound-does-not-detect-fractal-helper-or-facade-usage) | `fractal.response-unbound` does not detect `fractal()` helper / facade usage | Open |
+| [OAPI-052](#oapi-052--fractal-serializer-assumed-to-be-dataarrayserializer) | Fractal serializer assumed to be `DataArraySerializer` | Closed |
+| [OAPI-053](#oapi-053--fractalresponse-unbound-does-not-detect-fractal-helper-or-facade-usage) | `fractal.response-unbound` does not detect `fractal()` helper / facade usage | Open (won't-fix) |
 | [OAPI-054](#oapi-054--lint-rules-do-not-share-reflection-results-within-a-walk) | Lint rules do not share reflection results within a walk | Open |
 | [OAPI-055](#oapi-055--schemafromresource-still-uses-the-eager-ref-resolver-array) | `SchemaFromResource` still uses the eager ref-resolver array | Closed |
 | [OAPI-056](#oapi-056--plugin-suite-capstone-is-a-shallow-smoke-test) | Plugin-suite capstone is a shallow smoke test | Closed |
 | [OAPI-057](#oapi-057--no-test-exercises-the-shipped-default-plugins-array) | No test exercises the shipped default `plugins` array | Closed |
 | [OAPI-058](#oapi-058--plugin-response-resolvers-silently-degrade-on-any-throwable) | Plugin response resolvers silently degrade on any `Throwable` | Closed |
 | [OAPI-059](#oapi-059--no-lint-rule-for-fractalresponse-naming-a-missing-transformer-class) | No lint rule for `#[FractalResponse]` naming a missing transformer class | Closed |
-| [OAPI-060](#oapi-060--conservative-plugin-lint-rules-ship-at-default-level-despite-known-blind-spots) | Conservative plugin lint rules ship at default level despite known blind spots | Open |
+| [OAPI-060](#oapi-060--conservative-plugin-lint-rules-ship-at-default-level-despite-known-blind-spots) | Conservative plugin lint rules ship at default level despite known blind spots | Closed |
 | [OAPI-061](#oapi-061--leaguefractal-constraint-over-pinned-to-0202) | `league/fractal` constraint over-pinned to `^0.20.2` | Closed |
 | [OAPI-062](#oapi-062--disabled-plugin-comments-in-configopenapiphp-name-only-one-suggested-package) | Disabled-plugin comments in `config/openapi.php` name only one suggested package | Closed |
 
@@ -376,29 +376,28 @@ strategies that interact with Octane's scoped-lifecycle reset story.
 
 ## OAPI-052 — Fractal serializer assumed to be `DataArraySerializer`
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `FractalPlugin`'s response envelopes — `{data}` for a single item, `{data: [...]}`
-for a flat collection, and `{data: [...], meta: {pagination: {…}}}` for a paginated one — model
-Fractal's default `League\Fractal\Serializer\DataArraySerializer` plus its
-`IlluminatePaginatorAdapter` shape. Other serializers (`JsonApiSerializer`, `ArraySerializer`,
-custom serializers) produce different envelope shapes (`{data, included}`,
-top-level arrays, etc.) and are not modelled by the plugin. The generated document will not
-match the runtime output for endpoints using them.
+**Resolved in:** the `feature/plugin-suite` branch. `#[FractalResponse]` now carries a
+`serializer:` parameter (default `Serializer::DataArray`) naming the Fractal serializer the
+endpoint runs at runtime. `FractalEnvelopeFactory` dispatches per serializer:
 
-**Workaround:** Use `#[Response]` on the affected endpoints to declare the actual response
-schema explicitly. The `#[Response]` schema takes precedence over `FractalResponseResolver`.
+- `Serializer::DataArray` — unchanged: `{data}` / `{data: [...]}` / `{data: [...], meta.pagination}`.
+- `Serializer::ArraySerializer` — single = bare `$ref`, collection = top-level array; paginated
+  keeps the `data` wrapper because Fractal's `IlluminatePaginatorAdapter` wraps regardless.
+- `Serializer::JsonApi` — `{data: {type, id, attributes: $ref}}` (single), array of resource
+  objects (collection), `meta.pagination` with hyphenated keys (paginated). JsonApi responses
+  are emitted under `application/vnd.api+json` instead of `application/json`.
 
-**Why it's open:** Modelling additional serializers requires either a per-endpoint declaration
-(another attribute) or per-plugin configuration; both are sensible additions but neither is
-required for the dominant `DataArraySerializer` case. Deferred until there is real demand from
-codebases using a non-default serializer.
+Custom serializers (project-specific subclasses, anything outside the three named cases) still
+fall back to `#[Response]` for an explicit schema declaration — the override path the gap
+already pointed at, now narrowed to the rare cases the enum does not cover.
 
 ---
 
 ## OAPI-053 — `fractal.response-unbound` does not detect `fractal()` helper or facade usage
 
-**Status:** Open
+**Status:** Open (won't-fix by design)
 
 **Symptom:** The `fractal.response-unbound` lint rule keys off an injected
 `League\Fractal\Manager` parameter (a body-free signal — see OAPI-017). It does not flag methods
@@ -410,9 +409,11 @@ parameter. Endpoints written that way will silently produce undocumented Fractal
 plugin emits the response envelope normally regardless of how the runtime Fractal call is made.
 
 **Why it's open:** Detecting the helper or facade requires reading method bodies, which is
-forbidden under OAPI-017. The narrow `Manager`-parameter signal is the conservative escape
-from the trade-off — accepted misses over false positives — and is documented in the rule's
-`description()` so users do not read silence as endorsement.
+forbidden under OAPI-017. The narrow `Manager`-parameter signal is the conservative escape from
+that trade-off — accepted misses over false positives. The rule's `description()` names the
+blind spot explicitly so it surfaces in `openapi:lint --list-rules` output, and the rule ships
+at level 2 (opt-in; see OAPI-060) so users do not read silence at the default lint level as
+endorsement. Closing this gap further would require lifting OAPI-017 itself.
 
 ---
 
@@ -545,31 +546,22 @@ of just disappearing into the generation-log warning that
 
 ## OAPI-060 — Conservative plugin lint rules ship at default level despite known blind spots
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `fractal.response-unbound` (level 1) and `query-builder.params-undeclared`
-(level 2) both detect their target by reflecting an *injected* `Manager` / `QueryBuilder`
-constructor parameter (decision #4; OAPI-053). The dominant patterns in Laravel codebases —
-`fractal(...)` helper, `Spatie\Fractalistic\Fractal` facade, `QueryBuilder::for($model)` in the
-method body — do not inject either type, so neither rule fires.
+**Resolved in:** the `feature/plugin-suite` branch. The decision was option (a) from the gap's
+"Why it's open" list — push both blind-spot rules below the default `lint.level => 1`, so users
+opt in explicitly and silence at the default level is not mistaken for endorsement:
 
-Both rules ship at or below the default `lint.level => 1`. A user running `openapi:lint` on a
-Fractal-heavy codebase sees zero findings from `fractal.response-unbound` and reasonably
-concludes the linter is endorsing the (entirely undocumented) Fractal output.
+- `fractal.response-unbound` moved from level 1 to level 2, matching its
+  `query-builder.params-undeclared` sibling. Neither now fires at the default lint level.
+- The rule's `description()` was rewritten to spell out the blind spot ("Misses the `fractal()`
+  helper and the `Spatie\Fractalistic\Fractal` facade …") so the caveat is visible in
+  `openapi:lint --list-rules` output, not just in this document.
 
-**Impact:** Silent endorsement of undocumented endpoints in the very codebases the plugins
-target. The rule descriptions document the blind spot, but description text is not surfaced
-during a normal lint run.
-
-**Workaround:** Read the rule's `description()` before trusting silence; declare
-`#[FractalResponse]` / `#[Allowed*]` on every Fractal/QueryBuilder endpoint regardless of
-whether the lint pass complained.
-
-**Why it's open:** Three reasonable resolutions, none obviously correct: (a) downgrade both
-rules to a level below the shipped default so users opt in explicitly; (b) reword the rule
-description into a `description()` line surfaced in lint output when the rule produces zero
-findings; (c) accept the trade-off as documented and rely on user education. Needs a deliberate
-decision rather than a quiet code change.
+Option (b) — surfacing rule descriptions in zero-finding runs — would change lint-output
+formatting and remained unjustified for two rules' worth of payoff. The trade-off the rules
+encode (accepted misses over false positives in the absence of method-body inference) is
+unchanged; only the default visibility is.
 
 ---
 

@@ -32,6 +32,11 @@ use function sprintf;
  * parameter (matched by FQCN string via {@see PayloadParameterScanner}, so the
  * package need not be installed), not a body-inference heuristic. See
  * OAPI-053 for what this misses.
+ *
+ * Ships at level 2 (opt-in) so the dominant `fractal()` helper / facade
+ * patterns — which never inject a `Manager` and therefore never trigger this
+ * rule — do not lull users into reading silence as endorsement at the default
+ * lint level. See OAPI-060.
  */
 final readonly class FractalResponseUnbound implements Rule, OperationRule
 {
@@ -82,12 +87,14 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
     #[Override]
     public function level(): int
     {
-        return 1;
+        return 2;
     }
 
     #[Override]
     public function description(): string
     {
-        return 'A method injects a Fractal Manager but declares no #[FractalResponse].';
+        return 'A method injects a Fractal Manager but declares no #[FractalResponse]. '
+            . 'Misses the fractal() helper and the Spatie\\Fractalistic\\Fractal facade, '
+            . 'which are invoked inside method bodies and never inject a Manager — see OAPI-053.';
     }
 }

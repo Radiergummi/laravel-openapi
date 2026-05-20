@@ -72,7 +72,7 @@ The built-in plugins:
 | **SpatieData** | `Plugins\SpatieData\SpatieDataPlugin` | `DataClassRequestSchemaResolver`, `DataRefSchemaResolver`, `Data::class` as a payload base, lint rules: `field.attribute-wrong-scope` (level 1), `multipart.file-without-multipart` (level 1) |
 | **ApiResources** | `Plugins\ApiResources\ApiResourcesPlugin` | `ResourceResponseResolver`, `ResourceRefSchemaResolver`, lint rules: `resource.fields-undeclared` (level 1), `resource.field-type-missing` (level 2), `resource.response-ambiguous` (level 1) |
 | **QueryBuilder** (opt-in) | `Plugins\QueryBuilder\QueryBuilderPlugin` | `QueryBuilderParameterResolver`, lint rules: `query-builder.params-undeclared` (level 2), `query-builder.filter-type-missing` (level 3) |
-| **Fractal** (opt-in) | `Plugins\Fractal\FractalPlugin` | `FractalResponseResolver`, `TransformerRefSchemaResolver`, lint rules: `fractal.response-unbound` (level 1), `fractal.fields-undeclared` (level 1), `fractal.include-transformer-missing` (level 2), `fractal.duplicate-key` (level 1) |
+| **Fractal** (opt-in) | `Plugins\Fractal\FractalPlugin` | `FractalResponseResolver`, `TransformerRefSchemaResolver`, lint rules: `fractal.response-unbound` (level 2), `fractal.fields-undeclared` (level 1), `fractal.include-transformer-missing` (level 2), `fractal.duplicate-key` (level 1), `fractal.transformer-class-missing` (level 1) |
 
 Plugins are listed in `config/openapi.plugins` and resolved from the container. `CoreRegistration`
 runs first (registering `FormRequestRequestSchemaResolver` and all core lint rules), then each
@@ -530,19 +530,36 @@ public function index(): JsonResponse { … }
 public function paginated(): JsonResponse { … }
 ```
 
-The envelope shapes model Fractal's default `DataArraySerializer` plus
-`IlluminatePaginatorAdapter` — other serializers (`JsonApiSerializer`, custom) produce different
-shapes and are not modelled (see OAPI-052 in `docs/known-gaps.md`); use `#[Response]` to override
-the schema for those endpoints.
+The default envelope models Fractal's `DataArraySerializer` plus `IlluminatePaginatorAdapter`.
+Set `serializer:` on `#[FractalResponse]` when the action calls `Manager::setSerializer(…)` to
+switch shape:
 
-Four lint rules report incomplete or invalid declarations: a transformer with no
+```php
+use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
+
+#[FractalResponse(transformer: BookTransformer::class, serializer: Serializer::ArraySerializer)]
+public function arraySingle(): JsonResponse { … }      // bare $ref, no envelope
+
+#[FractalResponse(transformer: BookTransformer::class, collection: true, serializer: Serializer::ArraySerializer)]
+public function arrayCollection(): JsonResponse { … } // top-level array
+
+#[FractalResponse(transformer: BookTransformer::class, serializer: Serializer::JsonApi)]
+public function jsonApiShow(): JsonResponse { … }     // {data: {type, id, attributes: $ref}} as application/vnd.api+json
+```
+
+`Serializer::JsonApi` responses are emitted under `application/vnd.api+json` instead of
+`application/json`. Custom serializers outside the three named cases (project-specific
+subclasses, anything else) fall back to a `#[Response]` override on the action.
+
+Lint rules report incomplete or invalid declarations: a transformer with no
 `#[TransformerField]` triggers `fractal.fields-undeclared` (level 1); a `#[TransformerInclude]`
 with no `transformer:` triggers `fractal.include-transformer-missing` (level 2); a transformer
 that declares the same key in more than one attribute triggers `fractal.duplicate-key` (level 1);
-and a method that injects `League\Fractal\Manager` but declares no `#[FractalResponse]` triggers
-`fractal.response-unbound` (level 1). The last rule only fires for `Manager`-injected methods —
-not for the `fractal()` helper or `Spatie\Fractalistic\Fractal` facade used inside method bodies,
-because the generator does not read method bodies (OAPI-017 / OAPI-053).
+`#[FractalResponse]` naming a non-existent transformer triggers `fractal.transformer-class-missing`
+(level 1); and a method that injects `League\Fractal\Manager` but declares no `#[FractalResponse]`
+triggers `fractal.response-unbound` (level 2 — opt-in, because the `fractal()` helper and the
+`Spatie\Fractalistic\Fractal` facade are invoked inside method bodies and never inject a
+`Manager`, and the generator does not read method bodies; see OAPI-017 / OAPI-053).
 
 ### Programmatic hook points
 

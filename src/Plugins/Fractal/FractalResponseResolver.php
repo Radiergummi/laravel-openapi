@@ -26,9 +26,10 @@ use function sprintf;
  * Resolves a `#[FractalResponse]`-bound endpoint into its `200 OK` response.
  *
  * Defers (returns null) when the action carries no `#[FractalResponse]`. The
- * transformer's schema is wrapped in the Fractal `data` envelope produced by
- * {@see FractalEnvelopeFactory} — paginated, collection, or single depending on
- * the attribute flags.
+ * transformer's schema is wrapped in the envelope produced by
+ * {@see FractalEnvelopeFactory} — its shape determined by the attribute's
+ * `paginated` / `collection` flags and `serializer:` (DataArray by default;
+ * ArraySerializer and JsonApi modelled too).
  */
 final readonly class FractalResponseResolver implements PrimaryResponseResolver
 {
@@ -49,6 +50,7 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
                 return null;
             }
 
+            /** @var FractalResponse $fractalResponse */
             $fractalResponse = $attribute->newInstance();
 
             if (!class_exists($fractalResponse->transformer)) {
@@ -63,11 +65,14 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
 
             $ref = $this->schemaFromTransformer->buildRef($fractalResponse->transformer);
             $envelope = $this->envelopeFor($fractalResponse, $ref);
+            $mediaType = $fractalResponse->serializer === Serializer::JsonApi
+                ? MediaType::JsonApi
+                : MediaType::Json;
 
             return new OA\Response([
                 'response' => '200',
                 'description' => 'OK',
-                'content' => [MediaType::Json->schema($envelope)],
+                'content' => [$mediaType->schema($envelope)],
             ]);
         } catch (ReflectionException $e) {
             // Tolerate reflection failures only (e.g. a transformer FQCN that class_exists
@@ -87,13 +92,13 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
     private function envelopeFor(FractalResponse $response, string $ref): OA\Schema
     {
         if ($response->paginated) {
-            return $this->envelopeFactory->paginated($ref);
+            return $this->envelopeFactory->paginated($ref, $response->serializer);
         }
 
         if ($response->collection) {
-            return $this->envelopeFactory->collection($ref);
+            return $this->envelopeFactory->collection($ref, $response->serializer);
         }
 
-        return $this->envelopeFactory->single($ref);
+        return $this->envelopeFactory->single($ref, $response->serializer);
     }
 }

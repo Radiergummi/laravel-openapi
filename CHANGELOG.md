@@ -5,6 +5,17 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `Radiergummi\OpenApi\Plugins\Fractal\Serializer` enum (cases `DataArray`,
+  `ArraySerializer`, `JsonApi`) plus a `serializer:` parameter on
+  `#[FractalResponse]` — names the Fractal serializer the endpoint runs at
+  runtime so the generated envelope matches it. `FractalEnvelopeFactory` now
+  dispatches per serializer: ArraySerializer single is a bare `$ref` (no
+  envelope), collection is a top-level array; JsonApi produces resource
+  objects `{data: {type, id, attributes: $ref}}` under
+  `application/vnd.api+json` with hyphenated `meta.pagination` keys when
+  paginated. The default `Serializer::DataArray` is unchanged. Custom
+  serializers outside this set still use `#[Response]` to override. (OAPI-052)
+
 - `fractal.transformer-class-missing` lint rule (level 1, registered by
   `FractalPlugin`) — flags `#[FractalResponse]` attributes that name a
   transformer class that does not exist (typos like `BookTrnasformer::class`).
@@ -81,6 +92,13 @@ All notable changes to this project are documented here.
   incomplete or invalid declarations.
 
 ### Changed
+- `fractal.response-unbound` lint rule moved from level 1 to level 2 (opt-in),
+  matching its `query-builder.params-undeclared` sibling. The rule's
+  `description()` now spells out the blind spot (`fractal()` helper /
+  `Spatie\Fractalistic\Fractal` facade are not detected) so the caveat surfaces
+  in `openapi:lint --list-rules` output. Default-level lint runs no longer
+  produce a silent zero-findings result that could be mistaken for endorsement
+  in Fractal-heavy codebases. (OAPI-060)
 - `PaginatorKind::fromClass()` now recognises Spatie's `PaginatedDataCollection`
   and `CursorPaginatedDataCollection` (FQCN-matched to keep Core free of plugin
   imports). `PaginatorResponseResolver` now claims those return types via the
