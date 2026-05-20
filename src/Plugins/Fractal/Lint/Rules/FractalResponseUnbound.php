@@ -30,11 +30,8 @@ use function sprintf;
  *
  * Detection is deliberately conservative: it keys off an injected `Manager`
  * parameter (matched by FQCN string via {@see PayloadParameterScanner}, so the
- * package need not be installed), not a body-inference heuristic. The rule
- * will NOT fire for the common patterns of using the `fractal()` helper or the
- * `Spatie\Fractalistic\Fractal` facade inside the method body — under OAPI-017
- * the generator does not read method bodies. See `docs/known-gaps.md`
- * (OAPI-053).
+ * package need not be installed), not a body-inference heuristic. See
+ * OAPI-053 for what this misses.
  */
 final readonly class FractalResponseUnbound implements Rule, OperationRule
 {
@@ -91,8 +88,6 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
     #[Override]
     public function description(): string
     {
-        return 'A method injects a Fractal Manager but declares no #[FractalResponse]. '
-            . 'Does not fire for fractal() helper or Fractal facade usage inside method bodies '
-            . '(method-body inference is out of scope under OAPI-017).';
+        return 'A method injects a Fractal Manager but declares no #[FractalResponse].';
     }
 }
