@@ -23,6 +23,7 @@ welcome.
 | [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Open |
 | [OAPI-052](#oapi-052--fractal-serializer-assumed-to-be-dataarrayserializer) | Fractal serializer assumed to be `DataArraySerializer` | Open |
 | [OAPI-053](#oapi-053--fractalresponse-unbound-does-not-detect-fractal-helper-or-facade-usage) | `fractal.response-unbound` does not detect `fractal()` helper / facade usage | Open |
+| [OAPI-054](#oapi-054--lint-rules-do-not-share-reflection-results-within-a-walk) | Lint rules do not share reflection results within a walk | Open |
 
 ---
 
@@ -426,3 +427,45 @@ plugin emits the response envelope normally regardless of how the runtime Fracta
 forbidden under OAPI-017. The narrow `Manager`-parameter signal is the conservative escape
 from the trade-off — accepted misses over false positives — and is documented in the rule's
 `description()` so users do not read silence as endorsement.
+
+---
+
+## OAPI-054 — Lint rules do not share reflection results within a walk
+
+**Status:** Open
+
+**Symptom:** Each lint rule does its own reflection work on every operation it visits, even when
+sibling rules on the same `OperationNode` need the same intermediate result. Concrete examples:
+
+- `ResourceFieldsUndeclared` and `ResourceFieldTypeMissing` both call
+  `ResourceClassLocator::locate($descriptor)` and then independently build
+  `new ReflectionClass($resourceClass)` for the same descriptor on the same walk.
+- The three Fractal rules that key off `#[FractalResponse]` (`FractalFieldsUndeclared`,
+  `FractalIncludeTransformerMissing`, `FractalDuplicateKey`) each repeat the same six-step
+  prologue: fetch the attribute off `$descriptor->method`, instantiate it, `class_exists`-check
+  the transformer FQCN, and allocate a fresh `ReflectionClass`. Two of them additionally call
+  `->newInstance()` on every `TransformerField` / `TransformerInclude` purely to read one
+  string property.
+- `QueryBuilderParamsUndeclared` and `QueryBuilderFilterTypeMissing` both invoke
+  `PayloadParameterScanner::directCandidates($method)`. The scanner has its own per-method
+  cache, but the rules then re-walk attribute lists independently.
+
+This compounds OAPI-050 (per-route attribute walks in `OperationBuilder`) and OAPI-051 (lack of
+memoisation in extractors): the lint pass effectively re-does some of the work the generator
+already did, and then re-does it again across sibling rules within the same walk.
+
+**Cleaner shape:** Attach a per-walk reflection cache to `LintContext` — keyed by
+`ReflectionMethod` / `ReflectionClass` — that buckets `getAttributes()` results by attribute
+class once per reflector, mirroring the shape proposed for OAPI-050. Rule authors would resolve
+attributes through the cache instead of calling `getAttributes(SomeAttribute::class)` directly.
+A second helper for "resolve transformer / resource class for this operation" could share a
+single resolution across all rules that key off the same endpoint attribute.
+
+**Impact:** Real but bounded. Reflection allocations are cheap individually; the cost grows
+with `routes × rules`. Worth doing alongside OAPI-050 / OAPI-051 rather than piecemeal — the
+codebase currently accepts per-rule re-computation as the norm, so optimising one plugin in
+isolation creates inconsistency without moving the aggregate cost meaningfully.
+
+**Why it's open:** Cross-cutting refactor that pairs naturally with OAPI-050 and OAPI-051.
+Deferred until those are scheduled, so the cache shape can be designed once and shared by
+`OperationBuilder`, extractors, and lint rules.
