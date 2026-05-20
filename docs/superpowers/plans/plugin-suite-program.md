@@ -4,7 +4,7 @@
 > ground rules, the locked cross-cutting decisions, the build order, and the live
 > status. The individual plan files assume you have read this.
 
-**Last updated:** 2026-05-20 — build steps 1–5 complete on the branch; plugin-suite program implementation done, awaiting merge.
+**Last updated:** 2026-05-20 — build steps 1–5 complete on the branch; plugin-system gap pass folded in (OAPI-048/049/052/055-062 closed, OAPI-053 marked won't-fix); 1166 tests green, ready to merge.
 
 ---
 
@@ -53,15 +53,27 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
   `config/openapi.php`. Full suite green (1064 tests), Pint clean, PHPStan
   level 8 clean.
 - **Step 4 is done on the branch:** `FractalPlugin` with `#[TransformerField]`,
-  `#[TransformerInclude]`, `#[FractalResponse]`, `SchemaFromTransformer`,
-  `TransformerRefSchemaResolver`, `FractalEnvelopeFactory`,
-  `FractalResponseResolver`, and the four lint rules `fractal.fields-undeclared`
-  (level 1), `fractal.include-transformer-missing` (level 2),
-  `fractal.response-unbound` (level 1), `fractal.duplicate-key` (level 1).
-  Shipped commented-out in `config/openapi.php`. Full suite green (1142 tests),
-  Pint clean, PHPStan level 8 clean. `CHANGELOG.md`, `docs/usage.md`, and
-  `docs/known-gaps.md` (new OAPI-052 + OAPI-053) updated.
-- Step 5 is planned but no code exists yet.
+  `#[TransformerInclude]`, `#[FractalResponse]` (now with a `serializer:`
+  parameter for `DataArray` / `ArraySerializer` / `JsonApi`),
+  `SchemaFromTransformer`, `TransformerRefSchemaResolver`,
+  `FractalEnvelopeFactory` (per-serializer dispatch),
+  `FractalResponseResolver`, and the five lint rules
+  `fractal.fields-undeclared` (level 1),
+  `fractal.include-transformer-missing` (level 2),
+  `fractal.response-unbound` (level 2 — opt-in; see OAPI-060),
+  `fractal.duplicate-key` (level 1),
+  `fractal.transformer-class-missing` (level 1). Shipped commented-out in
+  `config/openapi.php`.
+- **Step 5 is done on the branch:** composer.json + config wiring, default
+  plugins array, suggested packages, and the capstone integration test.
+- **Post-suite gap pass folded in:** OAPI-048/049/052/055/056/057/058/059/061/062
+  closed in code; OAPI-053 reclassified as won't-fix-by-design; OAPI-060
+  closed by downgrading `fractal.response-unbound` to level 2 and surfacing
+  the blind spot in the rule's `description()`. Remaining open gaps
+  (OAPI-017/038/045/046/047/050/051/054) are explicitly out-of-scope for
+  the plugin-suite workstream — see `docs/known-gaps.md`.
+- Full suite green (1166 tests, 3005 assertions), Pint clean, PHPStan
+  level 8 clean.
 
 ## Shared ground rules (apply to every plan)
 
