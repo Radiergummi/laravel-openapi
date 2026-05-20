@@ -13,6 +13,6 @@ Notice in `openapi.yaml`:
 - `@throws ModelNotFoundException` becomes a `404` response on each per-id endpoint
   (`show`, `update`, `destroy`, `bookings.index`); `@throws FlightOverbookedException`
   on `BookingController::store` becomes a `409` via the exception-response map.
-- `#[QueryParam]` is present on `index` (for `page` / `per_page`) but is not yet
-  consumed by the Core resolver — those parameters do not appear in the YAML.
-  Tracked as a follow-up.
+- `#[QueryParam('page', ...)]` and `#[QueryParam('per_page', ...)]` on `index`
+  render as documented query parameters on `GET /flights` with their types,
+  defaults, and bounds preserved.

@@ -1,0 +1,86 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Core\Generator;
+
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Attributes\QueryParam;
+use Radiergummi\OpenApi\Core\Registry\QueryParameterResolver;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+
+/**
+ * Turns Core `#[QueryParam]` attributes on a controller action (and its enclosing
+ * class) into `OA\Parameter` entries.
+ *
+ * Class-level entries are emitted first so a controller can declare common query
+ * parameters once; method-level entries are appended afterwards. When the same
+ * `name` appears at both levels, the method-level entry replaces the class-level
+ * one.
+ */
+final readonly class CoreQueryParameterResolver implements QueryParameterResolver
+{
+    /**
+     * @return list<OA\Parameter>
+     */
+    public function resolveQueryParameters(ActionDescriptor $descriptor): array
+    {
+        $reflector = $descriptor->actionReflector;
+
+        if ($reflector === null) {
+            return [];
+        }
+
+        /** @var array<string, QueryParam> $merged */
+        $merged = [];
+
+        if ($descriptor->controller !== null) {
+            foreach ($descriptor->controller->getAttributes(QueryParam::class) as $attribute) {
+                $instance = $attribute->newInstance();
+                $merged[$instance->name] = $instance;
+            }
+        }
+
+        foreach ($reflector->getAttributes(QueryParam::class) as $attribute) {
+            $instance = $attribute->newInstance();
+            $merged[$instance->name] = $instance;
+        }
+
+        return array_values(array_map(
+            fn(QueryParam $attribute): OA\Parameter => $this->parameter($attribute),
+            $merged,
+        ));
+    }
+
+    private function parameter(QueryParam $attribute): OA\Parameter
+    {
+        $descriptor = $attribute->descriptor();
+        $schema = new OA\Schema(['type' => 'string', ...$descriptor->toOpenApi()]);
+
+        // SchemaDescriptor::toOpenApi() omits `nullable`; apply the OAS 3.1
+        // `type: [..., 'null']` shape here so `nullable: true` widens the wire schema.
+        if ($descriptor->nullable === true) {
+            NullableSchema::applyTo($schema);
+        }
+
+        $properties = [
+            'name' => $attribute->name,
+            'in' => 'query',
+            'required' => $attribute->required,
+            'schema' => $schema,
+        ];
+
+        if ($attribute->deprecated) {
+            $properties['deprecated'] = true;
+        }
+
+        return new OA\Parameter($properties);
+    }
+}

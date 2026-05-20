@@ -5,6 +5,11 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `CoreQueryParameterResolver` — reflects `#[QueryParam]` attributes off controller methods (and
+  classes, for shared parameters declared once) and emits OpenAPI query-parameter entries with
+  the attribute's full `FieldAttribute` surface (type, format, enum, default, nullable, bounds).
+  Closes the documentation-vs-implementation gap where `#[QueryParam]` existed but was never
+  read. (OAPI-039)
 - `#[Deprecated]` authoring attribute (in `Radiergummi\OpenApi\Core\Attributes`) — symmetric to
   the PHPDoc `@deprecated` tag and the PHP 8.4 native `#[\Deprecated]` attribute. Targets
   methods, functions, properties, promoted constructor parameters, and class constants. Sets

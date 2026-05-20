@@ -28,7 +28,24 @@ paths:
       summary: 'List flights.'
       description: 'Returns a paginated list of all known flights.'
       operationId: get_api_flights
-      parameters: []
+      parameters:
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 25
+            maximum: 100
+            minimum: 1
       responses:
         '200':
           description: 'A page of flights'

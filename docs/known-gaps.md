@@ -8,7 +8,7 @@ welcome.
 |---|---|---|
 | [OAPI-017](#oapi-017--no-method-body-inference) | No method-body inference | Open |
 | [OAPI-038](#oapi-038--lint-rules-miss-allof-composed-schema-properties) | Lint rules miss `allOf`-composed schema properties | Open |
-| [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Open |
+| [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Closed |
 | [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Open |
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Open |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
@@ -100,26 +100,15 @@ linter-accuracy gap, not a generation bug.
 
 ## OAPI-039 — `#[QueryParam]` attribute has no Core resolver
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `src/Core/Attributes/QueryParam.php` exists and `docs/usage.md` documents it as a
-method-scope attribute for declaring ad-hoc query-string parameters. Lint rules
-(`ParameterNameNamingInconsistent`, `QueryParamDuplicate`) reference it. But no code reads the
-attribute off a controller method — `OperationBuilder` does not call `getAttributes(QueryParam::class)`,
-and the only `QueryParameterResolver` implementation is the QueryBuilder plugin's, which reads
-`#[AllowedFilter]`/`#[AllowedSort]`/`#[AllowedInclude]` instead. As a result a method annotated
-`#[QueryParam('page', type: 'integer')]` emits no parameter in the generated spec.
-
-**Workarounds:**
-
-- Express the query parameter through a Spatie Data class or `FormRequest` field (which the
-  generator does read).
-- Live without documenting ad-hoc query parameters until a resolver lands.
-
-**Why it's open:** Discovered while building the `examples/vanilla/` showcase, which prominently
-uses `#[QueryParam]` for pagination. The fix is a small Core resolver that reflects
-`#[QueryParam]` on the action and emits `OA\Parameter`s — roughly mirroring
-`QueryBuilderParameterResolver`. Scheduled but not yet implemented.
+**Resolved in:** the `feature/plugin-suite` branch. `CoreQueryParameterResolver` now ships in
+`src/Core/Generator/` and is registered by `CoreRegistration::register()`. It reflects
+`#[QueryParam]` off the controller method (and the class, for shared parameters declared once)
+and emits `OA\Parameter` entries with `in: 'query'`, the attribute's name, and a schema derived
+from its `FieldAttribute` surface (type, format, enum, default, nullable, numeric/string bounds).
+The vanilla flavor's `#[QueryParam('page', ...)]` and `#[QueryParam('per_page', ...)]` now
+appear as documented query parameters on `GET /flights`.
 
 ---
 
