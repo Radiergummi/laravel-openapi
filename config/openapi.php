@@ -17,6 +17,7 @@ use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
+use Radiergummi\OpenApi\Core\Routing\Filters\SkipPassportRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
@@ -272,9 +273,9 @@ return [
     | contract; returning true from `shouldSkip()` omits the route from the
     | generated document.
     |
-    | The three shipped filters exclude routes from common dev/admin packages
-    | (Nova, Telescope, Ignition). Each one tolerates its package being absent:
-    | with no config present it simply matches nothing.
+    | The four shipped filters exclude routes from common dev/admin/auth
+    | packages (Nova, Telescope, Ignition, Passport). Each one tolerates its
+    | package being absent: with no config present it simply matches nothing.
     |
     */
 
@@ -282,6 +283,7 @@ return [
         SkipNovaRoutes::class,
         SkipTelescopeRoutes::class,
         SkipIgnitionRoutes::class,
+        SkipPassportRoutes::class,
     ],
 
 ];

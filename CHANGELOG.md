@@ -5,6 +5,9 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `SkipPassportRoutes` route filter registered by default — Laravel Passport's CRUD endpoints
+  (route names under the `passport.*` prefix) are filtered out of generated specs alongside
+  Nova / Telescope / Ignition. The filter tolerates Passport being absent. (OAPI-044)
 - `examples/` suite: five runnable flavors (vanilla, form-requests, spatie-data, query-builder, combined)
   that all expose the same flights+bookings API and ship a generated `openapi.yaml` snapshot.
   Verified in CI against fresh generation, OpenAPI 3.1 validity, and `openapi:lint`.

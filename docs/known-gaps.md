@@ -13,7 +13,6 @@ welcome.
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Open |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
 | [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Open |
-| [OAPI-044](#oapi-044--no-shipped-route-filter-for-laravel-passport) | No shipped route filter for Laravel Passport | Open |
 
 ---
 
@@ -234,22 +233,10 @@ emitted schema or operation. Low priority — the PHPDoc path covers the common 
 
 ## OAPI-044 — No shipped route filter for Laravel Passport
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** The package ships three route filters in `src/Core/Routing/Filters/` —
-`SkipNovaRoutes`, `SkipTelescopeRoutes`, `SkipIgnitionRoutes` — that exclude common dev/admin
-package routes from the generated spec. Passport is at least as commonly installed in a Laravel
-app and registers a dozen CRUD endpoints under `passport.*` route names, but there is no
-`SkipPassportRoutes` filter shipped with the package. Apps using Passport see Passport's own
-internal CRUD endpoints in their generated spec.
-
-**Workarounds:**
-
-- Copy the filter from `examples/_shared/Routing/SkipPassportRoutes.php` into the host app and
-  register it via `config('openapi.filters')`.
-
-**Why it's open:** Discovered while building the examples suite, where a Passport-side route
-filter was needed to keep Passport's CRUD endpoints out of every flavor's snapshot. The fix is
-mechanical: move the filter from `examples/_shared/Routing/SkipPassportRoutes.php` to
-`src/Core/Routing/Filters/SkipPassportRoutes.php` and add it to the default `openapi.filters`
-config alongside the other three. Tracked as a follow-up task; not yet executed.
+**Resolved in:** the `feature/plugin-suite` branch. `SkipPassportRoutes` now ships in
+`src/Core/Routing/Filters/` and is registered by default in `config/openapi.php` alongside
+`SkipNovaRoutes` / `SkipTelescopeRoutes` / `SkipIgnitionRoutes`. Host apps using Passport get
+its CRUD endpoints filtered out of the generated spec out of the box; the filter tolerates
+Passport being absent by matching only routes whose name starts with `passport.`.

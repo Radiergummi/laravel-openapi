@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace Examples\Shared;
 
 use Examples\Shared\Exceptions\FlightOverbookedException;
-use Examples\Shared\Routing\SkipPassportRoutes;
 
 /**
  * Config overrides applied by every flavor. Each flavor's ServiceProvider calls
@@ -50,14 +49,6 @@ final class OpenApiConfig
             'Flights'    => ['description' => 'Operations on flights'],
             'Bookings'   => ['description' => 'Operations on flight bookings'],
         ]);
-
-        // Passport's own CRUD routes are registered so that SecurityExtractor can resolve
-        // their URLs into the OAuth2 security scheme; they shouldn't show up as application
-        // surface in the generated spec.
-        config()->set('openapi.filters', array_merge(
-            (array) config('openapi.filters', []),
-            [SkipPassportRoutes::class],
-        ));
 
         // Domain exceptions used across flavors. The generator looks these up by short name
         // when an `@throws` annotation references them, so importing the exception in the
