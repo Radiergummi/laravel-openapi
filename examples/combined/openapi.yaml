@@ -1,0 +1,497 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – Combined Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's Combined integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  /api/openapi.yaml:
+    get:
+      tags:
+        - OpenApi
+      summary: 'Serves the generated OpenAPI 3.1 specification as YAML.'
+      description: "In local development, the spec is generated on every request so changes to controllers and\nschemas are reflected immediately. Everywhere else, the spec is built at deploy time by the\n`openapi:generate` command and served as a static file with etag/last-modified semantics. A\nmissing file in a deployed environment indicates a broken build."
+      operationId: openapi.spec
+      parameters: []
+      responses:
+        '200':
+          description: OK
+      security: []
+  /api/flights:
+    get:
+      tags:
+        - Combined
+        - Flights
+      summary: 'List flights.'
+      description: "Paginated list of flights with `spatie/laravel-query-builder` filters,\nsorts, and includes. Marked `#[PublicEndpoint]` because anonymous read\naccess is fine for the public catalogue."
+      operationId: get_api_flights
+      parameters:
+        -
+          name: 'filter[number]'
+          in: query
+          required: false
+          schema:
+            description: 'Exact match on IATA flight designator'
+            type: string
+        -
+          name: 'filter[status]'
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - scheduled
+              - boarding
+              - departed
+              - arrived
+              - cancelled
+        -
+          name: 'filter[origin]'
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 3
+            minLength: 3
+        -
+          name: sort
+          in: query
+          description: 'Comma-separated sort fields. Prefix a field with `-` for descending order.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - departs_at
+                - number
+        -
+          name: include
+          in: query
+          description: 'Comma-separated related resources to include.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - bookings
+      responses:
+        '200':
+          description: 'A page of flights'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+      security: []
+    post:
+      tags:
+        - Combined
+        - Flights
+      summary: 'Create a new flight.'
+      description: "Validates through {@see StoreFlightRequest} (FormRequest in), returns\n{@see FlightData} (Data out). The `#[Link]` advertises that the response\n`id` can be fed straight into the `flights.show` operation."
+      operationId: post_api_flights
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreFlightRequest'
+      responses:
+        '201':
+          description: 'The created flight'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+          links:
+            self:
+              operationId: flights.show
+              parameters:
+                flight: '$response.body#/id'
+              description: 'Fetch the just-created flight by its returned id.'
+      security:
+        -
+          oauth2:
+            - 'flights:write'
+        -
+          oauth2ClientCredentials:
+            - 'flights:write'
+  '/api/flights/{flight}':
+    get:
+      tags:
+        - Combined
+        - Flights
+      summary: 'Show a single flight.'
+      description: "Public read endpoint. The response carries a curated example payload\nloaded from `examples/combined/example_payloads/flight.json` through\nthe `file:` argument of {@see ResponseExample}, demonstrating\n`ExampleFileLoader` integration."
+      operationId: flights.show
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The flight'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+              examples:
+                lh400-from-file:
+                  summary: 'Curated example loaded from disk'
+                  description: 'Loaded at spec-generation time by ExampleFileLoader from the JSON file shipped alongside the flavor.'
+                  value: { id: 0190f3d0-1234-7000-8000-000000000001, number: LH400, origin: FRA, destination: JFK, departs_at: '2026-06-01T10:30:00Z', arrives_at: '2026-06-01T13:15:00Z', status: scheduled, aircraft_type: A330 }
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    delete:
+      tags:
+        - Combined
+        - Flights
+      summary: 'Cancel a flight.'
+      operationId: delete_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The flight was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        -
+          oauth2:
+            - 'flights:write'
+        -
+          oauth2ClientCredentials:
+            - 'flights:write'
+    patch:
+      tags:
+        - Combined
+        - Flights
+      summary: 'Update an existing flight.'
+      operationId: patch_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The updated flight'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlightData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        -
+          oauth2:
+            - 'flights:write'
+        -
+          oauth2ClientCredentials:
+            - 'flights:write'
+  '/api/flights/{flight}/bookings':
+    get:
+      tags:
+        - Combined
+        - Bookings
+      summary: 'List bookings for a flight.'
+      operationId: get_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The flight bookings'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+    post:
+      tags:
+        - Combined
+        - Bookings
+      summary: 'Create a new booking on a flight.'
+      description: "Validates via {@see StoreBookingRequest} and enforces the 200-seat\ncapacity by raising {@see FlightOverbookedException}."
+      operationId: post_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreBookingRequest'
+      responses:
+        '201':
+          description: 'The created booking'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      security:
+        -
+          oauth2:
+            - 'bookings:write'
+        -
+          oauth2ClientCredentials:
+            - 'bookings:write'
+  '/api/bookings/{booking}':
+    delete:
+      tags:
+        - Combined
+        - Bookings
+      summary: 'Cancel a booking.'
+      operationId: delete_api_bookings_booking_
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 'The booking was cancelled'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        -
+          oauth2:
+            - 'bookings:write'
+        -
+          oauth2ClientCredentials:
+            - 'bookings:write'
+  '/api/bookings/{booking}/boarding-pass':
+    post:
+      tags:
+        - Combined
+        - Bookings
+      summary: 'Upload a boarding pass for a booking.'
+      description: "The {@see UploadBoardingPassRequest} carries a `file` rule, which the\nFormRequest schema resolver maps onto a `multipart/form-data` request\nbody with a binary `image` field."
+      operationId: post_api_bookings_booking_boarding_pass
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadBoardingPassRequest'
+      responses:
+        '200':
+          description: 'The stored boarding-pass path'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        -
+          oauth2:
+            - 'bookings:write'
+        -
+          oauth2ClientCredentials:
+            - 'bookings:write'
+components:
+  schemas:
+    FlightData:
+      required:
+        - id
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        id:
+          type: string
+        number:
+          type: string
+        origin:
+          type: string
+        destination:
+          type: string
+        departs_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+        arrives_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+        status:
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          type: string
+      type: object
+    StoreFlightRequest:
+      required:
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        number:
+          description: 'IATA-style flight number, e.g. LH123.'
+          type: string
+          pattern: '^[A-Z]{2}\d{1,4}$'
+          example: LH123
+        origin:
+          description: 'Three-letter IATA code of the origin airport.'
+          type: string
+          example: FRA
+          maxLength: 3
+          minLength: 3
+        destination:
+          description: 'Three-letter IATA code of the destination airport.'
+          type: string
+          example: JFK
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          description: 'Scheduled departure timestamp.'
+          type: string
+          format: date-time
+        arrives_at:
+          description: 'Scheduled arrival timestamp; must be after departs_at.'
+          type: string
+          format: date-time
+        status:
+          description: 'Operational status of the flight.'
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          description: 'Aircraft model / type designator.'
+          type: string
+          example: 'Boeing 747-400'
+      type: object
+    BookingData:
+      required:
+        - id
+        - flight_id
+        - passenger_name
+        - seat
+        - created_at
+      properties:
+        id:
+          type: string
+        flight_id:
+          type: string
+        passenger_name:
+          type: string
+        seat:
+          type: string
+        created_at:
+          description: 'Unmapped object type: DateTimeInterface'
+          type: string
+      type: object
+    StoreBookingRequest:
+      required:
+        - passenger_name
+        - seat
+      properties:
+        passenger_name:
+          type: string
+          maxLength: 200
+          minLength: 1
+        seat:
+          type: string
+          pattern: '^\d{1,3}[A-Z]$'
+      type: object
+    UploadBoardingPassRequest:
+      required:
+        - image
+      properties:
+        image:
+          type: string
+          format: binary
+          maxLength: 5120
+      type: object
+  responses:
+    NotFound:
+      description: 'Resource not found'
+    Conflict:
+      description: 'Flight is fully booked'
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {  }
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {  }
+tags:
+  -
+    name: Combined
+    description: 'Example flavor: Combined'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'
