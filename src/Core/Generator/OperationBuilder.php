@@ -278,15 +278,12 @@ final readonly class OperationBuilder
         /** @var array<string, HeaderAttribute> $byName */
         $byName = [];
 
-        if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes(HeaderAttribute::class) as $attr) {
-                $instance = $attr->newInstance();
-                $byName[$instance->name] = $instance;
+        foreach ([$descriptor->controller, $descriptor->method] as $reflector) {
+            if ($reflector === null) {
+                continue;
             }
-        }
 
-        if ($descriptor->method !== null) {
-            foreach ($descriptor->method->getAttributes(HeaderAttribute::class) as $attr) {
+            foreach ($reflector->getAttributes(HeaderAttribute::class) as $attr) {
                 $instance = $attr->newInstance();
                 $byName[$instance->name] = $instance;
             }
@@ -792,19 +789,14 @@ final readonly class OperationBuilder
      */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
-        if ($descriptor->actionReflector !== null) {
-            foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
-                $attrs = $descriptor->actionReflector->getAttributes($class);
-
-                if ($attrs !== []) {
-                    return $attrs[0];
-                }
+        // Method-level wins over class-level, so check actionReflector first.
+        foreach ([$descriptor->actionReflector, $descriptor->controller] as $reflector) {
+            if ($reflector === null) {
+                continue;
             }
-        }
 
-        if ($descriptor->controller !== null) {
             foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
-                $attrs = $descriptor->controller->getAttributes($class);
+                $attrs = $reflector->getAttributes($class);
 
                 if ($attrs !== []) {
                     return $attrs[0];

@@ -121,7 +121,7 @@ final readonly class SecurityExtractor
             ];
         }
 
-        $defaultScheme = $this->defaultConfigSchemeName();
+        $defaultScheme = array_key_first($this->configSchemes());
 
         if ($defaultScheme !== null) {
             return [[$defaultScheme => $scopes]];
@@ -256,20 +256,6 @@ final readonly class SecurityExtractor
         }
 
         return $schemes;
-    }
-
-    private function defaultConfigSchemeName(): ?string
-    {
-        /** @var mixed $raw */
-        $raw = config('openapi.security_schemes', []);
-
-        if (!is_array($raw) || $raw === []) {
-            return null;
-        }
-
-        $first = array_key_first($raw);
-
-        return is_string($first) ? $first : null;
     }
 
     private function passportAvailable(): bool
