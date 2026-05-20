@@ -40,7 +40,13 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Radiergummi\\OpenApi\\Tests\\": "tests/"
+            "Radiergummi\\OpenApi\\Tests\\": "tests/",
+            "Examples\\Shared\\":        "examples/_shared/",
+            "Examples\\Vanilla\\":       "examples/vanilla/",
+            "Examples\\FormRequests\\":  "examples/form-requests/",
+            "Examples\\SpatieData\\":    "examples/spatie-data/",
+            "Examples\\QueryBuilder\\":  "examples/query-builder/",
+            "Examples\\Combined\\":      "examples/combined/"
         }
     },
     "extra": {
@@ -51,7 +57,19 @@
     "scripts": {
         "test": "pest --no-coverage",
         "lint": "pint",
-        "analyse": "phpstan analyse"
+        "analyse": "phpstan analyse",
+        "examples:vanilla":       "@php examples/generate.php vanilla",
+        "examples:form-requests": "@php examples/generate.php form-requests",
+        "examples:spatie-data":   "@php examples/generate.php spatie-data",
+        "examples:query-builder": "@php examples/generate.php query-builder",
+        "examples:combined":      "@php examples/generate.php combined",
+        "examples": [
+            "@examples:vanilla",
+            "@examples:form-requests",
+            "@examples:spatie-data",
+            "@examples:query-builder",
+            "@examples:combined"
+        ]
     },
     "config": {
         "sort-packages": true,
