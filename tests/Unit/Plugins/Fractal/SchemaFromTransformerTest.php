@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
@@ -24,6 +25,11 @@ class SchemaBookTransformer {}
 
 #[TransformerField('name', type: 'string')]
 class SchemaAuthorTransformer {}
+
+class NotAFractalTransformer {}
+
+#[TransformerField('relatedData', type: NotAFractalTransformer::class)]
+class SchemaWithResolvedRefTransformer {}
 
 /** @return array<string, OA\Property> */
 function transformerPropertiesByName(OA\Schema $schema): array
@@ -98,4 +104,32 @@ it('exposes buildRef returning a qualified components ref', function (): void {
     $ref = (new SchemaFromTransformer($registry, []))->buildRef(SchemaBookTransformer::class);
 
     expect($ref)->toBe('#/components/schemas/SchemaBookTransformer');
+});
+
+it('resolves non-transformer class refs via injected RefSchemaResolver', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $customResolver = new class () implements RefSchemaResolver {
+        public function resolveRef(string $class): ?string
+        {
+            if ($class === NotAFractalTransformer::class) {
+                return '#/components/schemas/CustomRef';
+            }
+
+            return null;
+        }
+    };
+
+    (new SchemaFromTransformer($registry, [$customResolver]))->build(SchemaWithResolvedRefTransformer::class);
+
+    $schema = null;
+
+    foreach ($registry->all() as $candidate) {
+        if ($candidate->schema === 'SchemaWithResolvedRefTransformer') {
+            $schema = $candidate;
+        }
+    }
+
+    $props = transformerPropertiesByName($schema);
+
+    expect($props['relatedData']->ref)->toBe('#/components/schemas/CustomRef');
 });
