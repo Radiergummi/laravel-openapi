@@ -5,6 +5,10 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `#[ResponseHeader]` authoring attribute — repeatable on methods/functions, declares a header
+  on the response whose `status:` it targets (defaults to 200). Carries `name`, `description`,
+  `type`, `format`, `example`, `required`, `deprecated`. Replaces the request-`#[Header]`
+  workaround for documenting headers like `Location` on 201 responses. (OAPI-041)
 - `DataResponseResolver` (SpatieData plugin) — auto-derives the primary `200 OK` response from a
   Spatie `Data` return type, a `DataCollection<int, Item>` (item class read from the `@return`
   PHPDoc generic), or a `PaginatedDataCollection` / `CursorPaginatedDataCollection` (renders the

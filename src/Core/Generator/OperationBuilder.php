@@ -25,6 +25,7 @@ use Radiergummi\OpenApi\Core\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Core\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ResponseExample as ResponseExampleAttribute;
+use Radiergummi\OpenApi\Core\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Tag as TagAttribute;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -181,6 +182,7 @@ final readonly class OperationBuilder
         // swagger-php's last-write-wins serialization lets #[Response] override generated 401/404.
         $responses = [$primaryResponse, ...$standardResponses, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
+        $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
         if ($operationOverride !== null) {
@@ -462,6 +464,84 @@ final readonly class OperationBuilder
                 }
             }
         }
+    }
+
+    /**
+     * Attaches `#[ResponseHeader]` attributes declared on the method to the response whose status
+     * matches the attribute's `status:`. Headers without a matching response are dropped silently.
+     *
+     * Per RFC7230, header names are case-insensitive — the swagger-php Header object carries the
+     * casing the author chose.
+     *
+     * @param list<OA\Response> $responses
+     */
+    private function applyResponseHeaders(ActionDescriptor $descriptor, array $responses): void
+    {
+        if ($descriptor->actionReflector === null) {
+            return;
+        }
+
+        $attributes = $descriptor->actionReflector->getAttributes(ResponseHeaderAttribute::class);
+
+        if ($attributes === []) {
+            return;
+        }
+
+        /** @var array<string, list<ResponseHeaderAttribute>> $byStatus */
+        $byStatus = [];
+
+        foreach ($attributes as $attribute) {
+            $instance = $attribute->newInstance();
+            $byStatus[(string) $instance->status][] = $instance;
+        }
+
+        foreach ($responses as $response) {
+            $status = (string) $response->response;
+
+            if (!isset($byStatus[$status])) {
+                continue;
+            }
+
+            $existing = is_array($response->headers) ? $response->headers : [];
+
+            foreach ($byStatus[$status] as $headerAttribute) {
+                $existing[] = $this->buildResponseHeader($headerAttribute);
+            }
+
+            $response->headers = $existing;
+        }
+    }
+
+    private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
+    {
+        $schemaProps = ['type' => $header->type];
+
+        if ($header->format !== null) {
+            $schemaProps['format'] = $header->format;
+        }
+
+        if ($header->example !== null) {
+            $schemaProps['example'] = $header->example;
+        }
+
+        $props = [
+            'header' => $header->name,
+            'schema' => new OA\Schema($schemaProps),
+        ];
+
+        if ($header->description !== null) {
+            $props['description'] = $header->description;
+        }
+
+        if ($header->required !== null) {
+            $props['required'] = $header->required;
+        }
+
+        if ($header->deprecated !== null) {
+            $props['deprecated'] = $header->deprecated;
+        }
+
+        return new OA\Header($props);
     }
 
     /**

@@ -10,7 +10,7 @@ welcome.
 | [OAPI-038](#oapi-038--lint-rules-miss-allof-composed-schema-properties) | Lint rules miss `allOf`-composed schema properties | Open |
 | [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Closed |
 | [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Closed |
-| [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Open |
+| [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Closed |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
 | [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Closed |
 
@@ -130,23 +130,15 @@ Explicit `#[Response]` attributes still take precedence over the auto-derived re
 
 ## OAPI-041 — No response-header authoring attribute
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `#[Header]` is request-scope only — its constructor is `(name, description, required,
-type, example)` and the attribute target is the request side of the contract. There is no
-`#[ResponseHeader]` (and no response-side mode on `#[Header]`). The canonical use case — declaring
-`Location` on a `201 Created` response — cannot be expressed.
-
-**Workarounds:**
-
-- Omit the response header from the spec.
-- Hand-author the spec post-processing step (e.g. a `Transformer`) that injects the header into
-  the right response.
-
-**Why it's open:** Discovered while building the `examples/form-requests/` showcase, where the
-plan called for `Location` on `POST /flights`'s 201. Two viable fixes: a new `#[ResponseHeader]`
-attribute (cleaner API, smaller blast radius) or an optional response-target mode on the existing
-`#[Header]` (fewer attributes but ambiguous semantics). Not yet scheduled.
+**Resolved in:** the `feature/plugin-suite` branch. `#[ResponseHeader]` now ships in
+`src/Core/Attributes/`. It is repeatable on methods and functions, carries `name`, `status`
+(defaults to 200), optional `description`, `type`, `format`, `example`, `required`, and
+`deprecated`, and is reflected by `OperationBuilder` onto the `headers` map of the response
+whose status it targets. The existing `#[Header]` (request-side) is unchanged. The
+form-requests flavor's `POST /flights` now declares `Location` on its 201 via
+`#[ResponseHeader(name: 'Location', status: 201, type: 'string', format: 'uri', …)]`.
 
 ---
 

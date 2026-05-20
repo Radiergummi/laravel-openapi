@@ -20,6 +20,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Radiergummi\OpenApi\Core\Attributes\Header;
 use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
+use Radiergummi\OpenApi\Core\Attributes\ResponseHeader;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Core\Attributes\Tag;
 
@@ -61,6 +62,13 @@ final class FlightController
      */
     #[ResponseResource(FlightResource::class)]
     #[ResponseAttribute(status: 201, description: 'The created flight', ref: FlightResource::class)]
+    #[ResponseHeader(
+        name: 'Location',
+        status: 201,
+        description: 'URL of the created flight',
+        type: 'string',
+        format: 'uri',
+    )]
     public function store(StoreFlightRequest $request): FlightResource
     {
         $flight = Flight::query()->create($request->validated());

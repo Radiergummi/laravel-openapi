@@ -19,5 +19,7 @@ Notice in `openapi.yaml`:
 - `@throws FlightOverbookedException` on `BookingController::store` produces a
   `409` response via the exception map in `OpenApiConfig`.
 - `#[Header(name: 'X-Request-Id', ...)]` on the controller adds a request-header
-  parameter to every endpoint (request-side only — a response-header attribute
-  is pending).
+  parameter to every endpoint.
+- `#[ResponseHeader(name: 'Location', status: 201, ...)]` on
+  `FlightController::store` attaches a `Location` header to the `201 Created`
+  response — scoped to the status the attribute targets.
