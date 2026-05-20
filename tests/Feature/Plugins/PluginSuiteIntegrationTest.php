@@ -50,7 +50,6 @@ class SuiteWidgetTransformer {}
 
 class SuiteWidget {}
 
-
 class PluginSuiteController extends Controller
 {
     /**
@@ -68,7 +67,6 @@ class PluginSuiteController extends Controller
     /** Show a widget — ApiResources plugin. */
     public function resource(): SuiteWidgetResource
     {
-        /** @phpstan-ignore-next-line */
         return new SuiteWidgetResource(null);
     }
 
