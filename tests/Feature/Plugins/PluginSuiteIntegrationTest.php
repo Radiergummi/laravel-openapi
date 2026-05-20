@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
 declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins;
@@ -41,10 +48,8 @@ class SuiteWidgetResource extends JsonResource {}
 #[TransformerField('label', type: 'string')]
 class SuiteWidgetTransformer {}
 
-class SuiteWidget
-{
-    public int $id = 0;
-}
+class SuiteWidget {}
+
 
 class PluginSuiteController extends Controller
 {
@@ -85,7 +90,8 @@ it('generates one document with every plugin active', function (): void {
     // Paginator core resolver produced the flat envelope.
     $paginated = $spec['paths']['/suite/paginated']['get'];
     expect($paginated['responses']['200']['content']['application/json']['schema']['properties'])
-        ->toHaveKey('data');
+        ->toHaveKey('data')
+        ->toHaveKey('total');
 
     // QueryBuilder plugin contributed query parameters onto the same operation.
     $paramNames = array_map(static fn(array $p): string => $p['name'], $paginated['parameters'] ?? []);
