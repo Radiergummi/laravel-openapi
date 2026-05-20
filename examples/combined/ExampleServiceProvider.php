@@ -46,7 +46,6 @@ final class ExampleServiceProvider extends ServiceProvider
     {
         OpenApiConfig::apply('Combined');
 
-        // The QueryBuilder plugin ships disabled; opt in.
         config()->set('openapi.plugins', array_merge(
             (array) config('openapi.plugins', []),
             [QueryBuilderPlugin::class],
@@ -78,7 +77,7 @@ final class ExampleServiceProvider extends ServiceProvider
 
         foreach ((array) glob($source . '/*') as $file) {
             $path = (string) $file;
-            @copy($path, $destination . '/' . basename($path));
+            copy($path, $destination . '/' . basename($path));
         }
     }
 }

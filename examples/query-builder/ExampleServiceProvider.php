@@ -22,8 +22,6 @@ final class ExampleServiceProvider extends ServiceProvider
     {
         OpenApiConfig::apply('QueryBuilder');
 
-        // The QueryBuilder plugin ships disabled; the flavor opts in by appending it to the
-        // configured plugin list before route registration.
         config()->set('openapi.plugins', array_merge(
             (array) config('openapi.plugins', []),
             [QueryBuilderPlugin::class],

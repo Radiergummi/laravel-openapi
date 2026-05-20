@@ -46,7 +46,7 @@ final class BookingController
     #[ResponseAttribute(status: 200, description: 'The flight bookings', ref: BookingData::class)]
     public function index(string $flight): DataCollection
     {
-        $bookings = Flight::query()->findOrFail($flight)->bookings;
+        $bookings = Flight::query()->findOrFail($flight)->bookings()->orderBy('seat')->get();
 
         /** @var DataCollection<int, BookingData> $collection */
         $collection = BookingData::collect($bookings, DataCollection::class);

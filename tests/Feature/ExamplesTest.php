@@ -9,6 +9,7 @@
 
 declare(strict_types=1);
 
+use Examples\Shared\Flavors;
 use Examples\Shared\TestbenchBoot;
 use Illuminate\Contracts\Console\Kernel;
 use Symfony\Component\Yaml\Yaml;
@@ -21,13 +22,11 @@ use Symfony\Component\Yaml\Yaml;
  *   4. Assert it validates as OpenAPI 3.1 (swagger-php Analysis::validate()).
  *   5. Assert `openapi:lint` reports zero findings.
  */
-dataset('flavors', [
-    'vanilla'       => [Examples\Vanilla\ExampleServiceProvider::class,       'vanilla'],
-    'form-requests' => [Examples\FormRequests\ExampleServiceProvider::class,  'form-requests'],
-    'spatie-data'   => [Examples\SpatieData\ExampleServiceProvider::class,    'spatie-data'],
-    'query-builder' => [Examples\QueryBuilder\ExampleServiceProvider::class,  'query-builder'],
-    'combined'      => [Examples\Combined\ExampleServiceProvider::class,      'combined'],
-]);
+dataset('flavors', array_map(
+    static fn(string $provider, string $flavor): array => [$provider, $flavor],
+    Flavors::all(),
+    array_keys(Flavors::all()),
+));
 
 it('produces a snapshot that matches the committed yaml', function (string $serviceProvider, string $flavor): void {
     $app = TestbenchBoot::boot($serviceProvider);

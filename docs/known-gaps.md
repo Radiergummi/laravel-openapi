@@ -8,6 +8,12 @@ welcome.
 |---|---|---|
 | [OAPI-017](#oapi-017--no-method-body-inference) | No method-body inference | Open |
 | [OAPI-038](#oapi-038--lint-rules-miss-allof-composed-schema-properties) | Lint rules miss `allOf`-composed schema properties | Open |
+| [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Open |
+| [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Open |
+| [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Open |
+| [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Open |
+| [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Open |
+| [OAPI-044](#oapi-044--no-shipped-route-filter-for-laravel-passport) | No shipped route filter for Laravel Passport | Open |
 
 ---
 
@@ -90,3 +96,160 @@ incomplete. Every rule that walks `ComponentSchemaNode->fields` / `FieldNode` in
 **Impact:** Schemas built purely from the bundled generators rarely use `allOf` composition, so in
 practice this surfaces only for hand-authored or transformer-injected `allOf` schemas. It is a
 linter-accuracy gap, not a generation bug.
+
+---
+
+## OAPI-039 — `#[QueryParam]` attribute has no Core resolver
+
+**Status:** Open
+
+**Symptom:** `src/Core/Attributes/QueryParam.php` exists and `docs/usage.md` documents it as a
+method-scope attribute for declaring ad-hoc query-string parameters. Lint rules
+(`ParameterNameNamingInconsistent`, `QueryParamDuplicate`) reference it. But no code reads the
+attribute off a controller method — `OperationBuilder` does not call `getAttributes(QueryParam::class)`,
+and the only `QueryParameterResolver` implementation is the QueryBuilder plugin's, which reads
+`#[AllowedFilter]`/`#[AllowedSort]`/`#[AllowedInclude]` instead. As a result a method annotated
+`#[QueryParam('page', type: 'integer')]` emits no parameter in the generated spec.
+
+**Workarounds:**
+
+- Express the query parameter through a Spatie Data class or `FormRequest` field (which the
+  generator does read).
+- Live without documenting ad-hoc query parameters until a resolver lands.
+
+**Why it's open:** Discovered while building the `examples/vanilla/` showcase, which prominently
+uses `#[QueryParam]` for pagination. The fix is a small Core resolver that reflects
+`#[QueryParam]` on the action and emits `OA\Parameter`s — roughly mirroring
+`QueryBuilderParameterResolver`. Scheduled but not yet implemented.
+
+---
+
+## OAPI-040 — No `DataResponseResolver` for Spatie Data return types
+
+**Status:** Open
+
+**Symptom:** The `SpatieData` plugin handles request bodies (via `DataClassRequestSchemaResolver`)
+and reusable schema refs (via `DataRefSchemaResolver`) but does not auto-derive a primary
+response from a Data return type. A controller method declared
+
+```php
+public function show(string $flight): FlightData { … }
+```
+
+emits a `200 OK` with an empty schema. To get the FlightData schema on the response the author
+must add an explicit `#[Response(status: 200, ref: FlightData::class)]` — repetitive when every
+read endpoint returns a Data class.
+
+`ApiResources` ships an equivalent for `JsonResource` (`ResourceResponseResolver`); the
+SpatieData plugin lacks the symmetric piece.
+
+**Workarounds:**
+
+- Annotate the method with `#[Response(ref: SomeData::class)]`.
+- Wrap the return in a `JsonResource` so the ApiResources plugin's existing resolver kicks in
+  (loses the Data benefits).
+
+**Why it's open:** Discovered while building the `examples/spatie-data/` and `examples/combined/`
+showcases. The fix is a `PrimaryResponseResolver` that detects `Data` / `DataCollection` return
+types and emits a `$ref` to the appropriate component schema — mirroring
+`ResourceResponseResolver` against the `DataRefSchemaResolver`'s schema pool.
+
+---
+
+## OAPI-041 — No response-header authoring attribute
+
+**Status:** Open
+
+**Symptom:** `#[Header]` is request-scope only — its constructor is `(name, description, required,
+type, example)` and the attribute target is the request side of the contract. There is no
+`#[ResponseHeader]` (and no response-side mode on `#[Header]`). The canonical use case — declaring
+`Location` on a `201 Created` response — cannot be expressed.
+
+**Workarounds:**
+
+- Omit the response header from the spec.
+- Hand-author the spec post-processing step (e.g. a `Transformer`) that injects the header into
+  the right response.
+
+**Why it's open:** Discovered while building the `examples/form-requests/` showcase, where the
+plan called for `Location` on `POST /flights`'s 201. Two viable fixes: a new `#[ResponseHeader]`
+attribute (cleaner API, smaller blast radius) or an optional response-target mode on the existing
+`#[Header]` (fewer attributes but ambiguous semantics). Not yet scheduled.
+
+---
+
+## OAPI-042 — `#[Security]` cannot name a scheme; security schemes hard-coded to Passport
+
+**Status:** Open
+
+**Symptom:** Two related limitations:
+
+1. `#[Security]` takes a `list<string>` of OAuth scopes — it has no parameter for the security
+   scheme name. Callers cannot say "this operation requires a bearer JWT" because the choice of
+   *scheme* is not theirs to make.
+2. `SecurityExtractor::buildSchemes()` is hard-coded to emit two schemes named `oauth2` and
+   `oauth2ClientCredentials` (derived from Laravel Passport). There is no config key — no
+   `openapi.security_schemes` — to register additional schemes (e.g. plain `bearer` JWT,
+   `apiKey`, basic auth) or override the Passport defaults.
+
+In combination: a non-Passport app can declare `#[Security(['read:thing'])]` but the resulting
+spec references Passport-derived schemes the app does not actually use.
+
+**Workarounds:**
+
+- Live with the Passport-named schemes in the spec.
+- Post-process the generated YAML/JSON to rewrite `securitySchemes` and operation `security`
+  blocks.
+
+**Why it's open:** Discovered while building the `examples/combined/` showcase. The fix has two
+halves: (a) introduce an `openapi.security_schemes` config key consumed by `SecurityExtractor`
+and (b) add an optional `scheme:` parameter to `#[Security]` (defaulting to the project's first
+registered scheme so existing usage doesn't change). Not yet scheduled.
+
+---
+
+## OAPI-043 — No `#[Deprecated]` authoring attribute
+
+**Status:** Open
+
+**Symptom:** OpenAPI 3.1 lets you mark operations and schema properties as deprecated. The
+package emits `deprecated: true` on properties when it sees PHPDoc `@deprecated` (via
+`DocCommentParser`) but there is no `#[Deprecated]` attribute parallel to the other authoring
+attributes. Authors who want to mark something deprecated via attribute (or who don't have
+PHPDoc on the property, e.g. on enum cases or constructor-promoted parameters where PHPDoc
+parsing is awkward) have no symmetric path.
+
+**Workarounds:**
+
+- Use PHPDoc `@deprecated` on properties — works for class properties and Data-class
+  constructor parameters with PHPDoc blocks.
+- Author the `deprecated: true` keyword via a `Transformer` post-processing pass.
+
+**Why it's open:** Discovered while building the `examples/spatie-data/` showcase, which uses
+PHPDoc `@deprecated` on the legacy `aircraft` property in `FlightData`. The fix is a small
+attribute targeting properties / parameters / methods that flips `deprecated: true` on the
+emitted schema or operation. Low priority — the PHPDoc path covers the common case.
+
+---
+
+## OAPI-044 — No shipped route filter for Laravel Passport
+
+**Status:** Open
+
+**Symptom:** The package ships three route filters in `src/Core/Routing/Filters/` —
+`SkipNovaRoutes`, `SkipTelescopeRoutes`, `SkipIgnitionRoutes` — that exclude common dev/admin
+package routes from the generated spec. Passport is at least as commonly installed in a Laravel
+app and registers a dozen CRUD endpoints under `passport.*` route names, but there is no
+`SkipPassportRoutes` filter shipped with the package. Apps using Passport see Passport's own
+internal CRUD endpoints in their generated spec.
+
+**Workarounds:**
+
+- Copy the filter from `examples/_shared/Routing/SkipPassportRoutes.php` into the host app and
+  register it via `config('openapi.filters')`.
+
+**Why it's open:** Discovered while building the examples suite, where a Passport-side route
+filter was needed to keep Passport's CRUD endpoints out of every flavor's snapshot. The fix is
+mechanical: move the filter from `examples/_shared/Routing/SkipPassportRoutes.php` to
+`src/Core/Routing/Filters/SkipPassportRoutes.php` and add it to the default `openapi.filters`
+config alongside the other three. Tracked as a follow-up task; not yet executed.

@@ -11,6 +11,7 @@
 
 declare(strict_types=1);
 
+use Examples\Shared\Flavors;
 use Examples\Shared\TestbenchBoot;
 use Illuminate\Contracts\Console\Kernel;
 
@@ -23,13 +24,7 @@ if ($flavor === null) {
     exit(2);
 }
 
-$providers = [
-    'vanilla'       => Examples\Vanilla\ExampleServiceProvider::class,
-    'form-requests' => Examples\FormRequests\ExampleServiceProvider::class,
-    'spatie-data'   => Examples\SpatieData\ExampleServiceProvider::class,
-    'query-builder' => Examples\QueryBuilder\ExampleServiceProvider::class,
-    'combined'      => Examples\Combined\ExampleServiceProvider::class,
-];
+$providers = Flavors::all();
 
 if (!isset($providers[$flavor])) {
     fwrite(STDERR, "Unknown flavor: {$flavor}. Known: " . implode(', ', array_keys($providers)) . "\n");

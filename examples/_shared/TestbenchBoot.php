@@ -53,7 +53,6 @@ final class TestbenchBoot
 
         $app->make(Kernel::class)->bootstrap();
 
-        // In-memory SQLite + run the shared migration + seed.
         config()->set('database.default', 'testing');
         config()->set('database.connections.testing', [
             'driver'   => 'sqlite',
