@@ -13,6 +13,14 @@ welcome.
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Closed |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Closed |
 | [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Closed |
+| [OAPI-044](#oapi-044--no-shipped-route-filter-for-laravel-passport) | No shipped route filter for Laravel Passport | Closed |
+| [OAPI-045](#oapi-045--security-default-scheme-resolution-privileges-passport) | `#[Security]` default scheme resolution privileges Passport | Open |
+| [OAPI-046](#oapi-046--responseheader-cannot-be-declared-at-class-level) | `#[ResponseHeader]` cannot be declared at class level | Open |
+| [OAPI-047](#oapi-047--skippassportroutes-lacks-the-constructor--fromconfig-shape-of-its-siblings) | `SkipPassportRoutes` lacks the constructor + `fromConfig()` shape of its siblings | Open |
+| [OAPI-048](#oapi-048--dataresponseresolver-duplicates-paginator-envelope-logic-from-paginatorresponseresolver) | `DataResponseResolver` duplicates paginator-envelope logic from `PaginatorResponseResolver` | Open |
+| [OAPI-049](#oapi-049--corequeryparameterresolver-and-querybuilderparameterresolver-duplicate-schema-build-code) | `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code | Open |
+| [OAPI-050](#oapi-050--operationbuilder-issues-many-getattributesclass-calls-per-route) | `OperationBuilder` issues many `getAttributes($class)` calls per route | Open |
+| [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Open |
 
 ---
 
@@ -190,3 +198,178 @@ property still emits `deprecated: true` in the snapshot.
 `SkipNovaRoutes` / `SkipTelescopeRoutes` / `SkipIgnitionRoutes`. Host apps using Passport get
 its CRUD endpoints filtered out of the generated spec out of the box; the filter tolerates
 Passport being absent by matching only routes whose name starts with `passport.`.
+
+---
+
+## OAPI-045 — `#[Security]` default scheme resolution privileges Passport
+
+**Status:** Open
+
+**Symptom:** When `#[Security]` is used without naming a scheme, `SecurityExtractor::requirementForScopes()`
+emits the Passport-derived `oauth2` + `oauth2ClientCredentials` pair whenever Passport is
+installed — even if the project has declared its own schemes in `openapi.security_schemes` and
+expected one of those to be the default. The config-declared schemes are only consulted as a
+fallback for projects without Passport.
+
+**Root cause:** When OAPI-042 unblocked config-registered schemes it kept the existing
+Passport-first branch in `requirementForScopes()` rather than threading the new config catalogue
+through a single lookup. The result is two parallel default-resolution paths that aren't
+visible from the call site.
+
+**Impact:** A project that installs Passport but wants `#[Security(['scope'])]` (no `scheme:`) to
+target its own `bearer` scheme has to either pass `scheme: 'bearer'` everywhere or accept that
+the spec advertises Passport's OAuth2 pair on every authenticated operation.
+
+**Workaround:** Pass `scheme: 'name'` explicitly on every `#[Security]` attribute.
+
+**Why it's open:** The right default depends on intent — "Passport apps should advertise both
+flows by default" is reasonable behaviour for Passport-only projects but wrong for the
+mixed-scheme case. Needs a deliberate decision about whether the merged catalogue should treat
+all schemes equally (first declared wins) or whether Passport keeps its precedence.
+
+---
+
+## OAPI-046 — `#[ResponseHeader]` cannot be declared at class level
+
+**Status:** Open
+
+**Symptom:** `#[ResponseHeader]` targets `TARGET_METHOD | TARGET_FUNCTION` only, so authors cannot
+declare a shared response header (`X-Request-Id`, `X-RateLimit-Remaining`) once on the
+controller and have it apply to every action. The sibling `#[Header]` (request-side) accepts
+`TARGET_CLASS` and is read off both controller and method by
+`OperationBuilder::readHeaderAttributes()`.
+
+**Impact:** Authors must repeat `#[ResponseHeader(name: 'X-Request-Id', ...)]` on every method
+of a controller instead of declaring it once at the top.
+
+**Why it's open:** Pending a deliberate choice between two valid shapes — extend the target list
+to include `TARGET_CLASS` and have the builder walk controller + method (mirroring `#[Header]`),
+or treat per-response-header declarations as deliberately method-scoped. The asymmetry between
+`#[Header]` and `#[ResponseHeader]` is the practical signal that this should be decided.
+
+---
+
+## OAPI-047 — `SkipPassportRoutes` lacks the constructor + `fromConfig()` shape of its siblings
+
+**Status:** Open
+
+**Symptom:** The three other route filters under `src/Core/Routing/Filters/` — `SkipNovaRoutes`,
+`SkipTelescopeRoutes`, `SkipIgnitionRoutes` — take constructor parameters and expose a
+`fromConfig()` factory; `OpenApiServiceProvider` registers them via that factory.
+`SkipPassportRoutes` (OAPI-044) deviates: it hard-codes the `passport.` route-name prefix and
+has no factory.
+
+**Justification for the deviation:** Passport's route prefix is not user-configurable, so there
+is genuinely nothing to configure. The deviation reflects reality, not laziness.
+
+**Impact:** Consistency cost only — anyone reading the filter directory will notice the odd one
+out and wonder if it was an oversight. A `fromConfig()` returning a parameterless instance plus
+a class-level docblock explaining the deviation would erase the surprise without changing
+behaviour.
+
+**Why it's open:** Cosmetic. Not blocking anyone.
+
+---
+
+## OAPI-048 — `DataResponseResolver` duplicates paginator-envelope logic from `PaginatorResponseResolver`
+
+**Status:** Open
+
+**Symptom:** `src/Plugins/SpatieData/DataResponseResolver.php` (~156 lines) re-implements
+paginator-envelope construction that already lives in
+`src/Core/Extractors/PaginatorResponseResolver.php`. Specifically, the
+`PaginatedDataCollection` / `CursorPaginatedDataCollection` branches build the same
+length-aware / cursor envelopes that `PaginatorKind::fromClass()` + `PaginatorSchemaFactory`
+build for Laravel's native paginators.
+
+**Cleaner shape:** Teach `PaginatorKind::fromClass()` to recognise Spatie's two paginator
+collection classes; the existing `PaginatorResponseResolver` then handles both flavours via the
+shared `RefSchemaResolver` infrastructure (which Spatie already integrates with via
+`DataRefSchemaResolver`). `DataResponseResolver` shrinks to ~30 lines handling only single
+`Data` and non-paginating `DataCollection<…, Item>` — the two cases the core resolver cannot
+cover.
+
+**Impact:** Maintenance cost — paginator-envelope fixes have to be applied in two places.
+
+**Why it's open:** Refactor opportunity; no functional defect.
+
+---
+
+## OAPI-049 — `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code
+
+**Status:** Open
+
+**Symptom:** Both resolvers run the same four-line sequence to build an `OA\Schema` from a
+`FieldAttribute`'s descriptor:
+
+```php
+$descriptor = $attribute->descriptor();
+$schema = new OA\Schema(['type' => 'string', ...$descriptor->toOpenApi()]);
+if ($descriptor->nullable === true) {
+    NullableSchema::applyTo($schema);
+}
+```
+
+The same explanatory comment about `SchemaDescriptor::toOpenApi()` omitting `nullable` is
+copy-pasted in both files. Extracting a static helper on `SchemaDescriptor` (e.g.
+`SchemaDescriptor::toSchema(string $defaultType = 'string'): OA\Schema`) would let both
+resolvers share the snippet.
+
+**Impact:** Small. The duplication is mechanical and the rest of each resolver shapes a
+different parameter (`name=foo` vs `filter[foo]`, single vs list-with-enum), so consolidation
+beyond this helper isn't warranted.
+
+**Why it's open:** Refactor opportunity.
+
+---
+
+## OAPI-050 — `OperationBuilder::build()` issues many `getAttributes($class)` calls per route
+
+**Status:** Open
+
+**Symptom:** `OperationBuilder::build()` issues ~17 separate
+`$reflector->getAttributes(SomeAttribute::class)` calls per route across its read* helpers, and
+each call performs an independent attribute walk. Most operations declare zero or one
+attribute, so the overwhelming majority of those calls return an empty array after walking the
+full attribute list.
+
+**Cleaner shape:** Read `$reflector->getAttributes()` (no filter) once per reflector, bucket the
+result by attribute class into a `array<class-string, list<ReflectionAttribute>>` map, and have
+each helper read from the map instead. Collapses ~17 attribute walks into 2 (one per
+reflector).
+
+**Impact:** Generation runs over `n` routes do `O(17·n)` attribute lookups instead of `O(2·n)`.
+Per-route cost is small in absolute terms, but adds up over large route tables and is invoked
+on the `/api/openapi.yaml` route at runtime in dev environments.
+
+**Why it's open:** Mechanical refactor across most of `OperationBuilder`'s read paths.
+
+---
+
+## OAPI-051 — Per-route reflection and config reads are not memoized
+
+**Status:** Open
+
+**Symptom:** Several extractors/resolvers do work per route that could be amortised across the
+whole generation run:
+
+- `SecurityExtractor::passportAvailable()` runs `class_exists` + three `Router::has()` lookups
+  on every call, and is called from `requirementForScopes()` per route (and again from
+  `buildSchemes()` per document).
+- `SecurityExtractor::forRoute()` re-fetches `Router::getMiddlewareGroups()` per route.
+- `ReturnTypeExtractor::genericArgument()` parses the same controller-method docblock via
+  `DocBlockFactory::create()` once per `PrimaryResponseResolver` that consults it — so a route
+  returning `DataCollection<…, FlightData>` triggers two `DocBlockFactory::create()` parses (one
+  from `PaginatorResponseResolver`, one from `DataResponseResolver`).
+
+**Cleaner shape:** Memoise each on first call (`?bool` / `?array` field for the extractors;
+keyed map for `ReturnTypeExtractor`). All three are pure functions of state that does not
+change during a generation run, and `ComponentSchemaRegistry`-style scoped lifecycle already
+handles per-run reset cleanly.
+
+**Impact:** `DocBlockFactory::create()` is genuinely expensive (full phpDocumentor parse +
+`ContextFactory` walking the file's `use` statements) — the biggest single win is memoising
+that call. The others are smaller but free.
+
+**Why it's open:** Real wins, but want profiling in hand before committing to memoisation
+strategies that interact with Octane's scoped-lifecycle reset story.
