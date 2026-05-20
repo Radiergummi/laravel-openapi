@@ -423,7 +423,6 @@ class OpenApiServiceProvider extends ServiceProvider
             static fn(Container $app) => new Plugins\SpatieData\DataResponseResolver(
                 refResolver: $app->make(DataRefSchemaResolver::class),
                 returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
-                schemaFactory: $app->make(PaginatorSchemaFactory::class),
                 logger: $app->make(LoggerInterface::class),
             ),
         );
@@ -432,9 +431,14 @@ class OpenApiServiceProvider extends ServiceProvider
     /**
      * Binds the ApiResources plugin services.
      *
-     * `SchemaFromResource` receives every ref resolver except this plugin's own
-     * `ResourceRefSchemaResolver`: it handles nested resources by direct
-     * recursion, and injecting its own resolver would form a construction cycle.
+     * `SchemaFromResource` receives a LAZY factory for the ref-resolver
+     * list — every registered ref resolver except this plugin's own
+     * `ResourceRefSchemaResolver`. Eager construction would form a
+     * cross-plugin construction cycle with `SchemaFromTransformer` (each
+     * plugin's builder lists the other plugin's resolver). Deferring resolution
+     * to first use lets the container finish constructing both sides first; the
+     * factory memoises its result with a closure-local static so repeated
+     * resolveClassRef calls don't re-walk the registry.
      */
     private function registerApiResourcesPlugin(): void
     {
@@ -443,19 +447,32 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): Plugins\ApiResources\SchemaFromResource {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                $resolvers = [];
+                /** @var Closure(): list<Core\Registry\RefSchemaResolver> $resolversFactory */
+                $resolversFactory = static function () use ($app, $registry): array {
+                    /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
+                    static $cache = null;
 
-                foreach ($registry->refSchemaResolvers() as $class) {
-                    if ($class === Plugins\ApiResources\ResourceRefSchemaResolver::class) {
-                        continue;
+                    if ($cache !== null) {
+                        return $cache;
                     }
 
-                    $resolvers[] = $app->make($class);
-                }
+                    /** @var list<Core\Registry\RefSchemaResolver> $resolvers */
+                    $resolvers = [];
+
+                    foreach ($registry->refSchemaResolvers() as $class) {
+                        if ($class === Plugins\ApiResources\ResourceRefSchemaResolver::class) {
+                            continue;
+                        }
+
+                        $resolvers[] = $app->make($class);
+                    }
+
+                    return $cache = $resolvers;
+                };
 
                 return new Plugins\ApiResources\SchemaFromResource(
                     registry: $app->make(ComponentSchemaRegistry::class),
-                    refSchemaResolvers: $resolvers,
+                    refSchemaResolvers: $resolversFactory,
                 );
             },
         );

@@ -61,20 +61,11 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
 
     private function parameter(QueryParam $attribute): OA\Parameter
     {
-        $descriptor = $attribute->descriptor();
-        $schema = new OA\Schema(['type' => 'string', ...$descriptor->toOpenApi()]);
-
-        // SchemaDescriptor::toOpenApi() omits `nullable`; apply the OAS 3.1
-        // `type: [..., 'null']` shape here so `nullable: true` widens the wire schema.
-        if ($descriptor->nullable === true) {
-            NullableSchema::applyTo($schema);
-        }
-
         $properties = [
             'name' => $attribute->name,
             'in' => 'query',
             'required' => $attribute->required,
-            'schema' => $schema,
+            'schema' => $attribute->descriptor()->toSchema(),
         ];
 
         if ($attribute->deprecated) {

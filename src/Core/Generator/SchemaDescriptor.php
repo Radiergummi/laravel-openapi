@@ -106,4 +106,23 @@ final readonly class SchemaDescriptor
             NullableSchema::applyTo($property);
         }
     }
+
+    /**
+     * Builds a standalone `OA\Schema` from this descriptor, applying the OAS 3.1
+     * `type: [..., 'null']` shape when `$this->nullable === true`.
+     *
+     * `toOpenApi()` deliberately omits `nullable`; this helper is the canonical
+     * place to apply it for callers that produce a `Schema` (parameter resolvers)
+     * rather than a `Property` ({@see applyTo()}).
+     */
+    public function toSchema(): OA\Schema
+    {
+        $schema = new OA\Schema(['type' => 'string', ...$this->toOpenApi()]);
+
+        if ($this->nullable === true) {
+            NullableSchema::applyTo($schema);
+        }
+
+        return $schema;
+    }
 }

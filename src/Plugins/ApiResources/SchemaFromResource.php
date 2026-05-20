@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
+use Closure;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
@@ -26,18 +27,22 @@ use function is_a;
  * class-level `#[ResourceField]` attributes and registers it as a component.
  *
  * Nested `JsonResource` field types recurse through {@see build()} directly;
- * other class-string field types are resolved via the injected resolver list
- * (which deliberately excludes {@see ResourceRefSchemaResolver} to avoid a
- * container construction cycle).
+ * other class-string field types resolve via the injected resolver factory — a
+ * `Closure` returning the registered resolvers minus this plugin's own
+ * {@see ResourceRefSchemaResolver}. The list is lazy by design: the eager
+ * equivalent forms a cross-plugin construction cycle with `SchemaFromTransformer`,
+ * because each plugin's own `RefSchemaResolver` references the other plugin's
+ * `SchemaFrom*` builder. Invoking the factory at use time lets the container
+ * finish constructing both sides first.
  */
 final readonly class SchemaFromResource
 {
     /**
-     * @param list<RefSchemaResolver> $refSchemaResolvers Registered ref resolvers, minus this plugin's own.
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref resolvers, minus this plugin's own.
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
-        private array $refSchemaResolvers = [],
+        private Closure $refSchemaResolvers,
     ) {}
 
     /**
@@ -125,7 +130,7 @@ final readonly class SchemaFromResource
             return $this->buildRef($class);
         }
 
-        foreach ($this->refSchemaResolvers as $resolver) {
+        foreach (($this->refSchemaResolvers)() as $resolver) {
             $ref = $resolver->resolveRef($class);
 
             if ($ref !== null) {

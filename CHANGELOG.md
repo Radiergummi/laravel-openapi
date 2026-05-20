@@ -5,6 +5,22 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `fractal.transformer-class-missing` lint rule (level 1, registered by
+  `FractalPlugin`) — flags `#[FractalResponse]` attributes that name a
+  transformer class that does not exist (typos like `BookTrnasformer::class`).
+  Surfaces during `openapi:lint` what would otherwise only appear in the
+  generation log when `FractalResponseResolver` silently drops the operation's
+  response. (OAPI-059)
+- `SchemaDescriptor::toSchema(string $defaultType = 'string')` — canonical
+  helper that builds a standalone `OA\Schema` from a descriptor and applies the
+  OAS 3.1 `type: [..., 'null']` widening (which `toOpenApi()` deliberately
+  omits). Used by `CoreQueryParameterResolver` and
+  `QueryBuilderParameterResolver`, replacing the duplicated 4-line snippet they
+  carried. (OAPI-049)
+- Feature test (`DefaultPluginsConfigTest`) asserts the shipped default
+  `config/openapi.php` `plugins` array generates a clean document — a typo in
+  either commented-out FQCN or an accidental uncomment would now fail in CI.
+  (OAPI-057)
 - `openapi.security_schemes` config map — registers OpenAPI security schemes by name. Each entry
   is passed through to swagger-php's `OA\SecurityScheme`; the map key becomes `securityScheme`.
   Entries are merged with the Passport-derived `oauth2` / `oauth2ClientCredentials` pair (emitted
@@ -65,6 +81,34 @@ All notable changes to this project are documented here.
   incomplete or invalid declarations.
 
 ### Changed
+- `PaginatorKind::fromClass()` now recognises Spatie's `PaginatedDataCollection`
+  and `CursorPaginatedDataCollection` (FQCN-matched to keep Core free of plugin
+  imports). `PaginatorResponseResolver` now claims those return types via the
+  shared `RefSchemaResolver` chain (with `DataRefSchemaResolver` already in it),
+  so `DataResponseResolver` shrank to single `Data` + non-paginating
+  `DataCollection<…, Item>`. Paginator-envelope construction now lives in one
+  place. (OAPI-048)
+- `SchemaFromResource` now takes `Closure(): list<RefSchemaResolver>` to mirror
+  the sibling `SchemaFromTransformer`; both sides of the cross-plugin
+  construction graph are lazy, closing the latent OOM tripwire for a future
+  third `SchemaFromX` + `XRefSchemaResolver` pair. (OAPI-055)
+- `FractalResponseResolver`, `ResourceResponseResolver`, and
+  `DataResponseResolver` now catch only `ReflectionException` — the documented
+  tolerable failure mode. Real bugs (`TypeError`, schema-build logic errors,
+  `Error` subclasses) now propagate so they surface in dev rather than
+  disappearing into a warning log. (OAPI-058)
+- Plugin-suite integration test (`PluginSuiteIntegrationTest`) tightened with
+  negative assertions (paginator route is not Fractal-wrapped; resource and
+  Fractal routes carry no QueryBuilder params), full Fractal envelope-shape
+  coverage (single / collection / paginated), `#[AllowedInclude]` coverage on
+  the paginator route, and an included transformer asserted to land as its own
+  component schema. (OAPI-056)
+- `composer.json` `require-dev` constraint for `league/fractal` loosened from
+  `^0.20.2` to `~0.20.2` — explicit about allowing 0.20.x patch updates without
+  claiming 0.21 forward compatibility. (OAPI-061)
+- `config/openapi.php` Fractal-plugin comment now names both triggers
+  (`league/fractal` and `spatie/laravel-fractal`) so users coming in via the
+  Spatie wrapper have a signal that they already meet the requirement. (OAPI-062)
 - PHPStan now runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a blocking CI check.
 - Document generation now skips routes whose controller class cannot be resolved at introspection time, instead of aborting the entire run with a `ReflectionException`.
 - Upgraded core dependencies to current major versions: `zircote/swagger-php` 6, `symfony/type-info` 8, and `phpdocumentor/reflection-docblock` 6.

@@ -17,7 +17,7 @@ use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Throwable;
+use ReflectionException;
 
 use function class_exists;
 use function sprintf;
@@ -69,9 +69,13 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
                 'description' => 'OK',
                 'content' => [MediaType::Json->schema($envelope)],
             ]);
-        } catch (Throwable $e) {
+        } catch (ReflectionException $e) {
+            // Tolerate reflection failures only (e.g. a transformer FQCN that class_exists
+            // declares present but fails to instantiate via ReflectionClass). Real bugs —
+            // attribute constructor TypeErrors, schema-build logic errors — propagate so
+            // they surface in dev instead of disappearing into a warning log.
             $this->logger->warning(sprintf(
-                'FractalResponseResolver failed for route %s: %s',
+                'FractalResponseResolver reflection failure for route %s: %s',
                 $descriptor->route->uri(),
                 $e->getMessage(),
             ));

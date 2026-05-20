@@ -15,16 +15,13 @@ use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
-use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
+use ReflectionException;
 use ReflectionNamedType;
-use Spatie\LaravelData\CursorPaginatedDataCollection;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
-use Spatie\LaravelData\PaginatedDataCollection;
-use Throwable;
 
 use function class_exists;
 use function is_a;
@@ -33,15 +30,20 @@ use function sprintf;
 /**
  * Resolves a Spatie Data return type into its `200 OK` response.
  *
- * Handles three cases:
+ * Handles two cases:
  * - `FlightData` (a {@see Data} subclass) → `$ref` to the Data component schema.
- * - `DataCollection<int, FlightData>` → array of `$ref`s, item class read from the
- *   `@return DataCollection<…, Item>` PHPDoc generic.
- * - `PaginatedDataCollection<int, FlightData>` / `CursorPaginatedDataCollection<…>` →
- *   the matching paginator envelope from {@see PaginatorSchemaFactory}.
+ * - `DataCollection<int, FlightData>` → array of `$ref`s, item class read from
+ *   the `@return DataCollection<…, Item>` PHPDoc generic.
  *
- * Returns null when the return type is not a Data class or container thereof, or
- * when a collection's item generic is missing — the next resolver gets a turn.
+ * Paginated Spatie collections (`PaginatedDataCollection<…>` /
+ * `CursorPaginatedDataCollection<…>`) are recognised by {@see PaginatorKind} and
+ * handled by `PaginatorResponseResolver` via the shared `RefSchemaResolver`
+ * chain (which includes {@see DataRefSchemaResolver}); this resolver returns
+ * null for them so the core resolver claims the route.
+ *
+ * Returns null when the return type is not a Data class or non-paginating
+ * collection, or when the collection's item generic is missing — the next
+ * resolver gets a turn.
  *
  * Mirror of {@see \Radiergummi\OpenApi\Plugins\ApiResources\ResourceResponseResolver}
  * for the SpatieData plugin.
@@ -51,7 +53,6 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
     public function __construct(
         private DataRefSchemaResolver $refResolver,
         private ReturnTypeExtractor $returnTypeExtractor,
-        private PaginatorSchemaFactory $schemaFactory,
         private LoggerInterface $logger,
     ) {}
 
@@ -59,9 +60,13 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
     {
         try {
             return $this->resolve($descriptor);
-        } catch (Throwable $e) {
+        } catch (ReflectionException $e) {
+            // Tolerate reflection failures only (e.g. a Data class that disappears between
+            // attribute resolution and schema build). Real bugs — attribute construction
+            // errors, schema-build logic errors — propagate so they surface in dev rather
+            // than disappearing into a warning log.
             $this->logger->warning(sprintf(
-                'DataResponseResolver failed for route %s: %s',
+                'DataResponseResolver reflection failure for route %s: %s',
                 $descriptor->route->uri(),
                 $e->getMessage(),
             ));
@@ -86,6 +91,11 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
 
         $returnClass = $returnType->getName();
 
+        // Paginated Spatie collections are claimed by PaginatorResponseResolver.
+        if (PaginatorKind::fromClass($returnClass) !== null) {
+            return null;
+        }
+
         // Single Data return type.
         if (is_a($returnClass, Data::class, allow_string: true)) {
             /** @var class-string<Data> $returnClass */
@@ -98,8 +108,8 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             return $this->response(new OA\Schema(['ref' => $ref]));
         }
 
-        // DataCollection / PaginatedDataCollection / CursorPaginatedDataCollection.
-        if (!$this->isDataContainer($returnClass)) {
+        // Non-paginating DataCollection<int, Item>.
+        if (!is_a($returnClass, DataCollection::class, allow_string: true)) {
             return null;
         }
 
@@ -124,25 +134,10 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             return null;
         }
 
-        $schema = match (true) {
-            is_a($returnClass, CursorPaginatedDataCollection::class, allow_string: true)
-                => $this->schemaFactory->envelope(PaginatorKind::Cursor, new OA\Items(['ref' => $ref])),
-            is_a($returnClass, PaginatedDataCollection::class, allow_string: true)
-                => $this->schemaFactory->envelope(PaginatorKind::LengthAware, new OA\Items(['ref' => $ref])),
-            default => new OA\Schema([
-                'type' => 'array',
-                'items' => new OA\Items(['ref' => $ref]),
-            ]),
-        };
-
-        return $this->response($schema);
-    }
-
-    private function isDataContainer(string $class): bool
-    {
-        return is_a($class, DataCollection::class, allow_string: true)
-            || is_a($class, PaginatedDataCollection::class, allow_string: true)
-            || is_a($class, CursorPaginatedDataCollection::class, allow_string: true);
+        return $this->response(new OA\Schema([
+            'type' => 'array',
+            'items' => new OA\Items(['ref' => $ref]),
+        ]));
     }
 
     private function response(OA\Schema $schema): OA\Response

@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 
 use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
@@ -85,14 +86,24 @@ beforeEach(function (): void {
         logger: new NullLogger(),
     );
 
+    $refResolver = new DataRefSchemaResolver(
+        schemaFromDataClass: $schemaFromDataClass,
+        schemaRegistry: $registry,
+    );
+
     $this->resolver = new DataResponseResolver(
-        refResolver: new DataRefSchemaResolver(
-            schemaFromDataClass: $schemaFromDataClass,
-            schemaRegistry: $registry,
-        ),
+        refResolver: $refResolver,
+        returnTypeExtractor: ReturnTypeExtractor::create(),
+        logger: new NullLogger(),
+    );
+
+    // Spatie paginator types are claimed by PaginatorResponseResolver; assertions
+    // about their envelope shape go through this resolver, not the Data one.
+    $this->paginatorResolver = new PaginatorResponseResolver(
         returnTypeExtractor: ReturnTypeExtractor::create(),
         schemaFactory: new PaginatorSchemaFactory(),
         logger: new NullLogger(),
+        refSchemaResolvers: [$refResolver],
     );
 });
 
@@ -135,15 +146,24 @@ it('emits an array schema for a DataCollection<X> return type', function (): voi
         ->and($schema->items->ref)->toBe('#/components/schemas/ScalarOnlyData');
 });
 
-it('emits a length-aware paginator envelope for PaginatedDataCollection<X>', function (): void {
-    $response = $this->resolver->resolvePrimaryResponse(dataResolverDescriptor('paginated'));
+it('returns null for PaginatedDataCollection<X> so PaginatorResponseResolver claims it', function (): void {
+    expect($this->resolver->resolvePrimaryResponse(dataResolverDescriptor('paginated')))
+        ->toBeNull();
+});
+
+it('returns null for CursorPaginatedDataCollection<X> so PaginatorResponseResolver claims it', function (): void {
+    expect($this->resolver->resolvePrimaryResponse(dataResolverDescriptor('cursorPaginated')))
+        ->toBeNull();
+});
+
+it('PaginatorResponseResolver emits a length-aware envelope for PaginatedDataCollection<X>', function (): void {
+    $response = $this->paginatorResolver->resolvePrimaryResponse(dataResolverDescriptor('paginated'));
 
     expect($response)->not->toBeNull();
 
     $schema = firstMediaSchema($response);
     expect($schema->type)->toBe('object');
 
-    // Length-aware envelope carries data, per_page, path, current_page, last_page, total, links, …
     $propertyNames = [];
 
     foreach ($schema->properties as $prop) {
@@ -157,8 +177,8 @@ it('emits a length-aware paginator envelope for PaginatedDataCollection<X>', fun
         ->and($propertyNames)->toContain('total');
 });
 
-it('emits a cursor paginator envelope for CursorPaginatedDataCollection<X>', function (): void {
-    $response = $this->resolver->resolvePrimaryResponse(dataResolverDescriptor('cursorPaginated'));
+it('PaginatorResponseResolver emits a cursor envelope for CursorPaginatedDataCollection<X>', function (): void {
+    $response = $this->paginatorResolver->resolvePrimaryResponse(dataResolverDescriptor('cursorPaginated'));
 
     expect($response)->not->toBeNull();
 

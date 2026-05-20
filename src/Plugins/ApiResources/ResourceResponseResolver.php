@@ -16,7 +16,7 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Throwable;
+use ReflectionException;
 
 use function sprintf;
 
@@ -58,9 +58,13 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
                 'description' => 'OK',
                 'content' => [MediaType::Json->schema($envelope)],
             ]);
-        } catch (Throwable $e) {
+        } catch (ReflectionException $e) {
+            // Tolerate reflection failures only (e.g. a resource class that disappears between
+            // locator resolution and schema build). Real bugs — attribute construction errors,
+            // schema-build logic errors — propagate so they surface in dev rather than
+            // disappearing into a warning log.
             $this->logger->warning(sprintf(
-                'ResourceResponseResolver failed for route %s: %s',
+                'ResourceResponseResolver reflection failure for route %s: %s',
                 $descriptor->route->uri(),
                 $e->getMessage(),
             ));

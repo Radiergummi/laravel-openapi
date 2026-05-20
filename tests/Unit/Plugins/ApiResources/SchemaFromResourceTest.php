@@ -35,7 +35,7 @@ class SchemaNonResourceModel {}
 
 it('builds an object schema from #[ResourceField] attributes', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = (new SchemaFromResource($registry, []))->build(SchemaProjectResource::class);
+    $key = (new SchemaFromResource($registry, static fn(): array => []))->build(SchemaProjectResource::class);
 
     $schema = null;
 
@@ -54,7 +54,7 @@ it('builds an object schema from #[ResourceField] attributes', function (): void
 
 it('omits conditional fields from required', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = (new SchemaFromResource($registry, []))->build(SchemaProjectResource::class);
+    $key = (new SchemaFromResource($registry, static fn(): array => []))->build(SchemaProjectResource::class);
 
     $schema = null;
 
@@ -70,7 +70,7 @@ it('omits conditional fields from required', function (): void {
 
 it('emits a $ref for a nested resource and registers it', function (): void {
     $registry = new ComponentSchemaRegistry();
-    (new SchemaFromResource($registry, []))->build(SchemaProjectResource::class);
+    (new SchemaFromResource($registry, static fn(): array => []))->build(SchemaProjectResource::class);
 
     $keys = array_map(static fn(OA\Schema $s): string => $s->schema, $registry->all());
     expect($keys)->toContain('SchemaOwnerResource');
@@ -88,7 +88,7 @@ it('resolves a non-resource field type via an injected RefSchemaResolver', funct
         }
     };
 
-    $key = (new SchemaFromResource($registry, [$stub]))->build(SchemaWithExternalRefResource::class);
+    $key = (new SchemaFromResource($registry, static fn(): array => [$stub]))->build(SchemaWithExternalRefResource::class);
 
     $schema = null;
 

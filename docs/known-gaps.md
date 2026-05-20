@@ -17,13 +17,21 @@ welcome.
 | [OAPI-045](#oapi-045--security-default-scheme-resolution-privileges-passport) | `#[Security]` default scheme resolution privileges Passport | Open |
 | [OAPI-046](#oapi-046--responseheader-cannot-be-declared-at-class-level) | `#[ResponseHeader]` cannot be declared at class level | Open |
 | [OAPI-047](#oapi-047--skippassportroutes-lacks-the-constructor--fromconfig-shape-of-its-siblings) | `SkipPassportRoutes` lacks the constructor + `fromConfig()` shape of its siblings | Open |
-| [OAPI-048](#oapi-048--dataresponseresolver-duplicates-paginator-envelope-logic-from-paginatorresponseresolver) | `DataResponseResolver` duplicates paginator-envelope logic from `PaginatorResponseResolver` | Open |
-| [OAPI-049](#oapi-049--corequeryparameterresolver-and-querybuilderparameterresolver-duplicate-schema-build-code) | `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code | Open |
+| [OAPI-048](#oapi-048--dataresponseresolver-duplicates-paginator-envelope-logic-from-paginatorresponseresolver) | `DataResponseResolver` duplicates paginator-envelope logic from `PaginatorResponseResolver` | Closed |
+| [OAPI-049](#oapi-049--corequeryparameterresolver-and-querybuilderparameterresolver-duplicate-schema-build-code) | `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code | Closed |
 | [OAPI-050](#oapi-050--operationbuilder-issues-many-getattributesclass-calls-per-route) | `OperationBuilder` issues many `getAttributes($class)` calls per route | Open |
 | [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Open |
 | [OAPI-052](#oapi-052--fractal-serializer-assumed-to-be-dataarrayserializer) | Fractal serializer assumed to be `DataArraySerializer` | Open |
 | [OAPI-053](#oapi-053--fractalresponse-unbound-does-not-detect-fractal-helper-or-facade-usage) | `fractal.response-unbound` does not detect `fractal()` helper / facade usage | Open |
 | [OAPI-054](#oapi-054--lint-rules-do-not-share-reflection-results-within-a-walk) | Lint rules do not share reflection results within a walk | Open |
+| [OAPI-055](#oapi-055--schemafromresource-still-uses-the-eager-ref-resolver-array) | `SchemaFromResource` still uses the eager ref-resolver array | Closed |
+| [OAPI-056](#oapi-056--plugin-suite-capstone-is-a-shallow-smoke-test) | Plugin-suite capstone is a shallow smoke test | Closed |
+| [OAPI-057](#oapi-057--no-test-exercises-the-shipped-default-plugins-array) | No test exercises the shipped default `plugins` array | Closed |
+| [OAPI-058](#oapi-058--plugin-response-resolvers-silently-degrade-on-any-throwable) | Plugin response resolvers silently degrade on any `Throwable` | Closed |
+| [OAPI-059](#oapi-059--no-lint-rule-for-fractalresponse-naming-a-missing-transformer-class) | No lint rule for `#[FractalResponse]` naming a missing transformer class | Closed |
+| [OAPI-060](#oapi-060--conservative-plugin-lint-rules-ship-at-default-level-despite-known-blind-spots) | Conservative plugin lint rules ship at default level despite known blind spots | Open |
+| [OAPI-061](#oapi-061--leaguefractal-constraint-over-pinned-to-0202) | `league/fractal` constraint over-pinned to `^0.20.2` | Closed |
+| [OAPI-062](#oapi-062--disabled-plugin-comments-in-configopenapiphp-name-only-one-suggested-package) | Disabled-plugin comments in `config/openapi.php` name only one suggested package | Closed |
 
 ---
 
@@ -285,53 +293,31 @@ behaviour.
 
 ## OAPI-048 — `DataResponseResolver` duplicates paginator-envelope logic from `PaginatorResponseResolver`
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `src/Plugins/SpatieData/DataResponseResolver.php` (~156 lines) re-implements
-paginator-envelope construction that already lives in
-`src/Core/Extractors/PaginatorResponseResolver.php`. Specifically, the
-`PaginatedDataCollection` / `CursorPaginatedDataCollection` branches build the same
-length-aware / cursor envelopes that `PaginatorKind::fromClass()` + `PaginatorSchemaFactory`
-build for Laravel's native paginators.
-
-**Cleaner shape:** Teach `PaginatorKind::fromClass()` to recognise Spatie's two paginator
-collection classes; the existing `PaginatorResponseResolver` then handles both flavours via the
-shared `RefSchemaResolver` infrastructure (which Spatie already integrates with via
-`DataRefSchemaResolver`). `DataResponseResolver` shrinks to ~30 lines handling only single
-`Data` and non-paginating `DataCollection<…, Item>` — the two cases the core resolver cannot
-cover.
-
-**Impact:** Maintenance cost — paginator-envelope fixes have to be applied in two places.
-
-**Why it's open:** Refactor opportunity; no functional defect.
+**Resolved in:** the `feature/plugin-suite` branch. `PaginatorKind::fromClass()` now
+recognises Spatie's `PaginatedDataCollection` and `CursorPaginatedDataCollection`
+(matched by FQCN string to keep Core free of plugin imports — both delegate
+`toArray()` to the underlying Laravel paginator with `Data`-transformed items,
+so the envelope shape is identical). `PaginatorResponseResolver` now claims
+those return types via the shared `RefSchemaResolver` chain (which
+`DataRefSchemaResolver` already participates in). `DataResponseResolver` shrank
+to single `Data` + non-paginating `DataCollection<…, Item>` — it now returns
+`null` for paginated Spatie collections so the core resolver claims them.
 
 ---
 
 ## OAPI-049 — `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** Both resolvers run the same four-line sequence to build an `OA\Schema` from a
-`FieldAttribute`'s descriptor:
-
-```php
-$descriptor = $attribute->descriptor();
-$schema = new OA\Schema(['type' => 'string', ...$descriptor->toOpenApi()]);
-if ($descriptor->nullable === true) {
-    NullableSchema::applyTo($schema);
-}
-```
-
-The same explanatory comment about `SchemaDescriptor::toOpenApi()` omitting `nullable` is
-copy-pasted in both files. Extracting a static helper on `SchemaDescriptor` (e.g.
-`SchemaDescriptor::toSchema(string $defaultType = 'string'): OA\Schema`) would let both
-resolvers share the snippet.
-
-**Impact:** Small. The duplication is mechanical and the rest of each resolver shapes a
-different parameter (`name=foo` vs `filter[foo]`, single vs list-with-enum), so consolidation
-beyond this helper isn't warranted.
-
-**Why it's open:** Refactor opportunity.
+**Resolved in:** the `feature/plugin-suite` branch. `SchemaDescriptor` now exposes
+`toSchema(string $defaultType = 'string'): OA\Schema` — the canonical place to
+build a standalone `OA\Schema` from a descriptor, including the `nullable` →
+OAS 3.1 `type: [..., 'null']` widening that `toOpenApi()` deliberately omits.
+Both `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` now call
+`$attribute->descriptor()->toSchema()` and have shed the duplicated 4-line
+sequence plus the explanatory comment.
 
 ---
 
@@ -469,3 +455,141 @@ isolation creates inconsistency without moving the aggregate cost meaningfully.
 **Why it's open:** Cross-cutting refactor that pairs naturally with OAPI-050 and OAPI-051.
 Deferred until those are scheduled, so the cache shape can be designed once and shared by
 `OperationBuilder`, extractors, and lint rules.
+
+---
+
+## OAPI-055 — `SchemaFromResource` still uses the eager ref-resolver array
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch. `SchemaFromResource` now
+takes `Closure(): list<RefSchemaResolver>` mirroring the sibling
+`SchemaFromTransformer`, and `registerApiResourcesPlugin()` wraps the registry
+walk in a memoised closure — same shape as the Fractal binding. Both sides of
+the construction graph are lazy now, so the cycle the program-tracker decision
+mitigated is closed against future plugins that ship a `SchemaFromX` +
+`XRefSchemaResolver` pair referencing either existing builder.
+
+---
+
+## OAPI-056 — Plugin-suite capstone is a shallow smoke test
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch. The capstone now carries
+five focused scenarios with negative assertions:
+
+- The paginator route is verified to use the *core* flat envelope (`data`,
+  `total`, `per_page`, `current_page`) and to *not* carry Fractal's
+  `meta.pagination` shape.
+- The resource and Fractal routes are now individually asserted to carry no
+  `filter[*]` / `sort` / `include` parameters — catching any QueryBuilder
+  bleed onto sibling operations.
+- `#[AllowedInclude(['owner'])]` is now exercised on the paginator route and
+  asserted in `parameters[].name`.
+- The Fractal route now covers all three envelope shapes: single (`{data: $ref}`,
+  no array type on `data`), collection (`{data: [..], no meta}`), and paginated
+  (`{data: [..], meta: {pagination: …}}`).
+- The fixture's `SuiteWidget` carries typed `id: int` / `name: string`, the
+  resource has a proper `toArray()`, and an additional included transformer
+  (`SuiteOwnerTransformer`) is asserted to land in `components.schemas` to
+  exercise the cross-transformer ref chain.
+
+---
+
+## OAPI-057 — No test exercises the shipped default `plugins` array
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch.
+`tests/Feature/Plugins/DefaultPluginsConfigTest.php` calls
+`app(OpenApiGenerator::class)->generate()` without touching
+`config('openapi.plugins')`, first asserting the live config matches the
+shipped `config/openapi.php` `plugins` array. Two controller methods carrying
+`#[AllowedFilter]` and `#[FractalResponse]` respectively are then asserted to
+*not* produce QueryBuilder query parameters or a Fractal `data` envelope — so
+a typo in either commented-out FQCN or an accidental uncomment would fail the
+test.
+
+---
+
+## OAPI-058 — Plugin response resolvers silently degrade on any `Throwable`
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch. `FractalResponseResolver`,
+`ResourceResponseResolver`, and `DataResponseResolver` now catch only
+`ReflectionException` — the documented tolerable failure mode (a class that
+disappears between attribute resolution and schema build). Real bugs
+(`TypeError` from a malformed attribute constructor, schema-build logic
+errors, `Error` subclasses) now propagate so they surface in dev rather than
+disappearing into a warning log. The warning message was updated to mention
+"reflection failure" specifically so the surfaced log line reflects what was
+caught.
+
+---
+
+## OAPI-059 — No lint rule for `#[FractalResponse]` naming a missing transformer class
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch. The new
+`fractal.transformer-class-missing` rule (level 1, registered by
+`FractalPlugin::register()`) walks every operation's `#[FractalResponse]`
+attribute and emits a finding when `class_exists($transformer)` returns false.
+Typos like `BookTrnasformer::class` now surface during `openapi:lint` instead
+of just disappearing into the generation-log warning that
+`FractalResponseResolver` already produced.
+
+---
+
+## OAPI-060 — Conservative plugin lint rules ship at default level despite known blind spots
+
+**Status:** Open
+
+**Symptom:** `fractal.response-unbound` (level 1) and `query-builder.params-undeclared`
+(level 2) both detect their target by reflecting an *injected* `Manager` / `QueryBuilder`
+constructor parameter (decision #4; OAPI-053). The dominant patterns in Laravel codebases —
+`fractal(...)` helper, `Spatie\Fractalistic\Fractal` facade, `QueryBuilder::for($model)` in the
+method body — do not inject either type, so neither rule fires.
+
+Both rules ship at or below the default `lint.level => 1`. A user running `openapi:lint` on a
+Fractal-heavy codebase sees zero findings from `fractal.response-unbound` and reasonably
+concludes the linter is endorsing the (entirely undocumented) Fractal output.
+
+**Impact:** Silent endorsement of undocumented endpoints in the very codebases the plugins
+target. The rule descriptions document the blind spot, but description text is not surfaced
+during a normal lint run.
+
+**Workaround:** Read the rule's `description()` before trusting silence; declare
+`#[FractalResponse]` / `#[Allowed*]` on every Fractal/QueryBuilder endpoint regardless of
+whether the lint pass complained.
+
+**Why it's open:** Three reasonable resolutions, none obviously correct: (a) downgrade both
+rules to a level below the shipped default so users opt in explicitly; (b) reword the rule
+description into a `description()` line surfaced in lint output when the rule produces zero
+findings; (c) accept the trade-off as documented and rely on user education. Needs a deliberate
+decision rather than a quiet code change.
+
+---
+
+## OAPI-061 — `league/fractal` constraint over-pinned to `^0.20.2`
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch. `composer.json` now lists
+`"league/fractal": "~0.20.2"` under `require-dev` — explicit about the intent
+to allow 0.20.x patch updates without claiming forward compatibility with a
+future 0.21 release.
+
+---
+
+## OAPI-062 — Disabled-plugin comments in `config/openapi.php` name only one suggested package
+
+**Status:** Closed
+
+**Resolved in:** the `feature/plugin-suite` branch. The Fractal-plugin comment
+in `config/openapi.php` now names both triggers — `league/fractal` and
+`spatie/laravel-fractal` (which depends on `league/fractal`) — so a user who
+has the Spatie wrapper installed has a signal from the config alone that they
+already meet the requirement.

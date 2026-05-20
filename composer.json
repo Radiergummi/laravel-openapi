@@ -18,19 +18,19 @@
         "opis/json-schema": "^2.6.0",
         "phpdocumentor/reflection-docblock": "^6.0.3",
         "spatie/laravel-data": "^4.23.0",
-        "symfony/type-info": "^v8.0.9",
+        "symfony/type-info": "^8.0.9",
         "zircote/swagger-php": "^6.1.2"
     },
     "require-dev": {
         "larastan/larastan": "^v3.9.6",
-        "laravel/passport": "^v13.7.5",
-        "laravel/pint": "^v1.29.1",
-        "league/fractal": "^0.20.2",
+        "laravel/passport": "^13.7.5",
+        "laravel/pint": "^1.29.1",
+        "league/fractal": "~0.20.2",
         "orchestra/testbench": "^10.0 || ^11.0",
         "pestphp/pest": "^3.8.0 || ^4.7.0",
         "pestphp/pest-plugin-laravel": "^3.2.0 || ^4.1.0",
-        "spatie/laravel-fractal": "^6.4",
-        "spatie/laravel-query-builder": "^7.3"
+        "spatie/laravel-fractal": "^6.4.0",
+        "spatie/laravel-query-builder": "^7.3.0"
     },
     "suggest": {
         "laravel/passport": "Enables OAuth scope-coverage validation in `openapi:lint` (^13.0).",

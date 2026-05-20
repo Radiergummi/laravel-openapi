@@ -8,6 +8,8 @@ use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
+use Spatie\LaravelData\CursorPaginatedDataCollection;
+use Spatie\LaravelData\PaginatedDataCollection;
 use stdClass;
 
 it('detects a length-aware paginator', function (): void {
@@ -22,6 +24,16 @@ it('detects a simple paginator', function (): void {
 
 it('detects a cursor paginator', function (): void {
     expect(PaginatorKind::fromClass(CursorPaginator::class))
+        ->toBe(PaginatorKind::Cursor);
+});
+
+it('detects a Spatie PaginatedDataCollection as length-aware', function (): void {
+    expect(PaginatorKind::fromClass(PaginatedDataCollection::class))
+        ->toBe(PaginatorKind::LengthAware);
+});
+
+it('detects a Spatie CursorPaginatedDataCollection as cursor', function (): void {
+    expect(PaginatorKind::fromClass(CursorPaginatedDataCollection::class))
         ->toBe(PaginatorKind::Cursor);
 });
 

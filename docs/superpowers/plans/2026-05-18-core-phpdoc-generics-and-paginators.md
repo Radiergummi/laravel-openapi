@@ -1,5 +1,7 @@
 # Core PHPDoc Generics & Paginator Response Resolver — Implementation Plan
 
+> **Read first:** `docs/superpowers/plans/plugin-suite-program.md` — the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Teach the OpenAPI core to document Laravel paginator return types (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) as the flat schema Laravel actually serializes, resolving the paginated item type from a `#[ResponseResource]` attribute or a `@return Paginator<Item>` PHPDoc generic.
@@ -12,7 +14,7 @@
 
 ## Conventions every task must follow
 
-- Every new PHP file starts with `<?php`, a blank line, `declare(strict_types=1);`, a blank line, then the MIT/copyright docblock header copied verbatim from any existing `src/` file (e.g. the header block of `src/Core/Generator/JsonSchemaFromType.php`), then the `namespace`.
+- Every new PHP file starts with `<?php`, a blank line, the MIT/copyright docblock header copied verbatim from any existing `src/` file (the block in `src/Core/Generator/OperationBuilder.php` lines 3-8), a blank line, `declare(strict_types=1);`, a blank line, then the `namespace`. (219 of 225 `src/` files carry this header — it is the convention.)
 - Run `composer test` (full Pest suite) and `vendor/bin/pint` before every commit. Pint must report no violations; the suite must be green.
 - Commit messages: imperative mood, `feat:` / `test:` / `docs:` prefix, and the trailer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
 - Work happens on the existing branch `feature/plugin-suite`.

@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalDuplicateKey;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMissing;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;
+use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalTransformerClassMissing;
 
 /**
  * Teaches the OpenAPI core to document `league/fractal` transformer responses.
@@ -31,5 +32,6 @@ final class FractalPlugin implements Plugin
         $registry->addRule(FractalFieldsUndeclared::class);
         $registry->addRule(FractalIncludeTransformerMissing::class);
         $registry->addRule(FractalDuplicateKey::class);
+        $registry->addRule(FractalTransformerClassMissing::class);
     }
 }

@@ -25,7 +25,7 @@ function makeResourceRefResolver(): ResourceRefSchemaResolver
 {
     $registry = new ComponentSchemaRegistry();
 
-    return new ResourceRefSchemaResolver(new SchemaFromResource($registry, []));
+    return new ResourceRefSchemaResolver(new SchemaFromResource($registry, static fn(): array => []));
 }
 
 it('resolves a JsonResource subclass to a components ref', function (): void {

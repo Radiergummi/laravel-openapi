@@ -15,16 +15,16 @@ Laravel 12 or 13.
 composer test                    # Pest suite (no coverage), via Orchestra Testbench
 composer lint                    # Laravel Pint — reports style violations
 vendor/bin/pint                  # Pint — apply style fixes
-composer analyse                 # PHPStan / Larastan, level 6
+composer analyse                 # PHPStan / Larastan, level 8
 
 vendor/bin/pest tests/Feature/Oapi024Test.php          # single test file
 vendor/bin/pest --filter "substring of test name"      # single test by name
 ```
 
 The suite runs on Testbench — no host Laravel app is needed. CI matrix is PHP 8.4/8.5 ×
-Laravel 12/13; a PR is mergeable when `tests` is green and Pint reports no violations. PHPStan
-is **non-blocking in CI** and has a known pre-existing backlog — don't add new findings, but
-clearing the backlog is out of scope for routine changes.
+Laravel 12/13; a PR is mergeable when `tests` is green, Pint reports no violations, and PHPStan
+passes. PHPStan runs at level 8 with `treatPhpDocTypesAsCertain: false` and is **CI-blocking** —
+`composer analyse` must report no errors.
 
 ## Architecture
 
