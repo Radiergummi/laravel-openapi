@@ -72,6 +72,7 @@ The built-in plugins:
 | **SpatieData** | `Plugins\SpatieData\SpatieDataPlugin` | `DataClassRequestSchemaResolver`, `DataRefSchemaResolver`, `Data::class` as a payload base, lint rules: `field.attribute-wrong-scope` (level 1), `multipart.file-without-multipart` (level 1) |
 | **ApiResources** | `Plugins\ApiResources\ApiResourcesPlugin` | `ResourceResponseResolver`, `ResourceRefSchemaResolver`, lint rules: `resource.fields-undeclared` (level 1), `resource.field-type-missing` (level 2), `resource.response-ambiguous` (level 1) |
 | **QueryBuilder** (opt-in) | `Plugins\QueryBuilder\QueryBuilderPlugin` | `QueryBuilderParameterResolver`, lint rules: `query-builder.params-undeclared` (level 2), `query-builder.filter-type-missing` (level 3) |
+| **Fractal** (opt-in) | `Plugins\Fractal\FractalPlugin` | `FractalResponseResolver`, `TransformerRefSchemaResolver`, lint rules: `fractal.response-unbound` (level 1), `fractal.fields-undeclared` (level 1), `fractal.include-transformer-missing` (level 2), `fractal.duplicate-key` (level 1) |
 
 Plugins are listed in `config/openapi.plugins` and resolved from the container. `CoreRegistration`
 runs first (registering `FormRequestRequestSchemaResolver` and all core lint rules), then each
@@ -487,6 +488,52 @@ Each `#[AllowedFilter]` becomes one `filter[name]` query parameter; `#[AllowedSo
 `include` the same way. A method that injects `QueryBuilder` but declares none of the three
 triggers `query-builder.params-undeclared` (level 2); an `#[AllowedFilter]` without a `type`
 triggers `query-builder.filter-type-missing` (level 3).
+
+### Document `league/fractal` transformer responses
+
+The `FractalPlugin` is shipped disabled. Enable it in two steps:
+
+1. `composer require league/fractal` (the package itself).
+2. Uncomment the `FractalPlugin::class` entry under `plugins` in `config/openapi.php`.
+
+Declare each transformer's output keys on the transformer class with repeatable
+`#[TransformerField]` attributes; declare `availableIncludes` / `defaultIncludes` entries with
+`#[TransformerInclude]`. Bind each endpoint to its transformer with a method-level
+`#[FractalResponse]`:
+
+```php
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
+use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
+
+#[TransformerField('id', type: 'integer')]
+#[TransformerField('title', type: 'string', maxLength: 120)]
+#[TransformerInclude('author', transformer: AuthorTransformer::class, default: true)]
+final class BookTransformer extends TransformerAbstract { … }
+
+#[FractalResponse(transformer: BookTransformer::class)]                    // {data}
+public function show(): JsonResponse { … }
+
+#[FractalResponse(transformer: BookTransformer::class, collection: true)]  // {data: [...]}
+public function index(): JsonResponse { … }
+
+#[FractalResponse(transformer: BookTransformer::class, paginated: true)]   // {data: [...], meta.pagination}
+public function paginated(): JsonResponse { … }
+```
+
+The envelope shapes model Fractal's default `DataArraySerializer` plus
+`IlluminatePaginatorAdapter` — other serializers (`JsonApiSerializer`, custom) produce different
+shapes and are not modelled (see OAPI-052 in `docs/known-gaps.md`); use `#[Response]` to override
+the schema for those endpoints.
+
+Four lint rules report incomplete or invalid declarations: a transformer with no
+`#[TransformerField]` triggers `fractal.fields-undeclared` (level 1); a `#[TransformerInclude]`
+with no `transformer:` triggers `fractal.include-transformer-missing` (level 2); a transformer
+that declares the same key in more than one attribute triggers `fractal.duplicate-key` (level 1);
+and a method that injects `League\Fractal\Manager` but declares no `#[FractalResponse]` triggers
+`fractal.response-unbound` (level 1). The last rule only fires for `Manager`-injected methods —
+not for the `fractal()` helper or `Spatie\Fractalistic\Fractal` facade used inside method bodies,
+because the generator does not read method bodies (OAPI-017 / OAPI-053).
 
 ### Programmatic hook points
 

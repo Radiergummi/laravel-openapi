@@ -53,6 +53,16 @@ All notable changes to this project are documented here.
   parameters with `#[AllowedFilter]`, `#[AllowedSort]`, and `#[AllowedInclude]`.
   Two lint rules (`query-builder.params-undeclared`,
   `query-builder.filter-type-missing`) report incomplete declarations.
+- `league/fractal` transformer responses are now documented via the optional
+  `FractalPlugin` (shipped disabled — uncomment it in `config/openapi.php` after
+  installing the package). Transformers declare output keys with
+  `#[TransformerField]` and includes with `#[TransformerInclude]`; endpoints bind
+  to a transformer with `#[FractalResponse]`, which accepts `collection: true`
+  for a flat collection and `paginated: true` for a paginated one (envelope
+  includes `meta.pagination` matching Fractal's `IlluminatePaginatorAdapter`).
+  Four lint rules (`fractal.response-unbound`, `fractal.fields-undeclared`,
+  `fractal.include-transformer-missing`, `fractal.duplicate-key`) report
+  incomplete or invalid declarations.
 
 ### Changed
 - PHPStan now runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a blocking CI check.

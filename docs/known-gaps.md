@@ -21,6 +21,8 @@ welcome.
 | [OAPI-049](#oapi-049--corequeryparameterresolver-and-querybuilderparameterresolver-duplicate-schema-build-code) | `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code | Open |
 | [OAPI-050](#oapi-050--operationbuilder-issues-many-getattributesclass-calls-per-route) | `OperationBuilder` issues many `getAttributes($class)` calls per route | Open |
 | [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Open |
+| [OAPI-052](#oapi-052--fractal-serializer-assumed-to-be-dataarrayserializer) | Fractal serializer assumed to be `DataArraySerializer` | Open |
+| [OAPI-053](#oapi-053--fractalresponse-unbound-does-not-detect-fractal-helper-or-facade-usage) | `fractal.response-unbound` does not detect `fractal()` helper / facade usage | Open |
 
 ---
 
@@ -73,6 +75,15 @@ body. Detection for the `query-builder.params-undeclared` lint rule is conservat
 an injected `Spatie\QueryBuilder\QueryBuilder` parameter (matched by FQCN string, no package
 load required) rather than guessing intent from method bodies. The common
 `QueryBuilder::for(...)` pattern that does not inject the builder is therefore not flagged.
+
+**Fractal:** the optional `FractalPlugin` derives the response shape from class-level
+`#[TransformerField]` / `#[TransformerInclude]` attributes on the transformer and a method-level
+`#[FractalResponse]` binding on the endpoint — not from the transformer's `transform()` method
+body or from `Manager`/`fractal()` calls in the controller body. The detection in
+`fractal.response-unbound` is conservative for the same reason as QueryBuilder's: it keys off an
+injected `League\Fractal\Manager` parameter (FQCN-string match, no package load required) and
+does not flag the `fractal()` helper or `Spatie\Fractalistic\Fractal` facade usage inside method
+bodies. See OAPI-053.
 
 ---
 
@@ -373,3 +384,45 @@ that call. The others are smaller but free.
 
 **Why it's open:** Real wins, but want profiling in hand before committing to memoisation
 strategies that interact with Octane's scoped-lifecycle reset story.
+
+---
+
+## OAPI-052 — Fractal serializer assumed to be `DataArraySerializer`
+
+**Status:** Open
+
+**Symptom:** `FractalPlugin`'s response envelopes — `{data}` for a single item, `{data: [...]}`
+for a flat collection, and `{data: [...], meta: {pagination: {…}}}` for a paginated one — model
+Fractal's default `League\Fractal\Serializer\DataArraySerializer` plus its
+`IlluminatePaginatorAdapter` shape. Other serializers (`JsonApiSerializer`, `ArraySerializer`,
+custom serializers) produce different envelope shapes (`{data, included}`,
+top-level arrays, etc.) and are not modelled by the plugin. The generated document will not
+match the runtime output for endpoints using them.
+
+**Workaround:** Use `#[Response]` on the affected endpoints to declare the actual response
+schema explicitly. The `#[Response]` schema takes precedence over `FractalResponseResolver`.
+
+**Why it's open:** Modelling additional serializers requires either a per-endpoint declaration
+(another attribute) or per-plugin configuration; both are sensible additions but neither is
+required for the dominant `DataArraySerializer` case. Deferred until there is real demand from
+codebases using a non-default serializer.
+
+---
+
+## OAPI-053 — `fractal.response-unbound` does not detect `fractal()` helper or facade usage
+
+**Status:** Open
+
+**Symptom:** The `fractal.response-unbound` lint rule keys off an injected
+`League\Fractal\Manager` parameter (a body-free signal — see OAPI-017). It does not flag methods
+that produce Fractal output via the `fractal()` helper or the `Spatie\Fractalistic\Fractal`
+facade, both of which are invoked inside the method body without injecting a `Manager`
+parameter. Endpoints written that way will silently produce undocumented Fractal output.
+
+**Workaround:** Declare `#[FractalResponse]` on those endpoints explicitly. Once declared, the
+plugin emits the response envelope normally regardless of how the runtime Fractal call is made.
+
+**Why it's open:** Detecting the helper or facade requires reading method bodies, which is
+forbidden under OAPI-017. The narrow `Manager`-parameter signal is the conservative escape
+from the trade-off — accepted misses over false positives — and is documented in the rule's
+`description()` so users do not read silence as endorsement.
