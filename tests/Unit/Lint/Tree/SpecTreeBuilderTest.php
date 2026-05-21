@@ -517,3 +517,128 @@ it('FieldNode pointer for a nested field includes properties/ at each level (Bug
         ->toContain('properties/street')
         ->toEndWith('/properties/address/properties/street');
 });
+
+/**
+ * Helper — build an OA\Schema from a simple shape so the allOf tests can stay terse.
+ *
+ * @param list<OA\Property|OA\Schema> $properties
+ * @param list<string>                $required
+ * @param list<OA\Schema>             $allOf
+ */
+function makeOAComponentSchema(
+    string $name,
+    array $properties = [],
+    array $required = [],
+    array $allOf = [],
+): OA\Schema {
+    $context = new Context();
+
+    $schema = new OA\Schema(['_context' => $context]);
+    $schema->schema = $name;
+    $schema->description = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+    $schema->properties = $properties !== [] ? $properties : Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+    $schema->required = $required !== [] ? $required : Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+    $schema->allOf = $allOf !== [] ? $allOf : Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+
+    return $schema;
+}
+
+function makeOAProperty(string $name, string $type): OA\Property
+{
+    $context = new Context();
+
+    $property = new OA\Property(['_context' => $context]);
+    $property->property = $name;
+    $property->type = $type;
+    $property->nullable = false;
+
+    return $property;
+}
+
+function makeOARef(string $componentName): OA\Schema
+{
+    $branch = new OA\Schema(['_context' => new Context()]);
+    $branch->ref = '#/components/schemas/' . $componentName;
+
+    return $branch;
+}
+
+function buildSpecWithComponents(OA\Schema ...$schemas): OA\OpenApi
+{
+    $spec = makeMinimalSpec();
+    $components = new OA\Components(['_context' => new Context()]);
+    $components->schemas = $schemas;
+    $spec->components = $components;
+
+    return $spec;
+}
+
+it('merges allOf-inherited properties via a $ref branch into FieldNodes', function (): void {
+    $base = makeOAComponentSchema(
+        name: 'Base',
+        properties: [makeOAProperty('id', 'integer')],
+        required: ['id'],
+    );
+    $user = makeOAComponentSchema(
+        name: 'User',
+        properties: [makeOAProperty('name', 'string')],
+        required: ['name'],
+        allOf: [makeOARef('Base'), makeOAComponentSchema(name: '_inline')],
+    );
+
+    $api = (new SpecTreeBuilder())->build(buildSpecWithComponents($base, $user), []);
+    $userNode = $api->components[1];
+
+    $names = array_map(static fn(FieldNode $f): string => $f->name, $userNode->fields);
+
+    expect($names)->toBe(['id', 'name'])
+        ->and($userNode->fields[0]->required)->toBeTrue()
+        ->and($userNode->fields[1]->required)->toBeTrue();
+});
+
+it('merges allOf-inherited properties from an inline branch', function (): void {
+    $extra = makeOAComponentSchema(
+        name: 'WithInline',
+        properties: [makeOAProperty('local', 'string')],
+        required: [],
+        allOf: [
+            makeOAComponentSchema(
+                name: '_inlineExtra',
+                properties: [makeOAProperty('inherited', 'integer')],
+                required: ['inherited'],
+            ),
+        ],
+    );
+
+    $api = (new SpecTreeBuilder())->build(buildSpecWithComponents($extra), []);
+    $node = $api->components[0];
+
+    $names = array_map(static fn(FieldNode $f): string => $f->name, $node->fields);
+
+    expect($names)->toBe(['inherited', 'local'])
+        ->and($node->fields[0]->required)->toBeTrue()
+        ->and($node->fields[1]->required)->toBeFalse();
+});
+
+it('breaks cycles in allOf $ref chains without infinite recursion', function (): void {
+    $a = makeOAComponentSchema(
+        name: 'A',
+        properties: [makeOAProperty('aProp', 'string')],
+        allOf: [makeOARef('B')],
+    );
+    $b = makeOAComponentSchema(
+        name: 'B',
+        properties: [makeOAProperty('bProp', 'string')],
+        allOf: [makeOARef('A')],
+    );
+
+    $api = (new SpecTreeBuilder())->build(buildSpecWithComponents($a, $b), []);
+    $aNode = $api->components[0];
+
+    $names = array_map(static fn(FieldNode $f): string => $f->name, $aNode->fields);
+
+    // Both properties land on A — the local one and B's local one inherited via allOf.
+    // The chain stops before re-entering A through B's allOf back-reference.
+    expect($names)->toContain('aProp')
+        ->and($names)->toContain('bProp');
+});

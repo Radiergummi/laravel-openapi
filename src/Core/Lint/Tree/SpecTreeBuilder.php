@@ -17,6 +17,8 @@ use OpenApi\Generator;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
 use function array_map;
+use function array_unique;
+use function array_values;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -44,12 +46,23 @@ final class SpecTreeBuilder
     ];
 
     /**
+     * Component schemas indexed by name — populated at the start of {@see build()} so
+     * {@see buildFields()} can resolve `allOf: [{$ref: …}]` branches to the underlying
+     * properties.
+     *
+     * @var array<string, OA\Schema>
+     */
+    private array $componentSchemaIndex = [];
+
+    /**
      * Build the domain tree from an OpenAPI spec and action descriptors.
      *
      * @param list<ActionDescriptor> $actionDescriptors
      */
     public function build(OA\OpenApi $spec, array $actionDescriptors): ApiNode
     {
+        $this->componentSchemaIndex = $this->indexComponentSchemas($spec);
+
         $descriptorIndex = $this->buildDescriptorIndex($actionDescriptors);
         $operations = $this->buildOperations($spec, $descriptorIndex);
         $components = $this->buildComponents($spec);
@@ -540,41 +553,42 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Recursively build field nodes from JSON Schema properties (inline schemas only).
+     * Recursively build field nodes from JSON Schema properties.
+     *
+     * Resolves `allOf` composition: a schema written as
+     * `allOf: [{$ref: '#/components/schemas/Base'}, {properties: {…}}]`
+     * exposes both the inherited properties from the `$ref` branch and any
+     * properties declared on the local schema. The `required` list is merged
+     * the same way. `oneOf` / `anyOf` are intentionally left untouched —
+     * they represent alternatives, not composition. Cycles in the `$ref`
+     * graph (`A`'s `allOf` references `B` whose `allOf` references `A`) are
+     * broken with a visited-set guard keyed by component name; the local
+     * declarations on each visited schema still contribute, but the chain
+     * stops as soon as the same component is encountered a second time.
+     *
+     * @param array<string, true> $visited Component names already merged in
+     *                                     the current resolution chain.
      *
      * @return list<FieldNode>
      *
      * @throws LogicException
      */
-    private function buildFields(?OA\Schema $schema): array
+    private function buildFields(?OA\Schema $schema, array $visited = []): array
     {
         // @phpstan-ignore-next-line identical.alwaysFalse
         if ($schema === null || $schema === Generator::UNDEFINED) {
             return [];
         }
 
-        $properties = $schema->properties;
+        [$properties, $required] = $this->collectComposedProperties($schema, $visited);
 
-        if (!is_array($properties)) {
+        if ($properties === []) {
             return [];
         }
 
-        $required = $schema->required !== Generator::UNDEFINED && is_array($schema->required)
-            ? $schema->required
-            : [];
-
         $fields = [];
 
-        foreach ($properties as $property) {
-            if ($property === Generator::UNDEFINED) {
-                continue;
-            }
-
-            $name
-                = $property->property !== Generator::UNDEFINED
-                ? $property->property
-                : '(unknown)';
-
+        foreach ($properties as $name => $property) {
             $children = $this->buildFields($property);
             $examples = $this->buildExamplesFromSchema($property);
 
@@ -608,6 +622,138 @@ final class SpecTreeBuilder
         }
 
         return $fields;
+    }
+
+    /**
+     * Collect the merged `(name => Property, list<string> required)` pair for a schema,
+     * walking each `allOf` branch and following `$ref`s into the component-schema index
+     * with a cycle guard.
+     *
+     * Property collisions resolve to the inline declaration on the schema being walked
+     * — local declarations override allOf-inherited ones (last-writer-wins via array
+     * merge order). The `required` list is unioned.
+     *
+     * @param array<string, true> $visited
+     *
+     * @return array{0: array<string, OA\Property>, 1: list<string>}
+     */
+    private function collectComposedProperties(OA\Schema $schema, array $visited): array
+    {
+        /** @var array<string, OA\Property> $properties */
+        $properties = [];
+        $required = [];
+
+        $allOf = $schema->allOf;
+
+        if (is_array($allOf)) {
+            foreach ($allOf as $branch) {
+                // @phpstan-ignore-next-line identical.alwaysFalse
+                if (!$branch instanceof OA\Schema || $branch === Generator::UNDEFINED) {
+                    continue;
+                }
+
+                $ref = $this->extractRef($branch);
+
+                if ($ref !== null) {
+                    if (isset($visited[$ref])) {
+                        continue;
+                    }
+
+                    $target = $this->componentSchemaIndex[$ref] ?? null;
+
+                    if ($target === null) {
+                        continue;
+                    }
+
+                    [$inherited, $branchRequired] = $this->collectComposedProperties(
+                        $target,
+                        [...$visited, $ref => true],
+                    );
+
+                    foreach ($inherited as $name => $property) {
+                        $properties[$name] = $property;
+                    }
+
+                    foreach ($branchRequired as $name) {
+                        $required[] = $name;
+                    }
+
+                    continue;
+                }
+
+                [$inherited, $branchRequired] = $this->collectComposedProperties($branch, $visited);
+
+                foreach ($inherited as $name => $property) {
+                    $properties[$name] = $property;
+                }
+
+                foreach ($branchRequired as $name) {
+                    $required[] = $name;
+                }
+            }
+        }
+
+        $localProperties = $schema->properties;
+
+        if (is_array($localProperties)) {
+            foreach ($localProperties as $property) {
+                // @phpstan-ignore-next-line identical.alwaysFalse
+                if (!$property instanceof OA\Property || $property === Generator::UNDEFINED) {
+                    continue;
+                }
+
+                $name = $property->property !== Generator::UNDEFINED
+                    ? $property->property
+                    : '(unknown)';
+
+                $properties[$name] = $property;
+            }
+        }
+
+        if ($schema->required !== Generator::UNDEFINED && is_array($schema->required)) {
+            foreach ($schema->required as $name) {
+                $required[] = $name;
+            }
+        }
+
+        return [$properties, array_values(array_unique($required))];
+    }
+
+    /**
+     * @return array<string, OA\Schema>
+     */
+    private function indexComponentSchemas(OA\OpenApi $spec): array
+    {
+        $components = $spec->components;
+
+        if ($components === Generator::UNDEFINED || $components === null) {
+            return [];
+        }
+
+        $schemas = $components->schemas;
+
+        if ($schemas === Generator::UNDEFINED || !is_array($schemas)) {
+            return [];
+        }
+
+        $index = [];
+
+        foreach ($schemas as $schema) {
+            if (
+                // @phpstan-ignore-next-line identical.alwaysFalse
+                !$schema instanceof OA\Schema || $schema === Generator::UNDEFINED
+            ) {
+                continue;
+            }
+
+            if ($schema->schema === Generator::UNDEFINED) {
+                continue;
+            }
+
+            $index[$schema->schema] = $schema;
+        }
+
+        return $index;
     }
 
     /**
