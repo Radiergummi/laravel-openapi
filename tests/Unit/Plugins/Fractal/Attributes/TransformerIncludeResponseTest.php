@@ -11,10 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Attributes;
 
-use Attribute;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use ReflectionClass;
 use stdClass;
 
 it('stores an include name, transformer, and default flag', function (): void {
@@ -44,12 +42,4 @@ it('flags a paginated response', function (): void {
     $response = new FractalResponse(transformer: stdClass::class, paginated: true);
 
     expect($response->paginated)->toBeTrue();
-});
-
-it('targets methods only', function (): void {
-    $attribute = (new ReflectionClass(FractalResponse::class))
-        ->getAttributes(Attribute::class)[0]->newInstance();
-
-    expect($attribute->flags & Attribute::TARGET_METHOD)->toBe(Attribute::TARGET_METHOD)
-        ->and($attribute->flags & Attribute::TARGET_FUNCTION)->toBe(0);
 });

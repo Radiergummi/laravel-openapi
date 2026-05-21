@@ -14,21 +14,6 @@ use Radiergummi\OpenApi\Core\Generator\SchemaDescriptor;
 
 uses()->group('openapi');
 
-it('stores name, required, and deprecated as top-level fields', function (): void {
-    $attr = new QueryParam('q', required: true, deprecated: true);
-
-    expect($attr->name)->toBe('q')
-        ->and($attr->required)->toBeTrue()
-        ->and($attr->deprecated)->toBeTrue();
-});
-
-it('defaults required and deprecated to false', function (): void {
-    $attr = new QueryParam('q');
-
-    expect($attr->required)->toBeFalse()
-        ->and($attr->deprecated)->toBeFalse();
-});
-
 it('descriptor() returns a SchemaDescriptor with schema fields', function (): void {
     $attr = new QueryParam(
         'limit',

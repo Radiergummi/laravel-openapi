@@ -68,16 +68,20 @@ or name-keyed lookups.
 
 ### 2.3. Low-value tests — delete or rewrite
 
-- [ ] **PHP attribute target reflection.** Reflecting `#[Attribute]` flags to
-  assert on `Attribute::TARGET_*` tests PHP itself, not the package:
-  `tests/Unit/Attributes/ResponseFieldTest.php:42-45`,
-  `tests/Unit/Plugins/ApiResources/Attributes/ResourceFieldTest.php:33-38`, and
-  the matching Fractal/QueryBuilder attribute tests.
-- [ ] **Trivial property echo.** Construct an object, assert its readonly
-  properties round-trip — language behaviour, not package behaviour:
-  `tests/Unit/QueryParamTest.php:17-30`,
-  `tests/Unit/Attributes/PathParamTest.php`,
-  `tests/Unit/Attributes/DeprecatedTest.php`, parts of `ResponseFieldTest`.
+- [x] **PHP attribute target reflection.** Removed the `TARGET_*` / `IS_REPEATABLE`
+  reflection cases from `ResponseFieldTest`, `RequestFieldTest`,
+  `ResponseHeaderTest`, `ResourceFieldTest`, `TransformerFieldTest`,
+  `TransformerIncludeResponseTest`, `AllowedFilterTest` (and the matching ones
+  in the deleted attribute tests below). Unused `Attribute` / `ReflectionClass`
+  imports cleaned up where they were the only consumers.
+- [x] **Trivial property echo.** Deleted `tests/Unit/Attributes/PathParamTest.php`
+  and `tests/Unit/Attributes/DeprecatedTest.php` outright (all three / three
+  cases were FieldAttribute-passthrough echoes, target reflection, or
+  language-feature checks — `PathParam` descriptor enrichment is covered via
+  `UriParametersExtractorTest`; `Deprecated` is covered via `DeprecatedFieldTest`
+  and the lint rules). Removed the first two cases from `QueryParamTest`
+  (lines 17-30) and the `exposes the conditional flag` echo from
+  `ResponseFieldTest`.
 
 ### 2.4. Hardcoded fixture paths
 

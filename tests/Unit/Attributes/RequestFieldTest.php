@@ -40,12 +40,3 @@ it('omits null fields from toOpenApi()', function (): void {
 
     expect($output)->toBe(['description' => 'Only a description.']);
 });
-
-it('targets properties, parameters, and class constants', function (): void {
-    $flags = (new ReflectionClass(RequestField::class))
-        ->getAttributes(Attribute::class)[0]->newInstance()->flags;
-
-    expect($flags)->toBe(
-        Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER | Attribute::TARGET_CLASS_CONSTANT,
-    );
-});

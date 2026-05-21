@@ -32,15 +32,3 @@ it('maps schema parameters onto the descriptor', function (): void {
         ->and($descriptor->readOnly)->toBeTrue()
         ->and($descriptor->writeOnly)->toBeNull();
 });
-
-it('exposes the conditional flag', function (): void {
-    expect((new ResponseField(conditional: true))->conditional)->toBeTrue()
-        ->and((new ResponseField())->conditional)->toBeFalse();
-});
-
-it('targets class constants and properties', function (): void {
-    $flags = (new ReflectionClass(ResponseField::class))
-        ->getAttributes(Attribute::class)[0]->newInstance()->flags;
-
-    expect($flags)->toBe(Attribute::TARGET_CLASS_CONSTANT | Attribute::TARGET_PROPERTY);
-});
