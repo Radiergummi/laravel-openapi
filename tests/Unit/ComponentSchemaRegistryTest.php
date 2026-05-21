@@ -21,9 +21,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Registry\Qux\Bar\CreateData as QuxBarCrea
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Key derivation — no-collision cases
-// ---------------------------------------------------------------------------
+// region Key derivation — no-collision cases
 
 it('uses the bare basename when no collision exists', function (): void {
     $registry = new ComponentSchemaRegistry();
@@ -42,9 +40,9 @@ it('reuses the same key on repeated calls for the same class', function (): void
     expect($first)->toBe($second);
 });
 
-// ---------------------------------------------------------------------------
-// Key derivation — two-class collision
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Key derivation — two-class collision
 
 it('disambiguates two classes with the same basename using the nearest non-generic ancestor', function (): void {
     $registry = new ComponentSchemaRegistry();
@@ -70,9 +68,9 @@ it('skips generic namespace segments (Data, Domain) when disambiguating', functi
         ->and($keyA)->not->toBe($keyB);
 });
 
-// ---------------------------------------------------------------------------
-// Key derivation — three-class collision (OAPI-037 acceptance criterion)
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Key derivation — three-class collision (OAPI-037 acceptance criterion)
 
 it('produces distinct keys for three classes sharing a basename and immediate ancestor', function (): void {
     // All three share basename 'CreateData' and immediate ancestor 'Bar',
@@ -103,9 +101,9 @@ it('uses readable namespace prefixes for the three-class collision', function ()
         ->and($keyQux)->toBe('Qux.Bar.CreateData');
 });
 
-// ---------------------------------------------------------------------------
-// keyFor / has round-trip
-// ---------------------------------------------------------------------------
+// endregion
+
+// region keyFor / has round-trip
 
 it('returns the same key via keyFor() after reserveKey()', function (): void {
     $registry = new ComponentSchemaRegistry();
@@ -123,9 +121,9 @@ it('returns null from keyFor() for a class that has not been reserved', function
         ->and($registry->isRegisteredOrReserved(ProjectsCreateData::class))->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// Hash fallback — all namespace segments are generic (empty prefix)
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Hash fallback — all namespace segments are generic (empty prefix)
 
 it('produces a valid (no leading dot) key when all namespace segments are generic', function (): void {
     // Two synthetic FQCNs whose only namespace segments are 'Data' and 'Domain' — both
@@ -145,9 +143,9 @@ it('produces a valid (no leading dot) key when all namespace segments are generi
         ->and($keyA)->not->toBe($keyB);
 });
 
-// ---------------------------------------------------------------------------
-// reset()
-// ---------------------------------------------------------------------------
+// endregion
+
+// region reset()
 
 it('clears all keys after reset()', function (): void {
     $registry = new ComponentSchemaRegistry();
@@ -158,3 +156,5 @@ it('clears all keys after reset()', function (): void {
     expect($registry->isRegisteredOrReserved(ProjectsCreateData::class))->toBeFalse()
         ->and($registry->keyFor(ProjectsCreateData::class))->toBeNull();
 });
+
+// endregion

@@ -28,9 +28,7 @@ beforeEach(function (): void {
     );
 });
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// region Helpers
 
 /**
  * @return array<string, OA\Property>
@@ -52,9 +50,9 @@ function formRequestPropertiesByName(OA\Schema $schema): array
     return $out;
 }
 
-// ---------------------------------------------------------------------------
-// Basic schema building
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Basic schema building
 
 it('builds properties from FormRequest rules', function (): void {
     $this->builder->build(SimpleFormRequest::class);
@@ -109,9 +107,9 @@ it('marks nullable fields using OAS 3.1 type array (Bug 1: no nullable keyword)'
     expect($props['note']->type)->toBe(['string', 'null']);
 });
 
-// ---------------------------------------------------------------------------
-// #[RequestField] constant overrides
-// ---------------------------------------------------------------------------
+// endregion
+
+// region #[RequestField] constant overrides
 
 it('merges RequestField attribute from PARAM_* constant onto the property', function (): void {
     $this->builder->build(SimpleFormRequest::class);
@@ -125,9 +123,9 @@ it('merges RequestField attribute from PARAM_* constant onto the property', func
         ->and($props['url']->format)->toBe('uri');
 });
 
-// ---------------------------------------------------------------------------
-// File detection
-// ---------------------------------------------------------------------------
+// endregion
+
+// region File detection
 
 it('returns false from hasFileFields when no file rules present', function (): void {
     expect($this->builder->hasFileFields(SimpleFormRequest::class))->toBeFalse();
@@ -147,9 +145,9 @@ it('builds file field with type=string and format=binary', function (): void {
         ->and($props['attachment']->format)->toBe('binary');
 });
 
-// ---------------------------------------------------------------------------
-// Error resilience
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Error resilience
 
 it('registers a placeholder schema and logs a warning when rules() throws', function (): void {
     Log::shouldReceive('warning')
@@ -173,9 +171,9 @@ it('registers a placeholder schema and logs a warning when rules() throws', func
         ->and($schemas[0]->description)->toContain('Schema introspection failed');
 });
 
-// ---------------------------------------------------------------------------
-// Idempotency
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Idempotency
 
 it('does not double-register when build is called twice', function (): void {
     $this->builder->build(SimpleFormRequest::class);
@@ -191,9 +189,9 @@ it('returns a $ref schema on the second call', function (): void {
     expect($ref->ref)->toContain('#/components/schemas/');
 });
 
-// ---------------------------------------------------------------------------
-// Array items — wildcard rules populate OA\Items on the parent property
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Array items — wildcard rules populate OA\Items on the parent property
 
 it('attaches OA\Items from foo.* rules to the parent array property', function (): void {
     $request = new class () extends FormRequest {
@@ -258,3 +256,5 @@ it('attaches a fallback OA\Items to a nullable array property (Bug 1: OAS 3.1 on
     expect($arrayBranch->items)->toBeInstanceOf(OA\Items::class)
         ->and($nullBranch)->not->toBeNull();
 });
+
+// endregion

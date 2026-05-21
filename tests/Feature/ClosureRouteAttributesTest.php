@@ -32,9 +32,7 @@ beforeEach(function (): void {
     $this->spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 });
 
-// ---------------------------------------------------------------------------
-// #[Hide] on a closure
-// ---------------------------------------------------------------------------
+// region #[Hide] on a closure
 
 it('excludes a closure route carrying bare #[Hide] from the spec', function (): void {
     Route::get('/closure/hidden', #[Hide] static fn(): array => []);
@@ -63,9 +61,9 @@ it('excludes an env-scoped #[Hide] closure when the current environment matches'
     expect($spec['paths'])->not->toHaveKey('/closure/env-hidden');
 });
 
-// ---------------------------------------------------------------------------
-// #[Operation] on a closure
-// ---------------------------------------------------------------------------
+// endregion
+
+// region #[Operation] on a closure
 
 it('picks up the summary from a #[Operation] attribute on a closure', function (): void {
     $operation = $this->spec['paths']['/closure/visible']['get'];
@@ -73,9 +71,9 @@ it('picks up the summary from a #[Operation] attribute on a closure', function (
     expect($operation['summary'])->toBe('Closure summary override');
 });
 
-// ---------------------------------------------------------------------------
-// #[Response] on a closure
-// ---------------------------------------------------------------------------
+// endregion
+
+// region #[Response] on a closure
 
 it('picks up a #[Response] attribute declared on a closure', function (): void {
     Route::post('/closure/created', #[Response(status: 201, description: 'Created')] static fn(): array => []);
@@ -89,9 +87,9 @@ it('picks up a #[Response] attribute declared on a closure', function (): void {
         ->and($responses)->not->toHaveKey('200');
 });
 
-// ---------------------------------------------------------------------------
-// Docblock summary on a closure
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Docblock summary on a closure
 
 it('picks up the docblock summary from a closure route', function (): void {
     /**
@@ -107,3 +105,5 @@ it('picks up the docblock summary from a closure route', function (): void {
 
     expect($operation['summary'])->toBe('Returns the SPA shell.');
 });
+
+// endregion

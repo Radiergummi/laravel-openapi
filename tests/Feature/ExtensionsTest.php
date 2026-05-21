@@ -23,9 +23,7 @@ use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// A minimal Data class whose schema we can track through transformers.
-// ---------------------------------------------------------------------------
+// region A minimal Data class whose schema we can track through transformers.
 class ExtensionsFixtureData extends Data
 {
     public function __construct(
@@ -33,9 +31,9 @@ class ExtensionsFixtureData extends Data
     ) {}
 }
 
-// ---------------------------------------------------------------------------
-// Minimal fixture controller
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Minimal fixture controller
 class ExtensionsFixtureController
 {
     public function postAction(ExtensionsFixtureData $input): array
@@ -60,9 +58,9 @@ afterEach(function (): void {
     OpenApiExtensions::flush();
 });
 
-// ---------------------------------------------------------------------------
-// Operation transformer
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Operation transformer
 
 it('invokes a registered operation transformer for each assembled operation', function (): void {
     $seen = [];
@@ -127,9 +125,9 @@ it('passes the correct controller class and method name in the operation context
         ->and($seen['method'])->toBe('postAction');
 });
 
-// ---------------------------------------------------------------------------
-// Schema transformer
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Schema transformer
 
 it('invokes a registered schema transformer for each component schema', function (): void {
     $seenKeys = [];
@@ -200,9 +198,9 @@ it('passes null sourceClass for named schemas', function (): void {
         ->and($namedCtx->sourceClass)->toBeNull();
 });
 
-// ---------------------------------------------------------------------------
-// Document transformer
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Document transformer
 
 it('invokes a registered document transformer exactly once', function (): void {
     $callCount = 0;
@@ -230,9 +228,9 @@ it('allows a document transformer to mutate the document', function (): void {
     expect($spec['info']['title'])->toBe('Title set by transformer');
 });
 
-// ---------------------------------------------------------------------------
-// Multiple transformers — all are called, in registration order
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Multiple transformers — all are called, in registration order
 
 it('runs multiple operation transformers in registration order', function (): void {
     $log = [];
@@ -258,9 +256,9 @@ it('runs multiple operation transformers in registration order', function (): vo
     expect($log)->toBe(['first', 'second']);
 });
 
-// ---------------------------------------------------------------------------
-// flush() isolates registrations between test runs
-// ---------------------------------------------------------------------------
+// endregion
+
+// region flush() isolates registrations between test runs
 
 it('flush() removes all registered transformers', function (): void {
     $called = false;
@@ -277,3 +275,5 @@ it('flush() removes all registered transformers', function (): void {
 
     expect($called)->toBeFalse();
 });
+
+// endregion

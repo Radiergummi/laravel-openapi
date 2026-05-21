@@ -164,9 +164,7 @@ it('emits no findings for non-deprecated operations', function (): void {
     expect($findings)->toBe([]);
 });
 
-// ---------------------------------------------------------------------------
-// Bug 8: x-sunset OAS extension satisfies the requirement
-// ---------------------------------------------------------------------------
+// region Bug 8: x-sunset OAS extension satisfies the requirement
 
 it('emits no findings when deprecated operation has a non-empty x-sunset extension (Bug 8)', function (): void {
     $rule = new DeprecatedNoSunsetDate();
@@ -227,3 +225,5 @@ it('still emits a finding when x-sunset extension is an empty string (Bug 8)', f
 
     expect($findings)->toHaveCount(1);
 });
+
+// endregion

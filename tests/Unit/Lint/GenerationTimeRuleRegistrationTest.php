@@ -33,9 +33,7 @@ function buildRegistry(): RuleRegistry
     ]);
 }
 
-// ---------------------------------------------------------------------------
-// Known IDs — generation-time core findings
-// ---------------------------------------------------------------------------
+// region Known IDs — generation-time core findings
 
 it('registers request.empty in knownIds', function (): void {
     expect(buildRegistry()->knownIds())->toContain('request.empty');
@@ -49,9 +47,9 @@ it('registers rule.unknown in knownIds', function (): void {
     expect(buildRegistry()->knownIds())->toContain('rule.unknown');
 });
 
-// ---------------------------------------------------------------------------
-// All core generation-time IDs present in a single knownIds() call
-// ---------------------------------------------------------------------------
+// endregion
+
+// region All core generation-time IDs present in a single knownIds() call
 
 it('contains all core generation-time IDs in knownIds', function (): void {
     $ids = buildRegistry()->knownIds();
@@ -62,9 +60,9 @@ it('contains all core generation-time IDs in knownIds', function (): void {
         ->toContain('rule.unknown');
 });
 
-// ---------------------------------------------------------------------------
-// Severity override integration — registry can remap generation-time findings
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Severity override integration — registry can remap generation-time findings
 
 it('severity override applies to request.empty', function (): void {
     $registry = new RuleRegistry(
@@ -76,3 +74,5 @@ it('severity override applies to request.empty', function (): void {
     // the caller's fallback.
     expect($registry->effectiveLevelFor('request.empty', 0))->toBe(2);
 });
+
+// endregion

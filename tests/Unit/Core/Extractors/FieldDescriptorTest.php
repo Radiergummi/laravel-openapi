@@ -20,9 +20,7 @@ function isUndefined(mixed $value): bool
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Bug 6: nullable object — properties/additionalProperties/required migration
-// ---------------------------------------------------------------------------
+// region Bug 6: nullable object — properties/additionalProperties/required migration
 
 it('wraps a nullable object with properties into oneOf, migrating properties (Bug 6)', function (): void {
     $descriptor = new FieldDescriptor();
@@ -125,3 +123,5 @@ it('nullable scalar widens type array without oneOf wrapping', function (): void
     expect($target->type)->toBe(['string', 'null'])
         ->and($target->oneOf)->toBe(Generator::UNDEFINED);
 });
+
+// endregion

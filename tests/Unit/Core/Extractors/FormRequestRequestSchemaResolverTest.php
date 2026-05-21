@@ -27,9 +27,7 @@ use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// region Helpers
 
 function makeFormRequestResolver(): FormRequestRequestSchemaResolver
 {
@@ -51,9 +49,9 @@ function makeFormRequestDescriptor(string $class, string $methodName): ActionDes
     return ActionDescriptorFactory::forControllerMethod($class, $methodName, 'test', ['POST']);
 }
 
-// ---------------------------------------------------------------------------
-// Happy path — FormRequest present
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Happy path — FormRequest present
 
 it('returns a ResolvedSchema when the action type-hints a FormRequest', function (): void {
     $resolver   = makeFormRequestResolver();
@@ -113,9 +111,9 @@ it('registers the FormRequest schema in the component registry', function (): vo
     expect($registry->isRegisteredOrReserved(FileUploadFormRequest::class))->toBeTrue();
 });
 
-// ---------------------------------------------------------------------------
-// Null cases — no FormRequest on the action
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Null cases — no FormRequest on the action
 
 it('returns null when the action has no FormRequest parameter', function (): void {
     $resolver   = makeFormRequestResolver();
@@ -140,3 +138,5 @@ it('returns null when the ActionDescriptor has no method', function (): void {
 
     expect($result)->toBeNull();
 });
+
+// endregion

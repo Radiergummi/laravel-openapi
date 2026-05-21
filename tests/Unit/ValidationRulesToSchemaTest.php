@@ -61,9 +61,7 @@ function field(ValidationRulesToSchema $mapper, string|array $rules): FieldDescr
     return $result['fields']['field'];
 }
 
-// ---------------------------------------------------------------------------
-// required / optional
-// ---------------------------------------------------------------------------
+// region required / optional
 
 it('sets required=true for the bare required rule', function (): void {
     $d = field($this->mapper, 'required');
@@ -123,9 +121,9 @@ it('sets required=true but NOT nullable for present rule (OAPI-007)', function (
         ->and($d->nullable)->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// Type mapping
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Type mapping
 
 it('maps string rule to type=string', function (): void {
     expect(field($this->mapper, 'string')->type)->toBe('string');
@@ -159,9 +157,9 @@ it('maps array rule to type=array', function (): void {
     expect(field($this->mapper, 'array')->type)->toBe('array');
 });
 
-// ---------------------------------------------------------------------------
-// Format mapping
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Format mapping
 
 it('maps email rule to format=email', function (): void {
     $d = field($this->mapper, 'email');
@@ -239,9 +237,9 @@ it('maps ISO-8601 date_format to format=date-time (OAPI-006)', function (): void
     expect($d->format)->toBe('date-time');
 });
 
-// ---------------------------------------------------------------------------
-// File rules
-// ---------------------------------------------------------------------------
+// endregion
+
+// region File rules
 
 it('maps file rule to type=string, format=binary, isFile=true', function (): void {
     $d = field($this->mapper, 'file');
@@ -259,9 +257,9 @@ it('maps image rule to type=string, format=binary, isFile=true', function (): vo
         ->and($d->isFile)->toBeTrue();
 });
 
-// ---------------------------------------------------------------------------
-// min / max — string context (default)
-// ---------------------------------------------------------------------------
+// endregion
+
+// region min / max — string context (default)
 
 it('maps max:N on string type to maxLength', function (): void {
     $d = field($this->mapper, 'string|max:250');
@@ -296,9 +294,9 @@ it('maps min/max on array type to minItems/maxItems', function (): void {
         ->and($d->maxItems)->toBe(5);
 });
 
-// ---------------------------------------------------------------------------
-// between / size
-// ---------------------------------------------------------------------------
+// endregion
+
+// region between / size
 
 it('maps between:a,b to min and max', function (): void {
     $d = field($this->mapper, 'string|between:5,20');
@@ -314,9 +312,9 @@ it('maps size:N to minLength=maxLength=N for strings', function (): void {
         ->and($d->maxLength)->toBe(10);
 });
 
-// ---------------------------------------------------------------------------
-// digits / digits_between
-// ---------------------------------------------------------------------------
+// endregion
+
+// region digits / digits_between
 
 it('maps digits:N to type=string and pattern (Bug 4: digits allows leading zeros)', function (): void {
     $d = field($this->mapper, 'digits:6');
@@ -332,9 +330,9 @@ it('maps digits_between:a,b to type=string and pattern (Bug 4: digits allows lea
         ->and($d->pattern)->toBe('^\\d{4,8}$');
 });
 
-// ---------------------------------------------------------------------------
-// regex
-// ---------------------------------------------------------------------------
+// endregion
+
+// region regex
 
 it('strips slash delimiters from regex rule', function (): void {
     $d = field($this->mapper, 'regex:/^[a-z]+$/i');
@@ -363,10 +361,9 @@ it('silently drops a bare regex rule with no colon (bug: strpos false cast to 0 
     expect($d->pattern)->toBeNull();
 });
 
+// endregion
 
-// ---------------------------------------------------------------------------
-// in
-// ---------------------------------------------------------------------------
+// region in
 
 it('maps in:a,b,c to enum', function (): void {
     $d = field($this->mapper, 'in:draft,published,archived');
@@ -430,9 +427,9 @@ it('preserves comma- and quote-containing values from a Rule::in() object', func
     expect($d->enum)->toBe(['a,b', 'say "hi"', 'c']);
 });
 
-// ---------------------------------------------------------------------------
-// Type inference from in: / Rule::in() / Rule::enum() value sets
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Type inference from in: / Rule::in() / Rule::enum() value sets
 
 it('infers type=integer from an all-integer in: value set', function (): void {
     expect(field($this->mapper, 'in:20,50')->type)->toBe('integer');
@@ -454,9 +451,9 @@ it('does not override an explicit type rule with in: type inference', function (
     expect(field($this->mapper, 'string|in:1,2,3')->type)->toBe('string');
 });
 
-// ---------------------------------------------------------------------------
-// Rule::enum() — OAPI-002 / OAPI-005
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Rule::enum() — OAPI-002 / OAPI-005
 
 it('maps Rule::enum() of a string-backed enum to type=string + enum values', function (): void {
     $d = field($this->mapper, [new Enum(StringBackedFixtureEnum::class)]);
@@ -493,9 +490,9 @@ it('honors except() on Rule::enum()', function (): void {
     expect($d->enum)->toBe(['draft', 'published']);
 });
 
-// ---------------------------------------------------------------------------
-// Rule-order independence — OAPI-004
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Rule-order independence — OAPI-004
 
 it('routes min/max to minItems/maxItems when array is declared AFTER (OAPI-004)', function (): void {
     $d = field($this->mapper, ['min:1', 'max:5', 'array']);
@@ -547,9 +544,9 @@ it('maps size:N on numeric type to minimum=maximum=N (bug: was emitting minLengt
         ->and($d->maxLength)->toBeNull();
 });
 
-// ---------------------------------------------------------------------------
-// String vs array form
-// ---------------------------------------------------------------------------
+// endregion
+
+// region String vs array form
 
 it('accepts pipe-separated string form', function (): void {
     $d = field($this->mapper, 'required|string|max:100');
@@ -567,9 +564,9 @@ it('accepts array form with same results', function (): void {
         ->and($d->maxLength)->toBe(100);
 });
 
-// ---------------------------------------------------------------------------
-// Dotted keys
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Dotted keys
 
 it('skips dotted keys and sets hasDottedKeys=true', function (): void {
     $result = $this->mapper->process([
@@ -588,9 +585,9 @@ it('leaves hasDottedKeys=false when no dotted rules present', function (): void 
     expect($result['hasDottedKeys'])->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// Unknown rules are ignored silently
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Unknown rules are ignored silently
 
 it('ignores unknown rules without throwing', function (): void {
     $d = field($this->mapper, 'string|custom_rule|another_unknown:arg');
@@ -598,9 +595,9 @@ it('ignores unknown rules without throwing', function (): void {
     expect($d->type)->toBe('string');
 });
 
-// ---------------------------------------------------------------------------
-// normaliseIndexedPaths
-// ---------------------------------------------------------------------------
+// endregion
+
+// region normaliseIndexedPaths
 
 it('normalises a single numeric segment to *', function (): void {
     $result = $this->mapper->normaliseIndexedPaths(['tags.0' => ['string']]);
@@ -660,9 +657,9 @@ it('does not throw when a colliding path carries a Closure rule', function (): v
     expect($result)->toHaveKey('tags.*');
 });
 
-// ---------------------------------------------------------------------------
-// Password rule object (OAPI-030)
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Password rule object (OAPI-030)
 
 it('maps Password::min(8) to type=string, format=password, minLength=8', function (): void {
     $d = field($this->mapper, [Password::min(8)]);
@@ -711,15 +708,15 @@ it('emits no description when Password has no character-class requirements', fun
     expect($d->description)->toBeNull();
 });
 
-// ---------------------------------------------------------------------------
-// File / ImageFile rule object
-//
+// endregion
+
+// region File / ImageFile rule object
+
 // File and ImageFile expose no public accessor and no __toString(); their
 // mimetype/size/dimension constraints live in protected state. Extraction
 // consumes only the public `instanceof` marker (the field is a binary upload)
 // and deliberately does NOT reflect into framework internals — so no
 // description is produced for File-level constraints.
-// ---------------------------------------------------------------------------
 
 it('maps File::types([pdf,docx]) to type=string, format=binary, isFile=true', function (): void {
     $d = field($this->mapper, [File::types(['pdf', 'docx'])]);
@@ -759,9 +756,9 @@ it('does not extract a description from an ImageFile rule with embedded dimensio
     expect($d->description)->toBeNull();
 });
 
-// ---------------------------------------------------------------------------
-// Dimensions rule object standalone (OAPI-030)
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Dimensions rule object standalone (OAPI-030)
 
 it('maps standalone Dimensions rule to type=string, format=binary, isFile=true', function (): void {
     $d = field($this->mapper, [(new Dimensions())->width(100)->height(100)]);
@@ -783,3 +780,5 @@ it('maps Dimensions::ratio() to a description mentioning aspect ratio', function
 
     expect($d->description)->toContain('aspect ratio');
 });
+
+// endregion

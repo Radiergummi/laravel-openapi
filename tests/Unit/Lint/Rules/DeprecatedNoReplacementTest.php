@@ -179,9 +179,7 @@ it('emits no findings for non-deprecated operations', function (): void {
     expect($findings)->toBe([]);
 });
 
-// ---------------------------------------------------------------------------
-// Bug 8: x-replacement OAS extension satisfies the requirement
-// ---------------------------------------------------------------------------
+// region Bug 8: x-replacement OAS extension satisfies the requirement
 
 it('emits no findings when deprecated operation has a non-empty x-replacement extension (Bug 8)', function (): void {
     $rule = new DeprecatedNoReplacement();
@@ -242,3 +240,5 @@ it('still emits a finding when x-replacement extension is an empty string (Bug 8
 
     expect($findings)->toHaveCount(1);
 });
+
+// endregion

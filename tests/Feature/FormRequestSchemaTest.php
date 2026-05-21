@@ -19,9 +19,7 @@ use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// region Helpers
 
 /**
  * Extracts the component schema name from a JSON Reference string such as
@@ -32,9 +30,9 @@ function schemaNameFromRef(string $ref): string
     return basename(str_replace('#/components/schemas/', '', $ref));
 }
 
-// ---------------------------------------------------------------------------
-// RemoteMediaRequest — application/json body
-// ---------------------------------------------------------------------------
+// endregion
+
+// region RemoteMediaRequest — application/json body
 
 it('emits request body properties from RemoteMediaRequest rules', function (): void {
     Route::post('/oa-fixture/remote-media', [RemoteMediaFixtureController::class, 'store']);
@@ -80,9 +78,9 @@ it('applies maxLength:2048 to the url field from RemoteMediaRequest', function (
         ->and($urlProp['type'])->toBe('string');
 });
 
-// ---------------------------------------------------------------------------
-// FileUploadFormRequest — multipart/form-data body
-// ---------------------------------------------------------------------------
+// endregion
+
+// region FileUploadFormRequest — multipart/form-data body
 
 it('emits multipart/form-data when FormRequest has a file rule', function (): void {
     Route::post('/oa-fixture/file-upload', [FileUploadFixtureController::class, 'upload']);
@@ -107,3 +105,5 @@ it('emits file field as type=string format=binary in multipart schema', function
     expect($attachment['type'])->toBe('string')
         ->and($attachment['format'])->toBe('binary');
 });
+
+// endregion

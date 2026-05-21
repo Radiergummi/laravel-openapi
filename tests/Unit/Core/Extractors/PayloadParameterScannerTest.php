@@ -14,9 +14,7 @@ use Spatie\LaravelData\Data;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Small fixture classes — no framework dependencies needed
-// ---------------------------------------------------------------------------
+// region Small fixture classes — no framework dependencies needed
 
 /**
  * A generic indirection wrapper (stand-in for a Domain Action base class).
@@ -131,9 +129,9 @@ final class ScannerFixtureControllerNoConstructorAction
     public function store(ScannerFixtureIndirectionNoConstructor $action): void {}
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Tests
 
 it('returns the class-string of a direct named-type parameter', function (): void {
     $scanner = new PayloadParameterScanner();
@@ -226,3 +224,5 @@ it('ignores builtin-typed constructor params on the indirection class', function
     // The `string $primitive` param in ScannerFixtureIndirectionWithData must NOT appear.
     expect($candidates)->not->toContain('string');
 });
+
+// endregion

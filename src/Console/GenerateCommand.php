@@ -102,9 +102,7 @@ class GenerateCommand extends Command
         );
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
+    // region Private helpers
 
     /**
      * Validates the generated document using swagger-php's Analysis pipeline.
@@ -164,4 +162,6 @@ class GenerateCommand extends Command
 
         return $path;
     }
+
+    // endregion
 }

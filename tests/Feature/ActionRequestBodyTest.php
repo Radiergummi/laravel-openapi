@@ -22,9 +22,7 @@ use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Fixture controllers — one per item so routes don't bleed across tests
-// ---------------------------------------------------------------------------
+// region Fixture controllers — one per item so routes don't bleed across tests
 
 /**
  * OAPI-010: controller method typed as an Action whose constructor carries a
@@ -66,9 +64,9 @@ class InlineSchemaRefController extends Controller
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Tests
 
 it('OAPI-010: extracts request body from Action constructor Data parameter', function (): void {
     config()->set('openapi.request_payload_indirection', [Action::class]);
@@ -125,3 +123,5 @@ it('OAPI-011: inline schema wins over ref when both provided', function (): void
         ->and($response['content']['application/json']['schema']['$ref'])
         ->toBe('#/components/schemas/ActionFixtureData');
 });
+
+// endregion

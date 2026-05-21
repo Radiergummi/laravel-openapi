@@ -288,9 +288,7 @@ it('survives a malformed #[ResponseExample] with both value and file', function 
     expect($this->spec['paths'])->toHaveKey('/oa-fixture/malformed-response-example');
 });
 
-// ---------------------------------------------------------------------------
-// Bug 2: #[Response(status: 201)] must replace the auto-derived primary, not append
-// ---------------------------------------------------------------------------
+// region Bug 2: #[Response(status: 201)] must replace the auto-derived primary, not append
 
 it('promotes #[Response(status: 201)] to the primary response and omits a redundant 200 (Bug 2)', function (): void {
     $responses = $this->spec['paths']['/oa-fixture/created-response']['post']['responses'];
@@ -311,3 +309,5 @@ it('uses the first 2xx attribute as primary and keeps subsequent 2xx as addition
         ->and($responses)->toHaveKey('202')
         ->and($responses)->not->toHaveKey('200');
 });
+
+// endregion

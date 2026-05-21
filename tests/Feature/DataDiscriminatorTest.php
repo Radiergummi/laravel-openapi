@@ -25,9 +25,7 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// region Helpers
 
 function oapi027DataRegistry(): ComponentSchemaRegistry
 {
@@ -68,9 +66,9 @@ function oapi027DecodeSchema(ComponentSchemaRegistry $registry, string $class): 
     return [];
 }
 
-// ---------------------------------------------------------------------------
-// Data class (SchemaFromDataClass) tests
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Data class (SchemaFromDataClass) tests
 
 it('OAPI-027: base Data class with #[Discriminator] emits oneOf instead of a flat object', function (): void {
     $registry = oapi027DataRegistry();
@@ -131,3 +129,5 @@ it('OAPI-027: variant Data class schemas are flat objects with their own propert
         ->and($rectangle['properties'])->toHaveKey('width')
         ->and($rectangle['properties'])->toHaveKey('height');
 });
+
+// endregion

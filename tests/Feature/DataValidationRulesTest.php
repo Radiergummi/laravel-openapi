@@ -19,9 +19,7 @@ use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Minimal fixture controllers wired per test
-// ---------------------------------------------------------------------------
+// region Minimal fixture controllers wired per test
 
 /**
  * Returns properties by name from a component schema array (from parsed YAML).
@@ -47,9 +45,9 @@ function schemaRequired(array $spec, string $schemaName): array
     return $spec['components']['schemas'][$schemaName]['required'] ?? [];
 }
 
-// ---------------------------------------------------------------------------
-// Helpers to generate a spec with a single POST route using a Data class
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Helpers to generate a spec with a single POST route using a Data class
 
 beforeEach(function (): void {
     Log::spy();
@@ -66,9 +64,9 @@ beforeEach(function (): void {
     $this->spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 });
 
-// ---------------------------------------------------------------------------
-// name: maxLength from max:250
-// ---------------------------------------------------------------------------
+// endregion
+
+// region name: maxLength from max:250
 
 it('applies maxLength=250 to the name property from max:250 rule', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
@@ -83,9 +81,9 @@ it('marks name as required (no default, not Optional)', function (): void {
     expect($required)->toContain('name');
 });
 
-// ---------------------------------------------------------------------------
-// description: PATCH-optional (Optional union) — rule required must NOT win
-// ---------------------------------------------------------------------------
+// endregion
+
+// region description: PATCH-optional (Optional union) — rule required must NOT win
 
 it('does NOT mark description as required despite being in rules payload', function (): void {
     $required = schemaRequired($this->spec, 'ValidationRulesFixtureData');
@@ -93,9 +91,9 @@ it('does NOT mark description as required despite being in rules payload', funct
     expect($required)->not->toContain('description');
 });
 
-// ---------------------------------------------------------------------------
-// score: minimum/maximum from integer + min:0 + max:100
-// ---------------------------------------------------------------------------
+// endregion
+
+// region score: minimum/maximum from integer + min:0 + max:100
 
 it('applies minimum=0 and maximum=100 to the score property', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
@@ -112,9 +110,9 @@ it('does NOT set minLength/maxLength on the integer score property', function ()
         ->and($props['score'])->not->toHaveKey('maxLength');
 });
 
-// ---------------------------------------------------------------------------
-// email: format=email
-// ---------------------------------------------------------------------------
+// endregion
+
+// region email: format=email
 
 it('applies format=email to the email property', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
@@ -123,9 +121,9 @@ it('applies format=email to the email property', function (): void {
         ->and($props['email']['type'])->toBe('string');
 });
 
-// ---------------------------------------------------------------------------
-// tags: array type; tags.* items flow through (OAPI-016)
-// ---------------------------------------------------------------------------
+// endregion
+
+// region tags: array type; tags.* items flow through (OAPI-016)
 
 it('emits type=array for the tags property', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
@@ -133,9 +131,9 @@ it('emits type=array for the tags property', function (): void {
     expect($props['tags']['type'])->toBe('array');
 });
 
-// ---------------------------------------------------------------------------
-// status: enum from Spatie #[In] attribute
-// ---------------------------------------------------------------------------
+// endregion
+
+// region status: enum from Spatie #[In] attribute
 
 it('applies enum values from the Spatie In attribute on status', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
@@ -143,9 +141,9 @@ it('applies enum values from the Spatie In attribute on status', function (): vo
     expect($props['status']['enum'])->toBe(['draft', 'published']);
 });
 
-// ---------------------------------------------------------------------------
-// address: nested Data — its rules flow into AddressFixtureData schema
-// ---------------------------------------------------------------------------
+// endregion
+
+// region address: nested Data — its rules flow into AddressFixtureData schema
 
 it('registers AddressFixtureData as a component schema', function (): void {
     expect($this->spec['components']['schemas'])->toHaveKey('AddressFixtureData');
@@ -176,9 +174,9 @@ it('does NOT mark zip as required in AddressFixtureData (has default null)', fun
     expect($required)->not->toContain('zip');
 });
 
-// ---------------------------------------------------------------------------
-// OAPI-003: required + nullable must keep field in required AND nullable
-// ---------------------------------------------------------------------------
+// endregion
+
+// region OAPI-003: required + nullable must keep field in required AND nullable
 
 it('keeps notes in required[] AND marks it nullable via OAS 3.1 type array (OAPI-003 required+nullable)', function (): void {
     $props    = schemaProperties($this->spec, 'ValidationRulesFixtureData');
@@ -189,9 +187,9 @@ it('keeps notes in required[] AND marks it nullable via OAS 3.1 type array (OAPI
         ->and($props['notes']['type'])->toBe(['string', 'null']);
 });
 
-// ---------------------------------------------------------------------------
-// Graceful fallback when rules() throws
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Graceful fallback when rules() throws
 
 it('still emits a schema for ThrowingRulesFixtureData even though rules() throws', function (): void {
     expect($this->spec['components']['schemas'])->toHaveKey('ThrowingRulesFixtureData');
@@ -207,9 +205,9 @@ it('still emits a schema for ThrowingRulesFixtureData even though rules() throws
         ->with(Mockery::pattern('/Skipping validation rule extraction for .*ThrowingRulesFixtureData/'));
 });
 
-// ---------------------------------------------------------------------------
-// OAPI-016: foo.* rules populate the parent array property's items schema
-// ---------------------------------------------------------------------------
+// endregion
+
+// region OAPI-016: foo.* rules populate the parent array property's items schema
 
 it('populates tags items with type=string from tags.* rules (OAPI-016)', function (): void {
     $props = schemaProperties($this->spec, 'TagsWithItemsFixtureData');
@@ -223,3 +221,5 @@ it('populates tags items with maxLength from tags.* max:10 rule (OAPI-016)', fun
 
     expect($props['tags']['items']['maxLength'])->toBe(10);
 });
+
+// endregion

@@ -28,9 +28,7 @@ it('describes a unit enum using only the short class name, not the FQCN', functi
         ->not->toContain('Tests\\Fixtures\\OpenApi\\UnitFixtureEnum');
 });
 
-// ---------------------------------------------------------------------------
-// Bug 1: NullableType must emit OAS 3.1 type array, not nullable: true
-// ---------------------------------------------------------------------------
+// region Bug 1: NullableType must emit OAS 3.1 type array, not nullable: true
 
 it('emits type: [string, null] for NullableType(string) instead of nullable: true (Bug 1)', function (): void {
     $type   = new NullableType(new BuiltinType(TypeIdentifier::STRING));
@@ -48,3 +46,5 @@ it('wraps a nullable object $ref in oneOf with a null sibling (Bug 1)', function
 
     expect($schema->type)->toBe(['integer', 'null']);
 });
+
+// endregion

@@ -15,9 +15,7 @@ use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Plain-type branch: widen a scalar type to an array including 'null'
-// ---------------------------------------------------------------------------
+// region Plain-type branch: widen a scalar type to an array including 'null'
 
 it('widens a plain string schema to type: [string, null] (Bug 1)', function (): void {
     $schema = new OA\Schema(['type' => 'string']);
@@ -48,9 +46,9 @@ it('does not duplicate null when the type array already contains it', function (
     expect($result->type)->toBe(['string', 'null']);
 });
 
-// ---------------------------------------------------------------------------
-// No-mutation contract: wrap() must never modify the input object
-// ---------------------------------------------------------------------------
+// endregion
+
+// region No-mutation contract: wrap() must never modify the input object
 
 it('does not mutate the input schema for the scalar branch', function (): void {
     $schema = new OA\Schema(['type' => 'string']);
@@ -66,9 +64,9 @@ it('does not mutate the input schema for the type-array branch', function (): vo
     expect($schema->type)->toBe(['string', 'number']);
 });
 
-// ---------------------------------------------------------------------------
-// $ref branch: wrap in oneOf so extra keywords are not silently ignored
-// ---------------------------------------------------------------------------
+// endregion
+
+// region $ref branch: wrap in oneOf so extra keywords are not silently ignored
 
 it('wraps a $ref schema in oneOf with a null sibling (Bug 1)', function (): void {
     $schema = new OA\Schema(['ref' => '#/components/schemas/MyModel']);
@@ -82,9 +80,9 @@ it('wraps a $ref schema in oneOf with a null sibling (Bug 1)', function (): void
         ->and($oneOf[1]->type)->toBe('null');
 });
 
-// ---------------------------------------------------------------------------
-// Fallback branch: schemas without a plain type are wrapped in oneOf
-// ---------------------------------------------------------------------------
+// endregion
+
+// region Fallback branch: schemas without a plain type are wrapped in oneOf
 
 it('wraps a schema with no explicit type in oneOf with a null sibling', function (): void {
     // A schema that has e.g. oneOf but no top-level type or ref.
@@ -95,3 +93,5 @@ it('wraps a schema with no explicit type in oneOf with a null sibling', function
     expect($result->oneOf)->toHaveCount(2)
         ->and($result->oneOf[1]->type)->toBe('null');
 });
+
+// endregion

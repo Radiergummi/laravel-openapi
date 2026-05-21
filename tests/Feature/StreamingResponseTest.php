@@ -20,9 +20,7 @@ use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
-// ---------------------------------------------------------------------------
-// Fixture controllers — one per scenario
-// ---------------------------------------------------------------------------
+// region Fixture controllers — one per scenario
 
 /**
  * OAPI-024: SSE endpoint with an author-supplied per-event schema via
@@ -63,16 +61,16 @@ class NonStreamingController extends Controller
     }
 }
 
-// ---------------------------------------------------------------------------
 // NOTE: StreamedResponse return-type auto-detection and #[Operation(streaming:)]
 // content-type auto-emission were provided by the JSON:API plugin's
 // PrimaryResponseResolver, which is not part of this package. Those scenarios
 // (formerly OAPI-024 auto-detection tests) were removed during extraction.
 // Streaming endpoints in this package declare their media type explicitly via
 // #[Response(mediaType: MediaType::EventStream, ...)] — covered below.
-// ---------------------------------------------------------------------------
-// OAPI-024: #[Response(status: 200, mediaType: 'text/event-stream', schema: [...])]
-// ---------------------------------------------------------------------------
+
+// endregion
+
+// region OAPI-024: #[Response(status: 200, mediaType: 'text/event-stream', schema: [...])]
 
 it('OAPI-024: explicit Response attribute with text/event-stream mediaType and schema overrides auto-detection', function (): void {
     Route::get('/oa-024/stream-with-schema', [StreamingWithSchemaOrderedController::class, 'stream']);
@@ -92,9 +90,9 @@ it('OAPI-024: explicit Response attribute with text/event-stream mediaType and s
         ->and($schema['properties']['type']['enum'])->toBe(['match', 'done']);
 });
 
-// ---------------------------------------------------------------------------
-// OAPI-024: non-streaming endpoints are unaffected
-// ---------------------------------------------------------------------------
+// endregion
+
+// region OAPI-024: non-streaming endpoints are unaffected
 
 it('OAPI-024: non-streaming endpoint does not receive text/event-stream', function (): void {
     Route::get('/oa-024/non-streaming', [NonStreamingController::class, 'index']);
@@ -109,3 +107,5 @@ it('OAPI-024: non-streaming endpoint does not receive text/event-stream', functi
 
     expect($content)->not->toHaveKey('text/event-stream');
 });
+
+// endregion
