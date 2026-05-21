@@ -20,7 +20,6 @@ use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use ReflectionClass;
 
 use function class_exists;
 use function sprintf;
@@ -38,13 +37,13 @@ final readonly class FractalDuplicateKey implements Rule, OperationRule
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $method = $operation->descriptor?->method;
+        $descriptor = $operation->descriptor;
 
-        if ($operation->webhook || $method === null) {
+        if ($operation->webhook || $descriptor === null) {
             return;
         }
 
-        $attribute = $method->getAttributes(FractalResponse::class)[0] ?? null;
+        $attribute = $descriptor->actionAttributes(FractalResponse::class)[0] ?? null;
 
         if ($attribute === null) {
             return;
@@ -56,17 +55,15 @@ final readonly class FractalDuplicateKey implements Rule, OperationRule
             return;
         }
 
-        $reflection = new ReflectionClass($transformer);
-
         /** @var array<string, int> $counts */
         $counts = [];
 
-        foreach ($reflection->getAttributes(TransformerField::class) as $fieldAttribute) {
+        foreach ($context->reflectionCache->classAttributes($transformer, TransformerField::class) as $fieldAttribute) {
             $name = $fieldAttribute->newInstance()->name;
             $counts[$name] = ($counts[$name] ?? 0) + 1;
         }
 
-        foreach ($reflection->getAttributes(TransformerInclude::class) as $includeAttribute) {
+        foreach ($context->reflectionCache->classAttributes($transformer, TransformerInclude::class) as $includeAttribute) {
             $name = $includeAttribute->newInstance()->name;
             $counts[$name] = ($counts[$name] ?? 0) + 1;
         }

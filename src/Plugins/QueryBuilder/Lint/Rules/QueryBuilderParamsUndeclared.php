@@ -49,9 +49,10 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $method = $operation->descriptor?->method;
+        $descriptor = $operation->descriptor;
+        $method = $descriptor?->method;
 
-        if ($operation->webhook || $method === null) {
+        if ($operation->webhook || $descriptor === null || $method === null) {
             return;
         }
 
@@ -59,9 +60,9 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
             return;
         }
 
-        $hasAttributes = $method->getAttributes(AllowedFilter::class) !== []
-            || $method->getAttributes(AllowedSort::class) !== []
-            || $method->getAttributes(AllowedInclude::class) !== [];
+        $hasAttributes = $descriptor->actionAttributes(AllowedFilter::class) !== []
+            || $descriptor->actionAttributes(AllowedSort::class) !== []
+            || $descriptor->actionAttributes(AllowedInclude::class) !== [];
 
         if ($hasAttributes) {
             return;

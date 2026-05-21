@@ -26,6 +26,15 @@ final readonly class LintContext
      * @param list<class-string>         $payloadClasses    Base types whose
      *                                                      subtypes Core treats
      *                                                      as request payloads
+     * @param ReflectionAttributeCache   $reflectionCache   Per-walk cache that
+     *                                                      sibling rules use to
+     *                                                      share `getAttributes()`
+     *                                                      results and
+     *                                                      {@see \ReflectionClass}
+     *                                                      instances. A fresh
+     *                                                      cache per context
+     *                                                      keeps the lifecycle
+     *                                                      tied to one walk.
      */
     public function __construct(
         public ApiNode $api,
@@ -34,6 +43,7 @@ final readonly class LintContext
         public array $actionDescriptors,
         public array $suppressions,
         public array $payloadClasses = [],
+        public ReflectionAttributeCache $reflectionCache = new ReflectionAttributeCache(),
     ) {}
 
     /**

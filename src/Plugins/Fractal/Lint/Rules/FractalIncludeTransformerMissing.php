@@ -19,7 +19,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use ReflectionClass;
 
 use function class_exists;
 use function sprintf;
@@ -36,13 +35,13 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $method = $operation->descriptor?->method;
+        $descriptor = $operation->descriptor;
 
-        if ($operation->webhook || $method === null) {
+        if ($operation->webhook || $descriptor === null) {
             return;
         }
 
-        $attribute = $method->getAttributes(FractalResponse::class)[0] ?? null;
+        $attribute = $descriptor->actionAttributes(FractalResponse::class)[0] ?? null;
 
         if ($attribute === null) {
             return;
@@ -54,7 +53,7 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
             return;
         }
 
-        foreach ((new ReflectionClass($transformer))->getAttributes(TransformerInclude::class) as $includeAttribute) {
+        foreach ($context->reflectionCache->classAttributes($transformer, TransformerInclude::class) as $includeAttribute) {
             $include = $includeAttribute->newInstance();
 
             if ($include->transformer !== null) {

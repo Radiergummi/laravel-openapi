@@ -37,13 +37,13 @@ final readonly class FractalTransformerClassMissing implements Rule, OperationRu
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $method = $operation->descriptor?->method;
+        $descriptor = $operation->descriptor;
 
-        if ($operation->webhook || $method === null) {
+        if ($operation->webhook || $descriptor === null) {
             return;
         }
 
-        $attribute = $method->getAttributes(FractalResponse::class)[0] ?? null;
+        $attribute = $descriptor->actionAttributes(FractalResponse::class)[0] ?? null;
 
         if ($attribute === null) {
             return;

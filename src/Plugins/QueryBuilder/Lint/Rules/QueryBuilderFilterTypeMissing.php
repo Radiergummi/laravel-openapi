@@ -33,13 +33,13 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $method = $operation->descriptor?->method;
+        $descriptor = $operation->descriptor;
 
-        if ($operation->webhook || $method === null) {
+        if ($operation->webhook || $descriptor === null) {
             return;
         }
 
-        foreach ($method->getAttributes(AllowedFilter::class) as $attribute) {
+        foreach ($descriptor->actionAttributes(AllowedFilter::class) as $attribute) {
             $filter = $attribute->newInstance();
 
             if ($filter->type !== null) {

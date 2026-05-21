@@ -19,7 +19,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleV
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use ReflectionClass;
 
 use function sprintf;
 
@@ -52,7 +51,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
         /** @var class-string $resourceClass */
         $resourceClass = $target->resourceClass;
 
-        if ((new ReflectionClass($resourceClass))->getAttributes(ResourceField::class) !== []) {
+        if ($context->reflectionCache->classAttributes($resourceClass, ResourceField::class) !== []) {
             return;
         }
 

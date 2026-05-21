@@ -52,9 +52,10 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $method = $operation->descriptor?->method;
+        $descriptor = $operation->descriptor;
+        $method = $descriptor?->method;
 
-        if ($operation->webhook || $method === null) {
+        if ($operation->webhook || $descriptor === null || $method === null) {
             return;
         }
 
@@ -62,7 +63,7 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
             return;
         }
 
-        if ($method->getAttributes(FractalResponse::class) !== []) {
+        if ($descriptor->actionAttributes(FractalResponse::class) !== []) {
             return;
         }
 

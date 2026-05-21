@@ -19,7 +19,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleV
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use ReflectionClass;
 
 use function sprintf;
 
@@ -52,7 +51,7 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
         /** @var class-string $resourceClass */
         $resourceClass = $target->resourceClass;
 
-        foreach ((new ReflectionClass($resourceClass))->getAttributes(ResourceField::class) as $attribute) {
+        foreach ($context->reflectionCache->classAttributes($resourceClass, ResourceField::class) as $attribute) {
             $field = $attribute->newInstance();
 
             if ($field->type !== null) {
