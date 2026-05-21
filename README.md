@@ -41,6 +41,44 @@ php artisan openapi:lint
 `openapi:clear` removes the generated document. `openapi:generate` accepts an output path
 argument (pass `-` to print to stdout) and a `--format=json` option.
 
+## Example
+
+A typed Spatie Data class plus a typed return value is all the generator needs:
+
+```php
+final class FlightData extends Data
+{
+    public function __construct(
+        public string $number,
+        #[Size(3)] public string $origin,
+        #[Size(3)] public string $destination,
+        public DateTimeInterface $departs_at,
+    ) {}
+}
+
+#[Tag('Flights')]
+final class FlightController
+{
+    /** Show a single flight. */
+    public function show(string $flight): FlightData
+    {
+        return FlightData::from(Flight::findOrFail($flight));
+    }
+}
+```
+
+Running `php artisan openapi:generate` produces an OpenAPI 3.1 document whose
+`GET /flights/{flight}` operation references a `FlightData` component schema with `number`,
+`origin` (3 chars), `destination` (3 chars), and `departs_at` (`string`, `date-time`) — derived
+entirely from types, validation attributes, and the docblock summary. Throw a
+`ModelNotFoundException` (documented via `@throws` or `#[Throws]`) and you get a 404 response;
+add `#[Security(['flights:read'])]` and the operation gains a security requirement; type a
+`FormRequest` parameter instead of `FlightData` and Core derives the request body the same way.
+
+Five runnable flavors of the same flights/bookings API — vanilla validation, FormRequests,
+Spatie Data, QueryBuilder, and a combined variant — live under [`examples/`](examples/) with
+their generated `openapi.yaml` snapshots.
+
 ## Routes
 
 The package can register two routes, controlled by `config/openapi.routes`:
@@ -54,11 +92,22 @@ register no routes at all.
 
 ## Plugins
 
-Core is convention-agnostic. The package ships one plugin — **SpatieData** — which teaches the
-generator to read request schemas from Spatie Data classes. `FormRequest` request schemas are
-supported by Core directly. You can write your own plugin against the `Plugin` interface to
-support other request/resource conventions — see the plugin-authoring guide in
-[`docs/usage.md`](docs/usage.md#adding-a-new-plugin).
+Core is convention-agnostic. The package ships four plugins:
+
+- **SpatieData** (default-enabled) — request and response schemas from Spatie Data classes,
+  including `DataCollection` and `PaginatedDataCollection`.
+- **ApiResources** (default-enabled) — `JsonResource` / `ResourceCollection` responses declared
+  via `#[ResourceField]` attributes.
+- **QueryBuilder** (shipped disabled) — `filter[…]` / `sort` / `include` query parameters from
+  `#[AllowedFilter]` / `#[AllowedSort]` / `#[AllowedInclude]`. Install `spatie/laravel-query-builder`
+  and uncomment in `config/openapi.php` to enable.
+- **Fractal** (shipped disabled) — `league/fractal` transformer responses with `DataArray`,
+  `ArraySerializer`, and `JsonApi` envelopes. Install `league/fractal` (or `spatie/laravel-fractal`,
+  which depends on it) and uncomment in `config/openapi.php` to enable.
+
+`FormRequest` request schemas are supported by Core directly — no plugin required. You can write
+your own plugin against the `Plugin` interface to support other conventions; see the
+plugin-authoring guide in [`docs/usage.md`](docs/usage.md#adding-a-new-plugin).
 
 ## Documentation
 

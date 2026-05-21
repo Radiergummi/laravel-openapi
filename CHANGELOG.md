@@ -90,8 +90,64 @@ All notable changes to this project are documented here.
   Four lint rules (`fractal.response-unbound`, `fractal.fields-undeclared`,
   `fractal.include-transformer-missing`, `fractal.duplicate-key`) report
   incomplete or invalid declarations.
+- `openapi.security_default_scheme` config option — names the scheme that
+  `#[Security(['scope'])]` (without `scheme:`) and middleware-derived
+  `forRoute()` security target by default. Accepts a string (single scheme) or
+  a list of strings (multiple OR-alternatives). When unset, resolution falls
+  back to Passport's `oauth2` + `oauth2ClientCredentials` pair if installed,
+  otherwise the first scheme declared in `openapi.security_schemes`, otherwise
+  an empty requirement — preserving the previous behaviour for projects that
+  do not opt in. Mixed-scheme projects (Passport + custom bearer) can now set
+  this once instead of passing `scheme:` on every `#[Security]`. (OAPI-045)
+- `Radiergummi\OpenApi\Core\Lint\ReflectionAttributeCache` — per-walk cache
+  attached to `LintContext` that wraps `getAttributes()` bucketing and
+  `ReflectionClass` construction. Sibling lint rules that introspect the same
+  target class (resource, transformer) or the same operation method now share
+  the cache. Resource, Fractal, and QueryBuilder lint rules migrated to use it
+  (and to read controller / method attributes through the new
+  `ActionDescriptor::actionAttributes()` helpers instead of allocating fresh
+  `ReflectionClass` / `getAttributes()` walks per rule). (OAPI-054)
 
 ### Changed
+- `SpecTreeBuilder` now resolves `allOf`-composed schema properties when
+  building `FieldNode` trees. A schema written as
+  `allOf: [{$ref: Base}, {properties: {…}}]` exposes both the
+  `$ref`-inherited properties and the local ones in
+  `ComponentSchemaNode->fields`, with a cycle guard against recursive `allOf`
+  chains; the `required` list is unioned across branches. `oneOf` / `anyOf`
+  are deliberately not composed. False positives in
+  `schema.required-without-property` and false negatives in
+  `schema.enum-type-mismatch` / every other `FieldRule` are now closed for
+  `allOf`-composed schemas. (OAPI-038)
+- `SecurityExtractor` and `ReturnTypeExtractor` now memoise per-run state on
+  the instance: Passport availability (`class_exists` + 3× `Router::has()`),
+  the router's middleware-groups snapshot, the parsed
+  `openapi.security_schemes` catalogue, and per-reflector
+  `genericArgument()` results. Both are bound as scoped singletons so the
+  caches reset between requests under Octane. The biggest win is the
+  `DocBlockFactory::create()` parse, which is now done once per method
+  across all primary-response resolvers that consult the same `@return`
+  generic. (OAPI-051)
+- `ActionDescriptor` now exposes `controllerAttributes()` /
+  `actionAttributes()` helpers that read each reflector's attribute list once
+  per descriptor and bucket by attribute FQCN. `OperationBuilder` switched
+  every `getAttributes(SomeAttribute::class)` call onto these helpers, so a
+  build over `n` routes does `O(2·n)` attribute walks instead of `O(17·n)`.
+  No behaviour change; the bucket cache is scoped to the descriptor's lifetime,
+  so it carries no Octane-state risk. (OAPI-050)
+- `#[ResponseHeader]` now also targets `TARGET_CLASS` and is read off both the
+  controller and the action reflector by `OperationBuilder` — shared response
+  headers (`X-Request-Id`, `X-RateLimit-Remaining`) can be declared once on the
+  controller instead of repeated on every method. Method-level declarations win
+  on `(status, name)` collision; declaration order is otherwise preserved. The
+  shape now mirrors `#[Header]`. (OAPI-046)
+- `SkipPassportRoutes` now exposes a parameterless `fromConfig()` factory and
+  is registered through it in `OpenApiServiceProvider`, matching the shape of
+  the sibling filters (`SkipNovaRoutes` / `SkipTelescopeRoutes` /
+  `SkipIgnitionRoutes`). Behaviour is unchanged — Passport's route-name prefix
+  is not user-configurable, so the constructor still takes no parameters; a
+  class-level docblock spells that out so the deviation no longer reads as an
+  oversight. (OAPI-047)
 - `fractal.response-unbound` lint rule moved from level 1 to level 2 (opt-in),
   matching its `query-builder.params-undeclared` sibling. The rule's
   `description()` now spells out the blind spot (`fractal()` helper /

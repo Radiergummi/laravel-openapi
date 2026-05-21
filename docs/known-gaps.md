@@ -7,23 +7,23 @@ welcome.
 | ID | Title | Status |
 |---|---|---|
 | [OAPI-017](#oapi-017--no-method-body-inference) | No method-body inference | Open |
-| [OAPI-038](#oapi-038--lint-rules-miss-allof-composed-schema-properties) | Lint rules miss `allOf`-composed schema properties | Open |
+| [OAPI-038](#oapi-038--lint-rules-miss-allof-composed-schema-properties) | Lint rules miss `allOf`-composed schema properties | Closed |
 | [OAPI-039](#oapi-039--queryparam-attribute-has-no-core-resolver) | `#[QueryParam]` attribute has no Core resolver | Closed |
 | [OAPI-040](#oapi-040--no-dataresponseresolver-for-spatie-data-return-types) | No `DataResponseResolver` for Spatie Data return types | Closed |
 | [OAPI-041](#oapi-041--no-response-header-authoring-attribute) | No response-header authoring attribute | Closed |
 | [OAPI-042](#oapi-042--security-cannot-name-a-scheme-securityschemes-hard-coded-to-passport) | `#[Security]` cannot name a scheme; security schemes hard-coded to Passport | Closed |
 | [OAPI-043](#oapi-043--no-deprecated-authoring-attribute) | No `#[Deprecated]` authoring attribute | Closed |
 | [OAPI-044](#oapi-044--no-shipped-route-filter-for-laravel-passport) | No shipped route filter for Laravel Passport | Closed |
-| [OAPI-045](#oapi-045--security-default-scheme-resolution-privileges-passport) | `#[Security]` default scheme resolution privileges Passport | Open |
-| [OAPI-046](#oapi-046--responseheader-cannot-be-declared-at-class-level) | `#[ResponseHeader]` cannot be declared at class level | Open |
-| [OAPI-047](#oapi-047--skippassportroutes-lacks-the-constructor--fromconfig-shape-of-its-siblings) | `SkipPassportRoutes` lacks the constructor + `fromConfig()` shape of its siblings | Open |
+| [OAPI-045](#oapi-045--security-default-scheme-resolution-privileges-passport) | `#[Security]` default scheme resolution privileges Passport | Closed |
+| [OAPI-046](#oapi-046--responseheader-cannot-be-declared-at-class-level) | `#[ResponseHeader]` cannot be declared at class level | Closed |
+| [OAPI-047](#oapi-047--skippassportroutes-lacks-the-constructor--fromconfig-shape-of-its-siblings) | `SkipPassportRoutes` lacks the constructor + `fromConfig()` shape of its siblings | Closed |
 | [OAPI-048](#oapi-048--dataresponseresolver-duplicates-paginator-envelope-logic-from-paginatorresponseresolver) | `DataResponseResolver` duplicates paginator-envelope logic from `PaginatorResponseResolver` | Closed |
 | [OAPI-049](#oapi-049--corequeryparameterresolver-and-querybuilderparameterresolver-duplicate-schema-build-code) | `CoreQueryParameterResolver` and `QueryBuilderParameterResolver` duplicate schema-build code | Closed |
-| [OAPI-050](#oapi-050--operationbuilder-issues-many-getattributesclass-calls-per-route) | `OperationBuilder` issues many `getAttributes($class)` calls per route | Open |
-| [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Open |
+| [OAPI-050](#oapi-050--operationbuilder-issues-many-getattributesclass-calls-per-route) | `OperationBuilder` issues many `getAttributes($class)` calls per route | Closed |
+| [OAPI-051](#oapi-051--per-route-reflection-and-config-reads-are-not-memoized) | Per-route reflection and config reads are not memoized | Closed |
 | [OAPI-052](#oapi-052--fractal-serializer-assumed-to-be-dataarrayserializer) | Fractal serializer assumed to be `DataArraySerializer` | Closed |
 | [OAPI-053](#oapi-053--fractalresponse-unbound-does-not-detect-fractal-helper-or-facade-usage) | `fractal.response-unbound` does not detect `fractal()` helper / facade usage | Open (won't-fix) |
-| [OAPI-054](#oapi-054--lint-rules-do-not-share-reflection-results-within-a-walk) | Lint rules do not share reflection results within a walk | Open |
+| [OAPI-054](#oapi-054--lint-rules-do-not-share-reflection-results-within-a-walk) | Lint rules do not share reflection results within a walk | Closed |
 | [OAPI-055](#oapi-055--schemafromresource-still-uses-the-eager-ref-resolver-array) | `SchemaFromResource` still uses the eager ref-resolver array | Closed |
 | [OAPI-056](#oapi-056--plugin-suite-capstone-is-a-shallow-smoke-test) | Plugin-suite capstone is a shallow smoke test | Closed |
 | [OAPI-057](#oapi-057--no-test-exercises-the-shipped-default-plugins-array) | No test exercises the shipped default `plugins` array | Closed |
@@ -98,31 +98,25 @@ bodies. See OAPI-053.
 
 ## OAPI-038 — Lint rules miss `allOf`-composed schema properties
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** Lint rules that inspect schema properties only see properties declared *directly* on
-a schema. Properties a schema inherits by composing other schemas via `allOf` (the common
-`allOf: [{$ref: Base}, {properties: {…}}]` pattern) are invisible to the rules. This produces:
+**Resolved in:** the `main` branch. `SpecTreeBuilder` now indexes component schemas by name at
+the start of `build()` and the property-collection path in `buildFields()` walks each schema's
+`allOf` branches before its local declarations:
 
-- **False positives** in `schema.required-without-property`: a `required` entry naming a property
-  that comes from an `allOf` `$ref` branch is reported as "required without a matching property".
-- **False negatives** in `schema.enum-type-mismatch` and every other `FieldRule`: fields living on
-  an `allOf` branch are never visited.
+- A `{$ref: '#/components/schemas/X'}` branch is resolved via the component index and the
+  target schema's properties (plus its own `allOf` chain) are merged in.
+- An inline branch contributes its own properties directly.
+- `oneOf` / `anyOf` are left untouched — they represent alternatives, not composition.
+- `required` lists are unioned across all branches.
+- Cycles in the `$ref` graph (`A` ⇄ `B`) are broken with a visited-set guard keyed by component
+  name; the local declarations on each visited schema still contribute, but the chain stops the
+  moment the same component is encountered twice.
 
-**Root cause:** `SpecTreeBuilder::buildFields()` reads only `$schema->properties`. It ignores
-`$schema->allOf`, so the domain tree's `FieldNode` set for any `allOf`-composed schema is
-incomplete. Every rule that walks `ComponentSchemaNode->fields` / `FieldNode` inherits the gap.
-
-**Scope notes for a future implementer:**
-
-- Only `allOf` composes properties. `oneOf` / `anyOf` must be left out of property resolution.
-- Resolution can be eager (merge in `SpecTreeBuilder::buildFields()`) or lazy (a resolver on the
-  node types). Lazy resolution keeps tree-build order intact and is the lighter touch.
-- Recursive `allOf` / `$ref` chains need cycle detection.
-
-**Impact:** Schemas built purely from the bundled generators rarely use `allOf` composition, so in
-practice this surfaces only for hand-authored or transformer-injected `allOf` schemas. It is a
-linter-accuracy gap, not a generation bug.
+`schema.required-without-property` and every other `FieldRule` therefore see the same merged
+property set the runtime would see at validation time. The new
+`tests/Unit/Lint/Tree/SpecTreeBuilderTest.php` covers a `$ref` branch, an inline branch, and
+the cyclic case.
 
 ---
 
@@ -223,71 +217,50 @@ Passport being absent by matching only routes whose name starts with `passport.`
 
 ## OAPI-045 — `#[Security]` default scheme resolution privileges Passport
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** When `#[Security]` is used without naming a scheme, `SecurityExtractor::requirementForScopes()`
-emits the Passport-derived `oauth2` + `oauth2ClientCredentials` pair whenever Passport is
-installed — even if the project has declared its own schemes in `openapi.security_schemes` and
-expected one of those to be the default. The config-declared schemes are only consulted as a
-fallback for projects without Passport.
+**Resolved in:** the `main` branch. The two parallel default paths in `requirementForScopes()`
+were collapsed into a single `defaultSchemeNames()` lookup, and a new
+`openapi.security_default_scheme` config option lets mixed-scheme projects override which
+scheme(s) `#[Security(['scope'])]` (without `scheme:`) and middleware-derived `forRoute()`
+target. Resolution order, in one place:
 
-**Root cause:** When OAPI-042 unblocked config-registered schemes it kept the existing
-Passport-first branch in `requirementForScopes()` rather than threading the new config catalogue
-through a single lookup. The result is two parallel default-resolution paths that aren't
-visible from the call site.
+1. Explicit `scheme:` argument — wins.
+2. `openapi.security_default_scheme` (string, or a list for multiple OR-alternatives).
+3. Passport's `oauth2` + `oauth2ClientCredentials` pair, if Passport is installed and its
+   routes are registered. Preserves the historic Passport-only behaviour.
+4. The first scheme declared in `openapi.security_schemes`.
+5. `[]` (empty requirement).
 
-**Impact:** A project that installs Passport but wants `#[Security(['scope'])]` (no `scheme:`) to
-target its own `bearer` scheme has to either pass `scheme: 'bearer'` everywhere or accept that
-the spec advertises Passport's OAuth2 pair on every authenticated operation.
-
-**Workaround:** Pass `scheme: 'name'` explicitly on every `#[Security]` attribute.
-
-**Why it's open:** The right default depends on intent — "Passport apps should advertise both
-flows by default" is reasonable behaviour for Passport-only projects but wrong for the
-mixed-scheme case. Needs a deliberate decision about whether the merged catalogue should treat
-all schemes equally (first declared wins) or whether Passport keeps its precedence.
+Projects with both Passport and a `bearer` scheme can now do
+`'security_default_scheme' => 'bearer'` once and have it apply to every authenticated operation
+without touching call sites.
 
 ---
 
 ## OAPI-046 — `#[ResponseHeader]` cannot be declared at class level
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `#[ResponseHeader]` targets `TARGET_METHOD | TARGET_FUNCTION` only, so authors cannot
-declare a shared response header (`X-Request-Id`, `X-RateLimit-Remaining`) once on the
-controller and have it apply to every action. The sibling `#[Header]` (request-side) accepts
-`TARGET_CLASS` and is read off both controller and method by
-`OperationBuilder::readHeaderAttributes()`.
-
-**Impact:** Authors must repeat `#[ResponseHeader(name: 'X-Request-Id', ...)]` on every method
-of a controller instead of declaring it once at the top.
-
-**Why it's open:** Pending a deliberate choice between two valid shapes — extend the target list
-to include `TARGET_CLASS` and have the builder walk controller + method (mirroring `#[Header]`),
-or treat per-response-header declarations as deliberately method-scoped. The asymmetry between
-`#[Header]` and `#[ResponseHeader]` is the practical signal that this should be decided.
+**Resolved in:** the `main` branch. `#[ResponseHeader]` now accepts `TARGET_CLASS` in addition
+to `TARGET_METHOD | TARGET_FUNCTION`, and `OperationBuilder::applyResponseHeaders()` walks
+both the controller and the action reflector — mirroring the shape of `#[Header]`. Shared
+response headers (`X-Request-Id`, `X-RateLimit-Remaining`) can now be declared once on the
+controller and apply to every action. Method-level declarations win on `(status, name)`
+collision; declaration order is otherwise preserved.
 
 ---
 
 ## OAPI-047 — `SkipPassportRoutes` lacks the constructor + `fromConfig()` shape of its siblings
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** The three other route filters under `src/Core/Routing/Filters/` — `SkipNovaRoutes`,
-`SkipTelescopeRoutes`, `SkipIgnitionRoutes` — take constructor parameters and expose a
-`fromConfig()` factory; `OpenApiServiceProvider` registers them via that factory.
-`SkipPassportRoutes` (OAPI-044) deviates: it hard-codes the `passport.` route-name prefix and
-has no factory.
-
-**Justification for the deviation:** Passport's route prefix is not user-configurable, so there
-is genuinely nothing to configure. The deviation reflects reality, not laziness.
-
-**Impact:** Consistency cost only — anyone reading the filter directory will notice the odd one
-out and wonder if it was an oversight. A `fromConfig()` returning a parameterless instance plus
-a class-level docblock explaining the deviation would erase the surprise without changing
-behaviour.
-
-**Why it's open:** Cosmetic. Not blocking anyone.
+**Resolved in:** the `main` branch. `SkipPassportRoutes` now exposes a parameterless
+`fromConfig()` factory and is registered through it by `OpenApiServiceProvider`, matching the
+shape of `SkipNovaRoutes` / `SkipTelescopeRoutes` / `SkipIgnitionRoutes`. A class-level
+docblock spells out the deviation — Passport's route-name prefix is not user-configurable, so
+the constructor still takes no parameters; the factory is preserved for symmetry so the
+provider does not need a special case. Behaviour is unchanged.
 
 ---
 
@@ -323,54 +296,38 @@ sequence plus the explanatory comment.
 
 ## OAPI-050 — `OperationBuilder::build()` issues many `getAttributes($class)` calls per route
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** `OperationBuilder::build()` issues ~17 separate
-`$reflector->getAttributes(SomeAttribute::class)` calls per route across its read* helpers, and
-each call performs an independent attribute walk. Most operations declare zero or one
-attribute, so the overwhelming majority of those calls return an empty array after walking the
-full attribute list.
-
-**Cleaner shape:** Read `$reflector->getAttributes()` (no filter) once per reflector, bucket the
-result by attribute class into a `array<class-string, list<ReflectionAttribute>>` map, and have
-each helper read from the map instead. Collapses ~17 attribute walks into 2 (one per
-reflector).
-
-**Impact:** Generation runs over `n` routes do `O(17·n)` attribute lookups instead of `O(2·n)`.
-Per-route cost is small in absolute terms, but adds up over large route tables and is invoked
-on the `/api/openapi.yaml` route at runtime in dev environments.
-
-**Why it's open:** Mechanical refactor across most of `OperationBuilder`'s read paths.
+**Resolved in:** the `main` branch. `ActionDescriptor` now owns two helper methods —
+`controllerAttributes(class-string)` and `actionAttributes(class-string)` — that read
+`$reflector->getAttributes()` (no filter) once per reflector and bucket the result by
+attribute FQCN into an `array<class-string, list<ReflectionAttribute>>` map, cached on the
+descriptor by `spl_object_id`. Every `read*` / `apply*` helper in `OperationBuilder` now reads
+from that map instead of calling `getAttributes(SomeAttribute::class)` directly. Generation
+runs over `n` routes now do `O(2·n)` attribute walks instead of `O(17·n)`. The cache is
+naturally scoped to the descriptor's lifetime, so it carries no Octane-state risk.
 
 ---
 
 ## OAPI-051 — Per-route reflection and config reads are not memoized
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** Several extractors/resolvers do work per route that could be amortised across the
-whole generation run:
+**Resolved in:** the `main` branch. Three call sites are now memoised:
 
-- `SecurityExtractor::passportAvailable()` runs `class_exists` + three `Router::has()` lookups
-  on every call, and is called from `requirementForScopes()` per route (and again from
-  `buildSchemes()` per document).
-- `SecurityExtractor::forRoute()` re-fetches `Router::getMiddlewareGroups()` per route.
-- `ReturnTypeExtractor::genericArgument()` parses the same controller-method docblock via
-  `DocBlockFactory::create()` once per `PrimaryResponseResolver` that consults it — so a route
-  returning `DataCollection<…, FlightData>` triggers two `DocBlockFactory::create()` parses (one
-  from `PaginatorResponseResolver`, one from `DataResponseResolver`).
+- `SecurityExtractor::passportAvailable()` caches the `class_exists` + three `Router::has()`
+  lookups on first call (`?bool` field).
+- `SecurityExtractor::forRoute()` reads `Router::getMiddlewareGroups()` through a new
+  `middlewareGroups()` helper that caches the result (`?array` field).
+- `SecurityExtractor::configSchemes()` caches the parsed `openapi.security_schemes` config
+  catalogue on first call.
+- `ReturnTypeExtractor::genericArgument()` caches the result of the `DocBlockFactory::create()`
+  parse + generic-argument extraction per `spl_object_id($reflector)`; the cache distinguishes
+  "uncached" from "cached null" via `array_key_exists`. A route that two primary-response
+  resolvers both consult now triggers one phpDocumentor parse instead of two.
 
-**Cleaner shape:** Memoise each on first call (`?bool` / `?array` field for the extractors;
-keyed map for `ReturnTypeExtractor`). All three are pure functions of state that does not
-change during a generation run, and `ComponentSchemaRegistry`-style scoped lifecycle already
-handles per-run reset cleanly.
-
-**Impact:** `DocBlockFactory::create()` is genuinely expensive (full phpDocumentor parse +
-`ContextFactory` walking the file's `use` statements) — the biggest single win is memoising
-that call. The others are smaller but free.
-
-**Why it's open:** Real wins, but want profiling in hand before committing to memoisation
-strategies that interact with Octane's scoped-lifecycle reset story.
+Both extractors drop their `readonly` modifier to hold the per-run state; both are bound as
+scoped singletons so the cache resets between requests under Octane.
 
 ---
 
@@ -419,43 +376,30 @@ endorsement. Closing this gap further would require lifting OAPI-017 itself.
 
 ## OAPI-054 — Lint rules do not share reflection results within a walk
 
-**Status:** Open
+**Status:** Closed
 
-**Symptom:** Each lint rule does its own reflection work on every operation it visits, even when
-sibling rules on the same `OperationNode` need the same intermediate result. Concrete examples:
+**Resolved in:** the `main` branch. Two collaborators ship together:
 
-- `ResourceFieldsUndeclared` and `ResourceFieldTypeMissing` both call
-  `ResourceClassLocator::locate($descriptor)` and then independently build
-  `new ReflectionClass($resourceClass)` for the same descriptor on the same walk.
-- The three Fractal rules that key off `#[FractalResponse]` (`FractalFieldsUndeclared`,
-  `FractalIncludeTransformerMissing`, `FractalDuplicateKey`) each repeat the same six-step
-  prologue: fetch the attribute off `$descriptor->method`, instantiate it, `class_exists`-check
-  the transformer FQCN, and allocate a fresh `ReflectionClass`. Two of them additionally call
-  `->newInstance()` on every `TransformerField` / `TransformerInclude` purely to read one
-  string property.
-- `QueryBuilderParamsUndeclared` and `QueryBuilderFilterTypeMissing` both invoke
-  `PayloadParameterScanner::directCandidates($method)`. The scanner has its own per-method
-  cache, but the rules then re-walk attribute lists independently.
+- `ActionDescriptor` exposes `controllerAttributes()` / `actionAttributes()` (the OAPI-050
+  helpers); rules that key off the controller method now read attributes through these
+  helpers instead of `$descriptor->method->getAttributes(...)`. Sibling rules on the same
+  operation share a single bucket build.
+- A new `ReflectionAttributeCache` is attached to `LintContext` (default-constructed per
+  context) and exposes `classAttributes(class-string, class-string)` plus
+  `reflectionClass(class-string)`. Rules that introspect a target class (resource class,
+  transformer class) call into the cache instead of allocating a fresh `ReflectionClass`
+  per rule.
 
-This compounds OAPI-050 (per-route attribute walks in `OperationBuilder`) and OAPI-051 (lack of
-memoisation in extractors): the lint pass effectively re-does some of the work the generator
-already did, and then re-does it again across sibling rules within the same walk.
+Migrated rules:
 
-**Cleaner shape:** Attach a per-walk reflection cache to `LintContext` — keyed by
-`ReflectionMethod` / `ReflectionClass` — that buckets `getAttributes()` results by attribute
-class once per reflector, mirroring the shape proposed for OAPI-050. Rule authors would resolve
-attributes through the cache instead of calling `getAttributes(SomeAttribute::class)` directly.
-A second helper for "resolve transformer / resource class for this operation" could share a
-single resolution across all rules that key off the same endpoint attribute.
-
-**Impact:** Real but bounded. Reflection allocations are cheap individually; the cost grows
-with `routes × rules`. Worth doing alongside OAPI-050 / OAPI-051 rather than piecemeal — the
-codebase currently accepts per-rule re-computation as the norm, so optimising one plugin in
-isolation creates inconsistency without moving the aggregate cost meaningfully.
-
-**Why it's open:** Cross-cutting refactor that pairs naturally with OAPI-050 and OAPI-051.
-Deferred until those are scheduled, so the cache shape can be designed once and shared by
-`OperationBuilder`, extractors, and lint rules.
+- `ResourceFieldsUndeclared`, `ResourceFieldTypeMissing` — share the resource class's
+  `ReflectionClass` + `#[ResourceField]` bucket.
+- `FractalFieldsUndeclared`, `FractalIncludeTransformerMissing`, `FractalDuplicateKey`,
+  `FractalTransformerClassMissing`, `FractalResponseUnbound` — share the action reflector's
+  `#[FractalResponse]` bucket (via `ActionDescriptor`) and the transformer class's
+  `#[TransformerField]` / `#[TransformerInclude]` buckets (via the cache).
+- `QueryBuilderParamsUndeclared`, `QueryBuilderFilterTypeMissing` — share the action
+  reflector's `#[AllowedFilter]` / `#[AllowedSort]` / `#[AllowedInclude]` buckets.
 
 ---
 
