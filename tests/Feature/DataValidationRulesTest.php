@@ -14,8 +14,6 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Mockery;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -61,7 +59,7 @@ beforeEach(function (): void {
     Route::post('/oa-fixture/tags', [ValidationRulesFixtureController::class, 'storeTags'])
         ->middleware('auth:api');
 
-    $this->spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $this->spec = generateSpec();
 });
 
 // endregion

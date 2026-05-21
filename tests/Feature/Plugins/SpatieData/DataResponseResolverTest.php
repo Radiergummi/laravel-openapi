@@ -14,12 +14,10 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
 use Spatie\LaravelData\CursorPaginatedDataCollection;
 use Spatie\LaravelData\DataCollection;
 use Spatie\LaravelData\PaginatedDataCollection;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
@@ -58,7 +56,7 @@ class DataResponseController extends Controller
 it('emits a 200 with a $ref for a single Data return type', function (): void {
     Route::get('/spatie-data/single', [DataResponseController::class, 'single']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $response = $spec['paths']['/spatie-data/single']['get']['responses']['200'] ?? null;
 
@@ -71,7 +69,7 @@ it('emits a 200 with a $ref for a single Data return type', function (): void {
 it('emits an array schema for a DataCollection<X> return type', function (): void {
     Route::get('/spatie-data/collection', [DataResponseController::class, 'collection']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $schema = $spec['paths']['/spatie-data/collection']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
@@ -83,7 +81,7 @@ it('emits an array schema for a DataCollection<X> return type', function (): voi
 it('emits a length-aware envelope for PaginatedDataCollection<X>', function (): void {
     Route::get('/spatie-data/paginated', [DataResponseController::class, 'paginated']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $schema = $spec['paths']['/spatie-data/paginated']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
@@ -95,7 +93,7 @@ it('emits a length-aware envelope for PaginatedDataCollection<X>', function (): 
 it('emits a cursor envelope for CursorPaginatedDataCollection<X>', function (): void {
     Route::get('/spatie-data/cursor', [DataResponseController::class, 'cursorPaginated']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $schema = $spec['paths']['/spatie-data/cursor']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 

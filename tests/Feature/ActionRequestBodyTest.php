@@ -14,11 +14,9 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Radiergummi\OpenApi\Attributes as OpenApi;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixture;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixtureData;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -76,7 +74,7 @@ it('OAPI-010: extracts request body from Action constructor Data parameter', fun
         [ActionPatternController::class, 'store'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     // The schema for ActionFixtureData must be registered as a component.
     expect($spec['components']['schemas'])->toHaveKey('ActionFixtureData');
@@ -95,7 +93,7 @@ it('OAPI-011: inline schema array on Response attribute produces inline 200 sche
         [InlineSchemaController::class, 'show'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $response = $spec['paths']['/oa-p1b2/inline-schema']['get']['responses']['200'] ?? null;
 
@@ -114,7 +112,7 @@ it('OAPI-011: inline schema wins over ref when both provided', function (): void
         [InlineSchemaRefController::class, 'show'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $response = $spec['paths']['/oa-p1b2/inline-schema-ref']['get']['responses']['404'] ?? null;
 

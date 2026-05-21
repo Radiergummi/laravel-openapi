@@ -16,10 +16,8 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Radiergummi\OpenApi\Core\Attributes\Example;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 use RuntimeException;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -67,7 +65,7 @@ it('OAPI-022: #[Example(file:)] emits the file payload in the generated spec', f
         [FileExampleController::class, 'store'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $requestBody = $spec['paths']['/oa-p2/file-example']['post']['requestBody'] ?? null;
 

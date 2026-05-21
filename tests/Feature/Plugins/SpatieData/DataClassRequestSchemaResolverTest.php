@@ -14,9 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
@@ -31,7 +29,7 @@ class DataClassRequestController extends Controller
 it('emits an application/json request body $ref for a directly type-hinted Data class', function (): void {
     Route::post('/spatie-data/request', [DataClassRequestController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $body = $spec['paths']['/spatie-data/request']['post']['requestBody'] ?? null;
 
@@ -44,7 +42,7 @@ it('emits an application/json request body $ref for a directly type-hinted Data 
 it('registers the Data class as a component schema', function (): void {
     Route::post('/spatie-data/request', [DataClassRequestController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['components']['schemas'])->toHaveKey('ScalarOnlyData');
 });

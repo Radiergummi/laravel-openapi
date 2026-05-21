@@ -17,7 +17,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
@@ -29,7 +28,6 @@ use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
-use Symfony\Component\Yaml\Yaml;
 
 use function array_map;
 
@@ -126,7 +124,7 @@ beforeEach(function (): void {
     Route::get('/suite/fractal-collection', [PluginSuiteController::class, 'fractalCollection']);
     Route::get('/suite/fractal-paginated', [PluginSuiteController::class, 'fractalPaginated']);
 
-    $this->spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $this->spec = generateSpec();
 });
 
 function suiteSpec(): array

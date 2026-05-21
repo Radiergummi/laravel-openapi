@@ -14,9 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -75,7 +73,7 @@ class NonStreamingController extends Controller
 it('OAPI-024: explicit Response attribute with text/event-stream mediaType and schema overrides auto-detection', function (): void {
     Route::get('/oa-024/stream-with-schema', [StreamingWithSchemaOrderedController::class, 'stream']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $response = $spec['paths']['/oa-024/stream-with-schema']['get']['responses']['200'] ?? null;
 
@@ -97,7 +95,7 @@ it('OAPI-024: explicit Response attribute with text/event-stream mediaType and s
 it('OAPI-024: non-streaming endpoint does not receive text/event-stream', function (): void {
     Route::get('/oa-024/non-streaming', [NonStreamingController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $response = $spec['paths']['/oa-024/non-streaming']['get']['responses']['200'] ?? null;
 

@@ -17,8 +17,6 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -77,7 +75,7 @@ class CursorPaginatorController extends Controller
 it('documents a length-aware paginator with the flat envelope', function (): void {
     Route::get('/paginator/docblock', [PaginatorDocblockController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $response = $spec['paths']['/paginator/docblock']['get']['responses']['200'] ?? null;
     $schema = $response['content']['application/json']['schema'] ?? null;
 
@@ -90,7 +88,7 @@ it('documents a length-aware paginator with the flat envelope', function (): voi
 it('resolves the item type from a #[ResponseResource] attribute', function (): void {
     Route::get('/paginator/attribute', [PaginatorAttributeController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/paginator/attribute']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()
@@ -101,7 +99,7 @@ it('resolves the item type from a #[ResponseResource] attribute', function (): v
 it('falls back to a bare 200 when the paginator item type is undeclared', function (): void {
     Route::get('/paginator/undeclared', [PaginatorUndeclaredController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $response = $spec['paths']['/paginator/undeclared']['get']['responses']['200'] ?? null;
 
     expect($response)->not->toBeNull()
@@ -112,7 +110,7 @@ it('falls back to a bare 200 when the paginator item type is undeclared', functi
 it('documents a cursor paginator with cursor metadata', function (): void {
     Route::get('/paginator/cursor', [CursorPaginatorController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/paginator/cursor']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()

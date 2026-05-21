@@ -96,7 +96,7 @@ objects rather than on the generated YAML. Drive them through
 - [x] `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php` (209 L → 100 L) — rewritten as feature test: routes + `app(OpenApiGenerator::class)->generate()` + YAML assertions for single Data $ref, `DataCollection<X>` array items, `PaginatedDataCollection` length-aware envelope, `CursorPaginatedDataCollection` cursor envelope. Dropped internal "returns null" cases (resolver dispatch is implicit in the envelope tests).
 - [x] `tests/Feature/Plugins/SpatieData/DataClassRequestSchemaResolverTest.php` (166 L → 50 L) — rewritten as feature test: direct `Data` type-hint produces `application/json` request body with `$ref`; component schema registered. Dropped Action indirection case (covered by `ActionRequestBodyTest`) and internal null cases.
 - [x] `tests/Feature/Plugins/SpatieData/SchemaFromDataClassTest.php` (212 L → 205 L) — rewritten as feature test: each `#[RequestField]`, `#[MapInputName]`, self-ref, and same-basename-disambiguation case now drives `openapi:generate` and asserts on `components.schemas.*` in YAML.
-- [ ] `tests/Feature/Oapi031034Test.php` — split into the three OAPIs (031, 034, 043) or fold into `SchemaFromDataClassTest`; drop the batch-dump name
+- [x] `tests/Feature/Oapi031034Test.php` — done as part of §6 split into `DeprecatedFieldTest` (OAPI-031 + OAPI-043) and `EnumCaseDescriptionTest` (OAPI-034); checkbox here was stale.
 
 ---
 
@@ -130,7 +130,7 @@ regression-trail breadcrumbs.
 - [x] Trim `tests/Unit/Core/Routing/RouteIntrospectorTest.php`: dropped 3 redundant cases; kept defensive "non-existent controller class" (108 L → 47 L). Removed orphaned `Fixtures/SimpleController.php`.
 - [x] Trim `tests/Unit/Core/Routing/UriParameterResolverTest.php`: dropped 2 happy-path cases; kept defensive cases (119 L → 95 L)
 - [x] Audit orphaned fixtures — none orphaned; see §9
-- [ ] **Extract a shared `generateSpec()` helper.** Every feature test inlines `Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml())` (30+ sites). Move to `tests/Pest.php` or `tests/Support/`. Removes the YAML-import dance from every file and centralises the only point that knows about the serialise-then-parse roundtrip.
+- [x] **Extract a shared `generateSpec()` helper.** Added `generateSpec(array $filters = []): array` to `tests/Pest.php` next to `reflectFunctionParameter()`. Swapped 65 plain-pattern sites + the one filtered call in `AuthoringAttributesTest:228` over to it across 20 feature-test files. Dropped now-unused `use Symfony\Component\Yaml\Yaml;` from all 20 files plus `use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;` from 19 (kept in `ExtensionsTest`, which still has 8 trigger-only `app(OpenApiGenerator::class)->generate()` calls whose value is the side-effect, not the spec — those don't benefit from the helper). 21 files changed, +81 / −106 LOC. Tests 1103 / assertions 2965; `composer test && composer lint && composer analyse` all green.
 - [ ] **Ban `return null;` + `@phpstan-ignore-next-line` in signature-only controller fixtures.** Replace with `throw new \LogicException('Signature-only fixture; never invoked.')` — honest about types, doesn't lie to static analysis, doesn't risk a `TypeError` if the route ever gets hit. Already done in `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php`; audit the rest of `tests/Feature/` and `tests/Fixtures/` for the same anti-pattern.
 - [ ] **Assert on `oneOf` schemas by membership, not index.** Tests that probe nullable-wrapped refs (`oneOf[0]['$ref']`) couple to `NullableSchema`'s emission order. Prefer `array_column($oneOf, '$ref')` + `toContain('#/components/schemas/X')` — same length, robust to future re-ordering. Pattern applied in `SchemaFromDataClassTest`; audit other tests touching `oneOf`/`anyOf`.
 
@@ -160,6 +160,7 @@ Run `composer test && composer lint && composer analyse` after each tranche.
 | Files rewritten as feature tests | — | 3 | |
 | Files trimmed | — | 3 | |
 | Rule tests refactored onto factory | — | 82 | |
+| Feature tests onto `generateSpec()` | — | 20 | |
 
 `composer test` / `composer lint` / `composer analyse` all green.
 

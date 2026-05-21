@@ -12,10 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\RemoteMediaFixtureController;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -37,7 +35,7 @@ function schemaNameFromRef(string $ref): string
 it('emits request body properties from RemoteMediaRequest rules', function (): void {
     Route::post('/oa-fixture/remote-media', [RemoteMediaFixtureController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $body = $spec['paths']['/oa-fixture/remote-media']['post']['requestBody'] ?? null;
     expect($body)->not->toBeNull();
@@ -55,7 +53,7 @@ it('emits request body properties from RemoteMediaRequest rules', function (): v
 it('marks url as required in RemoteMediaRequest schema', function (): void {
     Route::post('/oa-fixture/remote-media', [RemoteMediaFixtureController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $body       = $spec['paths']['/oa-fixture/remote-media']['post']['requestBody'];
     $schemaName = schemaNameFromRef($body['content']['application/json']['schema']['$ref']);
@@ -68,7 +66,7 @@ it('marks url as required in RemoteMediaRequest schema', function (): void {
 it('applies maxLength:2048 to the url field from RemoteMediaRequest', function (): void {
     Route::post('/oa-fixture/remote-media', [RemoteMediaFixtureController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $body       = $spec['paths']['/oa-fixture/remote-media']['post']['requestBody'];
     $schemaName = schemaNameFromRef($body['content']['application/json']['schema']['$ref']);
@@ -85,7 +83,7 @@ it('applies maxLength:2048 to the url field from RemoteMediaRequest', function (
 it('emits multipart/form-data when FormRequest has a file rule', function (): void {
     Route::post('/oa-fixture/file-upload', [FileUploadFixtureController::class, 'upload']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $body = $spec['paths']['/oa-fixture/file-upload']['post']['requestBody'] ?? null;
     expect($body)->not->toBeNull();
@@ -96,7 +94,7 @@ it('emits multipart/form-data when FormRequest has a file rule', function (): vo
 it('emits file field as type=string format=binary in multipart schema', function (): void {
     Route::post('/oa-fixture/file-upload', [FileUploadFixtureController::class, 'upload']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $body       = $spec['paths']['/oa-fixture/file-upload']['post']['requestBody'];
     $schemaName = schemaNameFromRef($body['content']['multipart/form-data']['schema']['$ref']);

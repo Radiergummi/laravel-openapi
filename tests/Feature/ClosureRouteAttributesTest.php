@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Core\Attributes\Hide;
 use Radiergummi\OpenApi\Core\Attributes\Operation;
 use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -29,7 +27,7 @@ beforeEach(function (): void {
      */
     Route::get('/closure/visible', #[Operation(summary: 'Closure summary override')] static fn(): array => []);
 
-    $this->spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $this->spec = generateSpec();
 });
 
 // region #[Hide] on a closure
@@ -37,7 +35,7 @@ beforeEach(function (): void {
 it('excludes a closure route carrying bare #[Hide] from the spec', function (): void {
     Route::get('/closure/hidden', #[Hide] static fn(): array => []);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths'])->not->toHaveKey('/closure/hidden');
 });
@@ -46,7 +44,7 @@ it('keeps an env-scoped #[Hide] closure visible in a non-matching environment', 
     // The test environment is "testing"; hiding only in production must leave the route visible.
     Route::get('/closure/env-hidden', #[Hide(environments: ['production'])] static fn(): array => []);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths'])->toHaveKey('/closure/env-hidden');
 });
@@ -56,7 +54,7 @@ it('excludes an env-scoped #[Hide] closure when the current environment matches'
 
     app()['env'] = 'production';
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths'])->not->toHaveKey('/closure/env-hidden');
 });
@@ -78,7 +76,7 @@ it('picks up the summary from a #[Operation] attribute on a closure', function (
 it('picks up a #[Response] attribute declared on a closure', function (): void {
     Route::post('/closure/created', #[Response(status: 201, description: 'Created')] static fn(): array => []);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $responses = $spec['paths']['/closure/created']['post']['responses'];
 
@@ -99,7 +97,7 @@ it('picks up the docblock summary from a closure route', function (): void {
 
     Route::get('/closure/docblock', $closure);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $operation = $spec['paths']['/closure/docblock']['get'];
 

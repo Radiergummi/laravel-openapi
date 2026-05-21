@@ -19,7 +19,6 @@ use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Spatie\LaravelData\Data;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -86,7 +85,7 @@ it('allows an operation transformer to mutate the operation', function (): void 
         },
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths']['/oa-ext/get']['get']['summary'])
         ->toBe('Overridden by transformer');
@@ -169,7 +168,7 @@ it('allows a schema transformer to mutate the schema', function (): void {
         },
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['components']['schemas']['ExtensionsFixtureData']['description'])
         ->toBe('Injected by transformer');
@@ -223,7 +222,7 @@ it('allows a document transformer to mutate the document', function (): void {
         },
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['info']['title'])->toBe('Title set by transformer');
 });

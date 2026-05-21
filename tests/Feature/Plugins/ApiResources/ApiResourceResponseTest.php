@@ -16,9 +16,7 @@ use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -56,7 +54,7 @@ class WidgetResourceController extends Controller
 it('documents a single resource wrapped in a data object', function (): void {
     Route::get('/widgets/{widget}', [WidgetResourceController::class, 'show']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/widgets/{widget}']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()
@@ -67,7 +65,7 @@ it('documents a single resource wrapped in a data object', function (): void {
 it('documents a resource collection with data/links/meta', function (): void {
     Route::get('/widgets', [WidgetResourceController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/widgets']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()
@@ -78,7 +76,7 @@ it('documents a resource collection with data/links/meta', function (): void {
 it('registers the resource as a reusable component schema', function (): void {
     Route::get('/widgets/{widget}', [WidgetResourceController::class, 'show']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['components']['schemas'] ?? [])->toHaveKey('WidgetResource');
 });
@@ -86,7 +84,7 @@ it('registers the resource as a reusable component schema', function (): void {
 it('falls back to a bare 200 for an ambiguous collection endpoint', function (): void {
     Route::get('/widgets-ambiguous', [WidgetResourceController::class, 'ambiguous']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $response = $spec['paths']['/widgets-ambiguous']['get']['responses']['200'] ?? null;
 
     expect($response)->not->toBeNull()

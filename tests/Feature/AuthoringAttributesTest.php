@@ -12,9 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Auth\AuthFixtureController;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -36,7 +34,7 @@ beforeEach(function (): void {
     Route::post('/oa-fixture/created-response', [AuthoringFixtureController::class, 'createdResponseAction']);
     Route::post('/oa-fixture/multi-twoxx-response', [AuthoringFixtureController::class, 'multiTwoxxResponseAction']);
 
-    $this->spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $this->spec = generateSpec();
 });
 
 it('emits security: [] for PublicEndpoint despite auth middleware', function (): void {
@@ -148,7 +146,7 @@ it('resolves #[Throws] attribute from the exception class via use-statement reso
 it('omits routes marked with bare #[Hide]', function (): void {
     Route::get('/oa-fixture/hidden', [AuthoringFixtureController::class, 'hiddenAction']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths'])->not->toHaveKey('/oa-fixture/hidden');
 });
@@ -158,7 +156,7 @@ it('keeps env-scoped #[Hide] routes visible in non-matching environments', funct
 
     // Tests run under the 'testing' environment; the fixture hides in
     // staging/production, so the route should be present here.
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths'])->toHaveKey('/oa-fixture/env-hidden');
 });
@@ -168,7 +166,7 @@ it('omits env-scoped #[Hide] routes when the current environment matches', funct
 
     app()['env'] = 'production';
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['paths'])->not->toHaveKey('/oa-fixture/env-hidden');
 });
@@ -225,9 +223,9 @@ it('carries the auto-derived summary onto the webhook operation', function (): v
 
 it('omits a webhooks key when no routes carry #[Webhook]', function (): void {
     // Re-generate while filtering out the inbound webhook route.
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate(
+    $spec = generateSpec(
         [static fn($d): bool => $d->route->getActionName() === AuthoringFixtureController::class . '@inboundWebhookAction'],
-    )->toYaml());
+    );
 
     expect($spec)->not->toHaveKey('webhooks');
 });
@@ -236,7 +234,7 @@ it('falls back to app name and 0.0.0 when openapi.info is not configured', funct
     config()->set('openapi.info', null);
     config()->set('app.name', 'Test App');
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['info']['title'])->toBe('Test App')
         ->and($spec['info']['version'])->toBe('0.0.0');
@@ -255,7 +253,7 @@ it('reads info, servers, and tags from config', function (): void {
         'Projects' => ['description' => 'Sourcing project management.'],
     ]);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['info']['title'])->toBe('Custom API')
         ->and($spec['info']['version'])->toBe('9.9.9')
@@ -271,7 +269,7 @@ it('reads info, servers, and tags from config', function (): void {
 it('derives the Auth tag for controllers nested under an Auth namespace segment', function (): void {
     Route::get('/oa-fixture/auth-only', [AuthFixtureController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $tags = $spec['paths']['/oa-fixture/auth-only']['get']['tags'] ?? [];
 

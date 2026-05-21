@@ -14,12 +14,10 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Alpha\SelfRefData as AlphaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\MapInputNameFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
@@ -60,7 +58,7 @@ class BetaSelfRefController extends Controller
 it('applies #[RequestField] description, example and maxLength to schema properties', function (): void {
     Route::post('/spatie-data/property', [PropertyDataController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $props = $spec['components']['schemas']['PropertyFixtureData']['properties'];
 
@@ -76,7 +74,7 @@ it('applies #[RequestField] description, example and maxLength to schema propert
 it('leaves properties without #[RequestField] untouched', function (): void {
     Route::post('/spatie-data/property', [PropertyDataController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $props = $spec['components']['schemas']['PropertyFixtureData']['properties'];
 
@@ -98,7 +96,7 @@ dataset('map input name cases', [
 it('renders schema property keys via #[MapInputName]', function (string $present, ?string $absent): void {
     Route::post('/spatie-data/map-input-name', [MapInputNameController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $props = $spec['components']['schemas']['MapInputNameFixtureData']['properties'];
 
@@ -112,7 +110,7 @@ it('renders schema property keys via #[MapInputName]', function (string $present
 it('uses wire names in required[] (Optional union drops the field)', function (): void {
     Route::post('/spatie-data/map-input-name', [MapInputNameController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $required = $spec['components']['schemas']['MapInputNameFixtureData']['required'] ?? [];
 
@@ -131,7 +129,7 @@ it('uses wire names in required[] (Optional union drops the field)', function ()
 it('emits a $ref with the basename key for a self-referential Data class (OAPI-008)', function (): void {
     Route::post('/spatie-data/alpha-self-ref', [AlphaSelfRefController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['components']['schemas'])->toHaveKey('SelfRefData');
 
@@ -149,7 +147,7 @@ it('disambiguates same-basename Data classes across namespaces (OAPI-008)', func
     Route::post('/spatie-data/alpha-self-ref', [AlphaSelfRefController::class, 'store']);
     Route::post('/spatie-data/beta-self-ref', [BetaSelfRefController::class, 'store']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $keys = array_keys($spec['components']['schemas']);
 

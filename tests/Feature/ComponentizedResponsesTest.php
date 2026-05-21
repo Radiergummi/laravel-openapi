@@ -18,14 +18,12 @@ use Illuminate\Support\Facades\Route as RouteFacade;
 use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
 use Radiergummi\OpenApi\Core\Extractors\StandardResponsesExtractor;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 use ReflectionMethod;
 use RuntimeException;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -61,7 +59,7 @@ it('OAPI-018: known status codes produce components.responses entries', function
         [ComponentizedResponsesFixtureController::class, 'createAction'],
     )->middleware(['auth:api', 'scope:projects', 'throttle:api']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['components'])
         ->toHaveKey('responses')
@@ -86,7 +84,7 @@ it('OAPI-018: unknown status codes are still inlined (no component name mapped)'
         [ComponentizedResponsesFixtureController::class, 'teapotAction'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $responses = $spec['paths']['/oa-p2/teapot']['get']['responses'];
 
@@ -103,7 +101,7 @@ it('OAPI-018: each additional operation reuses the same component ref (deduplica
     RouteFacade::get('/oa-p2/op2', [ComponentizedResponsesFixtureController::class, 'createAction'])
         ->middleware(['auth:api']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $responses1 = $spec['paths']['/oa-p2/op1']['get']['responses'];
     $responses2 = $spec['paths']['/oa-p2/op2']['get']['responses'];

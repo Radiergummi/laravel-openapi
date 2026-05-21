@@ -7,14 +7,12 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\Fractal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin;
 use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:fractal');
 
@@ -85,7 +83,7 @@ class FractalFixtureController extends Controller
 it('documents a single Fractal response wrapped in data', function (): void {
     Route::get('/books/{book}', [FractalFixtureController::class, 'show']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/books/{book}']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()
@@ -96,7 +94,7 @@ it('documents a single Fractal response wrapped in data', function (): void {
 it('documents a collection Fractal response as a data array', function (): void {
     Route::get('/books', [FractalFixtureController::class, 'index']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/books']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema['properties']['data']['type'])->toBe('array')
@@ -106,7 +104,7 @@ it('documents a collection Fractal response as a data array', function (): void 
 it('documents a paginated Fractal response with pagination meta', function (): void {
     Route::get('/books/page', [FractalFixtureController::class, 'paginated']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/books/page']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema['properties']['data']['type'])->toBe('array')
@@ -117,7 +115,7 @@ it('documents a paginated Fractal response with pagination meta', function (): v
 it('registers the transformer as a reusable component schema', function (): void {
     Route::get('/books/{book}', [FractalFixtureController::class, 'show']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     expect($spec['components']['schemas'] ?? [])->toHaveKey('BookTransformer');
 });
@@ -125,7 +123,7 @@ it('registers the transformer as a reusable component schema', function (): void
 it('documents an ArraySerializer single response as a bare $ref', function (): void {
     Route::get('/books/{book}/array', [FractalFixtureController::class, 'arraySingle']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/books/{book}/array']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema)->not->toBeNull()
@@ -137,7 +135,7 @@ it('documents an ArraySerializer single response as a bare $ref', function (): v
 it('documents an ArraySerializer collection as a top-level array', function (): void {
     Route::get('/books/array', [FractalFixtureController::class, 'arrayCollection']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/books/array']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema['type'])->toBe('array')
@@ -147,7 +145,7 @@ it('documents an ArraySerializer collection as a top-level array', function (): 
 it('documents a JsonApi single under application/vnd.api+json with type/id/attributes', function (): void {
     Route::get('/books/{book}/jsonapi', [FractalFixtureController::class, 'jsonApiSingle']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $content = $spec['paths']['/books/{book}/jsonapi']['get']['responses']['200']['content'] ?? [];
 
     expect($content)->toHaveKey('application/vnd.api+json')
@@ -163,7 +161,7 @@ it('documents a JsonApi single under application/vnd.api+json with type/id/attri
 it('documents a JsonApi paginated response with hyphenated pagination keys', function (): void {
     Route::get('/books/jsonapi', [FractalFixtureController::class, 'jsonApiPaginated']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
     $schema = $spec['paths']['/books/jsonapi']['get']['responses']['200']['content']['application/vnd.api+json']['schema'] ?? null;
 
     expect($schema['properties']['data']['type'])->toBe('array')

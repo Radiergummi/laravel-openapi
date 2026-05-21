@@ -15,8 +15,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Radiergummi\OpenApi\Core\Attributes\Operation;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 
@@ -44,7 +42,7 @@ it('OAPI-020: Operation(tags:) merges with namespace-derived tag by default', fu
         [MergeTagController::class, 'index'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $tags = $spec['paths']['/oa-p2/merge-tag']['get']['tags'] ?? [];
 
@@ -57,7 +55,7 @@ it('OAPI-020: Operation(tags:, replace: true) discards namespace-derived tags', 
         [ReplaceTagController::class, 'index'],
     );
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     $tags = $spec['paths']['/oa-p2/replace-tag']['get']['tags'] ?? [];
 

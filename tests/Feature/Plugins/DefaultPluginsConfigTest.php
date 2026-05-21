@@ -14,11 +14,9 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Symfony\Component\Yaml\Yaml;
 
 use function array_map;
 use function config;
@@ -60,7 +58,7 @@ it('generates a clean document with the shipped default openapi.plugins array', 
     Route::get('/defaults/query-builder', [DefaultsController::class, 'withQueryBuilderHint']);
     Route::get('/defaults/fractal', [DefaultsController::class, 'withFractalHint']);
 
-    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+    $spec = generateSpec();
 
     // QueryBuilder plugin is disabled by default — no filter[*] parameters appear.
     $queryBuilderOp = $spec['paths']['/defaults/query-builder']['get'];
