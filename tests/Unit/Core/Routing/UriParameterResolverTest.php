@@ -15,10 +15,10 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('routing', 'openapi');
 
-/**
- * A bound model whose constructor requires arguments — instantiating it with
- * `new $class()` would throw an `ArgumentCountError`.
- */
+// String / nullable / enum parameter resolution is exercised by every feature
+// test that uses a path parameter. This file is reduced to the defensive cases
+// that depend on bound-model quirks no feature fixture can naturally exhibit.
+
 final class RoutableWithRequiredCtorArg implements UrlRoutable
 {
     public function __construct(private readonly string $required) {}
@@ -44,7 +44,6 @@ final class RoutableWithRequiredCtorArg implements UrlRoutable
     }
 }
 
-/** A bound model whose route key name resolution itself fails. */
 final class RoutableWithThrowingKeyName implements UrlRoutable
 {
     public function getRouteKey(): mixed
@@ -70,27 +69,6 @@ final class RoutableWithThrowingKeyName implements UrlRoutable
 
 beforeEach(function (): void {
     $this->resolver = new UriParameterResolver(TypeResolver::create());
-});
-
-it('resolves a plain string parameter without constraints', function (): void {
-    $param = reflectFunctionParameter(static function (string $project): void {}, 'project');
-
-    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
-
-    expect($descriptor->name)->toBe('project')
-        ->and($descriptor->optional)->toBeFalse()
-        ->and($descriptor->whereConstraint)->toBeNull()
-        ->and($descriptor->whereKind)->toBeNull()
-        ->and($descriptor->modelClass)->toBeNull()
-        ->and($descriptor->enumCases)->toBeNull();
-});
-
-it('resolves a nullable parameter as optional', function (): void {
-    $param = reflectFunctionParameter(static function (?string $project): void {}, 'project');
-
-    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
-
-    expect($descriptor->optional)->toBeTrue();
 });
 
 it('resolves a bound model whose constructor requires arguments', function (): void {

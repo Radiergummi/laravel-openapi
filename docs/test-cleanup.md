@@ -1,0 +1,175 @@
+# Test suite cleanup tracker
+
+Working document for the test-suite review started 2026-05-21. Captures every
+issue found during the review and any incidental issues spotted while executing
+fixes (including pre-existing or unrelated ones). Check items off as they land.
+
+Conventions:
+- `[ ]` open, `[x]` done, `[~]` in progress, `[-]` dropped (with reason).
+- Reference commit SHA in the parenthetical when an item lands.
+- New issues found mid-cleanup go under **Incidental findings**.
+
+---
+
+## 1. Public API the suite should target
+
+For reference while triaging:
+- Artisan commands: `openapi:generate`, `openapi:lint`, `openapi:clear`.
+- Generated OpenAPI document (YAML/JSON content).
+- User-facing attributes in `src/Core/Attributes/`.
+- Config surface (`config/openapi.php`).
+- `Core\Registry\Plugin` interface.
+- `Finding` (id, level, message) — consumed by plugins and formatters.
+
+Everything else (`SpecTreeBuilder`, `SpecTreeWalker`, `RuleRegistry`,
+`LintContext`, `OperationBuilder`, `RouteIntrospector`, `ActionDescriptor`,
+extractors, `ReflectionAttributeCache`, `ResolvedSchema`, …) is internal.
+
+---
+
+## 2. Delete — already covered end-to-end
+
+Each of these tests internal pipeline machinery that is exercised by the
+feature suite running through the artisan commands.
+
+- [x] `tests/Unit/Lint/Tree/SpecTreeBuilderTest.php` (644 L) — hand-built `OA\OpenApi` graphs, brittle JSON Pointer asserts
+- [x] `tests/Unit/Lint/Tree/SpecTreeWalkerTest.php` (785 L) — inline `Rule` impls + manual `ApiNode` trees
+- [x] `tests/Unit/Lint/RuleRegistryTest.php` (265 L) — severity overrides belong in a config-driven feature test
+- [x] `tests/Unit/Lint/SuppressionCollectorTest.php` — `#[IgnoreLint]` parsing; assert via linter
+- [x] `tests/Unit/Lint/LintContextTest.php` — trivial data container
+- [x] `tests/Unit/Lint/ArrayFindingsCollectorTest.php` — container only
+- [x] `tests/Unit/Lint/LoggingFindingsCollectorTest.php` — over-mocked logger calls
+- [x] `tests/Unit/Lint/Formatters/CliFormatterTest.php` — covered by `tests/Feature/Lint/Formatters/CliFormatterTest.php`
+- [-] `tests/Unit/Lint/Formatters/JsonFormatterTest.php` — **kept**: schema/summary structure has no feature coverage; pure logic worth a unit test
+- [-] `tests/Unit/Lint/Formatters/GithubFormatterTest.php` — **kept**: percent-encoding edge cases (commas, colons, newlines, `%`) have no feature coverage
+- [x] `tests/Unit/Core/Lint/ReflectionAttributeCacheTest.php` — pure caching internals
+- [x] `tests/Unit/Core/Routing/ActionDescriptorTest.php` — private cache + reflection probing
+- [-] `tests/Unit/Core/Routing/RouteIntrospectorTest.php` — **keep, trim later**: defensive non-existent-controller test has unique value; see §7
+- [-] `tests/Unit/Core/Routing/UriParameterResolverTest.php` — **keep, trim later**: defensive cases (required ctor arg, throwing key resolver) have unique value; see §7
+- [x] `tests/Unit/Core/Generator/OperationBuilderTest.php` — smoke path redundant with `P1BatchTwoTest` / `AuthoringAttributesTest`
+- [x] `tests/Unit/Core/Generator/CoreQueryParameterResolverTest.php` — exercised by query-param feature tests
+- [x] `tests/Unit/Core/Registry/OpenApiRegistryTest.php` — container wiring
+- [x] `tests/Unit/Core/Registry/ResolvedSchemaTest.php` — data carrier
+- [x] `tests/Unit/Core/Registry/CoreRegistrationTest.php` — provider internals
+- [-] `tests/Unit/Extractors/SecurityExtractorTest.php` (220 L) — **keep, trim later**: middleware-group expansion uses Mockery and should go, but config-driven `security_schemes` / `security_default_scheme` tests (lines 112–220) are the only coverage for that public API; see §7
+- [-] `tests/Unit/Lint/Rules/*` — **REVISED: keep, refactor**: the feature suite (`tests/Feature/Lint/LintCommandTest.php`) asserts on linter command behaviour (exit codes, suppression, config) but does **not** assert per-rule semantics. These unit tests are the only behaviour coverage for individual rules. Move shared cleanups to §7.
+
+Sizing actually removed in this pass: ~3.5 kLOC across 12 files plus orphaned fixtures (`tests/Unit/Core/Lint/Fixtures/Rac*.php`, `tests/Unit/Core/Routing/Fixtures/{AttributedController,Alpha,Beta}.php`).
+
+---
+
+## 3. Keep — legitimate unit-level value
+
+No action needed; listed so they aren't accidentally swept.
+
+- `tests/Unit/Core/Routing/DocCommentParserTest.php` — pure parser, many edge cases
+- `tests/Unit/Core/Routing/ReturnTypeExtractorTest.php` — docblock regex + generics
+- `tests/Unit/Core/Routing/ThrowsExtractorTest.php` — `@throws` parsing
+- `tests/Unit/Attributes/*` — public authoring attributes
+- `tests/Unit/Console/ClearCommandTest.php` — drives the artisan command
+- `tests/Unit/Core/Extractors/PayloadParameterScannerTest.php` — non-trivial reflection
+- `tests/Unit/Core/Extractors/FieldDescriptorTest.php` — regression-anchored
+- `tests/Unit/Core/Generator/PaginatorSchemaFactoryTest.php` — pure shape building
+- `tests/Unit/Lint/FindingTest.php` — public API for plugin/formatter authors
+- `tests/Unit/Lint/IdentifierCaseTest.php` — regex patterns
+- `tests/Unit/Lint/RuleFixHintGuardTest.php` — meta-guard
+- `tests/Unit/Lint/Rules/MetaRulesTest.php`
+- `tests/Unit/Lint/Rules/MetaSuppressionStaleTest.php`
+- `tests/Unit/Lint/Rules/MetaTooManySuppressionsTest.php`
+
+---
+
+## 4. Misplaced — move
+
+- [x] `tests/Feature/Plugins/SpatieData/DataSyntheticPayloadBuilderTest.php` → `tests/Unit/Plugins/SpatieData/` (no route, no generation, pure logic)
+
+---
+
+## 5. Rewrite as feature tests against the generated doc
+
+These live in `tests/Feature/*` but assert on intermediate resolver/extractor
+objects rather than on the generated YAML. Drive them through
+`openapi:generate` and assert on the doc.
+
+- [ ] `tests/Feature/RequestBodyExtractorTest.php` (208 L) — uses `makeRequestBodyExtractor()` helper, asserts on `ResolvedSchema`
+- [x] `tests/Feature/StandardResponsesExtractorTest.php` — **deleted**: all three cases were covered elsewhere (`#[Throws]` 418 by `ComponentizedResponsesTest` OAPI-021; `exceptionMap` 404 by `AuthoringAttributesTest`; no-throws by every test with non-throwing actions). Also dropped the orphan `tests/Fixtures/FixtureErrorResponseFactory.php`. Kept `StandardResponsesFixtureController.php` — still used by 3 other tests.
+- [ ] `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php` (209 L) — manually builds resolver
+- [ ] `tests/Feature/Plugins/SpatieData/DataClassRequestSchemaResolverTest.php` (166 L) — manual resolver wiring
+- [ ] `tests/Feature/Plugins/SpatieData/SchemaFromDataClassTest.php` (212 L) — keep edge cases as unit, add one end-to-end
+- [ ] `tests/Feature/Oapi031034Test.php` — split into the three OAPIs (031, 034, 043) or fold into `SchemaFromDataClassTest`; drop the batch-dump name
+
+---
+
+## 6. Batch-named tests
+
+Focused enough to keep, but renamed to describe behaviour rather than Linear
+tickets. OAPI-NNN ticket references retained inside `it(…)` titles as
+regression-trail breadcrumbs.
+
+- [x] `tests/Feature/P1BatchTwoTest.php` → `ActionRequestBodyTest.php` (OAPI-010/011)
+- [x] `tests/Feature/P2BatchTest.php` — split into:
+  - `ComponentizedResponsesTest.php` (OAPI-018 + OAPI-021)
+  - `OperationTagsTest.php` (OAPI-020)
+  - `ExampleFileLoaderTest.php` (OAPI-022)
+- [x] `tests/Feature/Oapi024Test.php` → `StreamingResponseTest.php`
+- [x] `tests/Feature/Oapi027Test.php` → `DataDiscriminatorTest.php`
+- [x] `tests/Feature/Oapi035Test.php` → `ScopedDiBindingsTest.php`
+- [x] `tests/Feature/Oapi031034Test.php` — split into:
+  - `DeprecatedFieldTest.php` (OAPI-031 + OAPI-043)
+  - `EnumCaseDescriptionTest.php` (OAPI-034)
+
+---
+
+## 7. Anti-patterns to sweep
+
+- [-] Drop the `it('reports its id and level', …)` test — **kept**: rule `id()` and `level()` are the public contract (config keys, default severity). `RuleCatalogCoverageTest` only verifies shape (non-empty, unique, ≥0), not specific values. These per-rule pins prevent silent renames/level changes.
+- [ ] Consolidate duplicate rule-test cases (e.g. `SummaryMissingTest` has three near-identical `emits a finding when summary is null/missing/not provided` tests; many other rule tests have similar duplicates)
+- [ ] Extract shared rule-test boilerplate — every rule test re-implements `makeXxxNode()` and `makeXxxContext()`. Consolidate into a `tests/Support/LintNodeFactory.php` (or extend `OperationNodeFactory`) so each rule test is just the rule-specific assertions
+- [-] Replace hand-constructed `OA\…` object graphs (e.g. `SpecTreeBuilderTest:24–98`, `SpecTreeWalkerTest:34–117`) — **done** as part of §2 deletions
+- [x] Trim `tests/Unit/Extractors/SecurityExtractorTest.php`: dropped 5 Mockery-based middleware-group tests; kept config-driven `security_schemes` / `security_default_scheme` coverage (220 L → 130 L)
+- [x] Trim `tests/Unit/Core/Routing/RouteIntrospectorTest.php`: dropped 3 redundant cases; kept defensive "non-existent controller class" (108 L → 47 L). Removed orphaned `Fixtures/SimpleController.php`.
+- [x] Trim `tests/Unit/Core/Routing/UriParameterResolverTest.php`: dropped 2 happy-path cases; kept defensive cases (119 L → 95 L)
+- [x] Audit orphaned fixtures — none orphaned; see §9
+
+---
+
+## 8. Suggested execution order
+
+1. [x] Sweep orphaned fixtures — confirmed none orphaned at session start; cleaned up incidentally with §2/§7 deletions.
+2. [-] Rule-level dump tests — reversed; see §2 / §9.
+3. [x] Delete `SpecTreeBuilderTest`, `SpecTreeWalkerTest`, `RuleRegistryTest`, `SuppressionCollectorTest`, lint formatters/context/collector unit tests (§2).
+4. [x] Delete clear-cut `Core/Routing` + `Core/Generator` + `Core/Registry` + `Extractors/SecurityExtractor` unit tests covered by feature flow (§2). Two `Core/Routing` tests trimmed not deleted; `SecurityExtractorTest` trimmed not deleted — see §7.
+5. [x] Move `DataSyntheticPayloadBuilderTest` into `Unit/` (§4).
+6. [ ] Rewrite the four remaining resolver/extractor feature tests in §5 to assert on the generated document — `RequestBodyExtractorTest`, `DataResponseResolverTest`, `DataClassRequestSchemaResolverTest`, `SchemaFromDataClassTest`. Pending: ~750 LOC of rewrite work.
+7. [x] Split or rename `Oapi031034Test`; rename the other batch-named files (§6).
+8. [ ] Refactor rule-test boilerplate (§7): extract `make*Node`/`make*Context` into a shared `tests/Support/LintNodeFactory.php`; consolidate duplicate `it(…)` cases within rule files.
+
+Run `composer test && composer lint && composer analyse` after each tranche.
+
+### Session results so far
+
+| Metric | Baseline | After cleanup | Δ |
+|---|---|---|---|
+| Tests passing | 1230 | 1130 | −100 |
+| Assertions | 3172 | 2913 | −259 |
+| Files deleted | — | 17 | |
+| Files moved/split | — | 5 source files → 7 split products | |
+| Files trimmed | — | 3 | |
+
+`composer test` / `composer lint` / `composer analyse` all green.
+
+---
+
+## 9. Incidental findings
+
+Append issues spotted mid-cleanup here. Include the file + reason; promote to
+its own section if a pattern emerges.
+
+- **Linter rule unit tests are the only per-rule behaviour coverage.** `tests/Feature/Lint/LintCommandTest.php` only asserts on command behaviour (exit codes, suppression, config-driven flag handling); it does not assert that any specific rule emits any specific finding. This invalidated the original plan to mass-delete `tests/Unit/Lint/Rules/*`. Outcome: those tests stay, refactor them via §7 instead.
+- **`tests/Unit/Core/Generator/CoreQueryParameterResolverTest.php` covered class-level → method-level `#[QueryParam]` override behaviour that is not exercised by any feature test.** Deleted with the file; coverage gap. Add a class-level `#[QueryParam]` fixture controller alongside `ResponseHeaderClassLevelTest`.
+- **`tests/Unit/Core/Routing/UriParameterDescriptorTest.php` is a 60-line constructor-verbatim test on a public-named-args data class.** Low value but small; consider deleting along with §7 trimming pass.
+- **`tests/Unit/Core/Generator/OpenApiGeneratorTest.php` is the right shape and should be the template for what feature tests look like** (define route → `app(OpenApiGenerator::class)->generate()` → assert on parsed YAML). Use as reference when rewriting tests under §5.
+- **`tests/Feature/Lint/RuleCatalogCoverageTest.php` is a shape test only.** It verifies every registered rule has a unique non-empty `id`, a non-empty `description`, and a non-negative `level`, but does not pin specific id/level values. The per-rule `it('reports its id and level', …)` tests are the only contract guard for default severity and rule-id stability — keep them.
+- **No truly orphaned fixtures.** `RemoteMediaFixtureController` (used by `FormRequestSchemaTest`), `ExampleFixtureController` (used by `RequestBodyExtractorTest`, `DataClassRequestSchemaResolverTest`), `StandardResponsesFixtureController` (used by 4 tests) are all still referenced. The explore agent's "orphaned" call was incorrect.
+- **Dropped a self-admitting-useless test during the `Oapi031034Test.php` split.** The OAPI-034 case `description is not set when no case has PHPDoc` literally asserted on the positive path (description IS set) and admitted in its own comment that it couldn't actually test the negative path. Removed.
+- **Pre-existing weak warnings (PhpStorm inspections) across test files:** unhandled `\PHPUnit\Framework\ExpectationFailedException`, unhandled `\Symfony\Component\Yaml\Exception\ParseException`, "closure can be declared static", "multiple expectations can be chained". Hundreds of instances; ignored because they exist project-wide and aren't real issues for test code. Could be silenced via `phpstorm.meta.php` or an `.editorconfig`-like IDE config if they become noisy.
