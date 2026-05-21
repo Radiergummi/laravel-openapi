@@ -9,68 +9,10 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\ScopeOverlyBroad;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-/**
- * Build an OperationNode with the given security scopes.
- *
- * @param list<array{scheme: string, scopes: list<string>}> $security
- */
-function makeScopeOperationNode(array $security): OperationNode
-{
-    return new OperationNode(
-        pathUri: '/foo',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: $security,
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
-        webhook: false,
-    );
-}
-
-/**
- * Build a LintContext with a TreeIndex containing registered scopes.
- *
- * @param list<string> $registeredScopes
- */
-function makeContextForScope(array $registeredScopes): LintContext
-{
-    $index = new TreeIndex(
-        operationsByOperationId: [],
-        operationsByRouteKey: [],
-        componentsByName: [],
-        referencedComponents: [],
-        registeredScopes: $registeredScopes,
-        knownRuleIds: [],
-    );
-
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: $index,
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('reports its id and level', function (): void {
     $rule = new ScopeOverlyBroad(registeredScopes: []);
@@ -80,10 +22,13 @@ it('reports its id and level', function (): void {
 });
 
 it('emits a finding when the only scope is the wildcard', function (): void {
-    $operation = makeScopeOperationNode(
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/foo',
+        operationId: null,
+        responses: [],
         security: [['scheme' => 'oauth2', 'scopes' => ['*']]],
     );
-    $context = makeContextForScope(['read', 'write']);
+    $context = OperationNodeFactory::emptyContext(registeredScopes: ['read', 'write']);
 
     $rule = new ScopeOverlyBroad(registeredScopes: ['read', 'write']);
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
@@ -96,60 +41,23 @@ it('emits a finding when the only scope is the wildcard', function (): void {
         ->and($findings[0]->message)->toContain('/foo');
 });
 
-it('emits no finding when specific scopes are used', function (): void {
-    $operation = makeScopeOperationNode(
-        security: [['scheme' => 'oauth2', 'scopes' => ['read', 'write']]],
+it('emits no finding', function (array $scopes, array $registeredScopes): void {
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/foo',
+        operationId: null,
+        responses: [],
+        security: $scopes === [] ? [] : [['scheme' => 'oauth2', 'scopes' => $scopes]],
     );
-    $context = makeContextForScope(['read', 'write']);
+    $context = OperationNodeFactory::emptyContext(registeredScopes: $registeredScopes);
 
-    $rule = new ScopeOverlyBroad(registeredScopes: ['read', 'write']);
+    $rule = new ScopeOverlyBroad(registeredScopes: $registeredScopes);
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
     expect($findings)->toBe([]);
-});
-
-it('emits no finding when wildcard is mixed with specific scopes', function (): void {
-    $operation = makeScopeOperationNode(
-        security: [['scheme' => 'oauth2', 'scopes' => ['*', 'read']]],
-    );
-    $context = makeContextForScope(['read', 'write']);
-
-    $rule = new ScopeOverlyBroad(registeredScopes: ['read', 'write']);
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when operation has no security', function (): void {
-    $operation = makeScopeOperationNode(security: []);
-    $context = makeContextForScope(['read']);
-
-    $rule = new ScopeOverlyBroad(registeredScopes: ['read']);
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when no specific scopes are registered', function (): void {
-    $operation = makeScopeOperationNode(
-        security: [['scheme' => 'oauth2', 'scopes' => ['*']]],
-    );
-    $context = makeContextForScope([]);
-
-    $rule = new ScopeOverlyBroad(registeredScopes: []);
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when the only registered scope is wildcard', function (): void {
-    $operation = makeScopeOperationNode(
-        security: [['scheme' => 'oauth2', 'scopes' => ['*']]],
-    );
-    $context = makeContextForScope(['*']);
-
-    $rule = new ScopeOverlyBroad(registeredScopes: ['*']);
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'specific scopes used' => [['read', 'write'], ['read', 'write']],
+    'wildcard mixed with specific scopes' => [['*', 'read'], ['read', 'write']],
+    'no security on operation' => [[], ['read']],
+    'no specific scopes registered' => [['*'], []],
+    'only registered scope is wildcard' => [['*'], ['*']],
+]);

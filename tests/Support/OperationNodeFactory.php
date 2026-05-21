@@ -89,6 +89,8 @@ final class OperationNodeFactory
      *                                                              api-level rules (e.g. `tag.undeclared-at-root`)
      * @param list<WebhookNode>            $webhooks                populates `ApiNode->webhooks`
      * @param array<string, string>        $tagDescriptions         tag name → description; used by `tags.no-description`
+     * @param list<string>                 $registeredScopes        prepopulates `TreeIndex->registeredScopes`;
+     *                                                              used by security/scope rules
      */
     public static function emptyContext(
         array $payloadClasses = [],
@@ -97,16 +99,17 @@ final class OperationNodeFactory
         array $operations = [],
         array $webhooks = [],
         array $tagDescriptions = [],
+        array $registeredScopes = [],
     ): LintContext {
         $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-        $index = $operationsByOperationId === []
+        $index = $operationsByOperationId === [] && $registeredScopes === []
             ? TreeIndex::empty()
             : new TreeIndex(
                 operationsByOperationId: $operationsByOperationId,
                 operationsByRouteKey: [],
                 componentsByName: [],
                 referencedComponents: [],
-                registeredScopes: [],
+                registeredScopes: $registeredScopes,
                 knownRuleIds: [],
             );
 
