@@ -18,16 +18,40 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 
-function makeApiNodeForRefBroken(OA\OpenApi $spec): ApiNode
+function refBrokenFindings(OA\OpenApi $spec): array
 {
-    return new ApiNode(
-        operations: [],
-        components: [],
-        webhooks: [],
-        declaredTags: [],
-        tagDescriptions: [],
-        raw: $spec,
+    $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
+    $ctx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
+
+    return iterator_to_array((new RefBroken())->checkApi($api, $ctx));
+}
+
+/**
+ * Spec with a wrapper schema that uses a $ref + optional component schemas.
+ *
+ * @param list<string> $schemas
+ */
+function specWithRef(string $ref, array $schemas): OA\OpenApi
+{
+    $ctx = new Context();
+
+    $oaSchemas = array_map(
+        static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $ctx]),
+        $schemas,
     );
+
+    $oaSchemas[] = new OA\Schema([
+        'schema' => 'Wrapper',
+        'type' => 'object',
+        'properties' => [new OA\Property(['property' => 'related', 'ref' => $ref, '_context' => $ctx])],
+        '_context' => $ctx,
+    ]);
+
+    return new OA\OpenApi([
+        'openapi' => '3.1.0',
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
+        'components' => new OA\Components(['schemas' => $oaSchemas, '_context' => $ctx]),
+    ]);
 }
 
 it('reports its id and level', function (): void {
@@ -37,28 +61,8 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(0);
 });
 
-it('emits no finding when all refs resolve to existing components', function (): void {
-    $spec = makeSpecWithRef(
-        ref: '#/components/schemas/User',
-        schemas: ['User'],
-    );
-    $api = makeApiNodeForRefBroken($spec);
-    $ctx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array((new RefBroken())->checkApi($api, $ctx));
-
-    expect($findings)->toBe([]);
-});
-
 it('emits a finding when a ref points to a non-existent schema', function (): void {
-    $spec = makeSpecWithRef(
-        ref: '#/components/schemas/NonExistent',
-        schemas: ['User'],
-    );
-    $api = makeApiNodeForRefBroken($spec);
-    $ctx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array((new RefBroken())->checkApi($api, $ctx));
+    $findings = refBrokenFindings(specWithRef(ref: '#/components/schemas/NonExistent', schemas: ['User']));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('ref.broken')
@@ -67,134 +71,61 @@ it('emits a finding when a ref points to a non-existent schema', function (): vo
         ->and($findings[0]->context['ref'])->toBe('#/components/schemas/NonExistent');
 });
 
-it('emits no finding when there are no refs', function (): void {
-    $ctx = new Context();
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-    ]);
-    $api = makeApiNodeForRefBroken($spec);
-    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array((new RefBroken())->checkApi($api, $lintCtx));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding for external refs', function (): void {
-    $ctx = new Context();
-    $schema = new OA\Schema([
-        'schema' => 'Wrapper',
-        'ref' => 'https://example.com/schemas/External.json',
-        '_context' => $ctx,
-    ]);
-
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components([
-            'schemas' => [$schema],
-            '_context' => $ctx,
-        ]),
-    ]);
-    $api = makeApiNodeForRefBroken($spec);
-    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array((new RefBroken())->checkApi($api, $lintCtx));
-
-    expect($findings)->toBe([]);
-});
-
 it('emits a finding when a ref points to a non-existent response', function (): void {
     $ctx = new Context();
-    $responseRef = new OA\Response([
-        'ref' => '#/components/responses/NotFoundResponse',
-        '_context' => $ctx,
-    ]);
-    $operation = new OA\Get([
-        'operationId' => 'test.op',
-        'responses' => [$responseRef],
-        '_context' => $ctx,
-    ]);
-    $path = new OA\PathItem(['path' => '/test', 'get' => $operation, '_context' => $ctx]);
-
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
         'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'paths' => [$path],
+        'paths' => [new OA\PathItem([
+            'path' => '/test',
+            'get' => new OA\Get([
+                'operationId' => 'test.op',
+                'responses' => [new OA\Response(['ref' => '#/components/responses/NotFoundResponse', '_context' => $ctx])],
+                '_context' => $ctx,
+            ]),
+            '_context' => $ctx,
+        ])],
     ]);
-    $api = makeApiNodeForRefBroken($spec);
-    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    $findings = iterator_to_array((new RefBroken())->checkApi($api, $lintCtx));
+    $findings = refBrokenFindings($spec);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->context['ref'])->toBe('#/components/responses/NotFoundResponse');
 });
 
-it('emits no finding when spec has no components and no refs', function (): void {
-    $ctx = new Context();
-    $operation = new OA\Get([
-        'operationId' => 'simple.get',
-        'responses' => [new OA\Response(['response' => '200', '_context' => $ctx])],
-        '_context' => $ctx,
-    ]);
-    $path = new OA\PathItem(['path' => '/simple', 'get' => $operation, '_context' => $ctx]);
-
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'paths' => [$path],
-    ]);
-    $api = makeApiNodeForRefBroken($spec);
-    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array((new RefBroken())->checkApi($api, $lintCtx));
-
-    expect($findings)->toBe([]);
-});
-
-/**
- * Build a minimal spec with a schema that uses a $ref and optional component schemas.
- *
- * @param list<string> $schemas Names of schemas to register as components
- */
-function makeSpecWithRef(string $ref, array $schemas): OA\OpenApi
-{
-    $ctx = new Context();
-
-    $oaSchemas = [];
-
-    foreach ($schemas as $name) {
-        $oaSchemas[] = new OA\Schema([
-            'schema' => $name,
-            'type' => 'object',
-            '_context' => $ctx,
-        ]);
-    }
-
-    // Create a property that uses a $ref
-    $refProperty = new OA\Property([
-        'property' => 'related',
-        'ref' => $ref,
-        '_context' => $ctx,
-    ]);
-
-    $wrapperSchema = new OA\Schema([
-        'schema' => 'Wrapper',
-        'type' => 'object',
-        'properties' => [$refProperty],
-        '_context' => $ctx,
-    ]);
-
-    $oaSchemas[] = $wrapperSchema;
-
-    return new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components([
-            'schemas' => $oaSchemas,
-            '_context' => $ctx,
+it('emits no finding', function (OA\OpenApi $spec): void {
+    expect(refBrokenFindings($spec))->toBe([]);
+})->with(function () {
+    return [
+        'all refs resolve to existing components' => fn() => specWithRef(ref: '#/components/schemas/User', schemas: ['User']),
+        'no refs' => fn() => new OA\OpenApi([
+            'openapi' => '3.1.0',
+            'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => new Context()]),
         ]),
-    ]);
-}
+        'external refs' => fn() => new OA\OpenApi([
+            'openapi' => '3.1.0',
+            'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => new Context()]),
+            'components' => new OA\Components([
+                'schemas' => [new OA\Schema([
+                    'schema' => 'Wrapper',
+                    'ref' => 'https://example.com/schemas/External.json',
+                    '_context' => new Context(),
+                ])],
+                '_context' => new Context(),
+            ]),
+        ]),
+        'spec has no components and no refs' => fn() => new OA\OpenApi([
+            'openapi' => '3.1.0',
+            'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => new Context()]),
+            'paths' => [new OA\PathItem([
+                'path' => '/simple',
+                'get' => new OA\Get([
+                    'operationId' => 'simple.get',
+                    'responses' => [new OA\Response(['response' => '200', '_context' => new Context()])],
+                    '_context' => new Context(),
+                ]),
+                '_context' => new Context(),
+            ])],
+        ]),
+    ];
+});

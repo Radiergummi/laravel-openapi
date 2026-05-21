@@ -16,6 +16,16 @@ use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
+function externaldocsFindings(string $method): array
+{
+    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, $method, '/fixture');
+    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
+
+    return iterator_to_array(
+        (new ExternaldocsInvalidUrl())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+}
+
 it('has the correct rule id and level', function (): void {
     $rule = new ExternaldocsInvalidUrl();
 
@@ -23,28 +33,8 @@ it('has the correct rule id and level', function (): void {
         ->and($rule->level())->toBe(1);
 });
 
-it('emits no findings for a valid URL', function (): void {
-    $rule = new ExternaldocsInvalidUrl();
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withValidUrl', '/fixture');
-    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
 it('emits a finding for an invalid URL', function (): void {
-    $rule = new ExternaldocsInvalidUrl();
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withInvalidUrl', '/fixture');
-    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
+    $findings = externaldocsFindings('withInvalidUrl');
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('externaldocs.invalid-url')
@@ -53,28 +43,15 @@ it('emits a finding for an invalid URL', function (): void {
 });
 
 it('emits a finding for an empty URL', function (): void {
-    $rule = new ExternaldocsInvalidUrl();
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withEmptyUrl', '/fixture');
-    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
+    $findings = externaldocsFindings('withEmptyUrl');
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('externaldocs.invalid-url');
 });
 
-it('emits no findings when a method has no ExternalDocs attribute', function (): void {
-    $rule = new ExternaldocsInvalidUrl();
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidExternalDocsController::class, 'withoutExternalDocs', '/fixture');
-    $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
+it('emits no findings', function (string $method): void {
+    expect(externaldocsFindings($method))->toBe([]);
+})->with([
+    'valid URL' => 'withValidUrl',
+    'no ExternalDocs attribute' => 'withoutExternalDocs',
+]);

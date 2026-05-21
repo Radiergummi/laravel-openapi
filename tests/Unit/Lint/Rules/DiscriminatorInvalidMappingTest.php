@@ -19,6 +19,70 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 
+/**
+ * Drive `DiscriminatorInvalidMapping` against a spec built from a base schema
+ * with a discriminator + the named child schemas. Returns all findings emitted
+ * across the per-component walk plus `finalize()`.
+ *
+ * @param array<string, string>       $mapping discriminator value → $ref
+ * @param array<string, list<string>> $schemas schema name → list of property names
+ */
+function discriminatorInvalidMappingFindings(string $propertyName, array $mapping, array $schemas): array
+{
+    $ctx = new Context();
+    $oaSchemas = [];
+    $componentNodes = [];
+
+    foreach ($schemas as $name => $properties) {
+        $oaSchema = new OA\Schema([
+            'schema' => $name,
+            'properties' => array_map(
+                static fn(string $propName) => new OA\Property(['property' => $propName, 'type' => 'string', '_context' => $ctx]),
+                $properties,
+            ),
+            '_context' => $ctx,
+        ]);
+
+        $oaSchemas[] = $oaSchema;
+        $componentNodes[] = new ComponentSchemaNode(name: $name, description: null, fields: [], raw: $oaSchema);
+    }
+
+    $baseSchema = new OA\Schema([
+        'schema' => 'Base',
+        'discriminator' => new OA\Discriminator([
+            'propertyName' => $propertyName,
+            'mapping' => $mapping,
+            '_context' => $ctx,
+        ]),
+        '_context' => $ctx,
+    ]);
+
+    $oaSchemas[] = $baseSchema;
+    $componentNodes[] = new ComponentSchemaNode(name: 'Base', description: null, fields: [], raw: $baseSchema);
+
+    $spec = new OA\OpenApi([
+        'openapi' => '3.1.0',
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
+        'components' => new OA\Components(['schemas' => $oaSchemas, '_context' => $ctx]),
+    ]);
+
+    $lintCtx = new LintContext(
+        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
+        index: TreeIndex::empty(),
+        rawSpec: $spec,
+        actionDescriptors: [],
+        suppressions: [],
+    );
+
+    $rule = new DiscriminatorInvalidMapping();
+
+    foreach ($componentNodes as $component) {
+        iterator_to_array($rule->checkComponentSchema($component, $lintCtx));
+    }
+
+    return iterator_to_array($rule->finalize($lintCtx));
+}
+
 it('reports its id and level', function (): void {
     $rule = new DiscriminatorInvalidMapping();
 
@@ -27,42 +91,21 @@ it('reports its id and level', function (): void {
 });
 
 it('emits no finding when all mapped schemas declare the discriminator property', function (): void {
-    [$ctx, , $allComponents] = makeSpecWithDiscriminatorForVisitor(
+    $findings = discriminatorInvalidMappingFindings(
         propertyName: 'type',
         mapping: ['dog' => '#/components/schemas/Dog', 'cat' => '#/components/schemas/Cat'],
-        schemas: [
-            'Dog' => ['type'],
-            'Cat' => ['type'],
-        ],
+        schemas: ['Dog' => ['type'], 'Cat' => ['type']],
     );
-
-    $rule = new DiscriminatorInvalidMapping();
-
-    foreach ($allComponents as $component) {
-        iterator_to_array($rule->checkComponentSchema($component, $ctx));
-    }
-
-    $findings = iterator_to_array($rule->finalize($ctx));
 
     expect($findings)->toBe([]);
 });
 
 it('emits a finding when a mapped schema does not declare the discriminator property', function (): void {
-    [$ctx, , $allComponents] = makeSpecWithDiscriminatorForVisitor(
+    $findings = discriminatorInvalidMappingFindings(
         propertyName: 'type',
         mapping: ['dog' => '#/components/schemas/Dog'],
-        schemas: [
-            'Dog' => ['name'], // Missing 'type' property
-        ],
+        schemas: ['Dog' => ['name']], // missing 'type'
     );
-
-    $rule = new DiscriminatorInvalidMapping();
-
-    foreach ($allComponents as $component) {
-        iterator_to_array($rule->checkComponentSchema($component, $ctx));
-    }
-
-    $findings = iterator_to_array($rule->finalize($ctx));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('discriminator.invalid-mapping')
@@ -72,19 +115,11 @@ it('emits a finding when a mapped schema does not declare the discriminator prop
 });
 
 it('emits a finding when a mapped schema does not exist', function (): void {
-    [$ctx, , $allComponents] = makeSpecWithDiscriminatorForVisitor(
+    $findings = discriminatorInvalidMappingFindings(
         propertyName: 'type',
         mapping: ['ghost' => '#/components/schemas/Ghost'],
         schemas: [],
     );
-
-    $rule = new DiscriminatorInvalidMapping();
-
-    foreach ($allComponents as $component) {
-        iterator_to_array($rule->checkComponentSchema($component, $ctx));
-    }
-
-    $findings = iterator_to_array($rule->finalize($ctx));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('Ghost')
@@ -92,7 +127,7 @@ it('emits a finding when a mapped schema does not exist', function (): void {
 });
 
 it('emits a finding per invalid mapping entry', function (): void {
-    [$ctx, , $allComponents] = makeSpecWithDiscriminatorForVisitor(
+    $findings = discriminatorInvalidMappingFindings(
         propertyName: 'kind',
         mapping: [
             'a' => '#/components/schemas/Alpha',
@@ -106,14 +141,6 @@ it('emits a finding per invalid mapping entry', function (): void {
         ],
     );
 
-    $rule = new DiscriminatorInvalidMapping();
-
-    foreach ($allComponents as $component) {
-        iterator_to_array($rule->checkComponentSchema($component, $ctx));
-    }
-
-    $findings = iterator_to_array($rule->finalize($ctx));
-
     expect($findings)->toHaveCount(2)
         ->and($findings[0]->message)->toContain('Beta')
         ->and($findings[1]->message)->toContain('Gamma');
@@ -125,49 +152,34 @@ it('emits no finding when the discriminator property is inherited via allOf', fu
     // BaseAnimal declares the discriminator property 'type' directly
     $baseAnimal = new OA\Schema([
         'schema' => 'BaseAnimal',
-        'properties' => [
-            new OA\Property(['property' => 'type', 'type' => 'string', '_context' => $ctx]),
-        ],
+        'properties' => [new OA\Property(['property' => 'type', 'type' => 'string', '_context' => $ctx])],
         '_context' => $ctx,
     ]);
 
-    // Dog inherits from BaseAnimal via allOf — does NOT redeclare 'type' directly
+    // Dog inherits 'type' via allOf — does NOT redeclare directly
     $dog = new OA\Schema([
         'schema' => 'Dog',
-        'allOf' => [
-            new OA\Schema(['ref' => '#/components/schemas/BaseAnimal', '_context' => $ctx]),
-        ],
-        '_context' => $ctx,
-    ]);
-
-    $discriminator = new OA\Discriminator([
-        'propertyName' => 'type',
-        'mapping' => ['dog' => '#/components/schemas/Dog'],
+        'allOf' => [new OA\Schema(['ref' => '#/components/schemas/BaseAnimal', '_context' => $ctx])],
         '_context' => $ctx,
     ]);
 
     $baseSchema = new OA\Schema([
         'schema' => 'Pet',
-        'discriminator' => $discriminator,
+        'discriminator' => new OA\Discriminator([
+            'propertyName' => 'type',
+            'mapping' => ['dog' => '#/components/schemas/Dog'],
+            '_context' => $ctx,
+        ]),
         '_context' => $ctx,
     ]);
 
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
         'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components([
-            'schemas' => [$baseAnimal, $dog, $baseSchema],
-            '_context' => $ctx,
-        ]),
+        'components' => new OA\Components(['schemas' => [$baseAnimal, $dog, $baseSchema], '_context' => $ctx]),
     ]);
 
-    $component = new ComponentSchemaNode(
-        name: 'Pet',
-        description: null,
-        fields: [],
-        raw: $baseSchema,
-    );
-
+    $component = new ComponentSchemaNode(name: 'Pet', description: null, fields: [], raw: $baseSchema);
     $lintCtx = new LintContext(
         api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
         index: TreeIndex::empty(),
@@ -186,28 +198,17 @@ it('emits no finding when there is no discriminator', function (): void {
 
     $schema = new OA\Schema([
         'schema' => 'Simple',
-        'properties' => [
-            new OA\Property(['property' => 'name', 'type' => 'string', '_context' => $ctx]),
-        ],
+        'properties' => [new OA\Property(['property' => 'name', 'type' => 'string', '_context' => $ctx])],
         '_context' => $ctx,
     ]);
-
-    $component = new ComponentSchemaNode(
-        name: 'Simple',
-        description: null,
-        fields: [],
-        raw: $schema,
-    );
 
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
         'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components([
-            'schemas' => [$schema],
-            '_context' => $ctx,
-        ]),
+        'components' => new OA\Components(['schemas' => [$schema], '_context' => $ctx]),
     ]);
 
+    $component = new ComponentSchemaNode(name: 'Simple', description: null, fields: [], raw: $schema);
     $lintCtx = new LintContext(
         api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
         index: TreeIndex::empty(),
@@ -220,84 +221,3 @@ it('emits no finding when there is no discriminator', function (): void {
 
     expect($findings)->toBe([]);
 });
-
-/**
- * Build a minimal OA\OpenApi with a base schema that has a discriminator
- * with the given mapping, plus the mapped child schemas. Returns the
- * LintContext, the base ComponentSchemaNode, and all ComponentSchemaNodes
- * (needed to feed the full index into the rule before finalize()).
- *
- * @param array<string, string>       $mapping Discriminator value → $ref
- * @param array<string, list<string>> $schemas Schema name → list of property names
- *
- * @return array{LintContext, ComponentSchemaNode, list<ComponentSchemaNode>}
- */
-function makeSpecWithDiscriminatorForVisitor(
-    string $propertyName,
-    array $mapping,
-    array $schemas,
-): array {
-    $ctx = new Context();
-
-    // Build child schemas
-    $oaSchemas = [];
-    $componentNodes = [];
-
-    foreach ($schemas as $name => $properties) {
-        $oaProperties = [];
-
-        foreach ($properties as $propName) {
-            $oaProperties[] = new OA\Property([
-                'property' => $propName,
-                'type' => 'string',
-                '_context' => $ctx,
-            ]);
-        }
-
-        $oaSchema = new OA\Schema([
-            'schema' => $name,
-            'properties' => $oaProperties,
-            '_context' => $ctx,
-        ]);
-
-        $oaSchemas[] = $oaSchema;
-        $componentNodes[] = new ComponentSchemaNode(name: $name, description: null, fields: [], raw: $oaSchema);
-    }
-
-    // Build base schema with discriminator
-    $discriminator = new OA\Discriminator([
-        'propertyName' => $propertyName,
-        'mapping' => $mapping,
-        '_context' => $ctx,
-    ]);
-
-    $baseSchema = new OA\Schema([
-        'schema' => 'Base',
-        'discriminator' => $discriminator,
-        '_context' => $ctx,
-    ]);
-
-    $oaSchemas[] = $baseSchema;
-
-    $baseComponent = new ComponentSchemaNode(name: 'Base', description: null, fields: [], raw: $baseSchema);
-    $componentNodes[] = $baseComponent;
-
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components([
-            'schemas' => $oaSchemas,
-            '_context' => $ctx,
-        ]),
-    ]);
-
-    $lintCtx = new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-
-    return [$lintCtx, $baseComponent, $componentNodes];
-}

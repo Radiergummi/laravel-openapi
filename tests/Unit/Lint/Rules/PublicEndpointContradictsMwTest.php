@@ -18,6 +18,19 @@ use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
+function publicEndpointFindings(string $controller, string $method, array $middleware, string $uri = '/test'): array
+{
+    $route = new Route(['GET'], $uri, [$controller, $method]);
+    $route->middleware($middleware);
+
+    $descriptor = ActionDescriptorFactory::forRoute($route, $controller, $method);
+    $operation = OperationNodeFactory::forDescriptor($descriptor);
+
+    return iterator_to_array(
+        (new PublicEndpointContradictsMw())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+}
+
 it('reports its id and level', function (): void {
     $rule = new PublicEndpointContradictsMw();
 
@@ -26,17 +39,7 @@ it('reports its id and level', function (): void {
 });
 
 it('emits a finding when a method-level PublicEndpoint has auth middleware', function (): void {
-    $route = new Route(['GET'], '/public', [PublicEndpointMwController::class, 'publicAction']);
-    $route->middleware(['auth:api']);
-
-    $descriptor = ActionDescriptorFactory::forRoute($route, PublicEndpointMwController::class, 'publicAction');
-
-    $operation = OperationNodeFactory::forDescriptor($descriptor);
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        (new PublicEndpointContradictsMw())->checkOperation($operation, $context),
-    );
+    $findings = publicEndpointFindings(PublicEndpointMwController::class, 'publicAction', ['auth:api']);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('publicendpoint.contradicts-middleware')
@@ -47,68 +50,23 @@ it('emits a finding when a method-level PublicEndpoint has auth middleware', fun
 });
 
 it('emits a finding when a method-level PublicEndpoint has scope middleware', function (): void {
-    $route = new Route(['GET'], '/public', [PublicEndpointMwController::class, 'publicAction']);
-    $route->middleware(['scope:read']);
-
-    $descriptor = ActionDescriptorFactory::forRoute($route, PublicEndpointMwController::class, 'publicAction');
-
-    $operation = OperationNodeFactory::forDescriptor($descriptor);
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        (new PublicEndpointContradictsMw())->checkOperation($operation, $context),
-    );
+    $findings = publicEndpointFindings(PublicEndpointMwController::class, 'publicAction', ['scope:read']);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('scope:read');
 });
 
 it('emits a finding when a class-level PublicEndpoint has auth middleware', function (): void {
-    $route = new Route(['GET'], '/class-public', [PublicEndpointMwClassController::class, 'index']);
-    $route->middleware(['auth:api', 'scope:write']);
-
-    $descriptor = ActionDescriptorFactory::forRoute($route, PublicEndpointMwClassController::class, 'index');
-
-    $operation = OperationNodeFactory::forDescriptor($descriptor);
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        (new PublicEndpointContradictsMw())->checkOperation($operation, $context),
-    );
+    $findings = publicEndpointFindings(PublicEndpointMwClassController::class, 'index', ['auth:api', 'scope:write']);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('auth:api')
         ->and($findings[0]->message)->toContain('scope:write');
 });
 
-it('emits no finding when a PublicEndpoint method has no auth middleware', function (): void {
-    $route = new Route(['GET'], '/public', [PublicEndpointMwController::class, 'publicAction']);
-    $route->middleware(['throttle:60,1']);
-
-    $descriptor = ActionDescriptorFactory::forRoute($route, PublicEndpointMwController::class, 'publicAction');
-
-    $operation = OperationNodeFactory::forDescriptor($descriptor);
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        (new PublicEndpointContradictsMw())->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when a method without PublicEndpoint has auth middleware', function (): void {
-    $route = new Route(['GET'], '/protected', [PublicEndpointMwController::class, 'protectedAction']);
-    $route->middleware(['auth:api', 'scope:read']);
-
-    $descriptor = ActionDescriptorFactory::forRoute($route, PublicEndpointMwController::class, 'protectedAction');
-
-    $operation = OperationNodeFactory::forDescriptor($descriptor);
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        (new PublicEndpointContradictsMw())->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
+it('emits no finding', function (string $controller, string $method, array $middleware): void {
+    expect(publicEndpointFindings($controller, $method, $middleware))->toBe([]);
+})->with([
+    'PublicEndpoint method with non-auth middleware' => [PublicEndpointMwController::class, 'publicAction', ['throttle:60,1']],
+    'method without PublicEndpoint with auth middleware' => [PublicEndpointMwController::class, 'protectedAction', ['auth:api', 'scope:read']],
+]);

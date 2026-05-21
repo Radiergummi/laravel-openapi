@@ -18,25 +18,19 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 
-function makeServerInvalidUrlContext(OA\OpenApi $spec): LintContext
-{
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
-function makeSpecWithServer(string $url): OA\OpenApi
+function serverInvalidUrlFindings(?string $url): array
 {
     $ctx = new Context();
     $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
-    $server = new OA\Server(['url' => $url, '_context' => $ctx]);
-    $spec->servers = [$server];
 
-    return $spec;
+    if ($url !== null) {
+        $spec->servers = [new OA\Server(['url' => $url, '_context' => $ctx])];
+    }
+
+    $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
+    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
+
+    return iterator_to_array((new ServerInvalidUrl())->checkApi($api, $lintCtx));
 }
 
 it('has the correct rule id and level', function (): void {
@@ -47,11 +41,7 @@ it('has the correct rule id and level', function (): void {
 });
 
 it('emits a finding for an invalid URL', function (): void {
-    $rule = new ServerInvalidUrl();
-    $spec = makeSpecWithServer('not a url');
-    $context = makeServerInvalidUrlContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
+    $findings = serverInvalidUrlFindings('not a url');
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('server.invalid-url')
@@ -59,47 +49,13 @@ it('emits a finding for an invalid URL', function (): void {
         ->and($findings[0]->message)->toContain('not a url');
 });
 
-it('emits no findings for a valid URL', function (): void {
-    $rule = new ServerInvalidUrl();
-    $spec = makeSpecWithServer('https://api.example.com');
-    $context = makeServerInvalidUrlContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings for a URL with template variables that strips to a valid URL', function (): void {
-    $rule = new ServerInvalidUrl();
-    $spec = makeSpecWithServer('https://{region}.example.com');
-    $context = makeServerInvalidUrlContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings for a relative URL path', function (string $url): void {
-    $rule = new ServerInvalidUrl();
-    $spec = makeSpecWithServer($url);
-    $context = makeServerInvalidUrlContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
+it('emits no findings', function (?string $url): void {
+    expect(serverInvalidUrlFindings($url))->toBe([]);
 })->with([
-    'root path' => ['/'],
-    'versioned path' => ['/api/v0'],
-    'short path' => ['/v1'],
+    'valid URL' => 'https://api.example.com',
+    'URL with template variables' => 'https://{region}.example.com',
+    'root path' => '/',
+    'versioned path' => '/api/v0',
+    'short path' => '/v1',
+    'servers is UNDEFINED' => null,
 ]);
-
-it('emits no findings when servers is UNDEFINED', function (): void {
-    $rule = new ServerInvalidUrl();
-    $ctx = new Context();
-    $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
-    $context = makeServerInvalidUrlContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
-});

@@ -18,90 +18,73 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 
-function makeSpecForComponentOrphaned(array $schemas = [], array $refsUsed = []): OA\OpenApi
+/**
+ * @param list<string> $schemas  schema names to register under components
+ * @param list<string> $refsUsed full $ref strings used by an operation response;
+ *                               also seeds TreeIndex->referencedComponents
+ */
+function componentOrphanedFindings(array $schemas, array $refsUsed): array
 {
     $ctx = new Context();
-
-    $schemaAnnotations = [];
-
-    foreach ($schemas as $name) {
-        $schemaAnnotations[] = new OA\Schema([
-            'schema' => $name,
-            'type' => 'object',
-            '_context' => $ctx,
-        ]);
-    }
-
-    $paths = [];
-
-    if ($refsUsed !== []) {
-        $mediaTypes = [];
-
-        foreach ($refsUsed as $ref) {
-            $mediaTypes[] = new OA\MediaType([
-                'mediaType' => 'application/json',
-                'schema' => new OA\Schema([
-                    'ref' => $ref,
-                    '_context' => $ctx,
-                ]),
-                '_context' => $ctx,
-            ]);
-        }
-
-        $response = new OA\Response([
-            'response' => '200',
-            'content' => $mediaTypes,
-            '_context' => $ctx,
-        ]);
-        $operation = new OA\Get([
-            'operationId' => 'test.index',
-            'responses' => [$response],
-            '_context' => $ctx,
-        ]);
-        $paths[] = new OA\PathItem([
-            'path' => '/test',
-            'get' => $operation,
-            '_context' => $ctx,
-        ]);
-    }
 
     $props = [
         'openapi' => '3.1.0',
         'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
     ];
 
-    if ($schemaAnnotations !== []) {
+    if ($schemas !== []) {
         $props['components'] = new OA\Components([
-            'schemas' => $schemaAnnotations,
+            'schemas' => array_map(
+                static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $ctx]),
+                $schemas,
+            ),
             '_context' => $ctx,
         ]);
     }
 
-    if ($paths !== []) {
-        $props['paths'] = $paths;
+    if ($refsUsed !== []) {
+        $props['paths'] = [new OA\PathItem([
+            'path' => '/test',
+            'get' => new OA\Get([
+                'operationId' => 'test.index',
+                'responses' => [new OA\Response([
+                    'response' => '200',
+                    'content' => array_map(
+                        static fn(string $ref) => new OA\MediaType([
+                            'mediaType' => 'application/json',
+                            'schema' => new OA\Schema(['ref' => $ref, '_context' => $ctx]),
+                            '_context' => $ctx,
+                        ]),
+                        $refsUsed,
+                    ),
+                    '_context' => $ctx,
+                ])],
+                '_context' => $ctx,
+            ]),
+            '_context' => $ctx,
+        ])];
     }
 
-    return new OA\OpenApi($props);
-}
+    $spec = new OA\OpenApi($props);
 
-/**
- * Build a referencedComponents index from the given refs.
- *
- * @param list<string> $refs e.g. ['#/components/schemas/User']
- *
- * @return array<string, true>
- */
-function buildReferencedComponentsIndex(array $refs): array
-{
-    $index = [];
+    $referencedComponents = [];
 
-    foreach ($refs as $ref) {
-        // Strip '#/components/' prefix and use the remainder as key
-        $key = str_replace('#/components/', '', $ref);
-        $index[$key] = true;
+    foreach ($refsUsed as $ref) {
+        $referencedComponents[str_replace('#/components/', '', $ref)] = true;
     }
 
-    return $index;
+    $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
+    $index = new TreeIndex(
+        operationsByOperationId: [],
+        operationsByRouteKey: [],
+        componentsByName: [],
+        referencedComponents: $referencedComponents,
+        registeredScopes: [],
+        knownRuleIds: [],
+    );
+    $lintCtx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
+
+    return iterator_to_array((new ComponentOrphaned())->checkApi($api, $lintCtx));
 }
 
 it('has the correct rule id and level', function (): void {
@@ -112,33 +95,7 @@ it('has the correct rule id and level', function (): void {
 });
 
 it('emits a finding for an unreferenced schema', function (): void {
-    $rule = new ComponentOrphaned();
-    $spec = makeSpecForComponentOrphaned(
-        schemas: ['User'],
-        refsUsed: [],
-    );
-
-    $api = new ApiNode(
-        operations: [],
-        components: [],
-        webhooks: [],
-        declaredTags: [],
-        tagDescriptions: [],
-        raw: $spec,
-    );
-
-    $index = new TreeIndex(
-        operationsByOperationId: [],
-        operationsByRouteKey: [],
-        componentsByName: [],
-        referencedComponents: buildReferencedComponentsIndex([]),
-        registeredScopes: [],
-        knownRuleIds: [],
-    );
-
-    $ctx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = componentOrphanedFindings(schemas: ['User'], refsUsed: []);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('component.orphaned')
@@ -147,140 +104,29 @@ it('emits a finding for an unreferenced schema', function (): void {
         ->and($findings[0]->context['component'])->toBe('User');
 });
 
-it('emits no findings when all schemas are referenced', function (): void {
-    $rule = new ComponentOrphaned();
-    $spec = makeSpecForComponentOrphaned(
-        schemas: ['User'],
-        refsUsed: ['#/components/schemas/User'],
-    );
-
-    $api = new ApiNode(
-        operations: [],
-        components: [],
-        webhooks: [],
-        declaredTags: [],
-        tagDescriptions: [],
-        raw: $spec,
-    );
-
-    $index = new TreeIndex(
-        operationsByOperationId: [],
-        operationsByRouteKey: [],
-        componentsByName: [],
-        referencedComponents: buildReferencedComponentsIndex(['#/components/schemas/User']),
-        registeredScopes: [],
-        knownRuleIds: [],
-    );
-
-    $ctx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
-
-    expect($findings)->toBe([]);
-});
-
 it('emits findings for multiple orphaned schemas', function (): void {
-    $rule = new ComponentOrphaned();
-    $spec = makeSpecForComponentOrphaned(
+    $findings = componentOrphanedFindings(
         schemas: ['User', 'Post', 'Comment'],
         refsUsed: ['#/components/schemas/User'],
     );
 
-    $api = new ApiNode(
-        operations: [],
-        components: [],
-        webhooks: [],
-        declaredTags: [],
-        tagDescriptions: [],
-        raw: $spec,
-    );
+    $orphanedNames = array_map(static fn($f) => $f->context['component'], $findings);
 
-    $index = new TreeIndex(
-        operationsByOperationId: [],
-        operationsByRouteKey: [],
-        componentsByName: [],
-        referencedComponents: buildReferencedComponentsIndex(['#/components/schemas/User']),
-        registeredScopes: [],
-        knownRuleIds: [],
-    );
-
-    $ctx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
-
-    expect($findings)->toHaveCount(2);
-
-    $orphanedNames = array_map(
-        fn($f) => $f->context['component'],
-        $findings,
-    );
-
-    expect($orphanedNames)->toContain('Post')
+    expect($findings)->toHaveCount(2)
+        ->and($orphanedNames)->toContain('Post')
         ->and($orphanedNames)->toContain('Comment');
 });
 
-it('emits no findings when there are no components', function (): void {
-    $rule = new ComponentOrphaned();
-    $ctx = new Context();
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-    ]);
-
-    $api = new ApiNode(
-        operations: [],
-        components: [],
-        webhooks: [],
-        declaredTags: [],
-        tagDescriptions: [],
-        raw: $spec,
-    );
-
-    $index = new TreeIndex(
-        operationsByOperationId: [],
-        operationsByRouteKey: [],
-        componentsByName: [],
-        referencedComponents: [],
-        registeredScopes: [],
-        knownRuleIds: [],
-    );
-
-    $lintCtx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array($rule->checkApi($api, $lintCtx));
-
-    expect($findings)->toBe([]);
-});
-
 it('includes the json pointer in the finding location', function (): void {
-    $rule = new ComponentOrphaned();
-    $spec = makeSpecForComponentOrphaned(
-        schemas: ['OrphanedSchema'],
-        refsUsed: [],
-    );
-
-    $api = new ApiNode(
-        operations: [],
-        components: [],
-        webhooks: [],
-        declaredTags: [],
-        tagDescriptions: [],
-        raw: $spec,
-    );
-
-    $index = new TreeIndex(
-        operationsByOperationId: [],
-        operationsByRouteKey: [],
-        componentsByName: [],
-        referencedComponents: [],
-        registeredScopes: [],
-        knownRuleIds: [],
-    );
-
-    $ctx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
-
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = componentOrphanedFindings(schemas: ['OrphanedSchema'], refsUsed: []);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->location->jsonPointer)->toBe('#/components/schemas/OrphanedSchema');
 });
+
+it('emits no findings', function (array $schemas, array $refsUsed): void {
+    expect(componentOrphanedFindings($schemas, $refsUsed))->toBe([]);
+})->with([
+    'all schemas referenced' => [['User'], ['#/components/schemas/User']],
+    'no components' => [[], []],
+]);

@@ -18,38 +18,30 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 
-function makeServerVariableUndeclaredContext(OA\OpenApi $spec): LintContext
-{
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
-function makeSpecWithTemplateServer(string $url, array $variables = []): OA\OpenApi
+function serverVariableUndeclaredFindings(?string $url, array $variables = []): array
 {
     $ctx = new Context();
     $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
-    $serverData = ['url' => $url, '_context' => $ctx];
 
-    if ($variables !== []) {
-        $serverVariables = [];
+    if ($url !== null) {
+        $serverData = ['url' => $url, '_context' => $ctx];
 
-        foreach ($variables as $varName => $default) {
-            $sv = new OA\ServerVariable(['serverVariable' => $varName, 'default' => $default, '_context' => $ctx]);
-            $serverVariables[$varName] = $sv;
+        if ($variables !== []) {
+            $vars = [];
+
+            foreach ($variables as $name => $default) {
+                $vars[$name] = new OA\ServerVariable(['serverVariable' => $name, 'default' => $default, '_context' => $ctx]);
+            }
+            $serverData['variables'] = $vars;
         }
 
-        $serverData['variables'] = $serverVariables;
+        $spec->servers = [new OA\Server($serverData)];
     }
 
-    $server = new OA\Server($serverData);
-    $spec->servers = [$server];
+    $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
+    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    return $spec;
+    return iterator_to_array((new ServerVariableUndeclared())->checkApi($api, $lintCtx));
 }
 
 it('has the correct rule id and level', function (): void {
@@ -60,11 +52,7 @@ it('has the correct rule id and level', function (): void {
 });
 
 it('emits a finding when a template variable has no matching variables entry', function (): void {
-    $rule = new ServerVariableUndeclared();
-    $spec = makeSpecWithTemplateServer('https://{region}.example.com');
-    $context = makeServerVariableUndeclaredContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
+    $findings = serverVariableUndeclaredFindings('https://{region}.example.com');
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('server.variable-undeclared')
@@ -72,33 +60,10 @@ it('emits a finding when a template variable has no matching variables entry', f
         ->and($findings[0]->message)->toContain('region');
 });
 
-it('emits no findings when all template variables are declared', function (): void {
-    $rule = new ServerVariableUndeclared();
-    $spec = makeSpecWithTemplateServer('https://{region}.example.com', ['region' => 'eu']);
-    $context = makeServerVariableUndeclaredContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings for a URL with no template variables', function (): void {
-    $rule = new ServerVariableUndeclared();
-    $spec = makeSpecWithTemplateServer('https://api.example.com');
-    $context = makeServerVariableUndeclaredContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when servers is UNDEFINED', function (): void {
-    $rule = new ServerVariableUndeclared();
-    $ctx = new Context();
-    $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
-    $context = makeServerVariableUndeclaredContext($spec);
-
-    $findings = iterator_to_array($rule->checkApi($context->api, $context));
-
-    expect($findings)->toBe([]);
-});
+it('emits no findings', function (?string $url, array $variables = []): void {
+    expect(serverVariableUndeclaredFindings($url, $variables))->toBe([]);
+})->with([
+    'all template variables declared' => ['https://{region}.example.com', ['region' => 'eu']],
+    'no template variables in URL' => ['https://api.example.com', []],
+    'servers is UNDEFINED' => [null, []],
+]);

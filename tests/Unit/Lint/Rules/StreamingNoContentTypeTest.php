@@ -13,29 +13,20 @@ use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\Rules\StreamingNoContentType;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\StreamingFixtureController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeStreamingDescriptor(string $method, string $routeName): ActionDescriptor
+function streamingFindings(string $controllerMethod, string $routeName, ?string $contentType): array
 {
-    $route = new Route(['GET'], '/fixture', [StreamingFixtureController::class, $method]);
+    $route = new Route(['GET'], '/fixture', [StreamingFixtureController::class, $controllerMethod]);
     $route->name($routeName);
+    $descriptor = ActionDescriptorFactory::forRoute($route, StreamingFixtureController::class, $controllerMethod);
 
-    return ActionDescriptorFactory::forRoute($route, StreamingFixtureController::class, $method);
-}
-
-function makeStreamingRawOperation(string $operationId, ?string $contentType = null): OA\Operation
-{
     $ctx = new Context();
-
-    $responseProps = [
-        'response' => '200',
-        '_context' => $ctx,
-    ];
+    $responseProps = ['response' => '200', '_context' => $ctx];
 
     if ($contentType !== null) {
         $responseProps['content'] = [
@@ -47,13 +38,22 @@ function makeStreamingRawOperation(string $operationId, ?string $contentType = n
         ];
     }
 
-    $response = new OA\Response($responseProps);
-
-    return new OA\Get([
-        'operationId' => $operationId,
-        'responses' => [$response],
+    $raw = new OA\Get([
+        'operationId' => $routeName,
+        'responses' => [new OA\Response($responseProps)],
         '_context' => $ctx,
     ]);
+
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        pathUri: '/fixture',
+        operationId: $routeName,
+        raw: $raw,
+    );
+
+    return iterator_to_array(
+        (new StreamingNoContentType())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 }
 
 it('has the correct rule id and level', function (): void {
@@ -64,20 +64,7 @@ it('has the correct rule id and level', function (): void {
 });
 
 it('emits a finding when streaming endpoint has no text/event-stream content type', function (): void {
-    $rule = new StreamingNoContentType();
-    $descriptor = makeStreamingDescriptor('stream', 'test.stream');
-    $raw = makeStreamingRawOperation('test.stream', 'application/json');
-    $operation = OperationNodeFactory::forDescriptor(
-        $descriptor,
-        pathUri: '/fixture',
-        operationId: $descriptor->route->getName(),
-        raw: $raw,
-    );
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
+    $findings = streamingFindings('stream', 'test.stream', 'application/json');
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('streaming.no-content-type')
@@ -85,79 +72,17 @@ it('emits a finding when streaming endpoint has no text/event-stream content typ
         ->and($findings[0]->message)->toContain('stream');
 });
 
-it('emits no findings when streaming endpoint has text/event-stream content type', function (): void {
-    $rule = new StreamingNoContentType();
-    $descriptor = makeStreamingDescriptor('stream', 'test.stream');
-    $raw = makeStreamingRawOperation('test.stream', 'text/event-stream');
-    $operation = OperationNodeFactory::forDescriptor(
-        $descriptor,
-        pathUri: '/fixture',
-        operationId: $descriptor->route->getName(),
-        raw: $raw,
-    );
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when method is not marked as streaming', function (): void {
-    $rule = new StreamingNoContentType();
-    $descriptor = makeStreamingDescriptor('nonStreaming', 'test.non-streaming');
-    $raw = makeStreamingRawOperation('test.non-streaming', 'application/json');
-    $operation = OperationNodeFactory::forDescriptor(
-        $descriptor,
-        pathUri: '/fixture',
-        operationId: $descriptor->route->getName(),
-        raw: $raw,
-    );
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when method has no Operation attribute', function (): void {
-    $rule = new StreamingNoContentType();
-    $descriptor = makeStreamingDescriptor('noAttribute', 'test.no-attr');
-    $raw = makeStreamingRawOperation('test.no-attr', 'application/json');
-    $operation = OperationNodeFactory::forDescriptor(
-        $descriptor,
-        pathUri: '/fixture',
-        operationId: $descriptor->route->getName(),
-        raw: $raw,
-    );
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
 it('emits a finding when streaming endpoint response has no content at all', function (): void {
-    $rule = new StreamingNoContentType();
-    $descriptor = makeStreamingDescriptor('stream', 'test.stream');
-    $raw = makeStreamingRawOperation('test.stream');
-    $operation = OperationNodeFactory::forDescriptor(
-        $descriptor,
-        pathUri: '/fixture',
-        operationId: $descriptor->route->getName(),
-        raw: $raw,
-    );
-    $context = OperationNodeFactory::emptyContext();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
+    $findings = streamingFindings('stream', 'test.stream', null);
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('streaming.no-content-type');
 });
+
+it('emits no findings', function (string $method, string $name, ?string $contentType): void {
+    expect(streamingFindings($method, $name, $contentType))->toBe([]);
+})->with([
+    'streaming endpoint with text/event-stream' => ['stream', 'test.stream', 'text/event-stream'],
+    'method not marked as streaming' => ['nonStreaming', 'test.non-streaming', 'application/json'],
+    'method has no Operation attribute' => ['noAttribute', 'test.no-attr', 'application/json'],
+]);
