@@ -85,24 +85,21 @@ or name-keyed lookups.
 
 ### 2.4. Hardcoded fixture paths
 
-- [ ] `tests/Feature/ExampleFileLoaderTest.php:37, 49, 56` — string-literal
-  `'tests/Fixtures/OpenApi/example_payloads/create_project.json'`.
-- [ ] `tests/Feature/ExamplesTest.php:33, 50, 59` —
-  `dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml"`.
-
-Resolve via `__DIR__` + a fixture-path helper; survives directory reorgs.
+- [x] `tests/Feature/ExamplesTest.php:33, 50, 59` — extracted the
+  `dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml"` repetition into a
+  file-local `$exampleYaml` closure; each test `use ($exampleYaml)`s it.
+- [-] `tests/Feature/ExampleFileLoaderTest.php` — tracker referenced the three
+  pre-§2.1 unit cases (now deleted). The single remaining literal is inside an
+  `#[Example(file: '…')]` attribute argument, which PHP requires to be a
+  constant expression — a fixture-path helper can't be used there. Left as-is.
 
 ### 2.5. Misplaced fixture controllers
 
-Four fixture controllers live under `tests/Feature/` instead of
-`tests/Fixtures/`:
-
-- [ ] `tests/Feature/AuthoringFixtureController.php`
-- [ ] `tests/Feature/QueryParamClassFixtureController.php`
-- [ ] `tests/Feature/ValidationRulesFixtureController.php`
-- [ ] `tests/Feature/ResponseHeaderClassFixtureController.php`
-
-Move under `tests/Fixtures/` and update imports.
+- [x] All four moved under `tests/Fixtures/` (namespace
+  `Radiergummi\OpenApi\Tests\Fixtures`); `git mv` preserves history. Consumer
+  test files (`AuthoringAttributesTest`, `QueryParamClassLevelTest`,
+  `DataValidationRulesTest`, `ResponseHeaderClassLevelTest`) gained explicit
+  `use` imports. Pint pruned the now-unused imports in the moved files.
 
 ### 2.6. DRY — repeated property-lookup loops
 

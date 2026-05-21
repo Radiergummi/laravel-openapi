@@ -22,15 +22,17 @@ use Symfony\Component\Yaml\Yaml;
  *   4. Assert it validates as OpenAPI 3.1 (swagger-php Analysis::validate()).
  *   5. Assert `openapi:lint` reports zero findings.
  */
+$exampleYaml = static fn(string $flavor): string => dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml";
+
 dataset('flavors', array_map(
     static fn(string $provider, string $flavor): array => [$provider, $flavor],
     Flavors::all(),
     array_keys(Flavors::all()),
 ));
 
-it('produces a snapshot that matches the committed yaml', function (string $serviceProvider, string $flavor): void {
+it('produces a snapshot that matches the committed yaml', function (string $serviceProvider, string $flavor) use ($exampleYaml): void {
     $app = TestbenchBoot::boot($serviceProvider);
-    $snapshot = dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml";
+    $snapshot = $exampleYaml($flavor);
     $temp = tempnam(sys_get_temp_dir(), 'openapi-');
 
     try {
@@ -46,17 +48,16 @@ it('produces a snapshot that matches the committed yaml', function (string $serv
     }
 })->with('flavors');
 
-it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, string $flavor): void {
-    $snapshot = dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml";
-    $parsed = Yaml::parseFile($snapshot);
+it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, string $flavor) use ($exampleYaml): void {
+    $parsed = Yaml::parseFile($exampleYaml($flavor));
 
     expect($parsed['openapi'])->toStartWith('3.1')
         ->and($parsed)->toHaveKeys(['info', 'paths']);
 })->with('flavors');
 
-it('lints clean', function (string $serviceProvider, string $flavor): void {
+it('lints clean', function (string $serviceProvider, string $flavor) use ($exampleYaml): void {
     $app = TestbenchBoot::boot($serviceProvider);
-    config()->set('openapi.output_path', dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml");
+    config()->set('openapi.output_path', $exampleYaml($flavor));
 
     $status = $app->make(Kernel::class)->call('openapi:lint');
 

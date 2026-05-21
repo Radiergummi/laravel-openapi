@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Mockery;
+use Radiergummi\OpenApi\Tests\Fixtures\ValidationRulesFixtureController;
 
 uses()->group('openapi');
 

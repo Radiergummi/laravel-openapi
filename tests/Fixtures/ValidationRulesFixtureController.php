@@ -9,13 +9,10 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Tests\Feature;
+namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Radiergummi\OpenApi\Tests\Fixtures\TagsWithItemsFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\ThrowingRulesFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\ValidationRulesFixtureData;
 
 /**
  * Fixture controller used by {@see DataValidationRulesTest} to expose Data

@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Tests\Fixtures\ResponseHeaderClassFixtureController;
 
 uses()->group('openapi');
 

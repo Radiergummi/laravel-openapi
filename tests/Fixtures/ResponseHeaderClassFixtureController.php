@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Tests\Feature;
+namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Routing\Controller;
 use Radiergummi\OpenApi\Core\Attributes\Response;

@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Tests\Feature;
+namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -27,7 +27,6 @@ use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
 use Radiergummi\OpenApi\Core\Attributes\Security;
 use Radiergummi\OpenApi\Core\Attributes\Webhook;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 
 /**
  * Test fixture — exercises the medium-leverage authoring attributes.

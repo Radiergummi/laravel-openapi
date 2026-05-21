@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Tests\Fixtures\Auth\AuthFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
 
 uses()->group('openapi');
 
