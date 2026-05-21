@@ -75,9 +75,11 @@ it('wraps a $ref schema in oneOf with a null sibling (Bug 1)', function (): void
     expect($result->ref)->toBe(Generator::UNDEFINED)
         ->and($result->oneOf)->toHaveCount(2);
 
-    $oneOf = $result->oneOf;
-    expect($oneOf[0]->ref)->toBe('#/components/schemas/MyModel')
-        ->and($oneOf[1]->type)->toBe('null');
+    $refBranch = collect($result->oneOf)->first(fn($s) => $s->ref !== Generator::UNDEFINED);
+    $nullBranch = collect($result->oneOf)->first(fn($s) => $s->type === 'null');
+
+    expect($refBranch?->ref)->toBe('#/components/schemas/MyModel')
+        ->and($nullBranch?->type)->toBe('null');
 });
 
 // endregion
@@ -90,8 +92,10 @@ it('wraps a schema with no explicit type in oneOf with a null sibling', function
     $schema = new OA\Schema(['oneOf' => [$inner]]);
     $result = NullableSchema::wrap($schema);
 
+    $nullBranch = collect($result->oneOf)->first(fn($s) => $s->type === 'null');
+
     expect($result->oneOf)->toHaveCount(2)
-        ->and($result->oneOf[1]->type)->toBe('null');
+        ->and($nullBranch?->type)->toBe('null');
 });
 
 // endregion

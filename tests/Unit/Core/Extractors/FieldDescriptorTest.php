@@ -18,6 +18,34 @@ function isUndefined(mixed $value): bool
     return Generator::isDefault($value);
 }
 
+/**
+ * @param array<OA\Schema> $branches
+ */
+function nonNullBranch(array $branches): OA\Schema
+{
+    foreach ($branches as $branch) {
+        if ($branch->type !== 'null') {
+            return $branch;
+        }
+    }
+
+    throw new RuntimeException('expected a non-null oneOf branch');
+}
+
+/**
+ * @param array<OA\Schema> $branches
+ */
+function nullBranch(array $branches): OA\Schema
+{
+    foreach ($branches as $branch) {
+        if ($branch->type === 'null') {
+            return $branch;
+        }
+    }
+
+    throw new RuntimeException('expected a null oneOf branch');
+}
+
 uses()->group('openapi');
 
 // region Bug 6: nullable object — properties/additionalProperties/required migration
@@ -38,8 +66,8 @@ it('wraps a nullable object with properties into oneOf, migrating properties (Bu
     expect($target->type)->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
-    $inner = $target->oneOf[0];
-    $null = $target->oneOf[1];
+    $inner = nonNullBranch($target->oneOf);
+    $null = nullBranch($target->oneOf);
 
     expect($inner->type)->toBe('object')
         ->and($inner->properties)->toBe([$property])
@@ -61,7 +89,7 @@ it('wraps a nullable object with required into oneOf, migrating required (Bug 6)
     expect($target->type)->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
-    $inner = $target->oneOf[0];
+    $inner = nonNullBranch($target->oneOf);
 
     expect($inner->required)->toBe(['name', 'email'])
         ->and(isUndefined($target->required))->toBeTrue();
@@ -82,7 +110,7 @@ it('wraps a nullable object with additionalProperties into oneOf, migrating addi
     expect($target->type)->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
-    $inner = $target->oneOf[0];
+    $inner = nonNullBranch($target->oneOf);
 
     expect($inner->additionalProperties)->toBe($additionalProps)
         ->and(isUndefined($target->additionalProperties))->toBeTrue();
@@ -103,7 +131,7 @@ it('nullable array still migrates items into the inner oneOf schema', function (
     expect($target->type)->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
-    $inner = $target->oneOf[0];
+    $inner = nonNullBranch($target->oneOf);
 
     expect($inner->type)->toBe('array')
         ->and($inner->items)->toBe($items)
