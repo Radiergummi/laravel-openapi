@@ -11,98 +11,54 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
-use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\BaseShapeData;
-use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\CircleData;
-use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\RectangleData;
-use Spatie\LaravelData\Support\DataConfig;
-use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
-uses()->group('openapi');
+uses()->group('openapi', 'plugin:spatie-data');
 
-// region Helpers
-
-function oapi027DataRegistry(): ComponentSchemaRegistry
+class ShapeFixtureController extends Controller
 {
-    $registry = new ComponentSchemaRegistry();
-    $builder = new SchemaFromDataClass(
-        schemaFromType: new JsonSchemaFromType(new NullLogger()),
-        typeResolver: TypeResolver::create(),
-        registry: $registry,
-        payloadBuilder: new DataSyntheticPayloadBuilder(app(DataConfig::class)),
-        rulesToSchema: new ValidationRulesToSchema(),
-        dataConfig: app(DataConfig::class),
-        logger: new NullLogger(),
-    );
-
-    $builder->build(BaseShapeData::class);
-
-    return $registry;
-}
-
-/**
- * Decode a registered schema by class name into an associative array.
- *
- * @param class-string $class
- *
- * @return array<string, mixed>
- */
-function oapi027DecodeSchema(ComponentSchemaRegistry $registry, string $class): array
-{
-    $key = $registry->keyFor($class);
-    expect($key)->not->toBeNull("Schema for {$class} was not registered");
-
-    foreach ($registry->all() as $schema) {
-        if ($schema->schema === $key) {
-            return json_decode($schema->toJson(), associative: true, flags: JSON_THROW_ON_ERROR);
-        }
+    public function store(BaseShapeData $shape): JsonResponse
+    {
+        return new JsonResponse();
     }
-
-    return [];
 }
 
-// endregion
-
-// region Data class (SchemaFromDataClass) tests
+beforeEach(function (): void {
+    Route::post('/oa-027/shape', [ShapeFixtureController::class, 'store']);
+});
 
 it('OAPI-027: base Data class with #[Discriminator] emits oneOf instead of a flat object', function (): void {
-    $registry = oapi027DataRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseShapeData::class);
+    $schema = generateSpec()['components']['schemas']['BaseShapeData'];
 
-    expect($decoded)->toHaveKey('oneOf')
-        ->and($decoded)->not->toHaveKey('properties')
-        ->and($decoded)->not->toHaveKey('type');
+    expect($schema)->toHaveKey('oneOf')
+        ->and($schema)->not->toHaveKey('properties')
+        ->and($schema)->not->toHaveKey('type');
 });
 
 it('OAPI-027: base Data class oneOf lists $ref entries for each variant', function (): void {
-    $registry = oapi027DataRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseShapeData::class);
+    $schema = generateSpec()['components']['schemas']['BaseShapeData'];
 
-    $refs = array_column($decoded['oneOf'], '$ref');
+    $refs = array_column($schema['oneOf'], '$ref');
 
     expect($refs)->toContain('#/components/schemas/CircleData')
         ->and($refs)->toContain('#/components/schemas/RectangleData');
 });
 
 it('OAPI-027: base Data class emits discriminator.propertyName', function (): void {
-    $registry = oapi027DataRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseShapeData::class);
+    $schema = generateSpec()['components']['schemas']['BaseShapeData'];
 
-    expect($decoded)->toHaveKey('discriminator')
-        ->and($decoded['discriminator'])->toHaveKey('propertyName')
-        ->and($decoded['discriminator']['propertyName'])->toBe('type');
+    expect($schema)->toHaveKey('discriminator')
+        ->and($schema['discriminator'])->toHaveKey('propertyName')
+        ->and($schema['discriminator']['propertyName'])->toBe('type');
 });
 
 it('OAPI-027: base Data class discriminator.mapping points to $ref strings', function (): void {
-    $registry = oapi027DataRegistry();
-    $decoded  = oapi027DecodeSchema($registry, BaseShapeData::class);
+    $schema = generateSpec()['components']['schemas']['BaseShapeData'];
 
-    $mapping = $decoded['discriminator']['mapping'] ?? [];
+    $mapping = $schema['discriminator']['mapping'] ?? [];
 
     expect($mapping)->toHaveKey('circle')
         ->and($mapping['circle'])->toBe('#/components/schemas/CircleData')
@@ -111,23 +67,18 @@ it('OAPI-027: base Data class discriminator.mapping points to $ref strings', fun
 });
 
 it('OAPI-027: variant Data classes are registered as their own component schemas', function (): void {
-    $registry = oapi027DataRegistry();
+    $schemas = generateSpec()['components']['schemas'];
 
-    expect($registry->isRegisteredOrReserved(CircleData::class))->toBeTrue()
-        ->and($registry->isRegisteredOrReserved(RectangleData::class))->toBeTrue();
+    expect($schemas)->toHaveKey('CircleData')
+        ->and($schemas)->toHaveKey('RectangleData');
 });
 
 it('OAPI-027: variant Data class schemas are flat objects with their own properties', function (): void {
-    $registry = oapi027DataRegistry();
+    $schemas = generateSpec()['components']['schemas'];
 
-    $circle    = oapi027DecodeSchema($registry, CircleData::class);
-    $rectangle = oapi027DecodeSchema($registry, RectangleData::class);
-
-    expect($circle)->toHaveKey('properties')
-        ->and($circle['properties'])->toHaveKey('radius')
-        ->and($rectangle)->toHaveKey('properties')
-        ->and($rectangle['properties'])->toHaveKey('width')
-        ->and($rectangle['properties'])->toHaveKey('height');
+    expect($schemas['CircleData'])->toHaveKey('properties')
+        ->and($schemas['CircleData']['properties'])->toHaveKey('radius')
+        ->and($schemas['RectangleData'])->toHaveKey('properties')
+        ->and($schemas['RectangleData']['properties'])->toHaveKey('width')
+        ->and($schemas['RectangleData']['properties'])->toHaveKey('height');
 });
-
-// endregion

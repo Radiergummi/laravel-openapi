@@ -16,7 +16,6 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Spatie\LaravelData\Data;
 
@@ -172,29 +171,6 @@ it('allows a schema transformer to mutate the schema', function (): void {
 
     expect($spec['components']['schemas']['ExtensionsFixtureData']['description'])
         ->toBe('Injected by transformer');
-});
-
-it('passes null sourceClass for named schemas', function (): void {
-    $namedCtx = null;
-
-    OpenApiExtensions::transformSchema(
-        static function (OA\Schema $schema, SchemaContext $ctx) use (&$namedCtx): void {
-            if ($ctx->sourceClass === null) {
-                $namedCtx = $ctx;
-            }
-        },
-    );
-
-    // Named schemas — shared envelopes registered via registerNamed() (e.g. by plugins) —
-    // carry no originating Data/Resource class. The SchemaContext must reflect that.
-    (new ComponentSchemaRegistry())->registerNamed(
-        'SharedEnvelope',
-        new OA\Schema(['type' => 'object']),
-    );
-
-    expect($namedCtx)->not->toBeNull()
-        ->and($namedCtx->componentKey)->toBe('SharedEnvelope')
-        ->and($namedCtx->sourceClass)->toBeNull();
 });
 
 // endregion

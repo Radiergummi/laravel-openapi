@@ -1,19 +1,21 @@
 # Test suite cleanup tracker
 
-Working document for the test-suite review started 2026-05-21. Captures every
-issue found during the review and any incidental issues spotted while executing
-fixes (including pre-existing or unrelated ones). Check items off as they land.
+> **Append any findings — including pre-existing or unrelated ones — to §5
+> Incidental findings as you spot them.** Don't fix mid-stream; record them so
+> they can be triaged later.
+
+Working document for the test-suite review started 2026-05-21. Tracks open
+issues; completed work is summarised in §4.
 
 Conventions:
 - `[ ]` open, `[x]` done, `[~]` in progress, `[-]` dropped (with reason).
 - Reference commit SHA in the parenthetical when an item lands.
-- New issues found mid-cleanup go under **Incidental findings**.
+- New issues found mid-cleanup go under §5 Incidental findings.
 
 ---
 
 ## 1. Public API the suite should target
 
-For reference while triaging:
 - Artisan commands: `openapi:generate`, `openapi:lint`, `openapi:clear`.
 - Generated OpenAPI document (YAML/JSON content).
 - User-facing attributes in `src/Core/Attributes/`.
@@ -27,40 +29,139 @@ extractors, `ReflectionAttributeCache`, `ResolvedSchema`, …) is internal.
 
 ---
 
-## 2. Delete — already covered end-to-end
+## 2. Open items
 
-Each of these tests internal pipeline machinery that is exercised by the
-feature suite running through the artisan commands.
+### 2.1. Bypassing public surface — rewrite to drive `generateSpec()`
 
-- [x] `tests/Unit/Lint/Tree/SpecTreeBuilderTest.php` (644 L) — hand-built `OA\OpenApi` graphs, brittle JSON Pointer asserts
-- [x] `tests/Unit/Lint/Tree/SpecTreeWalkerTest.php` (785 L) — inline `Rule` impls + manual `ApiNode` trees
-- [x] `tests/Unit/Lint/RuleRegistryTest.php` (265 L) — severity overrides belong in a config-driven feature test
-- [x] `tests/Unit/Lint/SuppressionCollectorTest.php` — `#[IgnoreLint]` parsing; assert via linter
-- [x] `tests/Unit/Lint/LintContextTest.php` — trivial data container
-- [x] `tests/Unit/Lint/ArrayFindingsCollectorTest.php` — container only
-- [x] `tests/Unit/Lint/LoggingFindingsCollectorTest.php` — over-mocked logger calls
-- [x] `tests/Unit/Lint/Formatters/CliFormatterTest.php` — covered by `tests/Feature/Lint/Formatters/CliFormatterTest.php`
-- [-] `tests/Unit/Lint/Formatters/JsonFormatterTest.php` — **kept**: schema/summary structure has no feature coverage; pure logic worth a unit test
-- [-] `tests/Unit/Lint/Formatters/GithubFormatterTest.php` — **kept**: percent-encoding edge cases (commas, colons, newlines, `%`) have no feature coverage
-- [x] `tests/Unit/Core/Lint/ReflectionAttributeCacheTest.php` — pure caching internals
-- [x] `tests/Unit/Core/Routing/ActionDescriptorTest.php` — private cache + reflection probing
-- [-] `tests/Unit/Core/Routing/RouteIntrospectorTest.php` — **keep, trim later**: defensive non-existent-controller test has unique value; see §7
-- [-] `tests/Unit/Core/Routing/UriParameterResolverTest.php` — **keep, trim later**: defensive cases (required ctor arg, throwing key resolver) have unique value; see §7
-- [x] `tests/Unit/Core/Generator/OperationBuilderTest.php` — smoke path redundant with `P1BatchTwoTest` / `AuthoringAttributesTest`
-- [x] `tests/Unit/Core/Generator/CoreQueryParameterResolverTest.php` — exercised by query-param feature tests
-- [x] `tests/Unit/Core/Registry/OpenApiRegistryTest.php` — container wiring
-- [x] `tests/Unit/Core/Registry/ResolvedSchemaTest.php` — data carrier
-- [x] `tests/Unit/Core/Registry/CoreRegistrationTest.php` — provider internals
-- [-] `tests/Unit/Extractors/SecurityExtractorTest.php` (220 L) — **keep, trim later**: middleware-group expansion uses Mockery and should go, but config-driven `security_schemes` / `security_default_scheme` tests (lines 112–220) are the only coverage for that public API; see §7
-- [-] `tests/Unit/Lint/Rules/*` — **REVISED: keep, refactor**: the feature suite (`tests/Feature/Lint/LintCommandTest.php`) asserts on linter command behaviour (exit codes, suppression, config) but does **not** assert per-rule semantics. These unit tests are the only behaviour coverage for individual rules. Move shared cleanups to §7.
+Feature tests that instantiate internal pipeline classes directly. Rewrite to
+register a route + run `generateSpec()`, then assert on `$spec['paths']` /
+`$spec['components']`.
 
-Sizing actually removed in this pass: ~3.5 kLOC across 12 files plus orphaned fixtures (`tests/Unit/Core/Lint/Fixtures/Rac*.php`, `tests/Unit/Core/Routing/Fixtures/{AttributedController,Alpha,Beta}.php`).
+- [x] `tests/Feature/ComponentizedResponsesTest.php:126-167` — deleted the two
+  OAPI-021 cases; folded a `Conflict` (409) component+ref assertion into the
+  first OAPI-018 case so the exception-derived path is asserted via
+  `generateSpec()`. The 418 inlining path was already covered by OAPI-018 #2.
+- [x] `tests/Feature/DataDiscriminatorTest.php:30-46` — replaced
+  `oapi027DataRegistry()` helper with a `ShapeFixtureController` typed on
+  `BaseShapeData`; all six OAPI-027 cases now drive through
+  `generateSpec()['components']['schemas']`.
+- [x] `tests/Feature/ExampleFileLoaderTest.php:36-60` — deleted the three
+  `ExampleFileLoader` unit cases. The OAPI-022 feature case at the bottom of
+  the file covers the user-visible flow end-to-end.
+- [x] `tests/Feature/ExtensionsTest.php:188-198` — deleted. No production code
+  calls `ComponentSchemaRegistry::registerNamed()`; the SchemaContext branch
+  for null `sourceClass` has no public path to exercise (recorded in §5).
+
+### 2.2. Brittle index-based assertions
+
+`$x[0]` / `$x[1]` where order isn't part of the contract. Convert to membership
+or name-keyed lookups.
+
+- [x] `tests/Feature/AuthoringAttributesTest.php:89-94` — `$headers[0]` /
+  `$headers[1]` after filtering parameters by `in: header`. (ddd41d1)
+- [x] `tests/Feature/QueryParamClassLevelTest.php:54-62` — `array_search` +
+  position assertions. (ddd41d1)
+- [x] `tests/Unit/Plugins/Fractal/FractalEnvelopeFactoryTest.php:28, 80, 89, 100`
+  — `$schema->properties[0|1|2]` direct indexing. (ddd41d1)
+- [x] `tests/Unit/Plugins/ApiResources/ResourceEnvelopeFactoryTest.php:35-36, 49`
+  — same pattern. (ddd41d1)
+
+### 2.3. Low-value tests — delete or rewrite
+
+- [ ] **PHP attribute target reflection.** Reflecting `#[Attribute]` flags to
+  assert on `Attribute::TARGET_*` tests PHP itself, not the package:
+  `tests/Unit/Attributes/ResponseFieldTest.php:42-45`,
+  `tests/Unit/Plugins/ApiResources/Attributes/ResourceFieldTest.php:33-38`, and
+  the matching Fractal/QueryBuilder attribute tests.
+- [ ] **Trivial property echo.** Construct an object, assert its readonly
+  properties round-trip — language behaviour, not package behaviour:
+  `tests/Unit/QueryParamTest.php:17-30`,
+  `tests/Unit/Attributes/PathParamTest.php`,
+  `tests/Unit/Attributes/DeprecatedTest.php`, parts of `ResponseFieldTest`.
+
+### 2.4. Hardcoded fixture paths
+
+- [ ] `tests/Feature/ExampleFileLoaderTest.php:37, 49, 56` — string-literal
+  `'tests/Fixtures/OpenApi/example_payloads/create_project.json'`.
+- [ ] `tests/Feature/ExamplesTest.php:33, 50, 59` —
+  `dirname(__DIR__, 2) . "/examples/{$flavor}/openapi.yaml"`.
+
+Resolve via `__DIR__` + a fixture-path helper; survives directory reorgs.
+
+### 2.5. Misplaced fixture controllers
+
+Four fixture controllers live under `tests/Feature/` instead of
+`tests/Fixtures/`:
+
+- [ ] `tests/Feature/AuthoringFixtureController.php`
+- [ ] `tests/Feature/QueryParamClassFixtureController.php`
+- [ ] `tests/Feature/ValidationRulesFixtureController.php`
+- [ ] `tests/Feature/ResponseHeaderClassFixtureController.php`
+
+Move under `tests/Fixtures/` and update imports.
+
+### 2.6. DRY — repeated property-lookup loops
+
+Same `foreach ($items as $i) if ($i->name === $needle) { … }` pattern repeated
+across plugin tests:
+
+- [ ] `tests/Unit/Plugins/ApiResources/SchemaFromResourceTest.php:36-52`
+- [ ] `tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php:46-61`
+- [ ] `tests/Unit/Plugins/QueryBuilder/QueryBuilderParameterResolverTest.php:50-77`
+
+Add a `findByName($items, string $name)` helper to `tests/Support/`.
+
+### 2.7. Toolchain gaps (Testbench / Pest / PHPUnit / Spatie-style)
+
+High-value, low-effort first; nice-to-have toward the end.
+
+- [ ] **Add `spatie/pest-plugin-snapshots`** and swap
+  `tests/Feature/ExamplesTest.php`'s hand-rolled byte-comparison onto
+  `->toMatchSnapshot()`. Each `examples/{flavor}/openapi.yaml` becomes a
+  snapshot; regressions show up as diffs in PR reviews. The byte-compare is
+  the strongest argument for snapshots — that's exactly what they're for.
+- [ ] **Add `composer test-coverage` script** (`pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage`).
+  Spatie convention; pairs with the existing `composer test` (which already
+  uses `--no-coverage`). Trivial.
+- [ ] **Add `<coverage>` block to `phpunit.xml`** with `<report><clover/>` and
+  `<html/>`. Without it, `test-coverage` has nowhere to write to.
+- [ ] **Add `--log-junit build/junit.xml` to the CI test step** in
+  `.github/workflows/tests.yml`. Lets GitHub render per-test status on PRs.
+- [ ] **Add testsuites that match the in-test groups.** Tests tag themselves
+  with `->group('openapi', 'lint')`, but `phpunit.xml` only has Unit/Feature
+  testsuites — the groups can be filtered with `--group=lint` but aren't
+  surfaced as named suites. Optional; only useful if CI wants a "lint-suite
+  only" job.
+- [ ] **Replace the `@mkdir` / `@copy` shadowing in `tests/TestCase.php::setUp`.**
+  The leading `@` suppresses real errors; if the source directory disappears,
+  the next failure will be opaque. Either use a proper publishable-asset
+  mechanism or fail loudly when the source is missing.
+- [ ] **Extend PHPStan to `tests/`** at a lower level (e.g. level 5). Catches
+  fixture/factory bugs that would otherwise hide real issues. Configure a
+  separate path-scoped block in `phpstan.neon`.
+- [ ] **Consider `pestphp/pest-plugin-arch`** to enforce the Core/Plugins
+  one-way dependency stated in `CLAUDE.md` ("`src/Core/` must not depend on
+  any plugin"). One arch test would prevent a whole class of regressions.
+- [ ] **Rename `composer lint` → `composer format` (or alias)?** Spatie
+  convention is `format` for Pint. `lint` reads as "report violations" but the
+  current `composer lint` actually rewrites files (it invokes `pint` directly,
+  not `pint --test`). Either alias or rename to match the verb to the action.
+
+Explicitly **not** pursuing:
+- Workbench directory — useful for packages with UIs / Blade views; this
+  package only generates files, so the value is marginal.
+- Moving `beforeEach()` route registration into a Testbench `defineRoutes()`
+  hook — the agent flagged this, but inline route registration per test is
+  idiomatic Pest and keeps each test self-contained. Splitting setup across
+  two locations would be worse.
+- `@covers` annotations — irrelevant for integration-shaped tests.
+- Rector — Pint + PHPStan already cover what we need.
 
 ---
 
-## 3. Keep — legitimate unit-level value
+## 3. Reference — keep, don't sweep
 
-No action needed; listed so they aren't accidentally swept.
+Unit tests with legitimate value that should not be deleted:
 
 - `tests/Unit/Core/Routing/DocCommentParserTest.php` — pure parser, many edge cases
 - `tests/Unit/Core/Routing/ReturnTypeExtractorTest.php` — docblock regex + generics
@@ -73,121 +174,90 @@ No action needed; listed so they aren't accidentally swept.
 - `tests/Unit/Lint/FindingTest.php` — public API for plugin/formatter authors
 - `tests/Unit/Lint/IdentifierCaseTest.php` — regex patterns
 - `tests/Unit/Lint/RuleFixHintGuardTest.php` — meta-guard
-- `tests/Unit/Lint/Rules/MetaRulesTest.php`
-- `tests/Unit/Lint/Rules/MetaSuppressionStaleTest.php`
-- `tests/Unit/Lint/Rules/MetaTooManySuppressionsTest.php`
+- `tests/Unit/Lint/Rules/Meta*Test.php` — three meta-rule unit tests
+- `tests/Unit/Lint/Formatters/JsonFormatterTest.php` — pure logic, no feature coverage
+- `tests/Unit/Lint/Formatters/GithubFormatterTest.php` — percent-encoding edge cases
+- `tests/Unit/Lint/Rules/*` — per-rule semantics; `LintCommandTest` only asserts on
+  command behaviour, not rule output. These tests are the contract guard.
 
 ---
 
-## 4. Misplaced — move
+## 4. Past work (2026-05-21 first pass)
 
-- [x] `tests/Feature/Plugins/SpatieData/DataSyntheticPayloadBuilderTest.php` → `tests/Unit/Plugins/SpatieData/` (no route, no generation, pure logic)
+| Tranche | Outcome |
+|---|---|
+| Delete pipeline-internal unit tests | 19 files removed (`SpecTreeBuilderTest`, `SpecTreeWalkerTest`, `RuleRegistryTest`, `SuppressionCollectorTest`, lint formatters/context/collector unit tests, `Core/Routing/ActionDescriptorTest`, `Core/Lint/ReflectionAttributeCacheTest`, `Core/Generator/{OperationBuilder,CoreQueryParameterResolver}Test`, `Core/Registry/{OpenApiRegistry,ResolvedSchema,CoreRegistration}Test`, `Core/Routing/UriParameterDescriptorTest`); ~3.5 kLOC. |
+| Trim, don't delete | `SecurityExtractorTest` 220 → 130 L (kept config-driven coverage); `RouteIntrospectorTest` 108 → 47 L; `UriParameterResolverTest` 119 → 95 L. |
+| Move | `DataSyntheticPayloadBuilderTest` → `Unit/Plugins/SpatieData/`. |
+| Rewrite as feature tests | `DataResponseResolverTest`, `DataClassRequestSchemaResolverTest`, `SchemaFromDataClassTest`. 795 → 355 L. |
+| Delete fully-covered | `RequestBodyExtractorTest`, `StandardResponsesExtractorTest`. |
+| Rename batch-named files | `P1BatchTwoTest` → `ActionRequestBodyTest`; `P2BatchTest` split (`ComponentizedResponsesTest`, `OperationTagsTest`, `ExampleFileLoaderTest`); `Oapi024Test` → `StreamingResponseTest`; `Oapi027Test` → `DataDiscriminatorTest`; `Oapi035Test` → `ScopedDiBindingsTest`; `Oapi031034Test` split (`DeprecatedFieldTest`, `EnumCaseDescriptionTest`). |
+| Rule-test factory migration | Extended `OperationNodeFactory` with `makeOperation/Response/RequestBody/ComponentSchema/Parameter/QueryParameter/Header/Example/Link/Field/Webhook` + `emptyContext()`. Migrated all 82 rule tests in 10 batches; folded duplicate cases into `with()` datasets. |
+| Shared `generateSpec()` helper | Added to `tests/Pest.php`; swapped 66 sites across 20 feature files. |
+| `oneOf` assertions | Switched index-based assertions to membership across `NullableSchemaTest`, `FieldDescriptorTest`, etc. |
+| `return null;` + `@phpstan-ignore-next-line` fixture sweep | 5 files cleaned; remaining suppressions are legitimate non-fixture cases. |
 
----
-
-## 5. Rewrite as feature tests against the generated doc
-
-These live in `tests/Feature/*` but assert on intermediate resolver/extractor
-objects rather than on the generated YAML. Drive them through
-`openapi:generate` and assert on the doc.
-
-- [x] `tests/Feature/RequestBodyExtractorTest.php` (208 L) — **deleted**: every case covered elsewhere. Data class direct type-hint → new `DataClassRequestSchemaResolverTest` feature test; FormRequest application/json + multipart → `FormRequestSchemaTest`; SimpleFormRequest plain JSON → `FormRequestSchemaTest` (RemoteMediaRequest); `request.empty` × 3 → `tests/Feature/Lint/RequestEmptyTest.php` (full feature flow via scoped `FindingsCollector` swap).
-- [x] `tests/Feature/StandardResponsesExtractorTest.php` — **deleted**: all three cases were covered elsewhere (`#[Throws]` 418 by `ComponentizedResponsesTest` OAPI-021; `exceptionMap` 404 by `AuthoringAttributesTest`; no-throws by every test with non-throwing actions). Also dropped the orphan `tests/Fixtures/FixtureErrorResponseFactory.php`. Kept `StandardResponsesFixtureController.php` — still used by 3 other tests.
-- [x] `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php` (209 L → 100 L) — rewritten as feature test: routes + `app(OpenApiGenerator::class)->generate()` + YAML assertions for single Data $ref, `DataCollection<X>` array items, `PaginatedDataCollection` length-aware envelope, `CursorPaginatedDataCollection` cursor envelope. Dropped internal "returns null" cases (resolver dispatch is implicit in the envelope tests).
-- [x] `tests/Feature/Plugins/SpatieData/DataClassRequestSchemaResolverTest.php` (166 L → 50 L) — rewritten as feature test: direct `Data` type-hint produces `application/json` request body with `$ref`; component schema registered. Dropped Action indirection case (covered by `ActionRequestBodyTest`) and internal null cases.
-- [x] `tests/Feature/Plugins/SpatieData/SchemaFromDataClassTest.php` (212 L → 205 L) — rewritten as feature test: each `#[RequestField]`, `#[MapInputName]`, self-ref, and same-basename-disambiguation case now drives `openapi:generate` and asserts on `components.schemas.*` in YAML.
-- [x] `tests/Feature/Oapi031034Test.php` — done as part of §6 split into `DeprecatedFieldTest` (OAPI-031 + OAPI-043) and `EnumCaseDescriptionTest` (OAPI-034); checkbox here was stale.
-
----
-
-## 6. Batch-named tests
-
-Focused enough to keep, but renamed to describe behaviour rather than Linear
-tickets. OAPI-NNN ticket references retained inside `it(…)` titles as
-regression-trail breadcrumbs.
-
-- [x] `tests/Feature/P1BatchTwoTest.php` → `ActionRequestBodyTest.php` (OAPI-010/011)
-- [x] `tests/Feature/P2BatchTest.php` — split into:
-  - `ComponentizedResponsesTest.php` (OAPI-018 + OAPI-021)
-  - `OperationTagsTest.php` (OAPI-020)
-  - `ExampleFileLoaderTest.php` (OAPI-022)
-- [x] `tests/Feature/Oapi024Test.php` → `StreamingResponseTest.php`
-- [x] `tests/Feature/Oapi027Test.php` → `DataDiscriminatorTest.php`
-- [x] `tests/Feature/Oapi035Test.php` → `ScopedDiBindingsTest.php`
-- [x] `tests/Feature/Oapi031034Test.php` — split into:
-  - `DeprecatedFieldTest.php` (OAPI-031 + OAPI-043)
-  - `EnumCaseDescriptionTest.php` (OAPI-034)
+End-of-pass state: 1230 → 1103 tests, 3172 → 2965 assertions. Reduction is from
+deletions, not coverage loss — backstopped by feature tests (command behaviour
+via `LintCommandTest`, rule semantics via per-rule unit tests).
+`composer test && composer lint && composer analyse` green.
 
 ---
 
-## 7. Anti-patterns to sweep
+## 5. Incidental findings
 
-- [-] Drop the `it('reports its id and level', …)` test — **kept**: rule `id()` and `level()` are the public contract (config keys, default severity). `RuleCatalogCoverageTest` only verifies shape (non-empty, unique, ≥0), not specific values. These per-rule pins prevent silent renames/level changes.
-- [x] Consolidate duplicate rule-test cases — batches 1–10 done: batch 1 (10 description-style rule tests) folded null/empty/whitespace `it(…)` triples into single `with(…)` datasets; batch 2 (6 operation-level rule tests: `OperationIdMissing`, `OperationIdInvalidChars`, `OperationIdDuplicate`, `OperationIdNamingInconsistent`, `OperationSummaryEqualsDescription`, `OperationTagMissing`) folded valid/invalid charset pairs and one-side-null pairs into datasets and dropped two redundant cases (`OperationTagMissing`'s "no tags" / "empty array" dupe, `OperationIdNamingInconsistent`'s second "default still passes dot" case); batch 3 (6 naming-inconsistent rule tests: `ComponentNameNamingInconsistent`, `FieldNameNamingInconsistent`, `HeaderNameNamingInconsistent`, `ParameterNameNamingInconsistent`, `PathSegmentNamingInconsistent`, `TagNameNamingInconsistent`) folded valid/invalid case-style pairs and the six reserved-query-name cases (`ParameterNameNamingInconsistent`) into datasets; batch 4 (7 parameter/query-parameter rule tests: `ParameterDuplicateName`, `ParameterExampleConflict`, `ParameterExampleMissing`, `ParameterPathMustBeRequired`, `ParameterQueryArrayNoExplode`, `ParameterQueryNoSchema`, `QueryParamDuplicate`) folded only-singular/only-plural/neither and string/integer/enum-only no-schema cases into datasets; batch 5 (9 response/request-body rule tests: `ResponseDuplicateStatus`, `ResponseExampleMissing`, `ResponseNoError`, `ResponseNoSuccess`, `ResponseRedirectWithoutLocation`, `ResponseStatusUnconventional`, `RequestBodyExampleMissing`, `RequestBodyNoContent`, `RequestBodyOnGetOrDelete`) folded 2xx-shape, redirect-header-case, conventional-status, and body-less-verb cases into datasets; batch 6 (6 link rule tests: `LinkBothOperationIdAndRef`, `LinkDuplicateName`, `LinkInvalidOperation`, `LinkInvalidParameter`, `LinkNeitherOperationIdNorRef`, `LinkParameterRequiredMissing`) folded `LinkBoth`'s only-id/only-ref/neither no-finding triple, `LinkNeither`'s only-id/only-ref pair, `LinkInvalidParameter`'s "no operationId" / "unknown target operationId" pair, and `LinkParameterRequiredMissing`'s id/slug path-param duplicate into datasets; batch 7 (12 schema/field rule tests: `SchemaAllofTypeConflict`, `SchemaConstraintsMissing`, `SchemaEnumEmpty`, `SchemaEnumTypeMismatch`, `SchemaExampleMissing`, `SchemaNullableViaDeprecatedKeyword`, `SchemaRequiredWithoutProperty`, `FieldConflictingType`, `FieldEnumMismatch`, `FieldInvalidFormat`, `FieldNoEffect`, `EnumValuesUndocumented`) folded enum / constraint / example / type-mismatch case families into datasets and dropped each test's local `LintContext` builder in favour of `emptyContext()`; batch 8 (10 tag/webhook/deprecated/header/path rule tests: `TagDuplicate`, `TagsNoDescription`, `TagUndeclaredAtRoot`, `WebhookNameDuplicate`, `DeprecatedNoReplacement`, `DeprecatedNoSunsetDate`, `HeaderInvalidName`, `PathParameterUndeclared`, `PathParameterUndefined`, `PathTrailingSlashInconsistent`) folded `TagsNoDescription`'s missing/empty/whitespace triple, `DeprecatedNoReplacement`'s five keyword variants, `DeprecatedNoSunsetDate`'s four no-date and two concrete-date cases, `TagUndeclaredAtRoot`'s no-operations / no-tags pair, `PathParameterUndeclared`'s three "all declared" shapes, and `PathTrailingSlashInconsistent`'s four "consistent paths" cases into datasets; batch 9 (4 security/throws rule tests: `ScopeOverlyBroad`, `SecurityInvalidScope`, `SecuritySchemeUndefined`, `ThrowsTransitiveMissing`) folded `ScopeOverlyBroad`'s four no-finding cases (specific scopes, wildcard-mixed, no security, no registered scopes, only wildcard registered) into a single dataset, `SecurityInvalidScope`'s "all registered" + "no security" pair into a dataset, and `ThrowsTransitiveMissing`'s "redeclares throws" + "no action parameters" pair into a dataset; batch 10 (12 remaining rule tests — 5 operation-level: `DeprecatedAttribute`, `ExternaldocsInvalidUrl`, `OperationSecurityMissing`, `PublicEndpointContradictsMw`, `StreamingNoContentType`; 7 api-level rawSpec: `ComponentOrphaned`, `DiscriminatorInvalidMapping`, `InfoMetadataIncomplete`, `RefBroken`, `ServerInvalidUrl`, `ServerVariableUndeclared`, `SpecInvalid`) folded duplicate "no findings" sets into datasets (e.g. `OperationSecurityMissing`'s 4 no-finding cases including webhook into one dataset, `ServerInvalidUrl`'s 6 valid-shape cases into one), introduced per-file helper functions (`*Findings(...)`) to consolidate the repeated `LintContext` + spec construction boilerplate that `emptyContext()` deliberately doesn't expose, and replaced the inlined webhook `OperationNode` in `OperationSecurityMissing` with `makeOperation(webhook: true, responses: [])`.
-- [x] Extract shared rule-test boilerplate — `OperationNodeFactory` extended with `makeOperation()`, `makeResponse()`, `makeRequestBody()`, `makeComponentSchema()`, `makeParameter()`, `makeQueryParameter()`, `makeHeader()`, `makeExample()`, `makeLink()`, `makeField()`, `makeWebhook()` (auto-links children when wrapped in `makeOperation()` / `makeResponse()`), and `emptyContext(declaredTags:, operationsByOperationId:, operations:, webhooks:, tagDescriptions:, registeredScopes:)` for api-level / cross-ref rules. Batches 1–10 of rule-test migrations done: batch 1 (10 description-style: SummaryMissing, OperationDescription, RequestBody/Response/Field/Schema/Parameter/Header/Webhook/InfoDescriptionMissing); batch 2 (6 operation-level: OperationIdMissing, OperationIdInvalidChars, OperationIdDuplicate, OperationIdNamingInconsistent, OperationSummaryEqualsDescription, OperationTagMissing); batch 3 (6 naming-inconsistent: ComponentName, FieldName, HeaderName, ParameterName, PathSegment, TagName); batch 4 (7 parameter/query-parameter: ParameterDuplicateName, ParameterExampleConflict, ParameterExampleMissing, ParameterPathMustBeRequired, ParameterQueryArrayNoExplode, ParameterQueryNoSchema, QueryParamDuplicate); batch 5 (9 response/request-body: ResponseDuplicateStatus, ResponseExampleMissing, ResponseNoError, ResponseNoSuccess, ResponseRedirectWithoutLocation, ResponseStatusUnconventional, RequestBodyExampleMissing, RequestBodyNoContent, RequestBodyOnGetOrDelete); batch 6 (6 link: LinkBothOperationIdAndRef, LinkDuplicateName, LinkInvalidOperation, LinkInvalidParameter, LinkNeitherOperationIdNorRef, LinkParameterRequiredMissing); batch 7 (12 schema/field: SchemaAllofTypeConflict, SchemaConstraintsMissing, SchemaEnumEmpty, SchemaEnumTypeMismatch, SchemaExampleMissing, SchemaNullableViaDeprecatedKeyword, SchemaRequiredWithoutProperty, FieldConflictingType, FieldEnumMismatch, FieldInvalidFormat, FieldNoEffect, EnumValuesUndocumented) dropped all local `make*Context()` / `make*Node()` helpers in favour of `emptyContext(payloadClasses:)` + `makeField(...)` / `makeComponentSchema(...)` / `makeOperation(descriptor: null)`; batch 8 (10 tag/webhook/deprecated/header/path: TagDuplicate, TagsNoDescription, TagUndeclaredAtRoot, WebhookNameDuplicate, DeprecatedNoReplacement, DeprecatedNoSunsetDate, HeaderInvalidName, PathParameterUndeclared, PathParameterUndefined, PathTrailingSlashInconsistent) extended `emptyContext()` with `operations:`, `webhooks:`, `tagDescriptions:` kwargs to drive api-level rules (`checkApi`), added `makeWebhook()` for `WebhookNameDuplicate`, and threaded `raw:` overrides for deprecated x-extension Bug 8 cases; batch 9 (4 security/throws rule tests: `ScopeOverlyBroad`, `SecurityInvalidScope`, `SecuritySchemeUndefined`, `ThrowsTransitiveMissing`) replaced all hand-built `OperationNode` + `LintContext` boilerplate with `makeOperation(security: [...])` / `forDescriptor()` / `emptyContext(registeredScopes:)`. `SecuritySchemeUndefined` kept a per-file `makeSchemeUndefinedContext()` builder for `rawSpec->components->securitySchemes` (factory deliberately doesn't expose rawSpec knobs); batch 10 (12 remaining rule tests — operation-level: `DeprecatedAttribute`, `ExternaldocsInvalidUrl`, `OperationSecurityMissing`, `PublicEndpointContradictsMw`, `StreamingNoContentType`; api-level rawSpec: `ComponentOrphaned`, `DiscriminatorInvalidMapping`, `InfoMetadataIncomplete`, `RefBroken`, `ServerInvalidUrl`, `ServerVariableUndeclared`, `SpecInvalid`) introduced per-file `*Findings(...)` helpers that consolidate the repeated `LintContext` / spec / `TreeIndex` construction the factory deliberately doesn't expose (rawSpec, `referencedComponents`, component-walk dispatch), folded duplicate "no findings" cases into datasets (`OperationSecurityMissing` 4-row no-finding dataset including webhook, `ServerInvalidUrl` 6-row valid-shape dataset, `RefBroken` 4-row no-finding dataset, `InfoMetadataIncomplete` 2-row "finding mentions key" dataset, etc.), and replaced the inlined webhook `OperationNode` in `OperationSecurityMissing` with `makeOperation(webhook: true, responses: [])`. All 82 rule-test files now migrated.
-- [-] Replace hand-constructed `OA\…` object graphs (e.g. `SpecTreeBuilderTest:24–98`, `SpecTreeWalkerTest:34–117`) — **done** as part of §2 deletions
-- [x] Trim `tests/Unit/Extractors/SecurityExtractorTest.php`: dropped 5 Mockery-based middleware-group tests; kept config-driven `security_schemes` / `security_default_scheme` coverage (220 L → 130 L)
-- [x] Trim `tests/Unit/Core/Routing/RouteIntrospectorTest.php`: dropped 3 redundant cases; kept defensive "non-existent controller class" (108 L → 47 L). Removed orphaned `Fixtures/SimpleController.php`.
-- [x] Trim `tests/Unit/Core/Routing/UriParameterResolverTest.php`: dropped 2 happy-path cases; kept defensive cases (119 L → 95 L)
-- [x] Audit orphaned fixtures — none orphaned; see §9
-- [x] **Extract a shared `generateSpec()` helper.** Added `generateSpec(array $filters = []): array` to `tests/Pest.php` next to `reflectFunctionParameter()`. Swapped 65 plain-pattern sites + the one filtered call in `AuthoringAttributesTest:228` over to it across 20 feature-test files. Dropped now-unused `use Symfony\Component\Yaml\Yaml;` from all 20 files plus `use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;` from 19 (kept in `ExtensionsTest`, which still has 8 trigger-only `app(OpenApiGenerator::class)->generate()` calls whose value is the side-effect, not the spec — those don't benefit from the helper). 21 files changed, +81 / −106 LOC. Tests 1103 / assertions 2965; `composer test && composer lint && composer analyse` all green.
-- [x] **Ban `return null;` + `@phpstan-ignore-next-line` in signature-only controller fixtures.** Swept 5 files: `tests/Unit/Plugins/ApiResources/ResourceClassLocatorTest.php` (3 methods; kept the 4th suppression on `attributedNonResource` — that one's for the `#[ResponseResource(stdClass::class)]` attribute, not a return value), `tests/Feature/Plugins/ApiResources/ApiResourceResponseTest.php` (3 methods), `tests/Feature/Plugins/ApiResources/Lint/ResourceFieldTypeMissingTest.php` (1), `tests/Feature/Plugins/ApiResources/Lint/ResourceFieldsUndeclaredTest.php` (1), `tests/Feature/Plugins/ApiResources/Lint/ResourceResponseAmbiguousTest.php` (1). Remaining `phpstan-ignore-next-line` instances in tests are for attribute references (`FractalTransformerClassMissingTest`, `attributedNonResource`), intentionally-invalid argument types (`RouteIntrospectorTest`), or test-payload value shapes (`ReturnTypeExtractorTest`, `UriParameterResolverTest`, `SchemaFromTransformerTest`) — not the controller-fixture anti-pattern.
-- [x] **Assert on `oneOf` schemas by membership, not index.** Audit complete: `tests/Unit/NullableSchemaTest.php` (2 sites — `$ref` branch + fallback branch) swapped to `collect(...)->first(fn ($s) => …)` predicates; `tests/Unit/Core/Extractors/FieldDescriptorTest.php` (4 sites — properties/required/additionalProperties/array migrations) swapped onto two file-local helpers `nonNullBranch(array): OA\Schema` / `nullBranch(array): OA\Schema` that loop the oneOf, return the first matching branch, and throw on miss (PHPStan-friendly — `collect()->first(...)` widens the closure return to `Closure|null` in static analysis, which the IDE flagged on every property access). `tests/Unit/SchemaFromFormRequestTest.php` already used `collect(...)->first(...)` for array/null branches; `tests/Feature/Plugins/SpatieData/SchemaFromDataClassTest.php` + `tests/Feature/DataDiscriminatorTest.php` already used `array_column($oneOf, '$ref')`. No other index access remains. Tests 1103 / assertions 2965; `composer test && composer lint && composer analyse` all green.
+Append issues spotted mid-cleanup here. Include file + reason; promote to its
+own section if a pattern emerges.
 
----
-
-## 8. Suggested execution order
-
-1. [x] Sweep orphaned fixtures — confirmed none orphaned at session start; cleaned up incidentally with §2/§7 deletions.
-2. [-] Rule-level dump tests — reversed; see §2 / §9.
-3. [x] Delete `SpecTreeBuilderTest`, `SpecTreeWalkerTest`, `RuleRegistryTest`, `SuppressionCollectorTest`, lint formatters/context/collector unit tests (§2).
-4. [x] Delete clear-cut `Core/Routing` + `Core/Generator` + `Core/Registry` + `Extractors/SecurityExtractor` unit tests covered by feature flow (§2). Two `Core/Routing` tests trimmed not deleted; `SecurityExtractorTest` trimmed not deleted — see §7.
-5. [x] Move `DataSyntheticPayloadBuilderTest` into `Unit/` (§4).
-6. [x] Rewrite the four remaining resolver/extractor feature tests in §5 to assert on the generated document — `RequestBodyExtractorTest` (deleted as fully covered), `DataResponseResolverTest`, `DataClassRequestSchemaResolverTest`, `SchemaFromDataClassTest` (all three rewritten). 795 → 355 LOC; −17 tests / −40 assertions.
-7. [x] Split or rename `Oapi031034Test`; rename the other batch-named files (§6).
-8. [x] Refactor rule-test boilerplate (§7): extend `OperationNodeFactory` and consolidate duplicate `it(…)` cases within rule files. **Batches 1–10 done.** Batch 1: 10 description-style rule tests, ~600 → ~470 LOC, 49 tests / 138 assertions; baseline tests 1113 → 1109, assertions 2873 → 2914. Batch 2: 6 operation-level rule tests (OperationIdMissing, OperationIdInvalidChars, OperationIdDuplicate, OperationIdNamingInconsistent, OperationSummaryEqualsDescription, OperationTagMissing), ~870 → ~395 LOC; tests 1109 → 1107, assertions 2914 → 2917. Batch 3: 6 naming-inconsistent rule tests (ComponentName, FieldName, HeaderName, ParameterName, PathSegment, TagName), 887 → 588 LOC; tests 1107 → 1107, assertions 2917 → 2934. Batch 4: 7 parameter / query-parameter rule tests (ParameterDuplicateName, ParameterExampleConflict, ParameterExampleMissing, ParameterPathMustBeRequired, ParameterQueryArrayNoExplode, ParameterQueryNoSchema, QueryParamDuplicate), 1165 → 646 LOC; tests 1107 → 1105, assertions 2934 → 2931. Batch 5: 9 response / request-body rule tests (ResponseDuplicateStatus, ResponseExampleMissing, ResponseNoError, ResponseNoSuccess, ResponseRedirectWithoutLocation, ResponseStatusUnconventional, RequestBodyExampleMissing, RequestBodyNoContent, RequestBodyOnGetOrDelete), 1490 → 720 LOC; tests 1105 → 1105, assertions 2931 → 2933. Batch 6: 6 link rule tests (LinkBothOperationIdAndRef, LinkDuplicateName, LinkInvalidOperation, LinkInvalidParameter, LinkNeitherOperationIdNorRef, LinkParameterRequiredMissing), 1072 → 604 LOC; tests 1105 → 1104, assertions 2933 → 2934. Batch 7: 12 schema / field rule tests (SchemaAllofTypeConflict, SchemaConstraintsMissing, SchemaEnumEmpty, SchemaEnumTypeMismatch, SchemaExampleMissing, SchemaNullableViaDeprecatedKeyword, SchemaRequiredWithoutProperty, FieldConflictingType, FieldEnumMismatch, FieldInvalidFormat, FieldNoEffect, EnumValuesUndocumented), 1962 → 1244 LOC; tests 1104 → 1104, assertions 2934 → 2949. Batch 8: 10 tag / webhook / deprecated / header / path rule tests (TagDuplicate, TagsNoDescription, TagUndeclaredAtRoot, WebhookNameDuplicate, DeprecatedNoReplacement, DeprecatedNoSunsetDate, HeaderInvalidName, PathParameterUndeclared, PathParameterUndefined, PathTrailingSlashInconsistent), 1633 → 855 LOC; tests 1104 → 1103, assertions 2949 → 2965. Batch 9: 4 security / throws rule tests (ScopeOverlyBroad, SecurityInvalidScope, SecuritySchemeUndefined, ThrowsTransitiveMissing), 624 → 415 LOC; tests 1103 → 1103, assertions 2965 → 2965. Batch 10: 12 remaining rule tests (5 operation-level: DeprecatedAttribute, ExternaldocsInvalidUrl, OperationSecurityMissing, PublicEndpointContradictsMw, StreamingNoContentType; 7 api-level rawSpec: ComponentOrphaned, DiscriminatorInvalidMapping, InfoMetadataIncomplete, RefBroken, ServerInvalidUrl, ServerVariableUndeclared, SpecInvalid), 1960 → 1218 LOC; tests 1103 → 1103, assertions 2965 → 2965. **All rule tests migrated.**
-
-Run `composer test && composer lint && composer analyse` after each tranche.
-
-### Session results so far
-
-| Metric | Baseline | After cleanup | Δ |
-|---|---|---|---|
-| Tests passing | 1230 | 1103 | −127 |
-| Assertions | 3172 | 2960 | −212 |
-| Files deleted | — | 19 | |
-| Files moved/split | — | 5 source files → 7 split products | |
-| Files rewritten as feature tests | — | 3 | |
-| Files trimmed | — | 3 | |
-| Rule tests refactored onto factory | — | 82 | |
-| Feature tests onto `generateSpec()` | — | 20 | |
-| Coverage gaps recovered as feature tests | — | 1 | |
-
-`composer test` / `composer lint` / `composer analyse` all green.
-
----
-
-## 9. Incidental findings
-
-Append issues spotted mid-cleanup here. Include the file + reason; promote to
-its own section if a pattern emerges.
-
-- **Linter rule unit tests are the only per-rule behaviour coverage.** `tests/Feature/Lint/LintCommandTest.php` only asserts on command behaviour (exit codes, suppression, config-driven flag handling); it does not assert that any specific rule emits any specific finding. This invalidated the original plan to mass-delete `tests/Unit/Lint/Rules/*`. Outcome: those tests stay, refactor them via §7 instead.
-- **`tests/Unit/Core/Generator/CoreQueryParameterResolverTest.php` covered class-level → method-level `#[QueryParam]` override behaviour that is not exercised by any feature test.** Deleted with the file; coverage gap. ~~Add a class-level `#[QueryParam]` fixture controller alongside `ResponseHeaderClassLevelTest`.~~ **Resolved:** `tests/Feature/QueryParamClassLevelTest.php` + `QueryParamClassFixtureController.php` cover the class-level inherit case, the method-level override-by-name case, and the method-level append case via `generateSpec()` and YAML assertions.
-- **`tests/Unit/Core/Routing/UriParameterDescriptorTest.php` is a 60-line constructor-verbatim test on a public-named-args data class.** ~~Low value but small; consider deleting along with §7 trimming pass.~~ **Deleted.**
-- **`tests/Unit/Core/Generator/OpenApiGeneratorTest.php` is the right shape and should be the template for what feature tests look like** (define route → `app(OpenApiGenerator::class)->generate()` → assert on parsed YAML). Use as reference when rewriting tests under §5.
-- **`tests/Feature/Lint/RuleCatalogCoverageTest.php` is a shape test only.** It verifies every registered rule has a unique non-empty `id`, a non-empty `description`, and a non-negative `level`, but does not pin specific id/level values. The per-rule `it('reports its id and level', …)` tests are the only contract guard for default severity and rule-id stability — keep them.
-- **No truly orphaned fixtures.** `RemoteMediaFixtureController` (used by `FormRequestSchemaTest`), `ExampleFixtureController` (used by `RequestBodyExtractorTest`, `DataClassRequestSchemaResolverTest`), `StandardResponsesFixtureController` (used by 4 tests) are all still referenced. The explore agent's "orphaned" call was incorrect.
-- **Dropped a self-admitting-useless test during the `Oapi031034Test.php` split.** The OAPI-034 case `description is not set when no case has PHPDoc` literally asserted on the positive path (description IS set) and admitted in its own comment that it couldn't actually test the negative path. Removed.
-- **Pre-existing weak warnings (PhpStorm inspections) across test files:** unhandled `\PHPUnit\Framework\ExpectationFailedException`, unhandled `\Symfony\Component\Yaml\Exception\ParseException`, "closure can be declared static", "multiple expectations can be chained". Hundreds of instances; ignored because they exist project-wide and aren't real issues for test code. Could be silenced via `phpstorm.meta.php` or an `.editorconfig`-like IDE config if they become noisy.
-- **`request.empty` is observable from feature flow via scoped binding swap.** `tests/Feature/Lint/RequestEmptyTest.php` swaps `FindingsCollector` on the container before calling `OpenApiGenerator::generate()` and inspects the collector after. This is the supported way to assert on extractor-emitted findings end-to-end; the unit-level extractor harness in `RequestBodyExtractorTest` was redundant with it.
-- **Spatie paginator envelope coverage was resolver-only before this pass.** `PaginatorResponseTest` covers Laravel's `LengthAwarePaginatorContract` / `CursorPaginatorContract`, not Spatie's `PaginatedDataCollection<X>` / `CursorPaginatedDataCollection<X>`. The rewritten `DataResponseResolverTest` is now the only feature-level guard for those envelopes — keep it.
-- **`OperationNodeFactory` is the right home for shared lint-test fixtures** — extending it (instead of adding a separate `LintNodeFactory`) keeps the test-support surface flat. `makeOperation()` auto-links `responses`, `requestBody`, `parameters`, `queryParameters` so callers don't manually `linkParent()` everywhere; pass `responses: []` when a rule should not see any (e.g. webhooks, certain failure modes).
-- **Some rules need a non-empty `info`/`servers` on the raw spec.** `InfoDescriptionMissingTest` keeps a local `makeInfoContext()` helper because `emptyContext()` deliberately ships an empty `OA\OpenApi`. Other rules that touch `rawSpec` directly (`ServerInvalidUrl`, `ServerVariableUndeclared`, `SpecInvalid`, `ComponentOrphaned`, `RefBroken`) will follow the same per-file pattern — don't bloat `emptyContext()` with kitchen-sink knobs.
-- **Field-scanning rules (`field.*`) take a `PayloadParameterScanner` constructor dep.** Batch-7 rules `FieldNoEffect`, `FieldConflictingType`, `FieldEnumMismatch`, `FieldInvalidFormat` all run through `forDescriptor()` to attach a real reflection-bearing `ActionDescriptor`. Their "no descriptor" negative case now uses `makeOperation(descriptor: null)` rather than an inlined `new OperationNode(...)` — keeps the assertion focused on the `descriptor === null` early return.
-- **`makeField()` was added to `OperationNodeFactory` for batch 7.** Covers the same constructor surface as `FieldNode` with safe defaults; pair with `makeComponentSchema(fields: [...])` when a rule walks both schema- and field-level. No auto-linking — fields are pure data on their parent and don't need a `linkParent()` ceremony.
-- **`emptyContext()` grew `operations:`, `webhooks:`, `tagDescriptions:` for batch 8.** Api-level rules (`checkApi`) read straight off the `ApiNode`, so the empty default isn't enough — these kwargs let `PathTrailingSlashInconsistent` see a populated paths list, `TagUndeclaredAtRoot` see operation tags, and `TagsNoDescription` see the tag-name → description map. The single context constructor stays the only api-level builder; no per-rule helpers.
-- **`emptyContext()` grew `registeredScopes:` for batch 9.** `ScopeOverlyBroad` and `SecurityInvalidScope` both read `TreeIndex->registeredScopes` straight off the context — a single-concept kwarg, same shape as `declaredTags:` from earlier batches. `SecuritySchemeUndefined` is the divergent case: it walks `rawSpec->components->securitySchemes`, which `emptyContext()` deliberately leaves empty. Per §9 the spec-builder stays per-file rather than bloating the factory with rawSpec knobs — same pattern as `InfoDescriptionMissingTest`.
-- **`makeWebhook()` builds a `WebhookNode` whose operation defaults to `makeOperation(webhook: true, responses: [])`.** `WebhookNameDuplicate` aggregates per `checkWebhook` and emits on `finalize`, so it only needs the name; the wrapped operation is enough scaffolding for any future rule that walks `WebhookNode->operation`. No `linkParent()` ceremony — the api-level finalize path doesn't traverse upwards.
-- **Per-file `*Findings(...)` helper is the right pattern for rawSpec-heavy api-level rules (batch 10).** `ComponentOrphaned`, `RefBroken`, `ServerInvalidUrl`, `ServerVariableUndeclared`, `SpecInvalid`, `InfoMetadataIncomplete`, and `DiscriminatorInvalidMapping` all needed to construct `OA\Components` / `OA\PathItem` / `OA\Server` / `OA\Discriminator` graphs that `emptyContext()` deliberately leaves empty. Each test file now ships a single `*Findings(...)` helper that takes the rule's domain inputs (schema names, refs used, url, mapping, …) and returns `iterator_to_array($rule->checkApi(...))`. Keeps the per-test bodies down to a single line. `ComponentOrphaned`'s helper also seeds `TreeIndex->referencedComponents` from the refs argument — that's the only rawSpec rule whose context needs a non-default `TreeIndex` shape.
-- **Deprecated x-extension cases (Bug 8) pass `raw:` to `makeOperation()`.** `DeprecatedNoReplacement` / `DeprecatedNoSunsetDate` read `$operation->raw->x` for the `x-replacement` / `x-sunset` extensions. The factory's auto-built `OA\Get` has `$x = null`, so the two extension cases construct a one-off `OA\Get` with `->x = [...]` and pass it via `raw:`. Two lines per test, no helper warranted.
+- **`tests/Unit/Lint/RuleFixHintGuardTest` greps source for `'fixHint:'`** by
+  iterating `CoreRegistration::RULES`, reading each rule's file via
+  `ReflectionClass::getFileName()`. Tests a code-style convention, not
+  behaviour. Better: put `fixHint()` on the rule interface and assert each rule
+  returns non-empty. *(Surfaced in 2026-05-21 second-pass review; intentionally
+  not in §2 because §3 currently lists this file as keep — re-evaluate.)*
+- **`tests/Feature/Lint/RuleCatalogCoverageTest`** is a shape test only — it
+  pins `id` non-empty + unique and `level` ≥ 0, but does not pin specific
+  id/level values. The per-rule `it('reports its id and level', …)` cases are
+  the only contract guard for rule-id stability and default severity. Keep
+  them.
+- **`tests/Unit/Core/Generator/OpenApiGeneratorTest`** is the right shape and
+  should be the template for what feature tests look like: define route →
+  `app(OpenApiGenerator::class)->generate()` → assert on parsed YAML.
+- **`request.empty` is observable from feature flow via scoped binding swap.**
+  `tests/Feature/Lint/RequestEmptyTest` swaps `FindingsCollector` on the
+  container before calling `OpenApiGenerator::generate()` and inspects the
+  collector after. Supported way to assert on extractor-emitted findings
+  end-to-end.
+- **Spatie paginator envelope coverage was resolver-only before the rewrite.**
+  `PaginatorResponseTest` covers Laravel's `LengthAwarePaginatorContract` /
+  `CursorPaginatorContract`, not Spatie's `PaginatedDataCollection<X>` /
+  `CursorPaginatedDataCollection<X>`. The rewritten `DataResponseResolverTest`
+  is now the only feature-level guard for those envelopes.
+- **`OperationNodeFactory` is the right home for shared lint-test fixtures.**
+  Extending it (rather than adding a separate `LintNodeFactory`) keeps the
+  test-support surface flat. `makeOperation()` auto-links children so callers
+  don't manually `linkParent()`; pass `responses: []` when a rule must not see
+  any (webhooks, certain failure modes).
+- **`emptyContext()` deliberately ships an empty `OA\OpenApi`.** Don't bloat it
+  with rawSpec knobs — when a rule walks `rawSpec` (e.g.
+  `InfoDescriptionMissing`, `ServerInvalidUrl`, `ComponentOrphaned`,
+  `RefBroken`), use a per-file `*Findings(...)` helper or local
+  `make*Context()` builder instead.
+- **`*Findings(...)` per-file helpers** are the pattern for rawSpec-heavy
+  api-level rules — they take domain inputs (schema names, refs, url, …) and
+  return `iterator_to_array($rule->checkApi(...))`. Keeps per-test bodies down
+  to a single line without leaking rawSpec construction into the factory.
+- **`ComponentSchemaRegistry::registerNamed()` has no production caller.** No
+  code in `src/` (Core or plugins) currently registers a named schema; the
+  method exists as an extension-API contract for plugin authors building shared
+  envelopes (e.g. JSON:API error wrappers). Implication: the SchemaContext
+  branch with null `sourceClass` is untestable through the public surface
+  today. Reintroduce a coverage test only once a plugin starts registering
+  named schemas. *(Found while removing the ExtensionsTest named-schema case
+  in §2.1.)*
+- **Pre-existing PhpStorm weak warnings across test files** — unhandled
+  `\PHPUnit\Framework\ExpectationFailedException`, unhandled
+  `\Symfony\Component\Yaml\Exception\ParseException`, "closure can be declared
+  static", "multiple expectations can be chained". Hundreds of instances;
+  project-wide and not real issues for test code. Could be silenced via
+  `phpstorm.meta.php` or IDE config if noisy.
