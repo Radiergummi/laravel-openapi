@@ -103,14 +103,14 @@ or name-keyed lookups.
 
 ### 2.6. DRY — repeated property-lookup loops
 
-Same `foreach ($items as $i) if ($i->name === $needle) { … }` pattern repeated
-across plugin tests:
-
-- [ ] `tests/Unit/Plugins/ApiResources/SchemaFromResourceTest.php:36-52`
-- [ ] `tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php:46-61`
-- [ ] `tests/Unit/Plugins/QueryBuilder/QueryBuilderParameterResolverTest.php:50-77`
-
-Add a `findByName($items, string $name)` helper to `tests/Support/`.
+- [x] All three sites replaced with PHP 8.4's native `array_find()` (already
+  used in `src/Core/Lint/Rules/SchemaConstraintsMissing.php`,
+  `PayloadParameterScanner.php`). Skipped adding a `findByName($items, $name)`
+  helper because (a) `array_find` covers the use case in one line, (b) the
+  loops match on different properties (`$item->name`, `$item->schema`,
+  `$item->property`) so a name-only helper wouldn't cover the schema-registry
+  cases, and (c) adding a thin wrapper when the language already exposes the
+  operation is the kind of indirection the §2.6 spirit pushes against.
 
 ### 2.7. Toolchain gaps (Testbench / Pest / PHPUnit / Spatie-style)
 
