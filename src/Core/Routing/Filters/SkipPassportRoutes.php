@@ -26,9 +26,21 @@ use function str_starts_with;
  *
  * Tolerates Passport being absent: with no `passport.*` routes registered
  * the filter simply matches nothing.
+ *
+ * Unlike its sibling filters ({@see SkipNovaRoutes}, {@see SkipTelescopeRoutes},
+ * {@see SkipIgnitionRoutes}), Passport's route-name prefix is not
+ * user-configurable, so the constructor takes no parameters. The
+ * {@see self::fromConfig()} factory is preserved for symmetry with the other
+ * filters: it lets the service-provider registration call the same shape on
+ * every filter without a special case.
  */
 final readonly class SkipPassportRoutes implements RouteFilter
 {
+    public static function fromConfig(): self
+    {
+        return new self();
+    }
+
     public function shouldSkip(Route $route): bool
     {
         $name = $route->getName() ?? '';

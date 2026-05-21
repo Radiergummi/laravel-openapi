@@ -45,3 +45,8 @@ it('keeps routes whose name does not start with passport.', function (): void {
 it('tolerates Passport being absent by leaving unnamed routes alone', function (): void {
     expect($this->filter->shouldSkip(makeRoute(null)))->toBeFalse();
 });
+
+it('exposes a fromConfig() factory matching the sibling filters', function (): void {
+    expect(SkipPassportRoutes::fromConfig())
+        ->toBeInstanceOf(SkipPassportRoutes::class);
+});

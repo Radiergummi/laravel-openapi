@@ -48,6 +48,7 @@ use Radiergummi\OpenApi\Core\Routing\DocCommentParser;
 use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
+use Radiergummi\OpenApi\Core\Routing\Filters\SkipPassportRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
@@ -136,6 +137,7 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->app->scoped(SkipNovaRoutes::class, static fn(): SkipNovaRoutes => SkipNovaRoutes::fromConfig());
         $this->app->scoped(SkipTelescopeRoutes::class, static fn(): SkipTelescopeRoutes => SkipTelescopeRoutes::fromConfig());
         $this->app->scoped(SkipIgnitionRoutes::class, static fn(): SkipIgnitionRoutes => SkipIgnitionRoutes::fromConfig());
+        $this->app->scoped(SkipPassportRoutes::class, static fn(): SkipPassportRoutes => SkipPassportRoutes::fromConfig());
 
         $this->app->scoped(
             RouteIntrospector::class,
