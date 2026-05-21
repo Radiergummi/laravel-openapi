@@ -54,6 +54,8 @@ use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
+use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
+use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataRefSchemaResolver;
 use Spatie\LaravelData\Support\DataConfig;
@@ -573,6 +575,10 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerGenerator(): void
     {
+        $this->app->scoped(VisibilityResolver::class, static fn(): VisibilityResolver => new VisibilityResolver(
+            VisibilityMode::fromConfig(config('openapi.visibility.default')),
+        ));
+
         $this->app->scoped(
             OperationBuilder::class,
             static function (Container $app): OperationBuilder {
@@ -607,6 +613,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 introspector: $app->make(RouteIntrospector::class),
                 operationBuilder: $app->make(OperationBuilder::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
+                visibilityResolver: $app->make(VisibilityResolver::class),
             ),
         );
     }

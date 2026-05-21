@@ -15,13 +15,14 @@ use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Core\Attributes\Expose;
 use Radiergummi\OpenApi\Core\Attributes\Hide;
 use Radiergummi\OpenApi\Core\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use ReflectionAttribute;
+use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
@@ -50,6 +51,7 @@ final readonly class OpenApiGenerator
         private RouteIntrospector $introspector,
         private OperationBuilder $operationBuilder,
         private ComponentSchemaRegistry $schemaRegistry,
+        private VisibilityResolver $visibilityResolver,
     ) {}
 
     /**
@@ -244,48 +246,37 @@ final readonly class OpenApiGenerator
 
     private function isHidden(ActionDescriptor $descriptor): bool
     {
-        $environment = app()->environment();
-
-        if (
-            $descriptor->actionReflector !== null
-            && $this->matchesHide(
-                $descriptor->actionReflector->getAttributes(Hide::class),
-                $environment,
-            )
-        ) {
-            return true;
-        }
-
-        return
-            $descriptor->controller !== null
-            && $this->matchesHide(
-                $descriptor->controller->getAttributes(Hide::class),
-                $environment,
-            );
+        return !$this->visibilityResolver->isVisible(
+            hides: $this->collectAttributes($descriptor, Hide::class),
+            exposes: $this->collectAttributes($descriptor, Expose::class),
+            environment: app()->environment(),
+        );
     }
 
     /**
-     * @param ReflectionAttribute<Hide>[] $attributes
+     * @template T of object
+     *
+     * @param class-string<T> $class
+     *
+     * @return list<T>
      */
-    private function matchesHide(array $attributes, string $env): bool
+    private function collectAttributes(ActionDescriptor $descriptor, string $class): array
     {
-        foreach ($attributes as $attribute) {
-            $hide = $attribute->newInstance();
+        $instances = [];
 
-            if ($hide->only === null && $hide->except === null) {
-                return true;
-            }
-
-            if ($hide->only !== null && in_array($env, $hide->only, true)) {
-                return true;
-            }
-
-            if ($hide->except !== null && !in_array($env, $hide->except, true)) {
-                return true;
+        if ($descriptor->actionReflector !== null) {
+            foreach ($descriptor->actionReflector->getAttributes($class) as $reflection) {
+                $instances[] = $reflection->newInstance();
             }
         }
 
-        return false;
+        if ($descriptor->controller !== null) {
+            foreach ($descriptor->controller->getAttributes($class) as $reflection) {
+                $instances[] = $reflection->newInstance();
+            }
+        }
+
+        return $instances;
     }
 
     private function readWebhookAttribute(ActionDescriptor $descriptor): ?WebhookAttribute
