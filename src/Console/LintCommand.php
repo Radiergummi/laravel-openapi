@@ -18,6 +18,7 @@ use Laravel\Passport\Passport;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Formatters\CliFormatter;
 use Radiergummi\OpenApi\Core\Lint\Formatters\Formatter;
@@ -28,6 +29,7 @@ use Radiergummi\OpenApi\Core\Lint\RuleCatalogRenderer;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Core\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\RouteRule;
 use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Lint\Tree\SpecTreeBuilder;
@@ -194,6 +196,26 @@ class LintCommand extends Command
 
         foreach ($walker->walk($api, $context) as $finding) {
             $collector->emit($finding);
+        }
+
+        // Walk descriptors — second pass for RouteRule-implementing rules that
+        // need to inspect ActionDescriptors directly (e.g. visibility rules,
+        // which see hidden routes that never enter the spec tree).
+        $routeRules = array_values(array_filter(
+            $rules,
+            static fn(Rule $rule): bool => $rule instanceof RouteRule,
+        ));
+
+        if ($routeRules !== []) {
+            foreach ($descriptors as $descriptor) {
+                $defaults = FindingLocation::fromDescriptor($descriptor);
+
+                foreach ($routeRules as $rule) {
+                    foreach ($rule->checkRoute($descriptor, $context) as $finding) {
+                        $collector->emit($finding->withLocationDefaults($defaults));
+                    }
+                }
+            }
         }
 
         // Post-walk: MetaSuppressionStale needs the full finding set
