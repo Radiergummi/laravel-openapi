@@ -154,13 +154,14 @@ Run `composer test && composer lint && composer analyse` after each tranche.
 | Metric | Baseline | After cleanup | Δ |
 |---|---|---|---|
 | Tests passing | 1230 | 1103 | −127 |
-| Assertions | 3172 | 2965 | −207 |
-| Files deleted | — | 18 | |
+| Assertions | 3172 | 2960 | −212 |
+| Files deleted | — | 19 | |
 | Files moved/split | — | 5 source files → 7 split products | |
 | Files rewritten as feature tests | — | 3 | |
 | Files trimmed | — | 3 | |
 | Rule tests refactored onto factory | — | 82 | |
 | Feature tests onto `generateSpec()` | — | 20 | |
+| Coverage gaps recovered as feature tests | — | 1 | |
 
 `composer test` / `composer lint` / `composer analyse` all green.
 
@@ -172,8 +173,8 @@ Append issues spotted mid-cleanup here. Include the file + reason; promote to
 its own section if a pattern emerges.
 
 - **Linter rule unit tests are the only per-rule behaviour coverage.** `tests/Feature/Lint/LintCommandTest.php` only asserts on command behaviour (exit codes, suppression, config-driven flag handling); it does not assert that any specific rule emits any specific finding. This invalidated the original plan to mass-delete `tests/Unit/Lint/Rules/*`. Outcome: those tests stay, refactor them via §7 instead.
-- **`tests/Unit/Core/Generator/CoreQueryParameterResolverTest.php` covered class-level → method-level `#[QueryParam]` override behaviour that is not exercised by any feature test.** Deleted with the file; coverage gap. Add a class-level `#[QueryParam]` fixture controller alongside `ResponseHeaderClassLevelTest`.
-- **`tests/Unit/Core/Routing/UriParameterDescriptorTest.php` is a 60-line constructor-verbatim test on a public-named-args data class.** Low value but small; consider deleting along with §7 trimming pass.
+- **`tests/Unit/Core/Generator/CoreQueryParameterResolverTest.php` covered class-level → method-level `#[QueryParam]` override behaviour that is not exercised by any feature test.** Deleted with the file; coverage gap. ~~Add a class-level `#[QueryParam]` fixture controller alongside `ResponseHeaderClassLevelTest`.~~ **Resolved:** `tests/Feature/QueryParamClassLevelTest.php` + `QueryParamClassFixtureController.php` cover the class-level inherit case, the method-level override-by-name case, and the method-level append case via `generateSpec()` and YAML assertions.
+- **`tests/Unit/Core/Routing/UriParameterDescriptorTest.php` is a 60-line constructor-verbatim test on a public-named-args data class.** ~~Low value but small; consider deleting along with §7 trimming pass.~~ **Deleted.**
 - **`tests/Unit/Core/Generator/OpenApiGeneratorTest.php` is the right shape and should be the template for what feature tests look like** (define route → `app(OpenApiGenerator::class)->generate()` → assert on parsed YAML). Use as reference when rewriting tests under §5.
 - **`tests/Feature/Lint/RuleCatalogCoverageTest.php` is a shape test only.** It verifies every registered rule has a unique non-empty `id`, a non-empty `description`, and a non-negative `level`, but does not pin specific id/level values. The per-rule `it('reports its id and level', …)` tests are the only contract guard for default severity and rule-id stability — keep them.
 - **No truly orphaned fixtures.** `RemoteMediaFixtureController` (used by `FormRequestSchemaTest`), `ExampleFixtureController` (used by `RequestBodyExtractorTest`, `DataClassRequestSchemaResolverTest`), `StandardResponsesFixtureController` (used by 4 tests) are all still referenced. The explore agent's "orphaned" call was incorrect.
