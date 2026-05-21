@@ -123,8 +123,8 @@ regression-trail breadcrumbs.
 ## 7. Anti-patterns to sweep
 
 - [-] Drop the `it('reports its id and level', …)` test — **kept**: rule `id()` and `level()` are the public contract (config keys, default severity). `RuleCatalogCoverageTest` only verifies shape (non-empty, unique, ≥0), not specific values. These per-rule pins prevent silent renames/level changes.
-- [ ] Consolidate duplicate rule-test cases (e.g. `SummaryMissingTest` has three near-identical `emits a finding when summary is null/missing/not provided` tests; many other rule tests have similar duplicates)
-- [ ] Extract shared rule-test boilerplate — every rule test re-implements `makeXxxNode()` and `makeXxxContext()`. Consolidate into a `tests/Support/LintNodeFactory.php` (or extend `OperationNodeFactory`) so each rule test is just the rule-specific assertions
+- [~] Consolidate duplicate rule-test cases — first batch done (10 description-style rule tests folded null/empty/whitespace `it(…)` triples into a single `with(…)` dataset); ~70 rule tests still to audit.
+- [~] Extract shared rule-test boilerplate — `OperationNodeFactory` extended with `makeOperation()`, `makeResponse()`, `makeRequestBody()`, `makeComponentSchema()` (auto-links children). First batch of 10 description-style rule tests migrated (SummaryMissing, OperationDescription, RequestBody/Response/Field/Schema/Parameter/Header/Webhook/InfoDescriptionMissing). ~70 rule tests still to migrate.
 - [-] Replace hand-constructed `OA\…` object graphs (e.g. `SpecTreeBuilderTest:24–98`, `SpecTreeWalkerTest:34–117`) — **done** as part of §2 deletions
 - [x] Trim `tests/Unit/Extractors/SecurityExtractorTest.php`: dropped 5 Mockery-based middleware-group tests; kept config-driven `security_schemes` / `security_default_scheme` coverage (220 L → 130 L)
 - [x] Trim `tests/Unit/Core/Routing/RouteIntrospectorTest.php`: dropped 3 redundant cases; kept defensive "non-existent controller class" (108 L → 47 L). Removed orphaned `Fixtures/SimpleController.php`.
@@ -145,7 +145,7 @@ regression-trail breadcrumbs.
 5. [x] Move `DataSyntheticPayloadBuilderTest` into `Unit/` (§4).
 6. [x] Rewrite the four remaining resolver/extractor feature tests in §5 to assert on the generated document — `RequestBodyExtractorTest` (deleted as fully covered), `DataResponseResolverTest`, `DataClassRequestSchemaResolverTest`, `SchemaFromDataClassTest` (all three rewritten). 795 → 355 LOC; −17 tests / −40 assertions.
 7. [x] Split or rename `Oapi031034Test`; rename the other batch-named files (§6).
-8. [ ] Refactor rule-test boilerplate (§7): extract `make*Node`/`make*Context` into a shared `tests/Support/LintNodeFactory.php`; consolidate duplicate `it(…)` cases within rule files.
+8. [~] Refactor rule-test boilerplate (§7): extend `OperationNodeFactory` and consolidate duplicate `it(…)` cases within rule files. **First batch done** (10 description-style rule tests, ~600 → ~470 LOC, 49 tests / 138 assertions; baseline tests 1113 → 1109, assertions 2873 → 2914). ~70 rule tests still to migrate.
 
 Run `composer test && composer lint && composer analyse` after each tranche.
 
@@ -153,12 +153,13 @@ Run `composer test && composer lint && composer analyse` after each tranche.
 
 | Metric | Baseline | After cleanup | Δ |
 |---|---|---|---|
-| Tests passing | 1230 | 1113 | −117 |
-| Assertions | 3172 | 2873 | −299 |
+| Tests passing | 1230 | 1109 | −121 |
+| Assertions | 3172 | 2914 | −258 |
 | Files deleted | — | 18 | |
 | Files moved/split | — | 5 source files → 7 split products | |
 | Files rewritten as feature tests | — | 3 | |
 | Files trimmed | — | 3 | |
+| Rule tests refactored onto factory | — | 10 | |
 
 `composer test` / `composer lint` / `composer analyse` all green.
 
@@ -179,3 +180,5 @@ its own section if a pattern emerges.
 - **Pre-existing weak warnings (PhpStorm inspections) across test files:** unhandled `\PHPUnit\Framework\ExpectationFailedException`, unhandled `\Symfony\Component\Yaml\Exception\ParseException`, "closure can be declared static", "multiple expectations can be chained". Hundreds of instances; ignored because they exist project-wide and aren't real issues for test code. Could be silenced via `phpstorm.meta.php` or an `.editorconfig`-like IDE config if they become noisy.
 - **`request.empty` is observable from feature flow via scoped binding swap.** `tests/Feature/Lint/RequestEmptyTest.php` swaps `FindingsCollector` on the container before calling `OpenApiGenerator::generate()` and inspects the collector after. This is the supported way to assert on extractor-emitted findings end-to-end; the unit-level extractor harness in `RequestBodyExtractorTest` was redundant with it.
 - **Spatie paginator envelope coverage was resolver-only before this pass.** `PaginatorResponseTest` covers Laravel's `LengthAwarePaginatorContract` / `CursorPaginatorContract`, not Spatie's `PaginatedDataCollection<X>` / `CursorPaginatedDataCollection<X>`. The rewritten `DataResponseResolverTest` is now the only feature-level guard for those envelopes — keep it.
+- **`OperationNodeFactory` is the right home for shared lint-test fixtures** — extending it (instead of adding a separate `LintNodeFactory`) keeps the test-support surface flat. `makeOperation()` auto-links `responses`, `requestBody`, `parameters`, `queryParameters` so callers don't manually `linkParent()` everywhere; pass `responses: []` when a rule should not see any (e.g. webhooks, certain failure modes).
+- **Some rules need a non-empty `info`/`servers` on the raw spec.** `InfoDescriptionMissingTest` keeps a local `makeInfoContext()` helper because `emptyContext()` deliberately ships an empty `OA\OpenApi`. Other rules that touch `rawSpec` directly (`ServerInvalidUrl`, `ServerVariableUndeclared`, `SpecInvalid`, `ComponentOrphaned`, `RefBroken`) will follow the same per-file pattern — don't bloat `emptyContext()` with kitchen-sink knobs.

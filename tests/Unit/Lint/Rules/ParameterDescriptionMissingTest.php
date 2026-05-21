@@ -9,36 +9,13 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\ParameterDescriptionMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeParameterDescriptionMissingContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
-function makeParameterDescriptionMissingNode(?string $description): ParameterNode
+function makeParameterForDescription(?string $description): ParameterNode
 {
     return new ParameterNode(
         name: 'filter',
@@ -58,45 +35,31 @@ it('has the correct rule id and level', function (): void {
         ->and($rule->level())->toBe(2);
 });
 
-it('emits a finding when a parameter has no description', function (): void {
+it('emits a finding when a parameter has a missing or blank description', function (?string $description): void {
     $rule = new ParameterDescriptionMissing();
-    $parameter = makeParameterDescriptionMissingNode(description: null);
-    $context = makeParameterDescriptionMissingContext();
+    $parameter = makeParameterForDescription($description);
 
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
+    $findings = iterator_to_array(
+        $rule->checkParameter($parameter, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.description-missing')
         ->and($findings[0]->level)->toBe(2)
         ->and($findings[0]->message)->toContain('filter');
-});
-
-it('emits a finding when a parameter has an empty description', function (): void {
-    $rule = new ParameterDescriptionMissing();
-    $parameter = makeParameterDescriptionMissingNode(description: '');
-    $context = makeParameterDescriptionMissingContext();
-
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
-
-    expect($findings)->toHaveCount(1);
-});
-
-it('emits a finding when a parameter has a whitespace-only description', function (): void {
-    $rule = new ParameterDescriptionMissing();
-    $parameter = makeParameterDescriptionMissingNode(description: '   ');
-    $context = makeParameterDescriptionMissingContext();
-
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
-
-    expect($findings)->toHaveCount(1);
-});
+})->with([
+    'null'            => [null],
+    'empty string'    => [''],
+    'whitespace only' => ['   '],
+]);
 
 it('emits no findings when a parameter has a description', function (): void {
     $rule = new ParameterDescriptionMissing();
-    $parameter = makeParameterDescriptionMissingNode(description: 'Filter results by status.');
-    $context = makeParameterDescriptionMissingContext();
+    $parameter = makeParameterForDescription('Filter results by status.');
 
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
+    $findings = iterator_to_array(
+        $rule->checkParameter($parameter, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });

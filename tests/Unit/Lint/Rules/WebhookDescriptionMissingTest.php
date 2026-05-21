@@ -11,63 +11,35 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\WebhookDescriptionMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\WebhookNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeWebhookNodeForDescriptionMissing(
-    string $webhookName,
-    ?string $description = null,
-): WebhookNode {
-    $ctx = new Context();
-
-    $operation = new OA\Post([
+function makeWebhookForDescription(string $name, ?string $description): WebhookNode
+{
+    $raw = new OA\Post([
         'operationId' => 'webhook.test',
-        'responses' => [new OA\Response(['response' => '200', '_context' => $ctx])],
-        '_context' => $ctx,
+        'responses' => [new OA\Response(['response' => '200', '_context' => new Context()])],
+        '_context' => new Context(),
     ]);
 
-    $operationNode = new OperationNode(
-        pathUri: $webhookName,
+    $operationNode = OperationNodeFactory::makeOperation(
+        pathUri: $name,
         method: 'POST',
         operationId: 'webhook.test',
-        summary: null,
         description: $description,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
         responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: $operation,
+        raw: $raw,
         webhook: true,
     );
 
     return new WebhookNode(
-        name: $webhookName,
+        name: $name,
         description: $description,
         operation: $operationNode,
         raw: null,
-    );
-}
-
-function makeContextForWebhookDescriptionMissing(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
     );
 }
 
@@ -78,49 +50,35 @@ it('has the correct rule id and level', function (): void {
         ->and($rule->level())->toBe(2);
 });
 
-it('emits a finding when a webhook has no description', function (): void {
+it('emits a finding when a webhook has a missing or blank description', function (?string $description): void {
     $rule = new WebhookDescriptionMissing();
-    $webhook = makeWebhookNodeForDescriptionMissing('orderCreated', description: null);
-    $context = makeContextForWebhookDescriptionMissing();
+    $webhook = makeWebhookForDescription('orderCreated', $description);
 
-    $findings = iterator_to_array($rule->checkWebhook($webhook, $context));
+    $findings = iterator_to_array(
+        $rule->checkWebhook($webhook, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('webhook.description-missing')
         ->and($findings[0]->level)->toBe(2)
         ->and($findings[0]->message)->toContain('orderCreated')
         ->and($findings[0]->location->jsonPointer)->toBe('#/webhooks/orderCreated');
-});
-
-it('emits a finding when a webhook has an empty description', function (): void {
-    $rule = new WebhookDescriptionMissing();
-    $webhook = makeWebhookNodeForDescriptionMissing('orderCreated', description: '');
-    $context = makeContextForWebhookDescriptionMissing();
-
-    $findings = iterator_to_array($rule->checkWebhook($webhook, $context));
-
-    expect($findings)->toHaveCount(1);
-});
-
-it('emits a finding when a webhook has a whitespace-only description', function (): void {
-    $rule = new WebhookDescriptionMissing();
-    $webhook = makeWebhookNodeForDescriptionMissing('orderCreated', description: '   ');
-    $context = makeContextForWebhookDescriptionMissing();
-
-    $findings = iterator_to_array($rule->checkWebhook($webhook, $context));
-
-    expect($findings)->toHaveCount(1);
-});
+})->with([
+    'null'            => [null],
+    'empty string'    => [''],
+    'whitespace only' => ['   '],
+]);
 
 it('emits no findings when a webhook has a description', function (): void {
     $rule = new WebhookDescriptionMissing();
-    $webhook = makeWebhookNodeForDescriptionMissing(
+    $webhook = makeWebhookForDescription(
         'orderCreated',
-        description: 'Fired when a new order is created in the system.',
+        'Fired when a new order is created in the system.',
     );
-    $context = makeContextForWebhookDescriptionMissing();
 
-    $findings = iterator_to_array($rule->checkWebhook($webhook, $context));
+    $findings = iterator_to_array(
+        $rule->checkWebhook($webhook, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
