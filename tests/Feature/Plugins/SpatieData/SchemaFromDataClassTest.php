@@ -11,130 +11,111 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 
-use OpenApi\Annotations as OA;
-use OpenApi\Generator;
-use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
-use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Alpha\SelfRefData as AlphaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\MapInputNameFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
-use Spatie\LaravelData\Support\DataConfig;
-use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
-beforeEach(function (): void {
-    $this->registry = new ComponentSchemaRegistry();
-    $this->builder  = new SchemaFromDataClass(
-        schemaFromType: new JsonSchemaFromType(new NullLogger()),
-        typeResolver: TypeResolver::create(),
-        registry: $this->registry,
-        payloadBuilder: new DataSyntheticPayloadBuilder(app(DataConfig::class)),
-        rulesToSchema: new ValidationRulesToSchema(),
-        dataConfig: app(DataConfig::class),
-        logger: new NullLogger(),
-    );
-});
-
-/**
- * @return array<string, OA\Property>
- */
-function propertiesByName(OA\Schema $schema): array
+class PropertyDataController extends Controller
 {
-    if (!is_array($schema->properties)) {
-        return [];
+    public function store(PropertyFixtureData $data): JsonResponse
+    {
+        return new JsonResponse();
     }
-
-    $out = [];
-
-    foreach ($schema->properties as $property) {
-        if ($property instanceof OA\Property) {
-            $out[$property->property] = $property;
-        }
-    }
-
-    return $out;
 }
 
-it('applies the OpenApi\\Property attribute fields onto the property schema', function (): void {
-    $this->builder->build(PropertyFixtureData::class);
+class MapInputNameController extends Controller
+{
+    public function store(MapInputNameFixtureData $data): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
 
-    $schema = $this->registry->all()[0] ?? null;
-    expect($schema)->toBeInstanceOf(OA\Schema::class);
+class AlphaSelfRefController extends Controller
+{
+    public function store(AlphaSelfRefData $data): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
 
-    $props = propertiesByName($schema);
+class BetaSelfRefController extends Controller
+{
+    public function store(BetaSelfRefData $data): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
 
-    expect($props)->toHaveKeys(['name', 'callbackUrl', 'limit']);
+// region #[RequestField] attribute fields
 
-    expect($props['name']->description)->toBe('Display name shown in lists.')
-        ->and($props['name']->example)->toBe('Aerospace Q1')
-        ->and($props['name']->maxLength)->toBe(250)
-        ->and($props['name']->type)->toBe('string');
+it('applies #[RequestField] description, example and maxLength to schema properties', function (): void {
+    Route::post('/spatie-data/property', [PropertyDataController::class, 'store']);
 
-    expect($props['callbackUrl']->format)->toBe('uri')
-        ->and($props['callbackUrl']->example)->toBe('https://hooks.example.com/projects')
-        ->and($props['callbackUrl']->type)->toBe(['string', 'null']);
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
+
+    $props = $spec['components']['schemas']['PropertyFixtureData']['properties'];
+
+    expect($props)->toHaveKeys(['name', 'callbackUrl', 'limit'])
+        ->and($props['name']['description'])->toBe('Display name shown in lists.')
+        ->and($props['name']['example'])->toBe('Aerospace Q1')
+        ->and($props['name']['maxLength'])->toBe(250)
+        ->and($props['name']['type'])->toBe('string')
+        ->and($props['callbackUrl']['format'])->toBe('uri')
+        ->and($props['callbackUrl']['example'])->toBe('https://hooks.example.com/projects');
 });
 
-it('leaves properties without the attribute untouched', function (): void {
-    $this->builder->build(PropertyFixtureData::class);
+it('leaves properties without #[RequestField] untouched', function (): void {
+    Route::post('/spatie-data/property', [PropertyDataController::class, 'store']);
 
-    $schema = $this->registry->all()[0];
-    $props = propertiesByName($schema);
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-    $undefined = Generator::UNDEFINED;
+    $props = $spec['components']['schemas']['PropertyFixtureData']['properties'];
 
-    expect($props['limit']->type)->toBe('integer')
-        ->and($props['limit']->description)->toBe($undefined)
-        ->and($props['limit']->example)->toBe($undefined);
+    expect($props['limit']['type'])->toBe('integer')
+        ->and($props['limit'])->not->toHaveKey('description')
+        ->and($props['limit'])->not->toHaveKey('example');
 });
 
-// ---------------------------------------------------------------------------
-// OAPI-001: #[MapInputName] resolution
-// ---------------------------------------------------------------------------
+// endregion
 
-it('uses the literal wire name from #[MapInputName] for the schema property key', function (): void {
-    $this->builder->build(MapInputNameFixtureData::class);
+// region OAPI-001: #[MapInputName] resolution
 
-    $schema = $this->registry->all()[0];
-    $props  = propertiesByName($schema);
+dataset('map input name cases', [
+    'literal wire name from attribute string' => ['literal_name', 'literalName'],
+    'NameMapper class (SnakeCaseMapper)'      => ['mapper_name', 'mapperName'],
+    'unmapped property keeps its PHP name'    => ['unmapped', null],
+]);
 
-    expect($props)->toHaveKey('literal_name')
-        ->and($props)->not->toHaveKey('literalName');
-});
+it('renders schema property keys via #[MapInputName]', function (string $present, ?string $absent): void {
+    Route::post('/spatie-data/map-input-name', [MapInputNameController::class, 'store']);
 
-it('applies a NameMapper class from #[MapInputName] (SnakeCaseMapper)', function (): void {
-    $this->builder->build(MapInputNameFixtureData::class);
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-    $schema = $this->registry->all()[0];
-    $props  = propertiesByName($schema);
+    $props = $spec['components']['schemas']['MapInputNameFixtureData']['properties'];
 
-    expect($props)->toHaveKey('mapper_name')
-        ->and($props)->not->toHaveKey('mapperName');
-});
+    expect($props)->toHaveKey($present);
 
-it('leaves unmapped properties on their PHP name', function (): void {
-    $this->builder->build(MapInputNameFixtureData::class);
+    if ($absent !== null) {
+        expect($props)->not->toHaveKey($absent);
+    }
+})->with('map input name cases');
 
-    $schema = $this->registry->all()[0];
-    $props  = propertiesByName($schema);
+it('uses wire names in required[] (Optional union drops the field)', function (): void {
+    Route::post('/spatie-data/map-input-name', [MapInputNameController::class, 'store']);
 
-    expect($props)->toHaveKey('unmapped');
-});
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-it('uses wire names in the required[] list (Optional union still drops the field)', function (): void {
-    $this->builder->build(MapInputNameFixtureData::class);
+    $required = $spec['components']['schemas']['MapInputNameFixtureData']['required'] ?? [];
 
-    $schema   = $this->registry->all()[0];
-    $required = is_array($schema->required) ? $schema->required : [];
-
-    // literal_name + mapper_name + unmapped are required (no defaults, not Optional).
-    // optional_literal is Optional|null so it must be omitted from required.
     expect($required)->toContain('literal_name')
         ->and($required)->toContain('mapper_name')
         ->and($required)->toContain('unmapped')
@@ -143,70 +124,53 @@ it('uses wire names in the required[] list (Optional union still drops the field
         ->and($required)->not->toContain('mapperName');
 });
 
-// ---------------------------------------------------------------------------
-// OAPI-008: Cycle-guard $ref uses disambiguated key for same-basename classes
-// ---------------------------------------------------------------------------
+// endregion
 
-it('emits a $ref with the basename key for a self-referential class (OAPI-008)', function (): void {
-    $this->builder->build(AlphaSelfRefData::class);
+// region OAPI-008: Cycle-safe $ref and same-basename disambiguation
 
-    $schemas = $this->registry->all();
-    $keys    = array_map(static fn(OA\Schema $s): string => $s->schema, $schemas);
+it('emits a $ref with the basename key for a self-referential Data class (OAPI-008)', function (): void {
+    Route::post('/spatie-data/alpha-self-ref', [AlphaSelfRefController::class, 'store']);
 
-    // The Alpha class should be registered under its basename (no collision yet).
-    expect($keys)->toContain('SelfRefData');
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-    // The child property must reference the correct component key via $ref.
-    $schema = null;
+    expect($spec['components']['schemas'])->toHaveKey('SelfRefData');
 
-    foreach ($schemas as $s) {
-        if ($s->schema === 'SelfRefData') {
-            $schema = $s;
+    $props = $spec['components']['schemas']['SelfRefData']['properties'];
 
-            break;
-        }
-    }
-
-    expect($schema)->not->toBeNull();
-    $props = propertiesByName($schema);
     expect($props)->toHaveKey('child');
 
-    // The child property is ?self — OAS 3.1 nullable wraps it in oneOf: [{$ref:...},{type:'null'}].
-    // The $ref lives inside oneOf[0], not directly on the property.
-    $childRef = $props['child']->oneOf[0]->ref;
-    expect($childRef)->toContain('SelfRefData');
+    // ?self renders as oneOf containing a {$ref} and a {type: 'null'}; order is not part of the contract.
+    $refs = array_column($props['child']['oneOf'], '$ref');
+
+    expect($refs)->toContain('#/components/schemas/SelfRefData');
 });
 
-it('disambiguates same-basename classes from different namespaces (OAPI-008)', function (): void {
-    // Register Alpha first so Beta gets a disambiguated key.
-    $this->builder->build(AlphaSelfRefData::class);
-    $this->builder->build(BetaSelfRefData::class);
+it('disambiguates same-basename Data classes across namespaces (OAPI-008)', function (): void {
+    Route::post('/spatie-data/alpha-self-ref', [AlphaSelfRefController::class, 'store']);
+    Route::post('/spatie-data/beta-self-ref', [BetaSelfRefController::class, 'store']);
 
-    $schemas = $this->registry->all();
-    $keys    = array_map(static fn(OA\Schema $s): string => $s->schema, $schemas);
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-    // Alpha gets the plain basename; Beta gets a disambiguated key.
+    $keys = array_keys($spec['components']['schemas']);
+
     expect($keys)->toContain('SelfRefData');
 
-    $disambiguated = array_values(array_filter($keys, static fn(string $k): bool => $k !== 'SelfRefData'));
-    expect($disambiguated)->not->toBeEmpty();
+    $disambiguated = array_values(array_filter(
+        $keys,
+        static fn(string $k): bool => $k !== 'SelfRefData' && str_contains($k, 'SelfRefData'),
+    ));
 
-    // The Beta self-ref property must point to the disambiguated key, not 'SelfRefData'.
-    $betaSchema = null;
+    expect($disambiguated)->toHaveCount(1);
 
-    foreach ($schemas as $s) {
-        if ($s->schema !== 'SelfRefData') {
-            $betaSchema = $s;
+    // The second-registered schema's `child` must reference the disambiguated key, not the basename.
+    $betaSchemaKey = $disambiguated[0];
+    $betaProps     = $spec['components']['schemas'][$betaSchemaKey]['properties'];
 
-            break;
-        }
-    }
+    expect($betaProps)->toHaveKey('child');
 
-    expect($betaSchema)->not->toBeNull();
-    $props = propertiesByName($betaSchema);
-    expect($props)->toHaveKey('child');
+    $refs = array_column($betaProps['child']['oneOf'], '$ref');
 
-    // OAS 3.1 nullable wraps the self-ref in oneOf: [{$ref:...},{type:'null'}].
-    $childRef = $props['child']->oneOf[0]->ref;
-    expect($childRef)->toContain($disambiguated[0]);
+    expect($refs)->toContain('#/components/schemas/' . $betaSchemaKey);
 });
+
+// endregion

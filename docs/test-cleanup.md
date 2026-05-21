@@ -91,11 +91,11 @@ These live in `tests/Feature/*` but assert on intermediate resolver/extractor
 objects rather than on the generated YAML. Drive them through
 `openapi:generate` and assert on the doc.
 
-- [ ] `tests/Feature/RequestBodyExtractorTest.php` (208 L) — uses `makeRequestBodyExtractor()` helper, asserts on `ResolvedSchema`
+- [x] `tests/Feature/RequestBodyExtractorTest.php` (208 L) — **deleted**: every case covered elsewhere. Data class direct type-hint → new `DataClassRequestSchemaResolverTest` feature test; FormRequest application/json + multipart → `FormRequestSchemaTest`; SimpleFormRequest plain JSON → `FormRequestSchemaTest` (RemoteMediaRequest); `request.empty` × 3 → `tests/Feature/Lint/RequestEmptyTest.php` (full feature flow via scoped `FindingsCollector` swap).
 - [x] `tests/Feature/StandardResponsesExtractorTest.php` — **deleted**: all three cases were covered elsewhere (`#[Throws]` 418 by `ComponentizedResponsesTest` OAPI-021; `exceptionMap` 404 by `AuthoringAttributesTest`; no-throws by every test with non-throwing actions). Also dropped the orphan `tests/Fixtures/FixtureErrorResponseFactory.php`. Kept `StandardResponsesFixtureController.php` — still used by 3 other tests.
-- [ ] `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php` (209 L) — manually builds resolver
-- [ ] `tests/Feature/Plugins/SpatieData/DataClassRequestSchemaResolverTest.php` (166 L) — manual resolver wiring
-- [ ] `tests/Feature/Plugins/SpatieData/SchemaFromDataClassTest.php` (212 L) — keep edge cases as unit, add one end-to-end
+- [x] `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php` (209 L → 100 L) — rewritten as feature test: routes + `app(OpenApiGenerator::class)->generate()` + YAML assertions for single Data $ref, `DataCollection<X>` array items, `PaginatedDataCollection` length-aware envelope, `CursorPaginatedDataCollection` cursor envelope. Dropped internal "returns null" cases (resolver dispatch is implicit in the envelope tests).
+- [x] `tests/Feature/Plugins/SpatieData/DataClassRequestSchemaResolverTest.php` (166 L → 50 L) — rewritten as feature test: direct `Data` type-hint produces `application/json` request body with `$ref`; component schema registered. Dropped Action indirection case (covered by `ActionRequestBodyTest`) and internal null cases.
+- [x] `tests/Feature/Plugins/SpatieData/SchemaFromDataClassTest.php` (212 L → 205 L) — rewritten as feature test: each `#[RequestField]`, `#[MapInputName]`, self-ref, and same-basename-disambiguation case now drives `openapi:generate` and asserts on `components.schemas.*` in YAML.
 - [ ] `tests/Feature/Oapi031034Test.php` — split into the three OAPIs (031, 034, 043) or fold into `SchemaFromDataClassTest`; drop the batch-dump name
 
 ---
@@ -130,6 +130,9 @@ regression-trail breadcrumbs.
 - [x] Trim `tests/Unit/Core/Routing/RouteIntrospectorTest.php`: dropped 3 redundant cases; kept defensive "non-existent controller class" (108 L → 47 L). Removed orphaned `Fixtures/SimpleController.php`.
 - [x] Trim `tests/Unit/Core/Routing/UriParameterResolverTest.php`: dropped 2 happy-path cases; kept defensive cases (119 L → 95 L)
 - [x] Audit orphaned fixtures — none orphaned; see §9
+- [ ] **Extract a shared `generateSpec()` helper.** Every feature test inlines `Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml())` (30+ sites). Move to `tests/Pest.php` or `tests/Support/`. Removes the YAML-import dance from every file and centralises the only point that knows about the serialise-then-parse roundtrip.
+- [ ] **Ban `return null;` + `@phpstan-ignore-next-line` in signature-only controller fixtures.** Replace with `throw new \LogicException('Signature-only fixture; never invoked.')` — honest about types, doesn't lie to static analysis, doesn't risk a `TypeError` if the route ever gets hit. Already done in `tests/Feature/Plugins/SpatieData/DataResponseResolverTest.php`; audit the rest of `tests/Feature/` and `tests/Fixtures/` for the same anti-pattern.
+- [ ] **Assert on `oneOf` schemas by membership, not index.** Tests that probe nullable-wrapped refs (`oneOf[0]['$ref']`) couple to `NullableSchema`'s emission order. Prefer `array_column($oneOf, '$ref')` + `toContain('#/components/schemas/X')` — same length, robust to future re-ordering. Pattern applied in `SchemaFromDataClassTest`; audit other tests touching `oneOf`/`anyOf`.
 
 ---
 
@@ -140,7 +143,7 @@ regression-trail breadcrumbs.
 3. [x] Delete `SpecTreeBuilderTest`, `SpecTreeWalkerTest`, `RuleRegistryTest`, `SuppressionCollectorTest`, lint formatters/context/collector unit tests (§2).
 4. [x] Delete clear-cut `Core/Routing` + `Core/Generator` + `Core/Registry` + `Extractors/SecurityExtractor` unit tests covered by feature flow (§2). Two `Core/Routing` tests trimmed not deleted; `SecurityExtractorTest` trimmed not deleted — see §7.
 5. [x] Move `DataSyntheticPayloadBuilderTest` into `Unit/` (§4).
-6. [ ] Rewrite the four remaining resolver/extractor feature tests in §5 to assert on the generated document — `RequestBodyExtractorTest`, `DataResponseResolverTest`, `DataClassRequestSchemaResolverTest`, `SchemaFromDataClassTest`. Pending: ~750 LOC of rewrite work.
+6. [x] Rewrite the four remaining resolver/extractor feature tests in §5 to assert on the generated document — `RequestBodyExtractorTest` (deleted as fully covered), `DataResponseResolverTest`, `DataClassRequestSchemaResolverTest`, `SchemaFromDataClassTest` (all three rewritten). 795 → 355 LOC; −17 tests / −40 assertions.
 7. [x] Split or rename `Oapi031034Test`; rename the other batch-named files (§6).
 8. [ ] Refactor rule-test boilerplate (§7): extract `make*Node`/`make*Context` into a shared `tests/Support/LintNodeFactory.php`; consolidate duplicate `it(…)` cases within rule files.
 
@@ -150,10 +153,11 @@ Run `composer test && composer lint && composer analyse` after each tranche.
 
 | Metric | Baseline | After cleanup | Δ |
 |---|---|---|---|
-| Tests passing | 1230 | 1130 | −100 |
-| Assertions | 3172 | 2913 | −259 |
-| Files deleted | — | 17 | |
+| Tests passing | 1230 | 1113 | −117 |
+| Assertions | 3172 | 2873 | −299 |
+| Files deleted | — | 18 | |
 | Files moved/split | — | 5 source files → 7 split products | |
+| Files rewritten as feature tests | — | 3 | |
 | Files trimmed | — | 3 | |
 
 `composer test` / `composer lint` / `composer analyse` all green.
@@ -173,3 +177,5 @@ its own section if a pattern emerges.
 - **No truly orphaned fixtures.** `RemoteMediaFixtureController` (used by `FormRequestSchemaTest`), `ExampleFixtureController` (used by `RequestBodyExtractorTest`, `DataClassRequestSchemaResolverTest`), `StandardResponsesFixtureController` (used by 4 tests) are all still referenced. The explore agent's "orphaned" call was incorrect.
 - **Dropped a self-admitting-useless test during the `Oapi031034Test.php` split.** The OAPI-034 case `description is not set when no case has PHPDoc` literally asserted on the positive path (description IS set) and admitted in its own comment that it couldn't actually test the negative path. Removed.
 - **Pre-existing weak warnings (PhpStorm inspections) across test files:** unhandled `\PHPUnit\Framework\ExpectationFailedException`, unhandled `\Symfony\Component\Yaml\Exception\ParseException`, "closure can be declared static", "multiple expectations can be chained". Hundreds of instances; ignored because they exist project-wide and aren't real issues for test code. Could be silenced via `phpstorm.meta.php` or an `.editorconfig`-like IDE config if they become noisy.
+- **`request.empty` is observable from feature flow via scoped binding swap.** `tests/Feature/Lint/RequestEmptyTest.php` swaps `FindingsCollector` on the container before calling `OpenApiGenerator::generate()` and inspects the collector after. This is the supported way to assert on extractor-emitted findings end-to-end; the unit-level extractor harness in `RequestBodyExtractorTest` was redundant with it.
+- **Spatie paginator envelope coverage was resolver-only before this pass.** `PaginatorResponseTest` covers Laravel's `LengthAwarePaginatorContract` / `CursorPaginatorContract`, not Spatie's `PaginatedDataCollection<X>` / `CursorPaginatedDataCollection<X>`. The rewritten `DataResponseResolverTest` is now the only feature-level guard for those envelopes — keep it.

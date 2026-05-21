@@ -11,156 +11,40 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 
-use Illuminate\Routing\Route;
-use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\SpatieData\DataClassRequestSchemaResolver;
-use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
-use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
-use Radiergummi\OpenApi\Tests\Fixtures\Action;
-use Radiergummi\OpenApi\Tests\Fixtures\ExampleFixtureController;
-use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
-use Radiergummi\OpenApi\Tests\Fixtures\StandardResponsesFixtureController;
-use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
-use ReflectionException;
-use Spatie\LaravelData\Support\DataConfig;
-use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
+use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeDataClassResolver(): DataClassRequestSchemaResolver
+class DataClassRequestController extends Controller
 {
-    $registry = new ComponentSchemaRegistry();
-    $builder  = new SchemaFromDataClass(
-        schemaFromType: new JsonSchemaFromType(new NullLogger()),
-        typeResolver: TypeResolver::create(),
-        registry: $registry,
-        payloadBuilder: new DataSyntheticPayloadBuilder(app(DataConfig::class)),
-        rulesToSchema: new ValidationRulesToSchema(),
-        dataConfig: app(DataConfig::class),
-        logger: new NullLogger(),
-    );
-
-    return new DataClassRequestSchemaResolver(
-        schemaBuilder: $builder,
-        scanner: new PayloadParameterScanner(indirectionClasses: [Action::class]),
-    );
+    public function store(ScalarOnlyData $data): JsonResponse
+    {
+        return new JsonResponse();
+    }
 }
 
-/**
- * @param class-string $class
- *
- * @throws ReflectionException
- */
-function makeDataClassDescriptor(string $class, string $methodName): ActionDescriptor
-{
-    return ActionDescriptorFactory::forControllerMethod($class, $methodName, 'test', ['POST']);
-}
+it('emits an application/json request body $ref for a directly type-hinted Data class', function (): void {
+    Route::post('/spatie-data/request', [DataClassRequestController::class, 'store']);
 
-// ---------------------------------------------------------------------------
-// Happy path — Data class direct type-hint
-// ---------------------------------------------------------------------------
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-it('returns a ResolvedSchema when the action type-hints a Data class', function (): void {
-    $resolver   = makeDataClassResolver();
-    $descriptor = makeDataClassDescriptor(ExampleFixtureController::class, 'create');
+    $body = $spec['paths']['/spatie-data/request']['post']['requestBody'] ?? null;
 
-    $result = $resolver->resolveRequestSchema($descriptor);
-
-    expect($result)->toBeInstanceOf(ResolvedSchema::class)
-        ->and($result->componentKey)->not->toBeEmpty();
+    expect($body)->not->toBeNull()
+        ->and($body['required'])->toBeTrue()
+        ->and($body['content']['application/json']['schema']['$ref'])
+        ->toBe('#/components/schemas/ScalarOnlyData');
 });
 
-it('uses application/json media type for a Data class without file properties', function (): void {
-    $resolver   = makeDataClassResolver();
-    $descriptor = makeDataClassDescriptor(ExampleFixtureController::class, 'create');
+it('registers the Data class as a component schema', function (): void {
+    Route::post('/spatie-data/request', [DataClassRequestController::class, 'store']);
 
-    $result = $resolver->resolveRequestSchema($descriptor);
+    $spec = Yaml::parse(app(OpenApiGenerator::class)->generate()->toYaml());
 
-    expect($result)->toBeInstanceOf(ResolvedSchema::class)
-        ->and($result->mediaType)->toBe(MediaType::Json);
-});
-
-it('registers the Data class schema in the component registry', function (): void {
-    $registry = new ComponentSchemaRegistry();
-    $builder  = new SchemaFromDataClass(
-        schemaFromType: new JsonSchemaFromType(new NullLogger()),
-        typeResolver: TypeResolver::create(),
-        registry: $registry,
-        payloadBuilder: new DataSyntheticPayloadBuilder(app(DataConfig::class)),
-        rulesToSchema: new ValidationRulesToSchema(),
-        dataConfig: app(DataConfig::class),
-        logger: new NullLogger(),
-    );
-    $resolver = new DataClassRequestSchemaResolver(
-        schemaBuilder: $builder,
-        scanner: new PayloadParameterScanner(indirectionClasses: [Action::class]),
-    );
-    $descriptor = makeDataClassDescriptor(ExampleFixtureController::class, 'create');
-
-    $resolver->resolveRequestSchema($descriptor);
-
-    expect($registry->isRegisteredOrReserved(PropertyFixtureData::class))->toBeTrue();
-});
-
-// ---------------------------------------------------------------------------
-// Null cases
-// ---------------------------------------------------------------------------
-
-it('returns null when the action has no Data class parameter', function (): void {
-    $resolver   = makeDataClassResolver();
-    $descriptor = makeDataClassDescriptor(StandardResponsesFixtureController::class, 'throwsNothing');
-
-    $result = $resolver->resolveRequestSchema($descriptor);
-
-    expect($result)->toBeNull();
-});
-
-it('returns null when the ActionDescriptor has no method', function (): void {
-    $resolver   = makeDataClassResolver();
-    $descriptor = new ActionDescriptor(
-        route: new Route('GET', 'test', []),
-        controller: null,
-        method: null,
-        summary: null,
-        description: null,
-    );
-
-    $result = $resolver->resolveRequestSchema($descriptor);
-
-    expect($result)->toBeNull();
-});
-
-// ---------------------------------------------------------------------------
-// OAPI-010: Action constructor descent (indirection via scanner)
-// ---------------------------------------------------------------------------
-
-it('extracts a Data class from an Action constructor when the scanner is configured with an indirection class', function (): void {
-    // ActionFixture extends the package-local Action fixture and carries ActionFixtureData in its constructor.
-    // The resolver must find ActionFixtureData via the scanner's indirection descent.
-    $controller = new class () {
-        public function store(\Radiergummi\OpenApi\Tests\Fixtures\ActionFixture $action): void {}
-    };
-
-    $resolver   = makeDataClassResolver();
-    $descriptor = ActionDescriptorFactory::forRoute(
-        route: new Route('POST', 'test', []),
-        controller: $controller::class,
-        method: 'store',
-    );
-
-    $result = $resolver->resolveRequestSchema($descriptor);
-
-    expect($result)->toBeInstanceOf(ResolvedSchema::class)
-        ->and($result->componentKey)->toContain('ActionFixtureData');
+    expect($spec['components']['schemas'])->toHaveKey('ScalarOnlyData');
 });
