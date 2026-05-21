@@ -223,7 +223,8 @@ All attributes live in `Radiergummi\OpenApi\Core\Attributes`. Import with
 | `Header` | method | yes | Document a custom response header. |
 | `Security` | class, method | no | Override the auto-derived scopes. Pass an empty list for "token required, no specific scope". Optional `scheme:` parameter targets a specific scheme name from `openapi.security_schemes` (or one of the Passport-derived defaults); omit for the project default. See [Declare custom security schemes](#declare-custom-security-schemes). |
 | `PublicEndpoint` | class, method | no | Mark as public (no auth advertised) even if middleware would imply otherwise. |
-| `Hide` | class, method | no | Exclude from the spec. `environments: ['production']` hides only in those environments. Pass no argument to hide unconditionally. |
+| `Hide` | class, method | no | Exclude from the spec. `only: ['production']` hides only in those environments; `except: ['local']` hides everywhere except. Pass no argument to hide unconditionally. The two arguments are mutually exclusive. |
+| `Expose` | class, method | no | Include in the spec when `config('openapi.visibility.default')` is `'hidden'`. Same `only` / `except` semantics as `Hide`. A no-op in public-default mode (flagged by `visibility.attribute-no-op`). |
 | `ExternalDocs` | method | no | Add an "external documentation" link to the operation. |
 | `Link` | method | yes | Declare an OpenAPI Link on the primary 2xx response. `operationId` (preferred) or `operationRef` must be provided. See [Link to another operation from a response](#link-to-another-operation-from-a-response). |
 | `Discriminator` | class | no | Mark a polymorphic base class (a `Data` class or a response-resource class). Schema becomes `oneOf` + `discriminator`. See [Document a polymorphic response with a discriminator](#document-a-polymorphic-response-with-a-discriminator). |
@@ -449,11 +450,41 @@ ShapeData:
 ### Hide an endpoint from production docs
 
 ```php
-#[OpenApi\Hide(environments: ['production'])]
+#[OpenApi\Hide(only: ['production'])]
 public function dangerous(): JsonResponse { … }
 ```
 
 Pass no argument (`#[OpenApi\Hide]`) to hide unconditionally.
+
+### Switch between public-default and hidden-default visibility
+
+By default every discovered route appears in the generated document; mark
+individual routes with `#[OpenApi\Hide]` to opt them out. Flip the default
+for internal/admin APIs by setting:
+
+```php
+// config/openapi.php
+'visibility' => [
+    'default' => 'hidden',
+],
+```
+
+In hidden-default mode every route is excluded unless it carries an
+applicable `#[OpenApi\Expose]` attribute. Both attributes support
+mutually-exclusive `only` and `except` arguments scoping them to specific
+application environments:
+
+```php
+#[OpenApi\Expose(only: ['staging'])]      // staging only
+#[OpenApi\Expose(except: ['production'])] // every env except production
+```
+
+When both `#[Hide]` and `#[Expose]` apply to the same route in the current
+environment, `#[Hide]` wins — the route stays hidden. The
+`visibility.hide-expose-conflict` lint rule flags overlapping declarations
+so authors can disambiguate intent; `visibility.attribute-no-op` reports
+unconditional attributes that have no effect under the active default
+(e.g. `#[Expose]` while `visibility.default = 'public'`).
 
 ### Declare custom security schemes
 
@@ -909,6 +940,7 @@ All built-in rule IDs (run `php artisan openapi:lint --list` for the live catalo
 | `security.invalid-scope` | 1 | Operation requires a scope not declared in securitySchemes. |
 | `streaming.no-content-type` | 1 | Streaming operation has no content-type: text/event-stream response. |
 | `throws.transitive-missing` | 1 | An action's handler declares @throws exceptions not redeclared on the controller method. |
+| `visibility.hide-expose-conflict` | 1 | Route carries overlapping #[Hide] and #[Expose] in the current environment. |
 | `enum.values-undocumented` | 2 | Enum field has no description explaining the allowed values. |
 | `field.description-missing` | 2 | Schema property has no description. |
 | `header.description-missing` | 2 | Response header has no description. |
@@ -926,6 +958,7 @@ All built-in rule IDs (run `php artisan openapi:lint --list` for the live catalo
 | `summary.missing` | 2 | Operation has no summary. |
 | `tags.no-description` | 2 | Document-level tag has no description. |
 | `throws.unmapped` | 2 | A @throws FQCN has no entry in the exception map or #[ExceptionResponse] attribute. |
+| `visibility.attribute-no-op` | 2 | Unconditional visibility attribute that has no effect under the active default. |
 | `webhook.description-missing` | 2 | Webhook operation has no description. |
 | `component.name-naming-inconsistent` | 3 | Component schema name does not follow the configured component_name_case convention. |
 | `component.orphaned` | 3 | Component schema is registered but never referenced. |
@@ -1029,7 +1062,9 @@ Check, in order:
 3. The route isn't excluded by a configured `RouteFilter`. The shipped filters skip Nova,
    Telescope, Ignition, and (when present) Laravel Passport routes. Inspect
    `config/openapi.filters` and remove any filter you don't want.
-4. The action does not carry `#[OpenApi\Hide]` (unconditionally or in the current `APP_ENV`).
+4. The action does not carry `#[OpenApi\Hide]` (unconditionally or in the current `APP_ENV`), and
+   if `openapi.visibility.default` is `'hidden'`, the action carries an applicable
+   `#[OpenApi\Expose]`.
 5. `php artisan openapi:clear` then regenerate — a stale cached spec masks new routes.
 
 ### Request body is empty (`request.empty` lint finding)
