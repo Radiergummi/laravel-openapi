@@ -18,6 +18,8 @@ use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\SchemaFromResource;
 
+use function array_find;
+
 #[ResourceField('id', type: 'integer')]
 #[ResourceField('name', type: 'string')]
 #[ResourceField('owner', type: SchemaOwnerResource::class)]
@@ -37,13 +39,7 @@ it('builds an object schema from #[ResourceField] attributes', function (): void
     $registry = new ComponentSchemaRegistry();
     $key = (new SchemaFromResource($registry, static fn(): array => []))->build(SchemaProjectResource::class);
 
-    $schema = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === $key) {
-            $schema = $candidate;
-        }
-    }
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
     expect($schema)->toBeInstanceOf(OA\Schema::class)
         ->and($schema->type)->toBe('object');
@@ -56,13 +52,7 @@ it('omits conditional fields from required', function (): void {
     $registry = new ComponentSchemaRegistry();
     $key = (new SchemaFromResource($registry, static fn(): array => []))->build(SchemaProjectResource::class);
 
-    $schema = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === $key) {
-            $schema = $candidate;
-        }
-    }
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
     expect($schema->required)->toContain('id')
         ->and($schema->required)->not->toContain('avatar');
@@ -90,23 +80,11 @@ it('resolves a non-resource field type via an injected RefSchemaResolver', funct
 
     $key = (new SchemaFromResource($registry, static fn(): array => [$stub]))->build(SchemaWithExternalRefResource::class);
 
-    $schema = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === $key) {
-            $schema = $candidate;
-        }
-    }
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
     expect($schema)->toBeInstanceOf(OA\Schema::class);
 
-    $tagProperty = null;
-
-    foreach ($schema->properties as $property) {
-        if ($property->property === 'tag') {
-            $tagProperty = $property;
-        }
-    }
+    $tagProperty = array_find($schema->properties, static fn(OA\Property $p): bool => $p->property === 'tag');
 
     expect($tagProperty)->toBeInstanceOf(OA\Property::class)
         ->and($tagProperty->ref)->toBe('#/components/schemas/SchemaNonResourceModel');

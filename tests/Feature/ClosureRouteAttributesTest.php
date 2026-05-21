@@ -42,7 +42,7 @@ it('excludes a closure route carrying bare #[Hide] from the spec', function (): 
 
 it('keeps an env-scoped #[Hide] closure visible in a non-matching environment', function (): void {
     // The test environment is "testing"; hiding only in production must leave the route visible.
-    Route::get('/closure/env-hidden', #[Hide(environments: ['production'])] static fn(): array => []);
+    Route::get('/closure/env-hidden', #[Hide(only: ['production'])] static fn(): array => []);
 
     $spec = generateSpec();
 
@@ -50,7 +50,7 @@ it('keeps an env-scoped #[Hide] closure visible in a non-matching environment', 
 });
 
 it('excludes an env-scoped #[Hide] closure when the current environment matches', function (): void {
-    Route::get('/closure/env-hidden', #[Hide(environments: ['production'])] static fn(): array => []);
+    Route::get('/closure/env-hidden', #[Hide(only: ['production'])] static fn(): array => []);
 
     app()['env'] = 'production';
 

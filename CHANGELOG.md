@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `#[Expose]` attribute (`src/Core/Attributes/Expose.php`) — opt routes into the
+  generated document when the new hidden-default mode is active. Mirrors
+  `#[Hide]` with the same mutually-exclusive `only` / `except` environment
+  scoping. `#[Hide]` always wins on conflict.
+- `visibility.default` config flag (`config/openapi.php`) — accepts `'public'`
+  (the current behaviour) or `'hidden'` (every route excluded unless `#[Expose]`
+  applies).
+- `visibility.hide-expose-conflict` lint rule (level 1) — reports routes whose
+  `#[Hide]` and `#[Expose]` env scopes overlap in the current environment.
+- `visibility.attribute-no-op` lint rule (level 2) — reports unconditional
+  visibility attributes that have no effect under the active default mode.
+
 - `Radiergummi\OpenApi\Plugins\Fractal\Serializer` enum (cases `DataArray`,
   `ArraySerializer`, `JsonApi`) plus a `serializer:` parameter on
   `#[FractalResponse]` — names the Fractal serializer the endpoint runs at
@@ -107,6 +119,11 @@ All notable changes to this project are documented here.
   (and to read controller / method attributes through the new
   `ActionDescriptor::actionAttributes()` helpers instead of allocating fresh
   `ReflectionClass` / `getAttributes()` walks per rule). (OAPI-054)
+
+### Changed (breaking)
+- `#[Hide]` constructor argument renamed: `environments` → `only`. Also gains
+  `except` as an exclusive alternative. Migration: rewrite
+  `#[Hide(environments: [...])]` to `#[Hide(only: [...])]`.
 
 ### Changed
 - `SpecTreeBuilder` now resolves `allOf`-composed schema properties when

@@ -25,4 +25,4 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-dist --no-interaction --no-progress
       - name: Run tests
-        run: vendor/bin/pest --no-coverage
+        run: vendor/bin/pest --no-coverage --log-junit build/junit.xml

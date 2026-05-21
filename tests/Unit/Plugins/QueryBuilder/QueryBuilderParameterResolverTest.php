@@ -18,6 +18,8 @@ use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderParameterResolver;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
+use function array_find;
+
 class QbResolverController
 {
     #[AllowedFilter('status', type: 'string')]
@@ -47,13 +49,7 @@ it('emits a single sort parameter with the allowed fields as enum', function ():
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
     $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
 
-    $sort = null;
-
-    foreach ($params as $p) {
-        if ($p->name === 'sort') {
-            $sort = $p;
-        }
-    }
+    $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
 
     expect($sort)->not->toBeNull()
         ->and($sort->in)->toBe('query')
@@ -64,13 +60,7 @@ it('emits a single include parameter with the allowed relations as enum', functi
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
     $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
 
-    $include = null;
-
-    foreach ($params as $p) {
-        if ($p->name === 'include') {
-            $include = $p;
-        }
-    }
+    $include = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'include');
 
     expect($include)->not->toBeNull()
         ->and($include->in)->toBe('query')
@@ -94,13 +84,7 @@ it('widens a nullable AllowedFilter schema to the [type, null] shape and forward
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbNullableFilterController::class, 'index');
     $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
 
-    $cursor = null;
-
-    foreach ($params as $p) {
-        if ($p->name === 'filter[cursor]') {
-            $cursor = $p;
-        }
-    }
+    $cursor = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'filter[cursor]');
 
     expect($cursor)->not->toBeNull()
         ->and($cursor->schema->type)->toBe(['string', 'null'])

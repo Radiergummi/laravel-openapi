@@ -131,6 +131,9 @@ final class CoreRegistration
         Rules\RequestBodyExampleMissing::class,
         Rules\InfoMetadataIncomplete::class,
         Rules\SchemaConstraintsMissing::class,
+
+        Rules\HideExposeConflict::class,
+        Rules\VisibilityAttributeNoOp::class,
     ];
 
     public static function register(OpenApiRegistry $registry): void

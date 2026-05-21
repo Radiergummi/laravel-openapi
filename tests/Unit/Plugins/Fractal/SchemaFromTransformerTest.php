@@ -18,6 +18,8 @@ use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
 
+use function array_find;
+
 #[TransformerField('id', type: 'integer')]
 #[TransformerField('title', type: 'string', maxLength: 120)]
 #[TransformerInclude('author', transformer: SchemaAuthorTransformer::class, default: true)]
@@ -47,14 +49,7 @@ it('builds an object schema from transformer attributes', function (): void {
     $registry = new ComponentSchemaRegistry();
     $key = (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
 
-    $schema = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === $key) {
-            $schema = $candidate;
-        }
-    }
-
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $props = transformerPropertiesByName($schema);
 
     expect($schema->type)->toBe('object')
@@ -65,13 +60,7 @@ it('applies scalar descriptor fields onto the property', function (): void {
     $registry = new ComponentSchemaRegistry();
     (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
 
-    $book = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === 'SchemaBookTransformer') {
-            $book = $candidate;
-        }
-    }
+    $book = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === 'SchemaBookTransformer');
 
     expect(transformerPropertiesByName($book)['title']->maxLength)->toBe(120);
 });
@@ -88,13 +77,7 @@ it('marks default includes as required and non-default as optional', function ()
     $registry = new ComponentSchemaRegistry();
     $key = (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
 
-    $schema = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === $key) {
-            $schema = $candidate;
-        }
-    }
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
     expect($schema->required)->toContain('author');
 });
@@ -121,14 +104,7 @@ it('resolves non-transformer class refs via injected RefSchemaResolver', functio
 
     (new SchemaFromTransformer($registry, static fn(): array => [$customResolver]))->build(SchemaWithResolvedRefTransformer::class);
 
-    $schema = null;
-
-    foreach ($registry->all() as $candidate) {
-        if ($candidate->schema === 'SchemaWithResolvedRefTransformer') {
-            $schema = $candidate;
-        }
-    }
-
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === 'SchemaWithResolvedRefTransformer');
     $props = transformerPropertiesByName($schema);
 
     expect($props['relatedData']->ref)->toBe('#/components/schemas/CustomRef');

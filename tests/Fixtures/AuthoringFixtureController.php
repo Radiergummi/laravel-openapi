@@ -86,7 +86,7 @@ class AuthoringFixtureController extends Controller
         return [];
     }
 
-    #[Hide(environments: ['staging', 'production'])]
+    #[Hide(only: ['staging', 'production'])]
     public function envHiddenAction(): array
     {
         return [];

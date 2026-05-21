@@ -189,6 +189,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Visibility
+    |--------------------------------------------------------------------------
+    |
+    | `default` controls which routes appear in the generated document when no
+    | attribute is present.
+    |
+    | - 'public' (default): every discovered route is exposed unless a
+    |   #[Hide] attribute applies in the current environment.
+    | - 'hidden': every discovered route is hidden unless a #[Expose]
+    |   attribute applies in the current environment.
+    |
+    | #[Hide] always wins on conflict. The `visibility.hide-expose-conflict`
+    | lint rule reports overlapping attributes; `visibility.attribute-no-op`
+    | reports attributes that have no effect under the current default.
+    |
+    */
+
+    'visibility' => [
+        'default' => 'public',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Lint Configuration
     |--------------------------------------------------------------------------
     |

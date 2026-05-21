@@ -28,6 +28,7 @@
         "league/fractal": "~0.20.2",
         "orchestra/testbench": "^10.0 || ^11.0",
         "pestphp/pest": "^3.8.0 || ^4.7.0",
+        "pestphp/pest-plugin-arch": "^3.0 || ^4.0",
         "pestphp/pest-plugin-laravel": "^3.2.0 || ^4.1.0",
         "spatie/laravel-fractal": "^6.4.0",
         "spatie/laravel-query-builder": "^7.3.0"
@@ -62,7 +63,9 @@
     },
     "scripts": {
         "test": "pest --no-coverage",
+        "test-coverage": "pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage",
         "lint": "pint",
+        "format": "@lint",
         "analyse": "phpstan analyse",
         "examples:vanilla":       "@php examples/generate.php vanilla",
         "examples:form-requests": "@php examples/generate.php form-requests",
