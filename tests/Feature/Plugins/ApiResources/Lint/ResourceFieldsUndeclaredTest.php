@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use LogicException;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -24,7 +25,8 @@ class BareLintResource extends JsonResource {}
 class BareLintController
 {
     public function show(): BareLintResource
-    { /** @phpstan-ignore-next-line */ return new BareLintResource(null);
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 }
 

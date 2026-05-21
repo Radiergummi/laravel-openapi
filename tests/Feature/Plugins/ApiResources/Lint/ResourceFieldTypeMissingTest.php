@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use LogicException;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
@@ -27,7 +28,8 @@ class TypelessFieldResource extends JsonResource {}
 class TypelessFieldController
 {
     public function show(): TypelessFieldResource
-    { /** @phpstan-ignore-next-line */ return new TypelessFieldResource(null);
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 }
 

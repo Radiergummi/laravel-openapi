@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use LogicException;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -24,7 +25,8 @@ class AmbiguousLintCollection extends ResourceCollection {}
 class AmbiguousLintController
 {
     public function index(): AmbiguousLintCollection
-    { /** @phpstan-ignore-next-line */ return new AmbiguousLintCollection([]);
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 }
 

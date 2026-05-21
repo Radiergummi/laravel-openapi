@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use LogicException;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
@@ -25,16 +26,19 @@ class LocatorFixtureCollection extends ResourceCollection {}
 class LocatorFixtureController
 {
     public function single(): LocatorFixtureResource
-    { /** @phpstan-ignore-next-line */ return new LocatorFixtureResource(null);
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 
     public function collectionType(): LocatorFixtureCollection
-    { /** @phpstan-ignore-next-line */ return new LocatorFixtureCollection([]);
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 
     #[ResponseResource(LocatorFixtureResource::class, collection: true)]
     public function attributed(): LocatorFixtureCollection
-    { /** @phpstan-ignore-next-line */ return new LocatorFixtureCollection([]);
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 
     public function notAResource(): string

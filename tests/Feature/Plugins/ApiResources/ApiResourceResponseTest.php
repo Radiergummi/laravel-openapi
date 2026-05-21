@@ -15,6 +15,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
+use LogicException;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 
@@ -31,23 +32,20 @@ class WidgetResourceController extends Controller
     /** Show a widget. */
     public function show(): WidgetResource
     {
-        /** @phpstan-ignore-next-line */
-        return new WidgetResource(null);
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 
     /** List widgets — item class declared by attribute. */
     #[ResponseResource(WidgetResource::class, collection: true)]
     public function index(): WidgetCollection
     {
-        /** @phpstan-ignore-next-line */
-        return new WidgetCollection([]);
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 
     /** List widgets — item class undeclared. */
     public function ambiguous(): WidgetCollection
     {
-        /** @phpstan-ignore-next-line */
-        return new WidgetCollection([]);
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 }
 
