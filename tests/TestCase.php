@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests;
 use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
+use RuntimeException;
 use Spatie\LaravelData\LaravelDataServiceProvider;
 
 abstract class TestCase extends Orchestra
@@ -38,16 +39,23 @@ abstract class TestCase extends Orchestra
         parent::setUp();
 
         $source = dirname(__DIR__) . '/tests/Fixtures/OpenApi/example_payloads';
-        $destination = base_path('tests/Fixtures/OpenApi/example_payloads');
 
         if (!is_dir($source)) {
-            return;
+            throw new RuntimeException("Test fixture source missing: {$source}");
         }
 
-        @mkdir($destination, 0o777, true);
+        $destination = base_path('tests/Fixtures/OpenApi/example_payloads');
+
+        if (!is_dir($destination) && !mkdir($destination, 0o777, true) && !is_dir($destination)) {
+            throw new RuntimeException("Failed to create fixture destination: {$destination}");
+        }
 
         foreach ((array) glob($source . '/*') as $file) {
-            @copy($file, $destination . '/' . basename((string) $file));
+            $target = $destination . '/' . basename((string) $file);
+
+            if (!copy((string) $file, $target)) {
+                throw new RuntimeException("Failed to copy fixture {$file} -> {$target}");
+            }
         }
     }
 }

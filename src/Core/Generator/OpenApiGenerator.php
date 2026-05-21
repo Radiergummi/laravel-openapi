@@ -272,7 +272,15 @@ final readonly class OpenApiGenerator
         foreach ($attributes as $attribute) {
             $hide = $attribute->newInstance();
 
-            if (($hide->only === null && $hide->except === null) || ($hide->only !== null && in_array($env, $hide->only, true))) {
+            if ($hide->only === null && $hide->except === null) {
+                return true;
+            }
+
+            if ($hide->only !== null && in_array($env, $hide->only, true)) {
+                return true;
+            }
+
+            if ($hide->except !== null && !in_array($env, $hide->except, true)) {
                 return true;
             }
         }

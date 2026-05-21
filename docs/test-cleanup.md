@@ -114,39 +114,34 @@ or name-keyed lookups.
 
 ### 2.7. Toolchain gaps (Testbench / Pest / PHPUnit / Spatie-style)
 
-High-value, low-effort first; nice-to-have toward the end.
-
-- [ ] **Add `spatie/pest-plugin-snapshots`** and swap
-  `tests/Feature/ExamplesTest.php`'s hand-rolled byte-comparison onto
-  `->toMatchSnapshot()`. Each `examples/{flavor}/openapi.yaml` becomes a
-  snapshot; regressions show up as diffs in PR reviews. The byte-compare is
-  the strongest argument for snapshots — that's exactly what they're for.
-- [ ] **Add `composer test-coverage` script** (`pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage`).
-  Spatie convention; pairs with the existing `composer test` (which already
-  uses `--no-coverage`). Trivial.
-- [ ] **Add `<coverage>` block to `phpunit.xml`** with `<report><clover/>` and
-  `<html/>`. Without it, `test-coverage` has nowhere to write to.
-- [ ] **Add `--log-junit build/junit.xml` to the CI test step** in
-  `.github/workflows/tests.yml`. Lets GitHub render per-test status on PRs.
-- [ ] **Add testsuites that match the in-test groups.** Tests tag themselves
-  with `->group('openapi', 'lint')`, but `phpunit.xml` only has Unit/Feature
-  testsuites — the groups can be filtered with `--group=lint` but aren't
-  surfaced as named suites. Optional; only useful if CI wants a "lint-suite
-  only" job.
-- [ ] **Replace the `@mkdir` / `@copy` shadowing in `tests/TestCase.php::setUp`.**
-  The leading `@` suppresses real errors; if the source directory disappears,
-  the next failure will be opaque. Either use a proper publishable-asset
-  mechanism or fail loudly when the source is missing.
-- [ ] **Extend PHPStan to `tests/`** at a lower level (e.g. level 5). Catches
-  fixture/factory bugs that would otherwise hide real issues. Configure a
-  separate path-scoped block in `phpstan.neon`.
-- [ ] **Consider `pestphp/pest-plugin-arch`** to enforce the Core/Plugins
-  one-way dependency stated in `CLAUDE.md` ("`src/Core/` must not depend on
-  any plugin"). One arch test would prevent a whole class of regressions.
-- [ ] **Rename `composer lint` → `composer format` (or alias)?** Spatie
-  convention is `format` for Pint. `lint` reads as "report violations" but the
-  current `composer lint` actually rewrites files (it invokes `pint` directly,
-  not `pint --test`). Either alias or rename to match the verb to the action.
+- [x] **`composer test-coverage` script** — added (clover + html under `build/`).
+- [x] **`<coverage>` block in `phpunit.xml`** — clover + html report targets
+  paired with `test-coverage`.
+- [x] **`--log-junit build/junit.xml` in CI** — added to the `pest` invocation
+  in `.github/workflows/tests.yml`. `build/` is already in `.gitignore`.
+- [x] **`composer format` alias** — added as an alias of `lint`. Kept `lint`
+  in place to avoid breaking existing muscle memory; `format` exists for
+  Spatie-convention callers.
+- [x] **`@mkdir` / `@copy` shadowing in `tests/TestCase.php::setUp`** — the
+  leading `@`s are gone; missing source dir, failed mkdir, failed copy each
+  throw `RuntimeException` with the offending path.
+- [x] **`pestphp/pest-plugin-arch`** — added as a dev dep (constraint
+  `^3.0 || ^4.0` to match the existing `pest:^3.8 || ^4.7` matrix).
+  `tests/Arch/CoreBoundaryTest.php` enforces the CLAUDE.md
+  "src/Core/ must not depend on any plugin" rule. New `Arch` testsuite
+  registered in `phpunit.xml`.
+- [-] **Testsuites matching in-test groups** — tracker marks this optional
+  ("only useful if CI wants a lint-suite-only job"). Skipped; the Unit /
+  Feature / Arch suites are enough today.
+- [-] **Extend PHPStan to `tests/`** — PHPStan can't natively run different
+  levels per path, so this requires a separate `phpstan-tests.neon` (or a
+  baseline file). Both options are real work, not a flag flip; deferred.
+  Recording here for follow-up.
+- [-] **`spatie/pest-plugin-snapshots`** — deferred. The `examples/{flavor}/openapi.yaml`
+  files are dual-purpose (CI snapshot AND public reference docs users link
+  to). Moving them under `tests/.pest/snapshots/` would lose the second
+  purpose; keeping byte-compare avoids that trade-off until we decide what
+  the public surface should look like.
 
 Explicitly **not** pursuing:
 - Workbench directory — useful for packages with UIs / Blade views; this
