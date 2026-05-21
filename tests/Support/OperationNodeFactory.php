@@ -25,6 +25,7 @@ use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\RequestBodyNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
+use Radiergummi\OpenApi\Core\Lint\Tree\WebhookNode;
 use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 
@@ -84,11 +85,18 @@ final class OperationNodeFactory
      * @param list<string>                 $declaredTags
      * @param array<string, OperationNode> $operationsByOperationId prepopulates the `TreeIndex` lookup
      *                                                              used by link / security cross-ref rules
+     * @param list<OperationNode>          $operations              populates `ApiNode->operations`; used by
+     *                                                              api-level rules (e.g. `tag.undeclared-at-root`)
+     * @param list<WebhookNode>            $webhooks                populates `ApiNode->webhooks`
+     * @param array<string, string>        $tagDescriptions         tag name → description; used by `tags.no-description`
      */
     public static function emptyContext(
         array $payloadClasses = [],
         array $declaredTags = [],
         array $operationsByOperationId = [],
+        array $operations = [],
+        array $webhooks = [],
+        array $tagDescriptions = [],
     ): LintContext {
         $spec = new OA\OpenApi(['openapi' => '3.1.0']);
         $index = $operationsByOperationId === []
@@ -104,11 +112,11 @@ final class OperationNodeFactory
 
         return new LintContext(
             api: new ApiNode(
-                operations: [],
+                operations: $operations,
                 components: [],
-                webhooks: [],
+                webhooks: $webhooks,
                 declaredTags: $declaredTags,
-                tagDescriptions: [],
+                tagDescriptions: $tagDescriptions,
                 raw: $spec,
             ),
             index: $index,
@@ -409,6 +417,32 @@ final class OperationNodeFactory
             children: $children,
             examples: $examples,
             ref: $ref,
+            raw: $raw,
+        );
+    }
+
+    /**
+     * A `WebhookNode` with safe defaults. The wrapped operation is built via
+     * `makeOperation()` unless callers pass their own. `linkParent` is left to
+     * the caller — the api-level `WebhookNameDuplicate` finalize path doesn't
+     * need it, and most other rules only inspect the wrapped operation.
+     */
+    public static function makeWebhook(
+        string $name = 'sample.event',
+        ?string $description = null,
+        ?OperationNode $operation = null,
+        mixed $raw = null,
+    ): WebhookNode {
+        return new WebhookNode(
+            name: $name,
+            description: $description,
+            operation: $operation ?? self::makeOperation(
+                pathUri: $name,
+                method: 'POST',
+                operationId: 'webhook.' . $name,
+                responses: [],
+                webhook: true,
+            ),
             raw: $raw,
         );
     }

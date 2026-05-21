@@ -9,65 +9,10 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\WebhookNameDuplicate;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\WebhookNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeWebhookNodeForDuplicateTest(string $name): WebhookNode
-{
-    $ctx = new Context();
-
-    $operation = new OA\Post([
-        'operationId' => 'webhook.' . $name,
-        'responses' => [new OA\Response(['response' => '200', '_context' => $ctx])],
-        '_context' => $ctx,
-    ]);
-
-    $operationNode = new OperationNode(
-        pathUri: $name,
-        method: 'POST',
-        operationId: 'webhook.' . $name,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: $operation,
-        webhook: true,
-    );
-
-    return new WebhookNode(
-        name: $name,
-        description: null,
-        operation: $operationNode,
-        raw: null,
-    );
-}
-
-function makeContextForWebhookNameDuplicate(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('reports its id and level', function (): void {
     $rule = new WebhookNameDuplicate();
@@ -78,33 +23,21 @@ it('reports its id and level', function (): void {
 
 it('emits no finding when webhook names are unique', function (): void {
     $rule = new WebhookNameDuplicate();
-    $context = makeContextForWebhookNameDuplicate();
+    $context = OperationNodeFactory::emptyContext();
 
-    $webhook1 = makeWebhookNodeForDuplicateTest('stripe.payment_intent.succeeded');
-    $webhook2 = makeWebhookNodeForDuplicateTest('stripe.payment_intent.failed');
+    iterator_to_array($rule->checkWebhook(OperationNodeFactory::makeWebhook('stripe.payment_intent.succeeded'), $context));
+    iterator_to_array($rule->checkWebhook(OperationNodeFactory::makeWebhook('stripe.payment_intent.failed'), $context));
 
-    // Visit each webhook
-    iterator_to_array($rule->checkWebhook($webhook1, $context));
-    iterator_to_array($rule->checkWebhook($webhook2, $context));
-
-    // Finalize to get findings
-    $findings = iterator_to_array($rule->finalize($context));
-
-    expect($findings)->toBe([]);
+    expect(iterator_to_array($rule->finalize($context)))->toBe([]);
 });
 
 it('emits findings when webhook names are duplicated', function (): void {
     $rule = new WebhookNameDuplicate();
-    $context = makeContextForWebhookNameDuplicate();
+    $context = OperationNodeFactory::emptyContext();
 
-    $webhook1 = makeWebhookNodeForDuplicateTest('stripe.payment_intent.succeeded');
-    $webhook2 = makeWebhookNodeForDuplicateTest('stripe.payment_intent.succeeded');
+    iterator_to_array($rule->checkWebhook(OperationNodeFactory::makeWebhook('stripe.payment_intent.succeeded'), $context));
+    iterator_to_array($rule->checkWebhook(OperationNodeFactory::makeWebhook('stripe.payment_intent.succeeded'), $context));
 
-    // Visit each webhook
-    iterator_to_array($rule->checkWebhook($webhook1, $context));
-    iterator_to_array($rule->checkWebhook($webhook2, $context));
-
-    // Finalize to get findings
     $findings = iterator_to_array($rule->finalize($context));
 
     expect($findings)->toHaveCount(2)
@@ -118,10 +51,7 @@ it('emits findings when webhook names are duplicated', function (): void {
 
 it('emits no findings when there are no webhooks visited', function (): void {
     $rule = new WebhookNameDuplicate();
-    $context = makeContextForWebhookNameDuplicate();
+    $context = OperationNodeFactory::emptyContext();
 
-    // No checkWebhook() calls — finalize directly
-    $findings = iterator_to_array($rule->finalize($context));
-
-    expect($findings)->toBe([]);
+    expect(iterator_to_array($rule->finalize($context)))->toBe([]);
 });

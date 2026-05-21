@@ -11,49 +11,10 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedNoReplacement;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeDeprecatedNoReplacementOperation(
-    bool $deprecated,
-    ?string $description = null,
-): OperationNode {
-    return new OperationNode(
-        pathUri: '/deprecated',
-        method: 'GET',
-        operationId: 'test.deprecated',
-        summary: null,
-        description: $description,
-        deprecated: $deprecated,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
-        webhook: false,
-    );
-}
-
-function makeContextForDeprecatedNoReplacement(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedNoReplacement();
@@ -62,118 +23,51 @@ it('has the correct rule id and level', function (): void {
         ->and($rule->level())->toBe(4);
 });
 
-it('emits a finding when deprecated operation has no description', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(deprecated: true);
-    $context = makeContextForDeprecatedNoReplacement();
+it('emits a finding for deprecated operations missing replacement guidance', function (?string $description): void {
+    $operation = OperationNodeFactory::makeOperation(
+        deprecated: true,
+        description: $description,
+        responses: [],
+    );
 
     $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
+        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('deprecated.no-replacement')
         ->and($findings[0]->level)->toBe(4)
         ->and($findings[0]->message)->toContain('replacement');
-});
+})->with([
+    'no description'                       => [null],
+    'description does not mention anything' => ['This endpoint is old and should not be relied upon.'],
+]);
 
-it('emits a finding when deprecated operation description does not mention replacement', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(
+it('emits no findings when description mentions a replacement keyword', function (string $description): void {
+    $operation = OperationNodeFactory::makeOperation(
         deprecated: true,
-        description: 'This endpoint is old and should not be relied upon.',
+        description: $description,
+        responses: [],
     );
-    $context = makeContextForDeprecatedNoReplacement();
 
     $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toHaveCount(1);
-});
-
-it('emits no findings when description mentions "use"', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(
-        deprecated: true,
-        description: 'Deprecated. Use GET /v2/resource instead.',
-    );
-    $context = makeContextForDeprecatedNoReplacement();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
+        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
-});
-
-it('emits no findings when description mentions "replaced by"', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(
-        deprecated: true,
-        description: 'This endpoint has been replaced by the new v2 endpoint.',
-    );
-    $context = makeContextForDeprecatedNoReplacement();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when description mentions "replacement"', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(
-        deprecated: true,
-        description: 'A replacement endpoint is available at /v2/resource.',
-    );
-    $context = makeContextForDeprecatedNoReplacement();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when description mentions "sunset"', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(
-        deprecated: true,
-        description: 'This endpoint will sunset on 2025-12-31.',
-    );
-    $context = makeContextForDeprecatedNoReplacement();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
-
-it('matches replacement keywords case-insensitively', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(
-        deprecated: true,
-        description: 'REPLACED BY the new endpoint.',
-    );
-    $context = makeContextForDeprecatedNoReplacement();
-
-    $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
-    );
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'use'                  => ['Deprecated. Use GET /v2/resource instead.'],
+    'replaced by'          => ['This endpoint has been replaced by the new v2 endpoint.'],
+    'replacement'          => ['A replacement endpoint is available at /v2/resource.'],
+    'sunset'               => ['This endpoint will sunset on 2025-12-31.'],
+    'case-insensitive'     => ['REPLACED BY the new endpoint.'],
+]);
 
 it('emits no findings for non-deprecated operations', function (): void {
-    $rule = new DeprecatedNoReplacement();
-    $operation = makeDeprecatedNoReplacementOperation(deprecated: false);
-    $context = makeContextForDeprecatedNoReplacement();
+    $operation = OperationNodeFactory::makeOperation(deprecated: false, responses: []);
 
     $findings = iterator_to_array(
-        $rule->checkOperation($operation, $context),
+        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -182,61 +76,27 @@ it('emits no findings for non-deprecated operations', function (): void {
 // region Bug 8: x-replacement OAS extension satisfies the requirement
 
 it('emits no findings when deprecated operation has a non-empty x-replacement extension (Bug 8)', function (): void {
-    $rule = new DeprecatedNoReplacement();
-
     $raw = new OA\Get(['_context' => new Context()]);
     $raw->x = ['x-replacement' => 'GET /v2/resource'];
 
-    $operation = new OperationNode(
-        pathUri: '/deprecated',
-        method: 'GET',
-        operationId: 'test.deprecated',
-        summary: null,
-        description: null,
-        deprecated: true,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: $raw,
-        webhook: false,
-    );
-    $context = makeContextForDeprecatedNoReplacement();
+    $operation = OperationNodeFactory::makeOperation(deprecated: true, responses: [], raw: $raw);
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array(
+        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
 
 it('still emits a finding when x-replacement extension is an empty string (Bug 8)', function (): void {
-    $rule = new DeprecatedNoReplacement();
-
     $raw = new OA\Get(['_context' => new Context()]);
     $raw->x = ['x-replacement' => ''];
 
-    $operation = new OperationNode(
-        pathUri: '/deprecated',
-        method: 'GET',
-        operationId: 'test.deprecated',
-        summary: null,
-        description: null,
-        deprecated: true,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: $raw,
-        webhook: false,
-    );
-    $context = makeContextForDeprecatedNoReplacement();
+    $operation = OperationNodeFactory::makeOperation(deprecated: true, responses: [], raw: $raw);
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array(
+        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1);
 });

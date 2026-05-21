@@ -9,8 +9,6 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\Rules\HeaderInvalidName;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidHeaderNameController;
@@ -90,27 +88,11 @@ it('emits no findings when a method has no header attributes', function (): void
 });
 
 it('emits no findings when operation has no descriptor', function (): void {
-    $rule = new HeaderInvalidName();
-    $context = OperationNodeFactory::emptyContext();
+    $operation = OperationNodeFactory::makeOperation(descriptor: null, responses: []);
 
-    $operation = new OperationNode(
-        pathUri: '/test',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
+    $findings = iterator_to_array(
+        (new HeaderInvalidName())->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
     expect($findings)->toBe([]);
 });
