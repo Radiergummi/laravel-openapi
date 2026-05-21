@@ -45,11 +45,12 @@ it('defaults status to 200 and type to string', function (): void {
         ->and($header->required)->toBeNull();
 });
 
-it('targets methods and functions and is repeatable', function (): void {
+it('targets classes, methods and functions and is repeatable', function (): void {
     $reflection = new ReflectionClass(ResponseHeader::class);
     $attribute  = $reflection->getAttributes(Attribute::class)[0]->newInstance();
 
-    $expected = Attribute::TARGET_METHOD
+    $expected = Attribute::TARGET_CLASS
+        | Attribute::TARGET_METHOD
         | Attribute::TARGET_FUNCTION
         | Attribute::IS_REPEATABLE;
 
