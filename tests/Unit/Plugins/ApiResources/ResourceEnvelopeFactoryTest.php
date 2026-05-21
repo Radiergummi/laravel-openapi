@@ -14,37 +14,32 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceEnvelopeFactory;
 
-/** @return list<string> */
-function envelopePropertyNames(OA\Schema $schema): array
+/** @return array<string, OA\Property> */
+function envelopeProperties(OA\Schema $schema): array
 {
-    $names = [];
+    $byName = [];
 
     foreach ($schema->properties as $property) {
-        $names[] = $property->property;
+        $byName[$property->property] = $property;
     }
 
-    return $names;
+    return $byName;
 }
 
 it('wraps a single resource in a data object', function (): void {
     $schema = (new ResourceEnvelopeFactory())->single('#/components/schemas/Project');
+    $properties = envelopeProperties($schema);
 
     expect($schema->type)->toBe('object')
-        ->and(envelopePropertyNames($schema))->toBe(['data']);
-
-    $data = $schema->properties[0];
-    expect($data->ref)->toBe('#/components/schemas/Project');
+        ->and($properties)->toHaveKeys(['data'])
+        ->and($properties['data']->ref)->toBe('#/components/schemas/Project');
 });
 
 it('wraps a collection in data/links/meta', function (): void {
     $schema = (new ResourceEnvelopeFactory())->collection('#/components/schemas/Project');
-    $names = envelopePropertyNames($schema);
+    $properties = envelopeProperties($schema);
 
-    expect($names)->toContain('data')
-        ->and($names)->toContain('links')
-        ->and($names)->toContain('meta');
-
-    $data = $schema->properties[0];
-    expect($data->type)->toBe('array')
-        ->and($data->items->ref)->toBe('#/components/schemas/Project');
+    expect($properties)->toHaveKeys(['data', 'links', 'meta'])
+        ->and($properties['data']->type)->toBe('array')
+        ->and($properties['data']->items->ref)->toBe('#/components/schemas/Project');
 });

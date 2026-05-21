@@ -25,39 +25,35 @@ beforeEach(function (): void {
 /**
  * @param array<int, array<string, mixed>> $parameters
  *
- * @return array<int, array<string, mixed>>
+ * @return array<string, array<string, mixed>>
  */
 function queryParameters(array $parameters): array
 {
-    return array_values(array_filter(
-        $parameters,
-        static fn(array $p): bool => ($p['in'] ?? null) === 'query',
-    ));
+    return array_column(
+        array_filter(
+            $parameters,
+            static fn(array $p): bool => ($p['in'] ?? null) === 'query',
+        ),
+        null,
+        'name',
+    );
 }
 
 it('applies class-level #[QueryParam] to every action on the controller', function (): void {
     $params = queryParameters($this->spec['paths']['/oa-fixture/query-param/inherited']['get']['parameters'] ?? []);
 
-    expect(array_column($params, 'name'))->toBe(['tenant', 'locale']);
-
-    $tenant = $params[array_search('tenant', array_column($params, 'name'), true)];
-    $locale = $params[array_search('locale', array_column($params, 'name'), true)];
-
-    expect($tenant['schema']['type'])->toBe('string')
-        ->and($tenant['schema']['description'])->toBe('Active tenant slug')
-        ->and($locale['schema']['default'])->toBe('en');
+    expect($params)->toHaveKeys(['tenant', 'locale'])
+        ->and($params['tenant']['schema']['type'])->toBe('string')
+        ->and($params['tenant']['schema']['description'])->toBe('Active tenant slug')
+        ->and($params['locale']['schema']['default'])->toBe('en');
 });
 
 it('lets method-level #[QueryParam] override the class-level entry with the same name and append new ones', function (): void {
     $params = queryParameters($this->spec['paths']['/oa-fixture/query-param/override']['get']['parameters'] ?? []);
 
-    expect(array_column($params, 'name'))->toBe(['tenant', 'locale', 'page']);
-
-    $locale = $params[array_search('locale', array_column($params, 'name'), true)];
-    $page = $params[array_search('page', array_column($params, 'name'), true)];
-
-    expect($locale['schema']['default'])->toBe('de')
-        ->and($page['schema']['type'])->toBe('integer')
-        ->and($page['schema']['default'])->toBe(1)
-        ->and($page['schema']['minimum'])->toBe(1);
+    expect($params)->toHaveKeys(['tenant', 'locale', 'page'])
+        ->and($params['locale']['schema']['default'])->toBe('de')
+        ->and($params['page']['schema']['type'])->toBe('integer')
+        ->and($params['page']['schema']['default'])->toBe(1)
+        ->and($params['page']['schema']['minimum'])->toBe(1);
 });

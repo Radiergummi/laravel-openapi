@@ -81,17 +81,20 @@ it('emits both schemes in middleware-derived per-route security', function (): v
 it('appends Header attributes as in: header parameters', function (): void {
     $operation = $this->spec['paths']['/oa-fixture/headered']['get'];
 
-    $headers = array_values(array_filter(
-        $operation['parameters'] ?? [],
-        static fn(array $p): bool => ($p['in'] ?? null) === 'header',
-    ));
+    $headers = array_column(
+        array_filter(
+            $operation['parameters'] ?? [],
+            static fn(array $p): bool => ($p['in'] ?? null) === 'header',
+        ),
+        null,
+        'name',
+    );
 
     expect($headers)->toHaveCount(2)
-        ->and($headers[0]['name'])->toBe('X-Tenant-Id')
-        ->and($headers[0]['required'])->toBeTrue()
-        ->and($headers[0]['schema']['example'])->toBe('acme-corp')
-        ->and($headers[1]['name'])->toBe('Idempotency-Key')
-        ->and($headers[1]['description'])->toBe('Client idempotency key');
+        ->and($headers)->toHaveKeys(['X-Tenant-Id', 'Idempotency-Key'])
+        ->and($headers['X-Tenant-Id']['required'])->toBeTrue()
+        ->and($headers['X-Tenant-Id']['schema']['example'])->toBe('acme-corp')
+        ->and($headers['Idempotency-Key']['description'])->toBe('Client idempotency key');
 });
 
 it('attaches ExternalDocs to the operation', function (): void {
