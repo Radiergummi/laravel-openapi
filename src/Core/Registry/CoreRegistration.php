@@ -133,6 +133,7 @@ final class CoreRegistration
         Rules\SchemaConstraintsMissing::class,
 
         Rules\HideExposeConflict::class,
+        Rules\VisibilityAttributeNoOp::class,
     ];
 
     public static function register(OpenApiRegistry $registry): void
