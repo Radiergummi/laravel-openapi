@@ -21,8 +21,10 @@ use phpDocumentor\Reflection\Types\Object_;
 use ReflectionFunctionAbstract;
 use UnexpectedValueException;
 
+use function array_key_exists;
 use function end;
 use function ltrim;
+use function spl_object_id;
 
 /**
  * Extracts the single generic argument of an action's `@return` PHPDoc tag.
@@ -37,6 +39,18 @@ use function ltrim;
  */
 final class ReturnTypeExtractor
 {
+    /**
+     * Memoised `genericArgument()` results for the lifetime of the extractor instance — the
+     * extractor is bound as a scoped singleton, so the cache resets between generation runs under
+     * Octane. Keyed by `spl_object_id($reflector)`; a stored `null` is a meaningful result
+     * (reflector has no `@return` generic) and is distinguished from "uncached" by
+     * `array_key_exists`. Saves the heavy `DocBlockFactory::create()` parse + `ContextFactory`
+     * walk every time multiple primary-response resolvers consult the same method.
+     *
+     * @var array<int, ?string>
+     */
+    private array $genericArgumentCache = [];
+
     public function __construct(
         private readonly DocBlockFactoryInterface $docBlockFactory,
         private readonly ContextFactory $contextFactory,
@@ -49,10 +63,16 @@ final class ReturnTypeExtractor
      */
     public function genericArgument(ReflectionFunctionAbstract $reflector): ?string
     {
+        $key = spl_object_id($reflector);
+
+        if (array_key_exists($key, $this->genericArgumentCache)) {
+            return $this->genericArgumentCache[$key];
+        }
+
         $comment = $reflector->getDocComment();
 
         if ($comment === false || $comment === '') {
-            return null;
+            return $this->genericArgumentCache[$key] = null;
         }
 
         try {
@@ -83,11 +103,11 @@ final class ReturnTypeExtractor
             $valueType = end($arguments);
 
             if ($valueType instanceof Object_ && $valueType->getFqsen() !== null) {
-                return ltrim((string) $valueType->getFqsen(), '\\');
+                return $this->genericArgumentCache[$key] = ltrim((string) $valueType->getFqsen(), '\\');
             }
         }
 
-        return null;
+        return $this->genericArgumentCache[$key] = null;
     }
 
     public static function create(): self

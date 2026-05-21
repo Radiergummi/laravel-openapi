@@ -23,6 +23,7 @@ use function class_exists;
 use function config;
 use function explode;
 use function is_array;
+use function is_string;
 use function str_starts_with;
 use function substr;
 
@@ -49,7 +50,7 @@ use function substr;
  * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
  * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
  */
-final readonly class SecurityExtractor
+final class SecurityExtractor
 {
     use DetectsAuthMiddleware;
 
@@ -59,7 +60,25 @@ final readonly class SecurityExtractor
 
     private const int MAX_GROUP_EXPANSION_DEPTH = 10;
 
-    public function __construct(private Router $router) {}
+    /**
+     * Lazily computed and reused across `forRoute()` / `requirementForScopes()` / `buildSchemes()`
+     * calls within a single generation run. The extractor is bound as a scoped singleton, so the
+     * cache is reset between requests under Octane. None of the inputs change during a run:
+     * Passport's class presence is a static fact, the router's middleware groups are sealed by
+     * the time generation starts, and the config catalogue is read once per process.
+     */
+    private ?bool $passportAvailable = null;
+
+    /** @var ?array<string, array<int, string>> */
+    private ?array $middlewareGroups = null;
+
+    /** @var ?array<string, OA\SecurityScheme> */
+    private ?array $configSchemesCache = null;
+
+    /** @var ?list<string> */
+    private ?array $defaultSchemeNames = null;
+
+    public function __construct(private readonly Router $router) {}
 
     /**
      * @return list<OA\SecurityScheme>
@@ -87,7 +106,7 @@ final readonly class SecurityExtractor
     {
         $middleware = $this->expandGroups(
             array_values($route->gatherMiddleware()),
-            $this->router->getMiddlewareGroups(),
+            $this->middlewareGroups(),
         );
         $scopes = $this->extractScopes($middleware);
         $hasAuth = $this->hasAuthMiddleware($middleware);
@@ -100,9 +119,16 @@ final readonly class SecurityExtractor
     }
 
     /**
-     * Build the per-operation `security` block targeting a specific scheme (when given) or
-     * the project default (Passport's pair if available, otherwise the first config-declared
-     * scheme).
+     * Build the per-operation `security` block targeting a specific scheme (when given) or the
+     * project default. Default resolution order, threaded through one single lookup:
+     *
+     * 1. Explicit `scheme:` argument — wins.
+     * 2. `openapi.security_default_scheme` config (string or list of strings) — each entry becomes
+     *    one OR-alternative.
+     * 3. Passport's `oauth2` + `oauth2ClientCredentials` pair, if Passport is installed and its
+     *    routes are registered.
+     * 4. The first scheme declared in `openapi.security_schemes`.
+     * 5. `[]` (empty requirement).
      *
      * @param list<string> $scopes
      *
@@ -110,24 +136,69 @@ final readonly class SecurityExtractor
      */
     public function requirementForScopes(array $scopes, ?string $scheme = null): array
     {
-        if ($scheme !== null) {
-            return [[$scheme => $scopes]];
+        $names = $scheme !== null ? [$scheme] : $this->defaultSchemeNames();
+
+        $requirement = [];
+
+        foreach ($names as $name) {
+            $requirement[] = [$name => $scopes];
+        }
+
+        return $requirement;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function defaultSchemeNames(): array
+    {
+        if ($this->defaultSchemeNames !== null) {
+            return $this->defaultSchemeNames;
+        }
+
+        $configured = $this->configuredDefaultSchemeNames();
+
+        if ($configured !== []) {
+            return $this->defaultSchemeNames = $configured;
         }
 
         if ($this->passportAvailable()) {
-            return [
-                [self::SCHEME_AUTHORIZATION_CODE => $scopes],
-                [self::SCHEME_CLIENT_CREDENTIALS => $scopes],
+            return $this->defaultSchemeNames = [
+                self::SCHEME_AUTHORIZATION_CODE,
+                self::SCHEME_CLIENT_CREDENTIALS,
             ];
         }
 
-        $defaultScheme = array_key_first($this->configSchemes());
+        $first = array_key_first($this->configSchemes());
 
-        if ($defaultScheme !== null) {
-            return [[$defaultScheme => $scopes]];
+        return $this->defaultSchemeNames = is_string($first) ? [$first] : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function configuredDefaultSchemeNames(): array
+    {
+        /** @var mixed $raw */
+        $raw = config('openapi.security_default_scheme');
+
+        if (is_string($raw) && $raw !== '') {
+            return [$raw];
         }
 
-        return [];
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ($raw as $value) {
+            if (is_string($value) && $value !== '') {
+                $names[] = $value;
+            }
+        }
+
+        return $names;
     }
 
     /**
@@ -235,11 +306,15 @@ final readonly class SecurityExtractor
      */
     private function configSchemes(): array
     {
+        if ($this->configSchemesCache !== null) {
+            return $this->configSchemesCache;
+        }
+
         /** @var mixed $raw */
         $raw = config('openapi.security_schemes', []);
 
         if (!is_array($raw)) {
-            return [];
+            return $this->configSchemesCache = [];
         }
 
         $schemes = [];
@@ -255,15 +330,25 @@ final readonly class SecurityExtractor
             ]);
         }
 
-        return $schemes;
+        return $this->configSchemesCache = $schemes;
     }
 
     private function passportAvailable(): bool
     {
-        return class_exists(Passport::class)
+        return $this->passportAvailable ??= (
+            class_exists(Passport::class)
             && $this->router->has('passport.token')
             && $this->router->has('passport.token.refresh')
-            && $this->router->has('passport.authorizations.authorize');
+            && $this->router->has('passport.authorizations.authorize')
+        );
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function middlewareGroups(): array
+    {
+        return $this->middlewareGroups ??= $this->router->getMiddlewareGroups();
     }
 
     /**

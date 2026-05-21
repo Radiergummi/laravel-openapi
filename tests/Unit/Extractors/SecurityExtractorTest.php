@@ -160,3 +160,61 @@ it('targets the explicit scheme name when requirementForScopes is called with $s
     expect($extractor->requirementForScopes(['read'], scheme: 'bearer'))
         ->toBe([['bearer' => ['read']]]);
 });
+
+it('uses openapi.security_default_scheme (string) as the default when set', function (): void {
+    config()->set('openapi.security_schemes', [
+        'bearer' => ['type' => 'http', 'scheme' => 'bearer'],
+    ]);
+    config()->set('openapi.security_default_scheme', 'bearer');
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    expect($extractor->requirementForScopes(['read']))
+        ->toBe([['bearer' => ['read']]]);
+});
+
+it('uses openapi.security_default_scheme (list) to emit multiple OR-alternatives', function (): void {
+    config()->set('openapi.security_schemes', [
+        'bearer' => ['type' => 'http', 'scheme' => 'bearer'],
+        'apiKey' => ['type' => 'apiKey', 'in' => 'header', 'name' => 'X-Api-Key'],
+    ]);
+    config()->set('openapi.security_default_scheme', ['bearer', 'apiKey']);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    expect($extractor->requirementForScopes(['read']))
+        ->toBe([
+            ['bearer' => ['read']],
+            ['apiKey' => ['read']],
+        ]);
+});
+
+it('falls back to the first config-declared scheme when default is unset and Passport is absent', function (): void {
+    config()->set('openapi.security_schemes', [
+        'bearer' => ['type' => 'http', 'scheme' => 'bearer'],
+        'apiKey' => ['type' => 'apiKey', 'in' => 'header', 'name' => 'X-Api-Key'],
+    ]);
+    config()->set('openapi.security_default_scheme', null);
+
+    // Router reports Passport's named routes as absent — exercises the
+    // "Passport-not-available" branch of defaultSchemeNames().
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->requirementForScopes(['read']))
+        ->toBe([['bearer' => ['read']]]);
+});
+
+it('preserves the Passport oauth2 pair as the default when default is unset and Passport is installed', function (): void {
+    config()->set('openapi.security_default_scheme', null);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    expect($extractor->requirementForScopes(['read']))
+        ->toBe([
+            ['oauth2' => ['read']],
+            ['oauth2ClientCredentials' => ['read']],
+        ]);
+});

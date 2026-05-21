@@ -165,6 +165,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default Security Scheme
+    |--------------------------------------------------------------------------
+    |
+    | Names the scheme that `#[Security(['scope'])]` (without an explicit
+    | `scheme:` argument) and middleware-derived `forRoute()` should target.
+    |
+    | When null (the default) the resolution falls back to:
+    |   1. The Passport-derived `oauth2` + `oauth2ClientCredentials` pair, if
+    |      Passport is installed and its routes are registered. Both flows
+    |      are emitted as OR alternatives — historic Passport behaviour.
+    |   2. The first scheme declared in `security_schemes` above.
+    |   3. An empty `security: []` requirement otherwise.
+    |
+    | Set this to a string (or list of strings) to override the default for
+    | mixed-scheme projects — useful when Passport is installed but operations
+    | should advertise a custom bearer/API-key scheme by default. Each name
+    | becomes one OR-alternative in the requirement.
+    |
+    */
+
+    'security_default_scheme' => null,
+
+    /*
+    |--------------------------------------------------------------------------
     | Lint Configuration
     |--------------------------------------------------------------------------
     |
