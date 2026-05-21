@@ -227,15 +227,9 @@ final readonly class OperationBuilder
 
     private function readOperationAttribute(ActionDescriptor $descriptor): ?OperationAttribute
     {
-        $source = null;
-
-        if ($descriptor->actionReflector !== null) {
-            $source = $descriptor->actionReflector->getAttributes(OperationAttribute::class)[0] ?? null;
-        }
-
-        if ($source === null && $descriptor->controller !== null) {
-            $source = $descriptor->controller->getAttributes(OperationAttribute::class)[0] ?? null;
-        }
+        $source = $descriptor->actionAttributes(OperationAttribute::class)[0]
+            ?? $descriptor->controllerAttributes(OperationAttribute::class)[0]
+            ?? null;
 
         $instance = $source?->newInstance();
         assert($instance === null || $instance instanceof OperationAttribute);
@@ -278,15 +272,12 @@ final readonly class OperationBuilder
         /** @var array<string, HeaderAttribute> $byName */
         $byName = [];
 
-        foreach ([$descriptor->controller, $descriptor->method] as $reflector) {
-            if ($reflector === null) {
-                continue;
-            }
-
-            foreach ($reflector->getAttributes(HeaderAttribute::class) as $attr) {
-                $instance = $attr->newInstance();
-                $byName[$instance->name] = $instance;
-            }
+        foreach ([
+            ...$descriptor->controllerAttributes(HeaderAttribute::class),
+            ...$descriptor->actionAttributes(HeaderAttribute::class),
+        ] as $attr) {
+            $instance = $attr->newInstance();
+            $byName[$instance->name] = $instance;
         }
 
         return array_values(array_map($this->buildHeaderParameter(...), $byName));
@@ -372,7 +363,7 @@ final readonly class OperationBuilder
      */
     private function applyRequestExamples(ActionDescriptor $descriptor, ?OA\RequestBody $body): void
     {
-        if ($body === null || $descriptor->actionReflector === null) {
+        if ($body === null) {
             return;
         }
 
@@ -384,7 +375,7 @@ final readonly class OperationBuilder
 
         $instances = [];
 
-        foreach ($descriptor->actionReflector->getAttributes(ExampleAttribute::class) as $attr) {
+        foreach ($descriptor->actionAttributes(ExampleAttribute::class) as $attr) {
             try {
                 $instances[] = $attr->newInstance();
             } catch (InvalidArgumentException) {
@@ -414,11 +405,7 @@ final readonly class OperationBuilder
      */
     private function applyResponseExamples(ActionDescriptor $descriptor, array $responses): void
     {
-        if ($descriptor->actionReflector === null) {
-            return;
-        }
-
-        $attributes = $descriptor->actionReflector->getAttributes(ResponseExampleAttribute::class);
+        $attributes = $descriptor->actionAttributes(ResponseExampleAttribute::class);
 
         if ($attributes === []) {
             return;
@@ -464,8 +451,11 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Attaches `#[ResponseHeader]` attributes declared on the method to the response whose status
-     * matches the attribute's `status:`. Headers without a matching response are dropped silently.
+     * Attaches `#[ResponseHeader]` attributes to the response whose status matches the attribute's
+     * `status:`. Walks both controller and method (or just the function for closure routes) so
+     * authors can declare a shared header once on the controller; method-level entries win on
+     * `(status, name)` collision and declaration order is otherwise preserved. Headers without a
+     * matching response are dropped silently.
      *
      * Per RFC7230, header names are case-insensitive — the swagger-php Header object carries the
      * casing the author chose.
@@ -474,22 +464,19 @@ final readonly class OperationBuilder
      */
     private function applyResponseHeaders(ActionDescriptor $descriptor, array $responses): void
     {
-        if ($descriptor->actionReflector === null) {
-            return;
-        }
-
-        $attributes = $descriptor->actionReflector->getAttributes(ResponseHeaderAttribute::class);
-
-        if ($attributes === []) {
-            return;
-        }
-
-        /** @var array<string, list<ResponseHeaderAttribute>> $byStatus */
+        /** @var array<string, array<string, ResponseHeaderAttribute>> $byStatus */
         $byStatus = [];
 
-        foreach ($attributes as $attribute) {
+        foreach ([
+            ...$descriptor->controllerAttributes(ResponseHeaderAttribute::class),
+            ...$descriptor->actionAttributes(ResponseHeaderAttribute::class),
+        ] as $attribute) {
             $instance = $attribute->newInstance();
-            $byStatus[(string) $instance->status][] = $instance;
+            $byStatus[(string) $instance->status][$instance->name] = $instance;
+        }
+
+        if ($byStatus === []) {
+            return;
         }
 
         foreach ($responses as $response) {
@@ -598,12 +585,8 @@ final readonly class OperationBuilder
      */
     private function hasAttribute(ActionDescriptor $descriptor, string $attribute): bool
     {
-        if ($descriptor->actionReflector !== null && $descriptor->actionReflector->getAttributes($attribute) !== []) {
-            return true;
-        }
-
-        return $descriptor->controller !== null
-            && $descriptor->controller->getAttributes($attribute) !== [];
+        return $descriptor->actionAttributes($attribute) !== []
+            || $descriptor->controllerAttributes($attribute) !== [];
     }
 
     /**
@@ -611,15 +594,9 @@ final readonly class OperationBuilder
      */
     private function readAttribute(ActionDescriptor $descriptor, string $attribute): ?object
     {
-        $source = null;
-
-        if ($descriptor->actionReflector !== null) {
-            $source = $descriptor->actionReflector->getAttributes($attribute)[0] ?? null;
-        }
-
-        if ($source === null && $descriptor->controller !== null) {
-            $source = $descriptor->controller->getAttributes($attribute)[0] ?? null;
-        }
+        $source = $descriptor->actionAttributes($attribute)[0]
+            ?? $descriptor->controllerAttributes($attribute)[0]
+            ?? null;
 
         return $source?->newInstance();
     }
@@ -629,16 +606,11 @@ final readonly class OperationBuilder
     {
         $tags = [];
 
-        if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes(TagAttribute::class) as $attribute) {
-                $tags[] = $attribute->newInstance()->name;
-            }
-        }
-
-        if ($descriptor->actionReflector !== null) {
-            foreach ($descriptor->actionReflector->getAttributes(TagAttribute::class) as $attr) {
-                $tags[] = $attr->newInstance()->name;
-            }
+        foreach ([
+            ...$descriptor->controllerAttributes(TagAttribute::class),
+            ...$descriptor->actionAttributes(TagAttribute::class),
+        ] as $attr) {
+            $tags[] = $attr->newInstance()->name;
         }
 
         return $tags;
@@ -651,16 +623,12 @@ final readonly class OperationBuilder
      */
     private function readResponseAttributes(ActionDescriptor $descriptor): array
     {
-        if ($descriptor->actionReflector === null) {
-            return [];
-        }
-
         return array_map(
             fn(ReflectionAttribute $attr): OA\Response
                 => $this->buildResponseFromAttribute(
                     $attr->newInstance(),
                 ),
-            $descriptor->actionReflector->getAttributes(ResponseAttribute::class),
+            $descriptor->actionAttributes(ResponseAttribute::class),
         );
     }
 
@@ -721,11 +689,7 @@ final readonly class OperationBuilder
      */
     private function applyLinkAttributes(ActionDescriptor $descriptor, OA\Response $primaryResponse): void
     {
-        if ($descriptor->actionReflector === null) {
-            return;
-        }
-
-        $attrs = $descriptor->actionReflector->getAttributes(LinkAttribute::class);
+        $attrs = $descriptor->actionAttributes(LinkAttribute::class);
 
         if ($attrs === []) {
             return;
@@ -789,18 +753,20 @@ final readonly class OperationBuilder
      */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
-        // Method-level wins over class-level, so check actionReflector first.
-        foreach ([$descriptor->actionReflector, $descriptor->controller] as $reflector) {
-            if ($reflector === null) {
-                continue;
+        // Method-level wins over class-level, so check action attributes first.
+        foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
+            $attrs = $descriptor->actionAttributes($class);
+
+            if ($attrs !== []) {
+                return $attrs[0];
             }
+        }
 
-            foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
-                $attrs = $reflector->getAttributes($class);
+        foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
+            $attrs = $descriptor->controllerAttributes($class);
 
-                if ($attrs !== []) {
-                    return $attrs[0];
-                }
+            if ($attrs !== []) {
+                return $attrs[0];
             }
         }
 

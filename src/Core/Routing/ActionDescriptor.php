@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Routing;
 
 use Illuminate\Routing\Route;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
@@ -42,6 +43,16 @@ final class ActionDescriptor
     }
 
     /**
+     * Buckets of `ReflectionAttribute`s keyed by attribute FQCN. Built lazily on first access via
+     * a single `getAttributes()` call per reflector — every caller that asks for a specific
+     * attribute class then reads from the bucket rather than walking the reflector's attribute list
+     * again. Saves the ~17 attribute walks per route that `OperationBuilder` used to do.
+     *
+     * @var array<int, array<class-string, list<ReflectionAttribute<object>>>>
+     */
+    private array $attributeBuckets = [];
+
+    /**
      * @param null|ReflectionClass<object> $controller
      * @param list<string>                 $throws     Fully-qualified exception class names resolved from
      *                                                 the action's `@throws` lines.
@@ -55,6 +66,70 @@ final class ActionDescriptor
         public readonly array $throws = [],
         public readonly ?ReflectionFunction $closure = null,
     ) {}
+
+    /**
+     * Returns the `ReflectionAttribute`s of the given class declared on the controller class, or an
+     * empty list if there is no controller or none are declared.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $attribute
+     *
+     * @return list<ReflectionAttribute<T>>
+     */
+    public function controllerAttributes(string $attribute): array
+    {
+        if ($this->controller === null) {
+            return [];
+        }
+
+        // Bucket entries indexed by $attribute hold `ReflectionAttribute<$attribute>`
+        // by construction; PHPStan cannot follow the per-key narrowing through a
+        // single array, so the covariance is asserted here.
+        return $this->bucketFor($this->controller)[$attribute] ?? []; // @phpstan-ignore return.type
+    }
+
+    /**
+     * Returns the `ReflectionAttribute`s of the given class declared on the action reflector
+     * (method or closure), or an empty list if there is no action reflector or none are declared.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $attribute
+     *
+     * @return list<ReflectionAttribute<T>>
+     */
+    public function actionAttributes(string $attribute): array
+    {
+        if ($this->actionReflector === null) {
+            return [];
+        }
+
+        // See {@see controllerAttributes()} for the covariance note.
+        return $this->bucketFor($this->actionReflector)[$attribute] ?? []; // @phpstan-ignore return.type
+    }
+
+    /**
+     * @param ReflectionClass<object>|ReflectionFunctionAbstract $reflector
+     *
+     * @return array<class-string, list<ReflectionAttribute<object>>>
+     */
+    private function bucketFor(ReflectionClass|ReflectionFunctionAbstract $reflector): array
+    {
+        $key = spl_object_id($reflector);
+
+        if (!isset($this->attributeBuckets[$key])) {
+            $bucket = [];
+
+            foreach ($reflector->getAttributes() as $attribute) {
+                $bucket[$attribute->getName()][] = $attribute;
+            }
+
+            $this->attributeBuckets[$key] = $bucket;
+        }
+
+        return $this->attributeBuckets[$key];
+    }
 
     /**
      * Returns the constraint for the given parameter name.
