@@ -9,142 +9,81 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\OperationIdNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
 it('reports its id and level', function (): void {
     $rule = new OperationIdNamingInconsistent();
 
-    expect($rule->id())
-        ->toBe('operation.id-naming-inconsistent')
-        ->and($rule->level())
-        ->toBe(3);
+    expect($rule->id())->toBe('operation.id-naming-inconsistent')
+        ->and($rule->level())->toBe(3);
 });
 
-it('emits no finding for a valid dot-separated operationId', function (): void {
+it('emits no finding for a permitted dot-separated operationId', function (string $operationId, string $path): void {
     $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
+    $operation = OperationNodeFactory::makeOperation(pathUri: $path, operationId: $operationId);
 
-    $operation = makeNamingOperationNode('api.v0.users.index', '/users');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
-});
+})->with([
+    'multi-segment'        => ['api.v0.users.index', '/users'],
+    'single-segment'       => ['users', '/users'],
+    'with numeric segment' => ['api.v0.users.index', '/api/v0/users'],
+]);
 
-it('emits no finding for a single-segment operationId', function (): void {
+it('emits a finding for an inconsistent operationId under the default (dot) case', function (string $operationId): void {
     $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/users', operationId: $operationId);
 
-    $operation = makeNamingOperationNode('users', '/users');
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits a finding for camelCase operationId', function (): void {
-    $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
-
-    $operation = makeNamingOperationNode('getUsers', '/users');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)
-        ->toHaveCount(1)
-        ->and($findings[0]->ruleId)
-        ->toBe('operation.id-naming-inconsistent')
-        ->and($findings[0]->level)
-        ->toBe(3)
-        ->and($findings[0]->message)
-        ->toContain('getUsers');
-});
-
-it('emits a finding for dash-separated operationId', function (): void {
-    $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
-
-    $operation = makeNamingOperationNode('get-users', '/users');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)
-        ->toHaveCount(1)
-        ->and($findings[0]->message)
-        ->toContain('get-users');
-});
-
-it('emits a finding for operationId starting with uppercase', function (): void {
-    $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
-
-    $operation = makeNamingOperationNode('Users.index', '/users');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toHaveCount(1);
-});
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('operation.id-naming-inconsistent')
+        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->message)->toContain($operationId);
+})->with([
+    'camelCase'                  => ['getUsers'],
+    'dash-separated'             => ['get-users'],
+    'starts with uppercase'      => ['Users.index'],
+]);
 
 it('skips operations without an operationId', function (): void {
     $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/users', operationId: null);
 
-    $operation = new OperationNode(
-        pathUri: '/users',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('accepts operationId with numeric segments', function (): void {
-    $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
-
-    $operation = makeNamingOperationNode('api.v0.users.index', '/api/v0/users');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
     expect($findings)->toBe([]);
 });
 
 it('kebab case: passes a valid kebab operationId', function (): void {
     $rule = new OperationIdNamingInconsistent(IdentifierCase::Kebab);
-    $context = makeNamingContext();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/projects', operationId: 'api-v0-projects');
 
-    $findings = iterator_to_array($rule->checkOperation(makeNamingOperationNode('api-v0-projects', '/projects'), $context));
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
 
 it('kebab case: flags a dot-separated operationId as inconsistent', function (): void {
     $rule = new OperationIdNamingInconsistent(IdentifierCase::Kebab);
-    $context = makeNamingContext();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/projects', operationId: 'api.v0.projects');
 
-    $findings = iterator_to_array($rule->checkOperation(makeNamingOperationNode('api.v0.projects', '/projects'), $context));
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.id-naming-inconsistent')
@@ -152,67 +91,14 @@ it('kebab case: flags a dot-separated operationId as inconsistent', function ():
         ->and($findings[0]->message)->toContain('kebab-case');
 });
 
-it('default (dot) case still passes valid dot-separated operationId', function (): void {
+it('default (dot) case flags a kebab operationId with the expected hint', function (): void {
     $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/projects', operationId: 'api-v0-projects');
 
-    $findings = iterator_to_array($rule->checkOperation(makeNamingOperationNode('api.v0.projects.index', '/projects'), $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('default (dot) case flags a kebab operationId', function (): void {
-    $rule = new OperationIdNamingInconsistent();
-    $context = makeNamingContext();
-
-    $findings = iterator_to_array($rule->checkOperation(makeNamingOperationNode('api-v0-projects', '/projects'), $context));
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('dot-separated lowercase');
 });
-
-/**
- * Build an OperationNode with the given operationId and path.
- */
-function makeNamingOperationNode(string $operationId, string $path): OperationNode
-{
-    return new OperationNode(
-        pathUri: $path,
-        method: 'GET',
-        operationId: $operationId,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
-    );
-}
-
-/**
- * Build a minimal LintContext for use in naming tests.
- */
-function makeNamingContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}

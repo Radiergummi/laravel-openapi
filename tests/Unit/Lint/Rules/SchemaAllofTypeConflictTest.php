@@ -11,13 +11,43 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\SchemaAllOfTypeConflict;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
+
+/**
+ * Build a `ComponentSchemaNode` whose raw schema is an `allOf` of sub-schemas
+ * with the given types. A null entry means "sub-schema without a type" (used
+ * to verify the rule ignores untyped slots).
+ *
+ * @param list<null|string> $types
+ */
+function makeAllOfComponent(string $schemaName, array $types): ComponentSchemaNode
+{
+    $ctx = new Context();
+    $subSchemas = [];
+
+    foreach ($types as $type) {
+        $props = ['_context' => $ctx];
+
+        if ($type !== null) {
+            $props['type'] = $type;
+        }
+
+        $subSchemas[] = new OA\Schema($props);
+    }
+
+    return OperationNodeFactory::makeComponentSchema(
+        name: $schemaName,
+        raw: new OA\Schema([
+            'schema' => $schemaName,
+            'allOf' => $subSchemas,
+            '_context' => $ctx,
+        ]),
+    );
+}
 
 it('reports its id and level', function (): void {
     $rule = new SchemaAllOfTypeConflict();
@@ -26,46 +56,40 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(1);
 });
 
-it('emits no finding when allOf sub-schemas have the same type', function (): void {
-    $component = makeAllOfComponent('Combined', ['object', 'object']);
-    $ctx = makeAllOfTestContext();
+it('emits no finding when allOf types do not conflict', function (string $label, array $types): void {
+    $component = makeAllOfComponent($label, $types);
 
-    $findings = iterator_to_array((new SchemaAllOfTypeConflict())->checkComponentSchema($component, $ctx));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when only one sub-schema has a type', function (): void {
-    $octx = new Context();
-
-    $schema = new OA\Schema([
-        'schema' => 'Single',
-        'allOf' => [
-            new OA\Schema(['type' => 'object', '_context' => $octx]),
-            new OA\Schema(['_context' => $octx]),
-        ],
-        '_context' => $octx,
-    ]);
-
-    $component = new ComponentSchemaNode(
-        name: 'Single',
-        description: null,
-        fields: [],
-        raw: $schema,
+    $findings = iterator_to_array(
+        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
-    $ctx = makeAllOfTestContext();
+    expect($findings)->toBe([]);
+})->with([
+    'same type'          => ['Combined', ['object', 'object']],
+    'one typed sub'      => ['Single', ['object', null]],
+]);
 
-    $findings = iterator_to_array((new SchemaAllOfTypeConflict())->checkComponentSchema($component, $ctx));
+it('emits no finding when schema has no allOf', function (): void {
+    $schema = new OA\Schema([
+        'schema' => 'Simple',
+        'type' => 'object',
+        '_context' => new Context(),
+    ]);
+    $component = OperationNodeFactory::makeComponentSchema(name: 'Simple', raw: $schema);
+
+    $findings = iterator_to_array(
+        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
 
 it('emits a finding when allOf sub-schemas have conflicting types', function (): void {
     $component = makeAllOfComponent('Conflict', ['string', 'integer']);
-    $ctx = makeAllOfTestContext();
 
-    $findings = iterator_to_array((new SchemaAllOfTypeConflict())->checkComponentSchema($component, $ctx));
+    $findings = iterator_to_array(
+        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.allof-type-conflict')
@@ -76,87 +100,15 @@ it('emits a finding when allOf sub-schemas have conflicting types', function ():
         ->and($findings[0]->location->jsonPointer)->toBe('#/components/schemas/Conflict/allOf');
 });
 
-it('emits no finding when schema has no allOf', function (): void {
-    $octx = new Context();
-
-    $schema = new OA\Schema([
-        'schema' => 'Simple',
-        'type' => 'object',
-        '_context' => $octx,
-    ]);
-
-    $component = new ComponentSchemaNode(
-        name: 'Simple',
-        description: null,
-        fields: [],
-        raw: $schema,
-    );
-
-    $ctx = makeAllOfTestContext();
-
-    $findings = iterator_to_array((new SchemaAllOfTypeConflict())->checkComponentSchema($component, $ctx));
-
-    expect($findings)->toBe([]);
-});
-
 it('detects conflicts across three sub-schemas', function (): void {
     $component = makeAllOfComponent('Triple', ['object', 'string', 'integer']);
-    $ctx = makeAllOfTestContext();
 
-    $findings = iterator_to_array((new SchemaAllOfTypeConflict())->checkComponentSchema($component, $ctx));
+    $findings = iterator_to_array(
+        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('object')
         ->and($findings[0]->message)->toContain('string')
         ->and($findings[0]->message)->toContain('integer');
 });
-
-/**
- * Build a ComponentSchemaNode with allOf sub-schemas having the given types.
- *
- * @param list<string> $types
- */
-function makeAllOfComponent(string $schemaName, array $types): ComponentSchemaNode
-{
-    $ctx = new Context();
-
-    $subSchemas = [];
-
-    foreach ($types as $type) {
-        $subSchemas[] = new OA\Schema([
-            'type' => $type,
-            '_context' => $ctx,
-        ]);
-    }
-
-    $schema = new OA\Schema([
-        'schema' => $schemaName,
-        'allOf' => $subSchemas,
-        '_context' => $ctx,
-    ]);
-
-    return new ComponentSchemaNode(
-        name: $schemaName,
-        description: null,
-        fields: [],
-        raw: $schema,
-    );
-}
-
-function makeAllOfTestContext(): LintContext
-{
-    $ctx = new Context();
-
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-    ]);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}

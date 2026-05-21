@@ -9,145 +9,65 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\OperationIdInvalidChars;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
 it('reports its id and level', function (): void {
     $rule = new OperationIdInvalidChars();
 
-    expect($rule->id())
-        ->toBe('operation.id-invalid-chars')
-        ->and($rule->level())
-        ->toBe(1);
+    expect($rule->id())->toBe('operation.id-invalid-chars')
+        ->and($rule->level())->toBe(1);
 });
 
-it('emits a finding for an operationId with a space and exclamation mark', function (): void {
+it('emits a finding for an operationId that violates the charset', function (string $operationId, string $path): void {
     $rule = new OperationIdInvalidChars();
-    $context = makeInvalidCharsContext();
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: $path,
+        operationId: $operationId,
+    );
 
-    $operation = makeInvalidCharsOperationNode('get projects!', '/projects');
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)
-        ->toHaveCount(1)
+    expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.id-invalid-chars')
         ->and($findings[0]->level)->toBe(1)
-        ->and($findings[0]->message)->toContain('get projects!');
-});
+        ->and($findings[0]->message)->toContain($operationId);
+})->with([
+    'space and exclamation mark' => ['get projects!', '/projects'],
+    'starts with a digit'        => ['2fa.enable', '/auth/2fa'],
+]);
 
-it('emits a finding for an operationId starting with a digit', function (): void {
+it('emits no finding for a permitted operationId', function (string $operationId): void {
     $rule = new OperationIdInvalidChars();
-    $context = makeInvalidCharsContext();
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/projects',
+        operationId: $operationId,
+    );
 
-    $operation = makeInvalidCharsOperationNode('2fa.enable', '/auth/2fa');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)
-        ->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('operation.id-invalid-chars')
-        ->and($findings[0]->level)->toBe(1)
-        ->and($findings[0]->message)->toContain('2fa.enable');
-});
-
-it('emits no finding for a dot-separated operationId', function (): void {
-    $rule = new OperationIdInvalidChars();
-    $context = makeInvalidCharsContext();
-
-    $operation = makeInvalidCharsOperationNode('projects.list', '/projects');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
-});
-
-it('emits no finding for an operationId with hyphens, underscores and digits', function (): void {
-    $rule = new OperationIdInvalidChars();
-    $context = makeInvalidCharsContext();
-
-    $operation = makeInvalidCharsOperationNode('projects-list_v2', '/projects');
-
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'dot-separated'              => ['projects.list'],
+    'hyphens, underscores, digits' => ['projects-list_v2'],
+]);
 
 it('emits no finding when operationId is null', function (): void {
     $rule = new OperationIdInvalidChars();
-    $context = makeInvalidCharsContext();
-
-    $operation = new OperationNode(
+    $operation = OperationNodeFactory::makeOperation(
         pathUri: '/projects',
-        method: 'GET',
         operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
     );
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array(
+        $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
-
-/**
- * Build an OperationNode with the given operationId and path.
- */
-function makeInvalidCharsOperationNode(string $operationId, string $path): OperationNode
-{
-    return new OperationNode(
-        pathUri: $path,
-        method: 'GET',
-        operationId: $operationId,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
-    );
-}
-
-/**
- * Build a minimal LintContext for use in invalid-chars tests.
- */
-function makeInvalidCharsContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}

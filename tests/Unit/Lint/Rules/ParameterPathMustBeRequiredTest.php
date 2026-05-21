@@ -9,63 +9,24 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\ParameterPathMustBeRequired;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeParameterPathMustBeRequiredContext(): LintContext
+function makePathParameter(string $name, bool $required): ParameterNode
 {
-    $spec = new OA\OpenApi(['_context' => new Context()]);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
-function makeParameterNodeForRequiredTest(
-    string $name,
-    bool $required,
-    string $pathUri = '/users/{userId}',
-    string $method = 'GET',
-): ParameterNode {
-    $param = new ParameterNode(
+    $param = OperationNodeFactory::makeParameter(
         name: $name,
         required: $required,
         schema: 'integer',
-        description: null,
-        pattern: null,
-        examples: [],
-        raw: null,
     );
 
-    $operation = new OperationNode(
-        pathUri: $pathUri,
-        method: $method,
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
+    OperationNodeFactory::makeOperation(
+        pathUri: "/users/{{$name}}",
         parameters: [$param],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
     );
-    $param->linkParent($operation);
 
     return $param;
 }
@@ -77,22 +38,20 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(0);
 });
 
-it('emits no finding when all path parameters are required', function (): void {
+it('emits no finding when a path parameter is required', function (): void {
     $rule = new ParameterPathMustBeRequired();
-    $param = makeParameterNodeForRequiredTest('userId', required: true);
-    $context = makeParameterPathMustBeRequiredContext();
+    $param = makePathParameter('userId', required: true);
 
-    $findings = iterator_to_array($rule->checkParameter($param, $context));
+    $findings = iterator_to_array($rule->checkParameter($param, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
 });
 
 it('emits a finding when a path parameter is not required', function (): void {
     $rule = new ParameterPathMustBeRequired();
-    $param = makeParameterNodeForRequiredTest('userId', required: false);
-    $context = makeParameterPathMustBeRequiredContext();
+    $param = makePathParameter('userId', required: false);
 
-    $findings = iterator_to_array($rule->checkParameter($param, $context));
+    $findings = iterator_to_array($rule->checkParameter($param, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.path-must-be-required')
@@ -101,30 +60,19 @@ it('emits a finding when a path parameter is not required', function (): void {
         ->and($findings[0]->message)->toContain('must be required');
 });
 
-it('emits a finding per non-required path parameter', function (): void {
+it('emits one finding per non-required path parameter across operations', function (): void {
     $rule = new ParameterPathMustBeRequired();
-    $context = makeParameterPathMustBeRequiredContext();
+    $context = OperationNodeFactory::emptyContext();
 
-    $paramA = makeParameterNodeForRequiredTest('userId', required: false);
-    $paramB = makeParameterNodeForRequiredTest('postId', required: false);
+    $paramA = makePathParameter('userId', required: false);
+    $paramB = makePathParameter('postId', required: false);
 
-    $findingsA = iterator_to_array($rule->checkParameter($paramA, $context));
-    $findingsB = iterator_to_array($rule->checkParameter($paramB, $context));
-
-    $findings = [...$findingsA, ...$findingsB];
+    $findings = [
+        ...iterator_to_array($rule->checkParameter($paramA, $context)),
+        ...iterator_to_array($rule->checkParameter($paramB, $context)),
+    ];
 
     expect($findings)->toHaveCount(2)
         ->and($findings[0]->message)->toContain('userId')
         ->and($findings[1]->message)->toContain('postId');
-});
-
-it('emits no finding for a required path parameter among multiple', function (): void {
-    $rule = new ParameterPathMustBeRequired();
-    $context = makeParameterPathMustBeRequiredContext();
-
-    $param = makeParameterNodeForRequiredTest('userId', required: true);
-
-    $findings = iterator_to_array($rule->checkParameter($param, $context));
-
-    expect($findings)->toBe([]);
 });

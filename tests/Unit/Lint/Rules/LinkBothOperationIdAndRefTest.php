@@ -9,17 +9,25 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\LinkBothOperationIdAndRef;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\LinkNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
+
+function makeLinkBothFieldsNode(?string $operationId, ?string $operationRef): LinkNode
+{
+    $link = OperationNodeFactory::makeLink(
+        operationId: $operationId,
+        operationRef: $operationRef,
+    );
+    OperationNodeFactory::makeOperation(
+        method: 'POST',
+        responses: [OperationNodeFactory::makeResponse(statusCode: 201, description: null, links: [$link])],
+    );
+
+    return $link;
+}
 
 it('reports its id and level', function (): void {
     $rule = new LinkBothOperationIdAndRef();
@@ -27,118 +35,34 @@ it('reports its id and level', function (): void {
     expect($rule->id())->toBe('link.both-operation-id-and-ref')->and($rule->level())->toBe(0);
 });
 
-it('emits no finding when a link has only operationId', function (): void {
-    $link = makeLinkBothFieldsNode(operationId: 'foo.show', operationRef: null);
-    $context = makeLinkBothFieldsContext();
+it(
+    'emits no finding when a link has only one of operationId / operationRef (or neither)',
+    function (?string $operationId, ?string $operationRef): void {
+        $link = makeLinkBothFieldsNode($operationId, $operationRef);
 
-    $findings = iterator_to_array(new LinkBothOperationIdAndRef()->checkLink($link, $context));
+        $findings = iterator_to_array(
+            new LinkBothOperationIdAndRef()->checkLink($link, OperationNodeFactory::emptyContext()),
+        );
 
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when a link has only operationRef', function (): void {
-    $link = makeLinkBothFieldsNode(operationId: null, operationRef: '#/paths/~1foo/get');
-    $context = makeLinkBothFieldsContext();
-
-    $findings = iterator_to_array(new LinkBothOperationIdAndRef()->checkLink($link, $context));
-
-    expect($findings)->toBe([]);
-});
+        expect($findings)->toBe([]);
+    },
+)->with([
+    'only operationId'  => ['foo.show', null],
+    'only operationRef' => [null, '#/paths/~1foo/get'],
+    'neither'           => [null, null],
+]);
 
 it('emits a finding when a link has both operationId and operationRef', function (): void {
-    $link = makeLinkBothFieldsNode(operationId: 'foo.show', operationRef: '#/paths/~1foo/get');
-    $context = makeLinkBothFieldsContext();
+    $link = makeLinkBothFieldsNode('foo.show', '#/paths/~1foo/get');
 
-    $findings = iterator_to_array(new LinkBothOperationIdAndRef()->checkLink($link, $context));
+    $findings = iterator_to_array(
+        new LinkBothOperationIdAndRef()->checkLink($link, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)
         ->toHaveCount(1)
-        ->and($findings[0]->ruleId)
-        ->toBe('link.both-operation-id-and-ref')
-        ->and($findings[0]->level)
-        ->toBe(0)
-        ->and($findings[0]->message)
-        ->toContain('both')
-        ->and($findings[0]->message)
-        ->toContain('foo.show');
+        ->and($findings[0]->ruleId)->toBe('link.both-operation-id-and-ref')
+        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->message)->toContain('both')
+        ->and($findings[0]->message)->toContain('foo.show');
 });
-
-it('emits no finding when both are null', function (): void {
-    $link = makeLinkBothFieldsNode(operationId: null, operationRef: null);
-    $context = makeLinkBothFieldsContext();
-
-    $findings = iterator_to_array(new LinkBothOperationIdAndRef()->checkLink($link, $context));
-
-    expect($findings)->toBe([]);
-});
-
-function makeLinkBothFieldsNode(?string $operationId, ?string $operationRef): LinkNode
-{
-    $link = new LinkNode(
-        name: 'GetFoo',
-        operationId: $operationId,
-        operationRef: $operationRef,
-        parameters: [],
-        description: null,
-        raw: null,
-    );
-
-    $response = new ResponseNode(
-        statusCode: 201,
-        description: null,
-        fields: [],
-        examples: [],
-        schemaRef: null,
-        headers: [],
-        links: [$link],
-        raw: null,
-    );
-    $link->linkParent($response);
-
-    $operation = new OperationNode(
-        pathUri: '/creator',
-        method: 'POST',
-        operationId: 'creator',
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [$response],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Post(['_context' => new Context()]),
-    );
-    $response->linkParent($operation);
-
-    return $link;
-}
-
-function makeLinkBothFieldsContext(): LintContext
-{
-    $spec = new OA\OpenApi(['_context' => new Context()]);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: new TreeIndex(
-            operationsByOperationId: [],
-            operationsByRouteKey: [],
-            componentsByName: [],
-            referencedComponents: [],
-            registeredScopes: [],
-            knownRuleIds: [],
-        ),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}

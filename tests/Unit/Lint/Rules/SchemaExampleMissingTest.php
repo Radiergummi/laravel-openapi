@@ -11,68 +11,44 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\SchemaExampleMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeComponentSchemaNodeForExampleMissing(
-    string $schemaName,
+/**
+ * Build a `ComponentSchemaNode` whose raw `OA\Schema` carries the requested
+ * combination of `example` / `examples` / `enum` keys. Keys are only added
+ * when non-null so the rule sees the same "missing key" shape it would see
+ * on a freshly built schema.
+ */
+function makeSchemaForExampleMissing(
+    string $name,
     mixed $example = null,
     bool $omitExample = false,
     ?array $examples = null,
-    bool $omitExamples = false,
     ?array $enum = null,
 ): ComponentSchemaNode {
-    $ctx = new Context();
-
-    $schemaProps = [
-        'schema' => $schemaName,
+    $props = [
+        'schema' => $name,
         'type' => 'string',
-        '_context' => $ctx,
+        '_context' => new Context(),
     ];
 
     if (!$omitExample) {
-        $schemaProps['example'] = $example;
+        $props['example'] = $example;
     }
 
-    if (!$omitExamples && $examples !== null) {
-        $schemaProps['examples'] = $examples;
+    if ($examples !== null) {
+        $props['examples'] = $examples;
     }
 
     if ($enum !== null) {
-        $schemaProps['enum'] = $enum;
+        $props['enum'] = $enum;
     }
 
-    $schema = new OA\Schema($schemaProps);
-
-    return new ComponentSchemaNode(
-        name: $schemaName,
-        description: null,
-        fields: [],
-        raw: $schema,
-    );
-}
-
-function makeContextForExampleMissingTest(): LintContext
-{
-    $ctx = new Context();
-
-    $spec = new OA\OpenApi([
-        'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-    ]);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
+    return OperationNodeFactory::makeComponentSchema(name: $name, raw: new OA\Schema($props));
 }
 
 it('has the correct rule id and level', function (): void {
@@ -82,64 +58,31 @@ it('has the correct rule id and level', function (): void {
         ->and($rule->level())->toBe(4);
 });
 
-it('emits a finding when a schema has no example', function (): void {
+it('emits a finding when a schema has no example or null example', function (callable $build): void {
     $rule = new SchemaExampleMissing();
-    $component = makeComponentSchemaNodeForExampleMissing('UserName', omitExample: true);
-    $ctx = makeContextForExampleMissingTest();
+    $component = $build();
 
-    $findings = iterator_to_array($rule->checkComponentSchema($component, $ctx));
+    $findings = iterator_to_array($rule->checkComponentSchema($component, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.example-missing')
         ->and($findings[0]->level)->toBe(4)
         ->and($findings[0]->message)->toContain('UserName')
         ->and($findings[0]->location->jsonPointer)->toBe('#/components/schemas/UserName');
-});
+})->with([
+    'no example key'  => [fn() => makeSchemaForExampleMissing('UserName', omitExample: true)],
+    'null example'    => [fn() => makeSchemaForExampleMissing('UserName', example: null)],
+]);
 
-it('emits a finding when a schema has a null example', function (): void {
+it('emits no findings when a schema has any source of example values', function (callable $build): void {
     $rule = new SchemaExampleMissing();
-    $component = makeComponentSchemaNodeForExampleMissing('UserName', example: null);
-    $ctx = makeContextForExampleMissingTest();
+    $component = $build();
 
-    $findings = iterator_to_array($rule->checkComponentSchema($component, $ctx));
-
-    expect($findings)->toHaveCount(1);
-});
-
-it('emits no findings when a schema has an example', function (): void {
-    $rule = new SchemaExampleMissing();
-    $component = makeComponentSchemaNodeForExampleMissing('UserName', example: 'John Doe');
-    $ctx = makeContextForExampleMissingTest();
-
-    $findings = iterator_to_array($rule->checkComponentSchema($component, $ctx));
+    $findings = iterator_to_array($rule->checkComponentSchema($component, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
-});
-
-it('emits no findings when a schema has an enum', function (): void {
-    $rule = new SchemaExampleMissing();
-    $component = makeComponentSchemaNodeForExampleMissing(
-        'Status',
-        omitExample: true,
-        enum: ['active', 'archived'],
-    );
-    $ctx = makeContextForExampleMissingTest();
-
-    $findings = iterator_to_array($rule->checkComponentSchema($component, $ctx));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when a schema has examples (plural)', function (): void {
-    $rule = new SchemaExampleMissing();
-    $component = makeComponentSchemaNodeForExampleMissing(
-        'UserName',
-        omitExample: true,
-        examples: ['John Doe', 'Jane Doe'],
-    );
-    $ctx = makeContextForExampleMissingTest();
-
-    $findings = iterator_to_array($rule->checkComponentSchema($component, $ctx));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'single example'    => [fn() => makeSchemaForExampleMissing('UserName', example: 'John Doe')],
+    'plural examples'   => [fn() => makeSchemaForExampleMissing('UserName', omitExample: true, examples: ['John Doe', 'Jane Doe'])],
+    'enum stands in'    => [fn() => makeSchemaForExampleMissing('Status', omitExample: true, enum: ['active', 'archived'])],
+]);

@@ -9,51 +9,10 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\EnumValuesUndocumented;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-/**
- * @param list<mixed> $enumValues
- */
-function makeFieldForEnumValuesUndocumented(
-    string $name,
-    array $enumValues,
-    ?string $description = null,
-): FieldNode {
-    return new FieldNode(
-        name: $name,
-        type: 'string',
-        required: false,
-        nullable: false,
-        description: $description,
-        format: null,
-        example: null,
-        enum: $enumValues,
-        children: [],
-        examples: [],
-        ref: null,
-        raw: null,
-    );
-}
-
-function makeContextForEnumValuesUndocumented(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('has the correct rule id and level', function (): void {
     $rule = new EnumValuesUndocumented();
@@ -63,15 +22,11 @@ it('has the correct rule id and level', function (): void {
 });
 
 it('emits a finding when an enum field has no description', function (): void {
-    $rule = new EnumValuesUndocumented();
-    $field = makeFieldForEnumValuesUndocumented(
-        'Status',
-        ['active', 'inactive'],
-        description: null,
-    );
-    $context = makeContextForEnumValuesUndocumented();
+    $field = OperationNodeFactory::makeField(name: 'Status', enum: ['active', 'inactive']);
 
-    $findings = iterator_to_array($rule->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('enum.values-undocumented')
@@ -80,81 +35,44 @@ it('emits a finding when an enum field has no description', function (): void {
 });
 
 it('emits a finding when description does not mention any enum values', function (): void {
-    $rule = new EnumValuesUndocumented();
-    $field = makeFieldForEnumValuesUndocumented(
-        'Status',
-        ['active', 'inactive'],
+    $field = OperationNodeFactory::makeField(
+        name: 'Status',
         description: 'The current state of the entity.',
+        enum: ['active', 'inactive'],
     );
-    $context = makeContextForEnumValuesUndocumented();
 
-    $findings = iterator_to_array($rule->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('does not mention');
 });
 
-it('emits no findings when description mentions an enum value', function (): void {
-    $rule = new EnumValuesUndocumented();
-    $field = makeFieldForEnumValuesUndocumented(
-        'Status',
-        ['active', 'inactive'],
-        description: 'Can be active or inactive.',
+it('emits no findings when the description documents the enum', function (string $description): void {
+    $field = OperationNodeFactory::makeField(
+        name: 'Status',
+        description: $description,
+        enum: ['active', 'inactive'],
     );
-    $context = makeContextForEnumValuesUndocumented();
 
-    $findings = iterator_to_array($rule->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
-});
-
-it('emits no findings when description contains a bullet list', function (): void {
-    $rule = new EnumValuesUndocumented();
-    $field = makeFieldForEnumValuesUndocumented(
-        'Status',
-        ['active', 'inactive'],
-        description: "Possible statuses:\n- First option\n- Second option",
-    );
-    $context = makeContextForEnumValuesUndocumented();
-
-    $findings = iterator_to_array($rule->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no findings when description contains an asterisk list', function (): void {
-    $rule = new EnumValuesUndocumented();
-    $field = makeFieldForEnumValuesUndocumented(
-        'Status',
-        ['active', 'inactive'],
-        description: "Possible statuses:\n* First option\n* Second option",
-    );
-    $context = makeContextForEnumValuesUndocumented();
-
-    $findings = iterator_to_array($rule->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'mentions a value'   => ['Can be active or inactive.'],
+    'dash bullet list'   => ["Possible statuses:\n- First option\n- Second option"],
+    'asterisk list'      => ["Possible statuses:\n* First option\n* Second option"],
+]);
 
 it('skips fields without enum values', function (): void {
-    $rule = new EnumValuesUndocumented();
-    $field = new FieldNode(
-        name: 'PlainString',
-        type: 'string',
-        required: false,
-        nullable: false,
-        description: null,
-        format: null,
-        example: null,
-        enum: null,
-        children: [],
-        examples: [],
-        ref: null,
-        raw: null,
-    );
-    $context = makeContextForEnumValuesUndocumented();
+    $field = OperationNodeFactory::makeField(name: 'PlainString');
 
-    $findings = iterator_to_array($rule->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });

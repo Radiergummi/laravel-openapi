@@ -12,43 +12,18 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\ParameterExampleMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ExampleNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeParameterExampleMissingContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
 /**
- * Build a ParameterNode with the given example/examples state on its raw OA\Parameter.
- *
- * @param mixed $example  Generator::UNDEFINED for absent, any other value for present.
- * @param mixed $examples Generator::UNDEFINED for absent, an array for present.
+ * Build a `ParameterNode` named "userId" with the given `example`/`examples`
+ * state on the raw `OA\Parameter`, attached to a synthetic operation.
  */
-function makeParameterExampleMissingNode(mixed $example, mixed $examples): ParameterNode
+function makeUserIdParameterWithExamples(mixed $example, mixed $examples): ParameterNode
 {
     $oaParam = new OA\PathParameter([
         '_context' => new Context(),
@@ -59,7 +34,7 @@ function makeParameterExampleMissingNode(mixed $example, mixed $examples): Param
 
     $exampleNodes = [];
 
-    if ($examples !== Generator::UNDEFINED && is_array($examples)) {
+    if (is_array($examples)) {
         foreach ($examples as $ex) {
             if ($ex instanceof OA\Examples) {
                 $exampleNodes[] = new ExampleNode(
@@ -73,35 +48,19 @@ function makeParameterExampleMissingNode(mixed $example, mixed $examples): Param
         }
     }
 
-    $node = new ParameterNode(
+    $param = OperationNodeFactory::makeParameter(
         name: 'userId',
-        required: true,
-        schema: 'string',
         description: 'The user identifier.',
-        pattern: null,
         examples: $exampleNodes,
         raw: $oaParam,
     );
 
-    $operation = new OperationNode(
+    OperationNodeFactory::makeOperation(
         pathUri: '/users/{userId}',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [$node],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
+        parameters: [$param],
     );
-    $node->linkParent($operation);
 
-    return $node;
+    return $param;
 }
 
 it('has the correct rule id and level', function (): void {
@@ -113,13 +72,12 @@ it('has the correct rule id and level', function (): void {
 
 it('emits a finding when a parameter has neither example nor examples', function (): void {
     $rule = new ParameterExampleMissing();
-    $parameter = makeParameterExampleMissingNode(
+    $param = makeUserIdParameterWithExamples(
         example: Generator::UNDEFINED,
         examples: Generator::UNDEFINED,
     );
-    $context = makeParameterExampleMissingContext();
 
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
+    $findings = iterator_to_array($rule->checkParameter($param, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.example-missing')
@@ -127,54 +85,30 @@ it('emits a finding when a parameter has neither example nor examples', function
         ->and($findings[0]->message)->toContain('userId');
 });
 
-it('emits no finding when a parameter has example (singular)', function (): void {
+it('emits no finding when a parameter has at least one example', function (mixed $example, mixed $examples): void {
     $rule = new ParameterExampleMissing();
-    $parameter = makeParameterExampleMissingNode(
-        example: 'abc123',
-        examples: Generator::UNDEFINED,
-    );
-    $context = makeParameterExampleMissingContext();
+    $param = makeUserIdParameterWithExamples($example, $examples);
 
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
+    $findings = iterator_to_array($rule->checkParameter($param, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
-});
-
-it('emits no finding when a parameter has examples (plural)', function (): void {
-    $rule = new ParameterExampleMissing();
-
-    $oaExample = new OA\Examples([
-        '_context' => new Context(),
-        'example' => 'user1',
-        'value' => 'abc123',
-    ]);
-
-    $parameter = makeParameterExampleMissingNode(
-        example: Generator::UNDEFINED,
-        examples: [$oaExample],
-    );
-    $context = makeParameterExampleMissingContext();
-
-    $findings = iterator_to_array($rule->checkParameter($parameter, $context));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'example (singular)' => ['abc123', Generator::UNDEFINED],
+    'examples (plural)' => [
+        Generator::UNDEFINED,
+        [new OA\Examples([
+            '_context' => new Context(),
+            'example' => 'user1',
+            'value' => 'abc123',
+        ])],
+    ],
+]);
 
 it('emits no finding when raw is null (no OA\\Parameter available)', function (): void {
     $rule = new ParameterExampleMissing();
-    $context = makeParameterExampleMissingContext();
+    $node = OperationNodeFactory::makeParameter(name: 'userId');
 
-    $node = new ParameterNode(
-        name: 'userId',
-        required: true,
-        schema: 'string',
-        description: null,
-        pattern: null,
-        examples: [],
-        raw: null,
-    );
-
-    $findings = iterator_to_array($rule->checkParameter($node, $context));
+    $findings = iterator_to_array($rule->checkParameter($node, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
 });

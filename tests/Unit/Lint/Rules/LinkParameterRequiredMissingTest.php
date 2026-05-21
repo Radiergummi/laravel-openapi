@@ -9,19 +9,62 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\LinkParameterRequiredMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\LinkNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
+
+/**
+ * @param array<string, string> $parameters
+ */
+function makeLinkRequiredMissingNode(?string $operationId, array $parameters): LinkNode
+{
+    $link = OperationNodeFactory::makeLink(
+        name: 'TestLink',
+        operationId: $operationId,
+        parameters: $parameters,
+    );
+    OperationNodeFactory::makeOperation(
+        method: 'POST',
+        responses: [OperationNodeFactory::makeResponse(statusCode: 201, description: null, links: [$link])],
+    );
+
+    return $link;
+}
+
+/**
+ * @param list<string>                              $pathParams
+ * @param list<array{name: string, required: bool}> $queryParams
+ */
+function makeLinkRequiredMissingContext(
+    string $targetOperationId,
+    array $pathParams,
+    array $queryParams,
+): LintContext {
+    $targetOp = OperationNodeFactory::makeOperation(
+        pathUri: '/target',
+        operationId: $targetOperationId,
+        parameters: array_map(
+            static fn(string $name) => OperationNodeFactory::makeParameter(name: $name, schema: null),
+            $pathParams,
+        ),
+        queryParameters: array_map(
+            static fn(array $qp) => OperationNodeFactory::makeQueryParameter(
+                name: $qp['name'],
+                required: $qp['required'],
+                type: null,
+                hasSchema: false,
+            ),
+            $queryParams,
+        ),
+    );
+
+    return OperationNodeFactory::emptyContext(
+        operationsByOperationId: [$targetOperationId => $targetOp],
+    );
+}
 
 it('reports its id and level', function (): void {
     $rule = new LinkParameterRequiredMissing();
@@ -45,11 +88,11 @@ it('emits no finding when all required parameters are supplied', function (): vo
     expect($findings)->toBe([]);
 });
 
-it('emits a finding when a required parameter is missing', function (): void {
+it('flags missing required path parameters', function (string $pathParam): void {
     $link = makeLinkRequiredMissingNode(operationId: 'foo.show', parameters: []);
     $context = makeLinkRequiredMissingContext(
         targetOperationId: 'foo.show',
-        pathParams: ['id'],
+        pathParams: [$pathParam],
         queryParams: [],
     );
 
@@ -57,26 +100,13 @@ it('emits a finding when a required parameter is missing', function (): void {
 
     expect($findings)
         ->toHaveCount(1)
-        ->and($findings[0]->ruleId)
-        ->toBe('link.parameter-required-missing')
-        ->and($findings[0]->level)
-        ->toBe(0)
-        ->and($findings[0]->message)
-        ->toContain('id');
-});
-
-it('treats path parameters as always required', function (): void {
-    $link = makeLinkRequiredMissingNode(operationId: 'foo.show', parameters: []);
-    $context = makeLinkRequiredMissingContext(
-        targetOperationId: 'foo.show',
-        pathParams: ['slug'],
-        queryParams: [],
-    );
-
-    $findings = iterator_to_array(new LinkParameterRequiredMissing()->checkLink($link, $context));
-
-    expect($findings)->toHaveCount(1)->and($findings[0]->message)->toContain('slug');
-});
+        ->and($findings[0]->ruleId)->toBe('link.parameter-required-missing')
+        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->message)->toContain($pathParam);
+})->with([
+    'id'   => ['id'],
+    'slug' => ['slug'],
+]);
 
 it('does not flag optional query parameters as missing', function (): void {
     $link = makeLinkRequiredMissingNode(operationId: 'foo.show', parameters: []);
@@ -103,10 +133,8 @@ it('emits a finding per missing required parameter', function (): void {
 
     expect($findings)
         ->toHaveCount(2)
-        ->and($findings[0]->message)
-        ->toContain('id')
-        ->and($findings[1]->message)
-        ->toContain('version');
+        ->and($findings[0]->message)->toContain('id')
+        ->and($findings[1]->message)->toContain('version');
 });
 
 it('emits no finding when target operation has no parameters', function (): void {
@@ -137,130 +165,3 @@ it('skips links that use operationRef instead of operationId (out of scope)', fu
 
     expect($findings)->toBe([]);
 });
-
-/**
- * @param array<string, string> $parameters
- */
-function makeLinkRequiredMissingNode(?string $operationId, array $parameters): LinkNode
-{
-    $link = new LinkNode(
-        name: 'TestLink',
-        operationId: $operationId,
-        operationRef: null,
-        parameters: $parameters,
-        description: null,
-        raw: null,
-    );
-
-    $response = new ResponseNode(
-        statusCode: 201,
-        description: null,
-        fields: [],
-        examples: [],
-        schemaRef: null,
-        headers: [],
-        links: [$link],
-        raw: null,
-    );
-    $link->linkParent($response);
-
-    $operation = new OperationNode(
-        pathUri: '/creator',
-        method: 'POST',
-        operationId: 'creator',
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [$response],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Post(['_context' => new Context()]),
-    );
-    $response->linkParent($operation);
-
-    return $link;
-}
-
-/**
- * @param list<string>                              $pathParams
- * @param list<array{name: string, required: bool}> $queryParams
- */
-function makeLinkRequiredMissingContext(
-    string $targetOperationId,
-    array $pathParams,
-    array $queryParams,
-): LintContext {
-    $parameterNodes = array_map(
-        static fn(string $name) => new ParameterNode(
-            name: $name,
-            required: true,
-            schema: null,
-            description: null,
-            pattern: null,
-            examples: [],
-            raw: null,
-        ),
-        $pathParams,
-    );
-
-    $queryParameterNodes = array_map(
-        static fn(array $qp) => new QueryParameterNode(
-            name: $qp['name'],
-            required: $qp['required'],
-            type: null,
-            hasSchema: false,
-            style: null,
-            explode: null,
-            description: null,
-            enum: null,
-            examples: [],
-            raw: null,
-        ),
-        $queryParams,
-    );
-
-    $targetOp = new OperationNode(
-        pathUri: '/target',
-        method: 'GET',
-        operationId: $targetOperationId,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: $parameterNodes,
-        queryParameters: $queryParameterNodes,
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
-    );
-
-    $spec = new OA\OpenApi(['_context' => new Context()]);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: new TreeIndex(
-            operationsByOperationId: [$targetOperationId => $targetOp],
-            operationsByRouteKey: [],
-            componentsByName: [],
-            referencedComponents: [],
-            registeredScopes: [],
-            knownRuleIds: [],
-        ),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}

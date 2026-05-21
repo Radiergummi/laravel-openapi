@@ -9,8 +9,6 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Lint\Rules\LinkDuplicateName;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DuplicateLinkNameController;
@@ -39,53 +37,35 @@ it('reports its id and level', function (): void {
 it('emits a finding when a method has duplicate link names', function (): void {
     $rule = new LinkDuplicateName();
     $operation = makeLinkDuplicateNameOperation('withDuplicateLinks');
-    $context = OperationNodeFactory::emptyContext();
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
     expect($findings)
         ->toHaveCount(1)
-        ->and($findings[0]->ruleId)
-        ->toBe('link.duplicate-name')
-        ->and($findings[0]->level)
-        ->toBe(0)
-        ->and($findings[0]->message)
-        ->toContain('"GetProject"')
-        ->and($findings[0]->message)
-        ->toContain('2 times');
+        ->and($findings[0]->ruleId)->toBe('link.duplicate-name')
+        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->message)->toContain('"GetProject"')
+        ->and($findings[0]->message)->toContain('2 times');
 });
 
 it('emits no findings when all link names are unique', function (): void {
     $rule = new LinkDuplicateName();
     $operation = makeLinkDuplicateNameOperation('withUniqueLinks');
-    $context = OperationNodeFactory::emptyContext();
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
 });
 
 it('emits no findings when operation has no descriptor', function (): void {
     $rule = new LinkDuplicateName();
-    $operation = new OperationNode(
+    $operation = OperationNodeFactory::makeOperation(
         pathUri: '/no-descriptor',
-        method: 'GET',
         operationId: 'no.descriptor',
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
         responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
     );
-    $context = OperationNodeFactory::emptyContext();
 
-    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
 });

@@ -9,11 +9,8 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\Rules\FieldNoEffect;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\NoEffectFixtureController;
@@ -52,23 +49,7 @@ it('emits a finding when RequestField has all default values', function (): void
 
 it('emits no findings when there is no descriptor on the operation', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $operation = new OperationNode(
-        pathUri: '/api/v0/test',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
-        webhook: false,
-    );
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));

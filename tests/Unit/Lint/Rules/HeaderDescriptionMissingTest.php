@@ -27,7 +27,6 @@ function makeHeaderUnderResponse(string $name, ?string $description): HeaderNode
 
     $response = OperationNodeFactory::makeResponse(headers: [$header]);
     OperationNodeFactory::makeOperation(responses: [$response]);
-    $header->linkParent($response);
 
     return $header;
 }

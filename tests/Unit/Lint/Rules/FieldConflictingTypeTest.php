@@ -9,11 +9,8 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ConflictingTypeFixtureController;
@@ -53,23 +50,7 @@ it('emits a finding when RequestField type contradicts the PHP type', function (
 
 it('emits no findings when there is no descriptor on the operation', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
-    $operation = new OperationNode(
-        pathUri: '/api/v0/test',
-        method: 'POST',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Post(['_context' => new Context()]),
-        webhook: false,
-    );
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/v0/test', method: 'POST');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));

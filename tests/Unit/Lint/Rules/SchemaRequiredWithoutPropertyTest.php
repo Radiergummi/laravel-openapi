@@ -11,79 +11,46 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\SchemaRequiredWithoutProperty;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
 /**
- * Build a ComponentSchemaNode with the given fields and raw schema having required.
+ * Build a `ComponentSchemaNode` whose raw schema declares the given `required`
+ * list and properties. Fields are mirrored into the tree node so the rule sees
+ * the same property names on both sides.
  *
- * @param list<string> $properties Property names to add as FieldNodes
- * @param list<string> $required   Required property names for the raw schema
+ * @param list<string>      $properties Property names to add as fields and raw OA\Property entries
+ * @param null|list<string> $required   Required property names, or null to omit the key entirely
  */
-function makeComponentForRequiredProps(
-    string $schemaName,
-    array $properties,
-    array $required,
-): ComponentSchemaNode {
+function makeComponentForRequiredProps(string $schemaName, array $properties, ?array $required): ComponentSchemaNode
+{
     $ctx = new Context();
 
     $oaProperties = [];
-    $fieldNodes = [];
+    $fields = [];
 
     foreach ($properties as $propName) {
-        $oaProperties[] = new OA\Property([
-            'property' => $propName,
-            'type' => 'string',
-            '_context' => $ctx,
-        ]);
-
-        $fieldNodes[] = new FieldNode(
-            name: $propName,
-            type: 'string',
-            required: true,
-            nullable: false,
-            description: null,
-            format: null,
-            example: null,
-            enum: null,
-            children: [],
-            examples: [],
-            ref: null,
-            raw: null,
-        );
+        $oaProperties[] = new OA\Property(['property' => $propName, 'type' => 'string', '_context' => $ctx]);
+        $fields[] = OperationNodeFactory::makeField(name: $propName, required: true);
     }
 
-    $schema = new OA\Schema([
-        'schema' => $schemaName,
-        'properties' => $oaProperties !== [] ? $oaProperties : [],
-        'required' => $required,
-        '_context' => $ctx,
-    ]);
+    $schemaProps = ['schema' => $schemaName, '_context' => $ctx];
 
-    return new ComponentSchemaNode(
+    if ($oaProperties !== []) {
+        $schemaProps['properties'] = $oaProperties;
+    }
+
+    if ($required !== null) {
+        $schemaProps['required'] = $required;
+    }
+
+    return OperationNodeFactory::makeComponentSchema(
         name: $schemaName,
-        description: null,
-        fields: $fieldNodes,
-        raw: $schema,
-    );
-}
-
-function makeContextForRequiredProps(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
+        fields: $fields,
+        raw: new OA\Schema($schemaProps),
     );
 }
 
@@ -95,27 +62,21 @@ it('reports its id and level', function (): void {
 });
 
 it('emits no finding when all required properties exist', function (): void {
-    $component = makeComponentForRequiredProps(
-        schemaName: 'User',
-        properties: ['name', 'email'],
-        required: ['name', 'email'],
-    );
-    $context = makeContextForRequiredProps();
+    $component = makeComponentForRequiredProps('User', ['name', 'email'], ['name', 'email']);
 
-    $findings = iterator_to_array((new SchemaRequiredWithoutProperty())->checkComponentSchema($component, $context));
+    $findings = iterator_to_array(
+        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
 
 it('emits a finding when a required property does not exist', function (): void {
-    $component = makeComponentForRequiredProps(
-        schemaName: 'User',
-        properties: ['name'],
-        required: ['name', 'email'],
-    );
-    $context = makeContextForRequiredProps();
+    $component = makeComponentForRequiredProps('User', ['name'], ['name', 'email']);
 
-    $findings = iterator_to_array((new SchemaRequiredWithoutProperty())->checkComponentSchema($component, $context));
+    $findings = iterator_to_array(
+        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.required-without-property')
@@ -126,14 +87,11 @@ it('emits a finding when a required property does not exist', function (): void 
 });
 
 it('emits a finding per missing required property', function (): void {
-    $component = makeComponentForRequiredProps(
-        schemaName: 'Order',
-        properties: ['id'],
-        required: ['id', 'total', 'currency'],
-    );
-    $context = makeContextForRequiredProps();
+    $component = makeComponentForRequiredProps('Order', ['id'], ['id', 'total', 'currency']);
 
-    $findings = iterator_to_array((new SchemaRequiredWithoutProperty())->checkComponentSchema($component, $context));
+    $findings = iterator_to_array(
+        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(2)
         ->and($findings[0]->message)->toContain('total')
@@ -141,62 +99,21 @@ it('emits a finding per missing required property', function (): void {
 });
 
 it('emits no finding when schema has no required list', function (): void {
-    $ctx = new Context();
+    $component = makeComponentForRequiredProps('Simple', ['name'], required: null);
 
-    $schema = new OA\Schema([
-        'schema' => 'Simple',
-        'properties' => [
-            new OA\Property(['property' => 'name', 'type' => 'string', '_context' => $ctx]),
-        ],
-        '_context' => $ctx,
-    ]);
-
-    $component = new ComponentSchemaNode(
-        name: 'Simple',
-        description: null,
-        fields: [
-            new FieldNode(
-                name: 'name',
-                type: 'string',
-                required: false,
-                nullable: false,
-                description: null,
-                format: null,
-                example: null,
-                enum: null,
-                children: [],
-                examples: [],
-                ref: null,
-                raw: null,
-            ),
-        ],
-        raw: $schema,
+    $findings = iterator_to_array(
+        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
-    $context = makeContextForRequiredProps();
-
-    $findings = iterator_to_array((new SchemaRequiredWithoutProperty())->checkComponentSchema($component, $context));
 
     expect($findings)->toBe([]);
 });
 
 it('emits a finding when schema has required but no properties at all', function (): void {
-    $ctx = new Context();
+    $component = makeComponentForRequiredProps('Empty', [], ['phantom']);
 
-    $schema = new OA\Schema([
-        'schema' => 'Empty',
-        'required' => ['phantom'],
-        '_context' => $ctx,
-    ]);
-
-    $component = new ComponentSchemaNode(
-        name: 'Empty',
-        description: null,
-        fields: [],
-        raw: $schema,
+    $findings = iterator_to_array(
+        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
-    $context = makeContextForRequiredProps();
-
-    $findings = iterator_to_array((new SchemaRequiredWithoutProperty())->checkComponentSchema($component, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('phantom');

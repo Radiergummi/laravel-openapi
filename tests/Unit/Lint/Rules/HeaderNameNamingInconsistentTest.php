@@ -9,28 +9,12 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\HeaderNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\HeaderNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeHeaderNamingContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 function makeHeaderNamingNode(string $name): HeaderNode
 {
@@ -50,52 +34,36 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(3);
 });
 
-it('default (train): passes a valid Train-Case header name', function (): void {
+it('default (train): passes a valid Train-Case header name', function (string $name): void {
     $rule = new HeaderNameNamingInconsistent();
-    $context = makeHeaderNamingContext();
 
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('X-Request-Id'), $context));
+    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode($name), OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
-});
+})->with([
+    'multi-segment'  => ['X-Request-Id'],
+    'single-segment' => ['Authorization'],
+]);
 
-it('default (train): passes a single-segment Train-Case header', function (): void {
+it('default (train): flags non-Train-Case header names', function (string $name): void {
     $rule = new HeaderNameNamingInconsistent();
-    $context = makeHeaderNamingContext();
 
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('Authorization'), $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('default (train): flags a lowercase header name', function (): void {
-    $rule = new HeaderNameNamingInconsistent();
-    $context = makeHeaderNamingContext();
-
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('x-request-id'), $context));
+    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode($name), OperationNodeFactory::emptyContext()));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('header.name-naming-inconsistent')
         ->and($findings[0]->level)->toBe(3)
-        ->and($findings[0]->message)->toContain('"x-request-id"')
+        ->and($findings[0]->message)->toContain("\"{$name}\"")
         ->and($findings[0]->message)->toContain('Train-Case');
-});
-
-it('default (train): flags a snake_case header name', function (): void {
-    $rule = new HeaderNameNamingInconsistent();
-    $context = makeHeaderNamingContext();
-
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('x_request_id'), $context));
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->message)->toContain('"x_request_id"');
-});
+})->with([
+    'lowercase'  => ['x-request-id'],
+    'snake_case' => ['x_request_id'],
+]);
 
 it('provides a fix hint with the case label and example', function (): void {
     $rule = new HeaderNameNamingInconsistent();
-    $context = makeHeaderNamingContext();
 
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('x-request-id'), $context));
+    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('x-request-id'), OperationNodeFactory::emptyContext()));
 
     expect($findings[0]->fixHint)
         ->toContain('Train-Case')
@@ -104,18 +72,16 @@ it('provides a fix hint with the case label and example', function (): void {
 
 it('pascal case: passes a valid PascalCase header name', function (): void {
     $rule = new HeaderNameNamingInconsistent(IdentifierCase::Pascal);
-    $context = makeHeaderNamingContext();
 
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('Authorization'), $context));
+    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('Authorization'), OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
 });
 
 it('pascal case: flags a Train-Case header name', function (): void {
     $rule = new HeaderNameNamingInconsistent(IdentifierCase::Pascal);
-    $context = makeHeaderNamingContext();
 
-    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('X-Request-Id'), $context));
+    $findings = iterator_to_array($rule->checkHeader(makeHeaderNamingNode('X-Request-Id'), OperationNodeFactory::emptyContext()));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('PascalCase');

@@ -9,11 +9,8 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Lint\Rules\FieldEnumMismatch;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithEnumMismatchData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithEnumMismatchDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\EnumMismatchFixtureController;
@@ -53,23 +50,7 @@ it('emits a finding when RequestField enum values do not match BackedEnum cases'
 
 it('emits no findings when there is no descriptor on the operation', function (): void {
     $rule = new FieldEnumMismatch(makeDirectScannerForEnumMismatch());
-    $operation = new OperationNode(
-        pathUri: '/api/v0/test',
-        method: 'PUT',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Put(['_context' => new Context()]),
-        webhook: false,
-    );
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/v0/test', method: 'PUT');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));

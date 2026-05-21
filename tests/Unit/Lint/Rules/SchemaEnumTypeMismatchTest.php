@@ -9,50 +9,10 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\SchemaEnumTypeMismatch;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-/**
- * Build a FieldNode with the given type and enum values.
- *
- * @param list<mixed> $enumValues
- */
-function makeFieldWithEnum(string $name, ?string $type, array $enumValues): FieldNode
-{
-    return new FieldNode(
-        name: $name,
-        type: $type,
-        required: false,
-        nullable: false,
-        description: null,
-        format: null,
-        example: null,
-        enum: $enumValues,
-        children: [],
-        examples: [],
-        ref: null,
-        raw: null,
-    );
-}
-
-function makeContextForEnumTypeMismatch(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
 
 it('reports its id and level', function (): void {
     $rule = new SchemaEnumTypeMismatch();
@@ -61,110 +21,59 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(0);
 });
 
-it('emits no finding when all integer enum values are ints', function (): void {
-    $field = makeFieldWithEnum('Status', 'integer', [1, 2, 3]);
-    $context = makeContextForEnumTypeMismatch();
+it('emits no finding when all enum values match the declared type', function (string $type, array $enum): void {
+    $field = OperationNodeFactory::makeField(name: 'value', type: $type, enum: $enum);
 
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
-});
+})->with([
+    'integer / ints only'          => ['integer', [1, 2, 3]],
+    'string / strings only'        => ['string', ['red', 'green', 'blue']],
+    'number / mixed int and float' => ['number', [1, 2.5, 3]],
+    'boolean / bools only'         => ['boolean', [true, false]],
+]);
 
-it('emits a finding when an integer enum contains a string', function (): void {
-    $field = makeFieldWithEnum('Status', 'integer', [1, 'two', 3]);
-    $context = makeContextForEnumTypeMismatch();
+it('emits a finding when an enum value does not match the declared type', function (string $type, array $enum, int $badIndex): void {
+    $field = OperationNodeFactory::makeField(name: 'Status', type: $type, enum: $enum);
 
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-type-mismatch')
         ->and($findings[0]->level)->toBe(0)
-        ->and($findings[0]->message)->toContain('Status')
-        ->and($findings[0]->message)->toContain('integer')
-        ->and($findings[0]->message)->toContain('index 1');
-});
+        ->and($findings[0]->message)->toContain($type)
+        ->and($findings[0]->message)->toContain("index {$badIndex}");
+})->with([
+    'integer with a string'   => ['integer', [1, 'two', 3], 1],
+    'string with an int'      => ['string', ['red', 42], 1],
+    'number with a string'    => ['number', [1.5, 'high'], 1],
+    'boolean with an int'     => ['boolean', [true, 0], 1],
+]);
 
-it('emits no finding when all string enum values are strings', function (): void {
-    $field = makeFieldWithEnum('Color', 'string', ['red', 'green', 'blue']);
-    $context = makeContextForEnumTypeMismatch();
+it('skips fields without a usable type', function (?string $type, array $enum): void {
+    $field = OperationNodeFactory::makeField(name: 'Untyped', type: $type, enum: $enum);
 
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits a finding when a string enum contains an int', function (): void {
-    $field = makeFieldWithEnum('Color', 'string', ['red', 42]);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->message)->toContain('string')
-        ->and($findings[0]->message)->toContain('index 1');
-});
-
-it('accepts both int and float for number type', function (): void {
-    $field = makeFieldWithEnum('Score', 'number', [1, 2.5, 3]);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
-});
-
-it('emits a finding when a number enum contains a string', function (): void {
-    $field = makeFieldWithEnum('Score', 'number', [1.5, 'high']);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->message)->toContain('number');
-});
-
-it('emits no finding when all boolean enum values are bools', function (): void {
-    $field = makeFieldWithEnum('Toggle', 'boolean', [true, false]);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits a finding when a boolean enum contains an int', function (): void {
-    $field = makeFieldWithEnum('Toggle', 'boolean', [true, 0]);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->message)->toContain('boolean');
-});
-
-it('skips fields with no type declared', function (): void {
-    $field = makeFieldWithEnum('Untyped', null, ['a', 1, true]);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('skips fields with an unsupported type', function (): void {
-    $field = makeFieldWithEnum('Things', 'array', ['a', 'b']);
-    $context = makeContextForEnumTypeMismatch();
-
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'no type'           => [null, ['a', 1, true]],
+    'unsupported type'  => ['array', ['a', 'b']],
+]);
 
 it('emits multiple findings for multiple mismatched values', function (): void {
-    $field = makeFieldWithEnum('Mixed', 'integer', ['one', 2, 'three']);
-    $context = makeContextForEnumTypeMismatch();
+    $field = OperationNodeFactory::makeField(name: 'Mixed', type: 'integer', enum: ['one', 2, 'three']);
 
-    $findings = iterator_to_array((new SchemaEnumTypeMismatch())->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(2);
 });

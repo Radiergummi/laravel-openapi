@@ -9,62 +9,10 @@
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\RequestBodyExampleMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ExampleNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\RequestBodyNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeRequestBodyExampleMissingContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(
-            operations: [],
-            components: [],
-            webhooks: [],
-            declaredTags: [],
-            tagDescriptions: [],
-            raw: $spec,
-        ),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
-/**
- * @param list<ExampleNode> $examples
- */
-function makeRequestBodyExampleMissingNode(array $examples = []): RequestBodyNode
-{
-    return new RequestBodyNode(
-        contentTypes: ['application/json'],
-        required: true,
-        fields: [],
-        examples: $examples,
-        schemaRef: null,
-        description: 'The payload.',
-        raw: null,
-    );
-}
-
-function makeRequestBodyExampleNode(): ExampleNode
-{
-    return new ExampleNode(
-        name: 'default',
-        value: ['name' => 'Acme Corp'],
-        summary: null,
-        description: null,
-        raw: null,
-    );
-}
 
 it('has the correct rule id and level', function (): void {
     $rule = new RequestBodyExampleMissing();
@@ -75,10 +23,11 @@ it('has the correct rule id and level', function (): void {
 
 it('emits a finding when a request body has no examples', function (): void {
     $rule = new RequestBodyExampleMissing();
-    $requestBody = makeRequestBodyExampleMissingNode(examples: []);
-    $context = makeRequestBodyExampleMissingContext();
+    $requestBody = OperationNodeFactory::makeRequestBody(description: 'The payload.');
 
-    $findings = iterator_to_array($rule->checkRequestBody($requestBody, $context));
+    $findings = iterator_to_array(
+        $rule->checkRequestBody($requestBody, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('request-body.example-missing')
@@ -87,12 +36,14 @@ it('emits a finding when a request body has no examples', function (): void {
 
 it('emits no finding when a request body has examples', function (): void {
     $rule = new RequestBodyExampleMissing();
-    $requestBody = makeRequestBodyExampleMissingNode(
-        examples: [makeRequestBodyExampleNode()],
+    $requestBody = OperationNodeFactory::makeRequestBody(
+        examples: [OperationNodeFactory::makeExample(value: ['name' => 'Acme Corp'])],
+        description: 'The payload.',
     );
-    $context = makeRequestBodyExampleMissingContext();
 
-    $findings = iterator_to_array($rule->checkRequestBody($requestBody, $context));
+    $findings = iterator_to_array(
+        $rule->checkRequestBody($requestBody, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });

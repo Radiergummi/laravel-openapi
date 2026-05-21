@@ -10,47 +10,10 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\SchemaEnumEmpty;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
-
-function makeEnumEmptyContext(): LintContext
-{
-    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
-function makeFieldWithEmptyEnum(?array $enum): FieldNode
-{
-    return new FieldNode(
-        name: 'status',
-        type: 'string',
-        required: false,
-        nullable: false,
-        description: null,
-        format: null,
-        example: null,
-        enum: $enum,
-        children: [],
-        examples: [],
-        ref: null,
-        raw: null,
-    );
-}
-
-// ---- id / level ------------------------------------------------------------
 
 it('reports its id and level', function (): void {
     $rule = new SchemaEnumEmpty();
@@ -59,86 +22,65 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(1);
 });
 
-// ---- FieldRule — positive --------------------------------------------------
-
 it('emits a finding for a field schema with an empty enum array', function (): void {
-    $field = makeFieldWithEmptyEnum([]);
-    $context = makeEnumEmptyContext();
+    $field = OperationNodeFactory::makeField(name: 'status', enum: []);
 
-    $findings = iterator_to_array((new SchemaEnumEmpty())->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new SchemaEnumEmpty())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-empty')
         ->and($findings[0]->level)->toBe(1);
 });
 
-// ---- FieldRule — negative --------------------------------------------------
+it('emits no finding for a field whose enum is non-empty or absent', function (?array $enum): void {
+    $field = OperationNodeFactory::makeField(name: 'status', enum: $enum);
 
-it('emits no finding for a field with a non-empty enum', function (): void {
-    $field = makeFieldWithEmptyEnum(['a', 'b']);
-    $context = makeEnumEmptyContext();
-
-    $findings = iterator_to_array((new SchemaEnumEmpty())->checkField($field, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding for a field with no enum key (null)', function (): void {
-    $field = makeFieldWithEmptyEnum(null);
-    $context = makeEnumEmptyContext();
-
-    $findings = iterator_to_array((new SchemaEnumEmpty())->checkField($field, $context));
+    $findings = iterator_to_array(
+        (new SchemaEnumEmpty())->checkField($field, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
-});
-
-// ---- ComponentSchemaRule — positive ----------------------------------------
+})->with([
+    'non-empty enum' => [['a', 'b']],
+    'null enum'      => [null],
+]);
 
 it('emits a finding for a component schema with an empty enum array', function (): void {
     $raw = new OA\Schema([]);
     $raw->enum = [];
 
-    $node = new ComponentSchemaNode(
-        name: 'Status',
-        description: null,
-        fields: [],
-        raw: $raw,
-    );
+    $node = OperationNodeFactory::makeComponentSchema(name: 'Status', raw: $raw);
 
-    $findings = iterator_to_array((new SchemaEnumEmpty())->checkComponentSchema($node, makeEnumEmptyContext()));
+    $findings = iterator_to_array(
+        (new SchemaEnumEmpty())->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-empty')
         ->and($findings[0]->level)->toBe(1);
 });
 
-// ---- ComponentSchemaRule — negative ----------------------------------------
-
 it('emits no finding for a component schema with a non-empty enum', function (): void {
     $raw = new OA\Schema([]);
     $raw->enum = ['active', 'inactive'];
 
-    $node = new ComponentSchemaNode(
-        name: 'Status',
-        description: null,
-        fields: [],
-        raw: $raw,
-    );
+    $node = OperationNodeFactory::makeComponentSchema(name: 'Status', raw: $raw);
 
-    $findings = iterator_to_array((new SchemaEnumEmpty())->checkComponentSchema($node, makeEnumEmptyContext()));
+    $findings = iterator_to_array(
+        (new SchemaEnumEmpty())->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });
 
 it('emits no finding for a component schema without an enum key', function (): void {
-    $node = new ComponentSchemaNode(
-        name: 'Status',
-        description: null,
-        fields: [],
-        raw: null,
-    );
+    $node = OperationNodeFactory::makeComponentSchema(name: 'Status');
 
-    $findings = iterator_to_array((new SchemaEnumEmpty())->checkComponentSchema($node, makeEnumEmptyContext()));
+    $findings = iterator_to_array(
+        (new SchemaEnumEmpty())->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
+    );
 
     expect($findings)->toBe([]);
 });

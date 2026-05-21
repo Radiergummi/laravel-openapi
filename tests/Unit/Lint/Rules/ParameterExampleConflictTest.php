@@ -12,36 +12,19 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\ParameterExampleConflict;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ExampleNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-function makeExampleConflictContext(): LintContext
-{
-    $spec = new OA\OpenApi(['_context' => new Context()]);
-
-    return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
-        index: TreeIndex::empty(),
-        rawSpec: $spec,
-        actionDescriptors: [],
-        suppressions: [],
-    );
-}
-
 /**
- * Build a ParameterNode wrapping an OA\Parameter with the given example/examples state.
+ * Build a `ParameterNode` wrapping an `OA\Parameter` with the given example/examples state.
  *
- * @param mixed $example  Pass Generator::UNDEFINED for absent, or any value for present.
- * @param mixed $examples Pass Generator::UNDEFINED for absent, or an array for present.
+ * Pass `Generator::UNDEFINED` for absent fields; pass any value for present.
  */
-function makeParameterNodeWithExamples(mixed $example, mixed $examples): ParameterNode
+function makeParameterWithExamples(mixed $example, mixed $examples): ParameterNode
 {
     $oaParam = new OA\PathParameter([
         '_context' => new Context(),
@@ -52,7 +35,7 @@ function makeParameterNodeWithExamples(mixed $example, mixed $examples): Paramet
 
     $exampleNodes = [];
 
-    if ($examples !== Generator::UNDEFINED && is_array($examples)) {
+    if (is_array($examples)) {
         foreach ($examples as $ex) {
             if ($ex instanceof OA\Examples) {
                 $exampleNodes[] = new ExampleNode(
@@ -66,35 +49,27 @@ function makeParameterNodeWithExamples(mixed $example, mixed $examples): Paramet
         }
     }
 
-    $node = new ParameterNode(
+    $param = OperationNodeFactory::makeParameter(
         name: 'id',
-        required: true,
-        schema: 'string',
-        description: null,
-        pattern: null,
         examples: $exampleNodes,
         raw: $oaParam,
     );
 
-    $operation = new OperationNode(
+    OperationNodeFactory::makeOperation(
         pathUri: '/items/{id}',
-        method: 'GET',
-        operationId: null,
-        summary: null,
-        description: null,
-        deprecated: false,
-        parameters: [$node],
-        queryParameters: [],
-        requestBody: null,
-        responses: [],
-        security: [],
-        tags: [],
-        descriptor: null,
-        raw: new OA\Get(['_context' => new Context()]),
+        parameters: [$param],
     );
-    $node->linkParent($operation);
 
-    return $node;
+    return $param;
+}
+
+function oaExample(string $name = 'default', string $value = '123'): OA\Examples
+{
+    return new OA\Examples([
+        '_context' => new Context(),
+        'example' => $name,
+        'value' => $value,
+    ]);
 }
 
 it('reports its id, level, and description', function (): void {
@@ -107,19 +82,12 @@ it('reports its id, level, and description', function (): void {
 
 it('emits one finding when parameter has both example and examples set', function (): void {
     $rule = new ParameterExampleConflict();
-    $context = makeExampleConflictContext();
-
-    $oaExample = new OA\Examples([
-        '_context' => new Context(),
-        'example' => 'default',
-        'value' => '123',
-    ]);
-    $node = makeParameterNodeWithExamples(
+    $node = makeParameterWithExamples(
         example: 'abc',
-        examples: [$oaExample],
+        examples: [oaExample()],
     );
 
-    $findings = iterator_to_array($rule->checkParameter($node, $context));
+    $findings = iterator_to_array($rule->checkParameter($node, OperationNodeFactory::emptyContext()));
 
     expect($findings)
         ->toHaveCount(1)
@@ -127,69 +95,24 @@ it('emits one finding when parameter has both example and examples set', functio
         ->and($findings[0]->level)->toBe(1);
 });
 
-it('emits no finding when only example (singular) is set', function (): void {
+it('emits no finding when at most one of example/examples is set', function (mixed $example, mixed $examples): void {
     $rule = new ParameterExampleConflict();
-    $context = makeExampleConflictContext();
+    $node = makeParameterWithExamples($example, $examples);
 
-    $node = makeParameterNodeWithExamples(
-        example: 'abc',
-        examples: Generator::UNDEFINED,
-    );
-
-    $findings = iterator_to_array($rule->checkParameter($node, $context));
+    $findings = iterator_to_array($rule->checkParameter($node, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
-});
-
-it('emits no finding when only examples (plural) is set', function (): void {
-    $rule = new ParameterExampleConflict();
-    $context = makeExampleConflictContext();
-
-    $oaExample = new OA\Examples([
-        '_context' => new Context(),
-        'example' => 'default',
-        'value' => '123',
-    ]);
-    $node = makeParameterNodeWithExamples(
-        example: Generator::UNDEFINED,
-        examples: [$oaExample],
-    );
-
-    $findings = iterator_to_array($rule->checkParameter($node, $context));
-
-    expect($findings)->toBe([]);
-});
-
-it('emits no finding when neither example nor examples is set', function (): void {
-    $rule = new ParameterExampleConflict();
-    $context = makeExampleConflictContext();
-
-    $node = makeParameterNodeWithExamples(
-        example: Generator::UNDEFINED,
-        examples: Generator::UNDEFINED,
-    );
-
-    $findings = iterator_to_array($rule->checkParameter($node, $context));
-
-    expect($findings)->toBe([]);
-});
+})->with([
+    'only example (singular)' => ['abc', Generator::UNDEFINED],
+    'only examples (plural)' => [Generator::UNDEFINED, [oaExample()]],
+    'neither set' => [Generator::UNDEFINED, Generator::UNDEFINED],
+]);
 
 it('emits no finding when raw is null (no OA\\Parameter available)', function (): void {
     $rule = new ParameterExampleConflict();
-    $context = makeExampleConflictContext();
+    $node = OperationNodeFactory::makeParameter(name: 'id');
 
-    // ParameterNode without a raw OA\Parameter (edge case)
-    $node = new ParameterNode(
-        name: 'id',
-        required: true,
-        schema: 'string',
-        description: null,
-        pattern: null,
-        examples: [],
-        raw: null,
-    );
-
-    $findings = iterator_to_array($rule->checkParameter($node, $context));
+    $findings = iterator_to_array($rule->checkParameter($node, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toBe([]);
 });
