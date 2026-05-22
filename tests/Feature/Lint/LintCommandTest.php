@@ -159,6 +159,44 @@ it('lists the rule catalog as Markdown with --list', function (): void {
         ->assertExitCode(0);
 })->group('openapi', 'lint');
 
+it('tags per-spec findings with the spec name', function (): void {
+    config([
+        'openapi.specs' => [
+            'v1' => ['match' => ['prefix' => 'lint-fixtures/broken*']],
+        ],
+    ]);
+
+    // Rebuild scoped bindings so SpecRegistry picks up the new config.
+    $this->app->forgetScopedInstances();
+
+    $result = app(Radiergummi\OpenApi\Core\Lint\LintRunner::class)
+        ->run(new Radiergummi\OpenApi\Core\Lint\LintOptions(
+            level: 2,
+            path: 'lint-fixtures/broken*',
+        ));
+
+    $specs = array_unique(array_map(static fn($f) => $f->spec, $result->findings));
+    // Findings from per-spec rules are tagged with the spec name, not null.
+    expect($specs)->not->toContain(null);
+})->group('openapi', 'lint');
+
+it('--spec= restricts per-spec rules to the named spec', function (): void {
+    config([
+        'openapi.specs' => [
+            'v1' => ['match' => ['prefix' => 'lint-fixtures/broken*']],
+        ],
+    ]);
+
+    $this->app->forgetScopedInstances();
+
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--path'  => 'lint-fixtures/broken*',
+        '--spec'  => 'default',
+        '--format' => 'json',
+    ])->assertExitCode(1); // findings exist in default spec
+})->group('openapi', 'lint');
+
 it('cannot disable spec.invalid via config disabled_rules', function (): void {
     config(['openapi.lint.disabled_rules' => ['spec.invalid']]);
 

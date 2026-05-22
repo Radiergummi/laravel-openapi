@@ -53,6 +53,7 @@ final readonly class LintOptions implements Arrayable, JsonSerializable
         public bool $diffEnabled = false,
         public ?string $diffRef = null,
         public bool $applySuppressions = true,
+        public ?string $spec = null,
     ) {}
 
     /**
@@ -68,6 +69,7 @@ final readonly class LintOptions implements Arrayable, JsonSerializable
             'diffEnabled' => $this->diffEnabled,
             'diffRef' => $this->diffRef,
             'applySuppressions' => $this->applySuppressions,
+            'spec' => $this->spec,
         ];
     }
 

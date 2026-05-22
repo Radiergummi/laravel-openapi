@@ -61,7 +61,8 @@ use function sprintf;
         {--path= : Restrict to routes matching this URI glob}
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the repository default branch)}
         {--no-suppress : Ignore #[IgnoreLint] attributes}
-        {--list : Print the rule catalog instead of linting}')]
+        {--list : Print the rule catalog instead of linting}
+        {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}')]
 #[Description('Lint OpenAPI documentation gaps across the API surface')]
 class LintCommand extends Command
 {
@@ -116,6 +117,7 @@ class LintCommand extends Command
             diffEnabled: $this->input->hasParameterOption('--diff'),
             diffRef: is_string($diffRef) && $diffRef !== '' ? $diffRef : null,
             applySuppressions: !$this->option('no-suppress'),
+            spec: $this->option('spec') ?: null,
         );
     }
 

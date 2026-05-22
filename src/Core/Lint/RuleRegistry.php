@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Lint;
 
 use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule;
 use Traversable;
 
 use function array_map;
@@ -48,6 +49,15 @@ final class RuleRegistry
     public function all(): array
     {
         return $this->rules;
+    }
+
+    /** @return list<PreBuildRule> */
+    public function preBuildRules(): array
+    {
+        return array_values(array_filter(
+            $this->rules,
+            static fn(Rule $rule): bool => $rule instanceof PreBuildRule,
+        ));
     }
 
     /**
