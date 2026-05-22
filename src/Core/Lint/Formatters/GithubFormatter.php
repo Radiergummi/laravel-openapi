@@ -66,7 +66,9 @@ final class GithubFormatter implements Formatter
 
     private function buildBody(Finding $finding): string
     {
-        $body = $finding->message;
+        $body = $finding->spec !== null
+            ? "[spec:{$finding->spec}] {$finding->message}"
+            : $finding->message;
 
         if ($finding->fixHint !== null) {
             // Strip trailing period from message to avoid double period before ". Fix: …"

@@ -70,22 +70,49 @@ final class CliFormatter implements Formatter
         int $exitCode,
         OutputInterface $output,
     ): void {
-        $grouped = $this->groupByFile($findings);
+        $bySpec = $this->groupBySpec($findings);
+        $multiSpec = count($bySpec) > 1;
 
-        // Render findings without a source location first
-        if (isset($grouped[''])) {
-            $this->renderFileGroup(null, $grouped[''], $output);
-            unset($grouped['']);
-        }
+        foreach ($bySpec as $specName => $specFindings) {
+            if ($multiSpec) {
+                $output->writeln(['', "── spec: {$specName} ──"]);
+            }
 
-        // Render remaining groups sorted alphabetically by file path
-        ksort($grouped);
+            $grouped = $this->groupByFile($specFindings);
 
-        foreach ($grouped as $file => $group) {
-            $this->renderFileGroup($file, $group, $output);
+            // Render findings without a source location first
+            if (isset($grouped[''])) {
+                $this->renderFileGroup(null, $grouped[''], $output);
+                unset($grouped['']);
+            }
+
+            // Render remaining groups sorted alphabetically by file path
+            ksort($grouped);
+
+            foreach ($grouped as $file => $group) {
+                $this->renderFileGroup($file, $group, $output);
+            }
         }
 
         $this->renderSummary(new LinterSummary($findings, $level), $output);
+    }
+
+    /**
+     * @param list<Finding> $findings
+     *
+     * @return array<string, list<Finding>>
+     */
+    private function groupBySpec(array $findings): array
+    {
+        /** @var array<string, list<Finding>> $grouped */
+        $grouped = [];
+
+        foreach ($findings as $finding) {
+            $key = $finding->spec ?? '(pre-build)';
+            $grouped[$key][] = $finding;
+        }
+
+        return $grouped;
     }
 
     /**
