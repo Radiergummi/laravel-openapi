@@ -4,6 +4,22 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Changed
+- **Documentation restructure.** The single 1,335-line `docs/usage.md` is split
+  into per-concept pages under `docs/`: `getting-started.md`,
+  `auto-derivation.md`, `request-bodies.md`, `attributes.md`, `recipes.md`,
+  `plugins.md`, `linting.md`, `extensions.md`, `plugin-authoring.md`,
+  `config.md`, `troubleshooting.md`, `architecture.md`, plus a `docs/README.md`
+  index. The README is refreshed with the auto-derivation pitch, a comparison
+  table vs. l5-swagger/vyuldashev/Scramble, and links to the new pages.
+  `docs/usage.md` is removed; existing deep links to anchors in that file
+  need to be updated to point at the new pages.
+- `#[ResponseHeader]` attribute is now documented in `docs/attributes.md`
+  (previously missing from the catalog).
+- Internal `docs/test-cleanup.md` working tracker moved to
+  `docs/internal/test-cleanup.md` so user-facing `docs/` only contains
+  user-facing pages.
+
 ### Added
 - `#[Expose]` attribute (`src/Core/Attributes/Expose.php`) — opt routes into the
   generated document when the new hidden-default mode is active. Mirrors

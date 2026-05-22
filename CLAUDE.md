@@ -72,8 +72,9 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 - Every PHP file has a strict-types declaration and the MIT/copyright docblock header.
 - `src/Core/` must not depend on any plugin or third-party convention package — plugin-specific
   code belongs in `src/Plugins/`.
-- Behaviour changes need test updates, a `docs/usage.md` update if observable, and a
-  `CHANGELOG.md` entry under `[Unreleased]`.
+- Behaviour changes need test updates, an update to the relevant page under `docs/`
+  if observable (see `docs/README.md` for the page index), and a `CHANGELOG.md`
+  entry under `[Unreleased]`.
 - Authoring attributes live in `src/Core/Attributes/`; they are the escape hatch for cases
   convention cannot derive.
 

@@ -34,8 +34,9 @@ PHPStan runs at level 8 with `treatPhpDocTypesAsCertain` disabled and is a **har
 - Branch off `main`; use a short descriptive branch name.
 - Keep changes focused — one logical change per PR.
 - Add or update tests for any behaviour change.
-- Update `docs/usage.md` if you change observable behaviour, and `CHANGELOG.md` under an
-  `[Unreleased]` section.
+- Update the relevant page under `docs/` if you change observable behaviour
+  (see [`docs/README.md`](docs/README.md) for the index), and `CHANGELOG.md`
+  under an `[Unreleased]` section.
 
 ## CI
 
