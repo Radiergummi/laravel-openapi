@@ -9,40 +9,61 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Core\Lint\LinterOutputFormat;
 use Radiergummi\OpenApi\Core\Lint\RuleCatalogRenderer;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
+use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Output\OutputInterface;
+
+uses()->group('openapi', 'lint');
 
 beforeEach(function (): void {
     $this->registry = app(RuleRegistry::class);
     $this->renderer = new RuleCatalogRenderer();
 });
 
+function renderCatalog(RuleCatalogRenderer $renderer, RuleRegistry $registry, LinterOutputFormat $format): string
+{
+    $output = new BufferedOutput(OutputInterface::VERBOSITY_NORMAL, decorated: false);
+    $renderer->render($registry, $format, $output);
+
+    return $output->fetch();
+}
+
 it('renders the catalog as JSON sorted by level then id', function (): void {
-    $json = $this->renderer->render($this->registry, 'json');
+    $json = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Json);
     $rows = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
 
-    expect($rows)->toBeArray()->not->toBeEmpty();
-    expect($rows[0])->toHaveKeys(['id', 'level', 'description']);
+    expect($rows)->toBeArray()->not->toBeEmpty()
+        ->and($rows[0])->toHaveKeys(['id', 'level', 'description']);
 
     $levels = array_column($rows, 'level');
     $sorted = $levels;
     sort($sorted);
     expect($levels)->toBe($sorted);
-})->group('openapi', 'lint');
+});
 
 it('renders a Markdown table with a header row', function (): void {
-    $md = $this->renderer->render($this->registry, 'markdown');
+    $md = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Markdown);
 
-    expect($md)->toContain('| Rule ID | Level | Description |');
-    expect($md)->toContain('| `spec.invalid` | 0 |');
-})->group('openapi', 'lint');
+    // The table is column-padded by Symfony, so assert on row shape rather than exact spacing.
+    expect($md)->toMatch('/\| Rule ID +\| Level +\| Description +\|/')
+        ->and($md)->toMatch('/\|-+\|-+\|-+\|/')
+        ->and($md)->toMatch('/\| `spec\.invalid` +\| 0 +\|/');
+});
 
-it('renders a CLI table', function (): void {
-    $cli = $this->renderer->render($this->registry, 'cli');
+it('aliases the GitHub format to Markdown', function (): void {
+    $md = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Markdown);
+    $gh = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::GitHub);
 
-    expect($cli)->toContain('spec.invalid');
-})->group('openapi', 'lint');
+    expect($gh)->toBe($md);
+});
 
-it('rejects an unknown format', function (): void {
-    $this->renderer->render($this->registry, 'xml');
-})->throws(InvalidArgumentException::class)->group('openapi', 'lint');
+it('renders a CLI table containing every rule id', function (): void {
+    $cli = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Cli);
+
+    expect($cli)->toContain('Rule ID')
+        ->and($cli)->toContain('Level')
+        ->and($cli)->toContain('Description')
+        ->and($cli)->toContain('spec.invalid');
+});

@@ -31,6 +31,8 @@ use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
+use Radiergummi\OpenApi\Core\Lint\LintRouteFilter;
+use Radiergummi\OpenApi\Core\Lint\LintRunner;
 use Radiergummi\OpenApi\Core\Lint\LoggingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Core\Lint\Rules\ComponentNameNamingInconsistent;
@@ -263,6 +265,20 @@ class OpenApiServiceProvider extends ServiceProvider
             FindingsCollector::class,
             static fn(Container $app) => new LoggingFindingsCollector(
                 logger: $app->make(LoggerInterface::class),
+            ),
+        );
+
+        $this->app->scoped(LintRouteFilter::class, static fn(): LintRouteFilter => new LintRouteFilter());
+
+        $this->app->scoped(
+            LintRunner::class,
+            static fn(Container $app) => new LintRunner(
+                container: $app,
+                introspector: $app->make(RouteIntrospector::class),
+                registry: $app->make(RuleRegistry::class),
+                suppressionCollector: $app->make(SuppressionCollector::class),
+                openApiRegistry: $app->make(OpenApiRegistry::class),
+                routeFilter: $app->make(LintRouteFilter::class),
             ),
         );
     }

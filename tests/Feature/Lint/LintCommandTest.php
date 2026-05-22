@@ -150,8 +150,12 @@ it('lists the rule catalog as JSON with --list', function (): void {
 })->group('openapi', 'lint');
 
 it('lists the rule catalog as Markdown with --list', function (): void {
+    // Each expectsOutputToContain consumes one doWrite call, so target three distinct
+    // lines: the header row, the separator row, and a known rule's body row.
     $this->artisan('openapi:lint', ['--list' => true, '--format' => 'markdown'])
-        ->expectsOutputToContain('| Rule ID | Level | Description |')
+        ->expectsOutputToContain('| Rule ID')
+        ->expectsOutputToContain('|---')
+        ->expectsOutputToContain('| `spec.invalid`')
         ->assertExitCode(0);
 })->group('openapi', 'lint');
 
