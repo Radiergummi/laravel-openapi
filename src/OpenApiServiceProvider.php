@@ -26,6 +26,7 @@ use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
@@ -657,6 +658,14 @@ class OpenApiServiceProvider extends ServiceProvider
                 operationBuilder: $app->make(OperationBuilder::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
                 evaluator: $app->make(InclusionEvaluator::class),
+            ),
+        );
+
+        $this->app->scoped(
+            OpenApiGenerationOrchestrator::class,
+            static fn(Container $app) => new OpenApiGenerationOrchestrator(
+                container: $app,
+                registry: $app->make(SpecRegistry::class),
             ),
         );
     }
