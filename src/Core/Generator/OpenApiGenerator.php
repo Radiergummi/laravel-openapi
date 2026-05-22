@@ -94,10 +94,6 @@ final readonly class OpenApiGenerator
      */
     private function assembleDocument(array $filters): OA\OpenApi
     {
-        $this->schemaRegistry->reset();
-        $this->operationBuilder->reset();
-        $this->introspector->reset();
-
         /** @var array<string, OA\PathItem> $pathItems Keyed by URI path */
         $pathItems = [];
 

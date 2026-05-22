@@ -64,9 +64,6 @@ use function assert;
  * 4. {@see TagAttribute}s (class + method) — merged onto the tag set from steps 1–3.
  * 5. {@see ResponseAttribute}s (method only) — appended to the responses list.
  * 6. PHP 8.4 native `Deprecated` (method, else class) — sets `deprecated: true`.
- *
- * {@see reset()} must be called at the start of each generation run to flush per-run state in
- * {@see ExampleFileLoader} (Octane safety).
  */
 final readonly class OperationBuilder
 {
@@ -90,11 +87,6 @@ final readonly class OperationBuilder
          */
         private array $primaryResponseResolvers = [],
     ) {}
-
-    public function reset(): void
-    {
-        $this->fileLoader->reset();
-    }
 
     /** @return list<OA\SecurityScheme> */
     public function buildSecuritySchemes(): array

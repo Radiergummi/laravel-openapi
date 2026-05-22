@@ -347,25 +347,6 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Resets all accumulated state.
-     *
-     * Under the current `scoped` container binding each generation run receives a fresh instance,
-     * so this method is a no-op in normal operation. It is retained for call sites in
-     * {@see OpenApiGenerator::generate()} (belt-and-suspenders) and for test isolation.
-     */
-    public function reset(): void
-    {
-        $this->schemas = [];
-        $this->responses = [];
-        $this->classToKey = [];
-        $this->keyToClass = [];
-        $this->inProgress = [];
-        $this->compiledFields = [];
-        $this->compiledItemsFields = [];
-        $this->hasFileFields = [];
-    }
-
-    /**
      * Derives a unique, human-readable component key for `$className`.
      *
      * 1. Try the bare basename (e.g. `CreateData`).

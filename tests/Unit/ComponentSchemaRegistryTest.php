@@ -144,17 +144,3 @@ it('produces a valid (no leading dot) key when all namespace segments are generi
 });
 
 // endregion
-
-// region reset()
-
-it('clears all keys after reset()', function (): void {
-    $registry = new ComponentSchemaRegistry();
-
-    $registry->reserveKey(ProjectsCreateData::class);
-    $registry->reset();
-
-    expect($registry->isRegisteredOrReserved(ProjectsCreateData::class))->toBeFalse()
-        ->and($registry->keyFor(ProjectsCreateData::class))->toBeNull();
-});
-
-// endregion

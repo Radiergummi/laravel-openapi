@@ -82,11 +82,6 @@ final class ThrowsExtractor
         return $fqcns;
     }
 
-    public function reset(): void
-    {
-        $this->contextCache = [];
-    }
-
     private function contextFor(Reflector $reflector): Context
     {
         $fileName = $this->fileNameFor($reflector);

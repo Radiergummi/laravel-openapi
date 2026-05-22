@@ -53,7 +53,7 @@ it('serialises to both YAML and JSON', function (): void {
         ->toHaveKey('paths');
 });
 
-it('does not leak component schemas between runs', function (): void {
+it('does not leak component schemas between scopes', function (): void {
     // First run: register a route, generate the document, drop something into the registry.
     Route::get('/things', [SmokeController::class, 'plain']);
     app(OpenApiGenerator::class)->generate();
@@ -63,10 +63,11 @@ it('does not leak component schemas between runs', function (): void {
 
     expect($registry->hasKey('LeakedSchema'))->toBeTrue();
 
-    // A fresh generation run must call reset() on the registry, clearing the leak.
-    app(OpenApiGenerator::class)->generate();
+    // A fresh scope (the boundary Octane resets between requests) yields fresh
+    // instances of every scoped pipeline binding, including the registry.
+    app()->forgetScopedInstances();
 
-    expect($registry->hasKey('LeakedSchema'))->toBeFalse();
+    expect(app(ComponentSchemaRegistry::class)->hasKey('LeakedSchema'))->toBeFalse();
 });
 
 it('respects additional filters passed to generate()', function (): void {

@@ -36,11 +36,6 @@ final readonly class RouteIntrospector
         private array $filters,
     ) {}
 
-    public function reset(): void
-    {
-        $this->throwsExtractor->reset();
-    }
-
     /**
      * @return Generator<int, ActionDescriptor>
      *

@@ -23,8 +23,9 @@ use const JSON_THROW_ON_ERROR;
 /**
  * Resolves `file:`-based example payloads at spec-generation time.
  *
- * Loaded files are cached for the duration of a single generation run. Call {@see reset()} at the
- * start of each run (Octane safety).
+ * Loaded files are cached for the duration of a single generation run. The class is bound as
+ * `scoped` in {@see OpenApiServiceProvider}, so each scope (each request under Octane) receives
+ * a fresh instance.
  */
 final class ExampleFileLoader
 {
@@ -67,18 +68,5 @@ final class ExampleFileLoader
         $this->cache[$relativePath] = $decoded;
 
         return $decoded;
-    }
-
-    /**
-     * Resets the per-run file cache.
-     *
-     * Under Octane the container is long-lived, so `scoped` bindings are re-created per request
-     * rather than per process. This method exists so that callers (and tests) can explicitly
-     * flush accumulated state when a fresh generation run starts, independent of the binding
-     * lifecycle.
-     */
-    public function reset(): void
-    {
-        $this->cache = [];
     }
 }
