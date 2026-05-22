@@ -16,6 +16,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -45,10 +46,10 @@ final class DocsController extends Controller
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    public function spec(OpenApiGenerator $generator, Request $request): BinaryFileResponse|Response
+    public function spec(OpenApiGenerator $generator, SpecRegistry $registry, Request $request): BinaryFileResponse|Response
     {
         if ((string) config('app.env', 'production') === 'local') {
-            return response($generator->generate()->toYaml(), 200, [
+            return response($generator->generate($registry->default(), app()->environment())->toYaml(), 200, [
                 'Content-Type' => 'application/yaml',
                 'Cache-Control' => 'no-store',
             ]);

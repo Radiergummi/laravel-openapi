@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\TestCase;
 use Symfony\Component\Yaml\Yaml;
 
@@ -23,13 +24,17 @@ function reflectFunctionParameter(Closure $fn, string $name): ReflectionParamete
 }
 
 /**
- * Runs the generator and returns the rendered OpenAPI document as a parsed array.
- *
- * @param array<int, callable(Radiergummi\OpenApi\Core\Routing\ActionDescriptor): bool> $filters
+ * Runs the generator against the named spec (or the default) and returns the rendered
+ * OpenAPI document as a parsed array.
  *
  * @return array<string, mixed>
  */
-function generateSpec(array $filters = []): array
+function generateSpec(?string $specName = null, string $environment = 'testing'): array
 {
-    return Yaml::parse(app(OpenApiGenerator::class)->generate($filters)->toYaml());
+    $registry = app(SpecRegistry::class);
+    $spec = $specName === null ? $registry->default() : $registry->get($specName);
+
+    $env = $environment !== 'testing' ? $environment : app()->environment();
+
+    return Yaml::parse(app(OpenApiGenerator::class)->generate($spec, $env)->toYaml());
 }

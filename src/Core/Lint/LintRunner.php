@@ -22,6 +22,7 @@ use Radiergummi\OpenApi\Core\Lint\Tree\SpecTreeBuilder;
 use Radiergummi\OpenApi\Core\Lint\Tree\SpecTreeWalker;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\Process\Exception\LogicException;
@@ -104,8 +105,6 @@ final readonly class LintRunner
      */
     private function runWithCollector(LintOptions $options, ArrayFindingsCollector $collector): LintResult
     {
-        $generator = $this->container->make(OpenApiGenerator::class);
-
         $descriptors = [];
 
         foreach ($this->introspector->discover() as $descriptor) {
@@ -119,13 +118,54 @@ final readonly class LintRunner
             diffRef: $options->diffRef,
         );
 
-        $generatorFilters = $this->routeFilter->buildGeneratorFilters(
-            descriptors: $descriptors,
-            path: $options->path,
-            diffEnabled: $options->diffEnabled,
+        // Build an allow-set of route signatures from the already-filtered descriptors so that
+        // the generator only processes routes that passed the lint path/diff filter. Wrap it as
+        // a RouteFilter and construct a one-off InclusionEvaluator + OpenApiGenerator directly —
+        // without forgetScopedInstances() — so the already-installed ArrayFindingsCollector
+        // survives. This is a temporary bridge until LintRunner grows its own per-spec
+        // generation loop in phase F.
+        $allowedSignatures = array_flip(array_map(
+            static fn(\Radiergummi\OpenApi\Core\Routing\ActionDescriptor $d): string
+                => $d->route->uri() . '|' . implode(',', $d->route->methods()),
+            $descriptors,
+        ));
+
+        $pathFilter = new class ($allowedSignatures) implements \Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter {
+            /** @param array<string, int> $allowed */
+            public function __construct(private readonly array $allowed) {}
+
+            public function shouldSkip(\Illuminate\Routing\Route $route): bool
+            {
+                $sig = $route->uri() . '|' . implode(',', $route->methods());
+
+                return !isset($this->allowed[$sig]);
+            }
+        };
+
+        // Build a one-off evaluator that merges the path filter with any config-level filters.
+        $baseFilters = array_values(array_map(
+            function (mixed $entry): \Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter {
+                return is_string($entry) ? $this->container->make($entry) : $entry;
+            },
+            (array) config('openapi.filters', []),
+        ));
+
+        $evaluator = new \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator(
+            globalFilters: [...$baseFilters, $pathFilter],
+            matcher: $this->container->make(\Radiergummi\OpenApi\Core\Spec\SpecMatcher::class),
+            specResolver: $this->container->make(\Radiergummi\OpenApi\Core\Spec\SpecResolver::class),
+            visibility: $this->container->make(\Radiergummi\OpenApi\Core\Visibility\VisibilityResolver::class),
         );
 
-        $spec = $generator->generate($generatorFilters);
+        $generator = new OpenApiGenerator(
+            introspector: $this->container->make(RouteIntrospector::class),
+            operationBuilder: $this->container->make(\Radiergummi\OpenApi\Core\Generator\OperationBuilder::class),
+            schemaRegistry: $this->container->make(\Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry::class),
+            evaluator: $evaluator,
+        );
+
+        $specDefinition = $this->container->make(SpecRegistry::class)->default();
+        $spec = $generator->generate($specDefinition, app()->environment());
         $suppressions = $this->suppressionCollector->collect($descriptors);
 
         $only = $this->resolveOnly($options->only);

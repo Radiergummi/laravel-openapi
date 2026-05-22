@@ -16,6 +16,7 @@ use OpenApi\Analysis;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
@@ -61,9 +62,9 @@ class GenerateCommand extends Command
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    public function handle(): int
+    public function handle(SpecRegistry $registry): int
     {
-        $openapi = $this->generator->generate();
+        $openapi = $this->generator->generate($registry->default(), app()->environment());
 
         if (! $this->validate($openapi)) {
             return self::FAILURE;

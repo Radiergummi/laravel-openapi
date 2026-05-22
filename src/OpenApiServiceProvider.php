@@ -29,6 +29,7 @@ use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
+use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Core\Lint\LintRouteFilter;
@@ -56,6 +57,9 @@ use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
+use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use Radiergummi\OpenApi\Http\DocsController;
@@ -116,6 +120,7 @@ class OpenApiServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/openapi.php', 'openapi');
 
+        $this->registerSpec();
         $this->registerRouting();
         $this->registerRegistries();
         $this->registerLintRules();
@@ -651,8 +656,64 @@ class OpenApiServiceProvider extends ServiceProvider
                 introspector: $app->make(RouteIntrospector::class),
                 operationBuilder: $app->make(OperationBuilder::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
-                visibilityResolver: $app->make(VisibilityResolver::class),
+                evaluator: $app->make(InclusionEvaluator::class),
             ),
+        );
+    }
+
+    /**
+     * Binds the spec-related services: SpecMatcher, SpecResolver, SpecRegistry, InclusionEvaluator.
+     */
+    private function registerSpec(): void
+    {
+        $this->app->scoped(
+            SpecMatcher::class,
+            static fn() => new SpecMatcher(),
+        );
+
+        $this->app->scoped(
+            SpecResolver::class,
+            static fn() => new SpecResolver(),
+        );
+
+        $this->app->scoped(
+            SpecRegistry::class,
+            static function (): SpecRegistry {
+                $rootInfo = (array) config('openapi.info', []);
+                $rootInfo['title'] ??= (string) config('app.name', 'API');
+                $rootInfo['version'] ??= '0.0.0';
+
+                return new SpecRegistry(
+                    rootInfo: $rootInfo,
+                    rootServers: array_values((array) config('openapi.servers', [])),
+                    rootTags: (array) config('openapi.tags', []),
+                    rootOutputPath: (string) config('openapi.output_path'),
+                    rootRouteUri: (string) (config('openapi.routes.spec.uri') ?? 'openapi.yaml'),
+                    rootPlaygroundUri: (string) (config('openapi.routes.playground.uri') ?? 'docs'),
+                    specs: is_array(config('openapi.specs')) ? config('openapi.specs') : null,
+                    storagePath: storage_path(''),
+                );
+            },
+        );
+
+        $this->app->scoped(
+            InclusionEvaluator::class,
+            static function (Container $app): InclusionEvaluator {
+                $filterClasses = (array) config('openapi.filters', []);
+                $filters = array_values(array_map(
+                    static function (mixed $entry) use ($app): RouteFilter {
+                        return is_string($entry) ? $app->make($entry) : $entry;
+                    },
+                    $filterClasses,
+                ));
+
+                return new InclusionEvaluator(
+                    globalFilters: $filters,
+                    matcher: $app->make(SpecMatcher::class),
+                    specResolver: $app->make(SpecResolver::class),
+                    visibility: $app->make(VisibilityResolver::class),
+                );
+            },
         );
     }
 

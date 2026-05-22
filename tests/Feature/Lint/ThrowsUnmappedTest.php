@@ -12,6 +12,7 @@ declare(strict_types=1);
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\UnmappedException;
 
 uses()->group('openapi', 'lint');
@@ -30,7 +31,8 @@ it('emits throws.unmapped when @throws references an unmapped exception', functi
     $this->app->forgetScopedInstances();
     $this->app->instance(FindingsCollector::class, $collector);
 
-    $this->app->make(OpenApiGenerator::class)->generate();
+    $this->app->make(OpenApiGenerator::class)
+        ->generate($this->app->make(SpecRegistry::class)->default(), 'testing');
 
     $findings = collect($collector->all())
         ->filter(static fn($f) => $f->ruleId === 'throws.unmapped');

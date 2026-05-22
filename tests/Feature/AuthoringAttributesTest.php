@@ -226,10 +226,21 @@ it('carries the auto-derived summary onto the webhook operation', function (): v
 });
 
 it('omits a webhooks key when no routes carry #[Webhook]', function (): void {
-    // Re-generate while filtering out the inbound webhook route.
-    $spec = generateSpec(
-        [static fn($d): bool => $d->route->getActionName() === AuthoringFixtureController::class . '@inboundWebhookAction'],
-    );
+    // Re-generate while filtering out the inbound webhook route via config filter.
+    $target = AuthoringFixtureController::class . '@inboundWebhookAction';
+    config(['openapi.filters' => [
+        new class ($target) implements \Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter {
+            public function __construct(private readonly string $target) {}
+
+            public function shouldSkip(\Illuminate\Routing\Route $route): bool
+            {
+                return $route->getActionName() === $this->target;
+            }
+        },
+    ]]);
+    app()->forgetScopedInstances();
+
+    $spec = generateSpec();
 
     expect($spec)->not->toHaveKey('webhooks');
 });
@@ -237,6 +248,8 @@ it('omits a webhooks key when no routes carry #[Webhook]', function (): void {
 it('falls back to app name and 0.0.0 when openapi.info is not configured', function (): void {
     config()->set('openapi.info', null);
     config()->set('app.name', 'Test App');
+    // SpecRegistry is scoped and caches config at resolution time; forget so it re-reads.
+    app()->forgetScopedInstances();
 
     $spec = generateSpec();
 
@@ -256,6 +269,8 @@ it('reads info, servers, and tags from config', function (): void {
     config()->set('openapi.tags', [
         'Projects' => ['description' => 'Sourcing project management.'],
     ]);
+    // SpecRegistry is scoped and caches config at resolution time; forget so it re-reads.
+    app()->forgetScopedInstances();
 
     $spec = generateSpec();
 

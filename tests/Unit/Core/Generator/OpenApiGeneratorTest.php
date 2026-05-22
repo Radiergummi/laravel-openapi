@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Unit\Core\Generator\Fixtures\SmokeController;
 use Symfony\Component\Yaml\Yaml;
 
@@ -21,7 +22,8 @@ uses()->group('openapi');
 it('assembles a valid OpenAPI 3.1 document from a minimal route set', function (): void {
     Route::get('/things', [SmokeController::class, 'plain']);
 
-    $document = app(OpenApiGenerator::class)->generate();
+    $spec = app(SpecRegistry::class)->default();
+    $document = app(OpenApiGenerator::class)->generate($spec, 'testing');
 
     expect($document)->toBeInstanceOf(OA\OpenApi::class)
         ->and($document->openapi)->toBe('3.1.0')
@@ -37,7 +39,8 @@ it('assembles a valid OpenAPI 3.1 document from a minimal route set', function (
 it('serialises to both YAML and JSON', function (): void {
     Route::get('/things', [SmokeController::class, 'plain']);
 
-    $document = app(OpenApiGenerator::class)->generate();
+    $spec = app(SpecRegistry::class)->default();
+    $document = app(OpenApiGenerator::class)->generate($spec, 'testing');
 
     $yaml = $document->toYaml();
     $json = $document->toJson();
@@ -56,7 +59,8 @@ it('serialises to both YAML and JSON', function (): void {
 it('does not leak component schemas between scopes', function (): void {
     // First run: register a route, generate the document, drop something into the registry.
     Route::get('/things', [SmokeController::class, 'plain']);
-    app(OpenApiGenerator::class)->generate();
+    $spec = app(SpecRegistry::class)->default();
+    app(OpenApiGenerator::class)->generate($spec, 'testing');
 
     $registry = app(ComponentSchemaRegistry::class);
     $registry->registerNamed('LeakedSchema', new OA\Schema(['type' => 'object']));
@@ -70,13 +74,25 @@ it('does not leak component schemas between scopes', function (): void {
     expect(app(ComponentSchemaRegistry::class)->hasKey('LeakedSchema'))->toBeFalse();
 });
 
-it('respects additional filters passed to generate()', function (): void {
+it('excludes a route when a RouteFilter in config returns shouldSkip=true', function (): void {
     Route::get('/keep', [SmokeController::class, 'plain']);
     Route::get('/drop', [SmokeController::class, 'plain']);
 
-    $document = app(OpenApiGenerator::class)->generate(filters: [
-        static fn($descriptor): bool => $descriptor->route->uri() === 'drop',
-    ]);
+    // Register a filter via config — filters now live in the InclusionEvaluator, not generate().
+    config(['openapi.filters' => [
+        new class () implements Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter {
+            public function shouldSkip(Illuminate\Routing\Route $route): bool
+            {
+                return $route->uri() === 'drop';
+            }
+        },
+    ]]);
+
+    // Forget scoped instances so the InclusionEvaluator re-reads the config filter.
+    app()->forgetScopedInstances();
+
+    $spec = app(SpecRegistry::class)->default();
+    $document = app(OpenApiGenerator::class)->generate($spec, 'testing');
 
     $parsed = Yaml::parse($document->toYaml());
 

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 
 uses()->group('openapi', 'lint');
 
@@ -22,7 +23,8 @@ it('emits request.empty for POST/PUT/PATCH with no resolvable request body', fun
     $this->app->forgetScopedInstances();
     $this->app->instance(FindingsCollector::class, $collector);
 
-    $this->app->make(Radiergummi\OpenApi\Core\Generator\OpenApiGenerator::class)->generate();
+    $this->app->make(Radiergummi\OpenApi\Core\Generator\OpenApiGenerator::class)
+        ->generate($this->app->make(SpecRegistry::class)->default(), 'testing');
 
     $findings = collect($collector->all())
         ->filter(static fn($f) => $f->ruleId === 'request.empty' && $f->location->routeName === 'lint-test.empty-request');

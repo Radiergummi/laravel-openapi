@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi');
@@ -69,7 +70,7 @@ it('invokes a registered operation transformer for each assembled operation', fu
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($seen)->toContain('POST oa-ext/post')
         ->and($seen)->toContain('GET oa-ext/get');
@@ -99,7 +100,7 @@ it('passes the correct HTTP method in the operation context', function (): void 
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($methods)->toContain('POST')
         ->and($methods)->toContain('GET');
@@ -117,7 +118,7 @@ it('passes the correct controller class and method name in the operation context
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($seen['controller'])->toBe(ExtensionsFixtureController::class)
         ->and($seen['method'])->toBe('postAction');
@@ -136,7 +137,7 @@ it('invokes a registered schema transformer for each component schema', function
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     // ExtensionsFixtureData is the only Data class referenced, so its key must appear.
     expect($seenKeys)->toContain('ExtensionsFixtureData');
@@ -153,7 +154,7 @@ it('passes the source class in the schema context', function (): void {
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($seenClass)->toBe(ExtensionsFixtureData::class);
 });
@@ -186,7 +187,7 @@ it('invokes a registered document transformer exactly once', function (): void {
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($callCount)->toBe(1);
 });
@@ -226,7 +227,7 @@ it('runs multiple operation transformers in registration order', function (): vo
         },
     );
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($log)->toBe(['first', 'second']);
 });
@@ -246,7 +247,7 @@ it('flush() removes all registered transformers', function (): void {
 
     OpenApiExtensions::flush();
 
-    app(OpenApiGenerator::class)->generate();
+    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
     expect($called)->toBeFalse();
 });

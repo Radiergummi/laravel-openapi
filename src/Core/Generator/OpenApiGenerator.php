@@ -15,14 +15,13 @@ use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
 use Radiergummi\OpenApi\Core\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
+use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
+use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
@@ -51,32 +50,29 @@ final readonly class OpenApiGenerator
         private RouteIntrospector $introspector,
         private OperationBuilder $operationBuilder,
         private ComponentSchemaRegistry $schemaRegistry,
-        private VisibilityResolver $visibilityResolver,
+        private InclusionEvaluator $evaluator,
     ) {}
 
     /**
-     * Generates the OpenAPI document.
+     * Generates the OpenAPI document for the given spec definition and environment.
      *
      * The build runs with a swagger-php {@see Context} pinned to OpenAPI 3.1. swagger-php's
      * context defaults to 3.0, under which serialisation down-converts a 3.1 nullable type
      * union (`type: ['string', 'null']`) to the `nullable: true` keyword that 3.1 removed.
      * Installing a 3.1 context for the duration of the build keeps the 3.1 type-union form.
      *
-     * @param list<callable(ActionDescriptor): bool> $filters Additional filters applied on top
-     *                                                        of RouteIntrospector's defaults.
-     *
      * @throws ReflectionException
      * @throws RuntimeException
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    public function generate(array $filters = []): OA\OpenApi
+    public function generate(SpecDefinition $spec, string $environment): OA\OpenApi
     {
         $previousContext = Generator::$context;
         Generator::$context = new Context(['version' => OA\OpenApi::VERSION_3_1_0]);
 
         try {
-            return $this->assembleDocument($filters);
+            return $this->assembleDocument($spec, $environment);
         } finally {
             Generator::$context = $previousContext;
         }
@@ -85,14 +81,12 @@ final readonly class OpenApiGenerator
     /**
      * Builds and returns the OpenAPI document tree.
      *
-     * @param list<callable(ActionDescriptor): bool> $filters
-     *
      * @throws ReflectionException
      * @throws RuntimeException
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    private function assembleDocument(array $filters): OA\OpenApi
+    private function assembleDocument(SpecDefinition $spec, string $environment): OA\OpenApi
     {
         /** @var array<string, OA\PathItem> $pathItems Keyed by URI path */
         $pathItems = [];
@@ -101,7 +95,9 @@ final readonly class OpenApiGenerator
         $webhookItems = [];
 
         foreach ($this->introspector->discover() as $descriptor) {
-            if ($this->shouldSkip($descriptor, $filters)) {
+            $decision = $this->evaluator->decide($descriptor, $spec, $environment);
+
+            if (!$decision->included) {
                 continue;
             }
 
@@ -109,22 +105,14 @@ final readonly class OpenApiGenerator
 
             if ($webhookAttr !== null) {
                 $name = $webhookAttr->name;
-
-                if (!isset($webhookItems[$name])) {
-                    $webhookItems[$name] = new OA\Webhook(['webhook' => $name]);
-                }
-
+                $webhookItems[$name] ??= new OA\Webhook(['webhook' => $name]);
                 $this->attachOperation($webhookItems[$name], $descriptor);
 
                 continue;
             }
 
             $path = $this->normalisePath($descriptor->route->uri());
-
-            if (!isset($pathItems[$path])) {
-                $pathItems[$path] = new OA\PathItem(['path' => $path]);
-            }
-
+            $pathItems[$path] ??= new OA\PathItem(['path' => $path]);
             $this->attachOperation($pathItems[$path], $descriptor);
         }
 
@@ -142,10 +130,10 @@ final readonly class OpenApiGenerator
         }
 
         $documentProps = [
-            'openapi' => '3.1.0',
-            'info' => $this->buildInfo(),
-            'servers' => $this->buildServers(),
-            'paths' => array_values($pathItems),
+            'openapi'    => '3.1.0',
+            'info'       => $spec->info,
+            'servers'    => $spec->servers !== [] ? $spec->servers : $this->fallbackServers(),
+            'paths'      => array_values($pathItems),
             'components' => new OA\Components($componentsProps),
         ];
 
@@ -153,10 +141,8 @@ final readonly class OpenApiGenerator
             $documentProps['webhooks'] = array_values($webhookItems);
         }
 
-        $tags = $this->buildTags();
-
-        if ($tags !== []) {
-            $documentProps['tags'] = $tags;
+        if ($spec->tags !== []) {
+            $documentProps['tags'] = $spec->tags;
         }
 
         $document = new OA\OpenApi($documentProps);
@@ -166,113 +152,10 @@ final readonly class OpenApiGenerator
         return $document;
     }
 
-    private function buildInfo(): OA\Info
+    /** @return list<OA\Server> */
+    private function fallbackServers(): array
     {
-        /** @var array<string, mixed> $info */
-        $info = (array) config('openapi.info', []);
-
-        $info['title'] ??= config('app.name', 'API');
-        $info['version'] ??= '0.0.0';
-
-        if (isset($info['contact']) && is_array($info['contact'])) {
-            $info['contact'] = new OA\Contact($info['contact']);
-        }
-
-        if (isset($info['license']) && is_array($info['license'])) {
-            $info['license'] = new OA\License($info['license']);
-        }
-
-        return new OA\Info($info);
-    }
-
-    /**
-     * @return list<OA\Server>
-     */
-    private function buildServers(): array
-    {
-        /** @var list<array<string, mixed>> $servers */
-        $servers = (array) config('openapi.servers', []);
-
-        if ($servers === []) {
-            return [new OA\Server(['url' => config('app.url')])];
-        }
-
-        return array_values(
-            array_map(
-                static fn(array $server): OA\Server => new OA\Server($server),
-                $servers,
-            ),
-        );
-    }
-
-    /**
-     * @return list<OA\Tag>
-     */
-    private function buildTags(): array
-    {
-        /** @var array<string, array<string, mixed>> $tags */
-        $tags = (array) config('openapi.tags', []);
-
-        $result = [];
-
-        foreach ($tags as $name => $config) {
-            $props = ['name' => $name] + $config;
-
-            if (isset($props['externalDocs']) && is_array($props['externalDocs'])) {
-                $props['externalDocs'] = new OA\ExternalDocumentation($props['externalDocs']);
-            }
-
-            $result[] = new OA\Tag($props);
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param list<callable(ActionDescriptor): bool> $filters
-     */
-    private function shouldSkip(ActionDescriptor $descriptor, array $filters): bool
-    {
-        if ($this->isHidden($descriptor)) {
-            return true;
-        }
-
-        return array_any($filters, static fn(callable $filter): bool => $filter($descriptor));
-    }
-
-    private function isHidden(ActionDescriptor $descriptor): bool
-    {
-        return !$this->visibilityResolver->isVisible(
-            hides: $this->collectAttributes($descriptor, Hide::class),
-            exposes: $this->collectAttributes($descriptor, Expose::class),
-            environment: app()->environment(),
-        );
-    }
-
-    /**
-     * @template T of object
-     *
-     * @param class-string<T> $class
-     *
-     * @return list<T>
-     */
-    private function collectAttributes(ActionDescriptor $descriptor, string $class): array
-    {
-        $instances = [];
-
-        if ($descriptor->actionReflector !== null) {
-            foreach ($descriptor->actionReflector->getAttributes($class) as $reflection) {
-                $instances[] = $reflection->newInstance();
-            }
-        }
-
-        if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes($class) as $reflection) {
-                $instances[] = $reflection->newInstance();
-            }
-        }
-
-        return $instances;
+        return [new OA\Server(['url' => (string) config('app.url')])];
     }
 
     private function readWebhookAttribute(ActionDescriptor $descriptor): ?WebhookAttribute
