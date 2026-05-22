@@ -4,7 +4,57 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+- `Radiergummi\OpenApi\Core\Lint\LintRunner` — reusable service that orchestrates one
+  lint run from a structured `LintOptions` value object and returns a `LintResult` value
+  object (findings + threshold level + exit code). Extracted out of `LintCommand` so the
+  lint pipeline is unit-testable without driving the artisan command and reusable from
+  programmatic entry points (custom CLI wrappers, HTTP endpoints).
+- `Radiergummi\OpenApi\Core\Lint\LintRouteFilter` — separates the --path / --diff
+  descriptor-filtering logic (including default-branch detection via
+  `git symbolic-ref refs/remotes/origin/HEAD`) into a composable service.
+- Console tests for `openapi:generate` (`tests/Unit/Console/GenerateCommandTest.php`)
+  covering the configured output path, explicit path-argument override, `--format=json`,
+  stdout sink (`path: '-'`), and missing-output-directory failure. The previous coverage
+  exercised the command only indirectly via `Kernel::call` in `ExamplesTest`.
+- Unit tests for `LintRunner` (`tests/Unit/Lint/LintRunnerTest.php`) covering happy
+  path, --no-suppress, config-driven level fallback, --only allowlist filtering,
+  config-driven --skip merging, and `--level=max` resolution.
+
 ### Changed
+- **`spatie/laravel-data` is now a soft dependency.** Moved from `require` to
+  `require-dev`; the `SpatieDataPlugin::register()` body is guarded by
+  `class_exists(\Spatie\LaravelData\Data::class)` and silently no-ops when the package
+  is absent. `OpenApiServiceProvider::registerSpatieDataPlugin()` is guarded similarly,
+  while the Core FormRequest bindings (`PayloadParameterScanner`,
+  `SchemaFromFormRequest`, `FormRequestRequestSchemaResolver`, `RequestBodyExtractor`,
+  `StandardResponsesExtractor`, `ExampleFileLoader`) moved out of that method into a new
+  `registerRequestSchemas()` so they survive without Spatie installed. Consumers using
+  Spatie Data: `composer require spatie/laravel-data` and everything works as before.
+- `LintCommand` shrank from ~700 LOC to ~150 LOC. The body of `handle()` now parses CLI
+  options into a `LintOptions`, hands off to `LintRunner`, and renders the resulting
+  `LintResult` through the chosen `Formatter`. No behaviour change.
+- `--diff` no longer hardcodes `develop` as the upstream branch. The default ref is now
+  derived from git itself: `git symbolic-ref refs/remotes/origin/HEAD` first, then the
+  first existing local branch among `main`, `master`, `trunk`, then `HEAD~1`. The
+  `--diff infra-touched` detection also drops the host-project-specific paths
+  (`app/Support/OpenApi/`, `app/Providers/OpenApiServiceProvider.php`) — only the
+  published OpenAPI config (`config/openapi.php`) triggers the full-route-set fallback.
+- `config/openapi.php` defaults tightened: `info.version` is now
+  `env('API_VERSION', '1.0.0')` instead of the hardcoded `'0.1.0'` (consumers who
+  publish the config no longer ship `0.1.0` by accident), and `lint.baseline` is now
+  `null` instead of `base_path('openapi-baseline.json')` (the existing comment already
+  documented this as the disable sentinel; the default is now aligned).
+- Removed `reset()` methods on the scoped pipeline classes — they were redundant under
+  the `scoped` container lifecycle (each scope yields a fresh instance) and the
+  docblock on `OpenApiServiceProvider` already acknowledged this. Affected classes:
+  `OpenApiGenerator`, `OperationBuilder`, `ComponentSchemaRegistry`, `ExampleFileLoader`,
+  `ThrowsExtractor`, `RouteIntrospector`. The lint-rule `Resettable` interface is
+  unaffected — `SpecTreeWalker` still calls `Rule::reset()` before each walk. Callers
+  that need a fresh pipeline mid-scope should call `$app->forgetScopedInstances()`
+  (one existing test was migrated to demonstrate the pattern).
+
+### Documentation
 - **Documentation restructure.** The single 1,335-line `docs/usage.md` is split
   into per-concept pages under `docs/`: `getting-started.md`,
   `auto-derivation.md`, `request-bodies.md`, `attributes.md`, `recipes.md`,
