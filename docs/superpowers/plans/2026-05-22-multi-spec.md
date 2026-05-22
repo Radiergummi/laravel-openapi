@@ -48,8 +48,6 @@
 - `tests/Feature/NoEagerResolutionTest.php`
 
 **Modified (production):**
-- `src/Core/Generator/ComponentSchemaRegistry.php` — add `reset()`
-- `src/Core/Generator/ExampleFileLoader.php` — add `reset()`
 - `src/Core/Generator/OpenApiGenerator.php` — `generate(SpecDefinition $spec, …)` signature; reads info/servers/tags from spec; routes through `InclusionEvaluator`
 - `src/OpenApiServiceProvider.php` — bind new services; mount per-spec routes
 - `src/Http/DocsController.php` — accept `?string $spec` route binding
@@ -71,105 +69,9 @@
 
 ## Phase A — Foundations
 
-### Task A1: Add `reset()` to per-run-stateful services
+> **Note on per-run state.** Commit `621df4b` deliberately removed `reset()` methods from the per-run-stateful services. The supported pattern is `$container->forgetScopedInstances()` — the same approach `LintRunner::installArrayCollector()` already uses. Task C2 (orchestrator) applies this between spec generations; no `reset()` methods need to be re-introduced.
 
-`OpenApiGenerationOrchestrator` will need to clear `ComponentSchemaRegistry` and `ExampleFileLoader` between specs in a single process. The classes carry mutable state but currently have no reset hook.
-
-**Files:**
-- Modify: `src/Core/Generator/ComponentSchemaRegistry.php`
-- Modify: `src/Core/Generator/ExampleFileLoader.php`
-- Test: `tests/Unit/ComponentSchemaRegistryTest.php`
-- Test: `tests/Feature/ExampleFileLoaderTest.php`
-
-- [ ] **Step 1: Write a failing test for `ComponentSchemaRegistry::reset()`**
-
-Add to `tests/Unit/ComponentSchemaRegistryTest.php`:
-
-```php
-it('reset() clears registered schemas, responses, and per-class caches', function (): void {
-    $registry = new ComponentSchemaRegistry();
-    $schema = new OA\Schema(['type' => 'object']);
-    $registry->register(SomeRegisteredFixtureData::class, $schema);
-    $registry->registerNamedResponse('Error', new OA\Response(['description' => 'x']));
-    $registry->setCompiledFields(SomeRegisteredFixtureData::class, []);
-
-    $registry->reset();
-
-    expect($registry->all())->toBe([])
-        ->and($registry->allResponses())->toBe([])
-        ->and($registry->keyFor(SomeRegisteredFixtureData::class))->toBeNull()
-        ->and($registry->compiledFields(SomeRegisteredFixtureData::class))->toBeNull();
-});
-```
-
-Use any existing fixture class with `SomeRegisteredFixtureData` swapped to a real test fixture (check `tests/Fixtures/`).
-
-- [ ] **Step 2: Run the test and confirm failure**
-
-```
-vendor/bin/pest tests/Unit/ComponentSchemaRegistryTest.php --filter "reset"
-```
-
-Expected: error — `Method reset does not exist`.
-
-- [ ] **Step 3: Add `reset()` to `ComponentSchemaRegistry`**
-
-Insert at the bottom of the class body (before the closing brace), inside a new region marker for clarity:
-
-```php
-    // region Lifecycle
-
-    /**
-     * Clears all registered schemas, responses, key reservations and per-class caches.
-     *
-     * Invoked by {@see OpenApiGenerationOrchestrator} between spec generations in a
-     * single process so that multi-spec runs don't leak components between specs.
-     */
-    public function reset(): void
-    {
-        $this->schemas = [];
-        $this->responses = [];
-        $this->classToKey = [];
-        $this->keyToClass = [];
-        $this->inProgress = [];
-        $this->compiledFields = [];
-        $this->compiledItemsFields = [];
-        $this->hasFileFields = [];
-    }
-
-    // endregion
-```
-
-- [ ] **Step 4: Run the test, confirm pass**
-
-```
-vendor/bin/pest tests/Unit/ComponentSchemaRegistryTest.php --filter "reset"
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Add an equivalent `reset()` to `ExampleFileLoader`**
-
-Open `src/Core/Generator/ExampleFileLoader.php`, identify all mutable instance state (cache arrays), and add a `reset()` method that empties each one. Pattern is identical to A1's step 3 — use a `// region Lifecycle` marker. Write a small unit test under `tests/Feature/ExampleFileLoaderTest.php` (or a new `tests/Unit/Core/Generator/ExampleFileLoaderTest.php` if more natural) following the same shape: prime some state, call `reset()`, assert empty.
-
-- [ ] **Step 6: Run the full unit suite**
-
-```
-vendor/bin/pest tests/Unit/
-```
-
-Expected: green.
-
-- [ ] **Step 7: Commit**
-
-```
-git add src/Core/Generator/ComponentSchemaRegistry.php src/Core/Generator/ExampleFileLoader.php tests/Unit/ComponentSchemaRegistryTest.php tests/Feature/ExampleFileLoaderTest.php
-git commit -m "feat(generator): add reset() to per-run stateful services"
-```
-
----
-
-### Task A2: `SpecDefinition` value object
+### Task A1: `SpecDefinition` value object
 
 Immutable record describing one named spec. Pure data — no logic, no Laravel deps. Used by `SpecRegistry`, `OpenApiGenerator`, `InclusionEvaluator`.
 
@@ -311,7 +213,7 @@ git commit -m "feat(spec): add SpecDefinition value object"
 
 ---
 
-### Task A3: `SpecMatcher` — config-driven matching
+### Task A2: `SpecMatcher` — config-driven matching
 
 Pure evaluator for the three `match` config keys (`prefix`, `middleware`, `namespace`). No Laravel container access. Operates on a route URI + middleware list + controller FQCN.
 
@@ -531,7 +433,7 @@ git commit -m "feat(spec): add SpecMatcher (prefix/middleware/namespace evaluato
 
 ---
 
-### Task A4: `SpecRegistry` — parses config into `SpecDefinition` list
+### Task A3: `SpecRegistry` — parses config into `SpecDefinition` list
 
 Reads root config + `'specs'` to produce one `SpecDefinition` per spec. Resolves defaults for `output_path`, `route_uri`, `playground_uri`. Handles `false`/`null` opt-out. Deep-merges `info` over root; replaces `servers` and `tags` wholesale.
 
@@ -878,7 +780,7 @@ git commit -m "feat(spec): add SpecRegistry (config → SpecDefinition[])"
 
 ---
 
-### Task A5: `#[Spec]` attribute
+### Task A4: `#[Spec]` attribute
 
 Repeatable, multi-target, normalises `null`/string/list arg into `list<string>`.
 
@@ -988,7 +890,7 @@ git commit -m "feat(attributes): add #[Spec] for explicit per-route spec assignm
 
 ---
 
-### Task A6: `SpecResolver` — extracts the effective `#[Spec]` list from an `ActionDescriptor`
+### Task A5: `SpecResolver` — extracts the effective `#[Spec]` list from an `ActionDescriptor`
 
 Implements the class/method resolution rule: method-level `#[Spec]` attributes (union) replace class-level if any are present; otherwise class-level union; otherwise `null` (= no attribute, defer to filter).
 
@@ -1452,7 +1354,7 @@ it('excludes a route from a named spec when match config does not match', functi
 });
 
 it('includes a route with #[Spec(v1)] in spec v1 regardless of match config', function (): void {
-    // Use a class with #[Spec('v1')]; reuse Spec attribute fixture from Phase A6.
+    // Use a class with #[Spec('v1')]; reuse Spec attribute fixture from Task A5.
     $class = new ReflectionClass(\Radiergummi\OpenApi\Tests\Unit\Spec\FxClassOnly::class);
     $method = $class->getMethod('handle');
 
@@ -1984,6 +1886,8 @@ Expected: class-not-found.
 
 - [ ] **Step 3: Create the orchestrator**
 
+The orchestrator uses `Container::forgetScopedInstances()` to flush per-run state between spec generations — the established pattern (see `LintRunner::installArrayCollector()`). It re-resolves the generator after each forget so the fresh `ComponentSchemaRegistry` / `ExampleFileLoader` instances are used.
+
 ```php
 <?php
 
@@ -1998,30 +1902,32 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Illuminate\Container\Container;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 
 /**
  * Drives multi-spec generation in a single process.
  *
- * Owns the {@see ComponentSchemaRegistry::reset()} / {@see ExampleFileLoader::reset()} calls
- * that prevent per-spec state from leaking across spec runs in the same request. Used by
- * {@see \Radiergummi\OpenApi\Console\GenerateCommand} and {@see \Radiergummi\OpenApi\Http\DocsController}.
+ * Per-run state in {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} is reset
+ * between specs by calling {@see Container::forgetScopedInstances()} and re-resolving
+ * {@see OpenApiGenerator} fresh. This is the same scoped-rebinding pattern
+ * {@see \Radiergummi\OpenApi\Core\Lint\LintRunner} uses for its findings collector.
+ *
+ * Used by {@see \Radiergummi\OpenApi\Console\GenerateCommand} and
+ * {@see \Radiergummi\OpenApi\Http\DocsController}.
  */
 final readonly class OpenApiGenerationOrchestrator
 {
     public function __construct(
-        private OpenApiGenerator $generator,
+        private Container $container,
         private SpecRegistry $registry,
-        private ComponentSchemaRegistry $schemaRegistry,
-        private ExampleFileLoader $exampleFileLoader,
     ) {}
 
     public function generateOne(string $name, string $environment): OA\OpenApi
     {
-        $this->resetState();
-
-        return $this->generator->generate($this->registry->get($name), $environment);
+        return $this->generateForSpec($this->registry->get($name), $environment);
     }
 
     /**
@@ -2032,17 +1938,20 @@ final readonly class OpenApiGenerationOrchestrator
         $documents = [];
 
         foreach ($this->registry->all() as $spec) {
-            $this->resetState();
-            $documents[$spec->name] = $this->generator->generate($spec, $environment);
+            $documents[$spec->name] = $this->generateForSpec($spec, $environment);
         }
 
         return $documents;
     }
 
-    private function resetState(): void
+    private function generateForSpec(SpecDefinition $spec, string $environment): OA\OpenApi
     {
-        $this->schemaRegistry->reset();
-        $this->exampleFileLoader->reset();
+        // Flush per-run scoped state (ComponentSchemaRegistry, ExampleFileLoader, etc.)
+        // so the next spec starts with a clean slate. Re-resolve the generator AFTER the
+        // forget so it receives the fresh instances.
+        $this->container->forgetScopedInstances();
+
+        return $this->container->make(OpenApiGenerator::class)->generate($spec, $environment);
     }
 }
 ```
@@ -2055,13 +1964,13 @@ Add at the bottom of that method:
 $this->app->scoped(
     OpenApiGenerationOrchestrator::class,
     static fn(Container $app) => new OpenApiGenerationOrchestrator(
-        generator: $app->make(OpenApiGenerator::class),
+        container: $app,
         registry: $app->make(\Radiergummi\OpenApi\Core\Spec\SpecRegistry::class),
-        schemaRegistry: $app->make(ComponentSchemaRegistry::class),
-        exampleFileLoader: $app->make(ExampleFileLoader::class),
     ),
 );
 ```
+
+The orchestrator only needs the container and the spec registry — fresh `OpenApiGenerator` instances are pulled out of the container on demand.
 
 - [ ] **Step 5: Run the test, confirm pass**
 
@@ -3650,10 +3559,10 @@ git commit -am "chore: address residual lint/analyse findings post multi-spec"
 This is a 19-task plan in 7 phases. Spec coverage spot-check:
 
 - Conceptual model (spec sec. "Conceptual model") → Tasks A2, A4, B2.
-- Config shape (spec sec. "Config shape") → Task A4 (`SpecRegistry` parsing), G4 (published stub).
-- `#[Spec]` attribute (spec sec. "The `#[Spec]` attribute") → Tasks A5, A6.
+- Config shape (spec sec. "Config shape") → Task A3 (`SpecRegistry` parsing), G4 (published stub).
+- `#[Spec]` attribute (spec sec. "The `#[Spec]` attribute") → Tasks A4, A5.
 - Inclusion rule (spec sec. "Inclusion rule") → Task B2 (`InclusionEvaluator`).
-- Pipeline changes (spec sec. "Pipeline changes") → Tasks A1, C1, C2, D1.
+- Pipeline changes (spec sec. "Pipeline changes") → Tasks C1, C2, D1.
 - HTTP routes (spec sec. "HTTP routes") → Task D2.
 - CLI (spec sec. "CLI") → Tasks E1 (generate), E2 (clear), E3 (why).
 - Lint (spec sec. "Lint pipeline" + "Three new pre-build lint rules") → Tasks F1–F5.
