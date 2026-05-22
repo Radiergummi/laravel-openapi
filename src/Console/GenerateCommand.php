@@ -39,11 +39,6 @@ use function realpath;
  */
 class GenerateCommand extends Command
 {
-    /**
-     * @deprecated Will be removed in a future release. Kept for ClearCommand backward compatibility.
-     */
-    public const string ARGUMENT_PATH = 'spec';
-
     public const string ARGUMENT_SPEC = 'spec';
 
     public const string OPTION_OUTPUT = 'output';

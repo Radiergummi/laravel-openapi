@@ -9,58 +9,37 @@
 
 declare(strict_types=1);
 
-use Symfony\Component\Console\Command\Command;
 
 uses()->group('openapi');
 
-function clearCommandTmpPath(string $suffix = 'yaml'): string
-{
-    return sys_get_temp_dir() . '/laravel-openapi-clear-' . uniqid('', true) . '.' . $suffix;
-}
+it('clears every spec output path when no arg passed', function (): void {
+    config(['openapi.specs' => ['v1' => []]]);
 
-it('removes the configured output file when it exists', function (): void {
-    $path = clearCommandTmpPath();
-    file_put_contents($path, "openapi: 3.1.0\n");
-    config(['openapi.output_path' => $path]);
+    $default = storage_path('openapi.yaml');
+    $v1 = storage_path('openapi-v1.yaml');
+    file_put_contents($default, 'x');
+    file_put_contents($v1, 'x');
 
-    expect(file_exists($path))->toBeTrue();
+    $this->artisan('openapi:clear')->assertSuccessful();
 
-    $this->artisan('openapi:clear')
-        ->expectsOutputToContain('OpenAPI specification cleared.')
-        ->assertExitCode(Command::SUCCESS);
-
-    expect(file_exists($path))->toBeFalse();
+    expect(file_exists($default))->toBeFalse()
+        ->and(file_exists($v1))->toBeFalse();
 });
 
-it('exits successfully when the configured file does not exist', function (): void {
-    $path = clearCommandTmpPath();
-    config(['openapi.output_path' => $path]);
+it('clears only the named spec', function (): void {
+    config(['openapi.specs' => ['v1' => []]]);
 
-    expect(file_exists($path))->toBeFalse();
+    $default = storage_path('openapi.yaml');
+    $v1 = storage_path('openapi-v1.yaml');
+    file_put_contents($default, 'x');
+    file_put_contents($v1, 'x');
 
-    $this->artisan('openapi:clear')
-        ->expectsOutputToContain('OpenAPI specification cleared.')
-        ->assertExitCode(Command::SUCCESS);
+    $this->artisan('openapi:clear v1')->assertSuccessful();
+
+    expect(file_exists($default))->toBeTrue()
+        ->and(file_exists($v1))->toBeFalse();
 });
 
-it('removes the file passed as a path argument, overriding the config default', function (): void {
-    $configPath = clearCommandTmpPath();
-    $argPath = clearCommandTmpPath();
-    file_put_contents($configPath, 'config');
-    file_put_contents($argPath, 'arg');
-    config(['openapi.output_path' => $configPath]);
-
-    $this->artisan('openapi:clear', ['path' => $argPath])
-        ->assertExitCode(Command::SUCCESS);
-
-    expect(file_exists($argPath))->toBeFalse()
-        ->and(file_exists($configPath))->toBeTrue();
-
-    @unlink($configPath);
-});
-
-it('fails when the path argument is "-" (stdout)', function (): void {
-    $this->artisan('openapi:clear', ['path' => '-'])
-        ->expectsOutputToContain('Cannot clear stdout output.')
-        ->assertExitCode(Command::FAILURE);
+it('errors gracefully on an unknown spec name', function (): void {
+    $this->artisan('openapi:clear nope')->assertFailed();
 });

@@ -12,33 +12,39 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Console;
 
 use Illuminate\Console\Command;
+use InvalidArgumentException;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Symfony\Component\Console\Input\InputArgument;
 
-use function config;
 use function file_exists;
 use function unlink;
 
 class ClearCommand extends Command
 {
+    public const string ARGUMENT_SPEC = 'spec';
+
     protected $name = 'openapi:clear';
 
-    protected $description = 'Remove the generated OpenAPI specification';
+    protected $description = 'Remove the generated OpenAPI specification file(s)';
 
-    public function handle(): int
+    public function handle(SpecRegistry $registry): int
     {
-        $path = $this->argument('path');
+        $specName = $this->argument(self::ARGUMENT_SPEC);
 
-        if ($path === '-') {
-            $this->components->warn('Cannot clear stdout output.');
+        try {
+            $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];
+        } catch (InvalidArgumentException $e) {
+            $this->components->error($e->getMessage());
 
             return self::FAILURE;
         }
 
-        if (file_exists($path)) {
-            unlink($path);
+        foreach ($targets as $spec) {
+            if (file_exists($spec->outputPath)) {
+                unlink($spec->outputPath);
+            }
+            $this->components->info("Cleared {$spec->outputPath}");
         }
-
-        $this->components->info('OpenAPI specification cleared.');
 
         return self::SUCCESS;
     }
@@ -46,10 +52,9 @@ class ClearCommand extends Command
     protected function configure(): void
     {
         $this->addArgument(
-            'path',
+            self::ARGUMENT_SPEC,
             InputArgument::OPTIONAL,
-            'Path to the specification file to remove.',
-            (string) config('openapi.output_path'),
+            'Name of the spec to clear. Omit to clear every defined spec.',
         );
     }
 }
