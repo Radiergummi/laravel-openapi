@@ -39,6 +39,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
         public FindingLocation $location = new FindingLocation(),
         public ?string $fixHint = null,
         public array $context = [],
+        public ?string $spec = null,
     ) {}
 
     /**
@@ -56,6 +57,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
             location: $this->location->withDefaults($defaults),
             fixHint: $this->fixHint,
             context: $this->context,
+            spec: $this->spec,
         );
     }
 
@@ -74,6 +76,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
             location: $this->location,
             fixHint: $this->fixHint,
             context: $this->context,
+            spec: $this->spec,
         );
     }
 
@@ -92,6 +95,23 @@ final readonly class Finding implements Arrayable, JsonSerializable
             location: $this->location,
             fixHint: $this->fixHint,
             context: [...$this->context, ...$extra],
+            spec: $this->spec,
+        );
+    }
+
+    /**
+     * Return a copy of this finding tagged with a spec name.
+     */
+    public function withSpec(?string $spec): self
+    {
+        return new self(
+            ruleId: $this->ruleId,
+            level: $this->level,
+            message: $this->message,
+            location: $this->location,
+            fixHint: $this->fixHint,
+            context: $this->context,
+            spec: $spec,
         );
     }
 
@@ -99,12 +119,13 @@ final readonly class Finding implements Arrayable, JsonSerializable
     public function toArray(): array
     {
         return [
-            'rule_id' => $this->ruleId,
-            'level' => $this->level,
-            'message' => $this->message,
+            'rule_id'  => $this->ruleId,
+            'level'    => $this->level,
+            'message'  => $this->message,
             'fix_hint' => $this->fixHint,
             'location' => $this->location->toArray(),
-            'context' => $this->context,
+            'context'  => $this->context,
+            'spec'     => $this->spec,
         ];
     }
 
