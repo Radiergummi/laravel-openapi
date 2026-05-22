@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,6 +23,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Throwable;
+use UnexpectedValueException;
 
 use function assert;
 use function config;
@@ -54,14 +55,17 @@ class GenerateCommand extends Command
     }
 
     /**
+     * @throws InvalidArgumentException
      * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
     public function handle(): int
     {
         $openapi = $this->generator->generate();
 
-        if (!$this->validate($openapi)) {
+        if (! $this->validate($openapi)) {
             return self::FAILURE;
         }
 
@@ -84,6 +88,9 @@ class GenerateCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * @throws InvalidArgumentException
+     */
     protected function configure(): void
     {
         $this->addArgument(
@@ -116,7 +123,7 @@ class GenerateCommand extends Command
 
         $valid = $analysis->validate();
 
-        if (!$valid) {
+        if (! $valid) {
             $this->components->error('OpenAPI validation failed. The document may be incomplete.');
         }
 
@@ -124,9 +131,7 @@ class GenerateCommand extends Command
     }
 
     /**
-     * Serialises the document to YAML or JSON depending on --format.
-     *
-     * @throws InvalidArgumentException
+     * Serializes the document to YAML or JSON depending on --format.
      */
     private function serialise(OA\OpenApi $openapi): string
     {
@@ -134,13 +139,12 @@ class GenerateCommand extends Command
         assert(is_string($format));
 
         return match ($format) {
-            'json'  => $openapi->toJson(),
+            'json' => $openapi->toJson(),
             default => $openapi->toYaml(),
         };
     }
 
     /**
-     * @throws InvalidArgumentException
      * @throws RuntimeException
      */
     private function resolvePath(): string
@@ -156,7 +160,7 @@ class GenerateCommand extends Command
             throw new RuntimeException("Output directory does not exist: {$path}");
         }
 
-        if (!is_writable(dirname($path))) {
+        if (! is_writable(dirname($path))) {
             throw new RuntimeException("Output directory is not writable: {$path}");
         }
 
