@@ -22,7 +22,7 @@ function externaldocsFindings(string $method): array
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
 
     return iterator_to_array(
-        (new ExternaldocsInvalidUrl())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new ExternaldocsInvalidUrl()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 }
 

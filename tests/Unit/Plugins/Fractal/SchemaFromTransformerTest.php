@@ -47,7 +47,7 @@ function transformerPropertiesByName(OA\Schema $schema): array
 
 it('builds an object schema from transformer attributes', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
+    $key = new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $props = transformerPropertiesByName($schema);
@@ -58,7 +58,7 @@ it('builds an object schema from transformer attributes', function (): void {
 
 it('applies scalar descriptor fields onto the property', function (): void {
     $registry = new ComponentSchemaRegistry();
-    (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
+    new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
 
     $book = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === 'SchemaBookTransformer');
 
@@ -67,7 +67,7 @@ it('applies scalar descriptor fields onto the property', function (): void {
 
 it('emits an include as a $ref and registers the included transformer', function (): void {
     $registry = new ComponentSchemaRegistry();
-    (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
+    new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
 
     $keys = array_map(static fn(OA\Schema $s): string => $s->schema, $registry->all());
     expect($keys)->toContain('SchemaAuthorTransformer');
@@ -75,7 +75,7 @@ it('emits an include as a $ref and registers the included transformer', function
 
 it('marks default includes as required and non-default as optional', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = (new SchemaFromTransformer($registry, static fn(): array => []))->build(SchemaBookTransformer::class);
+    $key = new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
@@ -84,7 +84,7 @@ it('marks default includes as required and non-default as optional', function ()
 
 it('exposes buildRef returning a qualified components ref', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $ref = (new SchemaFromTransformer($registry, static fn(): array => []))->buildRef(SchemaBookTransformer::class);
+    $ref = new SchemaFromTransformer($registry, static fn(): array => [])->buildRef(SchemaBookTransformer::class);
 
     expect($ref)->toBe('#/components/schemas/SchemaBookTransformer');
 });
@@ -102,7 +102,7 @@ it('resolves non-transformer class refs via injected RefSchemaResolver', functio
         }
     };
 
-    (new SchemaFromTransformer($registry, static fn(): array => [$customResolver]))->build(SchemaWithResolvedRefTransformer::class);
+    new SchemaFromTransformer($registry, static fn(): array => [$customResolver])->build(SchemaWithResolvedRefTransformer::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === 'SchemaWithResolvedRefTransformer');
     $props = transformerPropertiesByName($schema);

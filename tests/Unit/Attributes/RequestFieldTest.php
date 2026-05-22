@@ -19,13 +19,13 @@ it('is a FieldAttribute', function (): void {
 });
 
 it('maps schema parameters onto the descriptor', function (): void {
-    $descriptor = (new RequestField(
+    $descriptor = new RequestField(
         description: 'Display name.',
         example: 'Acme Corp',
         type: 'string',
         maxLength: 250,
         writeOnly: true,
-    ))->descriptor();
+    )->descriptor();
 
     expect($descriptor->description)->toBe('Display name.')
         ->and($descriptor->example)->toBe('Acme Corp')
@@ -36,7 +36,7 @@ it('maps schema parameters onto the descriptor', function (): void {
 });
 
 it('omits null fields from toOpenApi()', function (): void {
-    $output = (new RequestField(description: 'Only a description.'))->descriptor()->toOpenApi();
+    $output = new RequestField(description: 'Only a description.')->descriptor()->toOpenApi();
 
     expect($output)->toBe(['description' => 'Only a description.']);
 });

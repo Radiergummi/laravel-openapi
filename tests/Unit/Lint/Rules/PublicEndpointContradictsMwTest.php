@@ -27,7 +27,7 @@ function publicEndpointFindings(string $controller, string $method, array $middl
     $operation = OperationNodeFactory::forDescriptor($descriptor);
 
     return iterator_to_array(
-        (new PublicEndpointContradictsMw())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PublicEndpointContradictsMw()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 }
 

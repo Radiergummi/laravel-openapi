@@ -750,7 +750,7 @@ it('maps File::image() to type=string, format=binary, isFile=true', function ():
 });
 
 it('does not extract a description from an ImageFile rule with embedded dimensions', function (): void {
-    $dims = (new Dimensions())->width(800)->height(600);
+    $dims = new Dimensions()->width(800)->height(600);
     $d    = field($this->mapper, [File::image()->dimensions($dims)]);
 
     expect($d->description)->toBeNull();
@@ -761,7 +761,7 @@ it('does not extract a description from an ImageFile rule with embedded dimensio
 // region Dimensions rule object standalone (OAPI-030)
 
 it('maps standalone Dimensions rule to type=string, format=binary, isFile=true', function (): void {
-    $d = field($this->mapper, [(new Dimensions())->width(100)->height(100)]);
+    $d = field($this->mapper, [new Dimensions()->width(100)->height(100)]);
 
     expect($d->type)->toBe('string')
         ->and($d->format)->toBe('binary')
@@ -769,14 +769,14 @@ it('maps standalone Dimensions rule to type=string, format=binary, isFile=true',
 });
 
 it('maps standalone Dimensions rule to a description with dimension constraints', function (): void {
-    $d = field($this->mapper, [(new Dimensions())->minWidth(200)->maxWidth(800)]);
+    $d = field($this->mapper, [new Dimensions()->minWidth(200)->maxWidth(800)]);
 
     expect($d->description)->toContain('min width=200')
         ->and($d->description)->toContain('max width=800');
 });
 
 it('maps Dimensions::ratio() to a description mentioning aspect ratio', function (): void {
-    $d = field($this->mapper, [(new Dimensions())->ratio(1.777)]);
+    $d = field($this->mapper, [new Dimensions()->ratio(1.777)]);
 
     expect($d->description)->toContain('aspect ratio');
 });

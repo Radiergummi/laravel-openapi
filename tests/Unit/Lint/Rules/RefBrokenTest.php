@@ -23,7 +23,7 @@ function refBrokenFindings(OA\OpenApi $spec): array
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
     $ctx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    return iterator_to_array((new RefBroken())->checkApi($api, $ctx));
+    return iterator_to_array(new RefBroken()->checkApi($api, $ctx));
 }
 
 /**

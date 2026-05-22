@@ -65,7 +65,7 @@ it('emits no finding when all required properties exist', function (): void {
     $component = makeComponentForRequiredProps('User', ['name', 'email'], ['name', 'email']);
 
     $findings = iterator_to_array(
-        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -75,7 +75,7 @@ it('emits a finding when a required property does not exist', function (): void 
     $component = makeComponentForRequiredProps('User', ['name'], ['name', 'email']);
 
     $findings = iterator_to_array(
-        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -90,7 +90,7 @@ it('emits a finding per missing required property', function (): void {
     $component = makeComponentForRequiredProps('Order', ['id'], ['id', 'total', 'currency']);
 
     $findings = iterator_to_array(
-        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(2)
@@ -102,7 +102,7 @@ it('emits no finding when schema has no required list', function (): void {
     $component = makeComponentForRequiredProps('Simple', ['name'], required: null);
 
     $findings = iterator_to_array(
-        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -112,7 +112,7 @@ it('emits a finding when schema has required but no properties at all', function
     $component = makeComponentForRequiredProps('Empty', [], ['phantom']);
 
     $findings = iterator_to_array(
-        (new SchemaRequiredWithoutProperty())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)

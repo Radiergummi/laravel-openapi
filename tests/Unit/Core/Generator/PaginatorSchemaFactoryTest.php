@@ -25,7 +25,7 @@ function propertyNames(OA\Schema $schema): array
 it('builds a length-aware envelope with the full toArray() key set', function (): void {
     $items = new OA\Items(['ref' => '#/components/schemas/User']);
 
-    $schema = (new PaginatorSchemaFactory())->envelope(PaginatorKind::LengthAware, $items);
+    $schema = new PaginatorSchemaFactory()->envelope(PaginatorKind::LengthAware, $items);
     $names = propertyNames($schema);
 
     expect($schema->type)->toBe('object')
@@ -40,7 +40,7 @@ it('builds a length-aware envelope with the full toArray() key set', function ()
 it('omits last_page and total for a simple paginator', function (): void {
     $items = new OA\Items([]);
 
-    $schema = (new PaginatorSchemaFactory())->envelope(PaginatorKind::Simple, $items);
+    $schema = new PaginatorSchemaFactory()->envelope(PaginatorKind::Simple, $items);
     $names = propertyNames($schema);
 
     expect($names)->toContain('data')
@@ -54,7 +54,7 @@ it('omits last_page and total for a simple paginator', function (): void {
 it('builds a cursor envelope with next_cursor and prev_cursor', function (): void {
     $items = new OA\Items([]);
 
-    $schema = (new PaginatorSchemaFactory())->envelope(PaginatorKind::Cursor, $items);
+    $schema = new PaginatorSchemaFactory()->envelope(PaginatorKind::Cursor, $items);
     $names = propertyNames($schema);
 
     expect($names)->toContain('data')
@@ -69,7 +69,7 @@ it('builds a cursor envelope with next_cursor and prev_cursor', function (): voi
 it('wires the supplied items into the data array', function (): void {
     $items = new OA\Items(['ref' => '#/components/schemas/User']);
 
-    $schema = (new PaginatorSchemaFactory())->envelope(PaginatorKind::LengthAware, $items);
+    $schema = new PaginatorSchemaFactory()->envelope(PaginatorKind::LengthAware, $items);
 
     $data = null;
 

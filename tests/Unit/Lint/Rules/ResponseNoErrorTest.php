@@ -28,7 +28,7 @@ it(
         $operation = makeResponseNoErrorOperation('/users', $method, $statusCodes);
 
         $findings = iterator_to_array(
-            (new ResponseNoError())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+            new ResponseNoError()->checkOperation($operation, OperationNodeFactory::emptyContext()),
         );
 
         expect($findings)->toBe([]);
@@ -43,7 +43,7 @@ it('emits a finding when an operation has only success responses', function (): 
     $operation = makeResponseNoErrorOperation('/users', 'GET', [200]);
 
     $findings = iterator_to_array(
-        (new ResponseNoError())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new ResponseNoError()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -58,7 +58,7 @@ it('skips operations with no responses (caught by response.empty)', function ():
     $operation = makeResponseNoErrorOperation('/empty', 'GET', []);
 
     $findings = iterator_to_array(
-        (new ResponseNoError())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new ResponseNoError()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -70,8 +70,8 @@ it('emits a finding per operation missing an error response', function (): void 
     $op2 = makeResponseNoErrorOperation('/stuff', 'POST', [201]);
 
     $findings = [
-        ...iterator_to_array((new ResponseNoError())->checkOperation($op1, $context)),
-        ...iterator_to_array((new ResponseNoError())->checkOperation($op2, $context)),
+        ...iterator_to_array(new ResponseNoError()->checkOperation($op1, $context)),
+        ...iterator_to_array(new ResponseNoError()->checkOperation($op2, $context)),
     ];
 
     expect($findings)->toHaveCount(2)

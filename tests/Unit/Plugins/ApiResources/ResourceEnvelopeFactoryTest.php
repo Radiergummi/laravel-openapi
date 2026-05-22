@@ -27,7 +27,7 @@ function envelopeProperties(OA\Schema $schema): array
 }
 
 it('wraps a single resource in a data object', function (): void {
-    $schema = (new ResourceEnvelopeFactory())->single('#/components/schemas/Project');
+    $schema = new ResourceEnvelopeFactory()->single('#/components/schemas/Project');
     $properties = envelopeProperties($schema);
 
     expect($schema->type)->toBe('object')
@@ -36,7 +36,7 @@ it('wraps a single resource in a data object', function (): void {
 });
 
 it('wraps a collection in data/links/meta', function (): void {
-    $schema = (new ResourceEnvelopeFactory())->collection('#/components/schemas/Project');
+    $schema = new ResourceEnvelopeFactory()->collection('#/components/schemas/Project');
     $properties = envelopeProperties($schema);
 
     expect($properties)->toHaveKeys(['data', 'links', 'meta'])

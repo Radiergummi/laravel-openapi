@@ -29,7 +29,7 @@ it('emits no finding when all placeholders are declared as path parameters', fun
     );
 
     $findings = iterator_to_array(
-        (new PathParameterUndeclared())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndeclared()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -47,7 +47,7 @@ it('emits a finding for an undeclared path placeholder', function (): void {
     );
 
     $findings = iterator_to_array(
-        (new PathParameterUndeclared())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndeclared()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)
@@ -65,7 +65,7 @@ it('emits a finding for each undeclared placeholder', function (): void {
     );
 
     $findings = iterator_to_array(
-        (new PathParameterUndeclared())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndeclared()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)

@@ -149,7 +149,7 @@ final readonly class SchemaFromTransformer
      */
     private function resolveClassRef(string $class): ?string
     {
-        if ((new ReflectionClass($class))->getAttributes(TransformerField::class) !== []) {
+        if (new ReflectionClass($class)->getAttributes(TransformerField::class) !== []) {
             return $this->buildRef($class);
         }
 

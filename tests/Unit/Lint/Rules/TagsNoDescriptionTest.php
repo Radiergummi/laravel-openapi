@@ -27,7 +27,7 @@ it('emits a finding when a tag has a missing or blank description', function (ar
         tagDescriptions: $tagDescriptions,
     );
 
-    $findings = iterator_to_array((new TagsNoDescription())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagsNoDescription()->checkApi($context->api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('tags.no-description')
@@ -48,7 +48,7 @@ it('emits no findings when all tags have descriptions', function (): void {
         ],
     );
 
-    $findings = iterator_to_array((new TagsNoDescription())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagsNoDescription()->checkApi($context->api, $context));
 
     expect($findings)->toBe([]);
 });
@@ -59,7 +59,7 @@ it('emits findings only for tags without descriptions in a mixed set', function 
         tagDescriptions: ['Users' => 'Has description'],
     );
 
-    $findings = iterator_to_array((new TagsNoDescription())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagsNoDescription()->checkApi($context->api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('"Admin"');
@@ -68,7 +68,7 @@ it('emits findings only for tags without descriptions in a mixed set', function 
 it('emits no findings when there are no tags', function (): void {
     $context = OperationNodeFactory::emptyContext();
 
-    $findings = iterator_to_array((new TagsNoDescription())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagsNoDescription()->checkApi($context->api, $context));
 
     expect($findings)->toBe([]);
 });
@@ -79,7 +79,7 @@ it('uses the json pointer with the array index in the finding location', functio
         tagDescriptions: $tagDescriptions,
     );
 
-    $findings = iterator_to_array((new TagsNoDescription())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagsNoDescription()->checkApi($context->api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->location->jsonPointer)->toBe($pointer);

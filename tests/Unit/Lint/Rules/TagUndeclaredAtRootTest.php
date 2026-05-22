@@ -47,7 +47,7 @@ it('has the correct rule id and level', function (): void {
 it('emits a finding when a tag is not declared at root', function (): void {
     $context = tagUndeclaredAtRootContext(operationTags: [['Users']], rootTags: []);
 
-    $findings = iterator_to_array((new TagUndeclaredAtRoot())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagUndeclaredAtRoot()->checkApi($context->api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('tag.undeclared-at-root')
@@ -58,7 +58,7 @@ it('emits a finding when a tag is not declared at root', function (): void {
 it('emits no findings when all tags are declared at root', function (): void {
     $context = tagUndeclaredAtRootContext(operationTags: [['Users', 'Admin']], rootTags: ['Users', 'Admin']);
 
-    $findings = iterator_to_array((new TagUndeclaredAtRoot())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagUndeclaredAtRoot()->checkApi($context->api, $context));
 
     expect($findings)->toBe([]);
 });
@@ -66,7 +66,7 @@ it('emits no findings when all tags are declared at root', function (): void {
 it('emits findings for each undeclared tag per operation', function (): void {
     $context = tagUndeclaredAtRootContext(operationTags: [['Users', 'Search']], rootTags: ['Users']);
 
-    $findings = iterator_to_array((new TagUndeclaredAtRoot())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagUndeclaredAtRoot()->checkApi($context->api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('"Search"');
@@ -75,7 +75,7 @@ it('emits findings for each undeclared tag per operation', function (): void {
 it('emits findings across multiple operations', function (): void {
     $context = tagUndeclaredAtRootContext(operationTags: [['MissingA'], ['MissingB']], rootTags: []);
 
-    $findings = iterator_to_array((new TagUndeclaredAtRoot())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagUndeclaredAtRoot()->checkApi($context->api, $context));
 
     expect($findings)->toHaveCount(2);
 });
@@ -83,7 +83,7 @@ it('emits findings across multiple operations', function (): void {
 it('emits no findings when there are no tags or paths', function (array $operationTags): void {
     $context = tagUndeclaredAtRootContext(operationTags: $operationTags, rootTags: []);
 
-    $findings = iterator_to_array((new TagUndeclaredAtRoot())->checkApi($context->api, $context));
+    $findings = iterator_to_array(new TagUndeclaredAtRoot()->checkApi($context->api, $context));
 
     expect($findings)->toBe([]);
 })->with([

@@ -45,10 +45,12 @@ it('reports its id and level', function (): void {
 });
 
 it('flags RequestField on a route parameter', function (): void {
-    $findings = iterator_to_array((new FieldAttributeWrongScope(makeDirectOnlyScanner()))->checkOperation(
-        makeWrongScopeOperation('requestFieldOnRouteParam'),
-        OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
-    ));
+    $findings = iterator_to_array(
+        new FieldAttributeWrongScope(makeDirectOnlyScanner())->checkOperation(
+            makeWrongScopeOperation('requestFieldOnRouteParam'),
+            OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
+        ),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.attribute-wrong-scope')
@@ -57,10 +59,12 @@ it('flags RequestField on a route parameter', function (): void {
 });
 
 it('flags PathParam on a Data-class property', function (): void {
-    $findings = iterator_to_array((new FieldAttributeWrongScope(makeDirectOnlyScanner()))->checkOperation(
-        makeWrongScopeOperation('pathParamOnDataProperty'),
-        OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
-    ));
+    $findings = iterator_to_array(
+        new FieldAttributeWrongScope(makeDirectOnlyScanner())->checkOperation(
+            makeWrongScopeOperation('pathParamOnDataProperty'),
+            OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
+        ),
+    );
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('#[PathParam]')
@@ -68,10 +72,12 @@ it('flags PathParam on a Data-class property', function (): void {
 });
 
 it('does not flag correctly-scoped attributes', function (): void {
-    $findings = iterator_to_array((new FieldAttributeWrongScope(makeDirectOnlyScanner()))->checkOperation(
-        makeWrongScopeOperation('correct'),
-        OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
-    ));
+    $findings = iterator_to_array(
+        new FieldAttributeWrongScope(makeDirectOnlyScanner())->checkOperation(
+            makeWrongScopeOperation('correct'),
+            OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
+        ),
+    );
 
     expect($findings)->toBe([]);
 });
@@ -88,7 +94,7 @@ it('flags PathParam on a Data-class property injected through a Domain Action', 
     // into ActionWithWrongScopeData's constructor and finds WrongScopeFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithWrongScopeData::class]);
     $findings = iterator_to_array(
-        (new FieldAttributeWrongScope($scanner))->checkOperation(
+        new FieldAttributeWrongScope($scanner)->checkOperation(
             $operation,
             OperationNodeFactory::emptyContext(payloadClasses: [Data::class]),
         ),

@@ -31,7 +31,7 @@ it('emits a finding for deprecated operations missing replacement guidance', fun
     );
 
     $findings = iterator_to_array(
-        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoReplacement()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -51,7 +51,7 @@ it('emits no findings when description mentions a replacement keyword', function
     );
 
     $findings = iterator_to_array(
-        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoReplacement()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -67,7 +67,7 @@ it('emits no findings for non-deprecated operations', function (): void {
     $operation = OperationNodeFactory::makeOperation(deprecated: false, responses: []);
 
     $findings = iterator_to_array(
-        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoReplacement()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -82,7 +82,7 @@ it('emits no findings when deprecated operation has a non-empty x-replacement ex
     $operation = OperationNodeFactory::makeOperation(deprecated: true, responses: [], raw: $raw);
 
     $findings = iterator_to_array(
-        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoReplacement()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -95,7 +95,7 @@ it('still emits a finding when x-replacement extension is an empty string (Bug 8
     $operation = OperationNodeFactory::makeOperation(deprecated: true, responses: [], raw: $raw);
 
     $findings = iterator_to_array(
-        (new DeprecatedNoReplacement())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoReplacement()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1);

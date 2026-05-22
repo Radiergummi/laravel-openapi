@@ -47,7 +47,7 @@ it('emits no finding when field raw does not use nullable keyword', function ():
     $field = makeFieldForNullableTest('UserName', setNullableOnRaw: false);
 
     $findings = iterator_to_array(
-        (new SchemaNullableViaDeprecatedKeyword())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaNullableViaDeprecatedKeyword()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -57,7 +57,7 @@ it('emits a finding when field raw uses deprecated nullable keyword', function (
     $field = makeFieldForNullableTest('UserName', setNullableOnRaw: true);
 
     $findings = iterator_to_array(
-        (new SchemaNullableViaDeprecatedKeyword())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaNullableViaDeprecatedKeyword()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)
@@ -72,7 +72,7 @@ it('emits no finding when field has no raw annotation', function (): void {
     $field = OperationNodeFactory::makeField(name: 'NoRaw');
 
     $findings = iterator_to_array(
-        (new SchemaNullableViaDeprecatedKeyword())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaNullableViaDeprecatedKeyword()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);

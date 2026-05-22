@@ -28,7 +28,7 @@ it(
         $response = makeRedirectResponseNode('301', $headers);
 
         $findings = iterator_to_array(
-            (new ResponseRedirectWithoutLocation())->checkResponse($response, OperationNodeFactory::emptyContext()),
+            new ResponseRedirectWithoutLocation()->checkResponse($response, OperationNodeFactory::emptyContext()),
         );
 
         expect($findings)->toBe([]);
@@ -43,7 +43,7 @@ it('emits no finding when a non-redirect response has no Location header', funct
     $response = makeRedirectResponseNode('200', []);
 
     $findings = iterator_to_array(
-        (new ResponseRedirectWithoutLocation())->checkResponse($response, OperationNodeFactory::emptyContext()),
+        new ResponseRedirectWithoutLocation()->checkResponse($response, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -53,7 +53,7 @@ it('emits a finding when a 302 response has no Location header', function (): vo
     $response = makeRedirectResponseNode('302', []);
 
     $findings = iterator_to_array(
-        (new ResponseRedirectWithoutLocation())->checkResponse($response, OperationNodeFactory::emptyContext()),
+        new ResponseRedirectWithoutLocation()->checkResponse($response, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)

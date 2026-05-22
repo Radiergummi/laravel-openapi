@@ -25,7 +25,7 @@ it('emits a finding when an enum field has no description', function (): void {
     $field = OperationNodeFactory::makeField(name: 'Status', enum: ['active', 'inactive']);
 
     $findings = iterator_to_array(
-        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+        new EnumValuesUndocumented()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -42,7 +42,7 @@ it('emits a finding when description does not mention any enum values', function
     );
 
     $findings = iterator_to_array(
-        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+        new EnumValuesUndocumented()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -57,7 +57,7 @@ it('emits no findings when the description documents the enum', function (string
     );
 
     $findings = iterator_to_array(
-        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+        new EnumValuesUndocumented()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -71,7 +71,7 @@ it('skips fields without enum values', function (): void {
     $field = OperationNodeFactory::makeField(name: 'PlainString');
 
     $findings = iterator_to_array(
-        (new EnumValuesUndocumented())->checkField($field, OperationNodeFactory::emptyContext()),
+        new EnumValuesUndocumented()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);

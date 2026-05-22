@@ -91,7 +91,7 @@ it('emits no findings when operation has no descriptor', function (): void {
     $operation = OperationNodeFactory::makeOperation(descriptor: null, responses: []);
 
     $findings = iterator_to_array(
-        (new HeaderInvalidName())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new HeaderInvalidName()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);

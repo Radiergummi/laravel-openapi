@@ -28,7 +28,7 @@ it(
         $response = makeResponseForStatusTest('/users', $method, $statusCodes, $targetStatus);
 
         $findings = iterator_to_array(
-            (new ResponseStatusUnconventional())->checkResponse($response, OperationNodeFactory::emptyContext()),
+            new ResponseStatusUnconventional()->checkResponse($response, OperationNodeFactory::emptyContext()),
         );
 
         expect($findings)->toBe([]);
@@ -48,7 +48,7 @@ it(
         OperationNodeFactory::makeOperation(pathUri: '/users/1', method: $method, responses: [$response]);
 
         $findings = iterator_to_array(
-            (new ResponseStatusUnconventional())->checkResponse($response, OperationNodeFactory::emptyContext()),
+            new ResponseStatusUnconventional()->checkResponse($response, OperationNodeFactory::emptyContext()),
         );
 
         expect($findings)->toBe([]);
@@ -64,7 +64,7 @@ it(
         $response = makeResponseForStatusTest('/users', $method, $statusCodes, '200');
 
         $findings = iterator_to_array(
-            (new ResponseStatusUnconventional())->checkResponse($response, OperationNodeFactory::emptyContext()),
+            new ResponseStatusUnconventional()->checkResponse($response, OperationNodeFactory::emptyContext()),
         );
 
         expect($findings)->toHaveCount(1)

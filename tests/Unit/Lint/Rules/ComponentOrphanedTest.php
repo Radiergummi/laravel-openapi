@@ -84,7 +84,7 @@ function componentOrphanedFindings(array $schemas, array $refsUsed): array
     );
     $lintCtx = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    return iterator_to_array((new ComponentOrphaned())->checkApi($api, $lintCtx));
+    return iterator_to_array(new ComponentOrphaned()->checkApi($api, $lintCtx));
 }
 
 it('has the correct rule id and level', function (): void {

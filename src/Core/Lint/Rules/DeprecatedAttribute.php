@@ -46,7 +46,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
         // Derive the default namespace from an actual Core attribute class so a future
         // package-namespace rename does not require editing this constant.
         $this->attributeNamespace = $attributeNamespace
-            ?? ((new ReflectionClass(FieldAttribute::class))->getNamespaceName() . '\\');
+            ?? (new ReflectionClass(FieldAttribute::class)->getNamespaceName() . '\\');
     }
 
     /**

@@ -31,7 +31,7 @@ it('emits a finding when a deprecated operation has no concrete sunset date', fu
     );
 
     $findings = iterator_to_array(
-        (new DeprecatedNoSunsetDate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoSunsetDate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -53,7 +53,7 @@ it('emits no findings when description contains a concrete date', function (stri
     );
 
     $findings = iterator_to_array(
-        (new DeprecatedNoSunsetDate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoSunsetDate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -66,7 +66,7 @@ it('emits no findings for non-deprecated operations', function (): void {
     $operation = OperationNodeFactory::makeOperation(deprecated: false, responses: []);
 
     $findings = iterator_to_array(
-        (new DeprecatedNoSunsetDate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoSunsetDate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -81,7 +81,7 @@ it('emits no findings when deprecated operation has a non-empty x-sunset extensi
     $operation = OperationNodeFactory::makeOperation(deprecated: true, responses: [], raw: $raw);
 
     $findings = iterator_to_array(
-        (new DeprecatedNoSunsetDate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoSunsetDate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -94,7 +94,7 @@ it('still emits a finding when x-sunset extension is an empty string (Bug 8)', f
     $operation = OperationNodeFactory::makeOperation(deprecated: true, responses: [], raw: $raw);
 
     $findings = iterator_to_array(
-        (new DeprecatedNoSunsetDate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedNoSunsetDate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1);

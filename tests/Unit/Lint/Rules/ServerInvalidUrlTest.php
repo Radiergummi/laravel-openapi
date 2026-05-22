@@ -30,7 +30,7 @@ function serverInvalidUrlFindings(?string $url): array
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
     $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    return iterator_to_array((new ServerInvalidUrl())->checkApi($api, $lintCtx));
+    return iterator_to_array(new ServerInvalidUrl()->checkApi($api, $lintCtx));
 }
 
 it('has the correct rule id and level', function (): void {

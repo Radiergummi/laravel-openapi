@@ -73,7 +73,7 @@ final class FlightController
     {
         $flight = Flight::query()->create($request->validated());
 
-        return (new FlightResource($flight))->additional([
+        return new FlightResource($flight)->additional([
             '_location' => "/api/flights/{$flight->id}",
         ]);
     }

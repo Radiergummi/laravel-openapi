@@ -27,7 +27,7 @@ function specInvalidFindings(OA\OpenApi $spec, string $schemaPath): array
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
     $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    return iterator_to_array((new SpecInvalid($schemaPath))->checkApi($api, $lintCtx));
+    return iterator_to_array(new SpecInvalid($schemaPath)->checkApi($api, $lintCtx));
 }
 
 it('emits no findings for a minimal valid OAS 3.1 spec', function (): void {

@@ -25,7 +25,7 @@ it('emits no finding when all enum values match the declared type', function (st
     $field = OperationNodeFactory::makeField(name: 'value', type: $type, enum: $enum);
 
     $findings = iterator_to_array(
-        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaEnumTypeMismatch()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -40,7 +40,7 @@ it('emits a finding when an enum value does not match the declared type', functi
     $field = OperationNodeFactory::makeField(name: 'Status', type: $type, enum: $enum);
 
     $findings = iterator_to_array(
-        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaEnumTypeMismatch()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -59,7 +59,7 @@ it('skips fields without a usable type', function (?string $type, array $enum): 
     $field = OperationNodeFactory::makeField(name: 'Untyped', type: $type, enum: $enum);
 
     $findings = iterator_to_array(
-        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaEnumTypeMismatch()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -72,7 +72,7 @@ it('emits multiple findings for multiple mismatched values', function (): void {
     $field = OperationNodeFactory::makeField(name: 'Mixed', type: 'integer', enum: ['one', 2, 'three']);
 
     $findings = iterator_to_array(
-        (new SchemaEnumTypeMismatch())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaEnumTypeMismatch()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(2);

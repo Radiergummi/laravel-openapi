@@ -24,7 +24,7 @@ it('emits a finding when an operation has duplicate tags', function (): void {
     $operation = OperationNodeFactory::makeOperation(tags: ['Search', 'Search', 'Users']);
 
     $findings = iterator_to_array(
-        (new TagDuplicate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new TagDuplicate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -38,7 +38,7 @@ it('emits no findings when all tags are unique', function (): void {
     $operation = OperationNodeFactory::makeOperation(tags: ['Search', 'Users', 'Admin']);
 
     $findings = iterator_to_array(
-        (new TagDuplicate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new TagDuplicate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -48,7 +48,7 @@ it('emits no findings when an operation has no tags', function (): void {
     $operation = OperationNodeFactory::makeOperation(tags: []);
 
     $findings = iterator_to_array(
-        (new TagDuplicate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new TagDuplicate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -58,7 +58,7 @@ it('emits multiple findings for multiple duplicated tags', function (): void {
     $operation = OperationNodeFactory::makeOperation(tags: ['Search', 'Search', 'Admin', 'Admin']);
 
     $findings = iterator_to_array(
-        (new TagDuplicate())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new TagDuplicate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(2);

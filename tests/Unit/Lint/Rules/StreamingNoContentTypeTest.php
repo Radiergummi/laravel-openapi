@@ -52,7 +52,7 @@ function streamingFindings(string $controllerMethod, string $routeName, ?string 
     );
 
     return iterator_to_array(
-        (new StreamingNoContentType())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new StreamingNoContentType()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 }
 

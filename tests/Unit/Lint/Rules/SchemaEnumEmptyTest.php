@@ -26,7 +26,7 @@ it('emits a finding for a field schema with an empty enum array', function (): v
     $field = OperationNodeFactory::makeField(name: 'status', enum: []);
 
     $findings = iterator_to_array(
-        (new SchemaEnumEmpty())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaEnumEmpty()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -38,7 +38,7 @@ it('emits no finding for a field whose enum is non-empty or absent', function (?
     $field = OperationNodeFactory::makeField(name: 'status', enum: $enum);
 
     $findings = iterator_to_array(
-        (new SchemaEnumEmpty())->checkField($field, OperationNodeFactory::emptyContext()),
+        new SchemaEnumEmpty()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -54,7 +54,7 @@ it('emits a finding for a component schema with an empty enum array', function (
     $node = OperationNodeFactory::makeComponentSchema(name: 'Status', raw: $raw);
 
     $findings = iterator_to_array(
-        (new SchemaEnumEmpty())->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
+        new SchemaEnumEmpty()->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -69,7 +69,7 @@ it('emits no finding for a component schema with a non-empty enum', function ():
     $node = OperationNodeFactory::makeComponentSchema(name: 'Status', raw: $raw);
 
     $findings = iterator_to_array(
-        (new SchemaEnumEmpty())->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
+        new SchemaEnumEmpty()->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -79,7 +79,7 @@ it('emits no finding for a component schema without an enum key', function (): v
     $node = OperationNodeFactory::makeComponentSchema(name: 'Status');
 
     $findings = iterator_to_array(
-        (new SchemaEnumEmpty())->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
+        new SchemaEnumEmpty()->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);

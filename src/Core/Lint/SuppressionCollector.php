@@ -219,7 +219,7 @@ final class SuppressionCollector
             return;
         }
 
-        $constructor = (new ReflectionClass($className))->getConstructor();
+        $constructor = new ReflectionClass($className)->getConstructor();
 
         if ($constructor === null) {
             return;

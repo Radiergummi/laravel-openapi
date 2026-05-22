@@ -188,7 +188,7 @@ it('emits no finding when the discriminator property is inherited via allOf', fu
         suppressions: [],
     );
 
-    $findings = iterator_to_array((new DiscriminatorInvalidMapping())->checkComponentSchema($component, $lintCtx));
+    $findings = iterator_to_array(new DiscriminatorInvalidMapping()->checkComponentSchema($component, $lintCtx));
 
     expect($findings)->toBe([]);
 });
@@ -217,7 +217,7 @@ it('emits no finding when there is no discriminator', function (): void {
         suppressions: [],
     );
 
-    $findings = iterator_to_array((new DiscriminatorInvalidMapping())->checkComponentSchema($component, $lintCtx));
+    $findings = iterator_to_array(new DiscriminatorInvalidMapping()->checkComponentSchema($component, $lintCtx));
 
     expect($findings)->toBe([]);
 });

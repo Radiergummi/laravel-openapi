@@ -60,7 +60,7 @@ it('emits no finding when allOf types do not conflict', function (string $label,
     $component = makeAllOfComponent($label, $types);
 
     $findings = iterator_to_array(
-        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaAllOfTypeConflict()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -78,7 +78,7 @@ it('emits no finding when schema has no allOf', function (): void {
     $component = OperationNodeFactory::makeComponentSchema(name: 'Simple', raw: $schema);
 
     $findings = iterator_to_array(
-        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaAllOfTypeConflict()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -88,7 +88,7 @@ it('emits a finding when allOf sub-schemas have conflicting types', function ():
     $component = makeAllOfComponent('Conflict', ['string', 'integer']);
 
     $findings = iterator_to_array(
-        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaAllOfTypeConflict()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -104,7 +104,7 @@ it('detects conflicts across three sub-schemas', function (): void {
     $component = makeAllOfComponent('Triple', ['object', 'string', 'integer']);
 
     $findings = iterator_to_array(
-        (new SchemaAllOfTypeConflict())->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
+        new SchemaAllOfTypeConflict()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)

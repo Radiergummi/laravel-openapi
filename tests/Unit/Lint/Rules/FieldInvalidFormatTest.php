@@ -101,7 +101,7 @@ it('emits a finding for a Data class injected through a Domain Action', function
     // Scanner descends into ActionWithInvalidFormatData's constructor to find InvalidFormatFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithInvalidFormatData::class]);
     $findings = iterator_to_array(
-        (new FieldInvalidFormat($scanner))->checkOperation($operation, $context),
+        new FieldInvalidFormat($scanner)->checkOperation($operation, $context),
     );
 
     expect($findings)->toHaveCount(1)

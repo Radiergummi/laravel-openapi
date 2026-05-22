@@ -13,7 +13,7 @@ uses(TestCase::class)->in('Unit', 'Feature');
  */
 function reflectFunctionParameter(Closure $fn, string $name): ReflectionParameter
 {
-    foreach ((new ReflectionFunction($fn))->getParameters() as $param) {
+    foreach (new ReflectionFunction($fn)->getParameters() as $param) {
         if ($param->getName() === $name) {
             return $param;
         }

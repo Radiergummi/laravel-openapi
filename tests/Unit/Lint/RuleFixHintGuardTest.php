@@ -22,7 +22,7 @@ it('every lint rule class references a fixHint argument', function (): void {
 
     foreach ($ruleClasses as $ruleClass) {
         try {
-            $file = (new ReflectionClass($ruleClass))->getFileName();
+            $file = new ReflectionClass($ruleClass)->getFileName();
 
             if ($file && file_exists($file)) {
                 $source = file_get_contents($file);

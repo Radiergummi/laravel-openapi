@@ -19,12 +19,12 @@ it('is a FieldAttribute', function (): void {
 });
 
 it('maps schema parameters onto the descriptor', function (): void {
-    $descriptor = (new ResponseField(
+    $descriptor = new ResponseField(
         type: 'integer',
         description: 'Number of items in the bucket.',
         example: 7,
         readOnly: true,
-    ))->descriptor();
+    )->descriptor();
 
     expect($descriptor->type)->toBe('integer')
         ->and($descriptor->description)->toBe('Number of items in the bucket.')

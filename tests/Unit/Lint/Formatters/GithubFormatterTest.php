@@ -18,7 +18,7 @@ uses()->group('openapi', 'lint');
 
 it('renders a ::error workflow command per level-0 finding', function (): void {
     $output = new BufferedOutput();
-    (new GithubFormatter())->render(
+    new GithubFormatter()->render(
         findings: [new Finding(
             ruleId: 'response.empty',
             level: 0,
@@ -36,7 +36,7 @@ it('renders a ::error workflow command per level-0 finding', function (): void {
 
 it('renders ::warning for level-1 findings', function (): void {
     $output = new BufferedOutput();
-    (new GithubFormatter())->render(
+    new GithubFormatter()->render(
         findings: [new Finding(
             ruleId: 'response.heuristic',
             level: 1,
@@ -53,7 +53,7 @@ it('renders ::warning for level-1 findings', function (): void {
 
 it('percent-encodes newlines in the body', function (): void {
     $output = new BufferedOutput();
-    (new GithubFormatter())->render(
+    new GithubFormatter()->render(
         findings: [new Finding(
             ruleId: 'test.rule',
             level: 0,
@@ -71,7 +71,7 @@ it('percent-encodes newlines in the body', function (): void {
 
 it('percent-encodes percent signs in the body', function (): void {
     $output = new BufferedOutput();
-    (new GithubFormatter())->render(
+    new GithubFormatter()->render(
         findings: [new Finding(
             ruleId: 'test.rule',
             level: 0,
@@ -88,7 +88,7 @@ it('percent-encodes percent signs in the body', function (): void {
 
 it('percent-encodes commas and colons in property values', function (): void {
     $output = new BufferedOutput();
-    (new GithubFormatter())->render(
+    new GithubFormatter()->render(
         findings: [new Finding(
             ruleId: 'a:b,c',
             level: 0,

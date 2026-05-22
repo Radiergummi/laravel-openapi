@@ -58,7 +58,7 @@ it('emits for suppressions without a reason', function (): void {
         actionDescriptors: [],
         suppressions: [metaRulesDirective('response.empty')],
     );
-    $findings = iterator_to_array((new MetaNoSuppressionReason())->checkApi($api, $ctx));
+    $findings = iterator_to_array(new MetaNoSuppressionReason()->checkApi($api, $ctx));
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.no-suppression-reason');
 });
@@ -72,7 +72,7 @@ it('does not emit when reason is provided', function (): void {
         actionDescriptors: [],
         suppressions: [metaRulesDirective('response.empty', 'SSE endpoint')],
     );
-    $findings = iterator_to_array((new MetaNoSuppressionReason())->checkApi($api, $ctx));
+    $findings = iterator_to_array(new MetaNoSuppressionReason()->checkApi($api, $ctx));
     expect($findings)->toBe([]);
 });
 

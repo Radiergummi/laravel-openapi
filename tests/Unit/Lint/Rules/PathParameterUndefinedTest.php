@@ -29,7 +29,7 @@ it('emits no finding when all path parameters match placeholders', function (): 
     );
 
     $findings = iterator_to_array(
-        (new PathParameterUndefined())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndefined()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -39,7 +39,7 @@ it('emits no finding when there are no parameters and no placeholders', function
     $operation = OperationNodeFactory::makeOperation(pathUri: '/users', parameters: [], responses: []);
 
     $findings = iterator_to_array(
-        (new PathParameterUndefined())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndefined()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -56,7 +56,7 @@ it('emits a finding when a path parameter has no matching placeholder', function
     );
 
     $findings = iterator_to_array(
-        (new PathParameterUndefined())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndefined()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)
@@ -79,7 +79,7 @@ it('emits findings for multiple undefined path parameters', function (): void {
     );
 
     $findings = iterator_to_array(
-        (new PathParameterUndefined())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PathParameterUndefined()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)

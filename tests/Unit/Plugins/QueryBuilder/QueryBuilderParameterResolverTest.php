@@ -39,7 +39,7 @@ function parameterNames(array $parameters): array
 
 it('emits a filter[...] parameter per #[AllowedFilter]', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
+    $params = new QueryBuilderParameterResolver()->resolveQueryParameters($descriptor);
 
     expect(parameterNames($params))->toContain('filter[status]')
         ->and(parameterNames($params))->toContain('filter[priority]');
@@ -47,7 +47,7 @@ it('emits a filter[...] parameter per #[AllowedFilter]', function (): void {
 
 it('emits a single sort parameter with the allowed fields as enum', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
+    $params = new QueryBuilderParameterResolver()->resolveQueryParameters($descriptor);
 
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
 
@@ -58,7 +58,7 @@ it('emits a single sort parameter with the allowed fields as enum', function ():
 
 it('emits a single include parameter with the allowed relations as enum', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'index');
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
+    $params = new QueryBuilderParameterResolver()->resolveQueryParameters($descriptor);
 
     $include = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'include');
 
@@ -70,7 +70,7 @@ it('emits a single include parameter with the allowed relations as enum', functi
 it('returns an empty array when no query-builder attributes are present', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbResolverController::class, 'bare');
 
-    expect((new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor))
+    expect(new QueryBuilderParameterResolver()->resolveQueryParameters($descriptor))
         ->toBe([]);
 });
 
@@ -82,7 +82,7 @@ class QbNullableFilterController
 
 it('widens a nullable AllowedFilter schema to the [type, null] shape and forwards numeric bounds', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(QbNullableFilterController::class, 'index');
-    $params = (new QueryBuilderParameterResolver())->resolveQueryParameters($descriptor);
+    $params = new QueryBuilderParameterResolver()->resolveQueryParameters($descriptor);
 
     $cursor = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'filter[cursor]');
 

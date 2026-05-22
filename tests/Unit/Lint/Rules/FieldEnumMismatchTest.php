@@ -103,7 +103,7 @@ it('emits a finding for a Data class injected through a Domain Action', function
     // Scanner descends into ActionWithEnumMismatchData's constructor to find EnumMismatchFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithEnumMismatchData::class]);
     $findings = iterator_to_array(
-        (new FieldEnumMismatch($scanner))->checkOperation($operation, $context),
+        new FieldEnumMismatch($scanner)->checkOperation($operation, $context),
     );
 
     expect($findings)->toHaveCount(1)

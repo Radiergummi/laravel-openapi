@@ -36,7 +36,7 @@ function operationSecurityFindings(
         : OperationNodeFactory::forDescriptor($descriptor, raw: $raw);
 
     return iterator_to_array(
-        (new OperationSecurityMissing())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new OperationSecurityMissing()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 }
 

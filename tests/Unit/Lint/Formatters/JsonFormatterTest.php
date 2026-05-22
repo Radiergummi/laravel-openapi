@@ -19,7 +19,7 @@ uses()->group('openapi', 'lint');
 it('renders findings as schema-versioned JSON', function (): void {
     $output = new BufferedOutput();
 
-    (new JsonFormatter())->render(
+    new JsonFormatter()->render(
         findings: [
             new Finding(
                 ruleId: 'response.empty',
@@ -47,7 +47,7 @@ it('renders findings as schema-versioned JSON', function (): void {
 
 it('renders empty findings', function (): void {
     $output = new BufferedOutput();
-    (new JsonFormatter())->render(findings: [], level: 2, exitCode: 0, output: $output);
+    new JsonFormatter()->render(findings: [], level: 2, exitCode: 0, output: $output);
 
     $decoded = json_decode($output->fetch(), true, flags: JSON_THROW_ON_ERROR);
     expect($decoded['findings'])->toBe([])

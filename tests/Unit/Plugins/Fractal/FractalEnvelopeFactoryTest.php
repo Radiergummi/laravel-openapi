@@ -27,7 +27,7 @@ function envelopeProperties(\OpenApi\Annotations\Schema $schema): array
 }
 
 it('builds a DataArray single-item envelope with a data ref', function (): void {
-    $schema = (new FractalEnvelopeFactory())->single('#/components/schemas/Book');
+    $schema = new FractalEnvelopeFactory()->single('#/components/schemas/Book');
     $properties = envelopeProperties($schema);
 
     expect($schema->type)->toBe('object')
@@ -36,7 +36,7 @@ it('builds a DataArray single-item envelope with a data ref', function (): void 
 });
 
 it('builds a DataArray collection envelope with a data array', function (): void {
-    $schema = (new FractalEnvelopeFactory())->collection('#/components/schemas/Book');
+    $schema = new FractalEnvelopeFactory()->collection('#/components/schemas/Book');
     $properties = envelopeProperties($schema);
 
     expect($properties)->toHaveKeys(['data'])
@@ -44,7 +44,7 @@ it('builds a DataArray collection envelope with a data array', function (): void
 });
 
 it('builds a DataArray paginated envelope with pagination meta', function (): void {
-    $schema = (new FractalEnvelopeFactory())->paginated('#/components/schemas/Book');
+    $schema = new FractalEnvelopeFactory()->paginated('#/components/schemas/Book');
     $properties = envelopeProperties($schema);
 
     expect($properties)->toHaveKeys(['data', 'meta'])
@@ -58,13 +58,13 @@ it('builds a DataArray paginated envelope with pagination meta', function (): vo
 });
 
 it('builds an ArraySerializer single response as a bare $ref', function (): void {
-    $schema = (new FractalEnvelopeFactory())->single('#/components/schemas/Book', Serializer::ArraySerializer);
+    $schema = new FractalEnvelopeFactory()->single('#/components/schemas/Book', Serializer::ArraySerializer);
 
     expect($schema->ref)->toBe('#/components/schemas/Book');
 });
 
 it('builds an ArraySerializer collection as a top-level array', function (): void {
-    $schema = (new FractalEnvelopeFactory())->collection('#/components/schemas/Book', Serializer::ArraySerializer);
+    $schema = new FractalEnvelopeFactory()->collection('#/components/schemas/Book', Serializer::ArraySerializer);
 
     expect($schema->type)->toBe('array')
         ->and($schema->items)->not->toBeNull()
@@ -72,13 +72,13 @@ it('builds an ArraySerializer collection as a top-level array', function (): voi
 });
 
 it('keeps the data-array paginated envelope for ArraySerializer (paginator wraps regardless)', function (): void {
-    $schema = (new FractalEnvelopeFactory())->paginated('#/components/schemas/Book', Serializer::ArraySerializer);
+    $schema = new FractalEnvelopeFactory()->paginated('#/components/schemas/Book', Serializer::ArraySerializer);
 
     expect(envelopeProperties($schema))->toHaveKeys(['data', 'meta']);
 });
 
 it('builds a JsonApi single resource object', function (): void {
-    $schema = (new FractalEnvelopeFactory())->single('#/components/schemas/Book', Serializer::JsonApi);
+    $schema = new FractalEnvelopeFactory()->single('#/components/schemas/Book', Serializer::JsonApi);
     $properties = envelopeProperties($schema);
 
     expect($properties)->toHaveKeys(['data']);
@@ -90,7 +90,7 @@ it('builds a JsonApi single resource object', function (): void {
 });
 
 it('builds a JsonApi collection of resource objects', function (): void {
-    $schema = (new FractalEnvelopeFactory())->collection('#/components/schemas/Book', Serializer::JsonApi);
+    $schema = new FractalEnvelopeFactory()->collection('#/components/schemas/Book', Serializer::JsonApi);
     $properties = envelopeProperties($schema);
 
     expect($properties['data']->type)->toBe('array')
@@ -98,7 +98,7 @@ it('builds a JsonApi collection of resource objects', function (): void {
 });
 
 it('builds a JsonApi paginated envelope with hyphenated pagination keys', function (): void {
-    $schema = (new FractalEnvelopeFactory())->paginated('#/components/schemas/Book', Serializer::JsonApi);
+    $schema = new FractalEnvelopeFactory()->paginated('#/components/schemas/Book', Serializer::JsonApi);
     $properties = envelopeProperties($schema);
 
     expect($properties)->toHaveKeys(['data', 'meta']);

@@ -102,7 +102,7 @@ it('emits a finding for a Data class injected through a Domain Action', function
     // Scanner descends into ActionWithConflictingTypeData's constructor to find ConflictingTypeFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithConflictingTypeData::class]);
     $findings = iterator_to_array(
-        (new FieldConflictingType($scanner))->checkOperation($operation, $context),
+        new FieldConflictingType($scanner)->checkOperation($operation, $context),
     );
 
     expect($findings)->toHaveCount(1)

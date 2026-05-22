@@ -46,7 +46,7 @@ it('emits no finding when paths are consistent', function (array $pathUris): voi
     $context = trailingSlashContext($pathUris);
 
     $findings = iterator_to_array(
-        (new PathTrailingSlashInconsistent())->checkApi($context->api, $context),
+        new PathTrailingSlashInconsistent()->checkApi($context->api, $context),
     );
 
     expect($findings)->toBe([]);
@@ -61,7 +61,7 @@ it('emits a finding when paths are inconsistent', function (): void {
     $context = trailingSlashContext(['/users', '/posts/']);
 
     $findings = iterator_to_array(
-        (new PathTrailingSlashInconsistent())->checkApi($context->api, $context),
+        new PathTrailingSlashInconsistent()->checkApi($context->api, $context),
     );
 
     expect($findings)
@@ -76,7 +76,7 @@ it('emits exactly one finding even with many inconsistent paths', function (): v
     $context = trailingSlashContext(['/a', '/b/', '/c', '/d/']);
 
     $findings = iterator_to_array(
-        (new PathTrailingSlashInconsistent())->checkApi($context->api, $context),
+        new PathTrailingSlashInconsistent()->checkApi($context->api, $context),
     );
 
     expect($findings)->toHaveCount(1);

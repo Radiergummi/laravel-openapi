@@ -101,7 +101,7 @@ it('emits a finding for a Data class injected through a Domain Action', function
     // Scanner descends into ActionWithNoEffectData's constructor to find NoEffectFixtureData.
     $scanner = new PayloadParameterScanner(indirectionClasses: [ActionWithNoEffectData::class]);
     $findings = iterator_to_array(
-        (new FieldNoEffect($scanner))->checkOperation($operation, $context),
+        new FieldNoEffect($scanner)->checkOperation($operation, $context),
     );
 
     expect($findings)->toHaveCount(1)

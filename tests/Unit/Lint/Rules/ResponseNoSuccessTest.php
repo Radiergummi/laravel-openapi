@@ -28,7 +28,7 @@ it(
         $operation = makeResponseNoSuccessOperation('/users', $method, $statusCodes);
 
         $findings = iterator_to_array(
-            (new ResponseNoSuccess())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+            new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
         );
 
         expect($findings)->toBe([]);
@@ -44,7 +44,7 @@ it('emits a finding when an operation has only error responses', function (): vo
     $operation = makeResponseNoSuccessOperation('/users', 'GET', [401, 500]);
 
     $findings = iterator_to_array(
-        (new ResponseNoSuccess())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toHaveCount(1)
@@ -59,7 +59,7 @@ it('skips operations with no responses (caught by response.empty)', function ():
     $operation = makeResponseNoSuccessOperation('/empty', 'GET', []);
 
     $findings = iterator_to_array(
-        (new ResponseNoSuccess())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -73,7 +73,7 @@ it('emits no finding when the only response is a default response', function ():
     );
 
     $findings = iterator_to_array(
-        (new ResponseNoSuccess())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
     expect($findings)->toBe([]);
@@ -85,8 +85,8 @@ it('emits a finding per operation missing a success response', function (): void
     $op2 = makeResponseNoSuccessOperation('/stuff', 'POST', [422]);
 
     $findings = [
-        ...iterator_to_array((new ResponseNoSuccess())->checkOperation($op1, $context)),
-        ...iterator_to_array((new ResponseNoSuccess())->checkOperation($op2, $context)),
+        ...iterator_to_array(new ResponseNoSuccess()->checkOperation($op1, $context)),
+        ...iterator_to_array(new ResponseNoSuccess()->checkOperation($op2, $context)),
     ];
 
     expect($findings)->toHaveCount(2)

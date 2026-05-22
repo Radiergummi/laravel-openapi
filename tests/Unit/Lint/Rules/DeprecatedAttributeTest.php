@@ -25,7 +25,7 @@ function deprecatedAttributeFindings(string $controller, string $method): array
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/fixture');
 
     return iterator_to_array(
-        (new DeprecatedAttribute(DEPRECATED_ATTR_NAMESPACE))->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new DeprecatedAttribute(DEPRECATED_ATTR_NAMESPACE)->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 }
 

@@ -60,14 +60,14 @@ function locatorDescriptor(string $method): ActionDescriptor
 }
 
 it('locates a single resource from the return type', function (): void {
-    $target = (new ResourceClassLocator())->locate(locatorDescriptor('single'));
+    $target = new ResourceClassLocator()->locate(locatorDescriptor('single'));
 
     expect($target?->resourceClass)->toBe(LocatorFixtureResource::class)
         ->and($target?->isCollection)->toBeFalse();
 });
 
 it('returns an ambiguous target for a bare collection return type', function (): void {
-    $target = (new ResourceClassLocator())->locate(locatorDescriptor('collectionType'));
+    $target = new ResourceClassLocator()->locate(locatorDescriptor('collectionType'));
 
     expect($target)->not->toBeNull()
         ->and($target?->isAmbiguous())->toBeTrue()
@@ -75,16 +75,16 @@ it('returns an ambiguous target for a bare collection return type', function ():
 });
 
 it('resolves the item class from a #[ResponseResource] attribute', function (): void {
-    $target = (new ResourceClassLocator())->locate(locatorDescriptor('attributed'));
+    $target = new ResourceClassLocator()->locate(locatorDescriptor('attributed'));
 
     expect($target?->resourceClass)->toBe(LocatorFixtureResource::class)
         ->and($target?->isCollection)->toBeTrue();
 });
 
 it('returns null when the action does not return a resource', function (): void {
-    expect((new ResourceClassLocator())->locate(locatorDescriptor('notAResource')))->toBeNull();
+    expect(new ResourceClassLocator()->locate(locatorDescriptor('notAResource')))->toBeNull();
 });
 
 it('returns null when #[ResponseResource] names a non-JsonResource class', function (): void {
-    expect((new ResourceClassLocator())->locate(locatorDescriptor('attributedNonResource')))->toBeNull();
+    expect(new ResourceClassLocator()->locate(locatorDescriptor('attributedNonResource')))->toBeNull();
 });
