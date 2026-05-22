@@ -48,7 +48,7 @@ A route R is in spec X iff **all four** hold:
 3. R is not `#[Hide]`-d for the current environment.
 4. `visibility.default = 'public'` **or** R is `#[Expose]`-d for the current environment.
 
-The `default` spec, when no `'specs.default.match'` config is present, matches every route — so any route not pinned elsewhere by `#[Spec]` lands in `default`. This is the catch-all that preserves today's single-spec behavior.
+The `default` spec, when no `'specs.default.match'` config is present, matches every route — so any route not pinned elsewhere by `#[Spec]` lands in `default`. This is the catch-all for projects that only want one document.
 
 A route with no `#[Spec]` attribute may match several specs at once — `match` configs are independent, not mutually exclusive. This is intentional and the common case.
 
@@ -60,7 +60,7 @@ Root keys define the implicit `default` spec. `'specs'` adds named extras. The 8
 // config/openapi.php  (additions only; the rest is unchanged)
 
 return [
-    // Root keys = implicit 'default' spec (today's behavior, unchanged).
+    // Root keys = implicit 'default' spec.
     'info'        => [...],
     'servers'     => [...],
     'tags'        => [...],
@@ -216,7 +216,7 @@ Two rule scopes:
 - `--format=yaml|json` (existing flag, unchanged).
 - `--explain` → for every (route × spec) pair, print the decision on stderr while writing the document(s) normally. One line per pair: `[spec] ✓/✗ METHOD uri  reason`.
 
-The existing positional `path` argument behavior — "write to this path" — is preserved when only one spec is targeted, for back-compat. With multiple specs, `--output=` is rejected with a clear error.
+With multiple specs configured, `--output=` is rejected unless a single `spec` is also targeted.
 
 ### `openapi:lint [--spec=] [--format=] [--level=]`
 
@@ -246,7 +246,7 @@ The existing positional `path` argument behavior — "write to this path" — is
 
 `OpenApiServiceProvider::registerRoutes()` iterates `SpecRegistry::all()`. For each spec:
 
-- If `route_uri !== null` and `!== false`, mount `GET {prefix}/{route_uri}` → `DocsController::spec($specName)`. Route name: `openapi.spec` for `default` (today's name preserved); `openapi.spec.{name}` for named.
+- If `route_uri !== null` and `!== false`, mount `GET {prefix}/{route_uri}` → `DocsController::spec($specName)`. Route name: `openapi.spec` for `default`; `openapi.spec.{name}` for named.
 - Same pattern for `playground_uri` → `DocsController::playground($specName)`. Route name: `openapi.playground` / `openapi.playground.{name}`.
 
 `DocsController`'s methods take `string $spec = 'default'`. Local-dev regeneration: `$orchestrator->generateOne($spec)`. Production: serves the static file at `$specRegistry->get($spec)->outputPath`. The Scalar playground view receives the resolved spec URL for the current `$spec`.
@@ -267,20 +267,8 @@ The feature must not add to per-request cost in production for routes that aren'
 
 1. No eager `$this->app->make(...)` calls in `register()` / `boot()` — only inside binding closures.
 2. `SpecRegistry` is `scoped`; config is parsed and `RouteFilter` instances are resolved lazily on first call.
-3. `DocsController` constructor stays cheap; it only resolves the orchestrator when actually invoked (already the shape today; preserve it).
+3. `DocsController` constructor stays cheap; it only resolves the orchestrator when actually invoked.
 4. A new feature test boots a fresh app, makes a request to an unrelated route, and asserts none of the generation services were resolved. This prevents regressions where someone adds an eager `make()`.
-
-## Back-compat & migration
-
-The feature is opt-in via the `'specs'` config key for **config-side users**. For users who call the generator programmatically there is one small API break.
-
-- **No `'specs'` key** → single-spec mode. `SpecRegistry::all()` returns one entry materialised from root keys. `RouteFilter` signature unchanged. `Hide`/`Expose` unchanged. CLI unchanged for the no-arg case. HTTP routes unchanged.
-- **Existing custom `RouteFilter` implementations** — no change; signature is preserved.
-- **`#[Spec]`** is additive — absent in existing code, so existing code behaves identically.
-- The published `config/openapi.php` stub keeps showing today's flat single-spec form, plus a commented-out `'specs' => [...]` example.
-- **`OpenApiGenerator::generate()` signature changes** from `generate(array $filters = []): OA\OpenApi` to `generate(SpecDefinition $spec, array $extraFilters = []): OA\OpenApi`. Pre-1.0, this is fine; the `CHANGELOG.md` entry calls it out with a one-line migration recipe (`$generator->generate($specRegistry->default())`).
-
-`CHANGELOG.md` gets an `[Unreleased]` entry describing the additive feature and pointing at `docs/multi-spec.md`.
 
 ## Documentation
 
