@@ -12,18 +12,15 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Http;
 
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use ReflectionException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpException;
-use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
+use function app;
 use function config;
 use function file_exists;
 use function response;
@@ -33,37 +30,36 @@ use function view;
 final class DocsController extends Controller
 {
     /**
-     * Serves the generated OpenAPI 3.1 specification as YAML.
+     * Serves the generated OpenAPI 3.1 specification as YAML for the given spec.
      *
      * In local development, the spec is generated on every request so changes to controllers and
      * schemas are reflected immediately. Everywhere else, the spec is built at deploy time by the
      * `openapi:generate` command and served as a static file with etag/last-modified semantics. A
      * missing file in a deployed environment indicates a broken build.
-     *
-     * @throws HttpException
-     * @throws HttpResponseException
-     * @throws ReflectionException
-     * @throws RuntimeException
-     * @throws UnsupportedException
      */
-    public function spec(OpenApiGenerator $generator, SpecRegistry $registry, Request $request): BinaryFileResponse|Response
-    {
+    public function spec(
+        OpenApiGenerationOrchestrator $orchestrator,
+        SpecRegistry $registry,
+        Request $request,
+        string $spec = 'default',
+    ): BinaryFileResponse|Response {
+        $definition = $registry->get($spec);
+
         if ((string) config('app.env', 'production') === 'local') {
-            return response($generator->generate($registry->default(), app()->environment())->toYaml(), 200, [
-                'Content-Type' => 'application/yaml',
-                'Cache-Control' => 'no-store',
-            ]);
+            return response(
+                $orchestrator->generateOne($spec, app()->environment())->toYaml(),
+                200,
+                ['Content-Type' => 'application/yaml', 'Cache-Control' => 'no-store'],
+            );
         }
 
-        $path = (string) config('openapi.output_path');
-
-        if (!file_exists($path)) {
-            throw new RuntimeException('OpenAPI specification has not been generated');
+        if (!file_exists($definition->outputPath)) {
+            throw new RuntimeException("OpenAPI specification '{$spec}' has not been generated");
         }
 
         $response = response()
-            ->file($path, [
-                'Content-Type' => 'application/yaml',
+            ->file($definition->outputPath, [
+                'Content-Type'  => 'application/yaml',
                 'Cache-Control' => 'public, max-age=300, must-revalidate',
             ])
             ->setAutoEtag()
@@ -78,13 +74,17 @@ final class DocsController extends Controller
     }
 
     /**
-     * Render the Scalar API reference page.
+     * Render the Scalar API reference page for the given spec.
      *
      * The page is a minimal HTML shell that loads Scalar from a CDN and points it at the OpenAPI
-     * YAML endpoint.
+     * YAML endpoint for this spec.
      */
-    public function playground(): View
+    public function playground(SpecRegistry $registry, string $spec = 'default'): View
     {
-        return view('openapi::playground', ['specUrl' => route('openapi.spec')]);
+        $registry->get($spec); // surface a 404-equivalent if the spec name is unknown
+
+        $routeName = $spec === 'default' ? 'openapi.spec' : "openapi.spec.{$spec}";
+
+        return view('openapi::playground', ['specUrl' => route($routeName)]);
     }
 }

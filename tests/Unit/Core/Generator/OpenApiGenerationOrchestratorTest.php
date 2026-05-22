@@ -20,6 +20,8 @@ it('generateAll returns one document per defined spec, keyed by spec name', func
         'v1' => ['match' => ['prefix' => 'api/v1/*']],
     ]]);
 
+    app()->forgetScopedInstances();
+
     $documents = app(OpenApiGenerationOrchestrator::class)->generateAll('testing');
 
     expect($documents)
@@ -33,6 +35,8 @@ it('generateOne returns the document for the named spec with its resolved info',
     config(['openapi.specs' => [
         'v1' => ['info' => ['title' => 'V1 API']],
     ]]);
+
+    app()->forgetScopedInstances();
 
     $document = app(OpenApiGenerationOrchestrator::class)->generateOne('v1', 'testing');
 

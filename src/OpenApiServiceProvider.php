@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
-use Closure;
 use Illuminate\Container\Container;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -91,6 +91,9 @@ use function class_exists;
  */
 class OpenApiServiceProvider extends ServiceProvider
 {
+    /**
+     * @throws BindingResolutionException
+     */
     public function boot(): void
     {
         $this->optimizes(
@@ -230,12 +233,12 @@ class OpenApiServiceProvider extends ServiceProvider
     private function registerLintRules(): void
     {
         $namingRules = [
-            OperationIdNamingInconsistent::class   => ['operation_id_case', 'dot'],
-            FieldNameNamingInconsistent::class     => ['property_name_case', 'camel'],
-            PathSegmentNamingInconsistent::class   => ['path_segment_case', 'kebab'],
+            OperationIdNamingInconsistent::class => ['operation_id_case', 'dot'],
+            FieldNameNamingInconsistent::class => ['property_name_case', 'camel'],
+            PathSegmentNamingInconsistent::class => ['path_segment_case', 'kebab'],
             ParameterNameNamingInconsistent::class => ['parameter_name_case', 'snake'],
-            TagNameNamingInconsistent::class       => ['tag_case', 'pascal'],
-            HeaderNameNamingInconsistent::class    => ['header_case', 'train'],
+            TagNameNamingInconsistent::class => ['tag_case', 'pascal'],
+            HeaderNameNamingInconsistent::class => ['header_case', 'train'],
             ComponentNameNamingInconsistent::class => ['component_name_case', 'pascal'],
         ];
 
@@ -421,7 +424,7 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerSpatieDataPlugin(): void
     {
-        if (!class_exists(Data::class)) {
+        if (! class_exists(Data::class)) {
             return;
         }
 
@@ -495,7 +498,7 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): Plugins\ApiResources\SchemaFromResource {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                /** @var Closure(): list<Core\Registry\RefSchemaResolver> $resolversFactory */
+                /** @throws BindingResolutionException */
                 $resolversFactory = static function () use ($app, $registry): array {
                     /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
                     static $cache = null;
@@ -562,7 +565,9 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): Plugins\Fractal\SchemaFromTransformer {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                /** @var Closure(): list<Core\Registry\RefSchemaResolver> $resolversFactory */
+                /**
+                 * @throws BindingResolutionException
+                 */
                 $resolversFactory = static function () use ($app, $registry): array {
                     /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
                     static $cache = null;
@@ -700,7 +705,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     rootRouteUri: (string) (config('openapi.routes.spec.uri') ?? 'openapi.yaml'),
                     rootPlaygroundUri: (string) (config('openapi.routes.playground.uri') ?? 'docs'),
                     specs: is_array(config('openapi.specs')) ? config('openapi.specs') : null,
-                    storagePath: storage_path(''),
+                    storagePath: storage_path(),
                 );
             },
         );
@@ -727,7 +732,14 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Conditionally mounts the spec and playground routes from configuration.
+     * Conditionally mounts one spec + playground route per defined spec.
+     *
+     * Reads route URIs directly from config — without touching {@see SpecRegistry} — so that
+     * later-booting service providers (e.g. example ServiceProviders in tests) can still
+     * override `openapi.info` / `openapi.tags` without the registry being pre-built with
+     * stale values. Route names follow the convention:
+     *   - default spec: `openapi.spec` / `openapi.playground`
+     *   - named specs:  `openapi.spec.{name}` / `openapi.playground.{name}`
      */
     private function registerRoutes(): void
     {
@@ -737,23 +749,67 @@ class OpenApiServiceProvider extends ServiceProvider
             return;
         }
 
-        Route::group([
-            'prefix' => $config['prefix'] ?? 'api',
-            'middleware' => $config['middleware'] ?? ['web'],
-        ], static function () use ($config): void {
-            if (($config['spec']['enabled'] ?? false) === true) {
-                Route::get(
-                    $config['spec']['uri'] ?? 'openapi.yaml',
-                    [DocsController::class, 'spec'],
-                )->name('openapi.spec');
-            }
+        /** @var array<string, array<string, mixed>> $specs */
+        $specs = is_array(config('openapi.specs')) ? config('openapi.specs') : [];
 
-            if (($config['playground']['enabled'] ?? false) === true) {
-                Route::get(
-                    $config['playground']['uri'] ?? 'docs',
-                    [DocsController::class, 'playground'],
-                )->name('openapi.playground');
+        /** @var array<string, array{route_uri: null|false|string, playground_uri: null|false|string}> $entries */
+        $entries = ['default' => [
+            'route_uri'      => is_string($config['spec']['uri'] ?? null) ? $config['spec']['uri'] : 'openapi.yaml',
+            'playground_uri' => is_string($config['playground']['uri'] ?? null) ? $config['playground']['uri'] : 'docs',
+        ]];
+
+        foreach ($specs as $name => $overrides) {
+            $overrides = (array) $overrides;
+            $rawRoute = $overrides['route_uri'] ?? sprintf('openapi-%s.yaml', $name);
+            $rawPlayground = $overrides['playground_uri'] ?? sprintf('docs/%s', $name);
+
+            $entries[(string) $name] = [
+                'route_uri'      => self::normaliseRouteUriOverride($rawRoute),
+                'playground_uri' => self::normaliseRouteUriOverride($rawPlayground),
+            ];
+        }
+
+        Route::group([
+            'prefix'     => $config['prefix'] ?? 'api',
+            'middleware' => $config['middleware'] ?? ['web'],
+        ], static function () use ($config, $entries): void {
+            foreach ($entries as $name => $entry) {
+                $routeUri = $entry['route_uri'];
+                $playgroundUri = $entry['playground_uri'];
+
+                if (is_string($routeUri) && ($config['spec']['enabled'] ?? true)) {
+                    $routeName = $name === 'default' ? 'openapi.spec' : 'openapi.spec.' . $name;
+
+                    Route::get($routeUri, [DocsController::class, 'spec'])
+                        ->defaults('spec', $name)
+                        ->name($routeName);
+                }
+
+                if (is_string($playgroundUri) && ($config['playground']['enabled'] ?? false)) {
+                    $routeName = $name === 'default' ? 'openapi.playground' : 'openapi.playground.' . $name;
+
+                    Route::get($playgroundUri, [DocsController::class, 'playground'])
+                        ->defaults('spec', $name)
+                        ->name($routeName);
+                }
             }
         });
+    }
+
+    /**
+     * Coerces a raw `route_uri` / `playground_uri` override value to string|false|null.
+     * false → disabled (no route); null → falls back to default; string → explicit URI.
+     */
+    private static function normaliseRouteUriOverride(mixed $value): string|false|null
+    {
+        if ($value === false) {
+            return false;
+        }
+
+        if ($value === null) {
+            return null;
+        }
+
+        return (string) $value;
     }
 }
