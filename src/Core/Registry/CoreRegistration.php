@@ -134,6 +134,10 @@ final class CoreRegistration
 
         Rules\HideExposeConflict::class,
         Rules\VisibilityAttributeNoOp::class,
+
+        Rules\SpecUnknownReference::class,
+        Rules\SpecRouteOrphaned::class,
+        Rules\SpecConfigOrphaned::class,
     ];
 
     public static function register(OpenApiRegistry $registry): void
