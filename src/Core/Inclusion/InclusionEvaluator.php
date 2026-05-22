@@ -1,0 +1,156 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Core\Inclusion;
+
+use Radiergummi\OpenApi\Core\Attributes\Expose;
+use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
+use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
+use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
+use Radiergummi\OpenApi\Core\Spec\SpecResolver;
+use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
+
+use function array_map;
+use function array_values;
+use function implode;
+use function in_array;
+
+/**
+ * Single source of truth for the four-rule decision "does route R belong in spec X?".
+ *
+ * Used by the generator (reads `->included`), by `openapi:why` and `openapi:generate --explain`
+ * (read `->trace`), and by the pre-build lint rules (resolve the same decision from the
+ * descriptor list without building the spec).
+ *
+ * The four rules, evaluated in order:
+ *
+ * 1. Global filters (`config('openapi.filters')`): if any `RouteFilter::shouldSkip()` returns
+ *    true, the route is excluded from every spec.
+ * 2. Spec membership: if `#[Spec]` is present, the route is in spec X iff X is in the list;
+ *    otherwise the spec's `match` config must match the route.
+ * 3. Visibility: the route is excluded when `#[Hide]` applies in the current environment.
+ * 4. Visibility default + `#[Expose]`: included when `visibility.default = 'public'` OR an
+ *    `#[Expose]` resolves true for the current environment.
+ */
+final readonly class InclusionEvaluator
+{
+    /**
+     * @param list<RouteFilter> $globalFilters
+     */
+    public function __construct(
+        private array $globalFilters,
+        private SpecMatcher $matcher,
+        private SpecResolver $specResolver,
+        private VisibilityResolver $visibility,
+    ) {}
+
+    public function decide(
+        ActionDescriptor $descriptor,
+        SpecDefinition $spec,
+        string $environment,
+    ): InclusionDecision {
+        $trace = [];
+
+        // region 1. Global exclusion
+
+        foreach ($this->globalFilters as $filter) {
+            $skip = $filter->shouldSkip($descriptor->route);
+            $name = $filter::class;
+            $trace[] = new TraceEntry(
+                stage: 'global-filter',
+                name: $name,
+                passed: !$skip,
+                reason: $skip ? 'shouldSkip = true' : 'shouldSkip = false',
+            );
+
+            if ($skip) {
+                return new InclusionDecision(false, $trace, "excluded by global filter {$name}");
+            }
+        }
+
+        // endregion
+
+        // region 2. Spec membership
+
+        $explicit = $this->specResolver->resolve($descriptor->controller, $descriptor->method);
+
+        if ($explicit !== null) {
+            $isMember = in_array($spec->name, $explicit, true);
+            $trace[] = new TraceEntry(
+                stage: 'spec-attribute',
+                name: '#[Spec]',
+                passed: $isMember,
+                reason: $isMember
+                    ? "attribute lists '{$spec->name}'"
+                    : 'attribute lists [' . implode(',', $explicit) . "]; '{$spec->name}' not present",
+            );
+
+            if (!$isMember) {
+                return new InclusionDecision(false, $trace, "not in #[Spec] list for {$spec->name}");
+            }
+        } else {
+            $middleware = array_values(
+                array_map(static fn(mixed $m): string => (string) $m, $descriptor->route->middleware()),
+            );
+
+            $matched = $this->matcher->matches(
+                uri: $descriptor->route->uri(),
+                middleware: $middleware,
+                controller: $descriptor->controller?->getName(),
+                match: $spec->match,
+            );
+
+            $trace[] = new TraceEntry(
+                stage: 'spec-match',
+                name: $spec->match === [] ? '(no match config)' : implode(',', array_keys($spec->match)),
+                passed: $matched,
+                reason: $matched ? 'match config matched' : 'match config did not match',
+            );
+
+            if (!$matched) {
+                return new InclusionDecision(false, $trace, "match config did not match for {$spec->name}");
+            }
+        }
+
+        // endregion
+
+        // region 3. + 4. Visibility (Hide / Expose / default)
+
+        $hides = array_map(
+            static fn($a) => $a->newInstance(),
+            [...$descriptor->actionAttributes(Hide::class), ...$descriptor->controllerAttributes(Hide::class)],
+        );
+
+        $exposes = array_map(
+            static fn($a) => $a->newInstance(),
+            [...$descriptor->actionAttributes(Expose::class), ...$descriptor->controllerAttributes(Expose::class)],
+        );
+
+        $visible = $this->visibility->isVisible($hides, $exposes, $environment);
+
+        $trace[] = new TraceEntry(
+            stage: 'visibility',
+            name: $environment,
+            passed: $visible,
+            reason: $visible ? 'visible in environment' : 'hidden in environment',
+        );
+
+        return new InclusionDecision(
+            included: $visible,
+            trace: $trace,
+            summary: $visible ? "included in {$spec->name}" : "hidden in environment {$environment}",
+        );
+
+        // endregion
+    }
+}
