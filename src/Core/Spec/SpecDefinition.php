@@ -29,7 +29,7 @@ final readonly class SpecDefinition
     /**
      * @param list<OA\Server>      $servers
      * @param list<OA\Tag>         $tags
-     * @param array<string, mixed> $match Raw match config (prefix/middleware/namespace).
+     * @param array<string, mixed> $match   Raw match config (prefix/middleware/namespace).
      */
     public function __construct(
         public string $name,
