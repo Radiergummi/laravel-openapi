@@ -301,7 +301,11 @@ return [
     */
 
     'plugins' => [
+        // Requires `composer require spatie/laravel-data`. The plugin entry is harmless
+        // without the package — `SpatieDataPlugin::register()` no-ops via a class_exists
+        // guard so listing it here imposes no runtime dependency.
         SpatieDataPlugin::class,
+
         ApiResourcesPlugin::class,
 
         // Requires `composer require spatie/laravel-query-builder`. Uncomment to enable:

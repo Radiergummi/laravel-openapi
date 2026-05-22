@@ -58,8 +58,11 @@ use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataRefSchemaResolver;
+use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+
+use function class_exists;
 
 /**
  * Wires the OpenAPI generation pipeline.
@@ -71,9 +74,9 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
  * these were singletons.
  *
  * **Fix (Approach A):** the entire pipeline is registered as `scoped`. Octane resets scoped
- * bindings between requests, giving each generation run its own fresh instances without any
- * explicit `reset()` call. The `reset()` methods on the stateful classes are preserved for
- * backward-compat but are now redundant under the scoped lifecycle.
+ * bindings between requests, giving each generation run its own fresh instances. To re-run
+ * generation within a single scope (rare — but exercised by tests and possible from custom
+ * tooling), call `$app->forgetScopedInstances()` first.
  *
  * The routing bindings ({@see ThrowsExtractor}, {@see RouteIntrospector},
  * {@see UriParameterResolver}) are registered here too, since {@see RouteIntrospector} and
@@ -115,6 +118,7 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerRegistries();
         $this->registerLintRules();
         $this->registerExtractors();
+        $this->registerRequestSchemas();
         $this->registerSpatieDataPlugin();
         $this->registerApiResourcesPlugin();
         $this->registerFractalPlugin();
@@ -313,35 +317,13 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the Spatie Laravel Data plugin services and request/ref schema resolvers.
+     * Binds the Core request/response extractors and the FormRequest schema resolver.
+     *
+     * These bindings carry no dependency on any plugin convention package and are needed
+     * regardless of which plugins are enabled.
      */
-    private function registerSpatieDataPlugin(): void
+    private function registerRequestSchemas(): void
     {
-        $this->app->scoped(
-            Plugins\SpatieData\DataSyntheticPayloadBuilder::class,
-            static fn(Container $app) => new Plugins\SpatieData\DataSyntheticPayloadBuilder(
-                dataConfig: $app->make(DataConfig::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Plugins\SpatieData\SchemaFromDataClass::class,
-            static fn(Container $app) => new Plugins\SpatieData\SchemaFromDataClass(
-                schemaFromType: $app->make(JsonSchemaFromType::class),
-                typeResolver: TypeResolver::create(),
-                registry: $app->make(ComponentSchemaRegistry::class),
-                payloadBuilder: $app->make(Plugins\SpatieData\DataSyntheticPayloadBuilder::class),
-                rulesToSchema: $app->make(Extractors\ValidationRulesToSchema::class),
-                dataConfig: $app->make(DataConfig::class),
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Plugins\SpatieData\FilePropertyChecker::class,
-            static fn(Container $app) => $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
-        );
-
         $this->app->scoped(
             PayloadParameterScanner::class,
             static function (): PayloadParameterScanner {
@@ -387,14 +369,6 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
-            Plugins\SpatieData\DataClassRequestSchemaResolver::class,
-            static fn(Container $app) => new Plugins\SpatieData\DataClassRequestSchemaResolver(
-                schemaBuilder: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
-                scanner: $app->make(PayloadParameterScanner::class),
-            ),
-        );
-
-        $this->app->scoped(
             Extractors\StandardResponsesExtractor::class,
             static function (Container $app): Extractors\StandardResponsesExtractor {
                 $registry = $app->make(OpenApiRegistry::class);
@@ -413,6 +387,54 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(ExampleFileLoader::class, static fn() => new ExampleFileLoader());
+    }
+
+    /**
+     * Binds the Spatie Laravel Data plugin services.
+     *
+     * `spatie/laravel-data` is an optional runtime dependency. When the package is not
+     * installed every binding is skipped — {@see SpatieDataPlugin::register()} also no-ops
+     * under the same guard, so the plugin entry in `config/openapi.plugins` stays inert
+     * without producing autoload errors when Spatie types are referenced via the container.
+     */
+    private function registerSpatieDataPlugin(): void
+    {
+        if (!class_exists(Data::class)) {
+            return;
+        }
+
+        $this->app->scoped(
+            Plugins\SpatieData\DataSyntheticPayloadBuilder::class,
+            static fn(Container $app) => new Plugins\SpatieData\DataSyntheticPayloadBuilder(
+                dataConfig: $app->make(DataConfig::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\SpatieData\SchemaFromDataClass::class,
+            static fn(Container $app) => new Plugins\SpatieData\SchemaFromDataClass(
+                schemaFromType: $app->make(JsonSchemaFromType::class),
+                typeResolver: TypeResolver::create(),
+                registry: $app->make(ComponentSchemaRegistry::class),
+                payloadBuilder: $app->make(Plugins\SpatieData\DataSyntheticPayloadBuilder::class),
+                rulesToSchema: $app->make(Extractors\ValidationRulesToSchema::class),
+                dataConfig: $app->make(DataConfig::class),
+                logger: $app->make(LoggerInterface::class),
+            ),
+        );
+
+        $this->app->scoped(
+            Plugins\SpatieData\FilePropertyChecker::class,
+            static fn(Container $app) => $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
+        );
+
+        $this->app->scoped(
+            Plugins\SpatieData\DataClassRequestSchemaResolver::class,
+            static fn(Container $app) => new Plugins\SpatieData\DataClassRequestSchemaResolver(
+                schemaBuilder: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
+                scanner: $app->make(PayloadParameterScanner::class),
+            ),
+        );
 
         $this->app->scoped(
             DataRefSchemaResolver::class,
