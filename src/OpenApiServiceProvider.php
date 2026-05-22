@@ -20,6 +20,7 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
+use Radiergummi\OpenApi\Console\WhyCommand;
 use Radiergummi\OpenApi\Core\Extractors;
 use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -114,6 +115,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 GenerateCommand::class,
                 LintCommand::class,
                 ClearCommand::class,
+                WhyCommand::class,
             ]);
         }
 
