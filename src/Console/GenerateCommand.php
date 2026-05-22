@@ -15,22 +15,20 @@ use Illuminate\Console\Command;
 use OpenApi\Analysis;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
+use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use ReflectionException;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Throwable;
-use UnexpectedValueException;
 
-use function assert;
-use function config;
+use function app;
+use function count;
 use function dirname;
 use function file_put_contents;
-use function is_string;
 use function is_writable;
 use function realpath;
 
@@ -41,49 +39,69 @@ use function realpath;
  */
 class GenerateCommand extends Command
 {
-    public const string ARGUMENT_PATH = 'path';
+    /**
+     * @deprecated Will be removed in a future release. Kept for ClearCommand backward compatibility.
+     */
+    public const string ARGUMENT_PATH = 'spec';
+
+    public const string ARGUMENT_SPEC = 'spec';
+
+    public const string OPTION_OUTPUT = 'output';
 
     public const string OPTION_FORMAT = 'format';
+
+    public const string OPTION_EXPLAIN = 'explain';
 
     protected $name = 'openapi:generate';
 
     protected $description = 'Generate an OpenAPI 3.1 document from the application\'s route definitions';
 
-    public function __construct(
-        private readonly OpenApiGenerator $generator,
-    ) {
-        parent::__construct();
-    }
-
     /**
      * @throws InvalidArgumentException
-     * @throws ReflectionException
-     * @throws RuntimeException
-     * @throws UnexpectedValueException
-     * @throws UnsupportedException
      */
-    public function handle(SpecRegistry $registry): int
-    {
-        $openapi = $this->generator->generate($registry->default(), app()->environment());
+    public function handle(
+        OpenApiGenerationOrchestrator $orchestrator,
+        SpecRegistry $registry,
+        InclusionEvaluator $evaluator,
+        RouteIntrospector $introspector,
+    ): int {
+        $specName = $this->argument(self::ARGUMENT_SPEC);
+        $outputOverride = $this->option(self::OPTION_OUTPUT);
+        $explain = (bool) $this->option(self::OPTION_EXPLAIN);
 
-        if (! $this->validate($openapi)) {
+        $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];
+
+        if ($outputOverride !== null && count($targets) > 1) {
+            $this->components->error('--output= requires a single spec target. Pass the spec name positionally.');
+
             return self::FAILURE;
         }
 
-        $content = $this->serialise($openapi);
-
-        try {
-            file_put_contents($this->resolvePath(), $content);
-        } catch (Throwable $exception) {
-            $this->components->error("Failed to write OpenAPI file: {$exception->getMessage()}");
-
-            return self::FAILURE;
+        if ($explain) {
+            $this->emitExplain($evaluator, $introspector, $registry->all());
         }
 
-        $path = $this->argument(self::ARGUMENT_PATH);
+        foreach ($targets as $spec) {
+            $document = $orchestrator->generateOne($spec->name, app()->environment());
 
-        if ($path !== '-') {
-            $this->components->info("OpenAPI document written to {$path}");
+            if (! $this->validate($document)) {
+                return self::FAILURE;
+            }
+
+            $content = $this->serialise($document);
+            $path = $outputOverride !== null ? (string) $outputOverride : $spec->outputPath;
+
+            try {
+                $this->writeOutput($path, $content);
+            } catch (Throwable $e) {
+                $this->components->error("Failed to write OpenAPI file for spec '{$spec->name}': {$e->getMessage()}");
+
+                return self::FAILURE;
+            }
+
+            if ($path !== '-') {
+                $this->components->info("OpenAPI document for spec '{$spec->name}' written to {$path}");
+            }
         }
 
         return self::SUCCESS;
@@ -95,10 +113,17 @@ class GenerateCommand extends Command
     protected function configure(): void
     {
         $this->addArgument(
-            self::ARGUMENT_PATH,
+            self::ARGUMENT_SPEC,
             InputArgument::OPTIONAL,
-            'Output path. Pass "-" to print to stdout.',
-            (string) config('openapi.output_path'),
+            'Name of the spec to generate. Omit to generate every defined spec.',
+            null,
+        );
+
+        $this->addOption(
+            self::OPTION_OUTPUT,
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Override output path. Requires a single spec target. Use "-" for stdout.',
         );
 
         $this->addOption(
@@ -107,6 +132,13 @@ class GenerateCommand extends Command
             InputOption::VALUE_REQUIRED,
             'Output format: yaml or json.',
             'yaml',
+        );
+
+        $this->addOption(
+            self::OPTION_EXPLAIN,
+            null,
+            InputOption::VALUE_NONE,
+            'Print one (route × spec) decision line per route on stderr.',
         );
     }
 
@@ -137,7 +169,6 @@ class GenerateCommand extends Command
     private function serialise(OA\OpenApi $openapi): string
     {
         $format = $this->option(self::OPTION_FORMAT);
-        assert(is_string($format));
 
         return match ($format) {
             'json' => $openapi->toJson(),
@@ -148,13 +179,12 @@ class GenerateCommand extends Command
     /**
      * @throws RuntimeException
      */
-    private function resolvePath(): string
+    private function writeOutput(string $path, string $content): void
     {
-        $path = $this->argument(self::ARGUMENT_PATH);
-        assert(is_string($path));
-
         if ($path === '-') {
-            return 'php://stdout';
+            fwrite(STDOUT, $content);
+
+            return;
         }
 
         if (realpath(dirname($path)) === false) {
@@ -165,7 +195,26 @@ class GenerateCommand extends Command
             throw new RuntimeException("Output directory is not writable: {$path}");
         }
 
-        return $path;
+        file_put_contents($path, $content);
+    }
+
+    /**
+     * @param list<\Radiergummi\OpenApi\Core\Spec\SpecDefinition> $specs
+     */
+    private function emitExplain(
+        InclusionEvaluator $evaluator,
+        RouteIntrospector $introspector,
+        array $specs,
+    ): void {
+        foreach ($introspector->discover() as $descriptor) {
+            foreach ($specs as $spec) {
+                $decision = $evaluator->decide($descriptor, $spec, app()->environment());
+                $mark = $decision->included ? '✓' : '✗';
+                $method = $descriptor->route->methods()[0] ?? 'GET';
+                $uri = $descriptor->route->uri();
+                $this->line("[{$spec->name}] {$mark} {$method} {$uri}  {$decision->summary}");
+            }
+        }
     }
 
     // endregion

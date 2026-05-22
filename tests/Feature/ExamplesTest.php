@@ -37,7 +37,7 @@ it('produces a snapshot that matches the committed yaml', function (string $serv
 
     try {
         $status = $app->make(Kernel::class)->call('openapi:generate', [
-            'path'     => $temp,
+            '--output' => $temp,
             '--format' => 'yaml',
         ]);
 

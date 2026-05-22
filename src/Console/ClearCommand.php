@@ -26,7 +26,7 @@ class ClearCommand extends Command
 
     public function handle(): int
     {
-        $path = $this->argument(GenerateCommand::ARGUMENT_PATH);
+        $path = $this->argument('path');
 
         if ($path === '-') {
             $this->components->warn('Cannot clear stdout output.');
@@ -46,7 +46,7 @@ class ClearCommand extends Command
     protected function configure(): void
     {
         $this->addArgument(
-            GenerateCommand::ARGUMENT_PATH,
+            'path',
             InputArgument::OPTIONAL,
             'Path to the specification file to remove.',
             (string) config('openapi.output_path'),
