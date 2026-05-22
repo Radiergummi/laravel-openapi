@@ -44,7 +44,7 @@ return [
 
     'info' => [
         'title' => 'API',
-        'version' => '0.1.0',
+        'version' => env('API_VERSION', '1.0.0'),
         'description' => 'HTTP API.',
     ],
 
@@ -264,7 +264,7 @@ return [
         ],
 
         // Baseline file path; null disables the baseline feature. (Consumed by Plan A2.)
-        'baseline' => base_path('openapi-baseline.json'),
+        'baseline' => null,
 
         // Extra custom Rule classes, appended to the registry.
         'rules' => [
