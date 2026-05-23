@@ -55,6 +55,23 @@ final readonly class InclusionEvaluator
         private VisibilityResolver $visibility,
     ) {}
 
+    /**
+     * Fast spec-independent global-filter check.
+     *
+     * Used by callers that need to discard vendor routes (Telescope/Nova/Ignition/Passport
+     * and any user-configured filter) before per-spec evaluation runs — the lint pipeline
+     * iterates descriptors once for pre-build rules and the tree walk, regardless of which
+     * specs they end up in, so it filters here rather than running {@see decide()} once per
+     * (route × spec) just to drop the same routes from every spec.
+     */
+    public function passesGlobalFilters(ActionDescriptor $descriptor): bool
+    {
+        return !array_any(
+            $this->globalFilters,
+            static fn(RouteFilter $filter): bool => $filter->shouldSkip($descriptor->route),
+        );
+    }
+
     public function decide(
         ActionDescriptor $descriptor,
         SpecDefinition $spec,
@@ -75,7 +92,12 @@ final readonly class InclusionEvaluator
             );
 
             if ($skip) {
-                return new InclusionDecision(false, $trace, "excluded by global filter {$name}");
+                return new InclusionDecision(
+                    false,
+                    $trace,
+                    "excluded by global filter {$name}",
+                    SkipReason::GlobalFilter,
+                );
             }
         }
 
@@ -97,7 +119,12 @@ final readonly class InclusionEvaluator
             );
 
             if (!$isMember) {
-                return new InclusionDecision(false, $trace, "not in #[Spec] list for {$spec->name}");
+                return new InclusionDecision(
+                    false,
+                    $trace,
+                    "not in #[Spec] list for {$spec->name}",
+                    SkipReason::SpecMembership,
+                );
             }
         } else {
             // Empty match block: catch-all for the implicit default spec, no-match for any
@@ -135,7 +162,7 @@ final readonly class InclusionEvaluator
             );
 
             if (!$matched) {
-                return new InclusionDecision(false, $trace, $reason);
+                return new InclusionDecision(false, $trace, $reason, SkipReason::SpecMembership);
             }
         }
 
@@ -160,6 +187,7 @@ final readonly class InclusionEvaluator
             included: $visible,
             trace: $trace,
             summary: $visible ? "included in {$spec->name}" : "hidden in environment {$environment}",
+            reason: $visible ? null : SkipReason::Visibility,
         );
 
         // endregion

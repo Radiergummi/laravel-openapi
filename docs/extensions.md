@@ -87,3 +87,35 @@ afterEach(function (): void {
     OpenApiExtensions::flush();
 });
 ```
+
+## Events
+
+For *observability* — not mutation — the generator and linter dispatch standard
+Laravel events. Use a transformer to modify the spec; use an event listener to
+observe, log, export, or notify. Four events ship out of the box:
+
+| Event | When | Carries |
+|---|---|---|
+| [`SpecGenerationStarted`](../src/Core/Events/SpecGenerationStarted.php) | Immediately before a spec is assembled. | `spec`, `environment` |
+| [`SpecGenerationCompleted`](../src/Core/Events/SpecGenerationCompleted.php) | After the document (and document transformers) finish. | `spec`, `environment`, `document`, `durationMs` |
+| [`RouteSkipped`](../src/Core/Events/RouteSkipped.php) | Once per (route × spec) pair the [`InclusionEvaluator`](../src/Core/Inclusion/InclusionEvaluator.php) excludes. | `route`, `spec`, `reason` (`SkipReason` enum), `summary` |
+| [`LintFindingEmitted`](../src/Core/Events/LintFindingEmitted.php) | Whenever a `FindingsCollector` accepts a finding — both during generation and during lint runs. | `finding` |
+
+Register listeners the usual way:
+
+```php
+use Illuminate\Support\Facades\Event;
+use Radiergummi\OpenApi\Core\Events\SpecGenerationCompleted;
+
+Event::listen(static function (SpecGenerationCompleted $event): void {
+    Storage::disk('s3')->put(
+        "openapi/{$event->spec}.yaml",
+        $event->document->toYaml(),
+    );
+});
+```
+
+`RouteSkipped` fires for every exclusion the inclusion evaluator handles: the
+bundled vendor skippers (Telescope, Nova, Ignition, Passport), any
+user-configured `RouteFilter`, spec membership decisions, and visibility
+attributes. If a route never makes it into your spec, you get an event.

@@ -43,12 +43,22 @@ it('TraceEntry holds stage, name, passed, reason', function (): void {
         ->and($entry->reason)->toBe('not a Nova route');
 });
 
-it('InclusionDecision holds included, trace, summary', function (): void {
-    $decision = new InclusionDecision(true, [], 'matches default spec');
+it('InclusionDecision holds included, trace, summary, reason', function (): void {
+    $included = new InclusionDecision(true, [], 'matches default spec');
 
-    expect($decision->included)->toBeTrue()
-        ->and($decision->trace)->toBe([])
-        ->and($decision->summary)->toBe('matches default spec');
+    expect($included->included)->toBeTrue()
+        ->and($included->trace)->toBe([])
+        ->and($included->summary)->toBe('matches default spec')
+        ->and($included->reason)->toBeNull();
+
+    $excluded = new InclusionDecision(
+        false,
+        [],
+        'excluded',
+        \Radiergummi\OpenApi\Core\Inclusion\SkipReason::Visibility,
+    );
+
+    expect($excluded->reason)->toBe(\Radiergummi\OpenApi\Core\Inclusion\SkipReason::Visibility);
 });
 
 /**
@@ -122,7 +132,8 @@ it('excludes a route when any global RouteFilter returns shouldSkip=true', funct
     $decision = makeEvaluator([$filter])->decide($descriptor, $spec, 'local');
 
     expect($decision->included)->toBeFalse()
-        ->and($decision->summary)->toContain('global filter');
+        ->and($decision->summary)->toContain('global filter')
+        ->and($decision->reason)->toBe(\Radiergummi\OpenApi\Core\Inclusion\SkipReason::GlobalFilter);
 });
 
 it('includes a route in a named spec when the spec match config matches', function (): void {
@@ -141,7 +152,8 @@ it('excludes a route from a named spec when match config does not match', functi
     $decision = makeEvaluator()->decide($descriptor, $spec, 'local');
 
     expect($decision->included)->toBeFalse()
-        ->and($decision->summary)->toContain('match');
+        ->and($decision->summary)->toContain('match')
+        ->and($decision->reason)->toBe(\Radiergummi\OpenApi\Core\Inclusion\SkipReason::SpecMembership);
 });
 
 it('includes a route with #[Spec(v1)] in spec v1 regardless of match config', function (): void {
@@ -182,7 +194,8 @@ it('excludes a route when #[Hide] applies in the current environment', function 
     $decision = makeEvaluator()->decide($descriptor, $spec, 'production');
 
     expect($decision->included)->toBeFalse()
-        ->and($decision->summary)->toContain('hidden');
+        ->and($decision->summary)->toContain('hidden')
+        ->and($decision->reason)->toBe(\Radiergummi\OpenApi\Core\Inclusion\SkipReason::Visibility);
 });
 
 it('includes any route in the default spec when no match config is given (catch-all)', function (): void {

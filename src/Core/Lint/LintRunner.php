@@ -13,11 +13,13 @@ namespace Radiergummi\OpenApi\Core\Lint;
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Events\Dispatcher;
 use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
+use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\RouteRule;
@@ -79,6 +81,8 @@ final readonly class LintRunner
         private LintRouteFilter $routeFilter,
         private SpecRegistry $specRegistry,
         private OpenApiGenerationOrchestrator $orchestrator,
+        private InclusionEvaluator $evaluator,
+        private Dispatcher $events,
     ) {}
 
     /**
@@ -96,10 +100,12 @@ final readonly class LintRunner
      */
     public function run(LintOptions $options): LintResult
     {
-        $collector = $this->installArrayCollector();
+        $inner = new ArrayFindingsCollector();
+        $emit = new EventDispatchingFindingsCollector($inner, $this->events);
+        $this->container->instance(FindingsCollector::class, $emit);
 
         try {
-            return $this->runWithCollector($options, $collector);
+            return $this->runWithCollector($options, $inner, $emit);
         } finally {
             $this->container->forgetInstance(FindingsCollector::class);
         }
@@ -118,13 +124,25 @@ final readonly class LintRunner
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    private function runWithCollector(LintOptions $options, ArrayFindingsCollector $collector): LintResult
-    {
+    private function runWithCollector(
+        LintOptions $options,
+        ArrayFindingsCollector $inner,
+        FindingsCollector $emit,
+    ): LintResult {
         // region Descriptor collection + path/diff filtering
 
         $descriptors = [];
 
+        // The introspector yields every Laravel route; vendor routes (Telescope, Nova,
+        // Passport, Ignition) and any user-configured filter rejects are discarded here so
+        // the pre-build rules and tree walk only see routes that could plausibly belong to
+        // a spec. Per-spec InclusionEvaluator::decide() still runs inside the generator and
+        // re-filters per (route × spec) — this is the single-pass equivalent.
         foreach ($this->introspector->discover() as $descriptor) {
+            if (!$this->evaluator->passesGlobalFilters($descriptor)) {
+                continue;
+            }
+
             $descriptors[] = $descriptor;
         }
 
@@ -155,7 +173,7 @@ final readonly class LintRunner
         // region Pre-build phase — runs once, findings carry spec: null
 
         foreach ($this->registry->preBuildRules() as $preBuildRule) {
-            $preBuildRule->checkConfiguration($this->specRegistry, $descriptors, $collector);
+            $preBuildRule->checkConfiguration($this->specRegistry, $descriptors, $emit);
         }
 
         // endregion
@@ -173,6 +191,8 @@ final readonly class LintRunner
             // (e.g. ValidationRulesToSchema, StandardResponsesExtractor) land alongside the
             // tree-walk findings. The orchestrator's forgetScopedInstances() preserves the
             // current FindingsCollector binding, so this instance survives generation.
+            // Spec-local stays un-decorated; the drain below goes through $emit so each
+            // finding fires LintFindingEmitted exactly once, with the spec tag attached.
             $specLocal = new ArrayFindingsCollector();
             $this->container->forgetInstance(FindingsCollector::class);
             $this->container->instance(FindingsCollector::class, $specLocal);
@@ -182,7 +202,7 @@ final readonly class LintRunner
             $this->walkSpec($document, $descriptors, $rules, $suppressions, $specLocal, $level, $only, $skip);
 
             foreach ($specLocal->all() as $finding) {
-                $collector->emit($finding->withSpec($spec->name));
+                $emit->emit($finding->withSpec($spec->name));
             }
         }
 
@@ -190,7 +210,7 @@ final readonly class LintRunner
 
         // region Post-processing: overrides, --only/--skip, suppressions, level filter
 
-        $findings = $this->registry->applyOverrides($collector->all());
+        $findings = $this->registry->applyOverrides($inner->all());
 
         if ($only !== []) {
             $findings = array_filter(
@@ -339,21 +359,6 @@ final readonly class LintRunner
         }
 
         // endregion
-    }
-
-    /**
-     * Swap the {@see FindingsCollector} binding from the scoped
-     * {@see LoggingFindingsCollector} to an {@see ArrayFindingsCollector} for the duration
-     * of this run. The per-spec loop pins its own collector before generation; the
-     * orchestrator's forgetScopedInstances() preserves whatever override is current, so
-     * scoped extractor instances are recreated with fresh wiring when generation runs.
-     */
-    private function installArrayCollector(): ArrayFindingsCollector
-    {
-        $collector = new ArrayFindingsCollector();
-        $this->container->instance(FindingsCollector::class, $collector);
-
-        return $collector;
     }
 
     /**

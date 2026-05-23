@@ -33,7 +33,6 @@ it('emits an ActionDescriptor with null controller/method when the route points 
         container: app(),
         parser: new DocCommentParser(),
         throwsExtractor: ThrowsExtractor::create(),
-        filters: [],
     );
 
     /** @var list<ActionDescriptor> $descriptors */

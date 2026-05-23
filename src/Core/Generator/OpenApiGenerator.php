@@ -11,14 +11,19 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Core\Attributes\Webhook as WebhookAttribute;
+use Radiergummi\OpenApi\Core\Events\RouteSkipped;
+use Radiergummi\OpenApi\Core\Events\SpecGenerationCompleted;
+use Radiergummi\OpenApi\Core\Events\SpecGenerationStarted;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Core\Inclusion\SkipReason;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
@@ -30,6 +35,7 @@ use UnexpectedValueException;
 use function array_values;
 use function assert;
 use function config;
+use function hrtime;
 use function in_array;
 use function preg_match;
 use function preg_replace;
@@ -51,6 +57,7 @@ final readonly class OpenApiGenerator
         private OperationBuilder $operationBuilder,
         private ComponentSchemaRegistry $schemaRegistry,
         private InclusionEvaluator $evaluator,
+        private Dispatcher $events,
     ) {}
 
     /**
@@ -71,11 +78,23 @@ final readonly class OpenApiGenerator
         $previousContext = Generator::$context;
         Generator::$context = new Context(['version' => OA\OpenApi::VERSION_3_1_0]);
 
+        $this->events->dispatch(new SpecGenerationStarted($spec->name, $environment));
+        $startedAtNs = hrtime(true);
+
         try {
-            return $this->assembleDocument($spec, $environment);
+            $document = $this->assembleDocument($spec, $environment);
         } finally {
             Generator::$context = $previousContext;
         }
+
+        $this->events->dispatch(new SpecGenerationCompleted(
+            spec: $spec->name,
+            environment: $environment,
+            document: $document,
+            durationMs: (hrtime(true) - $startedAtNs) / 1_000_000,
+        ));
+
+        return $document;
     }
 
     /**
@@ -98,6 +117,20 @@ final readonly class OpenApiGenerator
             $decision = $this->evaluator->decide($descriptor, $spec, $environment);
 
             if (!$decision->included) {
+                if ($this->events->hasListeners(RouteSkipped::class)) {
+                    // InclusionEvaluator::decide() tags every excluded decision with a
+                    // SkipReason; asserting here prevents a silently-misattributed event if
+                    // a future evaluator branch forgets to set one.
+                    assert($decision->reason !== null);
+
+                    $this->events->dispatch(new RouteSkipped(
+                        route: $descriptor->route,
+                        spec: $spec->name,
+                        reason: $decision->reason,
+                        summary: $decision->summary,
+                    ));
+                }
+
                 continue;
             }
 

@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Observability events. The generator and linter dispatch four Laravel events for use as
+  read-only notification hooks (mutation still belongs to `OpenApiExtensions` transformers):
+  `SpecGenerationStarted`, `SpecGenerationCompleted` (carries the assembled document and
+  duration), `RouteSkipped` (carries the route, spec, `SkipReason`, and inclusion summary),
+  and `LintFindingEmitted` (fires from any `FindingsCollector::emit()` — covers both
+  extractor-emitted findings during generation and rule-emitted findings during lint runs).
+  See [`docs/extensions.md`](docs/extensions.md#events).
 - Multi-spec support: `config('openapi.specs')` lets one app emit multiple OpenAPI documents,
   partitioned by URL `prefix`, `middleware`, or controller `namespace`. New `#[Spec]` attribute
   pins a route to specific specs explicitly. New `openapi:why` command explains per-route, per-
@@ -29,6 +36,14 @@ All notable changes to this project are documented here.
   config-driven --skip merging, and `--level=max` resolution.
 
 ### Changed
+- Route exclusion now lives entirely in `InclusionEvaluator`. `RouteIntrospector` no longer
+  takes a filter list and unconditionally yields every Laravel route; vendor-route skippers
+  (Telescope/Nova/Ignition/Passport) and any `config('openapi.filters')` entries are applied
+  at the evaluator stage. Consequence: every exclusion — including vendor routes — now
+  produces a `RouteSkipped` event, a `trace` entry visible to `openapi:why`, and a
+  `SkipReason::GlobalFilter` on the decision. The lint pipeline pre-filters descriptors via
+  the new `InclusionEvaluator::passesGlobalFilters()` to keep vendor routes out of pre-build
+  rules and the tree walk.
 - **`spatie/laravel-data` is now a soft dependency.** Moved from `require` to
   `require-dev`; the `SpatieDataPlugin::register()` body is guarded by
   `class_exists(\Spatie\LaravelData\Data::class)` and silently no-ops when the package

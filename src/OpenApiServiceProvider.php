@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi;
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,7 @@ use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Core\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Core\Lint\LintRouteFilter;
@@ -159,27 +161,15 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->app->scoped(SkipIgnitionRoutes::class, static fn(): SkipIgnitionRoutes => SkipIgnitionRoutes::fromConfig());
         $this->app->scoped(SkipPassportRoutes::class, static fn(): SkipPassportRoutes => SkipPassportRoutes::fromConfig());
 
+        // Filters live in InclusionEvaluator alone; the introspector yields every route.
         $this->app->scoped(
             RouteIntrospector::class,
-            static function (Container $app): RouteIntrospector {
-                $filters = array_map(
-                    static function (mixed $filter) use ($app): RouteFilter {
-                        $instance = is_string($filter) ? $app->make($filter) : $filter;
-                        assert($instance instanceof RouteFilter);
-
-                        return $instance;
-                    },
-                    (array) config('openapi.filters', []),
-                );
-
-                return new RouteIntrospector(
-                    router: $app->make(Router::class),
-                    container: $app,
-                    parser: new DocCommentParser(),
-                    throwsExtractor: $app->make(ThrowsExtractor::class),
-                    filters: array_values($filters),
-                );
-            },
+            static fn(Container $app): RouteIntrospector => new RouteIntrospector(
+                router: $app->make(Router::class),
+                container: $app,
+                parser: new DocCommentParser(),
+                throwsExtractor: $app->make(ThrowsExtractor::class),
+            ),
         );
 
         $this->app->scoped(
@@ -275,8 +265,11 @@ class OpenApiServiceProvider extends ServiceProvider
 
         $this->app->scoped(
             FindingsCollector::class,
-            static fn(Container $app) => new LoggingFindingsCollector(
-                logger: $app->make(LoggerInterface::class),
+            static fn(Container $app) => new EventDispatchingFindingsCollector(
+                inner: new LoggingFindingsCollector(
+                    logger: $app->make(LoggerInterface::class),
+                ),
+                events: $app->make(Dispatcher::class),
             ),
         );
 
@@ -293,6 +286,8 @@ class OpenApiServiceProvider extends ServiceProvider
                 routeFilter: $app->make(LintRouteFilter::class),
                 specRegistry: $app->make(SpecRegistry::class),
                 orchestrator: $app->make(OpenApiGenerationOrchestrator::class),
+                evaluator: $app->make(InclusionEvaluator::class),
+                events: $app->make(Dispatcher::class),
             ),
         );
     }
@@ -668,6 +663,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 operationBuilder: $app->make(OperationBuilder::class),
                 schemaRegistry: $app->make(ComponentSchemaRegistry::class),
                 evaluator: $app->make(InclusionEvaluator::class),
+                events: $app->make(Dispatcher::class),
             ),
         );
 
@@ -777,13 +773,13 @@ class OpenApiServiceProvider extends ServiceProvider
                 ?? ($isDefault ? $rootPlaygroundUri : sprintf('docs/%s', $name));
 
             $entries[$name] = [
-                'route_uri'      => $rawRoute === false ? false : (string) $rawRoute,
+                'route_uri' => $rawRoute === false ? false : (string) $rawRoute,
                 'playground_uri' => $rawPlayground === false ? false : (string) $rawPlayground,
             ];
         }
 
         Route::group([
-            'prefix'     => $config['prefix'] ?? 'api',
+            'prefix' => $config['prefix'] ?? 'api',
             'middleware' => $config['middleware'] ?? ['web'],
         ], static function () use ($config, $entries): void {
             foreach ($entries as $name => $entry) {
