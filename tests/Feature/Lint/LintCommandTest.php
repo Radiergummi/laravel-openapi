@@ -197,6 +197,35 @@ it('--spec= restricts per-spec rules to the named spec', function (): void {
     ])->assertExitCode(1); // findings exist in default spec
 })->group('openapi', 'lint');
 
+it('pre-build rules run regardless of --spec= narrowing', function (): void {
+    // 'unreachable' is configured but its match config picks no routes; the pre-build
+    // rule spec.config-orphaned must surface that even when the runner is narrowed to
+    // another spec entirely.
+    config([
+        'openapi.specs' => [
+            'unreachable' => ['match' => ['prefix' => 'never-matches-anything/*']],
+        ],
+    ]);
+
+    $this->app->forgetScopedInstances();
+
+    $result = app(Radiergummi\OpenApi\Core\Lint\LintRunner::class)
+        ->run(new Radiergummi\OpenApi\Core\Lint\LintOptions(
+            level: 3,
+            path: 'lint-fixtures/clean*',
+            spec: 'default',
+        ));
+
+    $orphans = array_filter(
+        $result->findings,
+        static fn($f) => $f->ruleId === 'spec.config-orphaned'
+            && str_contains($f->message, 'unreachable'),
+    );
+
+    expect($orphans)->toHaveCount(1)
+        ->and(array_values($orphans)[0]->spec)->toBeNull(); // pre-build findings carry no spec tag
+})->group('openapi', 'lint');
+
 it('cannot disable spec.invalid via config disabled_rules', function (): void {
     config(['openapi.lint.disabled_rules' => ['spec.invalid']]);
 

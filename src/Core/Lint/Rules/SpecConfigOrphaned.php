@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
 use Override;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\Finding;
@@ -18,18 +19,20 @@ use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 
-use function app;
-
 /**
  * Reports specs declared in config('openapi.specs') that match no routes.
  * An empty spec produces an invalid or useless document and usually indicates
  * a misconfigured match filter.
  */
-final readonly class SpecConfigOrphaned implements Rule, PreBuildRule
+final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
 {
     public const string ID = 'spec.config-orphaned';
 
-    public function __construct(private InclusionEvaluator $evaluator) {}
+    public function __construct(
+        private InclusionEvaluator $evaluator,
+        #[Config('app.env')]
+        private string $environment,
+    ) {}
 
     #[Override]
     public function id(): string
@@ -55,20 +58,18 @@ final readonly class SpecConfigOrphaned implements Rule, PreBuildRule
         array $descriptors,
         FindingsCollector $findings,
     ): void {
-        $environment = app()->environment();
-
         foreach ($specs->all() as $spec) {
             $hasMatch = false;
 
             foreach ($descriptors as $descriptor) {
-                if ($this->evaluator->decide($descriptor, $spec, $environment)->included) {
+                if ($this->evaluator->decide($descriptor, $spec, $this->environment)->included) {
                     $hasMatch = true;
 
                     break;
                 }
             }
 
-            if (!$hasMatch) {
+            if (! $hasMatch) {
                 $findings->emit(new Finding(
                     ruleId: self::ID,
                     level: $this->level(),

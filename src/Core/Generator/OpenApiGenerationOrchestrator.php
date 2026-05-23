@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Core\Generator;
 use Illuminate\Container\Container;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use ReflectionException;
@@ -73,7 +74,19 @@ final readonly class OpenApiGenerationOrchestrator
 
     private function generateForSpec(SpecDefinition $spec, string $environment): OA\OpenApi
     {
+        // forgetScopedInstances() wipes every scoped binding including any explicit
+        // FindingsCollector override the caller installed (e.g. LintRunner pins an
+        // ArrayFindingsCollector to capture extractor-emitted findings). Preserve and
+        // restore it so callers don't silently lose findings emitted during generation.
+        $collector = $this->container->resolved(FindingsCollector::class)
+            ? $this->container->make(FindingsCollector::class)
+            : null;
+
         $this->container->forgetScopedInstances();
+
+        if ($collector !== null) {
+            $this->container->instance(FindingsCollector::class, $collector);
+        }
 
         return $this->container->make(OpenApiGenerator::class)->generate($spec, $environment);
     }

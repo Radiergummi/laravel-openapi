@@ -70,14 +70,14 @@ function collectSpecConfigOrphanedFindings(SpecRegistry $registry, array $descri
         }
     };
 
-    new SpecConfigOrphaned(specConfigOrphanedEvaluator())
+    new SpecConfigOrphaned(specConfigOrphanedEvaluator(), 'testing')
         ->checkConfiguration($registry, $descriptors, $collector);
 
     return $collector->findings;
 }
 
 it('has the correct id and level', function (): void {
-    $rule = new SpecConfigOrphaned(specConfigOrphanedEvaluator());
+    $rule = new SpecConfigOrphaned(specConfigOrphanedEvaluator(), 'testing');
 
     expect($rule->id())->toBe('spec.config-orphaned')
         ->and($rule->level())->toBe(3);
@@ -108,10 +108,9 @@ it('emits a finding when a named spec matches no routes', function (): void {
         ->and($orphaned[0]->message)->toContain('internal');
 });
 
-it('emits no findings when descriptors list is empty and only the default spec exists', function (): void {
-    // Default spec has no match config so InclusionEvaluator uses spec membership / match rules.
-    // With no descriptors there are no routes to match — default is also orphaned.
-    // This test documents that the rule fires for the default spec too when there are no routes.
+it('flags the default spec as orphaned when the descriptor list is empty', function (): void {
+    // No routes ⇒ the default spec also matches nothing. The rule fires on default the same
+    // way it fires on any other empty spec — documenting the symmetric behaviour.
     $registry = specConfigOrphanedRegistry(null);
 
     $findings = collectSpecConfigOrphanedFindings($registry, []);

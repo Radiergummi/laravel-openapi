@@ -9,11 +9,32 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
+use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
+use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
+use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
+
+class OrchestratorSimpleController extends Controller
+{
+    public function store(SimpleFormRequest $request): array
+    {
+        return [];
+    }
+}
+
+class OrchestratorFileController extends Controller
+{
+    public function upload(FileUploadFormRequest $request): array
+    {
+        return [];
+    }
+}
 
 it('generateAll returns one document per defined spec, keyed by spec name', function (): void {
     config(['openapi.specs' => [
@@ -56,4 +77,29 @@ it('forgetScopedInstances yields a fresh ComponentSchemaRegistry on each resolut
     $second = $container->make(ComponentSchemaRegistry::class);
 
     expect($first)->not->toBe($second);
+});
+
+it('generateAll produces specs with disjoint component schemas (no cross-contamination)', function (): void {
+    // Two routes, two distinct FormRequests, two specs partitioned by URL prefix. After a
+    // single generateAll() call the component schema registry must not have leaked schemas
+    // from one spec into the other — that would mean per-run state survived the reset.
+    Route::post('/multispec/v1/simple', [OrchestratorSimpleController::class, 'store']);
+    Route::post('/multispec/v2/upload', [OrchestratorFileController::class, 'upload']);
+
+    config(['openapi.specs' => [
+        'v1' => ['match' => ['prefix' => 'multispec/v1/*']],
+        'v2' => ['match' => ['prefix' => 'multispec/v2/*']],
+    ]]);
+
+    app()->forgetScopedInstances();
+
+    $documents = app(OpenApiGenerationOrchestrator::class)->generateAll('testing');
+
+    $v1Schemas = array_keys(Yaml::parse($documents['v1']->toYaml())['components']['schemas'] ?? []);
+    $v2Schemas = array_keys(Yaml::parse($documents['v2']->toYaml())['components']['schemas'] ?? []);
+
+    expect($v1Schemas)->toContain('SimpleFormRequest')
+        ->and($v1Schemas)->not->toContain('FileUploadFormRequest')
+        ->and($v2Schemas)->toContain('FileUploadFormRequest')
+        ->and($v2Schemas)->not->toContain('SimpleFormRequest');
 });

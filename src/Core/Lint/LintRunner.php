@@ -26,7 +26,6 @@ use Radiergummi\OpenApi\Core\Lint\Tree\SpecTreeWalker;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use ReflectionException;
 use RuntimeException;
@@ -78,6 +77,8 @@ final readonly class LintRunner
         private SuppressionCollector $suppressionCollector,
         private OpenApiRegistry $openApiRegistry,
         private LintRouteFilter $routeFilter,
+        private SpecRegistry $specRegistry,
+        private OpenApiGenerationOrchestrator $orchestrator,
     ) {}
 
     /**
@@ -153,11 +154,8 @@ final readonly class LintRunner
 
         // region Pre-build phase — runs once, findings carry spec: null
 
-        /** @var SpecRegistry $specRegistry */
-        $specRegistry = $this->container->make(SpecRegistry::class);
-
         foreach ($this->registry->preBuildRules() as $preBuildRule) {
-            $preBuildRule->checkConfiguration($specRegistry, $descriptors, $collector);
+            $preBuildRule->checkConfiguration($this->specRegistry, $descriptors, $collector);
         }
 
         // endregion
@@ -165,20 +163,27 @@ final readonly class LintRunner
         // region Per-spec phase
 
         $targets = $options->spec !== null
-            ? [$specRegistry->get($options->spec)]
-            : $specRegistry->all();
-
-        /** @var OpenApiGenerationOrchestrator $orchestrator */
-        $orchestrator = $this->container->make(OpenApiGenerationOrchestrator::class);
+            ? [$this->specRegistry->get($options->spec)]
+            : $this->specRegistry->all();
 
         $suppressions = $this->suppressionCollector->collect($descriptors);
 
         foreach ($targets as $spec) {
-            // generateOne() calls forgetScopedInstances() internally before generating,
-            // which resets ComponentSchemaRegistry/ExampleFileLoader for a clean per-spec run.
-            $document = $orchestrator->generateOne($spec->name, app()->environment());
+            // Bind a spec-local collector BEFORE generateOne so extractor-emitted findings
+            // (e.g. ValidationRulesToSchema, StandardResponsesExtractor) land alongside the
+            // tree-walk findings. The orchestrator's forgetScopedInstances() preserves the
+            // current FindingsCollector binding, so this instance survives generation.
+            $specLocal = new ArrayFindingsCollector();
+            $this->container->forgetInstance(FindingsCollector::class);
+            $this->container->instance(FindingsCollector::class, $specLocal);
 
-            $this->walkSpec($spec, $document, $descriptors, $rules, $suppressions, $collector, $level, $only, $skip);
+            $document = $this->orchestrator->generateOne($spec->name, app()->environment());
+
+            $this->walkSpec($document, $descriptors, $rules, $suppressions, $specLocal, $level, $only, $skip);
+
+            foreach ($specLocal->all() as $finding) {
+                $collector->emit($finding->withSpec($spec->name));
+            }
         }
 
         // endregion
@@ -224,13 +229,10 @@ final readonly class LintRunner
     /**
      * Run the tree walk + RouteRule pass + MetaSuppressionStale for one spec.
      *
-     * Uses a spec-local {@see ArrayFindingsCollector} so raw findings (which carry no spec
-     * tag) are captured in isolation; after the walk, each finding is re-emitted into the
-     * main collector tagged via {@see Finding::withSpec()}.
-     *
-     * The previous {@see FindingsCollector} binding is dropped so the local collector takes
-     * effect for the walk; the outer {@see run()} finally-block restores the global binding.
-     * Per-spec scoped state was already reset by the orchestrator before generation.
+     * The caller is responsible for binding {@see $specLocal} as the active
+     * {@see FindingsCollector} before generation so extractor-emitted findings land in the
+     * same bucket as the tree-walk findings; this method only emits into the bucket and
+     * leaves draining to the caller.
      *
      * @param list<Rule>                 $rules
      * @param list<ActionDescriptor>     $descriptors
@@ -239,23 +241,15 @@ final readonly class LintRunner
      * @param list<string>               $skip
      */
     private function walkSpec(
-        SpecDefinition $spec,
         OA\OpenApi $document,
         array $descriptors,
         array $rules,
         array $suppressions,
-        ArrayFindingsCollector $mainCollector,
+        ArrayFindingsCollector $specLocal,
         int $level,
         array $only,
         array $skip,
     ): void {
-        $specLocal = new ArrayFindingsCollector();
-
-        // Replace the FindingsCollector binding so the tree walker and any extractor-emitted
-        // findings land in $specLocal. instance() overwrites any prior binding atomically.
-        $this->container->forgetInstance(FindingsCollector::class);
-        $this->container->instance(FindingsCollector::class, $specLocal);
-
         // region Tree walk
 
         $staleChecker = new MetaSuppressionStale();
@@ -345,24 +339,18 @@ final readonly class LintRunner
         }
 
         // endregion
-
-        // Drain spec-local findings into the main collector, tagging each with the spec name.
-        foreach ($specLocal->all() as $finding) {
-            $mainCollector->emit($finding->withSpec($spec->name));
-        }
     }
 
     /**
      * Swap the {@see FindingsCollector} binding from the scoped
      * {@see LoggingFindingsCollector} to an {@see ArrayFindingsCollector} for the duration
-     * of this run. Scoped instances are forgotten first so callers that already resolved the
-     * generator in this scope pick up the new collector on the next resolve.
+     * of this run. The per-spec loop pins its own collector before generation; the
+     * orchestrator's forgetScopedInstances() preserves whatever override is current, so
+     * scoped extractor instances are recreated with fresh wiring when generation runs.
      */
     private function installArrayCollector(): ArrayFindingsCollector
     {
         $collector = new ArrayFindingsCollector();
-
-        $this->container->forgetScopedInstances();
         $this->container->instance(FindingsCollector::class, $collector);
 
         return $collector;

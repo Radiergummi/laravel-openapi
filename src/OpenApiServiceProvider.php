@@ -291,6 +291,8 @@ class OpenApiServiceProvider extends ServiceProvider
                 suppressionCollector: $app->make(SuppressionCollector::class),
                 openApiRegistry: $app->make(OpenApiRegistry::class),
                 routeFilter: $app->make(LintRouteFilter::class),
+                specRegistry: $app->make(SpecRegistry::class),
+                orchestrator: $app->make(OpenApiGenerationOrchestrator::class),
             ),
         );
     }
