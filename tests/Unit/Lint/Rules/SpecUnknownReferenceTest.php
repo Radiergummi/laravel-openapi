@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Rules\SpecUnknownReference;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecMethodShadowsClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecUnknownRefController;
 
@@ -70,13 +71,13 @@ function collectSpecUnknownReferenceFindings(SpecRegistry $registry, array $desc
         }
     };
 
-    new SpecUnknownReference()->checkConfiguration($registry, $descriptors, $collector);
+    new SpecUnknownReference(new SpecResolver())->checkConfiguration($registry, $descriptors, $collector);
 
     return $collector->findings;
 }
 
 it('has the correct id and level', function (): void {
-    $rule = new SpecUnknownReference();
+    $rule = new SpecUnknownReference(new SpecResolver());
 
     expect($rule->id())->toBe('spec.unknown-reference')
         ->and($rule->level())->toBe(0);

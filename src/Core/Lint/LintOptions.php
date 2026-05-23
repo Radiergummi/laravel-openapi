@@ -11,9 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
-use Illuminate\Contracts\Support\Arrayable;
-use JsonSerializable;
-
 /**
  * Input parameters for a single {@see LintRunner::run()} invocation.
  *
@@ -21,10 +18,8 @@ use JsonSerializable;
  * sources of truth. The runner reads these alongside `config('openapi.lint.*')` — explicit
  * `LintOptions` fields override or merge with the config depending on the field; see
  * {@see LintRunner::resolveOnly()} / {@see LintRunner::resolveSkip()} for the merge semantics.
- *
- * @implements Arrayable<string, mixed>
  */
-final readonly class LintOptions implements Arrayable, JsonSerializable
+final readonly class LintOptions
 {
     /**
      * @param null|int|string $level             Severity preset. Integer 0..N, the sentinel
@@ -44,6 +39,9 @@ final readonly class LintOptions implements Arrayable, JsonSerializable
      *                                           $diffEnabled = true triggers default resolution.
      * @param bool            $applySuppressions Whether `#[IgnoreLint]` directives are honoured.
      *                                           False corresponds to --no-suppress on the CLI.
+     * @param ?string         $spec              Restrict per-spec rules to one named spec. Null
+     *                                           runs them against every spec in SpecRegistry.
+     *                                           Pre-build rules always run regardless.
      */
     public function __construct(
         public int|string|null $level = null,
@@ -55,29 +53,4 @@ final readonly class LintOptions implements Arrayable, JsonSerializable
         public bool $applySuppressions = true,
         public ?string $spec = null,
     ) {}
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function toArray(): array
-    {
-        return [
-            'level' => $this->level,
-            'only' => $this->only,
-            'skip' => $this->skip,
-            'path' => $this->path,
-            'diffEnabled' => $this->diffEnabled,
-            'diffRef' => $this->diffRef,
-            'applySuppressions' => $this->applySuppressions,
-            'spec' => $this->spec,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return $this->toArray();
-    }
 }

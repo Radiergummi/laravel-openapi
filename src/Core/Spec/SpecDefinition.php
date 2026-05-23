@@ -41,9 +41,4 @@ final readonly class SpecDefinition
         public ?string $routeUri,
         public ?string $playgroundUri,
     ) {}
-
-    public function servesOverHttp(): bool
-    {
-        return $this->routeUri !== null;
-    }
 }

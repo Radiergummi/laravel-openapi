@@ -38,7 +38,7 @@ class WhyCommand extends Command
 {
     public const string ARGUMENT_ROUTE = 'route';
 
-    public const string OPTION_ENV = 'for-env';
+    public const string OPTION_FOR_ENV = 'for-env';
 
     protected $name = 'openapi:why';
 
@@ -50,7 +50,7 @@ class WhyCommand extends Command
         InclusionEvaluator $evaluator,
     ): int {
         $query = (string) $this->argument(self::ARGUMENT_ROUTE);
-        $env = (string) ($this->option(self::OPTION_ENV) ?? app()->environment());
+        $env = (string) ($this->option(self::OPTION_FOR_ENV) ?? app()->environment());
 
         $candidates = $this->findCandidates($introspector, $query);
 
@@ -101,7 +101,7 @@ class WhyCommand extends Command
         );
 
         $this->addOption(
-            self::OPTION_ENV,
+            self::OPTION_FOR_ENV,
             null,
             InputOption::VALUE_REQUIRED,
             'Override the environment for Hide/Expose evaluation.',

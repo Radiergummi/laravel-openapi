@@ -81,7 +81,7 @@ final class DocsController extends Controller
      */
     public function playground(SpecRegistry $registry, string $spec = 'default'): View
     {
-        $registry->get($spec); // surface a 404-equivalent if the spec name is unknown
+        abort_if(!$registry->has($spec), 404);
 
         $routeName = $spec === 'default' ? 'openapi.spec' : "openapi.spec.{$spec}";
 

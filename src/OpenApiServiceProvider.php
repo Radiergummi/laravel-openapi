@@ -761,11 +761,10 @@ class OpenApiServiceProvider extends ServiceProvider
         ]];
 
         foreach ($specs as $name => $overrides) {
-            $overrides = (array) $overrides;
             $rawRoute = $overrides['route_uri'] ?? sprintf('openapi-%s.yaml', $name);
             $rawPlayground = $overrides['playground_uri'] ?? sprintf('docs/%s', $name);
 
-            $entries[(string) $name] = [
+            $entries[$name] = [
                 'route_uri'      => self::normaliseRouteUriOverride($rawRoute),
                 'playground_uri' => self::normaliseRouteUriOverride($rawPlayground),
             ];
@@ -799,19 +798,12 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Coerces a raw `route_uri` / `playground_uri` override value to string|false|null.
-     * false → disabled (no route); null → falls back to default; string → explicit URI.
+     * Coerces a raw `route_uri` / `playground_uri` override value: false → opt out (no route);
+     * any string → explicit URI. Null is handled upstream by the `??` default fallback, so it
+     * never reaches this helper.
      */
-    private static function normaliseRouteUriOverride(mixed $value): string|false|null
+    private static function normaliseRouteUriOverride(mixed $value): string|false
     {
-        if ($value === false) {
-            return false;
-        }
-
-        if ($value === null) {
-            return null;
-        }
-
-        return (string) $value;
+        return $value === false ? false : (string) $value;
     }
 }

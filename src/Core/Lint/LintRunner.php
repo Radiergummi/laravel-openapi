@@ -228,9 +228,9 @@ final readonly class LintRunner
      * tag) are captured in isolation; after the walk, each finding is re-emitted into the
      * main collector tagged via {@see Finding::withSpec()}.
      *
-     * {@see Container::forgetScopedInstances()} is called before binding the local collector
-     * so the walk sees a fresh scoped state (ComponentSchemaRegistry, ExampleFileLoader).
-     * The main collector is bound back by the outer {@see run()} finally-block when done.
+     * The previous {@see FindingsCollector} binding is dropped so the local collector takes
+     * effect for the walk; the outer {@see run()} finally-block restores the global binding.
+     * Per-spec scoped state was already reset by the orchestrator before generation.
      *
      * @param list<Rule>                 $rules
      * @param list<ActionDescriptor>     $descriptors
@@ -251,9 +251,9 @@ final readonly class LintRunner
     ): void {
         $specLocal = new ArrayFindingsCollector();
 
-        // Reset scoped instances so per-spec state is fresh, then bind the local collector
-        // so the tree walker and any extractor-emitted findings land in $specLocal.
-        $this->container->forgetScopedInstances();
+        // Replace the FindingsCollector binding so the tree walker and any extractor-emitted
+        // findings land in $specLocal. instance() overwrites any prior binding atomically.
+        $this->container->forgetInstance(FindingsCollector::class);
         $this->container->instance(FindingsCollector::class, $specLocal);
 
         // region Tree walk

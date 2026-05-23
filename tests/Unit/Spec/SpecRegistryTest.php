@@ -85,8 +85,7 @@ it('treats false or null route_uri / playground_uri as opt-out (becomes null on 
 
     expect($spec->routeUri)
         ->toBeNull()
-        ->and($spec->playgroundUri)->toBeNull()
-        ->and($spec->servesOverHttp())->toBeFalse();
+        ->and($spec->playgroundUri)->toBeNull();
 });
 
 it('deep-merges per-spec `info` over root info', function (): void {

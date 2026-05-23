@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Rules\SpecRouteOrphaned;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecRouteOrphanedController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecUnknownRefController;
 
@@ -66,13 +67,13 @@ function collectSpecRouteOrphanedFindings(SpecRegistry $registry, array $descrip
         }
     };
 
-    new SpecRouteOrphaned()->checkConfiguration($registry, $descriptors, $collector);
+    new SpecRouteOrphaned(new SpecResolver())->checkConfiguration($registry, $descriptors, $collector);
 
     return $collector->findings;
 }
 
 it('has the correct id and level', function (): void {
-    $rule = new SpecRouteOrphaned();
+    $rule = new SpecRouteOrphaned(new SpecResolver());
 
     expect($rule->id())->toBe('spec.route-orphaned')
         ->and($rule->level())->toBe(0);

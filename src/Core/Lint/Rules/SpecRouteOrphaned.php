@@ -12,25 +12,29 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
 use Override;
-use Radiergummi\OpenApi\Core\Attributes\Spec as SpecAttribute;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 
 use function array_intersect;
 use function array_map;
 
 /**
- * Reports routes whose #[Spec] list resolves to no declared spec — i.e. every
+ * Reports routes whose effective #[Spec] list resolves to no declared spec — i.e. every
  * name they reference is unknown. Such routes are silently excluded from every
  * spec at generation time.
+ *
+ * Uses {@see SpecResolver} so the route's effective name set matches what the
+ * generator sees (method-level #[Spec] shadows class-level).
  */
 final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
 {
     public const string ID = 'spec.route-orphaned';
+
+    public function __construct(private SpecResolver $resolver) {}
 
     #[Override]
     public function id(): string
@@ -59,13 +63,13 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
         $known = array_map(static fn($s) => $s->name, $specs->all());
 
         foreach ($descriptors as $descriptor) {
-            $all = $this->collectSpecNames($descriptor);
+            $names = $this->resolver->resolve($descriptor->controller, $descriptor->method);
 
-            if ($all === []) {
+            if ($names === null || $names === []) {
                 continue;
             }
 
-            if (array_intersect($all, $known) === []) {
+            if (array_intersect($names, $known) === []) {
                 $findings->emit(new Finding(
                     ruleId: self::ID,
                     level: $this->level(),
@@ -75,33 +79,5 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
                 ));
             }
         }
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function collectSpecNames(ActionDescriptor $descriptor): array
-    {
-        $names = [];
-
-        foreach ($descriptor->actionAttributes(SpecAttribute::class) as $attr) {
-            /** @var SpecAttribute $instance */
-            $instance = $attr->newInstance();
-
-            foreach ($instance->names as $name) {
-                $names[] = $name;
-            }
-        }
-
-        foreach ($descriptor->controllerAttributes(SpecAttribute::class) as $attr) {
-            /** @var SpecAttribute $instance */
-            $instance = $attr->newInstance();
-
-            foreach ($instance->names as $name) {
-                $names[] = $name;
-            }
-        }
-
-        return $names;
     }
 }

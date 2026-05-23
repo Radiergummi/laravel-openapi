@@ -12,22 +12,27 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
 use Override;
-use Radiergummi\OpenApi\Core\Attributes\Spec as SpecAttribute;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 
 /**
  * Reports every #[Spec(name:)] argument that does not match any spec declared
  * in config('openapi.specs'). These references are silently dropped at generation
  * time; the rule makes them visible at lint time.
+ *
+ * Uses {@see SpecResolver} so the same method-shadows-class precedence the generator
+ * applies at runtime is also applied here — a class-level #[Spec] that the method
+ * overrides is not flagged, because it never reaches generation.
  */
 final readonly class SpecUnknownReference implements Rule, PreBuildRule
 {
     public const string ID = 'spec.unknown-reference';
+
+    public function __construct(private SpecResolver $resolver) {}
 
     #[Override]
     public function id(): string
@@ -54,7 +59,9 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
         FindingsCollector $findings,
     ): void {
         foreach ($descriptors as $descriptor) {
-            foreach ($this->collectSpecNames($descriptor) as $name) {
+            $names = $this->resolver->resolve($descriptor->controller, $descriptor->method) ?? [];
+
+            foreach ($names as $name) {
                 if (!$specs->has($name)) {
                     $findings->emit(new Finding(
                         ruleId: self::ID,
@@ -64,40 +71,6 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
                         fixHint: "Add '{$name}' to config('openapi.specs') or remove the attribute argument.",
                     ));
                 }
-            }
-        }
-    }
-
-    /**
-     * Mirrors SpecResolver precedence: if the method carries any #[Spec], only
-     * those names are checked; the class-level attribute is ignored (it is
-     * discarded at generation time too).
-     *
-     * @return iterable<string>
-     */
-    private function collectSpecNames(ActionDescriptor $descriptor): iterable
-    {
-        $methodAttrs = [...$descriptor->actionAttributes(SpecAttribute::class)];
-
-        if ($methodAttrs !== []) {
-            foreach ($methodAttrs as $attr) {
-                /** @var SpecAttribute $instance */
-                $instance = $attr->newInstance();
-
-                foreach ($instance->names as $name) {
-                    yield $name;
-                }
-            }
-
-            return;
-        }
-
-        foreach ($descriptor->controllerAttributes(SpecAttribute::class) as $attr) {
-            /** @var SpecAttribute $instance */
-            $instance = $attr->newInstance();
-
-            foreach ($instance->names as $name) {
-                yield $name;
             }
         }
     }

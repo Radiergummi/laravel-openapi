@@ -25,11 +25,11 @@ use function app;
  * An empty spec produces an invalid or useless document and usually indicates
  * a misconfigured match filter.
  */
-final class SpecConfigOrphaned implements Rule, PreBuildRule
+final readonly class SpecConfigOrphaned implements Rule, PreBuildRule
 {
     public const string ID = 'spec.config-orphaned';
 
-    public function __construct(private readonly InclusionEvaluator $evaluator) {}
+    public function __construct(private InclusionEvaluator $evaluator) {}
 
     #[Override]
     public function id(): string
