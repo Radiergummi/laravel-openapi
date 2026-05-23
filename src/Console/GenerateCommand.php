@@ -29,6 +29,7 @@ use function app;
 use function count;
 use function dirname;
 use function file_put_contents;
+use function fwrite;
 use function is_writable;
 use function realpath;
 
@@ -207,7 +208,7 @@ class GenerateCommand extends Command
                 $mark = $decision->included ? '✓' : '✗';
                 $method = $descriptor->route->methods()[0] ?? 'GET';
                 $uri = $descriptor->route->uri();
-                $this->line("[{$spec->name}] {$mark} {$method} {$uri}  {$decision->summary}");
+                fwrite(STDERR, "[{$spec->name}] {$mark} {$method} {$uri}  {$decision->summary}" . PHP_EOL);
             }
         }
     }

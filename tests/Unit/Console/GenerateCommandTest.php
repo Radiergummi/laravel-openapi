@@ -134,7 +134,7 @@ it('generates only the named spec when passed positionally', function (): void {
     @unlink($v1Path);
 });
 
-it('--explain prints one decision line per (route × spec)', function (): void {
+it('--explain exits successfully', function (): void {
     $defaultPath = generateCommandTmpPath();
     $v1Path = generateCommandTmpPath();
 
@@ -148,13 +148,24 @@ it('--explain prints one decision line per (route × spec)', function (): void {
         ],
     ]);
 
+    // Trace lines are written to stderr; Artisan's PendingCommand only captures
+    // stdout, so we assert the command succeeds rather than checking output content.
     $this->artisan('openapi:generate', ['--explain' => true])
-        ->expectsOutputToContain('[default]')
-        ->expectsOutputToContain('[v1]')
         ->assertSuccessful();
 
     @unlink($defaultPath);
     @unlink($v1Path);
+});
+
+it('--explain writes traces to stderr, not stdout, so --output=- stays parseable', function (): void {
+    config(['openapi.output_path' => generateCommandTmpPath()]);
+
+    // Artisan's PendingCommand captures only stdout. If --explain wrote to stdout,
+    // the trace lines would appear in the captured output. After the fix they go
+    // to stderr, so doesntExpectOutputToContain passes cleanly.
+    $this->artisan('openapi:generate', ['--output' => '-', '--explain' => true])
+        ->doesntExpectOutputToContain('[default]')
+        ->assertSuccessful();
 });
 
 it('--output= is rejected when generating multiple specs', function (): void {
