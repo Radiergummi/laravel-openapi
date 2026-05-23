@@ -59,6 +59,7 @@ use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
+use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Core\Spec\SpecResolver;
@@ -736,10 +737,14 @@ class OpenApiServiceProvider extends ServiceProvider
     /**
      * Conditionally mounts one spec + playground route per defined spec.
      *
-     * Reads route URIs directly from config — without touching {@see SpecRegistry} — so that
-     * later-booting service providers (e.g. example ServiceProviders in tests) can still
-     * override `openapi.info` / `openapi.tags` without the registry being pre-built with
-     * stale values. Route names follow the convention:
+     * Reads route URIs directly from config rather than resolving {@see SpecRegistry}. The
+     * registry would force eager materialisation of `info`/`servers`/`tags` at boot, which
+     * is too early — later-booting providers (e.g. example flavors) are still entitled to
+     * override those keys before generation runs. Only the URI fields are needed here, and
+     * URI resolution is replicated inline to keep `default`'s name correct even when an
+     * explicit `'specs.default'` entry exists.
+     *
+     * Route names follow the convention:
      *   - default spec: `openapi.spec` / `openapi.playground`
      *   - named specs:  `openapi.spec.{name}` / `openapi.playground.{name}`
      */
@@ -754,19 +759,24 @@ class OpenApiServiceProvider extends ServiceProvider
         /** @var array<string, array<string, mixed>> $specs */
         $specs = is_array(config('openapi.specs')) ? config('openapi.specs') : [];
 
-        /** @var array<string, array{route_uri: null|false|string, playground_uri: null|false|string}> $entries */
-        $entries = ['default' => [
-            'route_uri'      => is_string($config['spec']['uri'] ?? null) ? $config['spec']['uri'] : 'openapi.yaml',
-            'playground_uri' => is_string($config['playground']['uri'] ?? null) ? $config['playground']['uri'] : 'docs',
-        ]];
+        $rootRouteUri = is_string($config['spec']['uri'] ?? null) ? $config['spec']['uri'] : 'openapi.yaml';
+        $rootPlaygroundUri = is_string($config['playground']['uri'] ?? null) ? $config['playground']['uri'] : 'docs';
 
-        foreach ($specs as $name => $overrides) {
-            $rawRoute = $overrides['route_uri'] ?? sprintf('openapi-%s.yaml', $name);
-            $rawPlayground = $overrides['playground_uri'] ?? sprintf('docs/%s', $name);
+        /** @var array<string, array{route_uri: false|string, playground_uri: false|string}> $entries */
+        $entries = [];
+
+        foreach (['default' => [], ...$specs] as $name => $overrides) {
+            $name = (string) $name;
+            $isDefault = $name === 'default';
+
+            $rawRoute = $overrides['route_uri']
+                ?? ($isDefault ? $rootRouteUri : sprintf('openapi-%s.yaml', $name));
+            $rawPlayground = $overrides['playground_uri']
+                ?? ($isDefault ? $rootPlaygroundUri : sprintf('docs/%s', $name));
 
             $entries[$name] = [
-                'route_uri'      => self::normaliseRouteUriOverride($rawRoute),
-                'playground_uri' => self::normaliseRouteUriOverride($rawPlayground),
+                'route_uri'      => $rawRoute === false ? false : (string) $rawRoute,
+                'playground_uri' => $rawPlayground === false ? false : (string) $rawPlayground,
             ];
         }
 
@@ -775,35 +785,18 @@ class OpenApiServiceProvider extends ServiceProvider
             'middleware' => $config['middleware'] ?? ['web'],
         ], static function () use ($config, $entries): void {
             foreach ($entries as $name => $entry) {
-                $routeUri = $entry['route_uri'];
-                $playgroundUri = $entry['playground_uri'];
-
-                if (is_string($routeUri) && ($config['spec']['enabled'] ?? true)) {
-                    $routeName = $name === 'default' ? 'openapi.spec' : 'openapi.spec.' . $name;
-
-                    Route::get($routeUri, [DocsController::class, 'spec'])
+                if (is_string($entry['route_uri']) && ($config['spec']['enabled'] ?? true)) {
+                    Route::get($entry['route_uri'], [DocsController::class, 'spec'])
                         ->defaults('spec', $name)
-                        ->name($routeName);
+                        ->name(SpecDefinition::specRouteNameFor($name));
                 }
 
-                if (is_string($playgroundUri) && ($config['playground']['enabled'] ?? false)) {
-                    $routeName = $name === 'default' ? 'openapi.playground' : 'openapi.playground.' . $name;
-
-                    Route::get($playgroundUri, [DocsController::class, 'playground'])
+                if (is_string($entry['playground_uri']) && ($config['playground']['enabled'] ?? false)) {
+                    Route::get($entry['playground_uri'], [DocsController::class, 'playground'])
                         ->defaults('spec', $name)
-                        ->name($routeName);
+                        ->name(SpecDefinition::playgroundRouteNameFor($name));
                 }
             }
         });
-    }
-
-    /**
-     * Coerces a raw `route_uri` / `playground_uri` override value: false → opt out (no route);
-     * any string → explicit URI. Null is handled upstream by the `??` default fallback, so it
-     * never reaches this helper.
-     */
-    private static function normaliseRouteUriOverride(mixed $value): string|false
-    {
-        return $value === false ? false : (string) $value;
     }
 }

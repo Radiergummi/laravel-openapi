@@ -21,7 +21,6 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 use function app;
-use function config;
 use function file_exists;
 use function response;
 use function route;
@@ -45,7 +44,7 @@ final class DocsController extends Controller
     ): BinaryFileResponse|Response {
         $definition = $registry->get($spec);
 
-        if ((string) config('app.env', 'production') === 'local') {
+        if (app()->environment('local')) {
             return response(
                 $orchestrator->generateOne($spec, app()->environment())->toYaml(),
                 200,
@@ -83,8 +82,12 @@ final class DocsController extends Controller
     {
         abort_if(!$registry->has($spec), 404);
 
-        $routeName = $spec === 'default' ? 'openapi.spec' : "openapi.spec.{$spec}";
+        $definition = $registry->get($spec);
 
-        return view('openapi::playground', ['specUrl' => route($routeName)]);
+        // The playground needs a spec URL to point at. If this spec opted out of HTTP
+        // serving (route_uri: false), there is nothing to render.
+        abort_if(!$definition->servesOverHttp(), 404);
+
+        return view('openapi::playground', ['specUrl' => route($definition->specRouteName())]);
     }
 }

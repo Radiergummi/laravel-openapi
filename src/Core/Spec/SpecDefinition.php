@@ -41,4 +41,39 @@ final readonly class SpecDefinition
         public ?string $routeUri,
         public ?string $playgroundUri,
     ) {}
+
+    public function isDefault(): bool
+    {
+        return $this->name === 'default';
+    }
+
+    public function servesOverHttp(): bool
+    {
+        return $this->routeUri !== null;
+    }
+
+    public function specRouteName(): string
+    {
+        return self::specRouteNameFor($this->name);
+    }
+
+    public function playgroundRouteName(): string
+    {
+        return self::playgroundRouteNameFor($this->name);
+    }
+
+    /**
+     * Laravel route name used for a spec's YAML endpoint. Bare `openapi.spec` for the
+     * implicit default; `openapi.spec.{name}` for named specs. Exposed statically so the
+     * service provider can mount routes during boot without resolving {@see SpecRegistry}.
+     */
+    public static function specRouteNameFor(string $specName): string
+    {
+        return $specName === 'default' ? 'openapi.spec' : 'openapi.spec.' . $specName;
+    }
+
+    public static function playgroundRouteNameFor(string $specName): string
+    {
+        return $specName === 'default' ? 'openapi.playground' : 'openapi.playground.' . $specName;
+    }
 }

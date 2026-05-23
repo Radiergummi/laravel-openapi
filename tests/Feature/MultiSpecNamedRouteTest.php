@@ -22,7 +22,6 @@ trait WithV1SpecConfig
 {
     protected function defineEnvironment($app): void
     {
-        $app['config']->set('app.env', 'local');
         $app['config']->set('openapi.specs', [
             'v1' => ['match' => ['prefix' => 'api/v1/*']],
         ]);
@@ -32,5 +31,14 @@ trait WithV1SpecConfig
 uses(WithV1SpecConfig::class);
 
 it('mounts named-spec routes when specs.X.route_uri resolves', function (): void {
-    $this->get('/api/openapi-v1.yaml')->assertOk();
+    // The test exercises route mounting, not generation: drop a placeholder file at the
+    // spec's resolved output path so DocsController's non-local-env branch can serve it.
+    $path = storage_path('openapi-v1.yaml');
+    file_put_contents($path, "openapi: 3.1.0\n");
+
+    try {
+        $this->get('/api/openapi-v1.yaml')->assertOk();
+    } finally {
+        @unlink($path);
+    }
 });
