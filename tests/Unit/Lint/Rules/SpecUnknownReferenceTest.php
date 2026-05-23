@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\Rules\SpecUnknownReference;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecMethodShadowsClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecUnknownRefController;
 
 uses()->group('openapi', 'lint');
@@ -119,4 +120,14 @@ it('emits a finding when a #[Spec] argument references an undeclared spec name',
         ->and($findings[0]->ruleId)->toBe('spec.unknown-reference')
         ->and($findings[0]->level)->toBe(0)
         ->and($findings[0]->message)->toContain('ghost');
+});
+
+it('does not flag a class-level Spec when a method-level Spec shadows it', function (): void {
+    // SpecMethodShadowsClassController: class has #[Spec('ghost')], method has #[Spec('v2')].
+    // 'v2' is declared; 'ghost' is not — but SpecResolver discards the class-level attribute
+    // when the method carries any #[Spec], so the rule must not fire on 'ghost'.
+    $registry = specUnknownRefRegistry('default', 'v2');
+    $descriptor = specUnknownRefDescriptor(SpecMethodShadowsClassController::class);
+
+    expect(collectSpecUnknownReferenceFindings($registry, [$descriptor]))->toBe([]);
 });

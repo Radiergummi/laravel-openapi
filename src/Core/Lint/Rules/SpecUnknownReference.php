@@ -69,17 +69,27 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
     }
 
     /**
+     * Mirrors SpecResolver precedence: if the method carries any #[Spec], only
+     * those names are checked; the class-level attribute is ignored (it is
+     * discarded at generation time too).
+     *
      * @return iterable<string>
      */
     private function collectSpecNames(ActionDescriptor $descriptor): iterable
     {
-        foreach ($descriptor->actionAttributes(SpecAttribute::class) as $attr) {
-            /** @var SpecAttribute $instance */
-            $instance = $attr->newInstance();
+        $methodAttrs = [...$descriptor->actionAttributes(SpecAttribute::class)];
 
-            foreach ($instance->names as $name) {
-                yield $name;
+        if ($methodAttrs !== []) {
+            foreach ($methodAttrs as $attr) {
+                /** @var SpecAttribute $instance */
+                $instance = $attr->newInstance();
+
+                foreach ($instance->names as $name) {
+                    yield $name;
+                }
             }
+
+            return;
         }
 
         foreach ($descriptor->controllerAttributes(SpecAttribute::class) as $attr) {
