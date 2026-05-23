@@ -144,6 +144,7 @@ minutes. The full index is at [`docs/README.md`](docs/README.md).
 - [Attributes](docs/attributes.md) — the escape-hatch catalog
 - [Recipes](docs/recipes.md) — 22 short snippets
 - [Plugins](docs/plugins.md) — bundled plugins
+- [Multi-spec](docs/multi-spec.md) — partition routes into multiple OpenAPI documents
 - [Linting](docs/linting.md) — `openapi:lint` and the rule catalog
 - [Configuration](docs/config.md) — every config key
 - [Troubleshooting](docs/troubleshooting.md) — symptom-indexed

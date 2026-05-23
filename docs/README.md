@@ -18,6 +18,7 @@ minutes and cover what most projects need.
 | [Recipes](recipes.md) | 22 short snippets: streaming, multipart, polymorphism, links, security schemes. |
 | [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal. |
 | [Linting](linting.md) | `openapi:lint`, severity scale, the rule catalog, `#[IgnoreLint]`. |
+| [Multi-spec](multi-spec.md) | Partition routes into multiple OpenAPI documents. |
 | [Configuration](config.md) | Every `config/openapi.php` key. |
 | [Troubleshooting](troubleshooting.md) | Symptom-indexed answers. |
 

@@ -166,6 +166,8 @@ catalog with the current state of any plugin-registered rules.
 | `server.invalid-url` | 0 | A servers[].url is malformed. |
 | `server.variable-undeclared` | 0 | A server URL template uses a {var} with no matching variables entry. |
 | `spec.invalid` | 0 | Spec fails swagger-php validation. Cannot be suppressed or remapped. |
+| `spec.route-orphaned` | 0 | A route's #[Spec] list resolves to no defined specs. |
+| `spec.unknown-reference` | 0 | #[Spec] references a spec not declared in config. |
 | `tag.duplicate` | 0 | Two top-level tag definitions share the same name. |
 | `webhook.name-duplicate` | 0 | Two webhooks share the same name. |
 | `externaldocs.invalid-url` | 1 | externalDocs.url is not a valid URL. |
@@ -231,6 +233,7 @@ catalog with the current state of any plugin-registered rules.
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
+| `spec.config-orphaned` | 3 | A configured spec has zero assigned routes after evaluation. |
 | `tag.name-naming-inconsistent` | 3 | Tag name doesn't follow the configured tag_case convention. |
 | `tag.undeclared-at-root` | 3 | Operation uses a tag not declared in the document-level tags array. |
 | `deprecated.no-replacement` | 4 | Deprecated operation/field has no x-replacement or suggested alternative. |

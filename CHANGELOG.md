@@ -5,6 +5,13 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Multi-spec support: `config('openapi.specs')` lets one app emit multiple OpenAPI documents,
+  partitioned by URL `prefix`, `middleware`, or controller `namespace`. New `#[Spec]` attribute
+  pins a route to specific specs explicitly. New `openapi:why` command explains per-route, per-
+  spec inclusion; `openapi:generate --explain` prints the same decisions for every (route × spec).
+  Lint now runs per spec (`--spec=` narrows; pre-build rules always run). Three new pre-build
+  rules: `spec.unknown-reference`, `spec.route-orphaned`, `spec.config-orphaned`. See
+  [`docs/multi-spec.md`](docs/multi-spec.md).
 - `Radiergummi\OpenApi\Core\Lint\LintRunner` — reusable service that orchestrates one
   lint run from a structured `LintOptions` value object and returns a `LintResult` value
   object (findings + threshold level + exit code). Extracted out of `LintCommand` so the
