@@ -229,16 +229,16 @@ return [
     |
     */
 
-    'specs' => [
-        // 'v1' => [
-        //     'info'  => ['version' => '1.x'],
-        //     'match' => [
-        //         'prefix' => 'api/v1/*',
-        //         // 'middleware' => 'auth:partner',
-        //         // 'namespace'  => 'App\\Http\\Controllers\\V1\\',
-        //     ],
-        // ],
-    ],
+    // 'specs' => [
+    //     'v1' => [
+    //         'info'  => ['version' => '1.x'],
+    //         'match' => [
+    //             'prefix' => 'api/v1/*',
+    //             // 'middleware' => 'auth:partner',
+    //             // 'namespace'  => 'App\\Http\\Controllers\\V1\\',
+    //         ],
+    //     ],
+    // ],
 
     /*
     |--------------------------------------------------------------------------
