@@ -212,6 +212,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Named Specs (Multi-Spec)
+    |--------------------------------------------------------------------------
+    |
+    | Define additional named OpenAPI specs alongside the implicit 'default' spec
+    | (whose settings come from the root keys above). Each entry partitions routes
+    | by URL prefix, middleware tokens, or controller namespace; #[Spec('name')]
+    | on a route overrides match-based assignment.
+    |
+    | Defaults for named specs:
+    |   - output_path    storage_path("openapi-{name}.yaml")
+    |   - route_uri      "openapi-{name}.yaml"   (false / null to not mount)
+    |   - playground_uri "docs/{name}"           (false / null to not mount)
+    |
+    | Omit this key entirely for single-spec mode. See docs/multi-spec.md.
+    |
+    */
+
+    'specs' => [
+        // 'v1' => [
+        //     'info'  => ['version' => '1.x'],
+        //     'match' => [
+        //         'prefix' => 'api/v1/*',
+        //         // 'middleware' => 'auth:partner',
+        //         // 'namespace'  => 'App\\Http\\Controllers\\V1\\',
+        //     ],
+        // ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Lint Configuration
     |--------------------------------------------------------------------------
     |
