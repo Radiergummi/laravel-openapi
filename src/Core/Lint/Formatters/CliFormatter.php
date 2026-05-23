@@ -70,49 +70,76 @@ final class CliFormatter implements Formatter
         int $exitCode,
         OutputInterface $output,
     ): void {
-        $bySpec = $this->groupBySpec($findings);
-        $multiSpec = count($bySpec) > 1;
+        [$preBuild, $perSpec] = $this->partitionFindings($findings);
 
-        foreach ($bySpec as $specName => $specFindings) {
-            if ($multiSpec) {
+        // Show section headers whenever there is more than one section. A single per-spec
+        // section without pre-build findings (the common case) renders unchanged.
+        $sectionCount = ($preBuild === [] ? 0 : 1) + count($perSpec);
+        $showHeaders = $sectionCount > 1;
+
+        if ($preBuild !== []) {
+            if ($showHeaders) {
+                $output->writeln(['', '── configuration ──']);
+            }
+            $this->renderSection($preBuild, $output);
+        }
+
+        foreach ($perSpec as $specName => $specFindings) {
+            if ($showHeaders) {
                 $output->writeln(['', "── spec: {$specName} ──"]);
             }
-
-            $grouped = $this->groupByFile($specFindings);
-
-            // Render findings without a source location first
-            if (isset($grouped[''])) {
-                $this->renderFileGroup(null, $grouped[''], $output);
-                unset($grouped['']);
-            }
-
-            // Render remaining groups sorted alphabetically by file path
-            ksort($grouped);
-
-            foreach ($grouped as $file => $group) {
-                $this->renderFileGroup($file, $group, $output);
-            }
+            $this->renderSection($specFindings, $output);
         }
 
         $this->renderSummary(new LinterSummary($findings, $level), $output);
     }
 
     /**
+     * Split findings into pre-build (spec === null) and per-spec buckets. Pre-build findings
+     * come from {@see \Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule}s that run once
+     * per lint invocation; per-spec findings come from rules dispatched against each generated
+     * spec.
+     *
      * @param list<Finding> $findings
      *
-     * @return array<string, list<Finding>>
+     * @return array{0: list<Finding>, 1: array<string, list<Finding>>}
      */
-    private function groupBySpec(array $findings): array
+    private function partitionFindings(array $findings): array
     {
-        /** @var array<string, list<Finding>> $grouped */
-        $grouped = [];
+        $preBuild = [];
+        /** @var array<string, list<Finding>> $perSpec */
+        $perSpec = [];
 
         foreach ($findings as $finding) {
-            $key = $finding->spec ?? '(pre-build)';
-            $grouped[$key][] = $finding;
+            if ($finding->spec === null) {
+                $preBuild[] = $finding;
+            } else {
+                $perSpec[$finding->spec][] = $finding;
+            }
         }
 
-        return $grouped;
+        return [$preBuild, $perSpec];
+    }
+
+    /**
+     * Render one section's findings, grouped by source file (no-file entries first).
+     *
+     * @param list<Finding> $findings
+     */
+    private function renderSection(array $findings, OutputInterface $output): void
+    {
+        $grouped = $this->groupByFile($findings);
+
+        if (isset($grouped[''])) {
+            $this->renderFileGroup(null, $grouped[''], $output);
+            unset($grouped['']);
+        }
+
+        ksort($grouped);
+
+        foreach ($grouped as $file => $group) {
+            $this->renderFileGroup($file, $group, $output);
+        }
     }
 
     /**

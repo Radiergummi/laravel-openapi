@@ -63,7 +63,7 @@ it('groups findings by spec with a header per group', function (): void {
         ->toContain('── spec: v1 ──');
 });
 
-it('labels null-spec findings as (pre-build) when mixed with named specs', function (): void {
+it('renders pre-build findings under a "configuration" header when mixed with spec findings', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
         findings: [
@@ -77,8 +77,25 @@ it('labels null-spec findings as (pre-build) when mixed with named specs', funct
 
     $text = $output->fetch();
     expect($text)
-        ->toContain('── spec: (pre-build) ──')
+        ->toContain('── configuration ──')
         ->toContain('── spec: default ──');
+});
+
+it('does not print headers when only pre-build findings are present', function (): void {
+    $output = new BufferedOutput();
+    new CliFormatter()->render(
+        findings: [
+            new Finding(ruleId: 'rule.a', level: 0, message: 'msg a'),
+        ],
+        level: 0,
+        exitCode: 1,
+        output: $output,
+    );
+
+    $text = $output->fetch();
+    expect($text)
+        ->not->toContain('── configuration ──')
+        ->not->toContain('── spec:');
 });
 
 it('renders finding rule ids inside the correct spec group', function (): void {
