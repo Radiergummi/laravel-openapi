@@ -17,8 +17,8 @@ beforeEach(function (): void {
     $this->matcher = new SpecMatcher();
 });
 
-it('matches empty / missing config — matches everything', function (): void {
-    expect($this->matcher->matches(uri: 'api/anything', middleware: [], controller: null, match: []))->toBeTrue();
+it('empty / missing match config matches nothing — catch-all semantics live in the evaluator', function (): void {
+    expect($this->matcher->matches(uri: 'api/anything', middleware: [], controller: null, match: []))->toBeFalse();
 });
 
 it('matches a single prefix as fnmatch glob', function (): void {

@@ -185,6 +185,25 @@ it('excludes a route when #[Hide] applies in the current environment', function 
         ->and($decision->summary)->toContain('hidden');
 });
 
+it('includes any route in the default spec when no match config is given (catch-all)', function (): void {
+    $descriptor = makeDescriptor('api/anywhere');
+    $spec = makeSpec('default'); // empty match
+
+    $decision = makeEvaluator()->decide($descriptor, $spec, 'local');
+
+    expect($decision->included)->toBeTrue();
+});
+
+it('excludes every route from a named spec with no match config (matches nothing)', function (): void {
+    $descriptor = makeDescriptor('api/v1/flights');
+    $spec = makeSpec('partner'); // empty match — named spec misconfiguration
+
+    $decision = makeEvaluator()->decide($descriptor, $spec, 'local');
+
+    expect($decision->included)->toBeFalse()
+        ->and($decision->summary)->toContain("named spec 'partner' has no match config");
+});
+
 it('produces a trace with one entry per check', function (): void {
     $descriptor = makeDescriptor('api/v1/flights');
     $spec = makeSpec('v1', ['prefix' => 'api/v1/*']);

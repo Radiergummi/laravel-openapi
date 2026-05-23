@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
 use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 
+use function array_keys;
 use function array_map;
 use function array_values;
 use function implode;
@@ -99,26 +100,42 @@ final readonly class InclusionEvaluator
                 return new InclusionDecision(false, $trace, "not in #[Spec] list for {$spec->name}");
             }
         } else {
-            $middleware = array_values(
-                array_map(static fn(mixed $m): string => (string) $m, $descriptor->route->middleware()),
-            );
+            // Empty match block: catch-all for the implicit default spec, no-match for any
+            // named spec (the default spec exists to catch routes not pinned elsewhere by
+            // #[Spec]; a named spec without `match` is a misconfiguration surfaced by
+            // SpecConfigOrphaned).
+            $matched = $spec->match === []
+                ? $spec->name === 'default'
+                : $this->matcher->matches(
+                    uri: $descriptor->route->uri(),
+                    middleware: array_values(array_map(
+                        static fn(mixed $entry): string => (string) $entry,
+                        $descriptor->route->gatherMiddleware(),
+                    )),
+                    controller: $descriptor->controller?->getName(),
+                    match: $spec->match,
+                );
 
-            $matched = $this->matcher->matches(
-                uri: $descriptor->route->uri(),
-                middleware: $middleware,
-                controller: $descriptor->controller?->getName(),
-                match: $spec->match,
-            );
+            $reason = match (true) {
+                $spec->match === [] && $spec->name === 'default'
+                    => 'default spec has no match config — catch-all',
+                $spec->match === []
+                    => "named spec '{$spec->name}' has no match config — matches nothing",
+                $matched
+                    => 'match config matched',
+                default
+                => 'match config did not match',
+            };
 
             $trace[] = new TraceEntry(
                 stage: 'spec-match',
                 name: $spec->match === [] ? '(no match config)' : implode(',', array_keys($spec->match)),
                 passed: $matched,
-                reason: $matched ? 'match config matched' : 'match config did not match',
+                reason: $reason,
             );
 
             if (!$matched) {
-                return new InclusionDecision(false, $trace, "match config did not match for {$spec->name}");
+                return new InclusionDecision(false, $trace, $reason);
             }
         }
 
@@ -126,17 +143,11 @@ final readonly class InclusionEvaluator
 
         // region 3. + 4. Visibility (Hide / Expose / default)
 
-        $hides = array_map(
-            static fn($a) => $a->newInstance(),
-            [...$descriptor->actionAttributes(Hide::class), ...$descriptor->controllerAttributes(Hide::class)],
+        $visible = $this->visibility->isVisible(
+            hides: $descriptor->attributeInstances(Hide::class),
+            exposes: $descriptor->attributeInstances(Expose::class),
+            environment: $environment,
         );
-
-        $exposes = array_map(
-            static fn($a) => $a->newInstance(),
-            [...$descriptor->actionAttributes(Expose::class), ...$descriptor->controllerAttributes(Expose::class)],
-        );
-
-        $visible = $this->visibility->isVisible($hides, $exposes, $environment);
 
         $trace[] = new TraceEntry(
             stage: 'visibility',

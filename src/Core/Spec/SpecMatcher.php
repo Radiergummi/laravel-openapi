@@ -31,13 +31,17 @@ use function str_starts_with;
  *                  never match a namespace constraint.
  *
  * AND across the three keys (every present key must match); OR within a single key's array.
- * An empty/missing match block matches everything.
+ *
+ * An empty/missing match block matches nothing — the higher-level catch-all semantics for the
+ * implicit `default` spec live in {@see \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator},
+ * which short-circuits before reaching the matcher. This keeps {@see SpecMatcher} a pure
+ * predicate over the three config keys.
  */
 final readonly class SpecMatcher
 {
     /**
-     * @param list<string>         $middleware Resolved middleware tokens for the route.
-     * @param array<string, mixed> $match
+     * @param array<array-key, string> $middleware Resolved middleware tokens for the route; keys are ignored.
+     * @param array<string, mixed>     $match
      */
     public function matches(
         string $uri,
@@ -46,7 +50,7 @@ final readonly class SpecMatcher
         array $match,
     ): bool {
         if ($match === []) {
-            return true;
+            return false;
         }
 
         if (isset($match['prefix']) && !$this->matchesPrefix($uri, $match['prefix'])) {
@@ -72,7 +76,7 @@ final readonly class SpecMatcher
     }
 
     /**
-     * @param list<string> $middleware
+     * @param array<array-key, string> $middleware
      */
     private function matchesMiddleware(array $middleware, mixed $tokens): bool
     {

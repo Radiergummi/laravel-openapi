@@ -110,6 +110,32 @@ final class ActionDescriptor
     }
 
     /**
+     * Instantiate every `$attribute` declared on the action reflector and the controller class,
+     * action first. Convenience wrapper over {@see actionAttributes()} + {@see controllerAttributes()}
+     * for callers that want concrete attribute objects rather than `ReflectionAttribute` wrappers.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $attribute
+     *
+     * @return list<T>
+     */
+    public function attributeInstances(string $attribute): array
+    {
+        $instances = [];
+
+        foreach ($this->actionAttributes($attribute) as $reflectionAttribute) {
+            $instances[] = $reflectionAttribute->newInstance();
+        }
+
+        foreach ($this->controllerAttributes($attribute) as $reflectionAttribute) {
+            $instances[] = $reflectionAttribute->newInstance();
+        }
+
+        return $instances;
+    }
+
+    /**
      * @param ReflectionClass<object>|ReflectionFunctionAbstract $reflector
      *
      * @return array<class-string, list<ReflectionAttribute<object>>>

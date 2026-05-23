@@ -21,6 +21,8 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 
 use function app;
+use function array_map;
+use function array_values;
 use function count;
 use function implode;
 use function str_contains;
@@ -38,6 +40,11 @@ class WhyCommand extends Command
 {
     public const string ARGUMENT_ROUTE = 'route';
 
+    /**
+     * `--env` is reserved by Laravel for the global "boot in environment X" switch, so we cannot
+     * reuse it. `--for-env` carries the same intent: override the environment used for
+     * `#[Hide]` / `#[Expose]` resolution without changing `APP_ENV` for the rest of the run.
+     */
     public const string OPTION_FOR_ENV = 'for-env';
 
     protected $name = 'openapi:why';
@@ -136,9 +143,14 @@ class WhyCommand extends Command
     private function printHeader(ActionDescriptor $descriptor, string $env): void
     {
         $method = $descriptor->route->methods()[0] ?? 'GET';
+        $middleware = array_values(array_map(
+            static fn(mixed $entry): string => (string) $entry,
+            $descriptor->route->gatherMiddleware(),
+        ));
+
         $this->line("Route: {$method} " . $descriptor->route->uri());
         $this->line('  controller: ' . ($descriptor->controller?->getName() ?? '(closure)'));
-        $this->line('  middleware: ' . implode(', ', $descriptor->route->middleware()));
+        $this->line('  middleware: ' . implode(', ', $middleware));
         $this->line('  environment: ' . $env);
         $this->line('');
     }
