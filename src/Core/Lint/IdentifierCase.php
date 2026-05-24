@@ -24,6 +24,17 @@ enum IdentifierCase: string
     case Train = 'train';
     case ScreamingSnake = 'screaming_snake';
 
+    /**
+     * Coerces a raw config value into the enum. Strict — an unknown string raises
+     * `\ValueError`; naming rules have no safe fallback, so misconfiguration must
+     * surface loudly (unlike {@see \Radiergummi\OpenApi\Core\Visibility\VisibilityMode::fromConfig()},
+     * which silently defaults to `Public`).
+     */
+    public static function fromConfig(self|string $value): self
+    {
+        return $value instanceof self ? $value : self::from($value);
+    }
+
     /** Returns a regex that fully matches a conforming identifier. */
     public function pattern(): string
     {

@@ -67,6 +67,30 @@ All notable changes to this project are documented here.
   (`Illuminate\Container\Attributes\Config`) instead of `config()` calls in a
   service-provider closure. The `Skip*Routes::fromConfig()` static factories
   are gone — the container resolves these classes directly.
+- The seven naming-convention lint rules (`OperationIdNamingInconsistent`,
+  `FieldNameNamingInconsistent`, `PathSegmentNamingInconsistent`,
+  `ParameterNameNamingInconsistent`, `TagNameNamingInconsistent`,
+  `HeaderNameNamingInconsistent`, `ComponentNameNamingInconsistent`) each read
+  their `openapi.lint.style.*` config key via `#[Config]` on the constructor
+  parameter; `AbstractNamingRule` accepts both an `IdentifierCase` enum
+  (test-friendly) and the raw config string. `VisibilityResolver` follows the
+  same pattern for `openapi.visibility.default`.
+- `SuppressionCollector` now takes `OpenApiRegistry` directly and reads
+  `payloadClasses()` itself; the indirection list comes from `#[Config]`.
+- The `EventDispatchingFindingsCollector → LoggingFindingsCollector` decorator
+  chain is now assembled by the container via `#[Scoped]` on both classes
+  plus `#[Give(LoggingFindingsCollector::class)]` on the decorator's `$inner`
+  param (which breaks the otherwise circular interface resolution). A
+  one-line interface alias in the service provider maps `FindingsCollector`
+  to the decorator so Testbench environments — which skip the framework's
+  `resolveEnvironmentUsing()` bootstrap step that `#[Bind]` needs — also work.
+- `IdentifierCase` gained a `fromConfig()` static factory mirroring
+  `VisibilityMode::fromConfig()`; `AbstractNamingRule` uses it instead of
+  inlining the enum coercion, and the cached `$pattern` property is gone —
+  `$case->pattern()` is a pure `match`, so the caching was buying nothing.
+- `VisibilityAttributeNoOp` now takes a `VisibilityResolver` and reads
+  `defaultMode()` from it instead of re-running `config('openapi.visibility.default')`
+  through `VisibilityMode::fromConfig()` on every route check.
 - `SchemaFromFormRequest` now takes a `Psr\Log\LoggerInterface` constructor
   argument instead of reaching for `Illuminate\Support\Facades\Log`, matching
   the sibling pipeline classes (`PaginatorResponseResolver`,

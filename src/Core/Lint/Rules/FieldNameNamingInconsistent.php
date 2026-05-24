@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
@@ -30,10 +32,13 @@ use function sprintf;
  * Recursion into nested objects is handled by the walker — this rule only
  * checks the single node passed in.
  */
+#[Scoped]
 final readonly class FieldNameNamingInconsistent extends AbstractNamingRule implements FieldRuleVisitor
 {
-    public function __construct(IdentifierCase $case = IdentifierCase::Camel)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.property_name_case', 'camel')]
+        IdentifierCase|string $case = IdentifierCase::Camel,
+    ) {
         parent::__construct($case);
     }
 

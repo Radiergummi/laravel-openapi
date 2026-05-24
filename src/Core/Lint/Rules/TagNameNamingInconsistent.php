@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
@@ -27,10 +29,13 @@ use function sprintf;
  * Tags are typically derived from namespace segments (e.g. `Projects`, `Users`),
  * so the default convention is {@see IdentifierCase::Pascal}.
  */
+#[Scoped]
 final readonly class TagNameNamingInconsistent extends AbstractNamingRule implements ApiRuleVisitor
 {
-    public function __construct(IdentifierCase $case = IdentifierCase::Pascal)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.tag_case', 'pascal')]
+        IdentifierCase|string $case = IdentifierCase::Pascal,
+    ) {
         parent::__construct($case);
     }
 

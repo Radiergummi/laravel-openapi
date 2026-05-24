@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
@@ -28,10 +30,13 @@ use function sprintf;
  * protocol correctness. The default convention is {@see IdentifierCase::Train}
  * (e.g. `X-Request-Id`), which matches conventional HTTP header style.
  */
+#[Scoped]
 final readonly class HeaderNameNamingInconsistent extends AbstractNamingRule implements HeaderRuleVisitor
 {
-    public function __construct(IdentifierCase $case = IdentifierCase::Train)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.header_case', 'train')]
+        IdentifierCase|string $case = IdentifierCase::Train,
+    ) {
         parent::__construct($case);
     }
 

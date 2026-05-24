@@ -11,8 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use Illuminate\Container\Attributes\Scoped;
 use Psr\Log\LoggerInterface;
 
+#[Scoped]
 final readonly class LoggingFindingsCollector implements FindingsCollector
 {
     public function __construct(private LoggerInterface $logger) {}

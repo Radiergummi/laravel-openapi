@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Visibility;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Attributes\Expose;
 use Radiergummi\OpenApi\Core\Attributes\Hide;
 
@@ -21,11 +23,22 @@ use function in_array;
  * Caller passes the union of method-level and class-level Hide/Expose
  * attribute instances; the resolver does not perform reflection.
  */
+#[Scoped]
 final readonly class VisibilityResolver
 {
+    private VisibilityMode $defaultMode;
+
     public function __construct(
-        private VisibilityMode $defaultMode = VisibilityMode::Public,
-    ) {}
+        #[Config('openapi.visibility.default')]
+        VisibilityMode|string|null $defaultMode = VisibilityMode::Public,
+    ) {
+        $this->defaultMode = VisibilityMode::fromConfig($defaultMode);
+    }
+
+    public function defaultMode(): VisibilityMode
+    {
+        return $this->defaultMode;
+    }
 
     /**
      * @param list<Hide>   $hides   All Hide attributes that apply to the route (method + class).

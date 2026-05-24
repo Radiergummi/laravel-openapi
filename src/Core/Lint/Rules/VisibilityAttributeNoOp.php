@@ -19,8 +19,7 @@ use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\RouteRule;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
-
-use function config;
+use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 
 /**
  * Reports unconditional #[Expose] in public-default visibility mode and
@@ -28,8 +27,10 @@ use function config;
  * have no effect under the active default. Env-scoped variants are never
  * flagged because their effect can flip across environments.
  */
-final class VisibilityAttributeNoOp implements Rule, RouteRule
+final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
 {
+    public function __construct(private VisibilityResolver $visibility) {}
+
     #[Override]
     public function id(): string
     {
@@ -54,7 +55,7 @@ final class VisibilityAttributeNoOp implements Rule, RouteRule
     #[Override]
     public function checkRoute(ActionDescriptor $descriptor, LintContext $context): iterable
     {
-        $mode = VisibilityMode::fromConfig(config('openapi.visibility.default'));
+        $mode = $this->visibility->defaultMode();
 
         if ($mode === VisibilityMode::Public) {
             // Public default: an unconditional #[Expose] does nothing if no #[Hide] is around to override.

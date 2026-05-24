@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
@@ -27,10 +29,13 @@ use function sprintf;
  * {@see IdentifierCase::Dot} (e.g. `api.v0.projects.index`). Operations without
  * an operationId are skipped — that is caught by `operation.id-missing`.
  */
+#[Scoped]
 final readonly class OperationIdNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor
 {
-    public function __construct(IdentifierCase $case = IdentifierCase::Dot)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.operation_id_case', 'dot')]
+        IdentifierCase|string $case = IdentifierCase::Dot,
+    ) {
         parent::__construct($case);
     }
 

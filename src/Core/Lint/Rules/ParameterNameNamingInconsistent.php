@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
@@ -36,13 +38,16 @@ use function str_contains;
  * - The exact names `page`, `per_page`, `sort`, and `include` — standard
  *   JSON:API / Spatie QueryBuilder parameters injected by the request layer.
  */
+#[Scoped]
 final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule implements ParameterRuleVisitor, QueryParameterRuleVisitor
 {
     /** @var list<string> */
     private const array FRAMEWORK_QUERY_PARAMS = ['page', 'per_page', 'sort', 'include'];
 
-    public function __construct(IdentifierCase $case = IdentifierCase::Snake)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.parameter_name_case', 'snake')]
+        IdentifierCase|string $case = IdentifierCase::Snake,
+    ) {
         parent::__construct($case);
     }
 

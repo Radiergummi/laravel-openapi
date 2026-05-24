@@ -13,7 +13,6 @@ namespace Radiergummi\OpenApi;
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
@@ -31,20 +30,11 @@ use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
-use Radiergummi\OpenApi\Core\Lint\LoggingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
-use Radiergummi\OpenApi\Core\Lint\Rules\ComponentNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Rules\HeaderNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Rules\OperationIdNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Rules\ParameterNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Rules\PathSegmentNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Rules\TagNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Registry\Plugin;
+use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
@@ -53,7 +43,6 @@ use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Core\Spec\SpecResolver;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use Radiergummi\OpenApi\Http\DocsController;
 use Spatie\LaravelData\Data;
@@ -120,7 +109,6 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerSpec();
         $this->registerRouting();
         $this->registerRegistries();
-        $this->registerLintRules();
         $this->registerExtractors();
         $this->registerRequestSchemas();
         $this->registerSpatieDataPlugin();
@@ -182,57 +170,17 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the naming-convention lint rules, suppression and findings collectors.
-     */
-    private function registerLintRules(): void
-    {
-        $namingRules = [
-            OperationIdNamingInconsistent::class => ['operation_id_case', 'dot'],
-            FieldNameNamingInconsistent::class => ['property_name_case', 'camel'],
-            PathSegmentNamingInconsistent::class => ['path_segment_case', 'kebab'],
-            ParameterNameNamingInconsistent::class => ['parameter_name_case', 'snake'],
-            TagNameNamingInconsistent::class => ['tag_case', 'pascal'],
-            HeaderNameNamingInconsistent::class => ['header_case', 'train'],
-            ComponentNameNamingInconsistent::class => ['component_name_case', 'pascal'],
-        ];
-
-        foreach ($namingRules as $class => [$key, $default]) {
-            $this->app->scoped($class, static fn() => new $class(
-                IdentifierCase::from((string) config("openapi.lint.style.{$key}", $default)),
-            ));
-        }
-
-        $this->app->scoped(
-            SuppressionCollector::class,
-            static function (Container $app): SuppressionCollector {
-                $registry = $app->make(OpenApiRegistry::class);
-
-                /** @var list<class-string> $indirectionClasses */
-                $indirectionClasses = (array) config('openapi.request_payload_indirection', []);
-
-                return new SuppressionCollector(
-                    payloadClasses: $registry->payloadClasses(),
-                    indirectionClasses: $indirectionClasses,
-                );
-            },
-        );
-
-        $this->app->scoped(
-            FindingsCollector::class,
-            static fn(Container $app) => new EventDispatchingFindingsCollector(
-                inner: new LoggingFindingsCollector(
-                    logger: $app->make(LoggerInterface::class),
-                ),
-                events: $app->make(Dispatcher::class),
-            ),
-        );
-    }
-
-    /**
      * Binds the schema registry and the operation-data extractors.
      */
     private function registerExtractors(): void
     {
+        // Interface alias. The concrete decorator chain assembles itself via the
+        // `#[Scoped]` and `#[Give]` attributes on {@see EventDispatchingFindingsCollector}.
+        // Testbench's {@see \Orchestra\Testbench\Bootstrap\LoadConfiguration} skips
+        // `resolveEnvironmentUsing()`, so `#[Bind]` on the interface would be silently
+        // ignored under tests — this explicit alias works in every environment.
+        $this->app->scoped(FindingsCollector::class, EventDispatchingFindingsCollector::class);
+
         $this->app->scoped(
             PaginatorResponseResolver::class,
             static function (Container $app): PaginatorResponseResolver {
@@ -337,14 +285,14 @@ class OpenApiServiceProvider extends ServiceProvider
 
                 /** @throws BindingResolutionException */
                 $resolversFactory = static function () use ($app, $registry): array {
-                    /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
+                    /** @var null|list<RefSchemaResolver> $cache */
                     static $cache = null;
 
                     if ($cache !== null) {
                         return $cache;
                     }
 
-                    /** @var list<Core\Registry\RefSchemaResolver> $resolvers */
+                    /** @var list<RefSchemaResolver> $resolvers */
                     $resolvers = [];
 
                     foreach ($registry->refSchemaResolvers() as $class) {
@@ -369,14 +317,13 @@ class OpenApiServiceProvider extends ServiceProvider
     /**
      * Binds the Fractal plugin services.
      *
-     * `SchemaFromTransformer` receives a LAZY factory for the ref-resolver
-     * list — every registered ref resolver except this plugin's own
-     * `TransformerRefSchemaResolver`. Eager construction would form a
-     * cross-plugin construction cycle with `SchemaFromResource` (each plugin's
-     * builder lists the other plugin's resolver). Deferring resolution to
-     * first use lets the container finish constructing both sides first; the
-     * factory memoises its result with a closure-local static so repeated
-     * resolveClassRef calls don't re-walk the registry.
+     * {@see SchemaFromTransformer} receives a LAZY factory for the ref-resolver list — every
+     * registered ref resolver except this plugin's own {@see TransformerRefSchemaResolver}.
+     * Eager construction would form a cross-plugin construction cycle with
+     * {@see SchemaFromResource} (each plugin's builder lists the other plugin's resolver).
+     * Deferring resolution to first use lets the container finish constructing both sides first;
+     * the factory memoises its result with a closure-local static so repeated `resolveClassRef`
+     * calls don't re-walk the registry.
      */
     private function registerFractalPlugin(): void
     {
@@ -387,14 +334,14 @@ class OpenApiServiceProvider extends ServiceProvider
 
                 /** @throws BindingResolutionException */
                 $resolversFactory = static function () use ($app, $registry): array {
-                    /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
+                    /** @var null|list<RefSchemaResolver> $cache */
                     static $cache = null;
 
                     if ($cache !== null) {
                         return $cache;
                     }
 
-                    /** @var list<Core\Registry\RefSchemaResolver> $resolvers */
+                    /** @var list<RefSchemaResolver> $resolvers */
                     $resolvers = [];
 
                     foreach ($registry->refSchemaResolvers() as $class) {
@@ -421,10 +368,6 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerGenerator(): void
     {
-        $this->app->scoped(VisibilityResolver::class, static fn(): VisibilityResolver => new VisibilityResolver(
-            VisibilityMode::fromConfig(config('openapi.visibility.default')),
-        ));
-
         $this->app->scoped(
             OperationBuilder::class,
             static function (Container $app): OperationBuilder {

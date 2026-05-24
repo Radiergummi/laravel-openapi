@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
@@ -34,10 +36,13 @@ use function str_starts_with;
  * segments (those beginning with `{`) are skipped. One finding is emitted per
  * operation listing all offending segments. Default: {@see IdentifierCase::Kebab}.
  */
+#[Scoped]
 final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor
 {
-    public function __construct(IdentifierCase $case = IdentifierCase::Kebab)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.path_segment_case', 'kebab')]
+        IdentifierCase|string $case = IdentifierCase::Kebab,
+    ) {
         parent::__construct($case);
     }
 

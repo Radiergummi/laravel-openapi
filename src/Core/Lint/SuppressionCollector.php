@@ -11,7 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
+use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use ReflectionClass;
 use ReflectionException;
@@ -26,17 +29,23 @@ use function is_a;
  * Collects `#[IgnoreLint]` attributes from the controllers, actions, and
  * request-payload classes behind the linted routes.
  */
+#[Scoped]
 final class SuppressionCollector
 {
+    /** @var list<class-string> */
+    private readonly array $payloadClasses;
+
     /**
-     * @param list<class-string> $payloadClasses     Base types whose subtypes Core treats as request payloads
      * @param list<class-string> $indirectionClasses Base types whose constructors are also scanned
      *                                               (mirrors config('openapi.request_payload_indirection'))
      */
     public function __construct(
-        private readonly array $payloadClasses = [],
+        OpenApiRegistry $registry,
+        #[Config('openapi.request_payload_indirection', [])]
         private readonly array $indirectionClasses = [],
-    ) {}
+    ) {
+        $this->payloadClasses = $registry->payloadClasses();
+    }
 
     /**
      * @param list<ActionDescriptor> $descriptors

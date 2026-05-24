@@ -19,17 +19,19 @@ use function sprintf;
 /**
  * Base class for naming-convention lint rules.
  *
- * Caches the regex pattern string from {@see IdentifierCase} so it is not
- * re-fetched on every node visit. Subclasses must supply a concrete
- * {@see Rule::id()} implementation and their own visitor method(s).
+ * Subclasses must supply a concrete {@see Rule::id()} implementation and their
+ * own visitor method(s). The constructor accepts either an {@see IdentifierCase}
+ * enum directly (the shape used by hand-written tests) or the raw string value
+ * coming from `config('openapi.lint.style.*')`; container-injected subclasses
+ * pass the config string through and {@see IdentifierCase::fromConfig()} normalises it.
  */
 abstract readonly class AbstractNamingRule implements Rule
 {
-    protected string $pattern;
+    protected IdentifierCase $case;
 
-    public function __construct(protected IdentifierCase $case)
+    public function __construct(IdentifierCase|string $case)
     {
-        $this->pattern = $case->pattern();
+        $this->case = IdentifierCase::fromConfig($case);
     }
 
     final public function level(): int
@@ -44,7 +46,7 @@ abstract readonly class AbstractNamingRule implements Rule
      */
     protected function conforms(string $name): bool
     {
-        return preg_match($this->pattern, $name) === 1;
+        return preg_match($this->case->pattern(), $name) === 1;
     }
 
     /**

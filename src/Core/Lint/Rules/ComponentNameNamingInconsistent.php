@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
@@ -28,10 +30,13 @@ use function sprintf;
  * {@see IdentifierCase::Pascal} (e.g. `ProjectResource`), which matches the
  * house style used across all JSON:API component schemas in this codebase.
  */
+#[Scoped]
 final readonly class ComponentNameNamingInconsistent extends AbstractNamingRule implements ComponentSchemaRuleVisitor
 {
-    public function __construct(IdentifierCase $case = IdentifierCase::Pascal)
-    {
+    public function __construct(
+        #[Config('openapi.lint.style.component_name_case', 'pascal')]
+        IdentifierCase|string $case = IdentifierCase::Pascal,
+    ) {
         parent::__construct($case);
     }
 
