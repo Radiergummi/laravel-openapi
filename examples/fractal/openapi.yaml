@@ -1,0 +1,148 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – Fractal Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's Fractal integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  /api/openapi.yaml:
+    get:
+      tags:
+        - OpenApi
+      summary: 'Serves the generated OpenAPI 3.1 specification as YAML for the given spec.'
+      description: "In local development, the spec is generated on every request so changes to controllers and\nschemas are reflected immediately. Everywhere else, the spec is built at deploy time by the\n`openapi:generate` command and served as a static file with etag/last-modified semantics. A\nmissing file in a deployed environment indicates a broken build."
+      operationId: openapi.spec
+      parameters: []
+      responses:
+        '200':
+          description: OK
+      security: []
+  /api/flights:
+    get:
+      tags:
+        - Fractal
+        - Flights
+      summary: 'List flights.'
+      description: "Returns a paginated collection wrapped in Fractal's `{data, meta.pagination}`\nenvelope."
+      operationId: get_api_flights
+      parameters: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/FlightTransformer' } }
+                  meta: { properties: { pagination: { properties: { total: { type: integer }, count: { type: integer }, per_page: { type: integer }, current_page: { type: integer }, total_pages: { type: integer }, links: { properties: { previous: { type: string }, next: { type: string } }, type: object } }, type: object } }, type: object }
+                type: object
+      security: []
+  '/api/flights/{flight}':
+    get:
+      tags:
+        - Fractal
+        - Flights
+      summary: 'Show a single flight.'
+      operationId: get_api_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { $ref: '#/components/schemas/FlightTransformer' }
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
+components:
+  schemas:
+    FlightTransformer:
+      required:
+        - id
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        id:
+          description: 'Server-assigned flight identifier.'
+          type: string
+          format: uuid
+        number:
+          description: 'IATA-style flight number.'
+          type: string
+          example: LH123
+        origin:
+          description: 'Three-letter IATA origin code.'
+          type: string
+          example: FRA
+        destination:
+          description: 'Three-letter IATA destination code.'
+          type: string
+          example: JFK
+        departs_at:
+          description: 'Scheduled departure timestamp.'
+          type: string
+          format: date-time
+        arrives_at:
+          description: 'Scheduled arrival timestamp.'
+          type: string
+          format: date-time
+        status:
+          description: 'Operational status.'
+          type: string
+          enum:
+            - scheduled
+            - boarding
+            - departed
+            - arrived
+            - cancelled
+        aircraft_type:
+          description: 'Aircraft model / type designator.'
+          type: string
+      type: object
+  responses:
+    NotFound:
+      description: 'Resource not found'
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {  }
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {  }
+tags:
+  -
+    name: Fractal
+    description: 'Example flavor: Fractal'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'

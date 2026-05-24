@@ -293,7 +293,7 @@ return [
             'component_name_case' => 'pascal',
         ],
 
-        // Baseline file path; null disables the baseline feature. (Consumed by Plan A2.)
+        // Baseline file path; null disables the baseline feature.
         'baseline' => null,
 
         // Extra custom Rule classes, appended to the registry.

@@ -63,7 +63,7 @@ and ad-hoc `response()->json([…])` calls are invisible. The fix is one of:
 - Or declare the body with `#[OpenApi\RequestBody]` + an explicit schema for
   the case the validation lives only at the call site.
 
-## Response is a bare `200 OK` with no schema (`response.empty` lint finding)
+## Response is a bare `200 OK` with no schema
 
 Causes, in order of likelihood:
 
@@ -75,9 +75,9 @@ Causes, in order of likelihood:
   `@return LengthAwarePaginator<FlightData>` PHPDoc tag — the generator reads
   that single PHPDoc generic, no other body inference happens.
 - **`#[ResponseResource]` names a class that isn't a resolvable response
-  resource.** Lint rule `responseresource.unresolvable` (level 1) catches
-  this. The named class must be a `JsonResource` subclass, a `Data` subclass,
-  or another resource recognised by an enabled plugin.
+  resource.** The generator logs a warning during generation. The named class
+  must be a `JsonResource` subclass, a `Data` subclass, or another resource
+  recognised by an enabled plugin.
 
 ## I changed a Data/FormRequest and the spec still shows the old shape
 

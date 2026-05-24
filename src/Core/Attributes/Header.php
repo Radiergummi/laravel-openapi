@@ -25,8 +25,11 @@ use Attribute;
  * #[OpenApi\Header('X-Tenant-Id', required: true, example: 'acme-corp')]
  * ```
  *
- * For response headers (rate-limit, ETag, Location) use {@see ResponseHeader}
- * — those are scoped per response.
+ * Constructor shape mirrors {@see ResponseHeader} (minus `status`, which is
+ * response-only) so authors learn one signature for both directions. The only
+ * intentional divergence is `required`: request headers default to `false`
+ * (typed `bool`), response headers default to "unspecified" (typed `?bool`,
+ * default `null`) so the YAML output can elide the keyword.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Header
@@ -34,8 +37,10 @@ final readonly class Header
     public function __construct(
         public string $name,
         public ?string $description = null,
-        public bool $required = false,
         public string $type = 'string',
+        public ?string $format = null,
         public mixed $example = null,
+        public bool $required = false,
+        public ?bool $deprecated = null,
     ) {}
 }

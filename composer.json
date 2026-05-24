@@ -52,6 +52,8 @@
             "Examples\\Vanilla\\":       "examples/vanilla/",
             "Examples\\FormRequests\\":  "examples/form-requests/",
             "Examples\\SpatieData\\":    "examples/spatie-data/",
+            "Examples\\ApiResources\\":  "examples/api-resources/",
+            "Examples\\Fractal\\":       "examples/fractal/",
             "Examples\\QueryBuilder\\":  "examples/query-builder/",
             "Examples\\Combined\\":      "examples/combined/"
         }
@@ -70,12 +72,16 @@
         "examples:vanilla":       "@php examples/generate.php vanilla",
         "examples:form-requests": "@php examples/generate.php form-requests",
         "examples:spatie-data":   "@php examples/generate.php spatie-data",
+        "examples:api-resources": "@php examples/generate.php api-resources",
+        "examples:fractal":       "@php examples/generate.php fractal",
         "examples:query-builder": "@php examples/generate.php query-builder",
         "examples:combined":      "@php examples/generate.php combined",
         "examples": [
             "@examples:vanilla",
             "@examples:form-requests",
             "@examples:spatie-data",
+            "@examples:api-resources",
+            "@examples:fractal",
             "@examples:query-builder",
             "@examples:combined"
         ]

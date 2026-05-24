@@ -39,6 +39,7 @@ Attach to controller classes or methods.
 | `Link` | method | yes | Declare an OpenAPI Link on the primary 2xx response. `operationId` (preferred) or `operationRef` must be provided. See [Link to another operation from a response](recipes.md#link-to-another-operation-from-a-response). |
 | `Discriminator` | class | no | Mark a polymorphic base class (a `Data` class or a response-resource class). Schema becomes `oneOf` + `discriminator`. See [Document a polymorphic response with a discriminator](recipes.md#document-a-polymorphic-response-with-a-discriminator). |
 | `Webhook` | method | no | Divert the route from `paths` into the OpenAPI 3.1 top-level `webhooks` block. `name` is the map key. |
+| `Spec` | class, method | yes | Pin the route to one or more named specs explicitly, bypassing the partition's `match` config. `#[Spec]` (no argument) means "only the `default` spec". Method-level declarations replace class-level ones. See [Multi-spec](multi-spec.md). |
 | `IgnoreLint` | class, method, property | yes | Suppress one `openapi:lint` rule for the annotated symbol. See [Suppress a finding](linting.md#suppress-a-finding). |
 | `#[\Deprecated]` (PHP native) | class, method | no | Marks the operation `deprecated: true` and appends the message to the description. |
 

@@ -10,6 +10,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
@@ -35,6 +36,7 @@ function makeFormRequestResolver(): FormRequestRequestSchemaResolver
     $builder  = new SchemaFromFormRequest(
         rulesMapper: new ValidationRulesToSchema(),
         registry: $registry,
+        logger: new NullLogger(),
     );
 
     return new FormRequestRequestSchemaResolver(
@@ -98,6 +100,7 @@ it('registers the FormRequest schema in the component registry', function (): vo
     $builder  = new SchemaFromFormRequest(
         rulesMapper: new ValidationRulesToSchema(),
         registry: $registry,
+        logger: new NullLogger(),
     );
     $resolver = new FormRequestRequestSchemaResolver(
         schemaBuilder: $builder,

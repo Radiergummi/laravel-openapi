@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Two new example flavors. `examples/api-resources/` isolates the Laravel
+  `JsonResource` convention (output-side only; no FormRequest or Data class).
+  `examples/fractal/` exercises `league/fractal` with `#[FractalResponse]` and
+  class-level `#[TransformerField]` declarations on the transformer. Both are
+  registered in `Examples\Shared\Flavors`, asserted by `ExamplesTest`
+  (snapshot + OpenAPI 3.1 validity + clean lint), and runnable via
+  `composer examples:api-resources` / `composer examples:fractal`.
+- `tests/Unit/Lint/LintRouteFilterTest.php` covers the `--diff` flag in
+  isolation by stubbing the git-shelling protected methods. Asserts the
+  no-diff baseline, explicit-ref usage, default-ref resolution, and the
+  config-touched fallback that bypasses per-descriptor filtering.
+- `tests/Unit/Core/Generator/OperationBuilderTest.php` exercises
+  `OperationBuilder::build` directly: baseline 200 response, `#[Response(201)]`
+  primary override, multi-2xx `#[Response]` merging, `#[Header]` parameter
+  emission, and `#[ExternalDocs]` plumbing.
+- `EventsTest` now covers the `SkipReason::GlobalFilter` branch of
+  `RouteSkipped` (alongside the existing `Visibility` and `SpecMembership`
+  cases). Registers an inline `RouteFilter` via `openapi.filters` and asserts
+  the event fires with the right reason and summary.
 - Observability events. The generator and linter dispatch four Laravel events for use as
   read-only notification hooks (mutation still belongs to `OpenApiExtensions` transformers):
   `SpecGenerationStarted`, `SpecGenerationCompleted` (carries the assembled document and
@@ -36,6 +55,32 @@ All notable changes to this project are documented here.
   config-driven --skip merging, and `--level=max` resolution.
 
 ### Changed
+- `SchemaFromFormRequest` now takes a `Psr\Log\LoggerInterface` constructor
+  argument instead of reaching for `Illuminate\Support\Facades\Log`, matching
+  the sibling pipeline classes (`PaginatorResponseResolver`,
+  `SchemaFromDataClass`). The warning message changed from
+  "[OpenAPI] Schema introspection failed for FormRequest …" to
+  "SchemaFromFormRequest failed for …" for consistency with the sibling
+  classes.
+- `GenerateCommand`, `ClearCommand`, and `WhyCommand` now use the
+  `#[Signature]` / `#[Description]` attribute pair (already used by
+  `LintCommand`) instead of the `$name` / `$description` properties plus
+  `configure()`. Argument and option names continue to be exposed as
+  `ARGUMENT_*` / `OPTION_*` constants on each command class.
+- `examples/generate.php` now passes the output path via `--output` (the
+  documented option name). The previous `path` positional was rejected by
+  Symfony's argument parser after the `path` arg was renamed to `spec` in
+  the multi-spec refactor.
+- `docs/config.md` lists `output_path` under the top-level keys table.
+- `docs/attributes.md` lists `#[Spec]` in the operation-level catalog with a
+  pointer to `docs/multi-spec.md`.
+- `config/openapi.php` no longer references the internal "Plan A2" identifier
+  next to the `lint.baseline` placeholder.
+- `#[Header]` constructor shape now mirrors `#[ResponseHeader]` (minus `status`). New
+  optional arguments: `format` (passed through to the schema) and `deprecated` (passed
+  through to the parameter). Argument order is now `name, description, type, format,
+  example, required, deprecated` — the previous order was `name, description, required,
+  type, example`. Existing call sites use named arguments and are unaffected.
 - Route exclusion now lives entirely in `InclusionEvaluator`. `RouteIntrospector` no longer
   takes a filter list and unconditionally yields every Laravel route; vendor-route skippers
   (Telescope/Nova/Ignition/Passport) and any `config('openapi.filters')` entries are applied

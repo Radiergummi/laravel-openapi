@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use OpenApi\Analysis;
 use OpenApi\Annotations as OA;
@@ -18,11 +20,10 @@ use OpenApi\Context;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
+use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
 use Throwable;
 
 use function app;
@@ -38,6 +39,12 @@ use function realpath;
  *
  * @bundle Radiergummi\OpenApi\Console
  */
+#[Signature('openapi:generate
+        {spec? : Name of the spec to generate. Omit to generate every defined spec.}
+        {--output= : Override output path. Requires a single spec target. Use "-" for stdout.}
+        {--format=yaml : Output format: yaml or json.}
+        {--explain : Print one (route × spec) decision line per route on stderr.}')]
+#[Description('Generate an OpenAPI 3.1 document from the application\'s route definitions')]
 class GenerateCommand extends Command
 {
     public const string ARGUMENT_SPEC = 'spec';
@@ -47,10 +54,6 @@ class GenerateCommand extends Command
     public const string OPTION_FORMAT = 'format';
 
     public const string OPTION_EXPLAIN = 'explain';
-
-    protected $name = 'openapi:generate';
-
-    protected $description = 'Generate an OpenAPI 3.1 document from the application\'s route definitions';
 
     /**
      * @throws InvalidArgumentException
@@ -101,41 +104,6 @@ class GenerateCommand extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    protected function configure(): void
-    {
-        $this->addArgument(
-            self::ARGUMENT_SPEC,
-            InputArgument::OPTIONAL,
-            'Name of the spec to generate. Omit to generate every defined spec.',
-            null,
-        );
-
-        $this->addOption(
-            self::OPTION_OUTPUT,
-            null,
-            InputOption::VALUE_REQUIRED,
-            'Override output path. Requires a single spec target. Use "-" for stdout.',
-        );
-
-        $this->addOption(
-            self::OPTION_FORMAT,
-            null,
-            InputOption::VALUE_REQUIRED,
-            'Output format: yaml or json.',
-            'yaml',
-        );
-
-        $this->addOption(
-            self::OPTION_EXPLAIN,
-            null,
-            InputOption::VALUE_NONE,
-            'Print one (route × spec) decision line per route on stderr.',
-        );
     }
 
     // region Private helpers
@@ -195,7 +163,7 @@ class GenerateCommand extends Command
     }
 
     /**
-     * @param list<\Radiergummi\OpenApi\Core\Spec\SpecDefinition> $specs
+     * @param list<SpecDefinition> $specs
      */
     private function emitExplain(
         InclusionEvaluator $evaluator,

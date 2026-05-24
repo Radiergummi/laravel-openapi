@@ -12,8 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Extractors;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Log;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use ReflectionAttribute;
@@ -44,6 +44,7 @@ final readonly class SchemaFromFormRequest
     public function __construct(
         private ValidationRulesToSchema $rulesMapper,
         private ComponentSchemaRegistry $registry,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -94,8 +95,8 @@ final readonly class SchemaFromFormRequest
             $instance = new $formRequestClass();
             $rules    = $instance->rules();
         } catch (Throwable $e) {
-            Log::warning(sprintf(
-                '[OpenAPI] Schema introspection failed for FormRequest %s: %s',
+            $this->logger->warning(sprintf(
+                'SchemaFromFormRequest failed for %s: %s',
                 $formRequestClass,
                 $e->getMessage(),
             ));

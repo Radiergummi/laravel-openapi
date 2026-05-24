@@ -100,7 +100,7 @@ bodies. See OAPI-053.
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. `SpecTreeBuilder` now indexes component schemas by name at
+**Resolution:** `SpecTreeBuilder` now indexes component schemas by name at
 the start of `build()` and the property-collection path in `buildFields()` walks each schema's
 `allOf` branches before its local declarations:
 
@@ -124,7 +124,7 @@ the cyclic case.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `CoreQueryParameterResolver` now ships in
+**Resolution:** `CoreQueryParameterResolver` now ships in
 `src/Core/Generator/` and is registered by `CoreRegistration::register()`. It reflects
 `#[QueryParam]` off the controller method (and the class, for shared parameters declared once)
 and emits `OA\Parameter` entries with `in: 'query'`, the attribute's name, and a schema derived
@@ -138,7 +138,7 @@ appear as documented query parameters on `GET /flights`.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `DataResponseResolver` now ships in
+**Resolution:** `DataResponseResolver` now ships in
 `src/Plugins/SpatieData/` and is registered by `SpatieDataPlugin::register()`. It detects three
 return-type shapes: a `Data` subclass becomes a `$ref` to the Data component schema; a
 `DataCollection<int, Item>` becomes an array of `$ref`s (item class read from the `@return`
@@ -154,7 +154,7 @@ Explicit `#[Response]` attributes still take precedence over the auto-derived re
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `#[ResponseHeader]` now ships in
+**Resolution:** `#[ResponseHeader]` now ships in
 `src/Core/Attributes/`. It is repeatable on methods and functions, carries `name`, `status`
 (defaults to 200), optional `description`, `type`, `format`, `example`, `required`, and
 `deprecated`, and is reflected by `OperationBuilder` onto the `headers` map of the response
@@ -168,7 +168,7 @@ form-requests flavor's `POST /flights` now declares `Location` on its 201 via
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. Two changes ship together:
+**Resolution:** Two changes ship together:
 
 1. New `openapi.security_schemes` config map. Each entry maps a scheme name to the OAS 3.1
    security-scheme shape and is passed through to swagger-php's `OA\SecurityScheme` unchanged.
@@ -191,7 +191,7 @@ Passport-derived pair, and the write endpoints reference `security: [{bearer: [�
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. The package now ships
+**Resolution:** The package now ships
 `Radiergummi\OpenApi\Core\Attributes\Deprecated`, valid on methods, functions, properties,
 promoted constructor parameters, and class constants. Placed on a controller method it sets
 `deprecated: true` on the generated operation; placed on a Data-class property or constructor
@@ -207,7 +207,7 @@ property still emits `deprecated: true` in the snapshot.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `SkipPassportRoutes` now ships in
+**Resolution:** `SkipPassportRoutes` now ships in
 `src/Core/Routing/Filters/` and is registered by default in `config/openapi.php` alongside
 `SkipNovaRoutes` / `SkipTelescopeRoutes` / `SkipIgnitionRoutes`. Host apps using Passport get
 its CRUD endpoints filtered out of the generated spec out of the box; the filter tolerates
@@ -219,7 +219,7 @@ Passport being absent by matching only routes whose name starts with `passport.`
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. The two parallel default paths in `requirementForScopes()`
+**Resolution:** The two parallel default paths in `requirementForScopes()`
 were collapsed into a single `defaultSchemeNames()` lookup, and a new
 `openapi.security_default_scheme` config option lets mixed-scheme projects override which
 scheme(s) `#[Security(['scope'])]` (without `scheme:`) and middleware-derived `forRoute()`
@@ -242,7 +242,7 @@ without touching call sites.
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. `#[ResponseHeader]` now accepts `TARGET_CLASS` in addition
+**Resolution:** `#[ResponseHeader]` now accepts `TARGET_CLASS` in addition
 to `TARGET_METHOD | TARGET_FUNCTION`, and `OperationBuilder::applyResponseHeaders()` walks
 both the controller and the action reflector — mirroring the shape of `#[Header]`. Shared
 response headers (`X-Request-Id`, `X-RateLimit-Remaining`) can now be declared once on the
@@ -255,7 +255,7 @@ collision; declaration order is otherwise preserved.
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. `SkipPassportRoutes` now exposes a parameterless
+**Resolution:** `SkipPassportRoutes` now exposes a parameterless
 `fromConfig()` factory and is registered through it by `OpenApiServiceProvider`, matching the
 shape of `SkipNovaRoutes` / `SkipTelescopeRoutes` / `SkipIgnitionRoutes`. A class-level
 docblock spells out the deviation — Passport's route-name prefix is not user-configurable, so
@@ -268,7 +268,7 @@ provider does not need a special case. Behaviour is unchanged.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `PaginatorKind::fromClass()` now
+**Resolution:** `PaginatorKind::fromClass()` now
 recognises Spatie's `PaginatedDataCollection` and `CursorPaginatedDataCollection`
 (matched by FQCN string to keep Core free of plugin imports — both delegate
 `toArray()` to the underlying Laravel paginator with `Data`-transformed items,
@@ -284,7 +284,7 @@ to single `Data` + non-paginating `DataCollection<…, Item>` — it now returns
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `SchemaDescriptor` now exposes
+**Resolution:** `SchemaDescriptor` now exposes
 `toSchema(string $defaultType = 'string'): OA\Schema` — the canonical place to
 build a standalone `OA\Schema` from a descriptor, including the `nullable` →
 OAS 3.1 `type: [..., 'null']` widening that `toOpenApi()` deliberately omits.
@@ -298,7 +298,7 @@ sequence plus the explanatory comment.
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. `ActionDescriptor` now owns two helper methods —
+**Resolution:** `ActionDescriptor` now owns two helper methods —
 `controllerAttributes(class-string)` and `actionAttributes(class-string)` — that read
 `$reflector->getAttributes()` (no filter) once per reflector and bucket the result by
 attribute FQCN into an `array<class-string, list<ReflectionAttribute>>` map, cached on the
@@ -313,7 +313,7 @@ naturally scoped to the descriptor's lifetime, so it carries no Octane-state ris
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. Three call sites are now memoised:
+**Resolution:** Three call sites are now memoised:
 
 - `SecurityExtractor::passportAvailable()` caches the `class_exists` + three `Router::has()`
   lookups on first call (`?bool` field).
@@ -335,7 +335,7 @@ scoped singletons so the cache resets between requests under Octane.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `#[FractalResponse]` now carries a
+**Resolution:** `#[FractalResponse]` now carries a
 `serializer:` parameter (default `Serializer::DataArray`) naming the Fractal serializer the
 endpoint runs at runtime. `FractalEnvelopeFactory` dispatches per serializer:
 
@@ -368,7 +368,7 @@ plugin emits the response envelope normally regardless of how the runtime Fracta
 **Why it's open:** Detecting the helper or facade requires reading method bodies, which is
 forbidden under OAPI-017. The narrow `Manager`-parameter signal is the conservative escape from
 that trade-off — accepted misses over false positives. The rule's `description()` names the
-blind spot explicitly so it surfaces in `openapi:lint --list-rules` output, and the rule ships
+blind spot explicitly so it surfaces in `openapi:lint --list` output, and the rule ships
 at level 2 (opt-in; see OAPI-060) so users do not read silence at the default lint level as
 endorsement. Closing this gap further would require lifting OAPI-017 itself.
 
@@ -378,7 +378,7 @@ endorsement. Closing this gap further would require lifting OAPI-017 itself.
 
 **Status:** Closed
 
-**Resolved in:** the `main` branch. Two collaborators ship together:
+**Resolution:** Two collaborators ship together:
 
 - `ActionDescriptor` exposes `controllerAttributes()` / `actionAttributes()` (the OAPI-050
   helpers); rules that key off the controller method now read attributes through these
@@ -407,7 +407,7 @@ Migrated rules:
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `SchemaFromResource` now
+**Resolution:** `SchemaFromResource` now
 takes `Closure(): list<RefSchemaResolver>` mirroring the sibling
 `SchemaFromTransformer`, and `registerApiResourcesPlugin()` wraps the registry
 walk in a memoised closure — same shape as the Fractal binding. Both sides of
@@ -421,7 +421,7 @@ mitigated is closed against future plugins that ship a `SchemaFromX` +
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. The capstone now carries
+**Resolution:** The capstone now carries
 five focused scenarios with negative assertions:
 
 - The paginator route is verified to use the *core* flat envelope (`data`,
@@ -446,8 +446,7 @@ five focused scenarios with negative assertions:
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch.
-`tests/Feature/Plugins/DefaultPluginsConfigTest.php` calls
+**Resolution:** `tests/Feature/Plugins/DefaultPluginsConfigTest.php` calls
 `app(OpenApiGenerator::class)->generate()` without touching
 `config('openapi.plugins')`, first asserting the live config matches the
 shipped `config/openapi.php` `plugins` array. Two controller methods carrying
@@ -462,7 +461,7 @@ test.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `FractalResponseResolver`,
+**Resolution:** `FractalResponseResolver`,
 `ResourceResponseResolver`, and `DataResponseResolver` now catch only
 `ReflectionException` — the documented tolerable failure mode (a class that
 disappears between attribute resolution and schema build). Real bugs
@@ -478,7 +477,7 @@ caught.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. The new
+**Resolution:** The new
 `fractal.transformer-class-missing` rule (level 1, registered by
 `FractalPlugin::register()`) walks every operation's `#[FractalResponse]`
 attribute and emits a finding when `class_exists($transformer)` returns false.
@@ -492,7 +491,7 @@ of just disappearing into the generation-log warning that
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. The decision was option (a) from the gap's
+**Resolution:** The decision was option (a) from the gap's
 "Why it's open" list — push both blind-spot rules below the default `lint.level => 1`, so users
 opt in explicitly and silence at the default level is not mistaken for endorsement:
 
@@ -500,7 +499,7 @@ opt in explicitly and silence at the default level is not mistaken for endorseme
   `query-builder.params-undeclared` sibling. Neither now fires at the default lint level.
 - The rule's `description()` was rewritten to spell out the blind spot ("Misses the `fractal()`
   helper and the `Spatie\Fractalistic\Fractal` facade …") so the caveat is visible in
-  `openapi:lint --list-rules` output, not just in this document.
+  `openapi:lint --list` output, not just in this document.
 
 Option (b) — surfacing rule descriptions in zero-finding runs — would change lint-output
 formatting and remained unjustified for two rules' worth of payoff. The trade-off the rules
@@ -513,7 +512,7 @@ unchanged; only the default visibility is.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. `composer.json` now lists
+**Resolution:** `composer.json` now lists
 `"league/fractal": "~0.20.2"` under `require-dev` — explicit about the intent
 to allow 0.20.x patch updates without claiming forward compatibility with a
 future 0.21 release.
@@ -524,7 +523,7 @@ future 0.21 release.
 
 **Status:** Closed
 
-**Resolved in:** the `feature/plugin-suite` branch. The Fractal-plugin comment
+**Resolution:** The Fractal-plugin comment
 in `config/openapi.php` now names both triggers — `league/fractal` and
 `spatie/laravel-fractal` (which depends on `league/fractal`) — so a user who
 has the Spatie wrapper installed has a signal from the config alone that they

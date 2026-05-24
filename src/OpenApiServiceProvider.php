@@ -366,6 +366,7 @@ class OpenApiServiceProvider extends ServiceProvider
             static fn(Container $app) => new Extractors\SchemaFromFormRequest(
                 rulesMapper: $app->make(Extractors\ValidationRulesToSchema::class),
                 registry: $app->make(ComponentSchemaRegistry::class),
+                logger: $app->make(LoggerInterface::class),
             ),
         );
 

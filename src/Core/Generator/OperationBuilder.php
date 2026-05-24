@@ -279,6 +279,10 @@ final readonly class OperationBuilder
     {
         $schemaProps = ['type' => $header->type];
 
+        if ($header->format !== null) {
+            $schemaProps['format'] = $header->format;
+        }
+
         if ($header->example !== null) {
             $schemaProps['example'] = $header->example;
         }
@@ -292,6 +296,10 @@ final readonly class OperationBuilder
 
         if ($header->description !== null) {
             $props['description'] = $header->description;
+        }
+
+        if ($header->deprecated !== null) {
+            $props['deprecated'] = $header->deprecated;
         }
 
         return new OA\Parameter($props);

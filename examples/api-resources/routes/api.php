@@ -1,0 +1,16 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+use Examples\ApiResources\Http\FlightController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/flights', [FlightController::class, 'index']);
+Route::get('/flights/{flight}', [FlightController::class, 'show']);

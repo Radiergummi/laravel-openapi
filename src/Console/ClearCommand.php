@@ -11,21 +11,21 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use Symfony\Component\Console\Input\InputArgument;
 
 use function file_exists;
 use function unlink;
 
+#[Signature('openapi:clear
+        {spec? : Name of the spec to clear. Omit to clear every defined spec.}')]
+#[Description('Remove the generated OpenAPI specification file(s)')]
 class ClearCommand extends Command
 {
     public const string ARGUMENT_SPEC = 'spec';
-
-    protected $name = 'openapi:clear';
-
-    protected $description = 'Remove the generated OpenAPI specification file(s)';
 
     public function handle(SpecRegistry $registry): int
     {
@@ -47,14 +47,5 @@ class ClearCommand extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    protected function configure(): void
-    {
-        $this->addArgument(
-            self::ARGUMENT_SPEC,
-            InputArgument::OPTIONAL,
-            'Name of the spec to clear. Omit to clear every defined spec.',
-        );
     }
 }

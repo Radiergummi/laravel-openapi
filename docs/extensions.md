@@ -35,7 +35,7 @@ OpenApiExtensions::transformOperation(
 
 - `$descriptor` — the full `ActionDescriptor`
 - `$httpMethod`
-- `controllerClass()`, `methodName()`, `routeUri()`
+- `$controllerClass`, `$methodName`, `$routeUri`
 
 ## Schema transformer
 

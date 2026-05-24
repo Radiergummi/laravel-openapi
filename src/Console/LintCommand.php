@@ -55,7 +55,7 @@ use function sprintf;
  */
 #[Signature('openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
-        {--format= : Output format (cli|json|github; auto-detected by default)}
+        {--format= : Output format (cli|json|github|markdown; auto-detected by default)}
         {--only= : Restrict to listed rule IDs (comma-separated)}
         {--skip= : Restrict to listed rule IDs to exclude (comma-separated)}
         {--path= : Restrict to routes matching this URI glob}

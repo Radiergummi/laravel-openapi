@@ -34,7 +34,7 @@ if (!isset($providers[$flavor])) {
 $app = TestbenchBoot::boot($providers[$flavor]);
 
 $status = $app->make(Kernel::class)->call('openapi:generate', [
-    'path'     => __DIR__ . "/{$flavor}/openapi.yaml",
+    '--output' => __DIR__ . "/{$flavor}/openapi.yaml",
     '--format' => 'yaml',
 ]);
 

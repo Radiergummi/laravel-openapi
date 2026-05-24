@@ -646,7 +646,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             } catch (Throwable $exception) {
                 $this->logger->warning(
                     sprintf(
-                        '[OpenAPI] Skipping validation rule extraction for %s: %s',
+                        'SchemaFromDataClass: Skipping validation rule extraction for %s: %s',
                         $dataClass,
                         $exception->getMessage(),
                     ),

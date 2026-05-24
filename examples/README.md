@@ -9,6 +9,8 @@ it — that's the showcase.
 | [`vanilla/`](vanilla/)             | Plain controllers, `$request->validate()`, authoring attributes (`#[Tag]`, `#[Response]`, `#[Operation]`, `#[IgnoreLint]`). |
 | [`form-requests/`](form-requests/) | `FormRequest` validation, `JsonResource` responses, `#[ResourceField]`, `#[RequestField]`. |
 | [`spatie-data/`](spatie-data/)     | Spatie `Data` classes in and out, `BackedEnum`, `BaseExample` subclass for curated payloads, `@deprecated` on a legacy property, `#[ExternalDocs]`. |
+| [`api-resources/`](api-resources/) | Laravel `JsonResource` responses isolated from any input layer — `#[ResourceField]` declarations on the resource class, paginated collection envelope, `#[ResponseResource]`. |
+| [`fractal/`](fractal/)             | `league/fractal` transformers with `#[FractalResponse]` and class-level `#[TransformerField]`, paginated and single-item envelopes. |
 | [`query-builder/`](query-builder/) | `spatie/laravel-query-builder` filter/sort/include parameters via `#[AllowedFilter]`, `#[AllowedSort]`, `#[AllowedInclude]`. |
 | [`combined/`](combined/)           | The realistic mix: FormRequest + Data + QueryBuilder, plus `#[Security]`, `#[PublicEndpoint]`, `#[Link]`, `#[Hide]`, multipart uploads, and `file:` example payloads. |
 

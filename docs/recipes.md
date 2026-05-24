@@ -298,6 +298,31 @@ public function index(Request $request): JsonResponse { … }
 Use this when the resource-resolution heuristic fails (you'll see warnings
 during generation if so).
 
+## Add a vendor extension (`x-*`) to an operation
+
+Vendor extensions don't have a dedicated attribute — register an operation
+transformer at boot and scope it by controller, method, or route:
+
+```php
+// AppServiceProvider::boot()
+use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
+use Radiergummi\OpenApi\Core\Extensions\OperationContext;
+use OpenApi\Annotations as OA;
+
+OpenApiExtensions::transformOperation(
+    static function (OA\Operation $operation, OperationContext $ctx): void {
+        if ($ctx->controllerClass === FlightController::class && $ctx->methodName === 'store') {
+            $operation->{'x-internal'} = true;
+            $operation->{'x-rate-limit'} = ['burst' => 10, 'sustained' => 60];
+        }
+    },
+);
+```
+
+For an extension that applies to **every** operation, drop the scoping check.
+For document-level or schema-level extensions, use `transformDocument()` and
+`transformSchema()` — see [Extensions](extensions.md) for the full reference.
+
 ## Suppress a lint finding
 
 ```php

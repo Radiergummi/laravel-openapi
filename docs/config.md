@@ -16,6 +16,7 @@ this page is the at-a-glance summary.
 | `info` | Populates the top-level `info` object (`title`, `version`, `description`, etc.). |
 | `servers` | List of `OA\Server` entries. Default uses `APP_URL`. |
 | `tags` | Document-level tag descriptions keyed by tag name. |
+| `output_path` | Absolute path the `openapi:generate` command writes to and the spec route serves from. Defaults to `storage_path('openapi.yaml')`. |
 | `exception_responses` | Maps exception FQCNs to `['status', 'description']`. Checked after `#[ExceptionResponse]` attributes. |
 | `middleware_responses` | Toggles for 401/403/429 responses derived from `auth`/`scope`/`throttle` middleware. |
 | `security_schemes` | Custom OpenAPI security schemes. Merged with the Passport-derived defaults; config wins on key collision. See [Recipes → Declare custom security schemes](recipes.md#declare-custom-security-schemes). |

@@ -10,8 +10,9 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Log;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
@@ -25,6 +26,7 @@ beforeEach(function (): void {
     $this->builder  = new SchemaFromFormRequest(
         rulesMapper: new ValidationRulesToSchema(),
         registry: $this->registry,
+        logger: new NullLogger(),
     );
 });
 
@@ -150,9 +152,16 @@ it('builds file field with type=string and format=binary', function (): void {
 // region Error resilience
 
 it('registers a placeholder schema and logs a warning when rules() throws', function (): void {
-    Log::shouldReceive('warning')
+    $logger = Mockery::mock(LoggerInterface::class);
+    $logger->shouldReceive('warning')
         ->once()
-        ->withArgs(static fn(string $msg): bool => str_contains($msg, 'Schema introspection failed'));
+        ->withArgs(static fn(string $msg): bool => str_contains($msg, 'SchemaFromFormRequest failed'));
+
+    $builder = new SchemaFromFormRequest(
+        rulesMapper: new ValidationRulesToSchema(),
+        registry: $this->registry,
+        logger: $logger,
+    );
 
     $brokenClass = new class () extends FormRequest {
         public function rules(): array
@@ -163,7 +172,7 @@ it('registers a placeholder schema and logs a warning when rules() throws', func
 
     $brokenClassName = $brokenClass::class;
 
-    $this->builder->build($brokenClassName);
+    $builder->build($brokenClassName);
 
     $schemas = $this->registry->all();
     expect($schemas)->toHaveCount(1)

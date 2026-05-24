@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Core\Events\LintFindingEmitted;
@@ -20,6 +21,7 @@ use Radiergummi\OpenApi\Core\Events\SpecGenerationStarted;
 use Radiergummi\OpenApi\Core\Inclusion\SkipReason;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
 
 uses()->group('openapi', 'events');
@@ -93,6 +95,33 @@ it('dispatches RouteSkipped with Visibility reason for #[Hide]', function (): vo
         ->and($hidden[0]->spec)->toBe('default')
         ->and($hidden[0]->reason)->toBe(SkipReason::Visibility)
         ->and($hidden[0]->summary)->toContain('hidden');
+});
+
+it('dispatches RouteSkipped with GlobalFilter reason when a route is rejected by a RouteFilter', function (): void {
+    Route::get('/oa-events/filtered', [AuthoringFixtureController::class, 'publicAction']);
+
+    config()->set('openapi.filters', [
+        new class () implements RouteFilter {
+            public function shouldSkip(RoutingRoute $route): bool
+            {
+                return str_contains($route->uri(), 'oa-events/filtered');
+            }
+        },
+    ]);
+
+    app()->forgetScopedInstances();
+
+    /** @var list<RouteSkipped> $captured */
+    $captured = captureEvents(RouteSkipped::class, static fn() => generateSpec());
+
+    $skipped = array_values(array_filter(
+        $captured,
+        static fn(RouteSkipped $e): bool => str_contains($e->route->uri(), 'oa-events/filtered'),
+    ));
+
+    expect($skipped)->toHaveCount(1)
+        ->and($skipped[0]->reason)->toBe(SkipReason::GlobalFilter)
+        ->and($skipped[0]->summary)->toContain('global filter');
 });
 
 it('dispatches RouteSkipped with SpecMembership reason when a route is not in the spec', function (): void {

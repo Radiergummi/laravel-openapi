@@ -11,14 +11,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
 
 use function app;
 use function array_map;
@@ -36,6 +36,10 @@ use function str_contains;
  *
  * @bundle Radiergummi\OpenApi\Console
  */
+#[Signature('openapi:why
+        {route : Route name (exact match) or URI substring.}
+        {--for-env= : Override the environment for Hide/Expose evaluation.}')]
+#[Description('Explain inclusion of a route across all defined specs')]
 class WhyCommand extends Command
 {
     public const string ARGUMENT_ROUTE = 'route';
@@ -46,10 +50,6 @@ class WhyCommand extends Command
      * `#[Hide]` / `#[Expose]` resolution without changing `APP_ENV` for the rest of the run.
      */
     public const string OPTION_FOR_ENV = 'for-env';
-
-    protected $name = 'openapi:why';
-
-    protected $description = 'Explain inclusion of a route across all defined specs';
 
     public function handle(
         RouteIntrospector $introspector,
@@ -97,22 +97,6 @@ class WhyCommand extends Command
             : 'excluded from all specs'));
 
         return self::SUCCESS;
-    }
-
-    protected function configure(): void
-    {
-        $this->addArgument(
-            self::ARGUMENT_ROUTE,
-            InputArgument::REQUIRED,
-            'Route name (exact match) or URI substring.',
-        );
-
-        $this->addOption(
-            self::OPTION_FOR_ENV,
-            null,
-            InputOption::VALUE_REQUIRED,
-            'Override the environment for Hide/Expose evaluation.',
-        );
     }
 
     // region Private helpers
