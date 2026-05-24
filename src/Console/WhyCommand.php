@@ -42,22 +42,16 @@ use function str_contains;
 #[Description('Explain inclusion of a route across all defined specs')]
 class WhyCommand extends Command
 {
-    public const string ARGUMENT_ROUTE = 'route';
-
-    /**
-     * `--env` is reserved by Laravel for the global "boot in environment X" switch, so we cannot
-     * reuse it. `--for-env` carries the same intent: override the environment used for
-     * `#[Hide]` / `#[Expose]` resolution without changing `APP_ENV` for the rest of the run.
-     */
-    public const string OPTION_FOR_ENV = 'for-env';
-
     public function handle(
         RouteIntrospector $introspector,
         SpecRegistry $registry,
         InclusionEvaluator $evaluator,
     ): int {
-        $query = (string) $this->argument(self::ARGUMENT_ROUTE);
-        $env = (string) ($this->option(self::OPTION_FOR_ENV) ?? app()->environment());
+        // --env is reserved by Laravel for the global "boot in environment X" switch, so we
+        // cannot reuse it. --for-env carries the same intent: override the environment used for
+        // #[Hide] / #[Expose] resolution without changing APP_ENV for the rest of the run.
+        $query = (string) $this->argument('route');
+        $env = (string) ($this->option('for-env') ?? app()->environment());
 
         $candidates = $this->findCandidates($introspector, $query);
 

@@ -25,11 +25,9 @@ use function unlink;
 #[Description('Remove the generated OpenAPI specification file(s)')]
 class ClearCommand extends Command
 {
-    public const string ARGUMENT_SPEC = 'spec';
-
     public function handle(SpecRegistry $registry): int
     {
-        $specName = $this->argument(self::ARGUMENT_SPEC);
+        $specName = $this->argument('spec');
 
         try {
             $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];

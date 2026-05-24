@@ -47,14 +47,6 @@ use function realpath;
 #[Description('Generate an OpenAPI 3.1 document from the application\'s route definitions')]
 class GenerateCommand extends Command
 {
-    public const string ARGUMENT_SPEC = 'spec';
-
-    public const string OPTION_OUTPUT = 'output';
-
-    public const string OPTION_FORMAT = 'format';
-
-    public const string OPTION_EXPLAIN = 'explain';
-
     /**
      * @throws InvalidArgumentException
      */
@@ -64,9 +56,9 @@ class GenerateCommand extends Command
         InclusionEvaluator $evaluator,
         RouteIntrospector $introspector,
     ): int {
-        $specName = $this->argument(self::ARGUMENT_SPEC);
-        $outputOverride = $this->option(self::OPTION_OUTPUT);
-        $explain = (bool) $this->option(self::OPTION_EXPLAIN);
+        $specName = $this->argument('spec');
+        $outputOverride = $this->option('output');
+        $explain = (bool) $this->option('explain');
 
         $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];
 
@@ -132,7 +124,7 @@ class GenerateCommand extends Command
      */
     private function serialise(OA\OpenApi $openapi): string
     {
-        $format = $this->option(self::OPTION_FORMAT);
+        $format = $this->option('format');
 
         return match ($format) {
             'json' => $openapi->toJson(),
