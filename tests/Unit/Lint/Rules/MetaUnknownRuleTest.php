@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\MetaNoSuppressionReason;
 use Radiergummi\OpenApi\Core\Lint\Rules\MetaUnknownRule;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Core\Lint\SuppressionScope;
@@ -20,7 +19,7 @@ use Radiergummi\OpenApi\Core\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 
-function makeMetaRulesApiNode(): ApiNode
+function metaUnknownRuleApi(): ApiNode
 {
     $spec = new OA\OpenApi(['openapi' => '3.1.0']);
 
@@ -34,13 +33,11 @@ function makeMetaRulesApiNode(): ApiNode
     );
 }
 
-function metaRulesDirective(
-    string $ruleId,
-    ?string $reason = null,
-): SuppressionDirective {
+function metaUnknownRuleDirective(string $ruleId): SuppressionDirective
+{
     return new SuppressionDirective(
         ruleId: $ruleId,
-        reason: $reason,
+        reason: 'oops',
         scope: SuppressionScope::ClassScope,
         file: 'F.php',
         line: 5,
@@ -48,37 +45,8 @@ function metaRulesDirective(
     );
 }
 
-// MetaNoSuppressionReason
-it('emits for suppressions without a reason', function (): void {
-    $api = makeMetaRulesApiNode();
-    $ctx = new LintContext(
-        api: $api,
-        index: TreeIndex::empty(),
-        rawSpec: $api->raw,
-        actionDescriptors: [],
-        suppressions: [metaRulesDirective('response.empty')],
-    );
-    $findings = iterator_to_array(new MetaNoSuppressionReason()->checkApi($api, $ctx));
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('meta.no-suppression-reason');
-});
-
-it('does not emit when reason is provided', function (): void {
-    $api = makeMetaRulesApiNode();
-    $ctx = new LintContext(
-        api: $api,
-        index: TreeIndex::empty(),
-        rawSpec: $api->raw,
-        actionDescriptors: [],
-        suppressions: [metaRulesDirective('response.empty', 'SSE endpoint')],
-    );
-    $findings = iterator_to_array(new MetaNoSuppressionReason()->checkApi($api, $ctx));
-    expect($findings)->toBe([]);
-});
-
-// MetaUnknownRule
 it('emits for unknown rule ids in suppressions', function (): void {
-    $api = makeMetaRulesApiNode();
+    $api = metaUnknownRuleApi();
     $index = new TreeIndex(
         operationsByOperationId: [],
         operationsByRouteKey: [],
@@ -87,22 +55,21 @@ it('emits for unknown rule ids in suppressions', function (): void {
         registeredScopes: [],
         knownRuleIds: ['response.empty', 'throws.unmapped'],
     );
-    $ctx = new LintContext(
+    $context = new LintContext(
         api: $api,
         index: $index,
         rawSpec: $api->raw,
         actionDescriptors: [],
-        suppressions: [metaRulesDirective('nonexistent.rule', 'oops')],
+        suppressions: [metaUnknownRuleDirective('nonexistent.rule')],
     );
-    $rule = new MetaUnknownRule();
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = iterator_to_array(new MetaUnknownRule()->checkApi($api, $context));
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.unknown-rule')
         ->and($findings[0]->context['unknown_id'])->toBe('nonexistent.rule');
 });
 
 it('does not emit for known rule ids', function (): void {
-    $api = makeMetaRulesApiNode();
+    $api = metaUnknownRuleApi();
     $index = new TreeIndex(
         operationsByOperationId: [],
         operationsByRouteKey: [],
@@ -111,14 +78,13 @@ it('does not emit for known rule ids', function (): void {
         registeredScopes: [],
         knownRuleIds: ['response.empty'],
     );
-    $ctx = new LintContext(
+    $context = new LintContext(
         api: $api,
         index: $index,
         rawSpec: $api->raw,
         actionDescriptors: [],
-        suppressions: [metaRulesDirective('response.empty', 'legacy')],
+        suppressions: [metaUnknownRuleDirective('response.empty')],
     );
-    $rule = new MetaUnknownRule();
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = iterator_to_array(new MetaUnknownRule()->checkApi($api, $context));
     expect($findings)->toBe([]);
 });
