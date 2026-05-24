@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 
@@ -20,6 +22,7 @@ use function array_merge;
 use function array_values;
 use function is_array;
 use function sprintf;
+use function storage_path;
 
 /**
  * Materialises {@see SpecDefinition} value objects from the application's
@@ -34,27 +37,55 @@ use function sprintf;
  * instance (which is bound `scoped` by the service provider — one instance per
  * generation run / per request).
  */
+#[Scoped]
 final class SpecRegistry
 {
     /** @var null|array<string, SpecDefinition> */
     private ?array $cache = null;
 
+    /** @var array<string, mixed> */
+    private readonly array $rootInfo;
+
+    /** @var list<array<string, mixed>> */
+    private readonly array $rootServers;
+
+    /** @var null|array<string, array<string, mixed>> */
+    private readonly ?array $specs;
+
+    private readonly string $storagePath;
+
     /**
-     * @param array<string, mixed>                    $rootInfo
-     * @param list<array<string, mixed>>              $rootServers
-     * @param array<string, mixed>                    $rootTags
-     * @param null|array<string, array<string,mixed>> $specs
+     * @param array<string, mixed>       $rootInfo
+     * @param list<array<string, mixed>> $rootServers
+     * @param array<string, mixed>       $rootTags
      */
     public function __construct(
-        private array $rootInfo,
-        private array $rootServers,
-        private array $rootTags,
-        private string $rootOutputPath,
-        private string $rootRouteUri,
-        private string $rootPlaygroundUri,
-        private ?array $specs,
-        private string $storagePath,
-    ) {}
+        #[Config('openapi.info', [])]
+        array $rootInfo = [],
+        #[Config('app.name', 'API')]
+        string $appName = 'API',
+        #[Config('openapi.servers', [])]
+        array $rootServers = [],
+        #[Config('openapi.tags', [])]
+        private readonly array $rootTags = [],
+        #[Config('openapi.output_path', '')]
+        private readonly string $rootOutputPath = '',
+        #[Config('openapi.routes.spec.uri', 'openapi.yaml')]
+        private readonly string $rootRouteUri = 'openapi.yaml',
+        #[Config('openapi.routes.playground.uri', 'docs')]
+        private readonly string $rootPlaygroundUri = 'docs',
+        #[Config('openapi.specs')]
+        mixed $specs = null,
+        ?string $storagePath = null,
+    ) {
+        $rootInfo['title'] ??= $appName;
+        $rootInfo['version'] ??= '0.0.0';
+
+        $this->rootInfo = $rootInfo;
+        $this->rootServers = array_values($rootServers);
+        $this->specs = is_array($specs) ? $specs : null;
+        $this->storagePath = $storagePath ?? storage_path();
+    }
 
     /** @return list<SpecDefinition> */
     public function all(): array

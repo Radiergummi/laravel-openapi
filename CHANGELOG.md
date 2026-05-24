@@ -62,8 +62,8 @@ All notable changes to this project are documented here.
   binding needs config values, factory methods, registry-derived arrays, or
   decorated wrappers reflection cannot supply.
 - `SkipNovaRoutes`, `SkipTelescopeRoutes`, `SkipIgnitionRoutes`,
-  `SkipPassportRoutes`, and `PayloadParameterScanner` read their config values
-  through `#[Config]` parameter attributes
+  `SkipPassportRoutes`, `PayloadParameterScanner`, and `SpecRegistry` read
+  their config values through `#[Config]` parameter attributes
   (`Illuminate\Container\Attributes\Config`) instead of `config()` calls in a
   service-provider closure. The `Skip*Routes::fromConfig()` static factories
   are gone — the container resolves these classes directly.

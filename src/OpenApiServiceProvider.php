@@ -461,26 +461,6 @@ class OpenApiServiceProvider extends ServiceProvider
     private function registerSpec(): void
     {
         $this->app->scoped(
-            SpecRegistry::class,
-            static function (): SpecRegistry {
-                $rootInfo = (array) config('openapi.info', []);
-                $rootInfo['title'] ??= (string) config('app.name', 'API');
-                $rootInfo['version'] ??= '0.0.0';
-
-                return new SpecRegistry(
-                    rootInfo: $rootInfo,
-                    rootServers: array_values((array) config('openapi.servers', [])),
-                    rootTags: (array) config('openapi.tags', []),
-                    rootOutputPath: (string) config('openapi.output_path'),
-                    rootRouteUri: (string) (config('openapi.routes.spec.uri') ?? 'openapi.yaml'),
-                    rootPlaygroundUri: (string) (config('openapi.routes.playground.uri') ?? 'docs'),
-                    specs: is_array(config('openapi.specs')) ? config('openapi.specs') : null,
-                    storagePath: storage_path(),
-                );
-            },
-        );
-
-        $this->app->scoped(
             InclusionEvaluator::class,
             static function (Container $app): InclusionEvaluator {
                 $filterClasses = (array) config('openapi.filters', []);
