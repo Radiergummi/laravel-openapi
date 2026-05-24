@@ -118,21 +118,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             return $this->buildDiscriminatorSchema($discriminator);
         }
 
-        $constructor = $reflection->getConstructor();
-
-        $ctorParams = [];
-
-        if ($constructor !== null) {
-            foreach ($constructor->getParameters() as $param) {
-                $ctorParams[$param->getName()] = $param;
-            }
-        }
-
-        // Wire-name resolution: Spatie DataConfig exposes the same input mapping (literal string or
-        // NameMapper class) that Data::from() / Data::getValidationRules() use, so the schema's
-        // property keys, the required[] list, and the rules-derived field map all line up on a
-        // single set of names.
-        $wireNamesByPhpName = $this->buildWireNameMap($dataClass);
+        $contexts = $this->buildPropertyContexts($reflection, $dataClass);
 
         /** @var list<OA\Property> $properties */
         $properties = [];
@@ -140,24 +126,13 @@ final class SchemaFromDataClass implements FilePropertyChecker
         /** @var list<string> $required */
         $required = [];
 
-        /** @var array<string, ReflectionProperty> $reflectionPropsByWireName */
-        $reflectionPropsByWireName = [];
-
-        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
-            // Skip Computed properties — they are derived, not input.
-            if (!empty($prop->getAttributes(Computed::class))) {
-                continue;
-            }
-
-            $phpName = $prop->getName();
-            $name = $wireNamesByPhpName[$phpName] ?? $phpName;
-            $rawType = $prop->getType();
-            $reflectionPropsByWireName[$name] = $prop;
+        foreach ($contexts as $context) {
+            $rawType = $context->reflection->getType();
 
             if ($rawType === null) {
                 $properties[] = new OA\Property([
-                    'property' => $name,
-                    'description' => sprintf('Untyped property %s — schema unknown.', $name),
+                    'property' => $context->wireName,
+                    'description' => sprintf('Untyped property %s — schema unknown.', $context->wireName),
                 ]);
 
                 continue;
@@ -167,8 +142,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
                 $type = $this->typeResolver->resolve($rawType);
             } catch (UnsupportedException) {
                 $properties[] = new OA\Property([
-                    'property' => $name,
-                    'description' => sprintf('Type resolution failed for %s.', $name),
+                    'property' => $context->wireName,
+                    'description' => sprintf('Type resolution failed for %s.', $context->wireName),
                 ]);
 
                 continue;
@@ -182,24 +157,21 @@ final class SchemaFromDataClass implements FilePropertyChecker
             // DataCollection short-circuit — the property's #[DataCollectionOf] attribute names the
             // item Data class; type-info has no other way to recover it because DataCollection
             // erases the value type.
-            $dataCollectionSchema = $this->resolveDataCollectionSchema($prop, $effectiveType);
+            $dataCollectionSchema = $this->resolveDataCollectionSchema($context->reflection, $effectiveType);
 
-            $schema = $dataCollectionSchema ?? $this->resolvePropertySchema($effectiveType, $name);
-            $oaProperty = $this->schemaToProperty($name, $schema);
+            $schema = $dataCollectionSchema ?? $this->resolvePropertySchema($effectiveType, $context->wireName);
+            $oaProperty = $this->schemaToProperty($context->wireName, $schema);
 
-            // PHP name keys constructor parameters; the mapping is only on the wire side.
-            $ctorParam = $ctorParams[$phpName] ?? null;
-
-            if ($this->isPropertyDeprecated($prop, $ctorParam)) {
+            if ($this->isPropertyDeprecated($context->reflection, $context->ctorParam)) {
                 $oaProperty->deprecated = true;
             }
 
             $properties[] = $oaProperty;
 
-            $hasDefault = $ctorParam !== null && $ctorParam->isOptional();
+            $hasDefault = $context->ctorParam !== null && $context->ctorParam->isOptional();
 
             if (!$hasDefault && !$hasOptional) {
-                $required[] = $name;
+                $required[] = $context->wireName;
             }
         }
 
@@ -207,11 +179,15 @@ final class SchemaFromDataClass implements FilePropertyChecker
         [$properties, $required] = $this->applyValidationRules($dataClass, $properties, $required);
 
         // Pass 3: apply scoped field attribute overrides last so authoring annotations win.
-        foreach ($properties as $oaProperty) {
-            $reflectionProp = $reflectionPropsByWireName[$oaProperty->property] ?? null;
+        $propsByWire = [];
 
-            if ($reflectionProp !== null) {
-                $this->applyPropertyAttribute($reflectionProp, $oaProperty);
+        foreach ($properties as $prop) {
+            $propsByWire[$prop->property] = $prop;
+        }
+
+        foreach ($contexts as $context) {
+            if (isset($propsByWire[$context->wireName])) {
+                $this->applyPropertyAttribute($context->reflection, $propsByWire[$context->wireName]);
             }
         }
 
@@ -584,6 +560,55 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         return new OA\Property($props);
+    }
+
+    /**
+     * Builds one {@see PropertyContext} per public, non-computed property of the Data class.
+     *
+     * Pairs each property with its constructor parameter (looked up by PHP name) and resolves
+     * its wire name via {@see DataConfig}, so downstream code works from a single per-property
+     * record instead of three parallel maps.
+     *
+     * @param ReflectionClass<Data> $reflection
+     * @param class-string<Data>    $dataClass
+     *
+     * @return list<PropertyContext>
+     */
+    private function buildPropertyContexts(ReflectionClass $reflection, string $dataClass): array
+    {
+        $constructor = $reflection->getConstructor();
+        $ctorParams = [];
+
+        if ($constructor !== null) {
+            foreach ($constructor->getParameters() as $param) {
+                $ctorParams[$param->getName()] = $param;
+            }
+        }
+
+        // Wire-name resolution: Spatie DataConfig exposes the same input mapping (literal string or
+        // NameMapper class) that Data::from() / Data::getValidationRules() use, so the schema's
+        // property keys, the required[] list, and the rules-derived field map all line up on a
+        // single set of names.
+        $wireNamesByPhpName = $this->buildWireNameMap($dataClass);
+
+        $contexts = [];
+
+        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
+            // Skip Computed properties — they are derived, not input.
+            if (!empty($prop->getAttributes(Computed::class))) {
+                continue;
+            }
+
+            $phpName = $prop->getName();
+
+            $contexts[] = new PropertyContext(
+                wireName: $wireNamesByPhpName[$phpName] ?? $phpName,
+                reflection: $prop,
+                ctorParam: $ctorParams[$phpName] ?? null,
+            );
+        }
+
+        return $contexts;
     }
 
     /**
