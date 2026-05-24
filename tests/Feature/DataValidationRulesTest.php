@@ -199,7 +199,7 @@ it('still emits a schema for ThrowingRulesFixtureData even though rules() throws
     expect($props)->toHaveKey('name')
         ->and($props['name']['type'])->toBe('string');
 
-    // @phpstan-ignore staticMethod.notFound
+    // @phpstan-ignore staticMethod.notFound (Mockery's facade spy macros aren't visible to PHPStan)
     Log::shouldHaveReceived('warning')
         ->with(Mockery::pattern('/Skipping validation rule extraction for .*ThrowingRulesFixtureData/'));
 });

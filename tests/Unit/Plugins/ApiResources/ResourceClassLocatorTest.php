@@ -46,7 +46,6 @@ class LocatorFixtureController
         return '';
     }
 
-    /** @phpstan-ignore-next-line */
     #[ResponseResource(stdClass::class)]
     public function attributedNonResource(): string
     {

@@ -26,8 +26,154 @@ parameters:
             paths:
                 - tests/
         -
-            message: '#Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\|Mockery\\MockInterface::.+#'
+            message: '#Call to an undefined method (Mockery\\ExpectationInterface|Mockery\\HigherOrderMessage|Mockery\\MockInterface)(\|(Mockery\\ExpectationInterface|Mockery\\HigherOrderMessage|Mockery\\MockInterface))*::.+#'
             identifier: method.notFound
+            paths:
+                - tests/
+        # Pest chains test calls through dynamic builders (TestCall, HigherOrderTestProxy)
+        # that PHPStan cannot resolve. The methods (artisan, get, expect, …) are valid Pest
+        # macros at runtime.
+        -
+            message: '#Call to an undefined method Pest\\PendingCalls\\TestCall::(artisan|expect|get|post|put|patch|delete)\(\)#'
+            identifier: method.notFound
+            paths:
+                - tests/
+        # Test fixtures exist to exercise the introspector and lint rules; demanding full
+        # generic array shapes on every fixture controller method drowns the signal.
+        -
+            identifier: missingType.iterableValue
+            paths:
+                - tests/
+        # Tests and fixtures don't document checked exceptions via @throws — they are not part
+        # of the public API surface and the throws.* lint rules don't apply to them.
+        -
+            identifier: missingType.checkedException
+            paths:
+                - tests/
+        # Test fixtures intentionally declare @throws tags that aren't thrown to exercise the
+        # DocCommentParser and StandardResponsesExtractor; the unused-throws check is noise here.
+        -
+            identifier: throws.unusedType
+            paths:
+                - tests/
+        # Test helpers don't need full generic / callable signatures for their internal arrays.
+        -
+            identifier: missingType.generics
+            paths:
+                - tests/
+        -
+            identifier: missingType.callable
+            paths:
+                - tests/
+        # Pest's `uses()` registers traits dynamically; PHPStan can't see the linkage and
+        # reports the helper traits as unused.
+        -
+            identifier: trait.unused
+            paths:
+                - tests/
+        # `expect($this->spec)` etc. pass mixed-typed Pest test state into the generic
+        # `expect()` helper; the template type can't be inferred from mixed.
+        -
+            identifier: argument.templateType
+            paths:
+                - tests/
+        # Fixture controllers intentionally use simplified generic annotations (e.g.
+        # LengthAwarePaginator<Widget>) to exercise the introspector's tolerance.
+        -
+            identifier: generics.lessTypes
+            paths:
+                - tests/
+        -
+            identifier: generics.notSubtype
+            paths:
+                - tests/
+        # Pest datasets type closure parameters as `array`, but the helpers they feed declare
+        # `list<X>`. These literals are lists at runtime; only PHPStan can't see that through
+        # the dataset chain.
+        -
+            message: '~ expects list<.+?>(\|null)?, (array(<.+?>)?(\|null)?|array\{.*\}|array\{\}\|array\{.+\}) given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Tests pass string literals (e.g. controller / service-provider FQNs typed by the user)
+        # to parameters typed `class-string` or `class-string<T>|T`. The literals resolve at
+        # runtime; PHPStan can't track them statically.
+        -
+            message: '~^Parameter (#\d+ )?\$\w+ of (function|method|static method|class|attribute class) [^ ]+( constructor)? expects class-string(<T of object>\|T of object)?, string given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Mockery mocks satisfy interfaces at runtime; PHPStan only sees `MockInterface`.
+        -
+            message: '~expects [^,]+, Mockery\\MockInterface given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Pest's typed numeric expectations don't narrow `int|false(|null)` returns from
+        # filesize() / similar `int|false` boundaries.
+        -
+            message: '~^Parameter #1 \$expected of method Pest\\Mixins\\Expectation<int<0, max>\|false(\|null)?>::(toBeLessThan|toBeGreaterThan)\(\) expects DateTimeInterface\|float\|int\|string, int<0, max>\|false given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Tests pass concrete `ReflectionClass<Subclass>` into helpers that declare
+        # `ReflectionClass<object>|null`; PHPStan flags the (non-covariant) parameter widening.
+        -
+            message: '~^Parameter \$\w+ of function [^ ]+ expects ReflectionClass<object>\|null, ReflectionClass<[^>]+> given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Tests pass values from optional-return APIs (e.g. swagger-php Schema|null) into
+        # helpers that demand the non-null type — they've just primed the value.
+        -
+            message: '~^Parameter (#\d+ )?\$\w+ of function [^ ]+ expects OpenApi\\Annotations\\\w+, OpenApi\\Annotations\\\w+\|null given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Tests using `file_get_contents` / friends feed the `string|false` return into APIs
+        # expecting `string` — the test paths exist (the fixtures are committed).
+        -
+            message: '~^Parameter #1 \$(haystack|json) of function (str_contains|json_decode) expects string, string\|false given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # `array_filter` with a stricter `Closure(string): bool` over a wider key type.
+        -
+            message: '~^Parameter #2 \$callback of function array_filter expects \(callable\(int\|string\): bool\)\|null, Closure\(string\): bool given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
+        # Helpers / fixtures return `list<X>` while builders return `array<X>` (e.g. array_keys);
+        # the values are still well-typed.
+        -
+            message: '#should return list<[^>]+> but returns array<[^>]+>\.$#'
+            identifier: return.type
+            paths:
+                - tests/
+        # Mockery mocks returned from factory helpers fulfil the interface at runtime.
+        -
+            message: '#should return [^ ]+ but returns Mockery\\MockInterface\.$#'
+            identifier: return.type
+            paths:
+                - tests/
+        # Fixture controllers construct empty paginators that PHPStan widens to `<*NEVER*,
+        # *NEVER*>`. They exist to exercise the return-type extractor.
+        -
+            message: '#should return Illuminate\\(Contracts\\Pagination|Pagination)\\(LengthAwarePaginator|CursorPaginator)<[^>]+> but returns Illuminate\\Pagination\\(LengthAwarePaginator|CursorPaginator)<\*NEVER\*, \*NEVER\*>\.$#'
+            identifier: return.type
+            paths:
+                - tests/
+        # Helpers declare `list<T of object>` but Pest sees the array_map result as `list<object>`.
+        -
+            message: '#should return list<T of object> but returns list<object>\.$#'
+            identifier: return.type
+            paths:
+                - tests/
+        # Tests dereference resolver / introspector return values that they have just primed.
+        # PHPStan can't narrow `T|null` through Pest's `expect()->not->toBeNull()` chains.
+        -
+            message: '#^Cannot access property \$\w+ on (Radiergummi\\OpenApi\\|OpenApi\\Annotations\\)[^ ]+\|null\.$#'
+            identifier: property.nonObject
             paths:
                 - tests/
         # DocsController serves the package's own runtime routes. Documenting its checked

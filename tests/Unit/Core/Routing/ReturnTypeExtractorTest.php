@@ -18,7 +18,6 @@ class ReturnTypeExtractorFixture
     /** @return LengthAwarePaginator<stdClass> */
     public function generic(): LengthAwarePaginator
     {
-        /** @phpstan-ignore-next-line */
         return new LengthAwarePaginator([], 0, 15);
     }
 
@@ -27,13 +26,11 @@ class ReturnTypeExtractorFixture
      */
     public function noGeneric(): LengthAwarePaginator
     {
-        /** @phpstan-ignore-next-line */
         return new LengthAwarePaginator([], 0, 15);
     }
 
     public function noDocblock(): LengthAwarePaginator
     {
-        /** @phpstan-ignore-next-line */
         return new LengthAwarePaginator([], 0, 15);
     }
 
@@ -42,7 +39,6 @@ class ReturnTypeExtractorFixture
      */
     public function keyedGeneric(): LengthAwarePaginator
     {
-        /** @phpstan-ignore-next-line */
         return new LengthAwarePaginator([], 0, 15);
     }
 }

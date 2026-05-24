@@ -24,7 +24,6 @@ class ExistingTransformer {}
 
 class TransformerClassMissingController
 {
-    /** @phpstan-ignore-next-line */
     #[FractalResponse(transformer: 'App\\Transformers\\Nope\\BookTrnasformer')]
     public function typo(): void {}
 

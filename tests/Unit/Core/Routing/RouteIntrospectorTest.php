@@ -25,7 +25,6 @@ uses()->group('routing', 'openapi');
 // because Laravel rejects the route before it reaches the introspector.
 
 it('emits an ActionDescriptor with null controller/method when the route points at a non-existent class', function (): void {
-    // @phpstan-ignore-next-line argument.type — intentionally invalid for the test
     RouteFacade::get('/bogus', ['NonExistentController@index']);
 
     $introspector = new RouteIntrospector(

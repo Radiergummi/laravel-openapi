@@ -48,14 +48,14 @@
     "autoload-dev": {
         "psr-4": {
             "Radiergummi\\OpenApi\\Tests\\": "tests/",
-            "Examples\\Shared\\":        "examples/_shared/",
-            "Examples\\Vanilla\\":       "examples/vanilla/",
-            "Examples\\FormRequests\\":  "examples/form-requests/",
-            "Examples\\SpatieData\\":    "examples/spatie-data/",
-            "Examples\\ApiResources\\":  "examples/api-resources/",
-            "Examples\\Fractal\\":       "examples/fractal/",
-            "Examples\\QueryBuilder\\":  "examples/query-builder/",
-            "Examples\\Combined\\":      "examples/combined/"
+            "Examples\\Shared\\": "examples/_shared/",
+            "Examples\\Vanilla\\": "examples/vanilla/",
+            "Examples\\FormRequests\\": "examples/form-requests/",
+            "Examples\\SpatieData\\": "examples/spatie-data/",
+            "Examples\\ApiResources\\": "examples/api-resources/",
+            "Examples\\Fractal\\": "examples/fractal/",
+            "Examples\\QueryBuilder\\": "examples/query-builder/",
+            "Examples\\Combined\\": "examples/combined/"
         }
     },
     "extra": {
@@ -71,13 +71,13 @@
         "fmt": "@format",
         "lint": "phpstan analyse",
         "analyse": "@lint",
-        "examples:vanilla":       "@php examples/generate.php vanilla",
+        "examples:vanilla": "@php examples/generate.php vanilla",
         "examples:form-requests": "@php examples/generate.php form-requests",
-        "examples:spatie-data":   "@php examples/generate.php spatie-data",
+        "examples:spatie-data": "@php examples/generate.php spatie-data",
         "examples:api-resources": "@php examples/generate.php api-resources",
-        "examples:fractal":       "@php examples/generate.php fractal",
+        "examples:fractal": "@php examples/generate.php fractal",
         "examples:query-builder": "@php examples/generate.php query-builder",
-        "examples:combined":      "@php examples/generate.php combined",
+        "examples:combined": "@php examples/generate.php combined",
         "examples": [
             "@examples:vanilla",
             "@examples:form-requests",
