@@ -26,11 +26,11 @@ uses()->group('openapi', 'lint');
  */
 function makeAllOfComponent(string $schemaName, array $types): ComponentSchemaNode
 {
-    $ctx = new Context();
+    $context = new Context();
     $subSchemas = [];
 
     foreach ($types as $type) {
-        $props = ['_context' => $ctx];
+        $props = ['_context' => $context];
 
         if ($type !== null) {
             $props['type'] = $type;
@@ -44,7 +44,7 @@ function makeAllOfComponent(string $schemaName, array $types): ComponentSchemaNo
         raw: new OA\Schema([
             'schema' => $schemaName,
             'allOf' => $subSchemas,
-            '_context' => $ctx,
+            '_context' => $context,
         ]),
     );
 }

@@ -28,23 +28,23 @@ uses()->group('openapi', 'lint');
  */
 function makeSchemeUndefinedContext(array $declaredSchemes): LintContext
 {
-    $ctx = new Context();
+    $context = new Context();
     $schemes = [];
 
     foreach ($declaredSchemes as $name) {
         $schemes[] = new OA\SecurityScheme([
             'securityScheme' => $name,
             'type' => 'oauth2',
-            '_context' => $ctx,
+            '_context' => $context,
         ]);
     }
 
-    $components = new OA\Components(['_context' => $ctx]);
+    $components = new OA\Components(['_context' => $context]);
     $components->securitySchemes = $schemes;
 
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
         'components' => $components,
     ]);
 

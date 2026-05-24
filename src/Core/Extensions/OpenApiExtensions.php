@@ -22,8 +22,8 @@ use OpenApi\Annotations as OA;
  * the document. Use this to add vendor extensions, mutate security requirements, change tags, etc.
  *
  * ```php
- * OpenApiExtensions::transformOperation(static function (OA\Operation $op, OperationContext $ctx): void {
- *     if (str_contains($ctx->routeUri(), 'webhooks/stripe')) {
+ * OpenApiExtensions::transformOperation(static function (OA\Operation $op, OperationContext $context): void {
+ *     if (str_contains($context->routeUri(), 'webhooks/stripe')) {
  *         $op->tags = ['Stripe'];
  *     }
  * });
@@ -33,8 +33,8 @@ use OpenApi\Annotations as OA;
  * constraints for custom Rule objects, mark properties as read-only, etc.
  *
  * ```php
- * OpenApiExtensions::transformSchema(static function (OA\Schema $schema, SchemaContext $ctx): void {
- *     if ($ctx->sourceClass === null) {
+ * OpenApiExtensions::transformSchema(static function (OA\Schema $schema, SchemaContext $context): void {
+ *     if ($context->sourceClass === null) {
  *         return;
  *     }
  *     foreach ($schema->properties ?? [] as $property) {
@@ -99,7 +99,7 @@ final class OpenApiExtensions
      * Mutations to `$schema` — including its `properties` array — are reflected in the spec.
      *
      * This is the correct escape hatch for project-local rule objects: a transformer can inspect
-     * `$ctx->sourceClass` and the property name on a nested `OA\Schema` to inject constraints that
+     * `$context->sourceClass` and the property name on a nested `OA\Schema` to inject constraints that
      * the generic extractor cannot derive (e.g. for a custom `HexColor` rule, set `pattern`).
      *
      * @param callable(OA\Schema, SchemaContext): void $transformer

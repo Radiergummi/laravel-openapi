@@ -20,11 +20,11 @@ uses()->group('openapi', 'lint');
 
 function serverInvalidUrlFindings(?string $url): array
 {
-    $ctx = new Context();
-    $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
+    $context = new Context();
+    $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $context]);
 
     if ($url !== null) {
-        $spec->servers = [new OA\Server(['url' => $url, '_context' => $ctx])];
+        $spec->servers = [new OA\Server(['url' => $url, '_context' => $context])];
     }
 
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);

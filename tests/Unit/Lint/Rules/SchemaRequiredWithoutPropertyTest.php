@@ -27,17 +27,17 @@ uses()->group('openapi', 'lint');
  */
 function makeComponentForRequiredProps(string $schemaName, array $properties, ?array $required): ComponentSchemaNode
 {
-    $ctx = new Context();
+    $context = new Context();
 
     $oaProperties = [];
     $fields = [];
 
     foreach ($properties as $propName) {
-        $oaProperties[] = new OA\Property(['property' => $propName, 'type' => 'string', '_context' => $ctx]);
+        $oaProperties[] = new OA\Property(['property' => $propName, 'type' => 'string', '_context' => $context]);
         $fields[] = OperationNodeFactory::makeField(name: $propName, required: true);
     }
 
-    $schemaProps = ['schema' => $schemaName, '_context' => $ctx];
+    $schemaProps = ['schema' => $schemaName, '_context' => $context];
 
     if ($oaProperties !== []) {
         $schemaProps['properties'] = $oaProperties;

@@ -65,8 +65,8 @@ it('invokes a registered operation transformer for each assembled operation', fu
     $seen = [];
 
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx) use (&$seen): void {
-            $seen[] = $ctx->httpMethod . ' ' . $ctx->routeUri;
+        static function (OA\Operation $op, OperationContext $context) use (&$seen): void {
+            $seen[] = $context->httpMethod . ' ' . $context->routeUri;
         },
     );
 
@@ -78,8 +78,8 @@ it('invokes a registered operation transformer for each assembled operation', fu
 
 it('allows an operation transformer to mutate the operation', function (): void {
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx): void {
-            if ($ctx->routeUri === 'oa-ext/get') {
+        static function (OA\Operation $op, OperationContext $context): void {
+            if ($context->routeUri === 'oa-ext/get') {
                 $op->summary = 'Overridden by transformer';
             }
         },
@@ -95,8 +95,8 @@ it('passes the correct HTTP method in the operation context', function (): void 
     $methods = [];
 
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx) use (&$methods): void {
-            $methods[] = $ctx->httpMethod;
+        static function (OA\Operation $op, OperationContext $context) use (&$methods): void {
+            $methods[] = $context->httpMethod;
         },
     );
 
@@ -110,10 +110,10 @@ it('passes the correct controller class and method name in the operation context
     $seen = [];
 
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx) use (&$seen): void {
-            if ($ctx->routeUri === 'oa-ext/post') {
-                $seen['controller'] = $ctx->controllerClass;
-                $seen['method'] = $ctx->methodName;
+        static function (OA\Operation $op, OperationContext $context) use (&$seen): void {
+            if ($context->routeUri === 'oa-ext/post') {
+                $seen['controller'] = $context->controllerClass;
+                $seen['method'] = $context->methodName;
             }
         },
     );
@@ -132,8 +132,8 @@ it('invokes a registered schema transformer for each component schema', function
     $seenKeys = [];
 
     OpenApiExtensions::transformSchema(
-        static function (OA\Schema $schema, SchemaContext $ctx) use (&$seenKeys): void {
-            $seenKeys[] = $ctx->componentKey;
+        static function (OA\Schema $schema, SchemaContext $context) use (&$seenKeys): void {
+            $seenKeys[] = $context->componentKey;
         },
     );
 
@@ -147,9 +147,9 @@ it('passes the source class in the schema context', function (): void {
     $seenClass = null;
 
     OpenApiExtensions::transformSchema(
-        static function (OA\Schema $schema, SchemaContext $ctx) use (&$seenClass): void {
-            if ($ctx->componentKey === 'ExtensionsFixtureData') {
-                $seenClass = $ctx->sourceClass;
+        static function (OA\Schema $schema, SchemaContext $context) use (&$seenClass): void {
+            if ($context->componentKey === 'ExtensionsFixtureData') {
+                $seenClass = $context->sourceClass;
             }
         },
     );
@@ -161,8 +161,8 @@ it('passes the source class in the schema context', function (): void {
 
 it('allows a schema transformer to mutate the schema', function (): void {
     OpenApiExtensions::transformSchema(
-        static function (OA\Schema $schema, SchemaContext $ctx): void {
-            if ($ctx->componentKey === 'ExtensionsFixtureData') {
+        static function (OA\Schema $schema, SchemaContext $context): void {
+            if ($context->componentKey === 'ExtensionsFixtureData') {
                 $schema->description = 'Injected by transformer';
             }
         },
@@ -212,16 +212,16 @@ it('runs multiple operation transformers in registration order', function (): vo
     $log = [];
 
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx) use (&$log): void {
-            if ($ctx->routeUri === 'oa-ext/get') {
+        static function (OA\Operation $op, OperationContext $context) use (&$log): void {
+            if ($context->routeUri === 'oa-ext/get') {
                 $log[] = 'first';
             }
         },
     );
 
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx) use (&$log): void {
-            if ($ctx->routeUri === 'oa-ext/get') {
+        static function (OA\Operation $op, OperationContext $context) use (&$log): void {
+            if ($context->routeUri === 'oa-ext/get') {
                 $log[] = 'second';
             }
         },
@@ -240,7 +240,7 @@ it('flush() removes all registered transformers', function (): void {
     $called = false;
 
     OpenApiExtensions::transformOperation(
-        static function (OA\Operation $op, OperationContext $ctx) use (&$called): void {
+        static function (OA\Operation $op, OperationContext $context) use (&$called): void {
             $called = true;
         },
     );

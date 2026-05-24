@@ -106,7 +106,7 @@ class LintCommand extends Command
 
         return new LintOptions(
             level: $this->input->hasParameterOption('--level')
-                ? (string) $this->option('level')
+                ? (string)$this->option('level')
                 : null,
             only: $this->parseList($this->option('only')),
             skip: $this->parseList($this->option('skip')),

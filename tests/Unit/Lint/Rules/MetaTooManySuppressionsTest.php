@@ -63,7 +63,7 @@ it('reports its id and level', function (): void {
 
 it('emits no finding when suppressions are at or below the threshold', function (): void {
     $api = makeMetaTooManySuppressionsApiNode();
-    $ctx = new LintContext(
+    $context = new LintContext(
         api: $api,
         index: TreeIndex::empty(),
         rawSpec: $api->raw,
@@ -72,14 +72,14 @@ it('emits no finding when suppressions are at or below the threshold', function 
     );
 
     $rule = new MetaTooManySuppressions(threshold: 5);
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = iterator_to_array($rule->checkApi($api, $context));
 
     expect($findings)->toBe([]);
 });
 
 it('emits a finding when suppressions exceed the threshold', function (): void {
     $api = makeMetaTooManySuppressionsApiNode();
-    $ctx = new LintContext(
+    $context = new LintContext(
         api: $api,
         index: TreeIndex::empty(),
         rawSpec: $api->raw,
@@ -88,7 +88,7 @@ it('emits a finding when suppressions exceed the threshold', function (): void {
     );
 
     $rule = new MetaTooManySuppressions(threshold: 5);
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = iterator_to_array($rule->checkApi($api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.too-many-suppressions')
@@ -101,7 +101,7 @@ it('emits a finding when suppressions exceed the threshold', function (): void {
 
 it('groups suppressions by file and emits per file', function (): void {
     $api = makeMetaTooManySuppressionsApiNode();
-    $ctx = new LintContext(
+    $context = new LintContext(
         api: $api,
         index: TreeIndex::empty(),
         rawSpec: $api->raw,
@@ -113,7 +113,7 @@ it('groups suppressions by file and emits per file', function (): void {
     );
 
     $rule = new MetaTooManySuppressions(threshold: 5);
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = iterator_to_array($rule->checkApi($api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('FileB.php');
@@ -121,7 +121,7 @@ it('groups suppressions by file and emits per file', function (): void {
 
 it('respects a custom threshold', function (): void {
     $api = makeMetaTooManySuppressionsApiNode();
-    $ctx = new LintContext(
+    $context = new LintContext(
         api: $api,
         index: TreeIndex::empty(),
         rawSpec: $api->raw,
@@ -130,7 +130,7 @@ it('respects a custom threshold', function (): void {
     );
 
     $rule = new MetaTooManySuppressions(threshold: 2);
-    $findings = iterator_to_array($rule->checkApi($api, $ctx));
+    $findings = iterator_to_array($rule->checkApi($api, $context));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('3')

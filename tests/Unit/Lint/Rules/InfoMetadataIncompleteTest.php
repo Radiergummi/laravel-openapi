@@ -20,23 +20,23 @@ uses()->group('openapi', 'lint');
 
 function infoMetadataIncompleteFindings(bool $withContact, bool $withLicense, bool $withInfo = true): array
 {
-    $ctx = new Context();
+    $context = new Context();
 
     if (!$withInfo) {
         // info remains Generator::UNDEFINED — nothing for the rule to inspect
-        $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
+        $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $context]);
     } else {
-        $info = new OA\Info(['title' => 'Test API', 'version' => '1.0.0', 'description' => 'A test API.', '_context' => $ctx]);
+        $info = new OA\Info(['title' => 'Test API', 'version' => '1.0.0', 'description' => 'A test API.', '_context' => $context]);
 
         if ($withContact) {
-            $info->contact = new OA\Contact(['name' => 'Support', '_context' => $ctx]);
+            $info->contact = new OA\Contact(['name' => 'Support', '_context' => $context]);
         }
 
         if ($withLicense) {
-            $info->license = new OA\License(['name' => 'MIT', '_context' => $ctx]);
+            $info->license = new OA\License(['name' => 'MIT', '_context' => $context]);
         }
 
-        $spec = new OA\OpenApi(['openapi' => '3.1.0', 'info' => $info, '_context' => $ctx]);
+        $spec = new OA\OpenApi(['openapi' => '3.1.0', 'info' => $info, '_context' => $context]);
     }
 
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);

@@ -20,12 +20,12 @@ uses()->group('openapi', 'lint');
 
 function makeInfoContext(?string $infoDescription): LintContext
 {
-    $ctx = new Context();
+    $context = new Context();
 
     $info = new OA\Info([
         'title' => 'Test API',
         'version' => '1.0.0',
-        '_context' => $ctx,
+        '_context' => $context,
     ]);
 
     if ($infoDescription !== null) {
@@ -35,7 +35,7 @@ function makeInfoContext(?string $infoDescription): LintContext
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
         'info' => $info,
-        '_context' => $ctx,
+        '_context' => $context,
     ]);
 
     return new LintContext(

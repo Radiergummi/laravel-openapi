@@ -63,10 +63,10 @@ it('reports its id and level', function (): void {
 });
 
 it('emits a finding when a suppression did not match any finding', function (): void {
-    $ctx = staleContext(staleDirective('response.empty'));
+    $context = staleContext(staleDirective('response.empty'));
 
     $rule = new MetaSuppressionStale();
-    $findings = iterator_to_array($rule->check($ctx, []));
+    $findings = iterator_to_array($rule->check($context, []));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.suppression-stale')
@@ -85,10 +85,10 @@ it('emits no finding when a suppression matched a finding', function (): void {
         location: new FindingLocation(file: 'Controller.php'),
     );
 
-    $ctx = staleContext(staleDirective('response.empty'));
+    $context = staleContext(staleDirective('response.empty'));
 
     $rule = new MetaSuppressionStale();
-    $findings = iterator_to_array($rule->check($ctx, [$matchingFinding]));
+    $findings = iterator_to_array($rule->check($context, [$matchingFinding]));
 
     expect($findings)->toBe([]);
 });
@@ -101,10 +101,10 @@ it('emits when finding ruleId does not match the directive', function (): void {
         location: new FindingLocation(file: 'Controller.php'),
     );
 
-    $ctx = staleContext(staleDirective('response.empty'));
+    $context = staleContext(staleDirective('response.empty'));
 
     $rule = new MetaSuppressionStale();
-    $findings = iterator_to_array($rule->check($ctx, [$unrelatedFinding]));
+    $findings = iterator_to_array($rule->check($context, [$unrelatedFinding]));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('response.empty');
@@ -118,10 +118,10 @@ it('does not match a finding in a different file', function (): void {
         location: new FindingLocation(file: 'OtherController.php'),
     );
 
-    $ctx = staleContext(staleDirective('response.empty', file: 'Controller.php'));
+    $context = staleContext(staleDirective('response.empty', file: 'Controller.php'));
 
     $rule = new MetaSuppressionStale();
-    $findings = iterator_to_array($rule->check($ctx, [$findingInDifferentFile]));
+    $findings = iterator_to_array($rule->check($context, [$findingInDifferentFile]));
 
     expect($findings)->toHaveCount(1);
 });

@@ -21,9 +21,9 @@ uses()->group('openapi', 'lint');
 function refBrokenFindings(OA\OpenApi $spec): array
 {
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
-    $ctx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
+    $context = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
 
-    return iterator_to_array(new RefBroken()->checkApi($api, $ctx));
+    return iterator_to_array(new RefBroken()->checkApi($api, $context));
 }
 
 /**
@@ -33,24 +33,24 @@ function refBrokenFindings(OA\OpenApi $spec): array
  */
 function specWithRef(string $ref, array $schemas): OA\OpenApi
 {
-    $ctx = new Context();
+    $context = new Context();
 
     $oaSchemas = array_map(
-        static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $ctx]),
+        static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $context]),
         $schemas,
     );
 
     $oaSchemas[] = new OA\Schema([
         'schema' => 'Wrapper',
         'type' => 'object',
-        'properties' => [new OA\Property(['property' => 'related', 'ref' => $ref, '_context' => $ctx])],
-        '_context' => $ctx,
+        'properties' => [new OA\Property(['property' => 'related', 'ref' => $ref, '_context' => $context])],
+        '_context' => $context,
     ]);
 
     return new OA\OpenApi([
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components(['schemas' => $oaSchemas, '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
+        'components' => new OA\Components(['schemas' => $oaSchemas, '_context' => $context]),
     ]);
 }
 
@@ -72,18 +72,18 @@ it('emits a finding when a ref points to a non-existent schema', function (): vo
 });
 
 it('emits a finding when a ref points to a non-existent response', function (): void {
-    $ctx = new Context();
+    $context = new Context();
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
         'paths' => [new OA\PathItem([
             'path' => '/test',
             'get' => new OA\Get([
                 'operationId' => 'test.op',
-                'responses' => [new OA\Response(['ref' => '#/components/responses/NotFoundResponse', '_context' => $ctx])],
-                '_context' => $ctx,
+                'responses' => [new OA\Response(['ref' => '#/components/responses/NotFoundResponse', '_context' => $context])],
+                '_context' => $context,
             ]),
-            '_context' => $ctx,
+            '_context' => $context,
         ])],
     ]);
 

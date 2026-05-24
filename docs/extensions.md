@@ -23,8 +23,8 @@ use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use OpenApi\Annotations as OA;
 
 OpenApiExtensions::transformOperation(
-    static function (OA\Operation $operation, OperationContext $ctx): void {
-        if (str_contains($ctx->routeUri, 'webhooks/stripe')) {
+    static function (OA\Operation $operation, OperationContext $context): void {
+        if (str_contains($context->routeUri, 'webhooks/stripe')) {
             $operation->tags = ['Stripe'];
         }
     },
@@ -46,8 +46,8 @@ objects the generic extractor cannot handle:
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
 
 OpenApiExtensions::transformSchema(
-    static function (OA\Schema $schema, SchemaContext $ctx): void {
-        if ($ctx->sourceClass === null) {
+    static function (OA\Schema $schema, SchemaContext $context): void {
+        if ($context->sourceClass === null) {
             return;
         }
         foreach ($schema->properties ?? [] as $property) {

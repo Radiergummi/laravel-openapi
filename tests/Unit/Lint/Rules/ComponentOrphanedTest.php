@@ -25,20 +25,20 @@ uses()->group('openapi', 'lint');
  */
 function componentOrphanedFindings(array $schemas, array $refsUsed): array
 {
-    $ctx = new Context();
+    $context = new Context();
 
     $props = [
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
     ];
 
     if ($schemas !== []) {
         $props['components'] = new OA\Components([
             'schemas' => array_map(
-                static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $ctx]),
+                static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $context]),
                 $schemas,
             ),
-            '_context' => $ctx,
+            '_context' => $context,
         ]);
     }
 
@@ -52,16 +52,16 @@ function componentOrphanedFindings(array $schemas, array $refsUsed): array
                     'content' => array_map(
                         static fn(string $ref) => new OA\MediaType([
                             'mediaType' => 'application/json',
-                            'schema' => new OA\Schema(['ref' => $ref, '_context' => $ctx]),
-                            '_context' => $ctx,
+                            'schema' => new OA\Schema(['ref' => $ref, '_context' => $context]),
+                            '_context' => $context,
                         ]),
                         $refsUsed,
                     ),
-                    '_context' => $ctx,
+                    '_context' => $context,
                 ])],
-                '_context' => $ctx,
+                '_context' => $context,
             ]),
-            '_context' => $ctx,
+            '_context' => $context,
         ])];
     }
 

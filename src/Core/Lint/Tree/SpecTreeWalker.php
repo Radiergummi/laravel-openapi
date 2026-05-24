@@ -272,132 +272,132 @@ final class SpecTreeWalker
     /**
      * @return iterable<Finding>
      */
-    private function dispatchApi(ApiNode $node, LintContext $ctx): iterable
+    private function dispatchApi(ApiNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[ApiRule::class] ?? [] as $rule) {
             assert($rule instanceof ApiRule);
-            yield from $rule->checkApi($node, $ctx);
+            yield from $rule->checkApi($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchOperation(OperationNode $node, LintContext $ctx): iterable
+    private function dispatchOperation(OperationNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[OperationRule::class] ?? [] as $rule) {
             assert($rule instanceof OperationRule);
-            yield from $rule->checkOperation($node, $ctx);
+            yield from $rule->checkOperation($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchParameter(ParameterNode $node, LintContext $ctx): iterable
+    private function dispatchParameter(ParameterNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[ParameterRule::class] ?? [] as $rule) {
             assert($rule instanceof ParameterRule);
-            yield from $rule->checkParameter($node, $ctx);
+            yield from $rule->checkParameter($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchQueryParameter(QueryParameterNode $node, LintContext $ctx): iterable
+    private function dispatchQueryParameter(QueryParameterNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[QueryParameterRule::class] ?? [] as $rule) {
             assert($rule instanceof QueryParameterRule);
-            yield from $rule->checkQueryParameter($node, $ctx);
+            yield from $rule->checkQueryParameter($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchRequestBody(RequestBodyNode $node, LintContext $ctx): iterable
+    private function dispatchRequestBody(RequestBodyNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[RequestBodyRule::class] ?? [] as $rule) {
             assert($rule instanceof RequestBodyRule);
-            yield from $rule->checkRequestBody($node, $ctx);
+            yield from $rule->checkRequestBody($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchResponse(ResponseNode $node, LintContext $ctx): iterable
+    private function dispatchResponse(ResponseNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[ResponseRule::class] ?? [] as $rule) {
             assert($rule instanceof ResponseRule);
-            yield from $rule->checkResponse($node, $ctx);
+            yield from $rule->checkResponse($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchField(FieldNode $node, LintContext $ctx): iterable
+    private function dispatchField(FieldNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[FieldRule::class] ?? [] as $rule) {
             assert($rule instanceof FieldRule);
-            yield from $rule->checkField($node, $ctx);
+            yield from $rule->checkField($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchHeader(HeaderNode $node, LintContext $ctx): iterable
+    private function dispatchHeader(HeaderNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[HeaderRule::class] ?? [] as $rule) {
             assert($rule instanceof HeaderRule);
-            yield from $rule->checkHeader($node, $ctx);
+            yield from $rule->checkHeader($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchLink(LinkNode $node, LintContext $ctx): iterable
+    private function dispatchLink(LinkNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[LinkRule::class] ?? [] as $rule) {
             assert($rule instanceof LinkRule);
-            yield from $rule->checkLink($node, $ctx);
+            yield from $rule->checkLink($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchExample(ExampleNode $node, LintContext $ctx): iterable
+    private function dispatchExample(ExampleNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[ExampleRule::class] ?? [] as $rule) {
             assert($rule instanceof ExampleRule);
-            yield from $rule->checkExample($node, $ctx);
+            yield from $rule->checkExample($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchComponentSchema(ComponentSchemaNode $node, LintContext $ctx): iterable
+    private function dispatchComponentSchema(ComponentSchemaNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[ComponentSchemaRule::class] ?? [] as $rule) {
             assert($rule instanceof ComponentSchemaRule);
-            yield from $rule->checkComponentSchema($node, $ctx);
+            yield from $rule->checkComponentSchema($node, $context);
         }
     }
 
     /**
      * @return iterable<Finding>
      */
-    private function dispatchWebhook(WebhookNode $node, LintContext $ctx): iterable
+    private function dispatchWebhook(WebhookNode $node, LintContext $context): iterable
     {
         foreach ($this->visitors[WebhookRule::class] ?? [] as $rule) {
             assert($rule instanceof WebhookRule);
-            yield from $rule->checkWebhook($node, $ctx);
+            yield from $rule->checkWebhook($node, $context);
         }
     }
 

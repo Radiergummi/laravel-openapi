@@ -25,15 +25,15 @@ function streamingFindings(string $controllerMethod, string $routeName, ?string 
     $route->name($routeName);
     $descriptor = ActionDescriptorFactory::forRoute($route, StreamingFixtureController::class, $controllerMethod);
 
-    $ctx = new Context();
-    $responseProps = ['response' => '200', '_context' => $ctx];
+    $context = new Context();
+    $responseProps = ['response' => '200', '_context' => $context];
 
     if ($contentType !== null) {
         $responseProps['content'] = [
             new OA\MediaType([
                 'mediaType' => $contentType,
-                'schema' => new OA\Schema(['type' => 'string', '_context' => $ctx]),
-                '_context' => $ctx,
+                'schema' => new OA\Schema(['type' => 'string', '_context' => $context]),
+                '_context' => $context,
             ]),
         ];
     }
@@ -41,7 +41,7 @@ function streamingFindings(string $controllerMethod, string $routeName, ?string 
     $raw = new OA\Get([
         'operationId' => $routeName,
         'responses' => [new OA\Response($responseProps)],
-        '_context' => $ctx,
+        '_context' => $context,
     ]);
 
     $operation = OperationNodeFactory::forDescriptor(

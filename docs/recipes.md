@@ -310,8 +310,8 @@ use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use OpenApi\Annotations as OA;
 
 OpenApiExtensions::transformOperation(
-    static function (OA\Operation $operation, OperationContext $ctx): void {
-        if ($ctx->controllerClass === FlightController::class && $ctx->methodName === 'store') {
+    static function (OA\Operation $operation, OperationContext $context): void {
+        if ($context->controllerClass === FlightController::class && $context->methodName === 'store') {
             $operation->{'x-internal'} = true;
             $operation->{'x-rate-limit'} = ['burst' => 10, 'sustained' => 60];
         }

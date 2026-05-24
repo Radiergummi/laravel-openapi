@@ -20,17 +20,17 @@ uses()->group('openapi', 'lint');
 
 function serverVariableUndeclaredFindings(?string $url, array $variables = []): array
 {
-    $ctx = new Context();
-    $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $ctx]);
+    $context = new Context();
+    $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $context]);
 
     if ($url !== null) {
-        $serverData = ['url' => $url, '_context' => $ctx];
+        $serverData = ['url' => $url, '_context' => $context];
 
         if ($variables !== []) {
             $vars = [];
 
             foreach ($variables as $name => $default) {
-                $vars[$name] = new OA\ServerVariable(['serverVariable' => $name, 'default' => $default, '_context' => $ctx]);
+                $vars[$name] = new OA\ServerVariable(['serverVariable' => $name, 'default' => $default, '_context' => $context]);
             }
             $serverData['variables'] = $vars;
         }

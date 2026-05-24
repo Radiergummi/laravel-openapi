@@ -29,7 +29,7 @@ uses()->group('openapi', 'lint');
  */
 function discriminatorInvalidMappingFindings(string $propertyName, array $mapping, array $schemas): array
 {
-    $ctx = new Context();
+    $context = new Context();
     $oaSchemas = [];
     $componentNodes = [];
 
@@ -37,10 +37,10 @@ function discriminatorInvalidMappingFindings(string $propertyName, array $mappin
         $oaSchema = new OA\Schema([
             'schema' => $name,
             'properties' => array_map(
-                static fn(string $propName) => new OA\Property(['property' => $propName, 'type' => 'string', '_context' => $ctx]),
+                static fn(string $propName) => new OA\Property(['property' => $propName, 'type' => 'string', '_context' => $context]),
                 $properties,
             ),
-            '_context' => $ctx,
+            '_context' => $context,
         ]);
 
         $oaSchemas[] = $oaSchema;
@@ -52,9 +52,9 @@ function discriminatorInvalidMappingFindings(string $propertyName, array $mappin
         'discriminator' => new OA\Discriminator([
             'propertyName' => $propertyName,
             'mapping' => $mapping,
-            '_context' => $ctx,
+            '_context' => $context,
         ]),
-        '_context' => $ctx,
+        '_context' => $context,
     ]);
 
     $oaSchemas[] = $baseSchema;
@@ -62,8 +62,8 @@ function discriminatorInvalidMappingFindings(string $propertyName, array $mappin
 
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components(['schemas' => $oaSchemas, '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
+        'components' => new OA\Components(['schemas' => $oaSchemas, '_context' => $context]),
     ]);
 
     $lintCtx = new LintContext(
@@ -147,20 +147,20 @@ it('emits a finding per invalid mapping entry', function (): void {
 });
 
 it('emits no finding when the discriminator property is inherited via allOf', function (): void {
-    $ctx = new Context();
+    $context = new Context();
 
     // BaseAnimal declares the discriminator property 'type' directly
     $baseAnimal = new OA\Schema([
         'schema' => 'BaseAnimal',
-        'properties' => [new OA\Property(['property' => 'type', 'type' => 'string', '_context' => $ctx])],
-        '_context' => $ctx,
+        'properties' => [new OA\Property(['property' => 'type', 'type' => 'string', '_context' => $context])],
+        '_context' => $context,
     ]);
 
     // Dog inherits 'type' via allOf — does NOT redeclare directly
     $dog = new OA\Schema([
         'schema' => 'Dog',
-        'allOf' => [new OA\Schema(['ref' => '#/components/schemas/BaseAnimal', '_context' => $ctx])],
-        '_context' => $ctx,
+        'allOf' => [new OA\Schema(['ref' => '#/components/schemas/BaseAnimal', '_context' => $context])],
+        '_context' => $context,
     ]);
 
     $baseSchema = new OA\Schema([
@@ -168,15 +168,15 @@ it('emits no finding when the discriminator property is inherited via allOf', fu
         'discriminator' => new OA\Discriminator([
             'propertyName' => 'type',
             'mapping' => ['dog' => '#/components/schemas/Dog'],
-            '_context' => $ctx,
+            '_context' => $context,
         ]),
-        '_context' => $ctx,
+        '_context' => $context,
     ]);
 
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components(['schemas' => [$baseAnimal, $dog, $baseSchema], '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
+        'components' => new OA\Components(['schemas' => [$baseAnimal, $dog, $baseSchema], '_context' => $context]),
     ]);
 
     $component = new ComponentSchemaNode(name: 'Pet', description: null, fields: [], raw: $baseSchema);
@@ -194,18 +194,18 @@ it('emits no finding when the discriminator property is inherited via allOf', fu
 });
 
 it('emits no finding when there is no discriminator', function (): void {
-    $ctx = new Context();
+    $context = new Context();
 
     $schema = new OA\Schema([
         'schema' => 'Simple',
-        'properties' => [new OA\Property(['property' => 'name', 'type' => 'string', '_context' => $ctx])],
-        '_context' => $ctx,
+        'properties' => [new OA\Property(['property' => 'name', 'type' => 'string', '_context' => $context])],
+        '_context' => $context,
     ]);
 
     $spec = new OA\OpenApi([
         'openapi' => '3.1.0',
-        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $ctx]),
-        'components' => new OA\Components(['schemas' => [$schema], '_context' => $ctx]),
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $context]),
+        'components' => new OA\Components(['schemas' => [$schema], '_context' => $context]),
     ]);
 
     $component = new ComponentSchemaNode(name: 'Simple', description: null, fields: [], raw: $schema);
