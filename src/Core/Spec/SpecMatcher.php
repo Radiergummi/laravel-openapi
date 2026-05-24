@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
+use Illuminate\Container\Attributes\Scoped;
+
 use function array_any;
 use function fnmatch;
 use function is_array;
@@ -37,6 +39,7 @@ use function str_starts_with;
  * which short-circuits before reaching the matcher. This keeps {@see SpecMatcher} a pure
  * predicate over the three config keys.
  */
+#[Scoped]
 final readonly class SpecMatcher
 {
     /**

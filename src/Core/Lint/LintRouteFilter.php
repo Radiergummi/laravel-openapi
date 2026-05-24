@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Support\Str;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Symfony\Component\Process\Exception\LogicException;
@@ -50,6 +51,7 @@ use const PHP_EOL;
  * Consumers can supply an explicit ref via {@see LintOptions::$diffRef}; the detection runs
  * only when --diff is requested without a value.
  */
+#[Scoped]
 class LintRouteFilter
 {
     /**

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
@@ -50,6 +51,7 @@ use function ucfirst;
  * Consumes {@see RouteIntrospector::discover()} (the same data source as `route:sync`) and
  * assembles a swagger-php {@see OA\OpenApi} instance that callers can serialise to YAML or JSON.
  */
+#[Scoped]
 final readonly class OpenApiGenerator
 {
     public function __construct(

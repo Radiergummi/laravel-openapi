@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Laravel\Passport\Passport;
@@ -50,6 +51,7 @@ use function substr;
  * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
  * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
  */
+#[Scoped]
 final class SecurityExtractor
 {
     use DetectsAuthMiddleware;

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
@@ -29,6 +30,7 @@ use function sprintf;
  * Enriches each parameter with `description` and `example` from a `#[PathParam]` (or any
  * FieldAttribute subclass) declared on the corresponding ReflectionParameter.
  */
+#[Scoped]
 final readonly class UriParametersExtractor
 {
     public function __construct(

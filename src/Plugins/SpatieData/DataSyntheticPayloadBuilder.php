@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Illuminate\Container\Attributes\Scoped;
 use Spatie\LaravelData\Concerns\ValidateableData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\DataConfig;
@@ -28,6 +29,7 @@ use Spatie\LaravelData\Support\DataConfig;
  * A visited-set prevents infinite loops when a Data class references itself or forms a cycle.
  * On a cycle the offending property emits `null`, which is sufficient for `Arr::has()`.
  */
+#[Scoped]
 final readonly class DataSyntheticPayloadBuilder
 {
     public function __construct(

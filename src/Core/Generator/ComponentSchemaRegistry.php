@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Generator;
 
 use Closure;
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Enums\ComponentType;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
@@ -38,6 +39,7 @@ use function substr;
  * Data classes in different namespaces share a basename, the second one is disambiguated with its
  * parent directory segment (e.g. `Projects.CreateProjectData`).
  */
+#[Scoped]
 final class ComponentSchemaRegistry
 {
     /**

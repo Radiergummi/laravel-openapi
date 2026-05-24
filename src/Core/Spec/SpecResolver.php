@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
+use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Attributes\Spec;
 use ReflectionClass;
 use ReflectionMethod;
@@ -31,6 +32,7 @@ use function array_values;
  * Method presence shadows the class: a method carrying `#[Spec]` ignores the class's
  * `#[Spec]` entirely, even if the union would differ.
  */
+#[Scoped]
 final readonly class SpecResolver
 {
     /**

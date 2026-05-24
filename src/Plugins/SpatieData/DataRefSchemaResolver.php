@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use ReflectionException;
@@ -23,6 +24,7 @@ use function is_a;
  * Resolves a Spatie {@see Data} subclass to a `#/components/schemas/…` ref string, registering the
  * component schema via {@see SchemaFromDataClass} if not already present.
  */
+#[Scoped]
 final readonly class DataRefSchemaResolver implements RefSchemaResolver
 {
     public function __construct(

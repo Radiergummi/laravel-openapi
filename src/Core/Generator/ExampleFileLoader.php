@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Illuminate\Container\Attributes\Scoped;
 use JsonException;
 use RuntimeException;
 
@@ -27,6 +28,7 @@ use const JSON_THROW_ON_ERROR;
  * `scoped` in {@see OpenApiServiceProvider}, so each scope (each request under Octane) receives
  * a fresh instance.
  */
+#[Scoped]
 final class ExampleFileLoader
 {
     /** @var array<string, mixed> */

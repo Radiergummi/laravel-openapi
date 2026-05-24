@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use DateTime;
 use DateTimeImmutable;
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
@@ -50,6 +51,7 @@ use const PHP_EOL;
  *   - NullableType extends UnionType  → check NullableType BEFORE UnionType
  *   - BackedEnumType extends EnumType extends ObjectType → check BackedEnumType BEFORE ObjectType
  */
+#[Scoped]
 final readonly class JsonSchemaFromType
 {
     public function __construct(

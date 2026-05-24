@@ -34,7 +34,3 @@ it('tolerates Ignition being absent (empty prefix matches nothing)', function ()
         ->and($filter->shouldSkip(makeIgnitionRoute('')))->toBeFalse()
         ->and($filter->shouldSkip(makeIgnitionRoute('_ignition/health-check')))->toBeFalse();
 });
-
-it('exposes a fromConfig() factory matching the sibling filters', function (): void {
-    expect(SkipIgnitionRoutes::fromConfig())->toBeInstanceOf(SkipIgnitionRoutes::class);
-});

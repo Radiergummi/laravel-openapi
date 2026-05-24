@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
+use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use ReflectionClass;
@@ -22,6 +23,7 @@ use function class_exists;
  * "transformer" is any class carrying at least one `#[TransformerField]`
  * attribute — the plugin never references `league/fractal` directly.
  */
+#[Scoped]
 final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
 {
     public function __construct(

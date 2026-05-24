@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
@@ -39,6 +40,7 @@ use function sprintf;
  * inside {@see ComponentSchemaRegistry::buildOnce()} is a no-op in this caller. Using it anyway
  * keeps registration idempotent and consistent with the Data-class / API-Resource code paths.
  */
+#[Scoped]
 final readonly class SchemaFromFormRequest
 {
     public function __construct(

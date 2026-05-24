@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 
 /**
@@ -33,6 +34,7 @@ use OpenApi\Annotations as OA;
  * Custom serializers fall outside this set; use a `#[Response]` override on
  * the action to declare their schema explicitly.
  */
+#[Scoped]
 final readonly class FractalEnvelopeFactory
 {
     public function single(string $ref, Serializer $serializer = Serializer::DataArray): OA\Schema

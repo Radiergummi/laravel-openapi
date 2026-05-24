@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -27,6 +28,7 @@ use function sprintf;
  * returns a collection type whose item class is undeclared — the latter is
  * reported by the `resource.response-ambiguous` lint rule.
  */
+#[Scoped]
 final readonly class ResourceResponseResolver implements PrimaryResponseResolver
 {
     public function __construct(

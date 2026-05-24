@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
@@ -24,6 +25,7 @@ use function sprintf;
  * Turns the QueryBuilder plugin's `#[AllowedFilter]`, `#[AllowedSort]`, and
  * `#[AllowedInclude]` attributes into OpenAPI query parameters.
  */
+#[Scoped]
 final readonly class QueryBuilderParameterResolver implements QueryParameterResolver
 {
     /**

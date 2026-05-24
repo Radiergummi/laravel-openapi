@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -48,6 +49,7 @@ use function sprintf;
  * Mirror of {@see \Radiergummi\OpenApi\Plugins\ApiResources\ResourceResponseResolver}
  * for the SpatieData plugin.
  */
+#[Scoped]
 final readonly class DataResponseResolver implements PrimaryResponseResolver
 {
     public function __construct(

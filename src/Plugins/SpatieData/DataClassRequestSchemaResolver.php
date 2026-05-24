@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Registry\RequestSchemaResolver;
@@ -25,6 +26,7 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
  * Action). Indirection base classes are configured via `config/openapi.php`
  * (`request_payload_indirection`) and injected through {@see PayloadParameterScanner}.
  */
+#[Scoped]
 final readonly class DataClassRequestSchemaResolver implements RequestSchemaResolver
 {
     public function __construct(

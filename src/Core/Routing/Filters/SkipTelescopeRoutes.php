@@ -11,28 +11,28 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Routing\Filters;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
 
-use function config;
 use function ltrim;
 use function str_starts_with;
 
 /**
  * Excludes Laravel Telescope routes from the generated OpenAPI spec.
  */
+#[Scoped]
 final readonly class SkipTelescopeRoutes implements RouteFilter
 {
-    public function __construct(
-        private string $telescopePath,
-        private ?string $telescopeDomain,
-    ) {}
+    private string $telescopePath;
 
-    public static function fromConfig(): self
-    {
-        return new self(
-            telescopePath: ltrim((string) config('telescope.path', ''), '/'),
-            telescopeDomain: config('telescope.domain'),
-        );
+    public function __construct(
+        #[Config('telescope.path', '')]
+        string $telescopePath,
+        #[Config('telescope.domain')]
+        private ?string $telescopeDomain = null,
+    ) {
+        $this->telescopePath = ltrim($telescopePath, '/');
     }
 
     public function shouldSkip(Route $route): bool

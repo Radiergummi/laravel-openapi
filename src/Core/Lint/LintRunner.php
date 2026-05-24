@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -70,6 +71,7 @@ use function max;
  *  2. Per-spec: for each target spec, the generator builds the document and the tree walker
  *     dispatches visitor rules; findings are tagged with the spec name via {@see Finding::withSpec()}.
  */
+#[Scoped]
 final readonly class LintRunner
 {
     public function __construct(

@@ -46,7 +46,3 @@ it('tolerates Telescope being absent by leaving regular routes alone', function 
     expect($filter->shouldSkip(makeTelescopeRoute('flights')))->toBeFalse()
         ->and($filter->shouldSkip(makeTelescopeRoute('bookings/show')))->toBeFalse();
 });
-
-it('exposes a fromConfig() factory matching the sibling filters', function (): void {
-    expect(SkipTelescopeRoutes::fromConfig())->toBeInstanceOf(SkipTelescopeRoutes::class);
-});

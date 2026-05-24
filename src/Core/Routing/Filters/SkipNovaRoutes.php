@@ -11,28 +11,28 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Routing\Filters;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
 
-use function config;
 use function ltrim;
 use function str_starts_with;
 
 /**
  * Excludes Laravel Nova routes from the generated OpenAPI spec.
  */
+#[Scoped]
 final readonly class SkipNovaRoutes implements RouteFilter
 {
-    public function __construct(
-        private string $novaPath,
-        private ?string $novaDomain,
-    ) {}
+    private string $novaPath;
 
-    public static function fromConfig(): self
-    {
-        return new self(
-            novaPath: ltrim((string) config('nova.path', ''), '/'),
-            novaDomain: config('nova.domain'),
-        );
+    public function __construct(
+        #[Config('nova.path', '')]
+        string $novaPath,
+        #[Config('nova.domain')]
+        private ?string $novaDomain = null,
+    ) {
+        $this->novaPath = ltrim($novaPath, '/');
     }
 
     public function shouldSkip(Route $route): bool

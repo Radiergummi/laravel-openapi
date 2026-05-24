@@ -11,6 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Container\Attributes\Config;
+use Illuminate\Container\Attributes\Scoped;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -31,6 +33,7 @@ use function is_a;
  *    is reflected and its non-builtin named-type parameters are appended. This is the right
  *    pass for callers that ask "what request-payload class does this method ultimately receive?".
  */
+#[Scoped]
 final class PayloadParameterScanner
 {
     /**
@@ -56,6 +59,7 @@ final class PayloadParameterScanner
      *                                               An empty list disables descent entirely.
      */
     public function __construct(
+        #[Config('openapi.request_payload_indirection', [])]
         private readonly array $indirectionClasses = [],
     ) {}
 

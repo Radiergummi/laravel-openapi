@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\UploadedFile;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
@@ -62,6 +63,7 @@ use function sprintf;
  * - A property is required iff it has no default value AND `Optional` is not in its union.
  * - Nested Data classes are registered as components and referenced via `$ref`.
  */
+#[Scoped]
 final class SchemaFromDataClass implements FilePropertyChecker
 {
     /**

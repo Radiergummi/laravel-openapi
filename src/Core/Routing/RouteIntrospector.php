@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Core\Routing;
 
 use Closure;
 use Generator;
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\RouteCollection;
@@ -31,6 +32,7 @@ use UnexpectedValueException;
  * {@see \Radiergummi\OpenApi\Core\Events\RouteSkipped} event and a trace entry visible to
  * `openapi:why`, with no hidden "first the introspector also dropped some" stage.
  */
+#[Scoped]
 final readonly class RouteIntrospector
 {
     public function __construct(

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
@@ -32,6 +33,7 @@ use UnexpectedValueException;
  * Used by {@see \Radiergummi\OpenApi\Console\GenerateCommand} and
  * {@see \Radiergummi\OpenApi\Http\DocsController}.
  */
+#[Scoped]
 final readonly class OpenApiGenerationOrchestrator
 {
     public function __construct(

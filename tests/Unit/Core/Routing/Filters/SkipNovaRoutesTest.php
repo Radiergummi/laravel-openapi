@@ -53,7 +53,3 @@ it('tolerates Nova being absent by leaving regular routes alone', function (): v
     expect($filter->shouldSkip(makeNovaRoute('flights')))->toBeFalse()
         ->and($filter->shouldSkip(makeNovaRoute('bookings/show')))->toBeFalse();
 });
-
-it('exposes a fromConfig() factory matching the sibling filters', function (): void {
-    expect(SkipNovaRoutes::fromConfig())->toBeInstanceOf(SkipNovaRoutes::class);
-});

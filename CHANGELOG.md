@@ -55,6 +55,18 @@ All notable changes to this project are documented here.
   config-driven --skip merging, and `--level=max` resolution.
 
 ### Changed
+- Auto-wired pipeline classes now carry the `#[Scoped]` container attribute
+  (`Illuminate\Container\Attributes\Scoped`) and self-register on first resolve;
+  the matching one-arg `$this->app->scoped(X::class)` calls in
+  `OpenApiServiceProvider` are gone. Closure-form bindings remain only where the
+  binding needs config values, factory methods, registry-derived arrays, or
+  decorated wrappers reflection cannot supply.
+- `SkipNovaRoutes`, `SkipTelescopeRoutes`, `SkipIgnitionRoutes`,
+  `SkipPassportRoutes`, and `PayloadParameterScanner` read their config values
+  through `#[Config]` parameter attributes
+  (`Illuminate\Container\Attributes\Config`) instead of `config()` calls in a
+  service-provider closure. The `Skip*Routes::fromConfig()` static factories
+  are gone — the container resolves these classes directly.
 - `SchemaFromFormRequest` now takes a `Psr\Log\LoggerInterface` constructor
   argument instead of reaching for `Illuminate\Support\Facades\Log`, matching
   the sibling pipeline classes (`PaginatorResponseResolver`,

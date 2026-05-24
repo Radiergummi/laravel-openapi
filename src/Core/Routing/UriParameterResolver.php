@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Routing;
 
 use BackedEnum;
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use ReflectionClass;
 use ReflectionParameter;
@@ -30,6 +31,7 @@ use function is_subclass_of;
 use function preg_match;
 use function str_contains;
 
+#[Scoped]
 final readonly class UriParameterResolver
 {
     /**

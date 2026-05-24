@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
+use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -31,6 +32,7 @@ use function sprintf;
  * `paginated` / `collection` flags and `serializer:` (DataArray by default;
  * ArraySerializer and JsonApi modelled too).
  */
+#[Scoped]
 final readonly class FractalResponseResolver implements PrimaryResponseResolver
 {
     public function __construct(

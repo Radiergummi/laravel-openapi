@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
@@ -23,6 +24,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
  *
  * Builds the request body from a Laravel {@see FormRequest} type-hinted on the controller method.
  */
+#[Scoped]
 final readonly class FormRequestRequestSchemaResolver implements RequestSchemaResolver
 {
     public function __construct(

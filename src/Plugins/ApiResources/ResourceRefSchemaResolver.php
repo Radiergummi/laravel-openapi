@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 
@@ -20,6 +21,7 @@ use function is_a;
  * Resolves an Eloquent API Resource class to a `#/components/schemas/…` ref,
  * registering its component schema via {@see SchemaFromResource} on first use.
  */
+#[Scoped]
 final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
 {
     public function __construct(

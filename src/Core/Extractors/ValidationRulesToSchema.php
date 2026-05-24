@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Validation\Rules\Dimensions;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Rules\File;
@@ -55,6 +56,7 @@ use function trim;
  * Unknown rule objects emit a {@see Finding} with rule ID `rule.unknown` instead of being
  * silently dropped.
  */
+#[Scoped]
 final readonly class ValidationRulesToSchema
 {
     public function __construct(

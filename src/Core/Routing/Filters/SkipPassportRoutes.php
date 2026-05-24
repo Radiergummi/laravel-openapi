@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Routing\Filters;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
 
 use function str_starts_with;
@@ -29,18 +30,11 @@ use function str_starts_with;
  *
  * Unlike its sibling filters ({@see SkipNovaRoutes}, {@see SkipTelescopeRoutes},
  * {@see SkipIgnitionRoutes}), Passport's route-name prefix is not
- * user-configurable, so the constructor takes no parameters. The
- * {@see self::fromConfig()} factory is preserved for symmetry with the other
- * filters: it lets the service-provider registration call the same shape on
- * every filter without a special case.
+ * user-configurable, so the class takes no constructor arguments.
  */
+#[Scoped]
 final readonly class SkipPassportRoutes implements RouteFilter
 {
-    public static function fromConfig(): self
-    {
-        return new self();
-    }
-
     public function shouldSkip(Route $route): bool
     {
         $name = $route->getName() ?? '';
