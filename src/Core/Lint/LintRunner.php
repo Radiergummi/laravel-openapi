@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint;
 
+use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -47,7 +48,6 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function class_exists;
-use function config;
 use function in_array;
 use function is_array;
 use function ltrim;
@@ -74,6 +74,13 @@ use function max;
 #[Scoped]
 final readonly class LintRunner
 {
+    /**
+     * @param null|list<string> $enabledRules    `openapi.lint.enabled_rules` — null when unset
+     *                                           (distinct from `[]`, which means "all disabled").
+     * @param list<string>      $disabledRules   `openapi.lint.disabled_rules`.
+     * @param int|string        $configuredLevel `openapi.lint.level` — numeric or the literal
+     *                                           string `"max"`.
+     */
     public function __construct(
         private Container $container,
         private RouteIntrospector $introspector,
@@ -85,6 +92,12 @@ final readonly class LintRunner
         private OpenApiGenerationOrchestrator $orchestrator,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
+        #[Config('openapi.lint.enabled_rules')]
+        private ?array $enabledRules = null,
+        #[Config('openapi.lint.disabled_rules', [])]
+        private array $disabledRules = [],
+        #[Config('openapi.lint.level', 0)]
+        private int|string $configuredLevel = 0,
     ) {}
 
     /**
@@ -377,15 +390,13 @@ final readonly class LintRunner
      */
     private function resolveOnly(array $cli): array
     {
-        $cfg = config('openapi.lint.enabled_rules');
-
-        if (is_array($cfg)) {
-            return $cli !== []
-                ? array_values(array_filter($cli, static fn(string $id): bool => in_array($id, $cfg, true)))
-                : array_values($cfg);
+        if ($this->enabledRules === null) {
+            return $cli;
         }
 
-        return $cli;
+        return $cli !== []
+            ? array_values(array_filter($cli, fn(string $id): bool => in_array($id, $this->enabledRules, true)))
+            : array_values($this->enabledRules);
     }
 
     /**
@@ -399,9 +410,7 @@ final readonly class LintRunner
      */
     private function resolveSkip(array $cli): array
     {
-        $cfg = (array) config('openapi.lint.disabled_rules', []);
-
-        $merged = array_values(array_unique(array_merge($cli, $cfg)));
+        $merged = array_values(array_unique(array_merge($cli, $this->disabledRules)));
 
         return array_values(
             array_filter(
@@ -413,7 +422,7 @@ final readonly class LintRunner
 
     private function resolveLevel(LintOptions $options): int
     {
-        $raw = $options->level ?? config('openapi.lint.level', 0);
+        $raw = $options->level ?? $this->configuredLevel;
 
         return $raw === 'max' ? $this->registry->maxLevel() : max(0, (int) $raw);
     }
