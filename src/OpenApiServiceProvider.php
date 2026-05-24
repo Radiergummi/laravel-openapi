@@ -14,7 +14,6 @@ namespace Radiergummi\OpenApi;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Events\Dispatcher;
-use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
@@ -51,7 +50,6 @@ use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Registry\Plugin;
-use Radiergummi\OpenApi\Core\Routing\DocCommentParser;
 use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\Routing\Filters\SkipNovaRoutes;
@@ -70,7 +68,6 @@ use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataRefSchemaResolver;
 use Spatie\LaravelData\Data;
-use Spatie\LaravelData\Support\DataConfig;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function class_exists;
@@ -89,9 +86,11 @@ use function class_exists;
  * generation within a single scope (rare — but exercised by tests and possible from custom
  * tooling), call `$app->forgetScopedInstances()` first.
  *
- * The routing bindings ({@see ThrowsExtractor}, {@see RouteIntrospector},
- * {@see UriParameterResolver}) are registered here too, since {@see RouteIntrospector} and
- * {@see UriParameterResolver} are resolved from the container by the pipeline.
+ * Wiring style: classes whose constructor dependencies are all container-resolvable are
+ * registered with the one-arg `scoped()` form so Laravel auto-wires them via reflection.
+ * Explicit closures are reserved for bindings that need config values, factory methods,
+ * registry-derived arrays, interface→implementation mappings, or other inputs reflection
+ * cannot supply.
  */
 class OpenApiServiceProvider extends ServiceProvider
 {
@@ -147,15 +146,9 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerRouting(): void
     {
-        $this->app->scoped(
-            ThrowsExtractor::class,
-            static fn() => ThrowsExtractor::create(),
-        );
-
-        $this->app->scoped(
-            ReturnTypeExtractor::class,
-            static fn() => ReturnTypeExtractor::create(),
-        );
+        $this->app->scoped(ThrowsExtractor::class, static fn() => ThrowsExtractor::create());
+        $this->app->scoped(ReturnTypeExtractor::class, static fn() => ReturnTypeExtractor::create());
+        $this->app->scoped(TypeResolver::class, static fn() => TypeResolver::create());
 
         $this->app->scoped(SkipNovaRoutes::class, static fn(): SkipNovaRoutes => SkipNovaRoutes::fromConfig());
         $this->app->scoped(SkipTelescopeRoutes::class, static fn(): SkipTelescopeRoutes => SkipTelescopeRoutes::fromConfig());
@@ -163,20 +156,8 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->app->scoped(SkipPassportRoutes::class, static fn(): SkipPassportRoutes => SkipPassportRoutes::fromConfig());
 
         // Filters live in InclusionEvaluator alone; the introspector yields every route.
-        $this->app->scoped(
-            RouteIntrospector::class,
-            static fn(Container $app): RouteIntrospector => new RouteIntrospector(
-                router: $app->make(Router::class),
-                container: $app,
-                parser: new DocCommentParser(),
-                throwsExtractor: $app->make(ThrowsExtractor::class),
-            ),
-        );
-
-        $this->app->scoped(
-            UriParameterResolver::class,
-            static fn() => new UriParameterResolver(TypeResolver::create()),
-        );
+        $this->app->scoped(RouteIntrospector::class);
+        $this->app->scoped(UriParameterResolver::class);
     }
 
     /**
@@ -257,12 +238,7 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->scoped(
-            JsonSchemaFromType::class,
-            static fn(Container $app) => new JsonSchemaFromType(
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
+        $this->app->scoped(JsonSchemaFromType::class);
 
         $this->app->scoped(
             FindingsCollector::class,
@@ -274,23 +250,8 @@ class OpenApiServiceProvider extends ServiceProvider
             ),
         );
 
-        $this->app->scoped(LintRouteFilter::class, static fn(): LintRouteFilter => new LintRouteFilter());
-
-        $this->app->scoped(
-            LintRunner::class,
-            static fn(Container $app) => new LintRunner(
-                container: $app,
-                introspector: $app->make(RouteIntrospector::class),
-                registry: $app->make(RuleRegistry::class),
-                suppressionCollector: $app->make(SuppressionCollector::class),
-                openApiRegistry: $app->make(OpenApiRegistry::class),
-                routeFilter: $app->make(LintRouteFilter::class),
-                specRegistry: $app->make(SpecRegistry::class),
-                orchestrator: $app->make(OpenApiGenerationOrchestrator::class),
-                evaluator: $app->make(InclusionEvaluator::class),
-                events: $app->make(Dispatcher::class),
-            ),
-        );
+        $this->app->scoped(LintRouteFilter::class);
+        $this->app->scoped(LintRunner::class);
     }
 
     /**
@@ -298,31 +259,10 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerExtractors(): void
     {
-        $this->app->scoped(
-            ComponentSchemaRegistry::class,
-            static fn() => new ComponentSchemaRegistry(),
-        );
-
-        $this->app->scoped(
-            Extractors\UriParametersExtractor::class,
-            static fn(Container $app) => new Extractors\UriParametersExtractor(
-                schemaFromType: $app->make(JsonSchemaFromType::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Extractors\SecurityExtractor::class,
-            static fn(Container $app) => new Extractors\SecurityExtractor(
-                router: $app->make(Router::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Extractors\ValidationRulesToSchema::class,
-            static fn(Container $app) => new Extractors\ValidationRulesToSchema(
-                findings: $app->make(FindingsCollector::class),
-            ),
-        );
+        $this->app->scoped(ComponentSchemaRegistry::class);
+        $this->app->scoped(Extractors\UriParametersExtractor::class);
+        $this->app->scoped(Extractors\SecurityExtractor::class);
+        $this->app->scoped(Extractors\ValidationRulesToSchema::class);
 
         $this->app->scoped(
             PaginatorResponseResolver::class,
@@ -362,23 +302,8 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->scoped(
-            Extractors\SchemaFromFormRequest::class,
-            static fn(Container $app) => new Extractors\SchemaFromFormRequest(
-                rulesMapper: $app->make(Extractors\ValidationRulesToSchema::class),
-                registry: $app->make(ComponentSchemaRegistry::class),
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Extractors\FormRequestRequestSchemaResolver::class,
-            static fn(Container $app) => new Extractors\FormRequestRequestSchemaResolver(
-                schemaBuilder: $app->make(Extractors\SchemaFromFormRequest::class),
-                registry: $app->make(ComponentSchemaRegistry::class),
-                scanner: $app->make(PayloadParameterScanner::class),
-            ),
-        );
+        $this->app->scoped(Extractors\SchemaFromFormRequest::class);
+        $this->app->scoped(Extractors\FormRequestRequestSchemaResolver::class);
 
         $this->app->scoped(
             Extractors\RequestBodyExtractor::class,
@@ -413,7 +338,7 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->scoped(ExampleFileLoader::class, static fn() => new ExampleFileLoader());
+        $this->app->scoped(ExampleFileLoader::class);
     }
 
     /**
@@ -430,55 +355,19 @@ class OpenApiServiceProvider extends ServiceProvider
             return;
         }
 
-        $this->app->scoped(
-            Plugins\SpatieData\DataSyntheticPayloadBuilder::class,
-            static fn(Container $app) => new Plugins\SpatieData\DataSyntheticPayloadBuilder(
-                dataConfig: $app->make(DataConfig::class),
-            ),
-        );
+        $this->app->scoped(Plugins\SpatieData\DataSyntheticPayloadBuilder::class);
+        $this->app->scoped(Plugins\SpatieData\SchemaFromDataClass::class);
 
-        $this->app->scoped(
-            Plugins\SpatieData\SchemaFromDataClass::class,
-            static fn(Container $app) => new Plugins\SpatieData\SchemaFromDataClass(
-                schemaFromType: $app->make(JsonSchemaFromType::class),
-                typeResolver: TypeResolver::create(),
-                registry: $app->make(ComponentSchemaRegistry::class),
-                payloadBuilder: $app->make(Plugins\SpatieData\DataSyntheticPayloadBuilder::class),
-                rulesToSchema: $app->make(Extractors\ValidationRulesToSchema::class),
-                dataConfig: $app->make(DataConfig::class),
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
-
+        // FilePropertyChecker is an interface implemented by SchemaFromDataClass; share the
+        // same scoped instance instead of constructing a second one.
         $this->app->scoped(
             Plugins\SpatieData\FilePropertyChecker::class,
             static fn(Container $app) => $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
         );
 
-        $this->app->scoped(
-            Plugins\SpatieData\DataClassRequestSchemaResolver::class,
-            static fn(Container $app) => new Plugins\SpatieData\DataClassRequestSchemaResolver(
-                schemaBuilder: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
-                scanner: $app->make(PayloadParameterScanner::class),
-            ),
-        );
-
-        $this->app->scoped(
-            DataRefSchemaResolver::class,
-            static fn(Container $app) => new DataRefSchemaResolver(
-                schemaFromDataClass: $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
-                schemaRegistry: $app->make(ComponentSchemaRegistry::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Plugins\SpatieData\DataResponseResolver::class,
-            static fn(Container $app) => new Plugins\SpatieData\DataResponseResolver(
-                refResolver: $app->make(DataRefSchemaResolver::class),
-                returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
+        $this->app->scoped(Plugins\SpatieData\DataClassRequestSchemaResolver::class);
+        $this->app->scoped(DataRefSchemaResolver::class);
+        $this->app->scoped(Plugins\SpatieData\DataResponseResolver::class);
     }
 
     /**
@@ -530,22 +419,8 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->scoped(
-            Plugins\ApiResources\ResourceRefSchemaResolver::class,
-            static fn(Container $app) => new Plugins\ApiResources\ResourceRefSchemaResolver(
-                schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Plugins\ApiResources\ResourceResponseResolver::class,
-            static fn(Container $app) => new Plugins\ApiResources\ResourceResponseResolver(
-                locator: $app->make(Plugins\ApiResources\ResourceClassLocator::class),
-                schemaFromResource: $app->make(Plugins\ApiResources\SchemaFromResource::class),
-                envelopeFactory: $app->make(Plugins\ApiResources\ResourceEnvelopeFactory::class),
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
+        $this->app->scoped(Plugins\ApiResources\ResourceRefSchemaResolver::class);
+        $this->app->scoped(Plugins\ApiResources\ResourceResponseResolver::class);
     }
 
     /**
@@ -567,9 +442,7 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): Plugins\Fractal\SchemaFromTransformer {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                /**
-                 * @throws BindingResolutionException
-                 */
+                /** @throws BindingResolutionException */
                 $resolversFactory = static function () use ($app, $registry): array {
                     /** @var null|list<Core\Registry\RefSchemaResolver> $cache */
                     static $cache = null;
@@ -599,26 +472,9 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->scoped(
-            Plugins\Fractal\FractalEnvelopeFactory::class,
-            static fn(): Plugins\Fractal\FractalEnvelopeFactory => new Plugins\Fractal\FractalEnvelopeFactory(),
-        );
-
-        $this->app->scoped(
-            Plugins\Fractal\TransformerRefSchemaResolver::class,
-            static fn(Container $app) => new Plugins\Fractal\TransformerRefSchemaResolver(
-                schemaFromTransformer: $app->make(Plugins\Fractal\SchemaFromTransformer::class),
-            ),
-        );
-
-        $this->app->scoped(
-            Plugins\Fractal\FractalResponseResolver::class,
-            static fn(Container $app) => new Plugins\Fractal\FractalResponseResolver(
-                schemaFromTransformer: $app->make(Plugins\Fractal\SchemaFromTransformer::class),
-                envelopeFactory: $app->make(Plugins\Fractal\FractalEnvelopeFactory::class),
-                logger: $app->make(LoggerInterface::class),
-            ),
-        );
+        $this->app->scoped(Plugins\Fractal\FractalEnvelopeFactory::class);
+        $this->app->scoped(Plugins\Fractal\TransformerRefSchemaResolver::class);
+        $this->app->scoped(Plugins\Fractal\FractalResponseResolver::class);
     }
 
     /**
@@ -630,10 +486,7 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerQueryBuilderPlugin(): void
     {
-        $this->app->scoped(
-            Plugins\QueryBuilder\QueryBuilderParameterResolver::class,
-            static fn(): Plugins\QueryBuilder\QueryBuilderParameterResolver => new Plugins\QueryBuilder\QueryBuilderParameterResolver(),
-        );
+        $this->app->scoped(Plugins\QueryBuilder\QueryBuilderParameterResolver::class);
     }
 
     /**
@@ -673,24 +526,8 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        $this->app->scoped(
-            OpenApiGenerator::class,
-            static fn(Container $app) => new OpenApiGenerator(
-                introspector: $app->make(RouteIntrospector::class),
-                operationBuilder: $app->make(OperationBuilder::class),
-                schemaRegistry: $app->make(ComponentSchemaRegistry::class),
-                evaluator: $app->make(InclusionEvaluator::class),
-                events: $app->make(Dispatcher::class),
-            ),
-        );
-
-        $this->app->scoped(
-            OpenApiGenerationOrchestrator::class,
-            static fn(Container $app) => new OpenApiGenerationOrchestrator(
-                container: $app,
-                registry: $app->make(SpecRegistry::class),
-            ),
-        );
+        $this->app->scoped(OpenApiGenerator::class);
+        $this->app->scoped(OpenApiGenerationOrchestrator::class);
     }
 
     /**
@@ -698,15 +535,8 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerSpec(): void
     {
-        $this->app->scoped(
-            SpecMatcher::class,
-            static fn() => new SpecMatcher(),
-        );
-
-        $this->app->scoped(
-            SpecResolver::class,
-            static fn() => new SpecResolver(),
-        );
+        $this->app->scoped(SpecMatcher::class);
+        $this->app->scoped(SpecResolver::class);
 
         $this->app->scoped(
             SpecRegistry::class,
