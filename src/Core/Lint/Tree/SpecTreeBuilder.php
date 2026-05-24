@@ -22,7 +22,6 @@ use function array_values;
 use function in_array;
 use function is_array;
 use function is_string;
-use function preg_match;
 use function strtoupper;
 
 /**
@@ -188,9 +187,9 @@ final class SpecTreeBuilder
         $operation = new OperationNode(
             pathUri: $pathUri,
             method: $method,
-            operationId: $this->undefinedToNull($oaOperation->operationId),
-            summary: $this->undefinedToNull($oaOperation->summary),
-            description: $this->undefinedToNull($oaOperation->description),
+            operationId: SchemaAccessor::undefinedToNull($oaOperation->operationId),
+            summary: SchemaAccessor::undefinedToNull($oaOperation->summary),
+            description: SchemaAccessor::undefinedToNull($oaOperation->description),
             deprecated: $oaOperation->deprecated !== Generator::UNDEFINED
             && $oaOperation->deprecated === true,
             parameters: $parameters,
@@ -257,9 +256,9 @@ final class SpecTreeBuilder
                     : '(unknown)',
                 required: $param->required !== Generator::UNDEFINED
                 && $param->required === true,
-                schema: $this->extractSchemaType($param->schema ?? null), // @phpstan-ignore nullCoalesce.property
-                description: $this->undefinedToNull($param->description),
-                pattern: $this->extractSchemaPattern($param->schema ?? null), // @phpstan-ignore nullCoalesce.property
+                schema: SchemaAccessor::extractSchemaType($param->schema ?? null), // @phpstan-ignore nullCoalesce.property
+                description: SchemaAccessor::undefinedToNull($param->description),
+                pattern: SchemaAccessor::extractSchemaPattern($param->schema ?? null), // @phpstan-ignore nullCoalesce.property
                 examples: $examples,
                 raw: $param,
             );
@@ -308,14 +307,14 @@ final class SpecTreeBuilder
                     : '(unknown)',
                 required: $param->required !== Generator::UNDEFINED
                 && $param->required === true,
-                type: $this->extractSchemaType($schema),
+                type: SchemaAccessor::extractSchemaType($schema),
                 hasSchema: $schema !== null && $schema !== Generator::UNDEFINED,
-                style: $this->undefinedToNull($param->style),
+                style: SchemaAccessor::undefinedToNull($param->style),
                 explode: $param->explode !== Generator::UNDEFINED
                     ? (bool) $param->explode
                     : null,
-                description: $this->undefinedToNull($param->description),
-                enum: $this->extractSchemaEnum($schema),
+                description: SchemaAccessor::undefinedToNull($param->description),
+                enum: SchemaAccessor::extractSchemaEnum($schema),
                 examples: $examples,
                 raw: $param,
             );
@@ -345,7 +344,7 @@ final class SpecTreeBuilder
         $fields = [];
         $examples = [];
         $schemaRef = null;
-        $description = $this->undefinedToNull($rb->description);
+        $description = SchemaAccessor::undefinedToNull($rb->description);
         $required
             = $rb->required !== Generator::UNDEFINED && $rb->required === true;
 
@@ -366,7 +365,7 @@ final class SpecTreeBuilder
                     $schema = $mediaType->schema ?? null;
 
                     if ($schema !== null && !is_array($schema) && $schema !== Generator::UNDEFINED) {
-                        $ref = $this->extractRef($schema);
+                        $ref = SchemaAccessor::extractRef($schema);
 
                         if ($ref !== null) {
                             $schemaRef = $ref;
@@ -439,7 +438,7 @@ final class SpecTreeBuilder
                 ? $response->response
                 : 'default';
 
-            $description = $this->undefinedToNull($response->description);
+            $description = SchemaAccessor::undefinedToNull($response->description);
             $fields = [];
             $examples = [];
             $schemaRef = null;
@@ -464,7 +463,7 @@ final class SpecTreeBuilder
                             && !is_array($schema)
                             && $schema !== Generator::UNDEFINED
                         ) {
-                            $ref = $this->extractRef($schema);
+                            $ref = SchemaAccessor::extractRef($schema);
 
                             if ($ref !== null) {
                                 $schemaRef = $ref;
@@ -594,18 +593,18 @@ final class SpecTreeBuilder
 
             $field = new FieldNode(
                 name: $name,
-                type: $this->extractSchemaType($property),
+                type: SchemaAccessor::extractSchemaType($property),
                 required: in_array($name, $required, true),
-                nullable: $this->isNullable($property),
-                description: $this->undefinedToNull($property->description),
-                format: $this->undefinedToNull($property->format),
+                nullable: SchemaAccessor::isNullable($property),
+                description: SchemaAccessor::undefinedToNull($property->description),
+                format: SchemaAccessor::undefinedToNull($property->format),
                 example: $property->example !== Generator::UNDEFINED
                     ? $property->example
                     : null,
-                enum: $this->extractSchemaEnum($property),
+                enum: SchemaAccessor::extractSchemaEnum($property),
                 children: $children,
                 examples: $examples,
-                ref: $this->extractRef($property),
+                ref: SchemaAccessor::extractRef($property),
                 raw: $property instanceof OA\Property ? $property : null,
             );
 
@@ -652,7 +651,7 @@ final class SpecTreeBuilder
                     continue;
                 }
 
-                $ref = $this->extractRef($branch);
+                $ref = SchemaAccessor::extractRef($branch);
 
                 if ($ref !== null) {
                     if (isset($visited[$ref])) {
@@ -785,7 +784,7 @@ final class SpecTreeBuilder
                 ? $schema->schema
                 : '(unknown)';
 
-            $description = $this->undefinedToNull($schema->description);
+            $description = SchemaAccessor::undefinedToNull($schema->description);
             $fields = $this->buildFields($schema);
 
             $node = new ComponentSchemaNode(
@@ -825,7 +824,7 @@ final class SpecTreeBuilder
 
             $webhookName = is_string($name) ? $name : '(unknown)';
 
-            $description = $this->undefinedToNull(
+            $description = SchemaAccessor::undefinedToNull(
                 $pathItem->description ?? Generator::UNDEFINED, // @phpstan-ignore nullCoalesce.property
             );
 
@@ -967,8 +966,8 @@ final class SpecTreeBuilder
             name: $header->header !== Generator::UNDEFINED
                 ? $header->header
                 : '(unknown)',
-            schema: $this->extractSchemaType($header->schema ?? null), // @phpstan-ignore nullCoalesce.property
-            description: $this->undefinedToNull($header->description),
+            schema: SchemaAccessor::extractSchemaType($header->schema ?? null), // @phpstan-ignore nullCoalesce.property
+            description: SchemaAccessor::undefinedToNull($header->description),
             required: $header->required !== Generator::UNDEFINED
             && $header->required === true,
             raw: $header,
@@ -992,10 +991,10 @@ final class SpecTreeBuilder
             name: $link->link !== Generator::UNDEFINED
                 ? $link->link
                 : '(unnamed)',
-            operationId: $this->undefinedToNull($link->operationId),
-            operationRef: $this->undefinedToNull($link->operationRef),
+            operationId: SchemaAccessor::undefinedToNull($link->operationId),
+            operationRef: SchemaAccessor::undefinedToNull($link->operationRef),
             parameters: $parameters,
-            description: $this->undefinedToNull($link->description),
+            description: SchemaAccessor::undefinedToNull($link->description),
             raw: $link,
         );
     }
@@ -1009,8 +1008,8 @@ final class SpecTreeBuilder
             value: $example->value !== Generator::UNDEFINED
                 ? $example->value
                 : null,
-            summary: $this->undefinedToNull($example->summary),
-            description: $this->undefinedToNull($example->description),
+            summary: SchemaAccessor::undefinedToNull($example->summary),
+            description: SchemaAccessor::undefinedToNull($example->description),
             raw: $example,
         );
     }
@@ -1071,135 +1070,4 @@ final class SpecTreeBuilder
         return $result;
     }
 
-    /**
-     * Extract a $ref component name from a schema.
-     * Returns the component name (e.g., "User") or null if not a $ref.
-     *
-     * @param null|array<string, mixed>|OA\Schema|string $schema
-     */
-    private function extractRef(OA\Schema|array|string|null $schema): ?string
-    {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
-            return null;
-        }
-
-        $ref = $schema->ref ?? Generator::UNDEFINED;
-
-        if (
-            $ref === Generator::UNDEFINED
-            || $ref === null // @phpstan-ignore identical.alwaysFalse
-            || !is_string($ref)
-        ) {
-            return null;
-        }
-
-        if (preg_match('~^#/components/schemas/(.+)$~', $ref, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
-    }
-
-    private function extractSchemaType(mixed $schema): ?string
-    {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
-            return null;
-        }
-
-        if (!$schema instanceof OA\Schema) {
-            return null;
-        }
-
-        $type = $schema->type;
-
-        if ($type === Generator::UNDEFINED || $type === null) {
-            return null;
-        }
-
-        // OAS 3.1 allows `type` to be an array (e.g. ["string", "null"]).
-        // Collapse it to the first concrete (non-"null") type so downstream
-        // rules can still reason about the field.
-        if (is_array($type)) {
-            foreach ($type as $candidate) {
-                if (is_string($candidate) && $candidate !== 'null') {
-                    return $candidate;
-                }
-            }
-
-            return null;
-        }
-
-        return is_string($type) ? $type : null;
-    }
-
-    private function extractSchemaPattern(mixed $schema): ?string
-    {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
-            return null;
-        }
-
-        if (!$schema instanceof OA\Schema) {
-            return null;
-        }
-
-        $pattern = $schema->pattern ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
-
-        // @phpstan-ignore-next-line identical.alwaysFalse
-        if ($pattern === Generator::UNDEFINED || $pattern === null) {
-            return null;
-        }
-
-        return is_string($pattern) ? $pattern : null;
-    }
-
-    /**
-     * @return null|list<mixed>
-     */
-    private function extractSchemaEnum(mixed $schema): ?array
-    {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
-            return null;
-        }
-
-        if (!$schema instanceof OA\Schema) {
-            return null;
-        }
-
-        $enum = $schema->enum;
-
-        if ($enum === Generator::UNDEFINED || !is_array($enum)) {
-            return null;
-        }
-
-        return array_values($enum);
-    }
-
-    private function isNullable(OA\Schema $schema): bool
-    {
-        // OAS 3.0 style
-        if (
-            $schema->nullable !== Generator::UNDEFINED
-            && $schema->nullable === true
-        ) {
-            return true;
-        }
-
-        // OAS 3.1 style (type as array including "null")
-        $type = $schema->type;
-
-        if (is_array($type) && in_array('null', $type, true)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    private function undefinedToNull(mixed $value): ?string
-    {
-        if ($value === Generator::UNDEFINED || $value === null) {
-            return null;
-        }
-
-        return is_string($value) ? $value : null;
-    }
 }
