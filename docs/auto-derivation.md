@@ -9,7 +9,7 @@ is fully documented with **zero attributes**.
 | **Summary** | First paragraph of the controller method's PHPDoc. |
 | **Description** | Remaining paragraphs (markdown permitted). |
 | **operationId** | Route name (if named) or `{method}_{sanitized_path}` otherwise. |
-| **Path parameters** | Reflected from the action signature — type hints, `#[Where*]` regex constraints, and route-model-binding heuristics drive type and format. |
+| **Path parameters** | Reflected from the action signature — type hints, Laravel's `Route::whereUuid()`/`whereNumber()`/`where(...)` regex constraints, and route-model-binding heuristics drive type and format. |
 | **Request body** | Spatie Data class found on the action or its injected payload-indirection object — schema is built from PHP types + validation rules. Legacy `FormRequest` is also supported. |
 | **Security** | `auth:api` and `scope:*` middleware drive OAuth2 schemes on the operation. |
 | **Error responses** | `@throws ExceptionClass` PHPDoc on the action maps to status codes; `auth`/`scope`/`throttle` middleware contribute 401/403/429. |
@@ -93,8 +93,8 @@ When adding a new endpoint, the checklist is short:
 1. Write a one-paragraph PHPDoc summary above the controller action.
 2. Type-hint the request body as a `Data` class (or `FormRequest`) — declare
    `rules()` for constraints.
-3. Type-hint the route-bound model parameter and use `#[Where*]` for regex
-   constraints.
+3. Type-hint the route-bound model parameter and chain `->whereUuid(...)` /
+   `->whereNumber(...)` on the route for regex constraints.
 4. Use `auth:api` + `scope:foo` middleware as usual.
 5. Return a typed resource — or add `#[ResponseResource]`.
 6. Add `@throws` for every exception the action can raise that maps to an HTTP

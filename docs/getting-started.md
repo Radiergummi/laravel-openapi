@@ -46,7 +46,7 @@ OpenAPI 3.1 YAML document.
 |---|---|
 | `GET /api/docs` | Interactive Scalar playground — "Try it out", schema browser |
 | `GET /api/openapi.yaml` | Raw OpenAPI 3.1 YAML — what tooling consumes |
-| `php artisan openapi:generate` | Regenerate the YAML file (default path or argument; `-` for stdout; `--format=json` for JSON) |
+| `php artisan openapi:generate` | Regenerate the YAML file. Pass a spec name positionally to target one spec; `--output=path` to override the destination (`--output=-` writes to stdout); `--format=json` to emit JSON. |
 | `php artisan openapi:lint` | Report documentation gaps |
 | `php artisan openapi:clear` | Drop the cached spec |
 

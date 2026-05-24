@@ -33,7 +33,7 @@ this page is the at-a-glance summary.
 'routes' => [
     'enabled' => true,           // set false to register no routes at all
     'prefix' => 'api',
-    'middleware' => [],
+    'middleware' => ['web'],
     'spec' => [
         'enabled' => true,        // always on by default
         'uri' => 'openapi.yaml',  // GET /api/openapi.yaml

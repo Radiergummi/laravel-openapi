@@ -290,9 +290,9 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * Returns null when the class cannot be loaded or carries no {@see ExceptionResponse} attribute
+     * Returns null when the class cannot be loaded or carries no {@see ExceptionResponse} attribute.
      *
-     * `IS_INSTANCEOF` also matches the deprecated `Throws` subclass.
+     * `IS_INSTANCEOF` matches user-defined subclasses of {@see ExceptionResponse}.
      *
      * @return null|array{status: int, description: string}
      */

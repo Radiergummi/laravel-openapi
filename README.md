@@ -20,7 +20,7 @@ severity threshold.
 | **Summary** | First paragraph of the controller method's PHPDoc |
 | **Description** | Remaining paragraphs (markdown permitted) |
 | **operationId** | Route name (if named) or `{method}_{sanitized_path}` |
-| **Path parameters** | Reflected from the action signature + `#[Where*]` constraints |
+| **Path parameters** | Reflected from the action signature + Laravel's `Route::whereUuid()`/`whereNumber()` constraints |
 | **Request body** | Spatie Data class or `FormRequest` on the action signature |
 | **Response schema** | Typed return value (`Data`, `JsonResource`, `DataCollection<…>`, paginator) |
 | **Security** | `auth:api` and `scope:*` middleware drive OAuth2 schemes |
@@ -84,7 +84,7 @@ Running `php artisan openapi:generate` produces an OpenAPI 3.1 document whose
 with `number`, `origin` (3 chars), `destination` (3 chars), and `departs_at`
 (`string`, `date-time`) — derived entirely from types, validation attributes,
 and the docblock summary. Throw a `ModelNotFoundException` (documented via
-`@throws` or `#[Throws]`) and you get a 404 response; add
+`@throws` or `#[ExceptionResponse]`) and you get a 404 response; add
 `#[Security(['flights:read'])]` and the operation gains a security requirement;
 type a `FormRequest` parameter instead of `FlightData` and Core derives the
 request body the same way.
