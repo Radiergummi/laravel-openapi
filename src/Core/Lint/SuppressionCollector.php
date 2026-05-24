@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -82,7 +82,7 @@ final class SuppressionCollector
      * Collect class-level directives — and, when requested, property-level
      * directives — from a class.
      *
-     * @param ReflectionClass<*>         $class
+     * @param ReflectionClass<*> $class
      * @param list<SuppressionDirective> $directives
      * @param array<string, true>        $seen
      */
@@ -134,6 +134,22 @@ final class SuppressionCollector
                 );
             }
         }
+    }
+
+    /**
+     * Record a reflection target as visited; returns false if already seen.
+     *
+     * @param array<string, true> $seen
+     */
+    private function markSeen(string $key, array &$seen): bool
+    {
+        if (isset($seen[$key])) {
+            return false;
+        }
+
+        $seen[$key] = true;
+
+        return true;
     }
 
     /**
@@ -212,7 +228,12 @@ final class SuppressionCollector
         );
 
         if ($isPayload && class_exists($className)) {
-            $this->fromClass(new ReflectionClass($className), withProperties: true, directives: $directives, seen: $seen);
+            $this->fromClass(
+                new ReflectionClass($className),
+                withProperties: true,
+                directives: $directives,
+                seen: $seen,
+            );
 
             return;
         }
@@ -237,21 +258,5 @@ final class SuppressionCollector
         foreach ($constructor->getParameters() as $ctorParam) {
             $this->fromDataParameter($ctorParam, directives: $directives, seen: $seen);
         }
-    }
-
-    /**
-     * Record a reflection target as visited; returns false if already seen.
-     *
-     * @param array<string, true> $seen
-     */
-    private function markSeen(string $key, array &$seen): bool
-    {
-        if (isset($seen[$key])) {
-            return false;
-        }
-
-        $seen[$key] = true;
-
-        return true;
     }
 }

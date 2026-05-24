@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -58,7 +58,7 @@ final class DocsController extends Controller
 
         $response = response()
             ->file($definition->outputPath, [
-                'Content-Type'  => 'application/yaml',
+                'Content-Type' => 'application/yaml',
                 'Cache-Control' => 'public, max-age=300, must-revalidate',
             ])
             ->setAutoEtag()

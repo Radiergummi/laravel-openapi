@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -36,8 +36,10 @@ final readonly class TransformerField extends FieldAttribute
 {
     /**
      * @param string                           $name        The output key.
-     * @param null|class-string|string         $type        A JSON-Schema scalar type, or a class-string for a nested `$ref`.
-     * @param bool                             $conditional When true, the key is kept in `properties` but omitted from `required`.
+     * @param null|class-string|string         $type        A JSON-Schema scalar type, or a class-string for a nested
+     *                                                      `$ref`.
+     * @param bool                             $conditional When true, the key is kept in `properties` but omitted from
+     *                                                      `required`.
      * @param null|list<BackedEnum|int|string> $enum
      */
     public function __construct(

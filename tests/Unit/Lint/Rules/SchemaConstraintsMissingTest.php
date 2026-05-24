@@ -17,9 +17,8 @@ use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 uses()->group('openapi', 'lint');
 
 /**
- * Build an `OA\Property` carrying only the constraint keys explicitly set.
- * Missing keys are *omitted* (not nulled) so the rule sees the same shape it
- * would see in a real generated document.
+ * Build an `OA\Property` carrying only the constraint keys explicitly set. Missing keys are
+ * *omitted* (not nulled) so the rule sees the same shape it would see in a real generated document.
  */
 function makePropertyWithConstraints(string $propertyName, string $type, array $extras = []): OA\Property
 {

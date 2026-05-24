@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -14,11 +14,14 @@ namespace Radiergummi\OpenApi\Console;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use ReflectionException;
+use UnexpectedValueException;
 
 use function app;
 use function array_map;
@@ -42,6 +45,11 @@ use function str_contains;
 #[Description('Explain inclusion of a route across all defined specs')]
 class WhyCommand extends Command
 {
+    /**
+     * @throws InvalidArgumentException
+     * @throws ReflectionException
+     * @throws UnexpectedValueException
+     */
     public function handle(
         RouteIntrospector $introspector,
         SpecRegistry $registry,
@@ -86,9 +94,11 @@ class WhyCommand extends Command
         }
 
         $this->line('');
-        $this->line('Result: ' . ($included !== []
-            ? 'included in [' . implode(', ', $included) . ']'
-            : 'excluded from all specs'));
+        $this->line(
+            'Result: ' . ($included !== []
+                ? 'included in [' . implode(', ', $included) . ']'
+                : 'excluded from all specs'),
+        );
 
         return self::SUCCESS;
     }
@@ -97,6 +107,9 @@ class WhyCommand extends Command
 
     /**
      * @return list<ActionDescriptor>
+     *
+     * @throws ReflectionException
+     * @throws UnexpectedValueException
      */
     private function findCandidates(RouteIntrospector $introspector, string $query): array
     {
@@ -121,10 +134,12 @@ class WhyCommand extends Command
     private function printHeader(ActionDescriptor $descriptor, string $env): void
     {
         $method = $descriptor->route->methods()[0] ?? 'GET';
-        $middleware = array_values(array_map(
-            static fn(mixed $entry): string => (string) $entry,
-            $descriptor->route->gatherMiddleware(),
-        ));
+        $middleware = array_values(
+            array_map(
+                static fn(mixed $entry): string => (string) $entry,
+                $descriptor->route->gatherMiddleware(),
+            ),
+        );
 
         $this->line("Route: {$method} " . $descriptor->route->uri());
         $this->line('  controller: ' . ($descriptor->controller?->getName() ?? '(closure)'));

@@ -20,10 +20,9 @@ uses()->group('openapi');
 /*
  * OAPI-035 — ComponentSchemaRegistry singleton concurrency.
  *
- * Verifies that the OpenAPI pipeline bindings are registered as `scoped`
- * (not `singleton`) so that Octane-style request isolation gives each
- * generation run a fresh instance. Under Octane the container calls
- * `forgetScopedInstances()` between requests; we simulate that here.
+ * Verifies that the OpenAPI pipeline bindings are registered as `scoped` (not `singleton`) so that
+ * Octane-style request isolation gives each generation run a fresh instance. Under Octane the
+ * container calls `forgetScopedInstances()` between requests; we simulate that here.
  */
 
 it('OAPI-035: ComponentSchemaRegistry is fresh after forgetScopedInstances', function (): void {
@@ -66,8 +65,8 @@ it('OAPI-035: OpenApiGenerator is fresh after forgetScopedInstances', function (
 });
 
 it('OAPI-035: within a single scope all resolutions return the same ComponentSchemaRegistry instance', function (): void {
-    // Ensures the graph is consistent — every class in the pipeline shares the same
-    // registry object within a single generation run.
+    // Ensures the graph is consistent — every class in the pipeline shares the same registry
+    // object within a single generation run.
     $directRegistry = app(ComponentSchemaRegistry::class);
 
     // Re-resolving within the same scope must return the identical instance.

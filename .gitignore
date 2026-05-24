@@ -1,7 +1,8 @@
-/vendor/
-/build/
+.idea/
+.cache/
+.claude/settings.local.json
+.claude/worktrees/
+vendor/
+docs/superpowers/
+docs/internal/
 composer.lock
-.phpunit.result.cache
-.phpunit.cache/
-.php-cs-fixer.cache
-/.idea/

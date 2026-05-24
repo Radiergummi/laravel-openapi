@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -61,16 +61,16 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
     }
 
     #[Override]
-    public function description(): string
-    {
-        return 'Response has no description. OAS 3.1 requires description on every Response Object.';
-    }
-
-    #[Override]
     public function level(): int
     {
         // The OpenAPI 3.1 spec requires `description` on every Response Object —
         // a missing one is a correctness error, not a documentation nicety.
         return 0;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Response has no description. OAS 3.1 requires description on every Response Object.';
     }
 }

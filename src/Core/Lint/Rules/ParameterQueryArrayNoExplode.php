@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,9 +21,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
 use function sprintf;
 
 /**
- * Reports query parameters with an array schema that do not explicitly set
- * `style` or `explode`, which can lead to ambiguous serialisation across
- * different clients and servers.
+ * Reports query parameters with an array schema that do not explicitly set `style` or `explode`,
+ * which can lead to ambiguous serialisation across different clients and servers.
  */
 final class ParameterQueryArrayNoExplode implements Rule, QueryParameterRuleVisitor
 {

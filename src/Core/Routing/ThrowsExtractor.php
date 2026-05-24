@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Routing;
 
+use Illuminate\Container\Attributes\Scoped;
 use phpDocumentor\Reflection\DocBlock\Tags\Throws as ThrowsTag;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
@@ -28,9 +29,9 @@ use function method_exists;
 /**
  * Resolves `@throws` annotations to FQCNs via phpDocumentor.
  *
- * Returned names are not verified — callers run `class_exists()` before
- * trusting them.
+ * Returned names are not verified — callers run `class_exists()` before trusting them.
  */
+#[Scoped]
 final class ThrowsExtractor
 {
     /** @var array<string, Context> */
@@ -58,7 +59,7 @@ final class ThrowsExtractor
             return [];
         }
 
-        $context  = $this->contextFor($reflector);
+        $context = $this->contextFor($reflector);
         $docBlock = $this->docBlockFactory->create($comment, $context);
 
         $fqcns = [];
@@ -94,9 +95,9 @@ final class ThrowsExtractor
             $context = $this->contextFactory->createFromReflector($reflector);
         } catch (UnexpectedValueException) {
             // phpDocumentor's ContextFactory does not support all Reflector types (e.g.
-            // ReflectionFunction for closures). Fall back to a context-free default so
-            // @throws FQCNs in closure docblocks are still resolved — without namespace
-            // context, bare class names won't resolve, but that is acceptable.
+            // ReflectionFunction for closures). Fall back to a context-free default so @throws
+            // FQCNs in closure docblocks are still resolved — without namespace context, bare
+            // class names won't resolve, but that is acceptable.
             return new Context('');
         }
 
@@ -116,6 +117,14 @@ final class ThrowsExtractor
         $name = $reflector->getFileName();
 
         return $name === false ? null : $name;
+    }
+
+    public static function create(): self
+    {
+        return new self(
+            docBlockFactory: DocBlockFactory::createInstance(),
+            contextFactory: new ContextFactory(),
+        );
     }
 
     /**
@@ -138,13 +147,5 @@ final class ThrowsExtractor
                 yield ltrim((string) $fqsen, '\\');
             }
         }
-    }
-
-    public static function create(): self
-    {
-        return new self(
-            docBlockFactory: DocBlockFactory::createInstance(),
-            contextFactory: new ContextFactory(),
-        );
     }
 }

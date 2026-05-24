@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -38,22 +38,13 @@ use function is_a;
 final readonly class SchemaFromResource
 {
     /**
-     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref resolvers, minus this plugin's own.
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref
+     *                                                               resolvers, minus this plugin's own.
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
         private Closure $refSchemaResolvers,
     ) {}
-
-    /**
-     * Registers the resource as a component schema and returns the component key.
-     *
-     * @param class-string<JsonResource> $resourceClass
-     */
-    public function build(string $resourceClass): string
-    {
-        return $this->registry->buildOnce($resourceClass, fn(): OA\Schema => $this->buildSchema($resourceClass));
-    }
 
     /**
      * Registers the resource and returns its qualified `$ref` string.
@@ -63,6 +54,16 @@ final readonly class SchemaFromResource
     public function buildRef(string $resourceClass): string
     {
         return $this->registry->qualifyKey($this->build($resourceClass));
+    }
+
+    /**
+     * Registers the resource as a component schema and returns the component key.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     */
+    public function build(string $resourceClass): string
+    {
+        return $this->registry->buildOnce($resourceClass, fn(): OA\Schema => $this->buildSchema($resourceClass));
     }
 
     /**

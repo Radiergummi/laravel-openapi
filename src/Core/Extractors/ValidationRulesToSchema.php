@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -220,54 +220,6 @@ final readonly class ValidationRulesToSchema
         return $descriptor;
     }
 
-    private function applyStringRule(
-        string $name,
-        string $arg,
-        string $raw,
-        FieldDescriptor $field,
-    ): void {
-        match ($name) {
-            'required' => $field->required = true,
-            'sometimes' => $field->required = false,
-            'present' => $this->applyPresent($field),
-            'nullable' => $this->applyNullable($field),
-            'string' => $field->type = 'string',
-            'integer', 'int' => $field->type = 'integer',
-            'numeric', 'decimal' => $field->type = 'number',
-            'boolean', 'bool' => $field->type = 'boolean',
-            'array' => $field->type = 'array',
-            'file', 'image' => $this->applyFile($field),
-            'email' => $this->applyEmail($field),
-            'url' => $this->applyUrl($field),
-            'uuid' => $this->applyUuid($field),
-            'ip' => $this->applyIp($field),
-            'ipv4' => $this->applyIpv4($field),
-            'ipv6' => $this->applyIpv6($field),
-            'date' => $this->applyDate($field),
-            'digits' => $this->applyDigits($field, $arg),
-            'digits_between' => $this->applyDigitsBetween($field, $arg),
-            'regex' => $this->applyRegex($field, $raw),
-            'in' => $this->applyIn($field, $arg),
-            'date_format' => $this->applyDateFormat($field, $arg),
-            'dimensions' => $this->applyDimensions($field, $arg),
-            default => null, // silently ignore
-        };
-
-        // required_* variants (required_with, required_without, required_if, etc.)
-        // are conditional — do NOT set required=true.
-    }
-
-    private function applyQuantifierRule(string $name, string $arg, FieldDescriptor $field): void
-    {
-        match ($name) {
-            'min' => $this->applyMin($field, $arg),
-            'max' => $this->applyMax($field, $arg),
-            'between' => $this->applyBetween($field, $arg),
-            'size' => $this->applySize($field, $arg),
-            default => null,
-        };
-    }
-
     /**
      * Maps a Laravel Rule object to schema constraints using only public APIs.
      *
@@ -332,123 +284,50 @@ final readonly class ValidationRulesToSchema
         );
     }
 
-    /**
-     * Extracts constraints from a `Password` rule object.
-     *
-     * JSON Schema has no built-in equivalents for character-class requirements (letters, mixed case,
-     * numbers, symbols) or the HaveIBeenPwned check. We emit:
-     * - `type: string` + `format: password` (signals "render as password input" to UI tooling).
-     * - `minLength` from `Password::min(N)` (always present; defaults to 8 per Laravel).
-     * - `maxLength` from `Password::max(N)` when set.
-     * - `description` listing all active character-class requirements in plain English, so
-     *   client-side documentation can surface them even though JSON Schema can't enforce them.
-     *
-     * `appliedRules()` is a public method added in Laravel 10 that returns the current state of
-     * all flags, avoiding reflection entirely.
-     */
-    private function applyPasswordRule(Password $rule, FieldDescriptor $field): void
-    {
-        $field->type = 'string';
-        $field->format = 'password';
+    private function applyStringRule(
+        string $name,
+        string $arg,
+        string $raw,
+        FieldDescriptor $field,
+    ): void {
+        match ($name) {
+            'required' => $field->required = true,
+            'sometimes' => $field->required = false,
+            'present' => $this->applyPresent($field),
+            'nullable' => $this->applyNullable($field),
+            'string' => $field->type = 'string',
+            'integer', 'int' => $field->type = 'integer',
+            'numeric', 'decimal' => $field->type = 'number',
+            'boolean', 'bool' => $field->type = 'boolean',
+            'array' => $field->type = 'array',
+            'file', 'image' => $this->applyFile($field),
+            'email' => $this->applyEmail($field),
+            'url' => $this->applyUrl($field),
+            'uuid' => $this->applyUuid($field),
+            'ip' => $this->applyIp($field),
+            'ipv4' => $this->applyIpv4($field),
+            'ipv6' => $this->applyIpv6($field),
+            'date' => $this->applyDate($field),
+            'digits' => $this->applyDigits($field, $arg),
+            'digits_between' => $this->applyDigitsBetween($field, $arg),
+            'regex' => $this->applyRegex($field, $raw),
+            'in' => $this->applyIn($field, $arg),
+            'date_format' => $this->applyDateFormat($field, $arg),
+            'dimensions' => $this->applyDimensions($field, $arg),
+            default => null, // silently ignore
+        };
 
-        $applied = $rule->appliedRules();
-        $field->minLength = (int) $applied['min'];
-
-        if ($applied['max'] !== null) {
-            $field->maxLength = (int) $applied['max'];
-        }
-
-        $requirements = [];
-
-        if ($applied['letters']) {
-            $requirements[] = 'letters';
-        }
-
-        if ($applied['mixedCase']) {
-            $requirements[] = 'mixed case (uppercase and lowercase)';
-        }
-
-        if ($applied['numbers']) {
-            $requirements[] = 'numbers';
-        }
-
-        if ($applied['symbols']) {
-            $requirements[] = 'symbols';
-        }
-
-        if ($applied['uncompromised']) {
-            $requirements[] = 'not present in known data breaches';
-        }
-
-        if ($requirements !== []) {
-            $field->description = 'Must contain: ' . implode(', ', $requirements) . '.';
-        }
+        // required_* variants (required_with, required_without, required_if, etc.)
+        // are conditional — do NOT set required=true.
     }
 
     /**
-     * Handles the `dimensions:` rule — the string form, or `Dimensions::__toString()` re-dispatched
-     * from {@see applyObjectRule()}.
-     *
-     * `Dimensions` has no JSON Schema equivalent — it constrains image pixel dimensions. The field
-     * is treated as a binary upload and the constraints are surfaced as description text.
+     * `present` requires the key to be present in the input, but says nothing about nullability.
+     * Express this as required only; nullable must come from an explicit `nullable` rule.
      */
-    private function applyDimensions(FieldDescriptor $field, string $arg): void
+    private function applyPresent(FieldDescriptor $field): void
     {
-        $this->applyFile($field);
-
-        $description = $this->dimensionsDescription($arg);
-
-        if ($description !== '') {
-            $field->description = $description;
-        }
-    }
-
-    /**
-     * Builds a human-readable description from a `dimensions:` rule argument
-     * (`width=800,height=600,ratio=1.5`). Keys map to plain-English descriptions; unknown keys are
-     * passed through verbatim so future Laravel additions are not silently swallowed.
-     */
-    private function dimensionsDescription(string $arg): string
-    {
-        $arg = trim($arg);
-
-        if ($arg === '') {
-            return '';
-        }
-
-        $labels = [
-            'width' => 'width',
-            'height' => 'height',
-            'min_width' => 'min width',
-            'max_width' => 'max width',
-            'min_height' => 'min height',
-            'max_height' => 'max height',
-            'ratio' => 'aspect ratio',
-            'min_ratio' => 'min aspect ratio',
-            'max_ratio' => 'max aspect ratio',
-        ];
-
-        $parts = [];
-
-        foreach (explode(',', $arg) as $pair) {
-            if ($pair === '') {
-                continue;
-            }
-
-            [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
-            $key = trim($key);
-
-            if ($key === '') {
-                continue;
-            }
-
-            $label = $labels[$key] ?? $key;
-            $parts[] = $label . '=' . trim($value);
-        }
-
-        return $parts === []
-            ? ''
-            : 'Image dimensions: ' . implode(', ', $parts) . '.';
+        $field->required = true;
     }
 
     /**
@@ -460,15 +339,6 @@ final readonly class ValidationRulesToSchema
     private function applyNullable(FieldDescriptor $field): void
     {
         $field->nullable = true;
-    }
-
-    /**
-     * `present` requires the key to be present in the input, but says nothing about nullability.
-     * Express this as required only; nullable must come from an explicit `nullable` rule.
-     */
-    private function applyPresent(FieldDescriptor $field): void
-    {
-        $field->required = true;
     }
 
     private function applyFile(FieldDescriptor $field): void
@@ -518,92 +388,6 @@ final readonly class ValidationRulesToSchema
     {
         $field->type = 'string';
         $field->format = 'date';
-    }
-
-    private function applyDateFormat(FieldDescriptor $field, string $arg): void
-    {
-        $field->type = 'string';
-        $field->format = $this->formatFromPhpDateFormat($arg);
-    }
-
-    /**
-     * Classifies a PHP date-format string into an OpenAPI `format` value.
-     *
-     * Detection logic:
-     * - Time tokens (`H`, `G`, `h`, `g`, `i`, `s`, `u`, `v`) → has time component.
-     * - Date tokens (`Y`, `y`, `m`, `n`, `d`, `j`) → has date component.
-     * - Both present → `date-time`; only date → `date`; only time → `time`.
-     * - No recognisable tokens (unlikely) → fall back to `date-time`.
-     *
-     * Escaped characters (preceded by `\`) are intentionally not skipped; format
-     * strings like `Y-m-d\TH:i:sP` contain real time tokens after the literal `T`.
-     */
-    private function formatFromPhpDateFormat(string $format): string
-    {
-        $hasDate = $format !== '' && strpbrk($format, 'Yymndj') !== false;
-        $hasTime = $format !== '' && strpbrk($format, 'HGhgisuv') !== false;
-
-        if ($hasDate && !$hasTime) {
-            return 'date';
-        }
-
-        if ($hasTime && !$hasDate) {
-            return 'time';
-        }
-
-        return 'date-time';
-    }
-
-    private function applyMin(FieldDescriptor $field, string $arg): void
-    {
-        $n = (int) $arg;
-
-        if ($field->type === 'integer' || $field->type === 'number') {
-            $field->minimum = $n;
-        } elseif ($field->type === 'array') {
-            $field->minItems = $n;
-        } else {
-            $field->minLength = $n;
-        }
-    }
-
-    private function applyMax(FieldDescriptor $field, string $arg): void
-    {
-        $n = (int) $arg;
-
-        if ($field->type === 'integer' || $field->type === 'number') {
-            $field->maximum = $n;
-        } elseif ($field->type === 'array') {
-            $field->maxItems = $n;
-        } else {
-            $field->maxLength = $n;
-        }
-    }
-
-    private function applyBetween(FieldDescriptor $field, string $arg): void
-    {
-        $parts = explode(',', $arg, 2);
-
-        if (count($parts) === 2) {
-            $this->applyMin($field, trim($parts[0]));
-            $this->applyMax($field, trim($parts[1]));
-        }
-    }
-
-    private function applySize(FieldDescriptor $field, string $arg): void
-    {
-        $n = (int) $arg;
-
-        if ($field->type === 'integer' || $field->type === 'number') {
-            $field->minimum = $n;
-            $field->maximum = $n;
-        } elseif ($field->type === 'array') {
-            $field->minItems = $n;
-            $field->maxItems = $n;
-        } else {
-            $field->minLength = $n;
-            $field->maxLength = $n;
-        }
     }
 
     private function applyDigits(FieldDescriptor $field, string $arg): void
@@ -769,6 +553,106 @@ final readonly class ValidationRulesToSchema
         };
     }
 
+    private function applyDateFormat(FieldDescriptor $field, string $arg): void
+    {
+        $field->type = 'string';
+        $field->format = $this->formatFromPhpDateFormat($arg);
+    }
+
+    /**
+     * Classifies a PHP date-format string into an OpenAPI `format` value.
+     *
+     * Detection logic:
+     * - Time tokens (`H`, `G`, `h`, `g`, `i`, `s`, `u`, `v`) → has time component.
+     * - Date tokens (`Y`, `y`, `m`, `n`, `d`, `j`) → has date component.
+     * - Both present → `date-time`; only date → `date`; only time → `time`.
+     * - No recognisable tokens (unlikely) → fall back to `date-time`.
+     *
+     * Escaped characters (preceded by `\`) are intentionally not skipped; format
+     * strings like `Y-m-d\TH:i:sP` contain real time tokens after the literal `T`.
+     */
+    private function formatFromPhpDateFormat(string $format): string
+    {
+        $hasDate = $format !== '' && strpbrk($format, 'Yymndj') !== false;
+        $hasTime = $format !== '' && strpbrk($format, 'HGhgisuv') !== false;
+
+        if ($hasDate && !$hasTime) {
+            return 'date';
+        }
+
+        if ($hasTime && !$hasDate) {
+            return 'time';
+        }
+
+        return 'date-time';
+    }
+
+    /**
+     * Handles the `dimensions:` rule — the string form, or `Dimensions::__toString()` re-dispatched
+     * from {@see applyObjectRule()}.
+     *
+     * `Dimensions` has no JSON Schema equivalent — it constrains image pixel dimensions. The field
+     * is treated as a binary upload and the constraints are surfaced as description text.
+     */
+    private function applyDimensions(FieldDescriptor $field, string $arg): void
+    {
+        $this->applyFile($field);
+
+        $description = $this->dimensionsDescription($arg);
+
+        if ($description !== '') {
+            $field->description = $description;
+        }
+    }
+
+    /**
+     * Builds a human-readable description from a `dimensions:` rule argument
+     * (`width=800,height=600,ratio=1.5`). Keys map to plain-English descriptions; unknown keys are
+     * passed through verbatim so future Laravel additions are not silently swallowed.
+     */
+    private function dimensionsDescription(string $arg): string
+    {
+        $arg = trim($arg);
+
+        if ($arg === '') {
+            return '';
+        }
+
+        $labels = [
+            'width' => 'width',
+            'height' => 'height',
+            'min_width' => 'min width',
+            'max_width' => 'max width',
+            'min_height' => 'min height',
+            'max_height' => 'max height',
+            'ratio' => 'aspect ratio',
+            'min_ratio' => 'min aspect ratio',
+            'max_ratio' => 'max aspect ratio',
+        ];
+
+        $parts = [];
+
+        foreach (explode(',', $arg) as $pair) {
+            if ($pair === '') {
+                continue;
+            }
+
+            [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
+            $key = trim($key);
+
+            if ($key === '') {
+                continue;
+            }
+
+            $label = $labels[$key] ?? $key;
+            $parts[] = $label . '=' . trim($value);
+        }
+
+        return $parts === []
+            ? ''
+            : 'Image dimensions: ' . implode(', ', $parts) . '.';
+    }
+
     private function ruleName(string $rule): string
     {
         $colon = strpos($rule, ':');
@@ -781,5 +665,121 @@ final readonly class ValidationRulesToSchema
         $colon = strpos($rule, ':');
 
         return $colon === false ? '' : substr($rule, $colon + 1);
+    }
+
+    /**
+     * Extracts constraints from a `Password` rule object.
+     *
+     * JSON Schema has no built-in equivalents for character-class requirements (letters, mixed case,
+     * numbers, symbols) or the HaveIBeenPwned check. We emit:
+     * - `type: string` + `format: password` (signals "render as password input" to UI tooling).
+     * - `minLength` from `Password::min(N)` (always present; defaults to 8 per Laravel).
+     * - `maxLength` from `Password::max(N)` when set.
+     * - `description` listing all active character-class requirements in plain English, so
+     *   client-side documentation can surface them even though JSON Schema can't enforce them.
+     *
+     * `appliedRules()` is a public method added in Laravel 10 that returns the current state of
+     * all flags, avoiding reflection entirely.
+     */
+    private function applyPasswordRule(Password $rule, FieldDescriptor $field): void
+    {
+        $field->type = 'string';
+        $field->format = 'password';
+
+        $applied = $rule->appliedRules();
+        $field->minLength = (int) $applied['min'];
+
+        if ($applied['max'] !== null) {
+            $field->maxLength = (int) $applied['max'];
+        }
+
+        $requirements = [];
+
+        if ($applied['letters']) {
+            $requirements[] = 'letters';
+        }
+
+        if ($applied['mixedCase']) {
+            $requirements[] = 'mixed case (uppercase and lowercase)';
+        }
+
+        if ($applied['numbers']) {
+            $requirements[] = 'numbers';
+        }
+
+        if ($applied['symbols']) {
+            $requirements[] = 'symbols';
+        }
+
+        if ($applied['uncompromised']) {
+            $requirements[] = 'not present in known data breaches';
+        }
+
+        if ($requirements !== []) {
+            $field->description = 'Must contain: ' . implode(', ', $requirements) . '.';
+        }
+    }
+
+    private function applyQuantifierRule(string $name, string $arg, FieldDescriptor $field): void
+    {
+        match ($name) {
+            'min' => $this->applyMin($field, $arg),
+            'max' => $this->applyMax($field, $arg),
+            'between' => $this->applyBetween($field, $arg),
+            'size' => $this->applySize($field, $arg),
+            default => null,
+        };
+    }
+
+    private function applyMin(FieldDescriptor $field, string $arg): void
+    {
+        $n = (int) $arg;
+
+        if ($field->type === 'integer' || $field->type === 'number') {
+            $field->minimum = $n;
+        } elseif ($field->type === 'array') {
+            $field->minItems = $n;
+        } else {
+            $field->minLength = $n;
+        }
+    }
+
+    private function applyMax(FieldDescriptor $field, string $arg): void
+    {
+        $n = (int) $arg;
+
+        if ($field->type === 'integer' || $field->type === 'number') {
+            $field->maximum = $n;
+        } elseif ($field->type === 'array') {
+            $field->maxItems = $n;
+        } else {
+            $field->maxLength = $n;
+        }
+    }
+
+    private function applyBetween(FieldDescriptor $field, string $arg): void
+    {
+        $parts = explode(',', $arg, 2);
+
+        if (count($parts) === 2) {
+            $this->applyMin($field, trim($parts[0]));
+            $this->applyMax($field, trim($parts[1]));
+        }
+    }
+
+    private function applySize(FieldDescriptor $field, string $arg): void
+    {
+        $n = (int) $arg;
+
+        if ($field->type === 'integer' || $field->type === 'number') {
+            $field->minimum = $n;
+            $field->maximum = $n;
+        } elseif ($field->type === 'array') {
+            $field->minItems = $n;
+            $field->maxItems = $n;
+        } else {
+            $field->minLength = $n;
+            $field->maxLength = $n;
+        }
     }
 }

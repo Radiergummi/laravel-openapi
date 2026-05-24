@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,8 +22,8 @@ use function sprintf;
 /**
  * Reports operations that have no operationId defined.
  *
- * The operationId is used by client generators and documentation tools to
- * identify operations. Every operation should have a unique operationId.
+ * The operationId is used by client generators and documentation tools to identify operations.
+ * Every operation should have a unique operationId.
  */
 final class OperationIdMissing implements Rule, OperationRuleVisitor
 {

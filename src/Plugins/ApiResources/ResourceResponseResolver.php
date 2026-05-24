@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
@@ -24,9 +25,9 @@ use function sprintf;
 /**
  * Resolves an Eloquent API Resource return type into its `200 OK` response.
  *
- * Defers (returns null) when the action is not a resource endpoint, or when it
- * returns a collection type whose item class is undeclared — the latter is
- * reported by the `resource.response-ambiguous` lint rule.
+ * Defers (returns null) when the action is not a resource endpoint, or when it returns a
+ * collection type whose item class is undeclared — the latter is reported by the
+ * `resource.response-ambiguous` lint rule.
  */
 #[Scoped]
 final readonly class ResourceResponseResolver implements PrimaryResponseResolver
@@ -47,7 +48,7 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
                 return null;
             }
 
-            /** @var class-string<\Illuminate\Http\Resources\Json\JsonResource> $resourceClass */
+            /** @var class-string<JsonResource> $resourceClass */
             $resourceClass = $target->resourceClass;
             $ref = $this->schemaFromResource->buildRef($resourceClass);
 
@@ -65,11 +66,13 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
             // locator resolution and schema build). Real bugs — attribute construction errors,
             // schema-build logic errors — propagate so they surface in dev rather than
             // disappearing into a warning log.
-            $this->logger->warning(sprintf(
-                'ResourceResponseResolver reflection failure for route %s: %s',
-                $descriptor->route->uri(),
-                $e->getMessage(),
-            ));
+            $this->logger->warning(
+                sprintf(
+                    'ResourceResponseResolver reflection failure for route %s: %s',
+                    $descriptor->route->uri(),
+                    $e->getMessage(),
+                ),
+            );
 
             return null;
         }

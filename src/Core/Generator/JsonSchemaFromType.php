@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -127,29 +127,49 @@ final readonly class JsonSchemaFromType
         ]);
     }
 
-    /** @param BuiltinType<TypeIdentifier> $type */
-    private function fromBuiltinType(BuiltinType $type): OA\Schema
+    /**
+     * Reads per-case PHPDoc from a BackedEnum and returns a Markdown description listing each case
+     * with its doc comment summary, or null when no case carries any documentation.
+     *
+     * Format: "- `value`: Summary line\n- `value2`: Summary line 2"
+     *
+     * @param class-string<BackedEnum> $enumClass
+     */
+    private function enumCaseDescription(string $enumClass): ?string
     {
-        return match ($type->getTypeIdentifier()) {
-            TypeIdentifier::STRING => new OA\Schema(['type' => 'string']),
-            TypeIdentifier::INT => new OA\Schema(['type' => 'integer']),
-            TypeIdentifier::FLOAT => new OA\Schema(['type' => 'number']),
-            TypeIdentifier::BOOL => new OA\Schema(['type' => 'boolean']),
-            TypeIdentifier::ARRAY => new OA\Schema(['type' => 'array', 'items' => new OA\Items([])]),
-            default => $this->unmappedBuiltin($type),
-        };
-    }
+        $lines = [];
 
-    /** @param BuiltinType<TypeIdentifier> $type */
-    private function unmappedBuiltin(BuiltinType $type): OA\Schema
-    {
-        $name = $type->getTypeIdentifier()->value;
-        $this->logger->warning(sprintf('Unmapped builtin type: %s', $name));
+        foreach ($enumClass::cases() as $case) {
+            $constant = new ReflectionEnumBackedCase($enumClass, $case->name);
+            $doc = $constant->getDocComment();
 
-        return new OA\Schema([
-            'type' => 'string',
-            'description' => sprintf('Unmapped builtin type: %s', $name),
-        ]);
+            if ($doc === false) {
+                continue;
+            }
+
+            // Strip /** … */ scaffolding and leading * from each line, then join non-empty non-tag
+            // lines into a single summary sentence.
+            $raw = preg_replace('/^\s*\/\*\*|\*\/\s*$/', '', $doc) ?? $doc;
+            $stripped = array_map(
+                static fn(string $line): string => trim(ltrim($line, " \t*")),
+                explode(PHP_EOL, $raw),
+            );
+            $summary = implode(
+                ' ',
+                array_filter(
+                    $stripped,
+                    static fn(string $line): bool => $line !== '' && !str_starts_with($line, '@'),
+                ),
+            );
+
+            if ($summary === '') {
+                continue;
+            }
+
+            $lines[] = sprintf('- `%s`: %s', $case->value, $summary);
+        }
+
+        return $lines !== [] ? implode(PHP_EOL, $lines) : null;
     }
 
     /** @param ObjectType<class-string> $type */
@@ -182,45 +202,28 @@ final readonly class JsonSchemaFromType
         ]);
     }
 
-    /**
-     * Reads per-case PHPDoc from a BackedEnum and returns a Markdown description listing each case
-     * with its doc comment summary, or null when no case carries any documentation.
-     *
-     * Format: "- `value`: Summary line\n- `value2`: Summary line 2"
-     *
-     * @param class-string<BackedEnum> $enumClass
-     */
-    private function enumCaseDescription(string $enumClass): ?string
+    /** @param BuiltinType<TypeIdentifier> $type */
+    private function fromBuiltinType(BuiltinType $type): OA\Schema
     {
-        $lines = [];
+        return match ($type->getTypeIdentifier()) {
+            TypeIdentifier::STRING => new OA\Schema(['type' => 'string']),
+            TypeIdentifier::INT => new OA\Schema(['type' => 'integer']),
+            TypeIdentifier::FLOAT => new OA\Schema(['type' => 'number']),
+            TypeIdentifier::BOOL => new OA\Schema(['type' => 'boolean']),
+            TypeIdentifier::ARRAY => new OA\Schema(['type' => 'array', 'items' => new OA\Items([])]),
+            default => $this->unmappedBuiltin($type),
+        };
+    }
 
-        foreach ($enumClass::cases() as $case) {
-            $constant = new ReflectionEnumBackedCase($enumClass, $case->name);
-            $doc = $constant->getDocComment();
+    /** @param BuiltinType<TypeIdentifier> $type */
+    private function unmappedBuiltin(BuiltinType $type): OA\Schema
+    {
+        $name = $type->getTypeIdentifier()->value;
+        $this->logger->warning(sprintf('Unmapped builtin type: %s', $name));
 
-            if ($doc === false) {
-                continue;
-            }
-
-            // Strip /** … */ scaffolding and leading * from each line, then join non-empty non-tag
-            // lines into a single summary sentence.
-            $raw = preg_replace('/^\s*\/\*\*|\*\/\s*$/', '', $doc) ?? $doc;
-            $stripped = array_map(
-                static fn(string $line): string => trim(ltrim($line, " \t*")),
-                explode(PHP_EOL, $raw),
-            );
-            $summary = implode(' ', array_filter(
-                $stripped,
-                static fn(string $line): bool => $line !== '' && !str_starts_with($line, '@'),
-            ));
-
-            if ($summary === '') {
-                continue;
-            }
-
-            $lines[] = sprintf('- `%s`: %s', $case->value, $summary);
-        }
-
-        return $lines !== [] ? implode(PHP_EOL, $lines) : null;
+        return new OA\Schema([
+            'type' => 'string',
+            'description' => sprintf('Unmapped builtin type: %s', $name),
+        ]);
     }
 }

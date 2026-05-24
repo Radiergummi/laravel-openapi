@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,12 +23,11 @@ use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
 use function sprintf;
 
 /**
- * Reports component schema names that do not follow the configured naming
- * convention.
+ * Reports component schema names that do not follow the configured naming convention.
  *
  * The expected casing is injected via {@see IdentifierCase} and defaults to
- * {@see IdentifierCase::Pascal} (e.g. `ProjectResource`), which matches the
- * house style used across all JSON:API component schemas in this codebase.
+ * {@see IdentifierCase::Pascal} (e.g. `ProjectResource`), which matches the house style used
+ * across all JSON:API component schemas in this codebase.
  */
 #[Scoped]
 final readonly class ComponentNameNamingInconsistent extends AbstractNamingRule implements ComponentSchemaRuleVisitor

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -16,8 +16,7 @@ use function realpath;
 /**
  * A single `#[IgnoreLint]` attribute resolved against its reflection target.
  *
- * Collected by {@see SuppressionCollector}; consumed by the lint command and
- * the `meta.*` rules.
+ * Collected by {@see SuppressionCollector}; consumed by the lint command and the `meta.*` rules.
  */
 final readonly class SuppressionDirective
 {
@@ -56,8 +55,8 @@ final readonly class SuppressionDirective
     }
 
     /**
-     * Compare a finding's source file to the directive's, normalizing via
-     * realpath when the raw strings differ.
+     * Compare a finding's source file to the directive's, normalizing via realpath when the raw
+     * strings differ.
      */
     private function fileMatches(?string $findingFile): bool
     {
@@ -90,9 +89,8 @@ final readonly class SuppressionDirective
     }
 
     /**
-     * Property scope matches structurally: the finding must record the same
-     * source class and member in its context. `field.*` findings carry
-     * these keys for exactly this purpose.
+     * Property scope matches structurally: the finding must record the same source class and
+     * member in its context. `field.*` findings carry these keys for exactly this purpose.
      */
     private function structurallyMatches(Finding $finding): bool
     {

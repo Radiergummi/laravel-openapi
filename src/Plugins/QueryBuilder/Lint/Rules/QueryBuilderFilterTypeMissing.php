@@ -22,8 +22,8 @@ use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use function sprintf;
 
 /**
- * Flags an `#[AllowedFilter]` declared with no `type` — the filter parameter
- * falls back to `string`, which may misrepresent the accepted value.
+ * Flags an `#[AllowedFilter]` declared with no `type` — the filter parameter falls back to
+ * `string`, which may misrepresent the accepted value.
  */
 final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRule
 {

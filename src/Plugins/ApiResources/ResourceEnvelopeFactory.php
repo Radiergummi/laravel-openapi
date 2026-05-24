@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -14,9 +14,9 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 use OpenApi\Annotations as OA;
 
 /**
- * Builds the `data` / `data+links+meta` envelope Laravel serializes API
- * Resource responses into. The single shape is `{data}`; the collection shape
- * models the paginated `{data, links, meta}` form (the dominant convention).
+ * Builds the `data` / `data+links+meta` envelope Laravel serializes API Resource responses into.
+ * The single shape is `{data}`; the collection shape models the paginated `{data, links, meta}`
+ * form (the dominant convention).
  */
 final readonly class ResourceEnvelopeFactory
 {

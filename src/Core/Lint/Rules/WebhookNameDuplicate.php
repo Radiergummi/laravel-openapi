@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,9 +24,9 @@ use function count;
 use function sprintf;
 
 /**
- * Reports when two or more webhooks across the entire spec share the same name.
- * Webhook names must be globally unique because they become top-level map keys
- * under `webhooks` in the generated spec.
+ * Reports when two or more webhooks across the entire spec share the same name. Webhook names
+ * must be globally unique because they become top-level map keys under `webhooks` in the
+ * generated spec.
  */
 final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizable, Resettable
 {

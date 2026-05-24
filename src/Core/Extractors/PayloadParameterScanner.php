@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -64,6 +64,23 @@ final class PayloadParameterScanner
     ) {}
 
     /**
+     * Returns the first candidate class-string that is a subtype of `$base`, or null.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $base
+     *
+     * @return null|class-string<T>
+     */
+    public function candidateOfType(ReflectionMethod $method, string $base): ?string
+    {
+        return array_find(
+            $this->candidates($method),
+            fn(string $class) => is_a($class, $base, allow_string: true),
+        );
+    }
+
+    /**
      * Returns candidate request-payload class-strings in priority order.
      *
      * All direct method-parameter class-strings come first; indirection constructor class-strings
@@ -90,23 +107,6 @@ final class PayloadParameterScanner
     public function directCandidates(ReflectionMethod $method): array
     {
         return $this->directMemo[$method->class . '::' . $method->name] ??= $this->scanDirect($method);
-    }
-
-    /**
-     * Returns the first candidate class-string that is a subtype of `$base`, or null.
-     *
-     * @template T of object
-     *
-     * @param class-string<T> $base
-     *
-     * @return null|class-string<T>
-     */
-    public function candidateOfType(ReflectionMethod $method, string $base): ?string
-    {
-        return array_find(
-            $this->candidates($method),
-            fn(string $class) => is_a($class, $base, allow_string: true),
-        );
     }
 
     /**

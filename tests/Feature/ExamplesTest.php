@@ -12,7 +12,10 @@ declare(strict_types=1);
 use Examples\Shared\Flavors;
 use Examples\Shared\TestbenchBoot;
 use Illuminate\Contracts\Console\Kernel;
-use Symfony\Component\Yaml\Yaml;
+use OpenApi\Analysis;
+use OpenApi\Context;
+use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
+use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 
 /*
  * Per-flavor verification:
@@ -48,11 +51,24 @@ it('produces a snapshot that matches the committed yaml', function (string $serv
     }
 })->with('flavors');
 
-it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, string $flavor) use ($exampleYaml): void {
-    $parsed = Yaml::parseFile($exampleYaml($flavor));
+it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, string $flavor): void {
+    $app = TestbenchBoot::boot($serviceProvider);
 
-    expect($parsed['openapi'])->toStartWith('3.1')
-        ->and($parsed)->toHaveKeys(['info', 'paths']);
+    $orchestrator = $app->make(OpenApiGenerationOrchestrator::class);
+    $registry = $app->make(SpecRegistry::class);
+    $specs = $registry->all();
+
+    expect($specs)->not->toBeEmpty("flavor '{$flavor}' has no spec defined");
+
+    foreach ($specs as $spec) {
+        $document = $orchestrator->generateOne($spec->name, $app->environment());
+
+        $analysis = new Analysis([], new Context());
+        $analysis->openapi = $document;
+
+        expect($analysis->validate())
+            ->toBeTrue("spec '{$spec->name}' for flavor '{$flavor}' failed swagger-php validation");
+    }
 })->with('flavors');
 
 it('lints clean', function (string $serviceProvider, string $flavor) use ($exampleYaml): void {

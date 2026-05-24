@@ -29,9 +29,8 @@ class DefaultsTransformer {}
 class DefaultsController extends Controller
 {
     /**
-     * The QueryBuilder plugin would emit `filter[name]` if it were active; with
-     * the shipped defaults it is not, so the operation must carry no
-     * `filter[…]` query parameter.
+     * The QueryBuilder plugin would emit `filter[name]` if it were active; with the shipped
+     * defaults it is not, so the operation must carry no `filter[…]` query parameter.
      */
     #[AllowedFilter('name', type: 'string')]
     public function withQueryBuilderHint(): JsonResponse
@@ -40,8 +39,8 @@ class DefaultsController extends Controller
     }
 
     /**
-     * The Fractal plugin would emit a `{data}` envelope if it were active; with
-     * the shipped defaults it is not, so the operation falls back to a bare 200.
+     * The Fractal plugin would emit a `{data}` envelope if it were active; with the shipped
+     * defaults it is not, so the operation falls back to a bare 200.
      */
     #[FractalResponse(transformer: DefaultsTransformer::class)]
     public function withFractalHint(): JsonResponse

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -16,12 +16,12 @@ use Attribute;
 /**
  * Attaches a named example payload to a specific response status.
  *
- * Use one attribute per example. The `$status` selects which response receives
- * the example: it must match the status code of either the auto-derived
- * primary response or one of the explicit {@see Response} entries.
+ * Use one attribute per example. The `$status` selects which response receives the example: it
+ * must match the status code of either the auto-derived primary response or one of the explicit
+ * {@see Response} entries.
  *
- * Examples are skipped silently when the matching response has no content
- * schema — an example without a backing schema is not meaningful.
+ * Examples are skipped silently when the matching response has no content schema — an example
+ * without a backing schema is not meaningful.
  *
  * ```php
  * #[OpenApi\ResponseExample(

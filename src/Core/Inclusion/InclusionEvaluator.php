@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -135,21 +135,23 @@ final readonly class InclusionEvaluator
                 ? $spec->name === 'default'
                 : $this->matcher->matches(
                     uri: $descriptor->route->uri(),
-                    middleware: array_values(array_map(
-                        static fn(mixed $entry): string => (string) $entry,
-                        $descriptor->route->gatherMiddleware(),
-                    )),
+                    middleware: array_values(
+                        array_map(
+                            static fn(mixed $entry): string => (string) $entry,
+                            $descriptor->route->gatherMiddleware(),
+                        ),
+                    ),
                     controller: $descriptor->controller?->getName(),
                     match: $spec->match,
                 );
 
             $reason = match (true) {
                 $spec->match === [] && $spec->name === 'default'
-                    => 'default spec has no match config — catch-all',
+                => 'default spec has no match config — catch-all',
                 $spec->match === []
-                    => "named spec '{$spec->name}' has no match config — matches nothing",
+                => "named spec '{$spec->name}' has no match config — matches nothing",
                 $matched
-                    => 'match config matched',
+                => 'match config matched',
                 default
                 => 'match config did not match',
             };
@@ -189,7 +191,6 @@ final readonly class InclusionEvaluator
             summary: $visible ? "included in {$spec->name}" : "hidden in environment {$environment}",
             reason: $visible ? null : SkipReason::Visibility,
         );
-
         // endregion
     }
 }

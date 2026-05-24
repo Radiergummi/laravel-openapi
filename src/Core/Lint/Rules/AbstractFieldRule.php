@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -112,14 +112,6 @@ abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
     }
 
     /**
-     * The short class name of a field attribute, e.g. "RequestField".
-     */
-    protected function attributeName(FieldAttribute $field): string
-    {
-        return class_basename($field);
-    }
-
-    /**
      * Inspect a single scoped field attribute on a property.
      *
      * @return iterable<Finding>
@@ -129,4 +121,12 @@ abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
         ReflectionProperty $property,
         OperationNode $operation,
     ): iterable;
+
+    /**
+     * The short class name of a field attribute, e.g. "RequestField".
+     */
+    protected function attributeName(FieldAttribute $field): string
+    {
+        return class_basename($field);
+    }
 }

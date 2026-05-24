@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -18,6 +18,8 @@ use Illuminate\Container\Container;
 use Illuminate\Routing\Route;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Routing\Router;
+use Radiergummi\OpenApi\Core\Events\RouteSkipped;
+use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
@@ -26,11 +28,11 @@ use UnexpectedValueException;
 /**
  * Yields one {@see ActionDescriptor} per Laravel route, unconditionally.
  *
- * Route exclusion lives entirely in {@see \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator}
- * — global filters (`config('openapi.filters')`), spec membership, and visibility are all
- * applied there. Keeping introspection unfiltered means every exclusion produces an
- * {@see \Radiergummi\OpenApi\Core\Events\RouteSkipped} event and a trace entry visible to
- * `openapi:why`, with no hidden "first the introspector also dropped some" stage.
+ * Route exclusion lives entirely in {@see InclusionEvaluator} — global filters
+ * (`config('openapi.filters')`), spec membership, and visibility are all applied there. Keeping
+ * introspection unfiltered means every exclusion produces a {@see RouteSkipped} event and a
+ * trace entry visible to `openapi:why`, with no hidden "first the introspector also dropped
+ * some" stage.
  */
 #[Scoped]
 final readonly class RouteIntrospector

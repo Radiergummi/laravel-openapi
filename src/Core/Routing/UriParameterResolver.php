@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Core\Routing;
 use BackedEnum;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
+use Illuminate\Routing\CreatesRegularExpressionRouteConstraints;
 use ReflectionClass;
 use ReflectionParameter;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
@@ -37,7 +38,7 @@ final readonly class UriParameterResolver
     /**
      * Regex Laravel's `Route::whereUuid()` writes into `$route->wheres`.
      *
-     * @see \Illuminate\Routing\CreatesRegularExpressionRouteConstraints::whereUuid()
+     * @see CreatesRegularExpressionRouteConstraints::whereUuid()
      */
     private const string LARAVEL_UUID_REGEX
         = '[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}';
@@ -45,7 +46,7 @@ final readonly class UriParameterResolver
     /**
      * Regex Laravel's `Route::whereNumber()` writes into `$route->wheres`.
      *
-     * @see \Illuminate\Routing\CreatesRegularExpressionRouteConstraints::whereNumber()
+     * @see CreatesRegularExpressionRouteConstraints::whereNumber
      */
     private const string LARAVEL_NUMBER_REGEX = '[0-9]+';
 
@@ -155,13 +156,14 @@ final readonly class UriParameterResolver
             return false;
         }
 
-        foreach (explode('|', $regex) as $alternative) {
-            if ($alternative === '' || preg_match('/[\[\](){}\\\\+*?.^$]/', $alternative) === 1) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all(
+            explode('|', $regex),
+            fn(string $alternative): bool
+                => (
+                    $alternative !== ''
+                    && preg_match('/[\[\](){}\\\\+*?.^$]/', $alternative) !== 1
+                ),
+        );
     }
 
     /**

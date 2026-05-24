@@ -21,9 +21,8 @@ use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 uses()->group('openapi');
 
 /**
- * Inline fixture enums for the Rule::enum() coverage. Kept local — only this
- * test file consumes them, and they're trivial enough to avoid a separate
- * fixture file.
+ * Inline fixture enums for the Rule::enum() coverage. Kept local — only this test file consumes
+ * them, and they're trivial enough to avoid a separate fixture file.
  */
 enum IntBackedFixtureEnum: int
 {
@@ -353,9 +352,9 @@ it('silently drops an unparseable regex', function (): void {
 });
 
 it('silently drops a bare regex rule with no colon (bug: strpos false cast to 0 caused substr corruption)', function (): void {
-    // Rule string "regex" (no colon, no arg) makes strpos() return false.
-    // (int) false === 0, so substr($raw, 0 + 1) = "egex" was used as the
-    // pattern body instead of short-circuiting, emitting a garbage pattern.
+    // Rule string "regex" (no colon, no arg) makes strpos() return false. (int) false === 0,
+    // so substr($raw, 0 + 1) = "egex" was used as the pattern body instead of short-circuiting,
+    // emitting a garbage pattern.
     $d = field($this->mapper, 'regex');
 
     expect($d->pattern)->toBeNull();
@@ -420,8 +419,8 @@ it('coerces float values in the in: rule to floats', function (): void {
 });
 
 it('preserves comma- and quote-containing values from a Rule::in() object', function (): void {
-    // In::__toString() emits RFC-4180 quoted CSV; str_getcsv must round-trip
-    // embedded separators and escaped quotes without reflecting into internals.
+    // In::__toString() emits RFC-4180 quoted CSV; str_getcsv must round-trip embedded separators
+    // and escaped quotes without reflecting into internals.
     $d = field($this->mapper, [new In(['a,b', 'say "hi"', 'c'])]);
 
     expect($d->enum)->toBe(['a,b', 'say "hi"', 'c']);
@@ -645,8 +644,8 @@ it('is idempotent on already-wildcarded paths', function (): void {
 });
 
 it('does not throw when a colliding path carries a Closure rule', function (): void {
-    // A Closure is a valid Laravel rule form. Two numeric indices normalise to the
-    // same wildcard — the merge must not throw a TypeError when $incoming is a Closure.
+    // A Closure is a valid Laravel rule form. Two numeric indices normalise to the same wildcard
+    // — the merge must not throw a TypeError when $incoming is a Closure.
     $closure = static fn($attr, $val, $fail) => null;
 
     $result = $this->mapper->normaliseIndexedPaths([
@@ -712,11 +711,10 @@ it('emits no description when Password has no character-class requirements', fun
 
 // region File / ImageFile rule object
 
-// File and ImageFile expose no public accessor and no __toString(); their
-// mimetype/size/dimension constraints live in protected state. Extraction
-// consumes only the public `instanceof` marker (the field is a binary upload)
-// and deliberately does NOT reflect into framework internals — so no
-// description is produced for File-level constraints.
+// File and ImageFile expose no public accessor and no __toString(); their mimetype/size/dimension
+// constraints live in protected state. Extraction consumes only the public `instanceof` marker
+// (the field is a binary upload) and deliberately does NOT reflect into framework internals — so
+// no description is produced for File-level constraints.
 
 it('maps File::types([pdf,docx]) to type=string, format=binary, isFile=true', function (): void {
     $d = field($this->mapper, [File::types(['pdf', 'docx'])]);

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,10 +12,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
 use Spatie\LaravelData\Data;
 
 /**
- * Fixture Data class for testing {@see \Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType}.
+ * Fixture Data class for testing {@see FieldConflictingType}.
  */
 final class ConflictingTypeFixtureData extends Data
 {

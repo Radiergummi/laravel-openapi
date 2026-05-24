@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,14 +23,12 @@ use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
 use function sprintf;
 
 /**
- * Reports schema property wire-names that do not follow the configured naming
- * convention.
+ * Reports schema property wire-names that do not follow the configured naming convention.
  *
  * The expected casing is injected via {@see IdentifierCase} and defaults to
- * {@see IdentifierCase::Camel} (e.g. `createdAt`), which matches the house
- * style used across all ApiResource FIELD_* constants in this codebase.
- * Recursion into nested objects is handled by the walker — this rule only
- * checks the single node passed in.
+ * {@see IdentifierCase::Camel} (e.g. `createdAt`), which matches the house style used across all
+ * ApiResource FIELD_* constants in this codebase. Recursion into nested objects is handled by the
+ * walker — this rule only checks the single node passed in.
  */
 #[Scoped]
 final readonly class FieldNameNamingInconsistent extends AbstractNamingRule implements FieldRuleVisitor

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -28,13 +28,12 @@ use function str_starts_with;
 /**
  * Reports URL path segments that do not follow the configured naming convention.
  *
- * Only {@see IdentifierCase::Kebab} and {@see IdentifierCase::Snake} are
- * meaningful for URL path segments; other cases are accepted by the rule but
- * are not recommended for REST APIs.
+ * Only {@see IdentifierCase::Kebab} and {@see IdentifierCase::Snake} are meaningful for URL path
+ * segments; other cases are accepted by the rule but are not recommended for REST APIs.
  *
- * The path URI is split on `/`. Empty segments and `{param}` placeholder
- * segments (those beginning with `{`) are skipped. One finding is emitted per
- * operation listing all offending segments. Default: {@see IdentifierCase::Kebab}.
+ * The path URI is split on `/`. Empty segments and `{param}` placeholder segments (those beginning
+ * with `{`) are skipped. One finding is emitted per operation listing all offending segments.
+ * Default: {@see IdentifierCase::Kebab}.
  */
 #[Scoped]
 final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Core\Lint;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Support\Str;
+use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Symfony\Component\Process\Exception\LogicException;
 use Symfony\Component\Process\Exception\ProcessSignaledException;
@@ -39,8 +40,8 @@ use const PHP_EOL;
 
 /**
  * Filters the discovered route set for {@see LintRunner} using --path glob and --diff git
- * detection. Extracted from {@see \Radiergummi\OpenApi\Console\LintCommand} so the filter is
- * unit-testable; the runner uses it via composition.
+ * detection. Extracted from {@see LintCommand} so the filter is unit-testable; the runner uses
+ * it via composition.
  *
  * The default-branch detection delegates to git itself:
  *  1. `git symbolic-ref refs/remotes/origin/HEAD` — the value `git clone` sets to the upstream
@@ -106,45 +107,41 @@ class LintRouteFilter
     }
 
     /**
-     * Build the OpenApiGenerator filter list that restricts generation to the filtered route
-     * set. Returns include filters (closure returning true means "skip this descriptor"). The
-     * vendor/closure exclusion always applies; the URI allowlist is layered on top when --path
-     * or --diff narrowed the descriptor list.
-     *
      * @param list<ActionDescriptor> $descriptors
      *
-     * @return list<callable(ActionDescriptor): bool>
+     * @return list<ActionDescriptor>
      */
-    public function buildGeneratorFilters(array $descriptors, ?string $path, bool $diffEnabled): array
+    private function dropClosureAndVendorRoutes(array $descriptors): array
     {
-        $filters = [];
+        return array_values(
+            array_filter(
+                $descriptors,
+                static fn(ActionDescriptor $descriptor): bool
+                    => !self::isVendorOrUnresolvable($descriptor),
+            ),
+        );
+    }
 
-        $filters[] = static fn(ActionDescriptor $descriptor): bool
-            => self::isVendorOrUnresolvable($descriptor);
-
-        if ((is_string($path) && $path !== '') || $diffEnabled) {
-            $allowed = [];
-
-            foreach ($descriptors as $descriptor) {
-                $key = sprintf(
-                    '%s|%s',
-                    $descriptor->route->uri(),
-                    implode(',', $descriptor->route->methods()),
-                );
-                $allowed[$key] = true;
-            }
-
-            $filters[] = static fn(ActionDescriptor $descriptor): bool
-                => !isset(
-                    $allowed[sprintf(
-                        '%s|%s',
-                        $descriptor->route->uri(),
-                        implode(',', $descriptor->route->methods()),
-                    )],
-                );
+    /**
+     * True for descriptors the lint pipeline must skip: closure routes (no controller),
+     * routes whose source file cannot be resolved, and routes whose controller lives in
+     * a vendor directory. Shared between the descriptor-level filter and the
+     * generator-level filter so the two cannot drift apart.
+     */
+    private static function isVendorOrUnresolvable(ActionDescriptor $descriptor): bool
+    {
+        if ($descriptor->controller === null && $descriptor->method === null) {
+            return true;
         }
 
-        return $filters;
+        $file = $descriptor->method?->getFileName()
+            ?? $descriptor->controller?->getFileName();
+
+        if ($file === false || $file === null) {
+            return true;
+        }
+
+        return str_contains($file, '/vendor/');
     }
 
     /**
@@ -192,8 +189,13 @@ class LintRouteFilter
         }
 
         $local = new Process([
-            'git', 'branch', '--list', '--format=%(refname:short)',
-            'main', 'master', 'trunk',
+            'git',
+            'branch',
+            '--list',
+            '--format=%(refname:short)',
+            'main',
+            'master',
+            'trunk',
         ]);
         $local->run();
 
@@ -243,44 +245,6 @@ class LintRouteFilter
     }
 
     /**
-     * @param list<ActionDescriptor> $descriptors
-     *
-     * @return list<ActionDescriptor>
-     */
-    private function dropClosureAndVendorRoutes(array $descriptors): array
-    {
-        return array_values(
-            array_filter(
-                $descriptors,
-                static fn(ActionDescriptor $descriptor): bool
-                    => !self::isVendorOrUnresolvable($descriptor),
-            ),
-        );
-    }
-
-    /**
-     * True for descriptors the lint pipeline must skip: closure routes (no controller),
-     * routes whose source file cannot be resolved, and routes whose controller lives in
-     * a vendor directory. Shared between the descriptor-level filter and the
-     * generator-level filter so the two cannot drift apart.
-     */
-    private static function isVendorOrUnresolvable(ActionDescriptor $descriptor): bool
-    {
-        if ($descriptor->controller === null && $descriptor->method === null) {
-            return true;
-        }
-
-        $file = $descriptor->method?->getFileName()
-            ?? $descriptor->controller?->getFileName();
-
-        if ($file === false || $file === null) {
-            return true;
-        }
-
-        return str_contains($file, '/vendor/');
-    }
-
-    /**
      * @param list<string> $changedFiles
      */
     private function descriptorAffectedByChanges(ActionDescriptor $descriptor, array $changedFiles): bool
@@ -296,5 +260,47 @@ class LintRouteFilter
         }
 
         return in_array(Str::after($controllerFile, base_path() . '/'), $changedFiles, true);
+    }
+
+    /**
+     * Build the OpenApiGenerator filter list that restricts generation to the filtered route
+     * set. Returns include filters (closure returning true means "skip this descriptor"). The
+     * vendor/closure exclusion always applies; the URI allowlist is layered on top when --path
+     * or --diff narrowed the descriptor list.
+     *
+     * @param list<ActionDescriptor> $descriptors
+     *
+     * @return list<callable(ActionDescriptor): bool>
+     */
+    public function buildGeneratorFilters(array $descriptors, ?string $path, bool $diffEnabled): array
+    {
+        $filters = [];
+
+        $filters[] = static fn(ActionDescriptor $descriptor): bool
+            => self::isVendorOrUnresolvable($descriptor);
+
+        if ((is_string($path) && $path !== '') || $diffEnabled) {
+            $allowed = [];
+
+            foreach ($descriptors as $descriptor) {
+                $key = sprintf(
+                    '%s|%s',
+                    $descriptor->route->uri(),
+                    implode(',', $descriptor->route->methods()),
+                );
+                $allowed[$key] = true;
+            }
+
+            $filters[] = static fn(ActionDescriptor $descriptor): bool
+                => !isset(
+                    $allowed[sprintf(
+                        '%s|%s',
+                        $descriptor->route->uri(),
+                        implode(',', $descriptor->route->methods()),
+                    )],
+                );
+        }
+
+        return $filters;
     }
 }

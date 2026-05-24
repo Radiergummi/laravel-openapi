@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -30,6 +30,7 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionParameter;
 use ReflectionProperty;
+use RuntimeException;
 use Spatie\LaravelData\Attributes\Computed;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -93,6 +94,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
      * @param class-string<Data> $dataClass
      *
      * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnsupportedException
      */
     public function build(string $dataClass): string
@@ -104,6 +106,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
      * @param class-string<Data> $dataClass
      *
      * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnsupportedException
      */
     private function buildSchema(string $dataClass): OA\Schema
@@ -213,6 +216,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
      * `discriminator` object.
      *
      * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnsupportedException
      */
     private function buildDiscriminatorSchema(DiscriminatorAttribute $discriminator): OA\Schema
@@ -225,343 +229,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         return $discriminator->assemble($variantKeys);
-    }
-
-    /**
-     * @throws ReflectionException
-     * @throws UnsupportedException
-     */
-    private function resolvePropertySchema(Type $type, string $propertyName): OA\Schema
-    {
-        if ($type instanceof NullableType) {
-            return NullableSchema::wrap($this->resolvePropertySchema($type->getWrappedType(), $propertyName));
-        }
-
-        if ($type instanceof CollectionType) {
-            return $this->resolveCollectionSchema($type, $propertyName);
-        }
-
-        if ($type instanceof ObjectType) {
-            return $this->resolveObjectSchema($type, $propertyName);
-        }
-
-        if ($type instanceof UnionType) {
-            return new OA\Schema([
-                'oneOf' => array_map(
-                    fn(Type $member): OA\Schema => $this->resolvePropertySchema($member, $propertyName),
-                    $type->getTypes(),
-                ),
-            ]);
-        }
-
-        return $this->schemaFromType->fromType($type);
-    }
-
-    /**
-     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
-     *
-     * @throws ReflectionException
-     * @throws UnsupportedException
-     */
-    private function resolveCollectionSchema(CollectionType $type, string $propertyName): OA\Schema
-    {
-        $valueType = $type->getCollectionValueType();
-
-        if (
-            $valueType instanceof ObjectType
-            && is_a($valueType->getClassName(), Data::class, allow_string: true)
-        ) {
-            /** @var class-string<Data> $itemClass */
-            $itemClass = $valueType->getClassName();
-            $itemKey = $this->build($itemClass);
-
-            return new OA\Schema([
-                'type' => 'array',
-                'items' => new OA\Schema(['ref' => "#/components/schemas/{$itemKey}"]),
-            ]);
-        }
-
-        if (
-            $valueType instanceof BuiltinType
-            && $valueType->getTypeIdentifier() !== TypeIdentifier::MIXED
-            && $valueType->getTypeIdentifier() !== TypeIdentifier::NULL
-        ) {
-            return new OA\Schema([
-                'type' => 'array',
-                'items' => $this->schemaFromType->fromType($valueType),
-            ]);
-        }
-
-        // swagger-php requires items even for untyped arrays.
-        return new OA\Schema([
-            'type' => 'array',
-            'items' => new OA\Items([]),
-            'description' => sprintf(
-                'Array property `%s` — element type is opaque (no @var annotation with a concrete type).',
-                $propertyName,
-            ),
-        ]);
-    }
-
-    /**
-     * @param ObjectType<class-string> $type
-     *
-     * @throws ReflectionException
-     * @throws UnsupportedException
-     */
-    private function resolveObjectSchema(ObjectType $type, string $propertyName): OA\Schema
-    {
-        $className = $type->getClassName();
-
-        if (is_a($className, UploadedFile::class, allow_string: true)) {
-            return new OA\Schema([
-                'type' => 'string',
-                'format' => 'binary',
-                'description' => sprintf(
-                    'File upload property `%s` — multipart/form-data bodies are not yet fully modelled.',
-                    $propertyName,
-                ),
-            ]);
-        }
-
-        if (is_a($className, Data::class, allow_string: true)) {
-            /** @var class-string<Data> $className */
-            $key = $this->build($className);
-
-            return new OA\Schema(['ref' => "#/components/schemas/{$key}"]);
-        }
-
-        return $this->schemaFromType->fromType($type);
-    }
-
-    /**
-     * Returns true when any public property of `$dataClass` (or any nested Data class it
-     * transitively references) is typed as {@see UploadedFile}.
-     *
-     * Used by {@see RequestBodyExtractor} to switch the request media type to
-     * `multipart/form-data`. Cached by class for the lifetime of the registry to keep deep nested
-     * checks cheap.
-     *
-     * @param class-string<Data> $dataClass
-     *
-     * @throws ReflectionException
-     */
-    public function hasFileProperties(string $dataClass): bool
-    {
-        return $this->filePropertiesCache[$dataClass]
-            ??= $this->detectFileProperties($dataClass, []);
-    }
-
-    /**
-     * @param class-string<Data>              $dataClass
-     * @param array<class-string<Data>, true> $visited   Recursion guard.
-     *
-     * @throws ReflectionException
-     */
-    private function detectFileProperties(string $dataClass, array $visited): bool
-    {
-        if (isset($visited[$dataClass])) {
-            return false;
-        }
-
-        $visited[$dataClass] = true;
-        $reflection = new ReflectionClass($dataClass);
-
-        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
-            $rawType = $prop->getType();
-
-            if ($rawType === null) {
-                continue;
-            }
-
-            try {
-                $type = $this->typeResolver->resolve($rawType);
-            } catch (UnsupportedException) {
-                continue;
-            }
-
-            if ($this->typeReferencesUploadedFile($type)) {
-                return true;
-            }
-
-            if (array_any(
-                $this->collectNestedDataClasses($type, $prop),
-                fn(string $nested): bool => $this->detectFileProperties($nested, $visited),
-            )) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function typeReferencesUploadedFile(Type $type): bool
-    {
-        if ($type instanceof NullableType) {
-            return $this->typeReferencesUploadedFile($type->getWrappedType());
-        }
-
-        if ($type instanceof UnionType) {
-            return array_any(
-                $type->getTypes(),
-                fn(Type $member): bool => $this->typeReferencesUploadedFile($member),
-            );
-        }
-
-        if ($type instanceof CollectionType) {
-            return $this->typeReferencesUploadedFile($type->getCollectionValueType());
-        }
-
-        return
-            $type instanceof ObjectType
-            && is_a($type->getClassName(), UploadedFile::class, allow_string: true)
-        ;
-    }
-
-    /**
-     * @return list<class-string<Data>>
-     */
-    private function collectNestedDataClasses(Type $type, ReflectionProperty $prop): array
-    {
-        if ($type instanceof NullableType) {
-            return $this->collectNestedDataClasses($type->getWrappedType(), $prop);
-        }
-
-        if ($type instanceof UnionType) {
-            $result = [];
-
-            foreach ($type->getTypes() as $member) {
-                foreach ($this->collectNestedDataClasses($member, $prop) as $className) {
-                    $result[] = $className;
-                }
-            }
-
-            return $result;
-        }
-
-        if ($type instanceof CollectionType) {
-            return $this->collectNestedDataClasses($type->getCollectionValueType(), $prop);
-        }
-
-        if ($type instanceof ObjectType) {
-            $className = $type->getClassName();
-
-            if (is_a($className, Data::class, allow_string: true)) {
-                /** @var class-string<Data> $className */
-                return [$className];
-            }
-
-            if (is_a($className, DataCollection::class, allow_string: true)) {
-                $itemClass = $this->readDataCollectionItemClass($prop);
-
-                return $itemClass !== null ? [$itemClass] : [];
-            }
-        }
-
-        return [];
-    }
-
-    /**
-     * Returns an `array<DataClass>` schema for properties typed as {@see DataCollection} with a
-     * `#[DataCollectionOf]` attribute. Returns null when the property is not a `DataCollection`;
-     * the caller falls back to standard property-schema resolution.
-     *
-     * @throws ReflectionException
-     * @throws UnsupportedException
-     */
-    private function resolveDataCollectionSchema(ReflectionProperty $prop, Type $type): ?OA\Schema
-    {
-        if (!$this->typeIsDataCollection($type)) {
-            return null;
-        }
-
-        $itemClass = $this->readDataCollectionItemClass($prop);
-
-        if ($itemClass === null) {
-            return new OA\Schema([
-                'type' => 'array',
-                'items' => new OA\Items([]),
-                'description' => sprintf(
-                    'DataCollection property `%s` — item class is opaque (missing #[DataCollectionOf]).',
-                    $prop->getName(),
-                ),
-            ]);
-        }
-
-        $itemKey = $this->build($itemClass);
-
-        return new OA\Schema([
-            'type' => 'array',
-            'items' => new OA\Schema(['ref' => "#/components/schemas/{$itemKey}"]),
-        ]);
-    }
-
-    /**
-     * @return null|class-string<Data>
-     */
-    private function readDataCollectionItemClass(ReflectionProperty $prop): ?string
-    {
-        $attributes = $prop->getAttributes(DataCollectionOf::class);
-
-        if ($attributes === []) {
-            return null;
-        }
-
-        $itemClass = $attributes[0]->newInstance()->class;
-
-        if (!is_a($itemClass, Data::class, allow_string: true)) {
-            return null;
-        }
-
-        /** @var class-string<Data> $itemClass */
-        return $itemClass;
-    }
-
-    private function typeIsDataCollection(Type $type): bool
-    {
-        if ($type instanceof NullableType) {
-            return $this->typeIsDataCollection($type->getWrappedType());
-        }
-
-        if ($type instanceof UnionType) {
-            return array_any(
-                $type->getTypes(),
-                fn(Type $member): bool => $this->typeIsDataCollection($member),
-            );
-        }
-
-        return $type instanceof ObjectType
-            && is_a($type->getClassName(), DataCollection::class, allow_string: true);
-    }
-
-    /**
-     * Converts an {@see OA\Schema} into an {@see OA\Property} by copying non-UNDEFINED JSON-Schema
-     * fields. Only JSON-Schema / OAS fields are transferred; swagger-php internals (e.g. `_context`,
-     * `schema`, `_unmerged`) are intentionally excluded.
-     */
-    private function schemaToProperty(string $name, OA\Schema $schema): OA\Property
-    {
-        $undefined = Generator::UNDEFINED;
-        $props = ['property' => $name];
-
-        static $allowlist = [
-            'type', 'format', 'ref', 'oneOf', 'allOf', 'anyOf', 'items', 'enum',
-            'description', 'example', 'nullable', 'minimum', 'maximum',
-            'exclusiveMinimum', 'exclusiveMaximum', 'minLength', 'maxLength',
-            'pattern', 'minItems', 'maxItems', 'uniqueItems', 'multipleOf',
-            'properties', 'additionalProperties', 'required', 'deprecated',
-            'readOnly', 'writeOnly', 'default', 'title',
-        ];
-
-        foreach ($allowlist as $field) {
-            $value = $schema->{$field};
-
-            if ($value !== $undefined) {
-                $props[$field] = $value;
-            }
-        }
-
-        return new OA\Property($props);
     }
 
     /**
@@ -634,6 +301,316 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         return $map;
+    }
+
+    private function containsOptional(Type $type): bool
+    {
+        if (!$type instanceof UnionType) {
+            return false;
+        }
+
+        return array_any(
+            $type->getTypes(),
+            static fn(Type $member): bool
+                => $member instanceof ObjectType && $member->getClassName() === Optional::class,
+        );
+    }
+
+    /**
+     * Returns a new type with `Optional` removed from the union.
+     *
+     * If after removal only one member remains, that member is returned directly. If the sole
+     * remaining type is the null builtin, a `NullableType` wrapping `string` is returned as a
+     * fallback (edge case: `Optional|null` only).
+     */
+    private function stripOptional(Type $type): Type
+    {
+        if (!$type instanceof UnionType) {
+            return $type;
+        }
+
+        $remaining = array_values(
+            array_filter(
+                $type->getTypes(),
+                static fn(Type $member): bool
+                    => !(
+                        $member instanceof ObjectType
+                    && $member->getClassName() === Optional::class
+                    ),
+            ),
+        );
+
+        return match (true) {
+            count($remaining) === 0 => Type::builtin(TypeIdentifier::STRING),
+            count($remaining) === 1 => $remaining[0],
+            default => Type::union(...$remaining),
+        };
+    }
+
+    /**
+     * Returns an `array<DataClass>` schema for properties typed as {@see DataCollection} with a
+     * `#[DataCollectionOf]` attribute. Returns null when the property is not a `DataCollection`;
+     * the caller falls back to standard property-schema resolution.
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function resolveDataCollectionSchema(ReflectionProperty $prop, Type $type): ?OA\Schema
+    {
+        if (!$this->typeIsDataCollection($type)) {
+            return null;
+        }
+
+        $itemClass = $this->readDataCollectionItemClass($prop);
+
+        if ($itemClass === null) {
+            return new OA\Schema([
+                'type' => 'array',
+                'items' => new OA\Items([]),
+                'description' => sprintf(
+                    'DataCollection property `%s` — item class is opaque (missing #[DataCollectionOf]).',
+                    $prop->getName(),
+                ),
+            ]);
+        }
+
+        $itemKey = $this->build($itemClass);
+
+        return new OA\Schema([
+            'type' => 'array',
+            'items' => new OA\Schema(['ref' => "#/components/schemas/{$itemKey}"]),
+        ]);
+    }
+
+    private function typeIsDataCollection(Type $type): bool
+    {
+        if ($type instanceof NullableType) {
+            return $this->typeIsDataCollection($type->getWrappedType());
+        }
+
+        if ($type instanceof UnionType) {
+            return array_any(
+                $type->getTypes(),
+                fn(Type $member): bool => $this->typeIsDataCollection($member),
+            );
+        }
+
+        return $type instanceof ObjectType
+            && is_a($type->getClassName(), DataCollection::class, allow_string: true);
+    }
+
+    /**
+     * @return null|class-string<Data>
+     */
+    private function readDataCollectionItemClass(ReflectionProperty $prop): ?string
+    {
+        $attributes = $prop->getAttributes(DataCollectionOf::class);
+
+        if ($attributes === []) {
+            return null;
+        }
+
+        $itemClass = $attributes[0]->newInstance()->class;
+
+        if (!is_a($itemClass, Data::class, allow_string: true)) {
+            return null;
+        }
+
+        /** @var class-string<Data> $itemClass */
+        return $itemClass;
+    }
+
+    /**
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function resolvePropertySchema(Type $type, string $propertyName): OA\Schema
+    {
+        if ($type instanceof NullableType) {
+            return NullableSchema::wrap($this->resolvePropertySchema($type->getWrappedType(), $propertyName));
+        }
+
+        if ($type instanceof CollectionType) {
+            return $this->resolveCollectionSchema($type, $propertyName);
+        }
+
+        if ($type instanceof ObjectType) {
+            return $this->resolveObjectSchema($type, $propertyName);
+        }
+
+        if ($type instanceof UnionType) {
+            return new OA\Schema([
+                'oneOf' => array_map(
+                    fn(Type $member): OA\Schema => $this->resolvePropertySchema($member, $propertyName),
+                    $type->getTypes(),
+                ),
+            ]);
+        }
+
+        return $this->schemaFromType->fromType($type);
+    }
+
+    /**
+     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function resolveCollectionSchema(CollectionType $type, string $propertyName): OA\Schema
+    {
+        $valueType = $type->getCollectionValueType();
+
+        if (
+            $valueType instanceof ObjectType
+            && is_a($valueType->getClassName(), Data::class, allow_string: true)
+        ) {
+            /** @var class-string<Data> $itemClass */
+            $itemClass = $valueType->getClassName();
+            $itemKey = $this->build($itemClass);
+
+            return new OA\Schema([
+                'type' => 'array',
+                'items' => new OA\Schema(['ref' => "#/components/schemas/{$itemKey}"]),
+            ]);
+        }
+
+        if (
+            $valueType instanceof BuiltinType
+            && $valueType->getTypeIdentifier() !== TypeIdentifier::MIXED
+            && $valueType->getTypeIdentifier() !== TypeIdentifier::NULL
+        ) {
+            return new OA\Schema([
+                'type' => 'array',
+                'items' => $this->schemaFromType->fromType($valueType),
+            ]);
+        }
+
+        // swagger-php requires items even for untyped arrays.
+        return new OA\Schema([
+            'type' => 'array',
+            'items' => new OA\Items([]),
+            'description' => sprintf(
+                'Array property `%s` — element type is opaque (no @var annotation with a concrete type).',
+                $propertyName,
+            ),
+        ]);
+    }
+
+    /**
+     * @param ObjectType<class-string> $type
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function resolveObjectSchema(ObjectType $type, string $propertyName): OA\Schema
+    {
+        $className = $type->getClassName();
+
+        if (is_a($className, UploadedFile::class, allow_string: true)) {
+            return new OA\Schema([
+                'type' => 'string',
+                'format' => 'binary',
+                'description' => sprintf(
+                    'File upload property `%s` — multipart/form-data bodies are not yet fully modelled.',
+                    $propertyName,
+                ),
+            ]);
+        }
+
+        if (is_a($className, Data::class, allow_string: true)) {
+            /** @var class-string<Data> $className */
+            $key = $this->build($className);
+
+            return new OA\Schema(['ref' => "#/components/schemas/{$key}"]);
+        }
+
+        return $this->schemaFromType->fromType($type);
+    }
+
+    /**
+     * Converts an {@see OA\Schema} into an {@see OA\Property} by copying non-UNDEFINED JSON-Schema
+     * fields. Only JSON-Schema / OAS fields are transferred; swagger-php internals (e.g. `_context`,
+     * `schema`, `_unmerged`) are intentionally excluded.
+     */
+    private function schemaToProperty(string $name, OA\Schema $schema): OA\Property
+    {
+        $undefined = Generator::UNDEFINED;
+        $props = ['property' => $name];
+
+        static $allowlist = [
+            'type',
+            'format',
+            'ref',
+            'oneOf',
+            'allOf',
+            'anyOf',
+            'items',
+            'enum',
+            'description',
+            'example',
+            'nullable',
+            'minimum',
+            'maximum',
+            'exclusiveMinimum',
+            'exclusiveMaximum',
+            'minLength',
+            'maxLength',
+            'pattern',
+            'minItems',
+            'maxItems',
+            'uniqueItems',
+            'multipleOf',
+            'properties',
+            'additionalProperties',
+            'required',
+            'deprecated',
+            'readOnly',
+            'writeOnly',
+            'default',
+            'title',
+        ];
+
+        foreach ($allowlist as $field) {
+            $value = $schema->{$field};
+
+            if ($value !== $undefined) {
+                $props[$field] = $value;
+            }
+        }
+
+        return new OA\Property($props);
+    }
+
+    /**
+     * Detects whether the property is deprecated.
+     *
+     * Three signals are honoured, in order of authoring convenience:
+     *
+     * 1. The package's own `#[Deprecated]` attribute on the property or its promoted constructor
+     *    parameter — the symmetric authoring path.
+     * 2. The PHPDoc `@deprecated` tag on the property — works on every Data class with a
+     *    PHPDoc block, and is what most IDEs surface in completion.
+     *
+     * PHP 8.4's native `#[\Deprecated]` is not consulted here because it does not support
+     * `TARGET_PROPERTY` or `TARGET_PARAMETER`.
+     */
+    private function isPropertyDeprecated(ReflectionProperty $prop, ?ReflectionParameter $ctorParam): bool
+    {
+        if ($prop->getAttributes(DeprecatedAttribute::class) !== []) {
+            return true;
+        }
+
+        if ($ctorParam !== null && $ctorParam->getAttributes(DeprecatedAttribute::class) !== []) {
+            return true;
+        }
+
+        $docComment = $prop->getDocComment();
+
+        return $docComment !== false && preg_match('/@deprecated\b/i', $docComment) === 1;
     }
 
     /**
@@ -747,34 +724,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
         return [$properties, $required];
     }
 
-    /**
-     * Detects whether the property is deprecated.
-     *
-     * Three signals are honoured, in order of authoring convenience:
-     *
-     * 1. The package's own `#[Deprecated]` attribute on the property or its promoted constructor
-     *    parameter — the symmetric authoring path.
-     * 2. The PHPDoc `@deprecated` tag on the property — works on every Data class with a
-     *    PHPDoc block, and is what most IDEs surface in completion.
-     *
-     * PHP 8.4's native `#[\Deprecated]` is not consulted here because it does not support
-     * `TARGET_PROPERTY` or `TARGET_PARAMETER`.
-     */
-    private function isPropertyDeprecated(ReflectionProperty $prop, ?ReflectionParameter $ctorParam): bool
-    {
-        if ($prop->getAttributes(DeprecatedAttribute::class) !== []) {
-            return true;
-        }
-
-        if ($ctorParam !== null && $ctorParam->getAttributes(DeprecatedAttribute::class) !== []) {
-            return true;
-        }
-
-        $docComment = $prop->getDocComment();
-
-        return $docComment !== false && preg_match('/@deprecated\b/i', $docComment) === 1;
-    }
-
     private function applyPropertyAttribute(ReflectionProperty $prop, OA\Property $property): void
     {
         $attributes = $prop->getAttributes(
@@ -789,47 +738,129 @@ final class SchemaFromDataClass implements FilePropertyChecker
         $attributes[0]->newInstance()->descriptor()->applyTo($property);
     }
 
-    private function containsOptional(Type $type): bool
+    /**
+     * Returns true when any public property of `$dataClass` (or any nested Data class it
+     * transitively references) is typed as {@see UploadedFile}.
+     *
+     * Used by {@see RequestBodyExtractor} to switch the request media type to
+     * `multipart/form-data`. Cached by class for the lifetime of the registry to keep deep nested
+     * checks cheap.
+     *
+     * @param class-string<Data> $dataClass
+     *
+     * @throws ReflectionException
+     */
+    public function hasFileProperties(string $dataClass): bool
     {
-        if (!$type instanceof UnionType) {
-            return false;
-        }
-
-        return array_any(
-            $type->getTypes(),
-            static fn(Type $member): bool
-                => $member instanceof ObjectType && $member->getClassName() === Optional::class,
-        );
+        return $this->filePropertiesCache[$dataClass]
+            ??= $this->detectFileProperties($dataClass, []);
     }
 
     /**
-     * Returns a new type with `Optional` removed from the union.
+     * @param class-string<Data>              $dataClass
+     * @param array<class-string<Data>, true> $visited   Recursion guard.
      *
-     * If after removal only one member remains, that member is returned directly. If the sole
-     * remaining type is the null builtin, a `NullableType` wrapping `string` is returned as a
-     * fallback (edge case: `Optional|null` only).
+     * @throws ReflectionException
      */
-    private function stripOptional(Type $type): Type
+    private function detectFileProperties(string $dataClass, array $visited): bool
     {
-        if (!$type instanceof UnionType) {
-            return $type;
+        if (isset($visited[$dataClass])) {
+            return false;
         }
 
-        $remaining = array_values(
-            array_filter(
-                $type->getTypes(),
-                static fn(Type $member): bool
-                    => !(
-                        $member instanceof ObjectType
-                    && $member->getClassName() === Optional::class
-                    ),
-            ),
-        );
+        $visited[$dataClass] = true;
+        $reflection = new ReflectionClass($dataClass);
 
-        return match (true) {
-            count($remaining) === 0 => Type::builtin(TypeIdentifier::STRING),
-            count($remaining) === 1 => $remaining[0],
-            default => Type::union(...$remaining),
-        };
+        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
+            $rawType = $prop->getType();
+
+            if ($rawType === null) {
+                continue;
+            }
+
+            try {
+                $type = $this->typeResolver->resolve($rawType);
+            } catch (UnsupportedException) {
+                continue;
+            }
+
+            if ($this->typeReferencesUploadedFile($type)) {
+                return true;
+            }
+
+            if (array_any(
+                $this->collectNestedDataClasses($type, $prop),
+                fn(string $nested): bool => $this->detectFileProperties($nested, $visited),
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function typeReferencesUploadedFile(Type $type): bool
+    {
+        if ($type instanceof NullableType) {
+            return $this->typeReferencesUploadedFile($type->getWrappedType());
+        }
+
+        if ($type instanceof UnionType) {
+            return array_any(
+                $type->getTypes(),
+                fn(Type $member): bool => $this->typeReferencesUploadedFile($member),
+            );
+        }
+
+        if ($type instanceof CollectionType) {
+            return $this->typeReferencesUploadedFile($type->getCollectionValueType());
+        }
+
+        return
+            $type instanceof ObjectType
+            && is_a($type->getClassName(), UploadedFile::class, allow_string: true);
+    }
+
+    /**
+     * @return list<class-string<Data>>
+     */
+    private function collectNestedDataClasses(Type $type, ReflectionProperty $prop): array
+    {
+        if ($type instanceof NullableType) {
+            return $this->collectNestedDataClasses($type->getWrappedType(), $prop);
+        }
+
+        if ($type instanceof UnionType) {
+            $result = [];
+
+            foreach ($type->getTypes() as $member) {
+                foreach ($this->collectNestedDataClasses($member, $prop) as $className) {
+                    $result[] = $className;
+                }
+            }
+
+            return $result;
+        }
+
+        if ($type instanceof CollectionType) {
+            return $this->collectNestedDataClasses($type->getCollectionValueType(), $prop);
+        }
+
+        if ($type instanceof ObjectType) {
+            $className = $type->getClassName();
+
+            if (is_a($className, Data::class, allow_string: true)) {
+                /** @var class-string<Data> $className */
+                return [$className];
+            }
+
+            if (is_a($className, DataCollection::class, allow_string: true)) {
+                $itemClass = $this->readDataCollectionItemClass($prop);
+
+                return $itemClass !== null ? [$itemClass] : [];
+            }
+        }
+
+        return [];
     }
 }

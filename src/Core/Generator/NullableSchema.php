@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -37,6 +37,9 @@ final class NullableSchema
     /** Scalar OAS types that can be safely widened to a type array. */
     private const array SCALAR_TYPES = ['string', 'integer', 'number', 'boolean'];
 
+    /** @codeCoverageIgnore */
+    private function __construct() {}
+
     /**
      * Returns a nullable version of `$schema` using the OAS 3.1 idiom.
      *
@@ -69,7 +72,7 @@ final class NullableSchema
             && is_string($schema->type)
             && in_array($schema->type, self::SCALAR_TYPES, strict: true)
         ) {
-            $clone       = clone $schema;
+            $clone = clone $schema;
             $clone->type = [$schema->type, 'null'];
 
             return $clone;
@@ -131,11 +134,11 @@ final class NullableSchema
                 $inner = new OA\Schema(['type' => $target->type]);
 
                 if (!Generator::isDefault($target->items)) {
-                    $inner->items  = $target->items;
-                    $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                    $inner->items = $target->items;
+                    $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                 }
 
-                $target->type  = Generator::UNDEFINED;
+                $target->type = Generator::UNDEFINED;
                 $target->oneOf = [
                     $inner,
                     new OA\Schema(['type' => 'null']),
@@ -150,7 +153,4 @@ final class NullableSchema
             $target->type = ['null'];
         }
     }
-
-    /** @codeCoverageIgnore */
-    private function __construct() {}
 }

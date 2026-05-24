@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,19 +12,19 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
+use Radiergummi\OpenApi\Core\Extractors\SecurityExtractor;
 
 /**
- * Explicitly sets the security requirement for an operation, bypassing the
- * middleware-based derivation in {@see \Radiergummi\OpenApi\Core\Extractors\SecurityExtractor}.
+ * Explicitly sets the security requirement for an operation, bypassing the middleware-based
+ * derivation in {@see SecurityExtractor}.
  *
- * Pass an empty list for "token required but no specific scope" — the same
- * shape as auth-without-scope middleware emits today.
+ * Pass an empty list for "token required but no specific scope" — the same shape as
+ * auth-without-scope middleware emits today.
  *
- * The optional `$scheme` names which configured security scheme the requirement
- * targets — match the key under `openapi.security_schemes` or one of the
- * Passport-derived defaults (`oauth2`, `oauth2ClientCredentials`). When omitted,
- * the requirement falls back to the project's default scheme set (Passport's
- * pair if available, otherwise the first config-declared scheme).
+ * The optional `$scheme` names which configured security scheme the requirement targets — match the
+ * key under `openapi.security_schemes` or one of the Passport-derived defaults (`oauth2`,
+ * `oauth2ClientCredentials`). When omitted, the requirement falls back to the project's default
+ * scheme set (Passport's pair if available, otherwise the first config-declared scheme).
  *
  * For truly public endpoints use {@see PublicEndpoint} instead.
  *

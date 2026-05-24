@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -26,14 +26,13 @@ use function in_array;
 use function sprintf;
 
 /**
- * Flags a controller method that injects a `spatie/laravel-query-builder`
- * `QueryBuilder` but declares none of `#[AllowedFilter]`, `#[AllowedSort]`, or
- * `#[AllowedInclude]` — the endpoint accepts filter/sort/include parameters
- * that the generated document does not describe.
+ * Flags a controller method that injects a `spatie/laravel-query-builder` `QueryBuilder` but
+ * declares none of `#[AllowedFilter]`, `#[AllowedSort]`, or `#[AllowedInclude]` — the endpoint
+ * accepts filter/sort/include parameters that the generated document does not describe.
  *
- * Detection is deliberately conservative: it keys off an injected `QueryBuilder`
- * parameter (matched by FQCN string via {@see PayloadParameterScanner}, so the
- * package need not be installed), not a body-inference heuristic.
+ * Detection is deliberately conservative: it keys off an injected `QueryBuilder` parameter
+ * (matched by FQCN string via {@see PayloadParameterScanner}, so the package need not be
+ * installed), not a body-inference heuristic.
  */
 final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
 {

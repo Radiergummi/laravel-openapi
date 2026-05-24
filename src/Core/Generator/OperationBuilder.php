@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -106,16 +106,19 @@ final readonly class OperationBuilder
      */
     public function build(ActionDescriptor $action, array $defaultTags): OperationDescriptor
     {
-        $pathParams = $this->uriExtractor->extract(array_map(
-            fn(ReflectionParameter $parameter): array => [
-                $this->uriResolver->resolve(
-                    $parameter,
-                    $action->constraintFor($parameter->getName()),
-                ),
-                $parameter,
-            ],
-            $action->uriParameters,
-        ));
+        $pathParams = $this->uriExtractor->extract(
+            array_map(
+                fn(ReflectionParameter $parameter): array
+                    => [
+                        $this->uriResolver->resolve(
+                            $parameter,
+                            $action->constraintFor($parameter->getName()),
+                        ),
+                        $parameter,
+                    ],
+                $action->uriParameters,
+            ),
+        );
         $queryParams = [];
 
         foreach ($this->queryParameterResolvers as $queryResolver) {
@@ -217,18 +220,6 @@ final readonly class OperationBuilder
         );
     }
 
-    private function readOperationAttribute(ActionDescriptor $descriptor): ?OperationAttribute
-    {
-        $source = $descriptor->actionAttributes(OperationAttribute::class)[0]
-            ?? $descriptor->controllerAttributes(OperationAttribute::class)[0]
-            ?? null;
-
-        $instance = $source?->newInstance();
-        assert($instance === null || $instance instanceof OperationAttribute);
-
-        return $instance;
-    }
-
     /**
      * Resolves security requirements for an operation.
      *
@@ -255,6 +246,27 @@ final readonly class OperationBuilder
     }
 
     /**
+     * @param class-string $attribute
+     */
+    private function hasAttribute(ActionDescriptor $descriptor, string $attribute): bool
+    {
+        return $descriptor->actionAttributes($attribute) !== []
+            || $descriptor->controllerAttributes($attribute) !== [];
+    }
+
+    /**
+     * @param class-string $attribute
+     */
+    private function readAttribute(ActionDescriptor $descriptor, string $attribute): ?object
+    {
+        $source = $descriptor->actionAttributes($attribute)[0]
+            ?? $descriptor->controllerAttributes($attribute)[0]
+            ?? null;
+
+        return $source?->newInstance();
+    }
+
+    /**
      * Method-level entries win on name collision; declaration order is otherwise preserved.
      *
      * @return list<OA\Parameter>
@@ -264,45 +276,17 @@ final readonly class OperationBuilder
         /** @var array<string, HeaderAttribute> $byName */
         $byName = [];
 
-        foreach ([
-            ...$descriptor->controllerAttributes(HeaderAttribute::class),
-            ...$descriptor->actionAttributes(HeaderAttribute::class),
-        ] as $attr) {
+        foreach (
+            [
+                ...$descriptor->controllerAttributes(HeaderAttribute::class),
+                ...$descriptor->actionAttributes(HeaderAttribute::class),
+            ] as $attr
+        ) {
             $instance = $attr->newInstance();
             $byName[$instance->name] = $instance;
         }
 
         return array_values(array_map($this->buildHeaderParameter(...), $byName));
-    }
-
-    private function buildHeaderParameter(HeaderAttribute $header): OA\Parameter
-    {
-        $schemaProps = ['type' => $header->type];
-
-        if ($header->format !== null) {
-            $schemaProps['format'] = $header->format;
-        }
-
-        if ($header->example !== null) {
-            $schemaProps['example'] = $header->example;
-        }
-
-        $props = [
-            'name' => $header->name,
-            'in' => 'header',
-            'required' => $header->required,
-            'schema' => new OA\Schema($schemaProps),
-        ];
-
-        if ($header->description !== null) {
-            $props['description'] = $header->description;
-        }
-
-        if ($header->deprecated !== null) {
-            $props['deprecated'] = $header->deprecated;
-        }
-
-        return new OA\Parameter($props);
     }
 
     /**
@@ -397,138 +381,6 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Examples for a status without a corresponding response are dropped silently.
-     *
-     * @param list<OA\Response> $responses
-     *
-     * @throws RuntimeException
-     */
-    private function applyResponseExamples(ActionDescriptor $descriptor, array $responses): void
-    {
-        $attributes = $descriptor->actionAttributes(ResponseExampleAttribute::class);
-
-        if ($attributes === []) {
-            return;
-        }
-
-        /** @var array<string, list<ResponseExampleAttribute>> $byStatus */
-        $byStatus = [];
-
-        foreach ($attributes as $attribute) {
-            try {
-                $instance = $attribute->newInstance();
-            } catch (InvalidArgumentException) {
-                // Malformed #[ResponseExample] attribute — skip and continue generating
-                continue;
-            }
-
-            $byStatus[(string) $instance->status][] = $instance;
-        }
-
-        foreach ($responses as $response) {
-            $status = (string) $response->response;
-
-            if (!isset($byStatus[$status])) {
-                continue;
-            }
-
-            $content = $response->content;
-
-            // Scaffold a media type when the response has none; declaring an example implies a body
-            if (!is_array($content) || $content === []) {
-                $content = [MediaType::Json->schema()];
-                $response->content = $content;
-            }
-
-            $examples = $this->collectExamples($byStatus[$status]);
-
-            foreach ($content as $media) {
-                if ($media instanceof OA\MediaType) {
-                    $media->examples = $examples;
-                }
-            }
-        }
-    }
-
-    /**
-     * Attaches `#[ResponseHeader]` attributes to the response whose status matches the attribute's
-     * `status:`. Walks both controller and method (or just the function for closure routes) so
-     * authors can declare a shared header once on the controller; method-level entries win on
-     * `(status, name)` collision and declaration order is otherwise preserved. Headers without a
-     * matching response are dropped silently.
-     *
-     * Per RFC7230, header names are case-insensitive — the swagger-php Header object carries the
-     * casing the author chose.
-     *
-     * @param list<OA\Response> $responses
-     */
-    private function applyResponseHeaders(ActionDescriptor $descriptor, array $responses): void
-    {
-        /** @var array<string, array<string, ResponseHeaderAttribute>> $byStatus */
-        $byStatus = [];
-
-        foreach ([
-            ...$descriptor->controllerAttributes(ResponseHeaderAttribute::class),
-            ...$descriptor->actionAttributes(ResponseHeaderAttribute::class),
-        ] as $attribute) {
-            $instance = $attribute->newInstance();
-            $byStatus[(string) $instance->status][$instance->name] = $instance;
-        }
-
-        if ($byStatus === []) {
-            return;
-        }
-
-        foreach ($responses as $response) {
-            $status = (string) $response->response;
-
-            if (!isset($byStatus[$status])) {
-                continue;
-            }
-
-            $existing = is_array($response->headers) ? $response->headers : [];
-
-            foreach ($byStatus[$status] as $headerAttribute) {
-                $existing[] = $this->buildResponseHeader($headerAttribute);
-            }
-
-            $response->headers = $existing;
-        }
-    }
-
-    private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
-    {
-        $schemaProps = ['type' => $header->type];
-
-        if ($header->format !== null) {
-            $schemaProps['format'] = $header->format;
-        }
-
-        if ($header->example !== null) {
-            $schemaProps['example'] = $header->example;
-        }
-
-        $props = [
-            'header' => $header->name,
-            'schema' => new OA\Schema($schemaProps),
-        ];
-
-        if ($header->description !== null) {
-            $props['description'] = $header->description;
-        }
-
-        if ($header->required !== null) {
-            $props['required'] = $header->required;
-        }
-
-        if ($header->deprecated !== null) {
-            $props['deprecated'] = $header->deprecated;
-        }
-
-        return new OA\Header($props);
-    }
-
-    /**
      * @param list<BaseExampleAttribute> $instances
      *
      * @return list<OA\Examples>
@@ -563,42 +415,16 @@ final readonly class OperationBuilder
         return $out;
     }
 
-    private function readExternalDocsAttribute(ActionDescriptor $descriptor): ?OA\ExternalDocumentation
+    private function readOperationAttribute(ActionDescriptor $descriptor): ?OperationAttribute
     {
-        $attribute = $this->readAttribute($descriptor, ExternalDocsAttribute::class);
-
-        if (!$attribute instanceof ExternalDocsAttribute) {
-            return null;
-        }
-
-        $props = ['url' => $attribute->url];
-
-        if ($attribute->description !== null) {
-            $props['description'] = $attribute->description;
-        }
-
-        return new OA\ExternalDocumentation($props);
-    }
-
-    /**
-     * @param class-string $attribute
-     */
-    private function hasAttribute(ActionDescriptor $descriptor, string $attribute): bool
-    {
-        return $descriptor->actionAttributes($attribute) !== []
-            || $descriptor->controllerAttributes($attribute) !== [];
-    }
-
-    /**
-     * @param class-string $attribute
-     */
-    private function readAttribute(ActionDescriptor $descriptor, string $attribute): ?object
-    {
-        $source = $descriptor->actionAttributes($attribute)[0]
-            ?? $descriptor->controllerAttributes($attribute)[0]
+        $source = $descriptor->actionAttributes(OperationAttribute::class)[0]
+            ?? $descriptor->controllerAttributes(OperationAttribute::class)[0]
             ?? null;
 
-        return $source?->newInstance();
+        $instance = $source?->newInstance();
+        assert($instance === null || $instance instanceof OperationAttribute);
+
+        return $instance;
     }
 
     /** @return list<string> */
@@ -606,10 +432,12 @@ final readonly class OperationBuilder
     {
         $tags = [];
 
-        foreach ([
-            ...$descriptor->controllerAttributes(TagAttribute::class),
-            ...$descriptor->actionAttributes(TagAttribute::class),
-        ] as $attr) {
+        foreach (
+            [
+                ...$descriptor->controllerAttributes(TagAttribute::class),
+                ...$descriptor->actionAttributes(TagAttribute::class),
+            ] as $attr
+        ) {
             $tags[] = $attr->newInstance()->name;
         }
 
@@ -681,50 +509,6 @@ final readonly class OperationBuilder
         return null;
     }
 
-    /**
-     * Attaches `#[Link]` attributes declared on the method to the primary 2xx response.
-     *
-     * Each link becomes an entry in `responses.{status}.links`, keyed by `$link->name`. Links are
-     * only supported on method-level (they are per-operation, not per-controller).
-     */
-    private function applyLinkAttributes(ActionDescriptor $descriptor, OA\Response $primaryResponse): void
-    {
-        $attrs = $descriptor->actionAttributes(LinkAttribute::class);
-
-        if ($attrs === []) {
-            return;
-        }
-
-        $links = is_array($primaryResponse->links) ? $primaryResponse->links : [];
-
-        foreach ($attrs as $attr) {
-            $instance = $attr->newInstance();
-            assert($instance instanceof LinkAttribute);
-
-            $props = ['link' => $instance->name];
-
-            if ($instance->operationId !== null) {
-                $props['operationId'] = $instance->operationId;
-            }
-
-            if ($instance->operationRef !== null) {
-                $props['operationRef'] = $instance->operationRef;
-            }
-
-            if ($instance->parameters !== []) {
-                $props['parameters'] = $instance->parameters;
-            }
-
-            if ($instance->description !== null) {
-                $props['description'] = $instance->description;
-            }
-
-            $links[] = new OA\Link($props);
-        }
-
-        $primaryResponse->links = $links;
-    }
-
     private function readDeprecation(ActionDescriptor $descriptor): ?string
     {
         $source = $this->firstDeprecatedAttribute($descriptor);
@@ -773,6 +557,201 @@ final readonly class OperationBuilder
         return null;
     }
 
+    private function readExternalDocsAttribute(ActionDescriptor $descriptor): ?OA\ExternalDocumentation
+    {
+        $attribute = $this->readAttribute($descriptor, ExternalDocsAttribute::class);
+
+        if (!$attribute instanceof ExternalDocsAttribute) {
+            return null;
+        }
+
+        $props = ['url' => $attribute->url];
+
+        if ($attribute->description !== null) {
+            $props['description'] = $attribute->description;
+        }
+
+        return new OA\ExternalDocumentation($props);
+    }
+
+    /**
+     * Examples for a status without a corresponding response are dropped silently.
+     *
+     * @param list<OA\Response> $responses
+     *
+     * @throws RuntimeException
+     */
+    private function applyResponseExamples(ActionDescriptor $descriptor, array $responses): void
+    {
+        $attributes = $descriptor->actionAttributes(ResponseExampleAttribute::class);
+
+        if ($attributes === []) {
+            return;
+        }
+
+        /** @var array<string, list<ResponseExampleAttribute>> $byStatus */
+        $byStatus = [];
+
+        foreach ($attributes as $attribute) {
+            try {
+                $instance = $attribute->newInstance();
+            } catch (InvalidArgumentException) {
+                // Malformed #[ResponseExample] attribute — skip and continue generating
+                continue;
+            }
+
+            $byStatus[(string) $instance->status][] = $instance;
+        }
+
+        foreach ($responses as $response) {
+            $status = (string) $response->response;
+
+            if (!isset($byStatus[$status])) {
+                continue;
+            }
+
+            $content = $response->content;
+
+            // Scaffold a media type when the response has none; declaring an example implies a body
+            if (!is_array($content) || $content === []) {
+                $content = [MediaType::Json->schema()];
+                $response->content = $content;
+            }
+
+            $examples = $this->collectExamples($byStatus[$status]);
+
+            foreach ($content as $media) {
+                if ($media instanceof OA\MediaType) {
+                    $media->examples = $examples;
+                }
+            }
+        }
+    }
+
+    /**
+     * Attaches `#[ResponseHeader]` attributes to the response whose status matches the attribute's
+     * `status:`. Walks both controller and method (or just the function for closure routes) so
+     * authors can declare a shared header once on the controller; method-level entries win on
+     * `(status, name)` collision and declaration order is otherwise preserved. Headers without a
+     * matching response are dropped silently.
+     *
+     * Per RFC7230, header names are case-insensitive — the swagger-php Header object carries the
+     * casing the author chose.
+     *
+     * @param list<OA\Response> $responses
+     */
+    private function applyResponseHeaders(ActionDescriptor $descriptor, array $responses): void
+    {
+        /** @var array<string, array<string, ResponseHeaderAttribute>> $byStatus */
+        $byStatus = [];
+
+        foreach (
+            [
+                ...$descriptor->controllerAttributes(ResponseHeaderAttribute::class),
+                ...$descriptor->actionAttributes(ResponseHeaderAttribute::class),
+            ] as $attribute
+        ) {
+            $instance = $attribute->newInstance();
+            $byStatus[(string) $instance->status][$instance->name] = $instance;
+        }
+
+        if ($byStatus === []) {
+            return;
+        }
+
+        foreach ($responses as $response) {
+            $status = (string) $response->response;
+
+            if (!isset($byStatus[$status])) {
+                continue;
+            }
+
+            $existing = is_array($response->headers) ? $response->headers : [];
+
+            foreach ($byStatus[$status] as $headerAttribute) {
+                $existing[] = $this->buildResponseHeader($headerAttribute);
+            }
+
+            $response->headers = $existing;
+        }
+    }
+
+    private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
+    {
+        $schemaProps = ['type' => $header->type];
+
+        if ($header->format !== null) {
+            $schemaProps['format'] = $header->format;
+        }
+
+        if ($header->example !== null) {
+            $schemaProps['example'] = $header->example;
+        }
+
+        $props = [
+            'header' => $header->name,
+            'schema' => new OA\Schema($schemaProps),
+        ];
+
+        if ($header->description !== null) {
+            $props['description'] = $header->description;
+        }
+
+        if ($header->required !== null) {
+            $props['required'] = $header->required;
+        }
+
+        if ($header->deprecated !== null) {
+            $props['deprecated'] = $header->deprecated;
+        }
+
+        return new OA\Header($props);
+    }
+
+    /**
+     * Attaches `#[Link]` attributes declared on the method to the primary 2xx response.
+     *
+     * Each link becomes an entry in `responses.{status}.links`, keyed by `$link->name`. Links are
+     * only supported on method-level (they are per-operation, not per-controller).
+     */
+    private function applyLinkAttributes(ActionDescriptor $descriptor, OA\Response $primaryResponse): void
+    {
+        $attrs = $descriptor->actionAttributes(LinkAttribute::class);
+
+        if ($attrs === []) {
+            return;
+        }
+
+        $links = is_array($primaryResponse->links) ? $primaryResponse->links : [];
+
+        foreach ($attrs as $attr) {
+            $instance = $attr->newInstance();
+            assert($instance instanceof LinkAttribute);
+
+            $props = ['link' => $instance->name];
+
+            if ($instance->operationId !== null) {
+                $props['operationId'] = $instance->operationId;
+            }
+
+            if ($instance->operationRef !== null) {
+                $props['operationRef'] = $instance->operationRef;
+            }
+
+            if ($instance->parameters !== []) {
+                $props['parameters'] = $instance->parameters;
+            }
+
+            if ($instance->description !== null) {
+                $props['description'] = $instance->description;
+            }
+
+            $links[] = new OA\Link($props);
+        }
+
+        $primaryResponse->links = $links;
+    }
+
     /**
      * @param list<string> $base
      * @param list<string> $additional
@@ -787,5 +766,35 @@ final readonly class OperationBuilder
                 static fn(string $tag): bool => $tag !== '',
             ),
         );
+    }
+
+    private function buildHeaderParameter(HeaderAttribute $header): OA\Parameter
+    {
+        $schemaProps = ['type' => $header->type];
+
+        if ($header->format !== null) {
+            $schemaProps['format'] = $header->format;
+        }
+
+        if ($header->example !== null) {
+            $schemaProps['example'] = $header->example;
+        }
+
+        $props = [
+            'name' => $header->name,
+            'in' => 'header',
+            'required' => $header->required,
+            'schema' => new OA\Schema($schemaProps),
+        ];
+
+        if ($header->description !== null) {
+            $props['description'] = $header->description;
+        }
+
+        if ($header->deprecated !== null) {
+            $props['deprecated'] = $header->deprecated;
+        }
+
+        return new OA\Parameter($props);
     }
 }

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -39,6 +39,8 @@ final readonly class Hide
     /**
      * @param null|list<string> $only   Hide *only* when `app()->environment()` is one of these.
      * @param null|list<string> $except Hide *except* when `app()->environment()` is one of these.
+     *
+     * @throws LogicException
      */
     public function __construct(
         public ?array $only = null,

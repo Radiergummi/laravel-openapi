@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -61,16 +61,16 @@ final class TagDuplicate implements Rule, OperationRuleVisitor
     }
 
     #[Override]
-    public function description(): string
-    {
-        return 'Two top-level tag definitions share the same name.';
-    }
-
-    #[Override]
     public function level(): int
     {
         // Duplicate tags on an operation violate the OpenAPI 3.1 spec
         // (tags MUST be unique) — a correctness error, not a convention nit.
         return 0;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Two top-level tag definitions share the same name.';
     }
 }

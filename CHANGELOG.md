@@ -55,6 +55,15 @@ All notable changes to this project are documented here.
   config-driven --skip merging, and `--level=max` resolution.
 
 ### Changed
+- `openapi:generate` now rejects unrecognised `--format` values with a
+  non-zero exit and an explicit error message. The previous behaviour silently
+  fell back to YAML for anything other than `json`. Covered by
+  `GenerateCommandTest::it rejects unsupported --format values with a clear error`.
+- `ExamplesTest`'s validity check now boots each flavor, regenerates the
+  document in-memory via `OpenApiGenerationOrchestrator`, and runs
+  swagger-php's `Analysis::validate()` directly. The previous version only
+  parsed the committed YAML and asserted on the top-level keys, which was
+  redundant with the snapshot-equality test.
 - Auto-wired pipeline classes now carry the `#[Scoped]` container attribute
   (`Illuminate\Container\Attributes\Scoped`) and self-register on first resolve;
   the matching one-arg `$this->app->scoped(X::class)` calls in

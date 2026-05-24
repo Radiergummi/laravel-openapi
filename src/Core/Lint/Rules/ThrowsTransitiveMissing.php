@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -35,12 +35,12 @@ use function str_contains;
 use function str_ends_with;
 
 /**
- * Flags controller methods that type-hint an Action class whose `handle()`
- * method declares `@throws` exceptions not redeclared on the controller method.
+ * Flags controller methods that type-hint an Action class whose `handle()` method declares
+ * `@throws` exceptions not redeclared on the controller method.
  *
- * This catches the common mistake of adding a new exception path inside an
- * Action without propagating it to the controller's PHPDoc, which in turn
- * means the OpenAPI spec will lack the corresponding error response.
+ * This catches the common mistake of adding a new exception path inside an Action without
+ * propagating it to the controller's PHPDoc, which in turn means the OpenAPI spec will lack the
+ * corresponding error response.
  */
 final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
 {
@@ -85,8 +85,7 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
     }
 
     /**
-     * Resolve the parameter type to an Action class name, or null if not an
-     * Action.
+     * Resolve the parameter type to an Action class name, or null if not an Action.
      *
      * @return null|class-string
      */
@@ -112,8 +111,8 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
     }
 
     /**
-     * Heuristic: a class is an "Action" if its name ends with `Action` or it
-     * lives in a `Domain\*\Actions` namespace.
+     * Heuristic: a class is an "Action" if its name ends with `Action` or it lives in a
+     * `Domain\*\Actions` namespace.
      */
     private function isActionClass(string $className): bool
     {
@@ -125,8 +124,8 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
     }
 
     /**
-     * Parse `@throws` from the Action's `handle()` method and emit a finding
-     * for each exception not declared on the controller method.
+     * Parse `@throws` from the Action's `handle()` method and emit a finding for each exception
+     * not declared on the controller method.
      *
      * @param class-string $actionClass
      *
@@ -149,9 +148,9 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
             return;
         }
 
-        // Resolve the docblock against the Action's namespace and use-statements
-        // so short `@throws` names (e.g. `NotFoundException`) become FQCNs and
-        // can be compared against the controller's resolved throws.
+        // Resolve the docblock against the Action's namespace and use-statements so short
+        // `@throws` names (e.g. `NotFoundException`) become FQCNs and can be compared against
+        // the controller's resolved throws.
         $context = $this->contextFactory->createFromReflector($handleMethod);
         $docBlock = $this->docBlockFactory->create($docComment, $context);
         $throwsTags = $docBlock->getTagsByName('throws');

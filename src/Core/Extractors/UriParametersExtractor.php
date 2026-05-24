@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -41,8 +41,11 @@ final readonly class UriParametersExtractor
      * Builds swagger-php path parameter annotations from descriptor/parameter pairs.
      *
      * @param list<array{UriParameterDescriptor, ?ReflectionParameter}> $parameters Each pair is a
-     *                                                                              descriptor and the ReflectionParameter it was resolved from (used to read FieldAttribute
-     *                                                                              annotations); the parameter is null when none is available.
+     *                                                                              descriptor and the
+     *                                                                              ReflectionParameter it was resolved
+     *                                                                              from (used to read FieldAttribute
+     *                                                                              annotations); the parameter is null
+     *                                                                              when none is available.
      *
      * @return list<OA\Parameter>
      */
@@ -94,10 +97,10 @@ final readonly class UriParametersExtractor
         UriParameterDescriptor $descriptor,
     ): OA\Schema {
         match ($descriptor->whereKind) {
-            WhereKind::Uuid   => $schema->format = 'uuid',
-            WhereKind::Number => $schema->type   = 'integer',
-            WhereKind::In     => $descriptor->enumCases !== null
-                ? ($schema->enum    = $descriptor->enumCases)
+            WhereKind::Uuid => $schema->format = 'uuid',
+            WhereKind::Number => $schema->type = 'integer',
+            WhereKind::In => $descriptor->enumCases !== null
+                ? ($schema->enum = $descriptor->enumCases)
                 : null,
             WhereKind::Custom => $descriptor->whereConstraint !== null
                 ? ($schema->pattern = $descriptor->whereConstraint)

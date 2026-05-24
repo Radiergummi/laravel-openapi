@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -39,7 +39,7 @@ abstract readonly class BaseExample
         public ?string $file = null,
     ) {
         $hasValue = $value !== null;
-        $hasFile  = $file !== null;
+        $hasFile = $file !== null;
 
         if ($hasValue && $hasFile) {
             throw new InvalidArgumentException(

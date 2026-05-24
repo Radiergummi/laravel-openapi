@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -52,6 +52,18 @@ final readonly class SchemaFromFormRequest
     /**
      * @param class-string<FormRequest> $formRequestClass
      */
+    public function hasFileFields(string $formRequestClass): bool
+    {
+        // build() is idempotent (registry-cached) and always populates hasFileFields as a side
+        // effect, so we delegate to it rather than duplicating the instantiation logic here.
+        $this->build($formRequestClass);
+
+        return $this->registry->getHasFileFields($formRequestClass) ?? false;
+    }
+
+    /**
+     * @param class-string<FormRequest> $formRequestClass
+     */
     public function build(string $formRequestClass): OA\Schema
     {
         $key = $this->registry->buildOnce(
@@ -65,18 +77,6 @@ final readonly class SchemaFromFormRequest
     /**
      * @param class-string<FormRequest> $formRequestClass
      */
-    public function hasFileFields(string $formRequestClass): bool
-    {
-        // build() is idempotent (registry-cached) and always populates hasFileFields as a side
-        // effect, so we delegate to it rather than duplicating the instantiation logic here.
-        $this->build($formRequestClass);
-
-        return $this->registry->getHasFileFields($formRequestClass) ?? false;
-    }
-
-    /**
-     * @param class-string<FormRequest> $formRequestClass
-     */
     private function buildSchema(string $formRequestClass): OA\Schema
     {
         $basename = class_basename($formRequestClass);
@@ -85,7 +85,7 @@ final readonly class SchemaFromFormRequest
             $this->registry->setHasFileFields($formRequestClass, false);
 
             return new OA\Schema([
-                'type'        => 'object',
+                'type' => 'object',
                 'description' => sprintf(
                     '%s does not declare a rules() method.',
                     $basename,
@@ -95,18 +95,20 @@ final readonly class SchemaFromFormRequest
 
         try {
             $instance = new $formRequestClass();
-            $rules    = $instance->rules();
+            $rules = $instance->rules();
         } catch (Throwable $e) {
-            $this->logger->warning(sprintf(
-                'SchemaFromFormRequest failed for %s: %s',
-                $formRequestClass,
-                $e->getMessage(),
-            ));
+            $this->logger->warning(
+                sprintf(
+                    'SchemaFromFormRequest failed for %s: %s',
+                    $formRequestClass,
+                    $e->getMessage(),
+                ),
+            );
 
             $this->registry->setHasFileFields($formRequestClass, false);
 
             return new OA\Schema([
-                'type'        => 'object',
+                'type' => 'object',
                 'description' => sprintf(
                     'Schema introspection failed for %s.',
                     $basename,
@@ -114,10 +116,10 @@ final readonly class SchemaFromFormRequest
             ]);
         }
 
-        $result     = $this->rulesMapper->process($rules, sourceClass: $formRequestClass);
-        $fieldMap   = $result['fields'];
-        $itemsMap   = $result['itemsFields'];
-        $hasDotted  = $result['hasDottedKeys'];
+        $result = $this->rulesMapper->process($rules, sourceClass: $formRequestClass);
+        $fieldMap = $result['fields'];
+        $itemsMap = $result['itemsFields'];
+        $hasDotted = $result['hasDottedKeys'];
 
         $this->registry->setHasFileFields(
             $formRequestClass,
@@ -142,7 +144,7 @@ final readonly class SchemaFromFormRequest
                 $constantOverrides[$fieldName]->descriptor()->applyTo($property);
             }
 
-            $properties[]                 = $property;
+            $properties[] = $property;
             $propertiesByName[$fieldName] = $property;
 
             if ($descriptor->required) {
@@ -177,7 +179,7 @@ final readonly class SchemaFromFormRequest
         }
 
         $schemaProps = [
-            'type'       => 'object',
+            'type' => 'object',
             'properties' => $properties,
         ];
 
@@ -195,14 +197,6 @@ final readonly class SchemaFromFormRequest
         return new OA\Schema($schemaProps);
     }
 
-    private function buildProperty(string $name, FieldDescriptor $d): OA\Property
-    {
-        $property = new OA\Property(['property' => $name]);
-        $d->applyTo($property);
-
-        return $property;
-    }
-
     /**
      * Reads `#[RequestField]` attributes from `PARAM_*` class constants on the FormRequest.
      * Allows authors to annotate constants:
@@ -218,7 +212,7 @@ final readonly class SchemaFromFormRequest
     private function readConstantFieldAttributes(string $formRequestClass): array
     {
         $reflection = new ReflectionClass($formRequestClass);
-        $out        = [];
+        $out = [];
 
         foreach ($reflection->getReflectionConstants(ReflectionClassConstant::IS_PUBLIC) as $constant) {
             $attrs = $constant->getAttributes(
@@ -240,5 +234,13 @@ final readonly class SchemaFromFormRequest
         }
 
         return $out;
+    }
+
+    private function buildProperty(string $name, FieldDescriptor $d): OA\Property
+    {
+        $property = new OA\Property(['property' => $name]);
+        $d->applyTo($property);
+
+        return $property;
     }
 }

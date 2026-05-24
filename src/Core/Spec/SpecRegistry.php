@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -93,27 +93,6 @@ final class SpecRegistry
         return array_values($this->resolve());
     }
 
-    public function get(string $name): SpecDefinition
-    {
-        $map = $this->resolve();
-
-        if (!array_key_exists($name, $map)) {
-            throw new InvalidArgumentException(sprintf("Spec '%s' is not defined.", $name));
-        }
-
-        return $map[$name];
-    }
-
-    public function default(): SpecDefinition
-    {
-        return $this->get('default');
-    }
-
-    public function has(string $name): bool
-    {
-        return array_key_exists($name, $this->resolve());
-    }
-
     /** @return array<string, SpecDefinition> */
     private function resolve(): array
     {
@@ -147,10 +126,12 @@ final class SpecRegistry
         $serversArray = is_array($overrides['servers'] ?? null) ? $overrides['servers'] : $this->rootServers;
         $tagsArray = is_array($overrides['tags'] ?? null) ? $overrides['tags'] : $this->rootTags;
 
-        $servers = array_values(array_map(
-            static fn(array $s): OA\Server => new OA\Server($s),
-            $serversArray,
-        ));
+        $servers = array_values(
+            array_map(
+                static fn(array $s): OA\Server => new OA\Server($s),
+                $serversArray,
+            ),
+        );
 
         $tags = [];
 
@@ -162,12 +143,20 @@ final class SpecRegistry
         $match = is_array($overrides['match'] ?? null) ? $overrides['match'] : [];
 
         $outputPath = $this->resolveOutputPath($name, $overrides);
-        $routeUri = $this->resolveOptional($overrides, 'route_uri', $name === 'default'
-            ? $this->rootRouteUri
-            : sprintf('openapi-%s.yaml', $name));
-        $playgroundUri = $this->resolveOptional($overrides, 'playground_uri', $name === 'default'
-            ? $this->rootPlaygroundUri
-            : sprintf('docs/%s', $name));
+        $routeUri = $this->resolveOptional(
+            $overrides,
+            'route_uri',
+            $name === 'default'
+                ? $this->rootRouteUri
+                : sprintf('openapi-%s.yaml', $name),
+        );
+        $playgroundUri = $this->resolveOptional(
+            $overrides,
+            'playground_uri',
+            $name === 'default'
+                ? $this->rootPlaygroundUri
+                : sprintf('docs/%s', $name),
+        );
 
         return new SpecDefinition(
             name: $name,
@@ -211,5 +200,32 @@ final class SpecRegistry
         }
 
         return (string) $value;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    public function default(): SpecDefinition
+    {
+        return $this->get('default');
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    public function get(string $name): SpecDefinition
+    {
+        $map = $this->resolve();
+
+        if (!array_key_exists($name, $map)) {
+            throw new InvalidArgumentException(sprintf("Spec '%s' is not defined.", $name));
+        }
+
+        return $map[$name];
+    }
+
+    public function has(string $name): bool
+    {
+        return array_key_exists($name, $this->resolve());
     }
 }

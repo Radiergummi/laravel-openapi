@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -27,9 +27,9 @@ final class WebhookNode implements Node
     ) {}
 
     /**
-     * @internal Called exactly once by SpecTreeBuilder.
-     *
      * @throws LogicException if called more than once.
+     *
+     * @internal Called exactly once by SpecTreeBuilder.
      */
     public function linkParent(Node $parent): void
     {

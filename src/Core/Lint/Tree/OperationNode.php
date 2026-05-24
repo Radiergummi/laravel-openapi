@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -30,7 +30,8 @@ final class OperationNode implements Node
     private ?Node $parent = null;
 
     /**
-     * @param string                                            $pathUri         For API operations: the route URI. For webhooks: the webhook name.
+     * @param string                                            $pathUri         For API operations: the route URI. For
+     *                                                                           webhooks: the webhook name.
      * @param string                                            $method          Uppercase: GET, POST, etc.
      * @param list<ParameterNode>                               $parameters      Path parameters
      * @param list<QueryParameterNode>                          $queryParameters
@@ -57,9 +58,9 @@ final class OperationNode implements Node
     ) {}
 
     /**
-     * @internal Called exactly once by SpecTreeBuilder after construction.
-     *
      * @throws LogicException if called more than once.
+     *
+     * @internal Called exactly once by SpecTreeBuilder after construction.
      */
     public function linkParent(Node $parent): void
     {
@@ -94,10 +95,12 @@ final class OperationNode implements Node
      */
     public function successResponses(): array
     {
-        return array_values(array_filter(
-            $this->responses,
-            static fn(ResponseNode $r): bool => $r->isSuccess(),
-        ));
+        return array_values(
+            array_filter(
+                $this->responses,
+                static fn(ResponseNode $r): bool => $r->isSuccess(),
+            ),
+        );
     }
 
     /**
@@ -107,10 +110,12 @@ final class OperationNode implements Node
      */
     public function errorResponses(): array
     {
-        return array_values(array_filter(
-            $this->responses,
-            static fn(ResponseNode $r): bool => $r->isError(),
-        ));
+        return array_values(
+            array_filter(
+                $this->responses,
+                static fn(ResponseNode $r): bool => $r->isError(),
+            ),
+        );
     }
 
     /**
@@ -152,9 +157,10 @@ final class OperationNode implements Node
     {
         return $this->descriptor !== null && array_any(
             $this->descriptor->route->middleware(),
-            static fn(string $mw): bool => str_starts_with($mw, 'auth:')
-                || str_starts_with($mw, 'scope:')
-                || str_starts_with($mw, 'scopes:'),
+            static fn(string $mw): bool
+                    => str_starts_with($mw, 'auth:')
+                    || str_starts_with($mw, 'scope:')
+                    || str_starts_with($mw, 'scopes:'),
         );
     }
 

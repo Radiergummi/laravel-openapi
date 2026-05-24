@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -20,6 +20,7 @@ use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\Rules\MetaSuppressionStale;
@@ -41,7 +42,6 @@ use Symfony\Component\Process\Exception\RuntimeException as ProcessRuntimeExcept
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
 
-use function app;
 use function array_filter;
 use function array_keys;
 use function array_merge;
@@ -56,11 +56,11 @@ use function max;
 /**
  * Orchestrates one lint run against the application's routes.
  *
- * Extracted from {@see \Radiergummi\OpenApi\Console\LintCommand} so the lint pipeline is
- * unit-testable independent of the artisan command and reusable from other entry points
- * (programmatic consumers, custom CLI wrappers, HTTP endpoints). The command becomes a thin
- * adapter: it parses options into {@see LintOptions}, calls {@see run()}, and renders the
- * resulting {@see LintResult} via a {@see Formatters\Formatter}.
+ * Extracted from {@see LintCommand} so the lint pipeline is unit-testable independent of the
+ * artisan command and reusable from other entry points (programmatic consumers, custom CLI
+ * wrappers, HTTP endpoints). The command becomes a thin adapter: it parses options into
+ * {@see LintOptions}, calls {@see run()}, and renders the resulting {@see LintResult} via a
+ * {@see Formatters\Formatter}.
  *
  * The runner binds an {@see ArrayFindingsCollector} as the active {@see FindingsCollector}
  * before resolving the generator so extractor-emitted findings are captured rather than logged.
@@ -69,7 +69,8 @@ use function max;
  * The run has two phases:
  *  1. Pre-build: {@see Rules\Visitors\PreBuildRule} instances inspect config + descriptors once.
  *  2. Per-spec: for each target spec, the generator builds the document and the tree walker
- *     dispatches visitor rules; findings are tagged with the spec name via {@see Finding::withSpec()}.
+ *     dispatches visitor rules; findings are tagged with the spec name via
+ *     {@see Finding::withSpec()}.
  */
 #[Scoped]
 final readonly class LintRunner
@@ -101,6 +102,7 @@ final readonly class LintRunner
     ) {}
 
     /**
+     * @throws \LogicException
      * @throws BindingResolutionException
      * @throws InvalidArgumentException
      * @throws LogicException
@@ -127,6 +129,7 @@ final readonly class LintRunner
     }
 
     /**
+     * @throws \LogicException
      * @throws BindingResolutionException
      * @throws InvalidArgumentException
      * @throws LogicException
@@ -148,11 +151,11 @@ final readonly class LintRunner
 
         $descriptors = [];
 
-        // The introspector yields every Laravel route; vendor routes (Telescope, Nova,
-        // Passport, Ignition) and any user-configured filter rejects are discarded here so
-        // the pre-build rules and tree walk only see routes that could plausibly belong to
-        // a spec. Per-spec InclusionEvaluator::decide() still runs inside the generator and
-        // re-filters per (route × spec) — this is the single-pass equivalent.
+        // The introspector yields every Laravel route; vendor routes (Telescope, Nova, Passport,
+        // Ignition) and any user-configured filter rejects are discarded here so the pre-build
+        // rules and tree walk only see routes that could plausibly belong to a spec. Per-spec
+        // InclusionEvaluator::decide() still runs inside the generator and re-filters per
+        // (route × spec), so this is the single-pass equivalent.
         foreach ($this->introspector->discover() as $descriptor) {
             if (!$this->evaluator->passesGlobalFilters($descriptor)) {
                 continue;
@@ -212,9 +215,18 @@ final readonly class LintRunner
             $this->container->forgetInstance(FindingsCollector::class);
             $this->container->instance(FindingsCollector::class, $specLocal);
 
-            $document = $this->orchestrator->generateOne($spec->name, app()->environment());
+            $document = $this->orchestrator->generateOne($spec->name);
 
-            $this->walkSpec($document, $descriptors, $rules, $suppressions, $specLocal, $level, $only, $skip);
+            $this->walkSpec(
+                $document,
+                $descriptors,
+                $rules,
+                $suppressions,
+                $specLocal,
+                $level,
+                $only,
+                $skip,
+            );
 
             foreach ($specLocal->all() as $finding) {
                 $emit->emit($finding->withSpec($spec->name));
@@ -262,121 +274,6 @@ final readonly class LintRunner
     }
 
     /**
-     * Run the tree walk + RouteRule pass + MetaSuppressionStale for one spec.
-     *
-     * The caller is responsible for binding {@see $specLocal} as the active
-     * {@see FindingsCollector} before generation so extractor-emitted findings land in the
-     * same bucket as the tree-walk findings; this method only emits into the bucket and
-     * leaves draining to the caller.
-     *
-     * @param list<Rule>                 $rules
-     * @param list<ActionDescriptor>     $descriptors
-     * @param list<SuppressionDirective> $suppressions
-     * @param list<string>               $only
-     * @param list<string>               $skip
-     */
-    private function walkSpec(
-        OA\OpenApi $document,
-        array $descriptors,
-        array $rules,
-        array $suppressions,
-        ArrayFindingsCollector $specLocal,
-        int $level,
-        array $only,
-        array $skip,
-    ): void {
-        // region Tree walk
-
-        $staleChecker = new MetaSuppressionStale();
-
-        $knownRuleIds = [
-            ...$this->registry->knownIds(),
-            MetaSuppressionStale::ID,
-        ];
-
-        // When a path filter is active, $descriptors contains only the allowed routes.
-        // The generated document includes all routes. Restrict $document->paths to only
-        // those whose URI appears in the allowed set so rules don't fire on routes that
-        // were excluded by --path or --diff.
-        if ($descriptors !== [] && is_array($document->paths)) {
-            $allowedUris = [];
-
-            foreach ($descriptors as $descriptor) {
-                $allowedUris['/' . ltrim($descriptor->route->uri(), '/')] = true;
-            }
-
-            $document->paths = array_values(array_filter(
-                $document->paths,
-                static fn(OA\PathItem $p): bool
-                    => $p->path !== Generator::UNDEFINED
-                    && isset($allowedUris[$p->path]),
-            ));
-        }
-
-        $treeBuilder = new SpecTreeBuilder();
-        $api = $treeBuilder->build($document, $descriptors);
-
-        $registeredScopes = class_exists(Passport::class)
-            ? array_keys(Passport::scopes()->keyBy('id')->all())
-            : [];
-
-        $index = TreeIndex::build(
-            api: $api,
-            rawSpec: $document,
-            knownRuleIds: $knownRuleIds,
-            registeredScopes: $registeredScopes,
-        );
-
-        $context = new LintContext(
-            api: $api,
-            index: $index,
-            rawSpec: $document,
-            actionDescriptors: $descriptors,
-            suppressions: $suppressions,
-            payloadClasses: $this->openApiRegistry->payloadClasses(),
-        );
-
-        $walker = new SpecTreeWalker($rules);
-
-        foreach ($walker->walk($api, $context) as $finding) {
-            $specLocal->emit($finding);
-        }
-
-        // endregion
-
-        // region RouteRule pass
-
-        $routeRules = array_values(array_filter(
-            $rules,
-            static fn(Rule $rule): bool => $rule instanceof RouteRule,
-        ));
-
-        if ($routeRules !== []) {
-            foreach ($descriptors as $descriptor) {
-                $defaults = FindingLocation::fromDescriptor($descriptor);
-
-                foreach ($routeRules as $rule) {
-                    foreach ($rule->checkRoute($descriptor, $context) as $finding) {
-                        $specLocal->emit($finding->withLocationDefaults($defaults));
-                    }
-                }
-            }
-        }
-
-        // endregion
-
-        // region MetaSuppressionStale (post-walk)
-
-        if ($this->metaRuleEnabled($staleChecker, $level, $only, $skip)) {
-            foreach ($staleChecker->check($context, $specLocal->all()) as $finding) {
-                $specLocal->emit($finding);
-            }
-        }
-
-        // endregion
-    }
-
-    /**
      * Resolve the effective --only list, merging CLI input with config('openapi.lint.enabled_rules').
      *
      * - If config is a non-null array AND CLI is non-empty: intersection.
@@ -395,7 +292,12 @@ final readonly class LintRunner
         }
 
         return $cli !== []
-            ? array_values(array_filter($cli, fn(string $id): bool => in_array($id, $this->enabledRules, true)))
+            ? array_values(
+                array_filter(
+                    $cli,
+                    fn(string $id): bool => in_array($id, $this->enabledRules, true),
+                ),
+            )
             : array_values($this->enabledRules);
     }
 
@@ -424,11 +326,133 @@ final readonly class LintRunner
     {
         $raw = $options->level ?? $this->configuredLevel;
 
-        return $raw === 'max' ? $this->registry->maxLevel() : max(0, (int) $raw);
+        return $raw === 'max'
+            ? $this->registry->maxLevel()
+            : max(0, (int) $raw);
     }
 
     /**
-     * Decide whether a manually-instantiated meta rule should run, honouring the requested
+     * Run the tree walk, RouteRule pass, and MetaSuppressionStale for one spec.
+     *
+     * The caller is responsible for binding {@see $specLocal} as the active
+     * {@see FindingsCollector} before generation so extractor-emitted findings land in the same
+     * bucket as the tree-walk findings; this method only emits into the bucket and leaves draining
+     * to the caller.
+     *
+     * @param list<Rule>                 $rules
+     * @param list<ActionDescriptor>     $descriptors
+     * @param list<SuppressionDirective> $suppressions
+     * @param list<string>               $only
+     * @param list<string>               $skip
+     *
+     * @throws \LogicException
+     */
+    private function walkSpec(
+        OA\OpenApi $document,
+        array $descriptors,
+        array $rules,
+        array $suppressions,
+        ArrayFindingsCollector $specLocal,
+        int $level,
+        array $only,
+        array $skip,
+    ): void {
+        // region Tree walk
+
+        $staleChecker = new MetaSuppressionStale();
+
+        $knownRuleIds = [
+            ...$this->registry->knownIds(),
+            MetaSuppressionStale::ID,
+        ];
+
+        // When a path filter is active, $descriptors contains only the allowed routes.
+        // The generated document includes all routes. Restrict $document->paths to only those whose
+        // URI appears in the allowed set so rules don't fire on routes that were excluded by
+        // `--path` or `--diff`.
+        if ($descriptors !== [] && is_array($document->paths)) {
+            $allowedUris = [];
+
+            foreach ($descriptors as $descriptor) {
+                $allowedUris['/' . ltrim($descriptor->route->uri(), '/')] = true;
+            }
+
+            $document->paths = array_values(
+                array_filter(
+                    $document->paths,
+                    static fn(OA\PathItem $p): bool
+                        => $p->path !== Generator::UNDEFINED
+                        && isset($allowedUris[$p->path]),
+                ),
+            );
+        }
+
+        $treeBuilder = new SpecTreeBuilder();
+        $api = $treeBuilder->build($document, $descriptors);
+
+        $registeredScopes = class_exists(Passport::class)
+            ? array_keys(Passport::scopes()->keyBy('id')->all())
+            : [];
+
+        $index = TreeIndex::build(
+            $api,
+            $document,
+            $knownRuleIds,
+            $registeredScopes,
+        );
+
+        $context = new LintContext(
+            api: $api,
+            index: $index,
+            rawSpec: $document,
+            actionDescriptors: $descriptors,
+            suppressions: $suppressions,
+            payloadClasses: $this->openApiRegistry->payloadClasses(),
+        );
+
+        $walker = new SpecTreeWalker($rules);
+
+        foreach ($walker->walk($api, $context) as $finding) {
+            $specLocal->emit($finding);
+        }
+
+        // endregion
+
+        // region RouteRule pass
+
+        $routeRules = array_values(
+            array_filter(
+                $rules,
+                static fn(Rule $rule): bool => $rule instanceof RouteRule,
+            ),
+        );
+
+        if ($routeRules !== []) {
+            foreach ($descriptors as $descriptor) {
+                $defaults = FindingLocation::fromDescriptor($descriptor);
+
+                foreach ($routeRules as $rule) {
+                    foreach ($rule->checkRoute($descriptor, $context) as $finding) {
+                        $specLocal->emit($finding->withLocationDefaults($defaults));
+                    }
+                }
+            }
+        }
+
+        // endregion
+
+        // region MetaSuppressionStale (post-walk)
+
+        if ($this->metaRuleEnabled($staleChecker, $level, $only, $skip)) {
+            foreach ($staleChecker->check($context, $specLocal->all()) as $finding) {
+                $specLocal->emit($finding);
+            }
+        }
+        // endregion
+    }
+
+    /**
+     * Decide whether a manually-instantiated meta rule should run, honoring the requested
      * severity level and the --only/--skip allow/deny lists.
      *
      * @param list<string> $only

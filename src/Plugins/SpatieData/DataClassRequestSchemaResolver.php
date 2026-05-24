@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -17,6 +17,8 @@ use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use ReflectionException;
+use RuntimeException;
 use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
@@ -35,6 +37,8 @@ final readonly class DataClassRequestSchemaResolver implements RequestSchemaReso
     ) {}
 
     /**
+     * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnsupportedException
      */
     public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema

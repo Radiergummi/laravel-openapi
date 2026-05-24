@@ -17,9 +17,9 @@ use ReflectionClass;
 use ReflectionMethod;
 
 /**
- * Builds `ActionDescriptor` fixtures with a placeholder route (`GET /x`) for tests
- * that exercise resolvers and `OperationRule` lint rules. Use `forRoute()` when the
- * test needs a real route (middleware, route parameters, named bindings).
+ * Builds `ActionDescriptor` fixtures with a placeholder route (`GET /x`) for tests that exercise
+ * resolvers and `OperationRule` lint rules. Use `forRoute()` when the test needs a real route
+ * (middleware, route parameters, named bindings).
  */
 final class ActionDescriptorFactory
 {

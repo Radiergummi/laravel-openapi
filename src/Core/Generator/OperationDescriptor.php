@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -58,29 +58,13 @@ final readonly class OperationDescriptor implements Arrayable
         );
     }
 
-    public function toArray(): array
-    {
-        return [
-            'summary' => $this->summary,
-            'description' => $this->description,
-            'tags' => $this->tags,
-            'parameters' => $this->parameters,
-            'security' => $this->security,
-            'responses' => $this->responses,
-            'requestBody' => $this->requestBody,
-            'deprecated' => $this->deprecated,
-            'operationId' => $this->operationId,
-            'externalDocs' => $this->externalDocs,
-        ];
-    }
-
     public function toOpenApi(string $method): ?OA\Operation
     {
         $method = strtoupper($method);
 
-        // swagger-php serialises explicit nulls verbatim, and OpenAPI 3.1
-        // rejects null on optional fields (externalDocs, summary, …). Drop
-        // unset optionals so they are omitted rather than emitted as null.
+        // swagger-php serialises explicit nulls verbatim, and OpenAPI 3.1 rejects null on optional
+        // fields (externalDocs, summary, …). Drop unset optionals so they are omitted rather than
+        // emitted as null.
         $props = array_filter(
             $this->toArray(),
             static fn(mixed $value): bool => $value !== null,
@@ -105,11 +89,26 @@ final readonly class OperationDescriptor implements Arrayable
         };
     }
 
+    public function toArray(): array
+    {
+        return [
+            'summary' => $this->summary,
+            'description' => $this->description,
+            'tags' => $this->tags,
+            'parameters' => $this->parameters,
+            'security' => $this->security,
+            'responses' => $this->responses,
+            'requestBody' => $this->requestBody,
+            'deprecated' => $this->deprecated,
+            'operationId' => $this->operationId,
+            'externalDocs' => $this->externalDocs,
+        ];
+    }
+
     private function shouldAttachBody(string $method): bool
     {
         return
             $this->requestBody !== null
-            && in_array($method, ['POST', 'PUT', 'PATCH'], strict: true)
-        ;
+            && in_array($method, ['POST', 'PUT', 'PATCH'], strict: true);
     }
 }

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -32,18 +32,6 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
     public function __construct(private VisibilityResolver $visibility) {}
 
     #[Override]
-    public function id(): string
-    {
-        return 'visibility.attribute-no-op';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        return 2;
-    }
-
-    #[Override]
     public function description(): string
     {
         return 'Unconditional visibility attribute that has no effect under the active default.';
@@ -58,7 +46,8 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
         $mode = $this->visibility->defaultMode();
 
         if ($mode === VisibilityMode::Public) {
-            // Public default: an unconditional #[Expose] does nothing if no #[Hide] is around to override.
+            // Public default: an unconditional #[Expose] does nothing if no #[Hide]
+            // is around to override.
             if ($this->collectInstances($descriptor, Hide::class) !== []) {
                 return;
             }
@@ -79,7 +68,8 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
             return;
         }
 
-        // Hidden default: an unconditional #[Hide] does nothing if no #[Expose] is around to neutralize.
+        // Hidden default: an unconditional #[Hide] does nothing if no #[Expose]
+        // is around to neutralize.
         if ($this->collectInstances($descriptor, Expose::class) !== []) {
             return;
         }
@@ -118,5 +108,17 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
         }
 
         return $out;
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'visibility.attribute-no-op';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 2;
     }
 }

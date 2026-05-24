@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -28,6 +28,12 @@ use function sprintf;
 
 final class FieldEnumMismatch extends AbstractFieldRule
 {
+    #[Override]
+    public function description(): string
+    {
+        return "Enum value type doesn't match the field's declared type.";
+    }
+
     /**
      * @return iterable<Finding>
      */
@@ -64,7 +70,8 @@ final class FieldEnumMismatch extends AbstractFieldRule
         );
 
         $fieldValues = array_map(
-            static fn(mixed $value): string => $value instanceof BackedEnum
+            static fn(mixed $value): string
+                => $value instanceof BackedEnum
                 ? (string) $value->value
                 : (string) $value,
             $field->enum,
@@ -119,11 +126,5 @@ final class FieldEnumMismatch extends AbstractFieldRule
     public function level(): int
     {
         return 0;
-    }
-
-    #[Override]
-    public function description(): string
-    {
-        return "Enum value type doesn't match the field's declared type.";
     }
 }

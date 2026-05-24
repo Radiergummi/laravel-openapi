@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Examples\Combined\Data;
 
 use DateTimeInterface;
+use Examples\Combined\Requests\StoreFlightRequest;
 use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
 use Spatie\LaravelData\Data;
@@ -19,9 +20,8 @@ use Spatie\LaravelData\Data;
 /**
  * Output Data class for flights in the combined flavor.
  *
- * Reused as the response shape for every flight endpoint — including the ones
- * that take a {@see \Examples\Combined\Requests\StoreFlightRequest} on input,
- * demonstrating the FormRequest-in / Data-out blend.
+ * Reused as the response shape for every flight endpoint — including the ones that take a
+ * {@see StoreFlightRequest} on input, demonstrating the FormRequest-in / Data-out blend.
  */
 final class FlightData extends Data
 {

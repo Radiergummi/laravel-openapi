@@ -21,9 +21,9 @@ uses()->group('openapi');
 // region Fixture controllers — one per scenario
 
 /**
- * OAPI-024: SSE endpoint with an author-supplied per-event schema via
- * #[Response(status: 200, schema: [...], mediaType: 'text/event-stream')].
- * The explicit #[Response] overrides the auto-detected primary response.
+ * OAPI-024: SSE endpoint with an author-supplied per-event schema via #[Response(status: 200,
+ * schema: [...], mediaType: 'text/event-stream')]. The explicit #[Response] overrides the
+ * auto-detected primary response.
  */
 class StreamingWithSchemaOrderedController extends Controller
 {
@@ -59,11 +59,10 @@ class NonStreamingController extends Controller
     }
 }
 
-// NOTE: StreamedResponse return-type auto-detection and #[Operation(streaming:)]
-// content-type auto-emission were provided by the JSON:API plugin's
-// PrimaryResponseResolver, which is not part of this package. Those scenarios
-// (formerly OAPI-024 auto-detection tests) were removed during extraction.
-// Streaming endpoints in this package declare their media type explicitly via
+// NOTE: StreamedResponse return-type auto-detection and #[Operation(streaming:)] content-type
+// auto-emission were provided by the JSON:API plugin's PrimaryResponseResolver, which is not part
+// of this package. Those scenarios (formerly OAPI-024 auto-detection tests) were removed during
+// extraction. Streaming endpoints in this package declare their media type explicitly via
 // #[Response(mediaType: MediaType::EventStream, ...)] — covered below.
 
 // endregion

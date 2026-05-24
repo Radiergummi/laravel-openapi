@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -29,14 +29,14 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Resolves a paginator return type (`LengthAwarePaginator`, `Paginator`,
- * `CursorPaginator`) into its `200 OK` response.
+ * Resolves a paginator return type (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) into
+ * its `200 OK` response.
  *
  * The paginated item type is resolved with this precedence (attribute wins):
  *   1. A `#[ResponseResource]` attribute on the action.
  *   2. The `@return Paginator<Item>` PHPDoc generic argument.
- * When neither is present the resolver logs a generation warning and returns
- * null, deferring to the next resolver (and ultimately the bare-200 fallback).
+ * When neither is present the resolver logs a generation warning and returns null, deferring to
+ * the next resolver (and ultimately the bare-200 fallback).
  */
 final readonly class PaginatorResponseResolver implements PrimaryResponseResolver
 {
@@ -55,11 +55,13 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         try {
             return $this->resolve($descriptor);
         } catch (Throwable $e) {
-            $this->logger->warning(sprintf(
-                'PaginatorResponseResolver failed for route %s: %s',
-                $descriptor->route->uri(),
-                $e->getMessage(),
-            ));
+            $this->logger->warning(
+                sprintf(
+                    'PaginatorResponseResolver failed for route %s: %s',
+                    $descriptor->route->uri(),
+                    $e->getMessage(),
+                ),
+            );
 
             return null;
         }
@@ -88,11 +90,13 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         $itemClass = $this->resolveItemClass($reflector);
 
         if ($itemClass === null) {
-            $this->logger->warning(sprintf(
-                'Route %s returns a paginator but its item type is undeclared; '
-                . 'add #[ResponseResource(...)] or a @return Paginator<Item> docblock.',
-                $descriptor->route->uri(),
-            ));
+            $this->logger->warning(
+                sprintf(
+                    'Route %s returns a paginator but its item type is undeclared; '
+                    . 'add #[ResponseResource(...)] or a @return Paginator<Item> docblock.',
+                    $descriptor->route->uri(),
+                ),
+            );
 
             return null;
         }
@@ -116,16 +120,18 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         if ($attribute !== null) {
             $instance = $attribute->newInstance();
 
-            // $instance->collection is intentionally not consulted here — a
-            // paginator envelope is always a collection by definition.
+            // $instance->collection is intentionally not consulted here — a paginator envelope is
+            // always a collection by definition.
             if (class_exists($instance->class)) {
                 return $instance->class;
             }
 
-            $this->logger->warning(sprintf(
-                '#[ResponseResource] on a paginator action references unknown class %s; falling back to the @return generic.',
-                $instance->class,
-            ));
+            $this->logger->warning(
+                sprintf(
+                    '#[ResponseResource] on a paginator action references unknown class %s; falling back to the @return generic.',
+                    $instance->class,
+                ),
+            );
         }
 
         $generic = $this->returnTypeExtractor->genericArgument($reflector);
@@ -138,8 +144,8 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     }
 
     /**
-     * Turns the item class into an `OA\Items`: a `$ref` when a registered
-     * resolver claims the class, otherwise a generic object item.
+     * Turns the item class into an `OA\Items`: a `$ref` when a registered resolver claims the
+     * class, otherwise a generic object item.
      *
      * @param class-string $itemClass
      */
@@ -153,9 +159,9 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             }
         }
 
-        // No registered ref resolver claimed the class (e.g. a plain model).
-        // Return a generic object schema — not a warning, as this is a valid
-        // outcome when the item type is outside the resolver chain.
+        // No registered ref resolver claimed the class (e.g. a plain model). Return a generic
+        // object schema — not a warning, as this is a valid outcome when the item type is outside
+        // the resolver chain.
         return new OA\Items(['type' => 'object']);
     }
 }

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -17,9 +17,9 @@ use BackedEnum;
 /**
  * Documents a request-body input field.
  *
- * Place on a Spatie Data class property / promoted constructor parameter, or on
- * a FormRequest `PARAM_*` class constant. Request fields support `writeOnly`
- * but not `readOnly` (a request field is never read-only).
+ * Place on a Spatie Data class property / promoted constructor parameter, or on a FormRequest
+ * `PARAM_*` class constant. Request fields support `writeOnly` but not `readOnly` (a request field
+ * is never read-only).
  */
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER | Attribute::TARGET_CLASS_CONSTANT)]
 final readonly class RequestField extends FieldAttribute

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -39,12 +39,23 @@ use function class_exists;
 final readonly class SchemaFromTransformer
 {
     /**
-     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref resolvers, minus this plugin's own.
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref
+     *                                                               resolvers, minus this plugin's own.
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
         private Closure $refSchemaResolvers,
     ) {}
+
+    /**
+     * Registers the transformer and returns its qualified `$ref` string.
+     *
+     * @param class-string $transformerClass
+     */
+    public function buildRef(string $transformerClass): string
+    {
+        return $this->registry->qualifyKey($this->build($transformerClass));
+    }
 
     /**
      * Registers the transformer as a component schema and returns its key.
@@ -57,16 +68,6 @@ final readonly class SchemaFromTransformer
             $transformerClass,
             fn(): OA\Schema => $this->buildSchema($transformerClass),
         );
-    }
-
-    /**
-     * Registers the transformer and returns its qualified `$ref` string.
-     *
-     * @param class-string $transformerClass
-     */
-    public function buildRef(string $transformerClass): string
-    {
-        return $this->registry->qualifyKey($this->build($transformerClass));
     }
 
     /**
@@ -133,17 +134,6 @@ final readonly class SchemaFromTransformer
         return $property;
     }
 
-    private function buildIncludeProperty(TransformerInclude $include): OA\Property
-    {
-        $ref = $include->transformer !== null && class_exists($include->transformer)
-            ? $this->resolveClassRef($include->transformer)
-            : null;
-
-        return $ref !== null
-            ? new OA\Property(['property' => $include->name, 'ref' => $ref])
-            : new OA\Property(['property' => $include->name, 'type' => 'object']);
-    }
-
     /**
      * @param class-string $class
      */
@@ -162,5 +152,16 @@ final readonly class SchemaFromTransformer
         }
 
         return null;
+    }
+
+    private function buildIncludeProperty(TransformerInclude $include): OA\Property
+    {
+        $ref = $include->transformer !== null && class_exists($include->transformer)
+            ? $this->resolveClassRef($include->transformer)
+            : null;
+
+        return $ref !== null
+            ? new OA\Property(['property' => $include->name, 'ref' => $ref])
+            : new OA\Property(['property' => $include->name, 'type' => 'object']);
     }
 }

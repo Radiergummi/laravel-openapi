@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -25,6 +25,9 @@ use function unlink;
 #[Description('Remove the generated OpenAPI specification file(s)')]
 class ClearCommand extends Command
 {
+    /**
+     * @throws InvalidArgumentException
+     */
     public function handle(SpecRegistry $registry): int
     {
         $specName = $this->argument('spec');

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -25,10 +25,9 @@ use function trim;
 /**
  * Reports enum fields whose description does not document the enum values.
  *
- * When a field defines enum values, the description should explain what each
- * value means. This rule uses a simple heuristic: the description must contain
- * at least one of the enum values as a substring, or include a bullet/list
- * pattern (lines starting with `-` or `*`).
+ * When a field defines enum values, the description should explain what each value means. This
+ * rule uses a simple heuristic: the description must contain at least one of the enum values as
+ * a substring, or include a bullet/list pattern (lines starting with `-` or `*`).
  */
 final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
 {
@@ -87,12 +86,6 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
         return 2;
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Enum field has no description explaining the allowed values.';
-    }
-
     /**
      * @param list<mixed> $enumValues
      */
@@ -111,5 +104,11 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
         }
 
         return false;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Enum field has no description explaining the allowed values.';
     }
 }

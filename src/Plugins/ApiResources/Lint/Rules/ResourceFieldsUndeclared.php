@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,8 +23,8 @@ use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 use function sprintf;
 
 /**
- * Flags an operation whose resource response class declares no
- * `#[ResourceField]` — the response shape is unknown, yielding an empty schema.
+ * Flags an operation whose resource response class declares no `#[ResourceField]` — the response
+ * shape is unknown, yielding an empty schema.
  */
 final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
 {

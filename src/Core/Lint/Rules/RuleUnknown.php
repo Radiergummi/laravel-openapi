@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,18 +12,18 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
 use Override;
+use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
 
 /**
  * Registration stub for the `rule.unknown` finding.
  *
- * The actual detection runs during spec generation in
- * {@see \Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema}: when a
- * Laravel validation `Rule` object is encountered that the extractor does not
- * know how to map to a JSON Schema constraint, it emits this rule ID directly
- * into the {@see \Radiergummi\OpenApi\Core\Lint\FindingsCollector}.
+ * Detection runs during spec generation in {@see ValidationRulesToSchema}: when a Laravel
+ * validation `Rule` object is encountered that the extractor cannot map to a JSON Schema
+ * constraint, it emits this rule ID directly into the {@see FindingsCollector}.
  *
- * This class exists solely to register the rule ID with the
- * {@see \Radiergummi\OpenApi\Core\Lint\RuleRegistry} so that:
+ * This class exists solely to register the rule ID with the {@see RuleRegistry} so that:
  * - `#[IgnoreLint('rule.unknown')]` is not flagged by `meta.unknown-rule`
  * - severity overrides in `config/openapi.lint.severity_overrides` apply
  * - the ID appears in the lint catalog

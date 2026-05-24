@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -30,18 +30,16 @@ use Spatie\LaravelData\Data;
 use function sprintf;
 
 /**
- * Flags a scoped field attribute placed where its scope does not apply:
- * #[RequestField] on a controller route parameter, or #[PathParam] on a
- * Data-class request-body property.
+ * Flags a scoped field attribute placed where its scope does not apply: #[RequestField] on a
+ * controller route parameter, or #[PathParam] on a Data-class request-body property.
  *
- * Detection is limited to operation method parameters, where the scope is
- * unambiguous. Property-level placement on a Data class that backs a response
- * is intentionally not checked — a Data class may serve either direction.
+ * Detection is limited to operation method parameters, where the scope is unambiguous.
+ * Property-level placement on a Data class that backs a response is intentionally not checked —
+ * a Data class may serve either direction.
  *
- * Data classes injected through Domain Actions (the standard write-endpoint
- * pattern) are also checked by using {@see PayloadParameterScanner}, which
- * descends into Action constructor parameters the same way the request-schema
- * resolver does.
+ * Data classes injected through Domain Actions (the standard write-endpoint pattern) are also
+ * checked by using {@see PayloadParameterScanner}, which descends into Action constructor
+ * parameters the same way the request-schema resolver does.
  */
 final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisitor
 {
@@ -67,8 +65,8 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
             return [];
         }
 
-        // Use PayloadParameterScanner so Action-indirected Data classes are
-        // reached (e.g. CreateProjectAction whose constructor takes CreateProjectData).
+        // Use PayloadParameterScanner so Action-indirected Data classes are reached (e.g.
+        // CreateProjectAction whose constructor takes CreateProjectData).
         $dataClass = $this->scanner->candidateOfType($method, Data::class);
 
         if ($dataClass !== null) {
@@ -87,26 +85,6 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
                 yield from $this->checkRouteParameter($param, $operation);
             }
         }
-    }
-
-    /** @return iterable<Finding> */
-    private function checkRouteParameter(ReflectionParameter $param, OperationNode $operation): iterable
-    {
-        if ($param->getAttributes(RequestField::class) === []) {
-            return;
-        }
-
-        yield new Finding(
-            ruleId: $this->id(),
-            level: $this->level(),
-            message: sprintf(
-                '#[RequestField] on URI parameter $%s of %s %s applies to request-body fields, not URI parameters',
-                $param->getName(),
-                $operation->method,
-                $operation->pathUri,
-            ),
-            fixHint: 'Use #[PathParam] for a URI parameter.',
-        );
     }
 
     /**
@@ -144,6 +122,26 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
     public function level(): int
     {
         return 1;
+    }
+
+    /** @return iterable<Finding> */
+    private function checkRouteParameter(ReflectionParameter $param, OperationNode $operation): iterable
+    {
+        if ($param->getAttributes(RequestField::class) === []) {
+            return;
+        }
+
+        yield new Finding(
+            ruleId: $this->id(),
+            level: $this->level(),
+            message: sprintf(
+                '#[RequestField] on URI parameter $%s of %s %s applies to request-body fields, not URI parameters',
+                $param->getName(),
+                $operation->method,
+                $operation->pathUri,
+            ),
+            fixHint: 'Use #[PathParam] for a URI parameter.',
+        );
     }
 
     #[Override]

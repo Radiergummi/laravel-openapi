@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -46,23 +46,6 @@ final readonly class FractalEnvelopeFactory
         };
     }
 
-    public function collection(string $ref, Serializer $serializer = Serializer::DataArray): OA\Schema
-    {
-        return match ($serializer) {
-            Serializer::DataArray => $this->dataArrayCollection($ref),
-            Serializer::ArraySerializer => $this->arraySerializerCollection($ref),
-            Serializer::JsonApi => $this->jsonApiCollection($ref),
-        };
-    }
-
-    public function paginated(string $ref, Serializer $serializer = Serializer::DataArray): OA\Schema
-    {
-        return match ($serializer) {
-            Serializer::DataArray, Serializer::ArraySerializer => $this->dataArrayPaginated($ref),
-            Serializer::JsonApi => $this->jsonApiPaginated($ref),
-        };
-    }
-
     private function dataArraySingle(string $ref): OA\Schema
     {
         return new OA\Schema([
@@ -71,6 +54,38 @@ final readonly class FractalEnvelopeFactory
                 new OA\Property(['property' => 'data', 'ref' => $ref]),
             ],
         ]);
+    }
+
+    private function arraySerializerSingle(string $ref): OA\Schema
+    {
+        return new OA\Schema(['ref' => $ref]);
+    }
+
+    private function jsonApiSingle(string $ref): OA\Schema
+    {
+        return new OA\Schema([
+            'type' => 'object',
+            'properties' => [
+                new OA\Property([
+                    'property' => 'data',
+                    'type' => 'object',
+                    'properties' => [
+                        new OA\Property(['property' => 'type', 'type' => 'string']),
+                        new OA\Property(['property' => 'id', 'type' => 'string']),
+                        new OA\Property(['property' => 'attributes', 'ref' => $ref]),
+                    ],
+                ]),
+            ],
+        ]);
+    }
+
+    public function collection(string $ref, Serializer $serializer = Serializer::DataArray): OA\Schema
+    {
+        return match ($serializer) {
+            Serializer::DataArray => $this->dataArrayCollection($ref),
+            Serializer::ArraySerializer => $this->arraySerializerCollection($ref),
+            Serializer::JsonApi => $this->jsonApiCollection($ref),
+        };
     }
 
     private function dataArrayCollection(string $ref): OA\Schema
@@ -85,6 +100,43 @@ final readonly class FractalEnvelopeFactory
                 ]),
             ],
         ]);
+    }
+
+    private function arraySerializerCollection(string $ref): OA\Schema
+    {
+        return new OA\Schema([
+            'type' => 'array',
+            'items' => new OA\Items(['ref' => $ref]),
+        ]);
+    }
+
+    private function jsonApiCollection(string $ref): OA\Schema
+    {
+        return new OA\Schema([
+            'type' => 'object',
+            'properties' => [
+                new OA\Property([
+                    'property' => 'data',
+                    'type' => 'array',
+                    'items' => new OA\Items([
+                        'type' => 'object',
+                        'properties' => [
+                            new OA\Property(['property' => 'type', 'type' => 'string']),
+                            new OA\Property(['property' => 'id', 'type' => 'string']),
+                            new OA\Property(['property' => 'attributes', 'ref' => $ref]),
+                        ],
+                    ]),
+                ]),
+            ],
+        ]);
+    }
+
+    public function paginated(string $ref, Serializer $serializer = Serializer::DataArray): OA\Schema
+    {
+        return match ($serializer) {
+            Serializer::DataArray, Serializer::ArraySerializer => $this->dataArrayPaginated($ref),
+            Serializer::JsonApi => $this->jsonApiPaginated($ref),
+        };
     }
 
     private function dataArrayPaginated(string $ref): OA\Schema
@@ -121,58 +173,6 @@ final readonly class FractalEnvelopeFactory
                             ],
                         ]),
                     ],
-                ]),
-            ],
-        ]);
-    }
-
-    private function arraySerializerSingle(string $ref): OA\Schema
-    {
-        return new OA\Schema(['ref' => $ref]);
-    }
-
-    private function arraySerializerCollection(string $ref): OA\Schema
-    {
-        return new OA\Schema([
-            'type' => 'array',
-            'items' => new OA\Items(['ref' => $ref]),
-        ]);
-    }
-
-    private function jsonApiSingle(string $ref): OA\Schema
-    {
-        return new OA\Schema([
-            'type' => 'object',
-            'properties' => [
-                new OA\Property([
-                    'property' => 'data',
-                    'type' => 'object',
-                    'properties' => [
-                        new OA\Property(['property' => 'type', 'type' => 'string']),
-                        new OA\Property(['property' => 'id', 'type' => 'string']),
-                        new OA\Property(['property' => 'attributes', 'ref' => $ref]),
-                    ],
-                ]),
-            ],
-        ]);
-    }
-
-    private function jsonApiCollection(string $ref): OA\Schema
-    {
-        return new OA\Schema([
-            'type' => 'object',
-            'properties' => [
-                new OA\Property([
-                    'property' => 'data',
-                    'type' => 'array',
-                    'items' => new OA\Items([
-                        'type' => 'object',
-                        'properties' => [
-                            new OA\Property(['property' => 'type', 'type' => 'string']),
-                            new OA\Property(['property' => 'id', 'type' => 'string']),
-                            new OA\Property(['property' => 'attributes', 'ref' => $ref]),
-                        ],
-                    ]),
                 ]),
             ],
         ]);

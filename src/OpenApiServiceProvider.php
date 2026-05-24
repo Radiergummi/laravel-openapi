@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -11,10 +11,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
+use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use phpDocumentor\Reflection\DocBlockFactory;
+use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
@@ -37,7 +40,6 @@ use Radiergummi\OpenApi\Core\Registry\Plugin;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
-use Radiergummi\OpenApi\Core\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
 use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
@@ -45,6 +47,7 @@ use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Core\Spec\SpecResolver;
 use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
 use Radiergummi\OpenApi\Http\DocsController;
+use RuntimeException;
 use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -65,15 +68,16 @@ use function class_exists;
  * tooling), call `$app->forgetScopedInstances()` first.
  *
  * Wiring style: classes whose constructor dependencies are all container-resolvable carry the
- * `#[Scoped]` attribute ({@see \Illuminate\Container\Attributes\Scoped}) and self-register on
- * first resolve. The provider only contains bindings that need explicit closures — config
- * values, factory methods, registry-derived arrays, interface→implementation mappings, or
- * decorated wrappers reflection cannot supply.
+ * `#[Scoped]` attribute ({@see Scoped}) and self-register on first resolve. The provider only
+ * contains bindings that need explicit closures — config values, factory methods,
+ * registry-derived arrays, interface→implementation mappings, or decorated wrappers reflection
+ * cannot supply.
  */
 class OpenApiServiceProvider extends ServiceProvider
 {
     /**
      * @throws BindingResolutionException
+     * @throws RuntimeException
      */
     public function boot(): void
     {
@@ -122,8 +126,13 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerRouting(): void
     {
-        $this->app->scoped(ThrowsExtractor::class, static fn() => ThrowsExtractor::create());
-        $this->app->scoped(ReturnTypeExtractor::class, static fn() => ReturnTypeExtractor::create());
+        // phpDocumentor's only factory call; ThrowsExtractor and ReturnTypeExtractor autowire
+        // off this binding plus a container-resolved ContextFactory via `#[Scoped]`.
+        $this->app->scoped(
+            DocBlockFactoryInterface::class,
+            static fn() => DocBlockFactory::createInstance(),
+        );
+
         $this->app->scoped(TypeResolver::class, static fn() => TypeResolver::create());
     }
 
@@ -174,12 +183,10 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerExtractors(): void
     {
-        // Interface alias. The concrete decorator chain assembles itself via the
-        // `#[Scoped]` and `#[Give]` attributes on {@see EventDispatchingFindingsCollector}.
-        // Testbench's {@see \Orchestra\Testbench\Bootstrap\LoadConfiguration} skips
-        // `resolveEnvironmentUsing()`, so `#[Bind]` on the interface would be silently
-        // ignored under tests — this explicit alias works in every environment.
-        $this->app->scoped(FindingsCollector::class, EventDispatchingFindingsCollector::class);
+        $this->app->scoped(
+            FindingsCollector::class,
+            EventDispatchingFindingsCollector::class,
+        );
 
         $this->app->scoped(
             PaginatorResponseResolver::class,
@@ -251,7 +258,7 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerSpatieDataPlugin(): void
     {
-        if (! class_exists(Data::class)) {
+        if (!class_exists(Data::class)) {
             return;
         }
 
@@ -395,7 +402,6 @@ class OpenApiServiceProvider extends ServiceProvider
                 );
             },
         );
-
     }
 
     /**
@@ -407,12 +413,14 @@ class OpenApiServiceProvider extends ServiceProvider
             InclusionEvaluator::class,
             static function (Container $app): InclusionEvaluator {
                 $filterClasses = (array) config('openapi.filters', []);
-                $filters = array_values(array_map(
-                    static function (mixed $entry) use ($app): RouteFilter {
-                        return is_string($entry) ? $app->make($entry) : $entry;
-                    },
-                    $filterClasses,
-                ));
+                $filters = array_values(
+                    array_map(
+                        static function (mixed $entry) use ($app): RouteFilter {
+                            return is_string($entry) ? $app->make($entry) : $entry;
+                        },
+                        $filterClasses,
+                    ),
+                );
 
                 return new InclusionEvaluator(
                     globalFilters: $filters,
@@ -427,16 +435,17 @@ class OpenApiServiceProvider extends ServiceProvider
     /**
      * Conditionally mounts one spec + playground route per defined spec.
      *
-     * Reads route URIs directly from config rather than resolving {@see SpecRegistry}. The
-     * registry would force eager materialisation of `info`/`servers`/`tags` at boot, which
-     * is too early — later-booting providers (e.g. example flavors) are still entitled to
-     * override those keys before generation runs. Only the URI fields are needed here, and
-     * URI resolution is replicated inline to keep `default`'s name correct even when an
-     * explicit `'specs.default'` entry exists.
+     * Reads route URIs directly from config rather than resolving {@see SpecRegistry}. The registry
+     * would force eager materialisation of `info`/`servers`/`tags` at boot, which is too early —
+     * later-booting providers (e.g. example flavors) are still entitled to override those keys
+     * before generation runs. Only the URI fields are needed here, and URI resolution is replicated
+     * inline to keep `default`'s name correct even when an explicit `'specs.default'` entry exists.
      *
      * Route names follow the convention:
      *   - default spec: `openapi.spec` / `openapi.playground`
      *   - named specs:  `openapi.spec.{name}` / `openapi.playground.{name}`
+     *
+     * @throws RuntimeException
      */
     private function registerRoutes(): void
     {
@@ -449,8 +458,12 @@ class OpenApiServiceProvider extends ServiceProvider
         /** @var array<string, array<string, mixed>> $specs */
         $specs = is_array(config('openapi.specs')) ? config('openapi.specs') : [];
 
-        $rootRouteUri = is_string($config['spec']['uri'] ?? null) ? $config['spec']['uri'] : 'openapi.yaml';
-        $rootPlaygroundUri = is_string($config['playground']['uri'] ?? null) ? $config['playground']['uri'] : 'docs';
+        $rootRouteUri = is_string($config['spec']['uri'] ?? null)
+            ? $config['spec']['uri']
+            : 'openapi.yaml';
+        $rootPlaygroundUri = is_string($config['playground']['uri'] ?? null)
+            ? $config['playground']['uri']
+            : 'docs';
 
         /** @var array<string, array{route_uri: false|string, playground_uri: false|string}> $entries */
         $entries = [];

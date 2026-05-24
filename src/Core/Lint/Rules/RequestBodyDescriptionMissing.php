@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,8 +22,8 @@ use function trim;
 /**
  * Reports request bodies that have no description.
  *
- * A description on the request body helps consumers understand the overall
- * purpose and structure of the payload they must supply.
+ * A description on the request body helps consumers understand the overall purpose and structure
+ * of the payload they must supply.
  */
 final class RequestBodyDescriptionMissing implements Rule, RequestBodyRuleVisitor
 {

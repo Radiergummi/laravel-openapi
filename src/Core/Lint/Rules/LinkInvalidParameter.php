@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -92,10 +92,12 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
      */
     private function collectAcceptedNames(OperationNode $targetOperation): array
     {
-        return array_flip(array_map(
-            fn(ParameterNode|QueryParameterNode $param): string => $param->name,
-            [...$targetOperation->parameters, ...$targetOperation->queryParameters],
-        ));
+        return array_flip(
+            array_map(
+                fn(ParameterNode|QueryParameterNode $param): string => $param->name,
+                [...$targetOperation->parameters, ...$targetOperation->queryParameters],
+            ),
+        );
     }
 
     #[Override]

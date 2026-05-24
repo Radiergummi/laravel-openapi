@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -54,10 +54,12 @@ final class RuleRegistry
     /** @return list<PreBuildRule> */
     public function preBuildRules(): array
     {
-        return array_values(array_filter(
-            $this->rules,
-            static fn(Rule $rule): bool => $rule instanceof PreBuildRule,
-        ));
+        return array_values(
+            array_filter(
+                $this->rules,
+                static fn(Rule $rule): bool => $rule instanceof PreBuildRule,
+            ),
+        );
     }
 
     /**
@@ -90,6 +92,28 @@ final class RuleRegistry
         }
 
         return $kept;
+    }
+
+    /**
+     * Returns the effective level for a rule instance, applying any configured override.
+     * `spec.invalid` is always exempt from remapping.
+     */
+    private function effectiveLevel(Rule $rule): int
+    {
+        return $this->effectiveLevelFor($rule->id(), $rule->level());
+    }
+
+    /**
+     * Returns the effective level for a rule ID, applying any configured override.
+     * `spec.invalid` is always exempt from remapping.
+     */
+    public function effectiveLevelFor(string $ruleId, int $fallback): int
+    {
+        if ($ruleId === self::EXEMPT_RULE_ID) {
+            return $fallback;
+        }
+
+        return $this->severityOverrides[$ruleId] ?? $fallback;
     }
 
     /** @return list<string> */
@@ -137,27 +161,5 @@ final class RuleRegistry
                 ? $finding
                 : $finding->withLevel($effective);
         }, $findings);
-    }
-
-    /**
-     * Returns the effective level for a rule ID, applying any configured override.
-     * `spec.invalid` is always exempt from remapping.
-     */
-    public function effectiveLevelFor(string $ruleId, int $fallback): int
-    {
-        if ($ruleId === self::EXEMPT_RULE_ID) {
-            return $fallback;
-        }
-
-        return $this->severityOverrides[$ruleId] ?? $fallback;
-    }
-
-    /**
-     * Returns the effective level for a rule instance, applying any configured override.
-     * `spec.invalid` is always exempt from remapping.
-     */
-    private function effectiveLevel(Rule $rule): int
-    {
-        return $this->effectiveLevelFor($rule->id(), $rule->level());
     }
 }

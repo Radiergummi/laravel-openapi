@@ -21,9 +21,9 @@ use stdClass;
 uses()->group('openapi', 'plugin:fractal');
 
 /*
- * A stand-in for `League\Fractal\Manager`. The rule matches the type name as a
- * string, so the fixture method below declares the real FQCN via a class_alias
- * so the test does not require the package.
+ * A stand-in for `League\Fractal\Manager`. The rule matches the type name as a string, so the
+ * fixture method below declares the real FQCN via a class_alias so the test does not require the
+ * package.
  */
 if (!class_exists('League\\Fractal\\Manager')) {
     class_alias(stdClass::class, 'League\\Fractal\\Manager');

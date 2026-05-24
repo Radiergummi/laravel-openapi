@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,6 +21,12 @@ use function sprintf;
 
 final class FieldNoEffect extends AbstractFieldRule
 {
+    #[Override]
+    public function description(): string
+    {
+        return 'A field attribute was applied but has no visible effect on the schema.';
+    }
+
     /**
      * @return iterable<Finding>
      */
@@ -86,11 +92,5 @@ final class FieldNoEffect extends AbstractFieldRule
     public function level(): int
     {
         return 3;
-    }
-
-    #[Override]
-    public function description(): string
-    {
-        return 'A field attribute was applied but has no visible effect on the schema.';
     }
 }

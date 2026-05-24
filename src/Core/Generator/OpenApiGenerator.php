@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,7 +24,6 @@ use Radiergummi\OpenApi\Core\Events\SpecGenerationStarted;
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Inclusion\SkipReason;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
@@ -89,12 +88,14 @@ final readonly class OpenApiGenerator
             Generator::$context = $previousContext;
         }
 
-        $this->events->dispatch(new SpecGenerationCompleted(
-            spec: $spec->name,
-            environment: $environment,
-            document: $document,
-            durationMs: (hrtime(true) - $startedAtNs) / 1_000_000,
-        ));
+        $this->events->dispatch(
+            new SpecGenerationCompleted(
+                spec: $spec->name,
+                environment: $environment,
+                document: $document,
+                durationMs: (hrtime(true) - $startedAtNs) / 1_000_000,
+            ),
+        );
 
         return $document;
     }
@@ -125,12 +126,14 @@ final readonly class OpenApiGenerator
                     // a future evaluator branch forgets to set one.
                     assert($decision->reason !== null);
 
-                    $this->events->dispatch(new RouteSkipped(
-                        route: $descriptor->route,
-                        spec: $spec->name,
-                        reason: $decision->reason,
-                        summary: $decision->summary,
-                    ));
+                    $this->events->dispatch(
+                        new RouteSkipped(
+                            route: $descriptor->route,
+                            spec: $spec->name,
+                            reason: $decision->reason,
+                            summary: $decision->summary,
+                        ),
+                    );
                 }
 
                 continue;
@@ -165,10 +168,10 @@ final readonly class OpenApiGenerator
         }
 
         $documentProps = [
-            'openapi'    => '3.1.0',
-            'info'       => $spec->info,
-            'servers'    => $spec->servers !== [] ? $spec->servers : $this->fallbackServers(),
-            'paths'      => array_values($pathItems),
+            'openapi' => '3.1.0',
+            'info' => $spec->info,
+            'servers' => $spec->servers !== [] ? $spec->servers : $this->fallbackServers(),
+            'paths' => array_values($pathItems),
             'components' => new OA\Components($componentsProps),
         ];
 
@@ -187,12 +190,6 @@ final readonly class OpenApiGenerator
         return $document;
     }
 
-    /** @return list<OA\Server> */
-    private function fallbackServers(): array
-    {
-        return [new OA\Server(['url' => (string) config('app.url')])];
-    }
-
     private function readWebhookAttribute(ActionDescriptor $descriptor): ?WebhookAttribute
     {
         if ($descriptor->actionReflector === null) {
@@ -203,11 +200,6 @@ final readonly class OpenApiGenerator
         assert($attribute === null || $attribute instanceof WebhookAttribute);
 
         return $attribute;
-    }
-
-    private function normalisePath(string $uri): string
-    {
-        return Str::start($uri, '/');
     }
 
     /**
@@ -257,33 +249,6 @@ final readonly class OpenApiGenerator
     }
 
     /**
-     * Builds an operation ID for the given route.
-     *
-     * Priority:
-     * 1. Named route → `{name}.{method}` for multi-method routes, plain `{name}` otherwise.
-     * 2. Generated/unnamed (`generated::*` prefix or null) → `{method}_{sanitised_path}`.
-     */
-    private function buildOperationId(ActionDescriptor $descriptor, string $method): string
-    {
-        $name = $descriptor->route->getName();
-        $methods = array_filter(
-            $descriptor->route->methods(),
-            static fn(string $m): bool => strtoupper($m) !== 'HEAD',
-        );
-
-        if ($name !== null && !Str::startsWith($name, 'generated::')) {
-            return count($methods) > 1
-                ? $name . '.' . strtolower($method)
-                : $name;
-        }
-
-        $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
-            ?? $descriptor->route->uri();
-
-        return strtolower($method) . '_' . $sanitised;
-    }
-
-    /**
      * Walks the FQCN in reverse and returns the first segment that is neither the controller class
      * itself nor generic scaffolding (Http, App, Internal, External, Global, version segments
      * like V0).
@@ -316,5 +281,43 @@ final readonly class OpenApiGenerator
         }
 
         return 'General';
+    }
+
+    /**
+     * Builds an operation ID for the given route.
+     *
+     * Priority:
+     * 1. Named route → `{name}.{method}` for multi-method routes, plain `{name}` otherwise.
+     * 2. Generated/unnamed (`generated::*` prefix or null) → `{method}_{sanitised_path}`.
+     */
+    private function buildOperationId(ActionDescriptor $descriptor, string $method): string
+    {
+        $name = $descriptor->route->getName();
+        $methods = array_filter(
+            $descriptor->route->methods(),
+            static fn(string $m): bool => strtoupper($m) !== 'HEAD',
+        );
+
+        if ($name !== null && !Str::startsWith($name, 'generated::')) {
+            return count($methods) > 1
+                ? $name . '.' . strtolower($method)
+                : $name;
+        }
+
+        $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
+            ?? $descriptor->route->uri();
+
+        return strtolower($method) . '_' . $sanitised;
+    }
+
+    private function normalisePath(string $uri): string
+    {
+        return Str::start($uri, '/');
+    }
+
+    /** @return list<OA\Server> */
+    private function fallbackServers(): array
+    {
+        return [new OA\Server(['url' => (string) config('app.url')])];
     }
 }

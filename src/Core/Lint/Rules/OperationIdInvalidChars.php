@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,12 +21,12 @@ use function preg_match;
 use function sprintf;
 
 /**
- * Reports operations whose operationId contains characters that are not safe
- * for code generation — i.e. not matching `/^[A-Za-z][A-Za-z0-9._-]*$/`.
+ * Reports operations whose operationId contains characters that are not safe for code generation
+ * — i.e. not matching `/^[A-Za-z][A-Za-z0-9._-]*$/`.
  *
- * The id must start with a letter; subsequent characters may be letters,
- * digits, dots, hyphens, or underscores. Operations without an operationId
- * are skipped — that case is owned by `operation.id-missing`.
+ * The id must start with a letter; subsequent characters may be letters, digits, dots, hyphens,
+ * or underscores. Operations without an operationId are skipped — that case is owned by
+ * `operation.id-missing`.
  */
 final class OperationIdInvalidChars implements Rule, OperationRuleVisitor
 {

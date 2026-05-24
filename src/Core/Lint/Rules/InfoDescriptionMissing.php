@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -25,9 +25,8 @@ use function trim;
 /**
  * Reports documents whose info.description is missing or empty.
  *
- * The info object's description field gives consumers an overview of the API's
- * purpose, audience, and usage. Leaving it blank results in generated
- * documentation that lacks essential context.
+ * The info object's description field gives consumers an overview of the API's purpose, audience,
+ * and usage. Leaving it blank results in generated documentation that lacks essential context.
  */
 final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
 {

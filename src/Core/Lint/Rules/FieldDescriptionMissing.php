@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,8 +23,8 @@ use function trim;
 /**
  * Reports schema properties (fields) that have no description.
  *
- * Every property in a schema should have a description so that API consumers
- * understand the semantics and constraints of each field.
+ * Every property in a schema should have a description so that API consumers understand the
+ * semantics and constraints of each field.
  */
 final class FieldDescriptionMissing implements Rule, FieldRuleVisitor
 {

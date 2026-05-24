@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,9 +23,8 @@ use function sprintf;
 final class SecurityInvalidScope implements Rule, OperationRuleVisitor
 {
     /**
-     * @param null|list<string> $registeredScopes Known scope identifiers.
-     *                                            When null, scopes are resolved
-     *                                            from the context index.
+     * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
+     *                                            resolved from the context index.
      */
     public function __construct(private readonly ?array $registeredScopes = null) {}
 
@@ -37,9 +36,9 @@ final class SecurityInvalidScope implements Rule, OperationRuleVisitor
     {
         $knownScopes = $this->registeredScopes ?? $context->index->registeredScopes;
 
-        // An empty scope list means scope coverage cannot be verified — either
-        // no scopes are registered or Passport is not installed. Skip the check
-        // rather than flagging every spec scope as undefined (false positives).
+        // An empty scope list means scope coverage cannot be verified — either no scopes are
+        // registered or Passport is not installed. Skip the check rather than flagging every
+        // spec scope as undefined (false positives).
         if ($knownScopes === []) {
             return;
         }

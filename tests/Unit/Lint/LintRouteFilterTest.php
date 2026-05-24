@@ -22,12 +22,12 @@ uses()->group('openapi', 'lint');
 /**
  * Returns a `LintRouteFilter` whose protected git-shelling seams are stubbed.
  *
- * `$defaultRef` is the value `resolveDefaultDiffRef()` returns when the caller
- * passes a bare --diff. Pass `null` to make the test fail loudly if the default
- * resolution path runs (used to assert an explicit ref bypasses it).
+ * `$defaultRef` is the value `resolveDefaultDiffRef()` returns when the caller passes a bare
+ * --diff. Pass `null` to make the test fail loudly if the default resolution path runs (used to
+ * assert an explicit ref bypasses it).
  *
- * The returned object exposes `$capturedRef` — the last ref passed to
- * `changedFilesSince()` — so tests can assert which ref was consulted.
+ * The returned object exposes `$capturedRef` — the last ref passed to `changedFilesSince()` — so
+ * tests can assert which ref was consulted.
  *
  * @param list<string> $diffFiles
  */

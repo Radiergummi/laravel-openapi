@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Core\Lint;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use ReflectionClass;
 
 use function array_any;
 use function is_a;
@@ -23,18 +24,13 @@ final readonly class LintContext
     /**
      * @param list<ActionDescriptor>     $actionDescriptors
      * @param list<SuppressionDirective> $suppressions
-     * @param list<class-string>         $payloadClasses    Base types whose
-     *                                                      subtypes Core treats
-     *                                                      as request payloads
-     * @param ReflectionAttributeCache   $reflectionCache   Per-walk cache that
-     *                                                      sibling rules use to
-     *                                                      share `getAttributes()`
-     *                                                      results and
-     *                                                      {@see \ReflectionClass}
-     *                                                      instances. A fresh
-     *                                                      cache per context
-     *                                                      keeps the lifecycle
-     *                                                      tied to one walk.
+     * @param list<class-string>         $payloadClasses    Base types whose subtypes Core treats
+     *                                                      as request payloads.
+     * @param ReflectionAttributeCache   $reflectionCache   Per-walk cache for sibling rules to
+     *                                                      share `getAttributes()` results and
+     *                                                      {@see ReflectionClass} instances. A
+     *                                                      fresh cache per context keeps the
+     *                                                      lifecycle tied to one walk.
      */
     public function __construct(
         public ApiNode $api,

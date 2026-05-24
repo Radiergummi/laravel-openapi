@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,8 +24,8 @@ use function sprintf;
 /**
  * Reports duplicate path parameters within a single operation.
  *
- * The OpenAPI specification requires that path parameter names be unique per
- * operation. This rule detects violations among path parameters only.
+ * The OpenAPI specification requires that path parameter names be unique per operation. This
+ * rule detects violations among path parameters only.
  */
 final class ParameterDuplicateName implements Rule, OperationRuleVisitor
 {

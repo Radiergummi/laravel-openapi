@@ -18,9 +18,8 @@ use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 uses()->group('openapi', 'lint');
 
 /**
- * Build a `ComponentSchemaNode` whose raw schema is an `allOf` of sub-schemas
- * with the given types. A null entry means "sub-schema without a type" (used
- * to verify the rule ignores untyped slots).
+ * Build a `ComponentSchemaNode` whose raw schema is an `allOf` of sub-schemas with the given types.
+ * A null entry means "sub-schema without a type" (used to verify the rule ignores untyped slots).
  *
  * @param list<null|string> $types
  */

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -202,12 +202,6 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         return 0;
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Discriminator mapping references a missing component schema.';
-    }
-
     /**
      * Check whether a schema (or any of its `allOf` sub-schemas, including
      * those resolved via `$ref`) has a property with the given name.
@@ -259,7 +253,12 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
                     $visited[$refName] = true;
                     $resolved = $schemaMap[$refName] ?? null;
 
-                    if ($resolved !== null && $this->schemaHasProperty($resolved, $propertyName, $schemaMap, $visited)) {
+                    if ($resolved !== null && $this->schemaHasProperty(
+                        $resolved,
+                        $propertyName,
+                        $schemaMap,
+                        $visited,
+                    )) {
                         return true;
                     }
                 }
@@ -284,5 +283,11 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         }
 
         return false;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Discriminator mapping references a missing component schema.';
     }
 }

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -78,6 +78,15 @@ final readonly class LinterSummary implements Arrayable, JsonSerializable
         $this->affectedRoutesCount = count($this->affectedRoutes);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
     #[Override]
     public function toArray(): array
     {
@@ -86,14 +95,5 @@ final readonly class LinterSummary implements Arrayable, JsonSerializable
             'by_level' => (object) $this->findingCountsPerLevel,
             'routes_affected' => $this->affectedRoutes,
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    #[Override]
-    public function jsonSerialize(): array
-    {
-        return $this->toArray();
     }
 }

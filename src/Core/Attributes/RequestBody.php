@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -13,14 +13,15 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
+use Spatie\LaravelData\Data;
 
 /**
- * Overrides metadata on the auto-derived request body or creates one for
- * endpoints that don't accept a {@see \Spatie\LaravelData\Data} class.
+ * Overrides metadata on the auto-derived request body or creates one for endpoints that don't
+ * accept a {@see Data} class.
  *
- * Any property left null falls through to the auto-derived value: the body
- * stays attached to its `Data` schema (when present), the media type defaults
- * to `application/json`, and `required` defaults to true.
+ * Any property left null falls through to the auto-derived value: the body stays attached to its
+ * `Data` schema (when present), the media type defaults to `application/json`, and `required`
+ * defaults to true.
  *
  * Useful escape hatches:
  *

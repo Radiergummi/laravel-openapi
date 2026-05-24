@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -13,10 +13,10 @@ namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
 
 /**
- * Fixture FormRequest with a mix of rules for unit-test coverage of
- * {@see \Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest}.
+ * Fixture FormRequest with a mix of rules for unit-test coverage of {@see SchemaFromFormRequest}.
  */
 class SimpleFormRequest extends FormRequest
 {

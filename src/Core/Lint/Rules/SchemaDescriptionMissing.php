@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,9 +24,8 @@ use function trim;
 /**
  * Reports named component schemas that have no description.
  *
- * Named schemas in the components section are reused throughout the API.
- * A description on each schema makes generated documentation significantly
- * more useful for consumers.
+ * Named schemas in the components section are reused throughout the API. A description on each
+ * schema makes generated documentation significantly more useful for consumers.
  */
 final class SchemaDescriptionMissing implements Rule, ComponentSchemaRuleVisitor
 {

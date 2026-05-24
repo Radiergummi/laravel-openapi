@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -16,9 +16,9 @@ use Attribute;
 /**
  * Attaches an external documentation link to an operation.
  *
- * Renders in Scalar / Swagger UI as a clickable "Learn more" link beside the
- * operation. Use it to point at the deeper internal docs that don't belong in
- * the spec text itself (Notion ADRs, integration runbooks, knowledge base).
+ * Renders in Scalar / Swagger UI as a clickable "Learn more" link beside the operation. Use it to
+ * point at the deeper internal docs that don't belong in the spec text itself (Notion ADRs,
+ * integration runbooks, knowledge base).
  *
  * Method-level wins over class-level. Only one entry per operation is supported.
  *

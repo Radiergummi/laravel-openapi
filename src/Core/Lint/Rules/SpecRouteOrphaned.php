@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -43,12 +43,6 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
     }
 
     #[Override]
-    public function level(): int
-    {
-        return 0;
-    }
-
-    #[Override]
     public function description(): string
     {
         return 'Route is pinned via #[Spec] to specs that do not exist and will not appear in any document.';
@@ -70,14 +64,22 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
             }
 
             if (array_intersect($names, $known) === []) {
-                $findings->emit(new Finding(
-                    ruleId: self::ID,
-                    level: $this->level(),
-                    message: 'Route is pinned to specs that do not exist; it will not appear anywhere.',
-                    location: FindingLocation::fromDescriptor($descriptor),
-                    fixHint: 'Fix the #[Spec] argument(s) or declare the spec in config.',
-                ));
+                $findings->emit(
+                    new Finding(
+                        ruleId: self::ID,
+                        level: $this->level(),
+                        message: 'Route is pinned to specs that do not exist; it will not appear anywhere.',
+                        location: FindingLocation::fromDescriptor($descriptor),
+                        fixHint: 'Fix the #[Spec] argument(s) or declare the spec in config.',
+                    ),
+                );
             }
         }
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 0;
     }
 }

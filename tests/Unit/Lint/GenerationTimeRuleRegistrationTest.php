@@ -19,10 +19,10 @@ uses()->group('openapi', 'lint');
 /**
  * Build a RuleRegistry containing only the core generation-time stub rules.
  *
- * We instantiate the stubs directly rather than going through CoreRegistration
- * and OpenApiRegistry, because some other core rules (e.g. SpecInvalid) call
- * resource_path() at construction time and require a full Laravel application.
- * Unit tests run under a bare container and cannot satisfy that requirement.
+ * We instantiate the stubs directly rather than going through CoreRegistration and OpenApiRegistry,
+ * because some other core rules (e.g. SpecInvalid) call resource_path() at construction time and
+ * require a full Laravel application. Unit tests run under a bare container and cannot satisfy
+ * that requirement.
  */
 function buildRegistry(): RuleRegistry
 {
@@ -70,8 +70,7 @@ it('severity override applies to request.empty', function (): void {
         severityOverrides: ['request.empty' => 2],
     );
 
-    // With the override in place, effectiveLevelFor returns 2 regardless of
-    // the caller's fallback.
+    // With the override in place, effectiveLevelFor returns 2 regardless of the caller's fallback.
     expect($registry->effectiveLevelFor('request.empty', 0))->toBe(2);
 });
 

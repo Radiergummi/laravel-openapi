@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,6 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
 use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
+use TypeError;
+use ValueError;
 
 use function preg_match;
 use function sprintf;
@@ -29,6 +31,10 @@ abstract readonly class AbstractNamingRule implements Rule
 {
     protected IdentifierCase $case;
 
+    /**
+     * @throws TypeError
+     * @throws ValueError
+     */
     public function __construct(IdentifierCase|string $case)
     {
         $this->case = IdentifierCase::fromConfig($case);

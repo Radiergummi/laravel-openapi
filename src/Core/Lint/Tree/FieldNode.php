@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -59,11 +59,6 @@ final class FieldNode implements Node
         $this->parent = $parent;
     }
 
-    public function parent(): ?Node
-    {
-        return $this->parent;
-    }
-
     public function pointer(string $append = ''): string
     {
         return implode('/', array_filter([
@@ -90,6 +85,11 @@ final class FieldNode implements Node
         }
 
         return null;
+    }
+
+    public function parent(): ?Node
+    {
+        return $this->parent;
     }
 
 }

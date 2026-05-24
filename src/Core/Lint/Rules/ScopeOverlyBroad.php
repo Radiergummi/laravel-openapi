@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,16 +22,14 @@ use function count;
 use function sprintf;
 
 /**
- * Reports when an operation's only OAuth scope is the wildcard `*` and more
- * specific scopes are available in Passport. Using `*` alone defeats the
- * purpose of scope-based access control.
+ * Reports when an operation's only OAuth scope is the wildcard `*` and more specific scopes are
+ * available in Passport. Using `*` alone defeats the purpose of scope-based access control.
  */
 final class ScopeOverlyBroad implements Rule, OperationRuleVisitor
 {
     /**
-     * @param null|list<string> $registeredScopes Known scope identifiers.
-     *                                            When null, scopes are resolved
-     *                                            from the context index.
+     * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
+     *                                            resolved from the context index.
      */
     public function __construct(private readonly ?array $registeredScopes = null) {}
 
@@ -43,8 +41,8 @@ final class ScopeOverlyBroad implements Rule, OperationRuleVisitor
     {
         $knownScopes = $this->registeredScopes ?? $context->index->registeredScopes;
 
-        // If there are no specific scopes registered (empty, or only the
-        // wildcard regardless of its position), there is nothing to flag.
+        // If there are no specific scopes registered (empty, or only the wildcard regardless of
+        // its position), there is nothing to flag.
         if (array_diff($knownScopes, ['*']) === []) {
             return;
         }

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,8 +21,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 use function sprintf;
 
 /**
- * Reports when a single file has too many suppression directives, which may
- * indicate that the file needs refactoring rather than more suppressions.
+ * Reports when a single file has too many suppression directives, which may indicate that the
+ * file needs refactoring rather than more suppressions.
  */
 final class MetaTooManySuppressions implements Rule, ApiRuleVisitor
 {

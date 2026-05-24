@@ -4,6 +4,36 @@ includes:
 parameters:
     level: 8
     treatPhpDocTypesAsCertain: false
+    checkMissingCallableSignature: true
+    reportIgnoresWithoutComments: true
+    checkUninitializedProperties: true
+    checkDynamicProperties: true
+    exceptions:
+        check:
+            missingCheckedExceptionInThrows: true
+
     paths:
         - src
-    tmpDir: build/phpstan
+        - tests
+    tmpDir: .cache/phpstan
+
+    editorUrl: 'phpstorm://open?file=%%file%%&line=%%line%%'
+    editorUrlTitle: '%%relFile%%:%%line%%'
+
+    ignoreErrors:
+        -
+            identifier: property.notFound
+            paths:
+                - tests/
+        -
+            message: '#Call to an undefined method Mockery\\ExpectationInterface\|Mockery\\HigherOrderMessage\|Mockery\\MockInterface::.+#'
+            identifier: method.notFound
+            paths:
+                - tests/
+        # DocsController serves the package's own runtime routes. Documenting its checked
+        # exceptions via @throws would feed the throws.unmapped lint rule and surface framework
+        # internals as undocumented API responses; we treat the controller as opaque instead.
+        -
+            identifier: missingType.checkedException
+            paths:
+                - src/Http/DocsController.php

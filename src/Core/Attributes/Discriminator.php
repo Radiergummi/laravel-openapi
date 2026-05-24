@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -78,6 +78,8 @@ final readonly class Discriminator
      * the wrapper schema once those keys are known.
      *
      * @param array<class-string, string> $variantKeys Map of variant class → component key.
+     *
+     * @throws RuntimeException
      */
     public function assemble(array $variantKeys): OA\Schema
     {
@@ -85,7 +87,9 @@ final readonly class Discriminator
         $mappingRefs = [];
 
         foreach ($this->mapping as $value => $variantClass) {
-            $key = $variantKeys[$variantClass] ?? throw new RuntimeException("Variant class '{$variantClass}' was not built before assemble().");
+            $key = $variantKeys[$variantClass] ?? throw new RuntimeException(
+                "Variant class '{$variantClass}' was not built before assemble().",
+            );
             $ref = "#/components/schemas/{$key}";
 
             $oneOf[] = new OA\Schema(['ref' => $ref]);

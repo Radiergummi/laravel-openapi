@@ -21,8 +21,8 @@ uses()->group('openapi', 'lint');
 
 /**
  * `SecuritySchemeUndefined` walks `rawSpec->components->securitySchemes`, which
- * `OperationNodeFactory::emptyContext()` deliberately ships empty. Keep the
- * spec-builder local rather than bloating the factory with rawSpec knobs.
+ * `OperationNodeFactory::emptyContext()` deliberately ships empty. Keep the spec-builder local
+ * rather than bloating the factory with rawSpec knobs.
  *
  * @param list<string> $declaredSchemes
  */

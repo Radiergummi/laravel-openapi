@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,9 +22,9 @@ use function sprintf;
 /**
  * Reports operations that have a summary but no description.
  *
- * When an operation provides a summary, consumers expect a more detailed
- * description to accompany it. Operations missing both summary and description
- * are covered by the `summary.missing` rule instead.
+ * When an operation provides a summary, consumers expect a more detailed description to accompany
+ * it. Operations missing both summary and description are covered by the `summary.missing` rule
+ * instead.
  */
 final class OperationDescriptionMissing implements Rule, OperationRuleVisitor
 {
@@ -34,9 +34,8 @@ final class OperationDescriptionMissing implements Rule, OperationRuleVisitor
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        // Operations missing both summary and description are covered by the
-        // summary.missing rule — only flag when a summary exists but no
-        // accompanying description does.
+        // Operations missing both summary and description are covered by the summary.missing
+        // rule — only flag when a summary exists but no accompanying description does.
         if ($operation->summary === null) {
             return;
         }

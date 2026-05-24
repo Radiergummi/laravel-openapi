@@ -168,6 +168,14 @@ it('--explain writes traces to stderr, not stdout, so --output=- stays parseable
         ->assertSuccessful();
 });
 
+it('rejects unsupported --format values with a clear error', function (): void {
+    config(['openapi.output_path' => generateCommandTmpPath()]);
+
+    $this->artisan('openapi:generate', ['--format' => 'xml'])
+        ->expectsOutputToContain("Unsupported --format value 'xml'")
+        ->assertExitCode(Command::FAILURE);
+});
+
 it('--output= is rejected when generating multiple specs', function (): void {
     $v1Path = generateCommandTmpPath();
 

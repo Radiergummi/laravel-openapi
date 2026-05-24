@@ -15,9 +15,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 
 /**
- * Fixture controller used by {@see DataValidationRulesTest} to expose Data
- * classes as POST request bodies so the OpenAPI generator can extract them
- * via reflection (closures don't work with ReflectionMethod-based extraction).
+ * Fixture controller used by {@see DataValidationRulesTest} to expose Data classes as POST request
+ * bodies so the OpenAPI generator can extract them via reflection (closures don't work with
+ * ReflectionMethod-based extraction).
  */
 class ValidationRulesFixtureController extends Controller
 {

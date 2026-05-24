@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -25,13 +25,11 @@ use function sprintf;
 /**
  * Reports deprecated operations that do not mention a sunset date or timeline.
  *
- * When an operation is marked as `deprecated: true`, its description should
- * include a specific date or timeline so that consumers know when the endpoint
- * will be removed. This rule checks for ISO dates (YYYY-MM-DD) or quarter
- * notation (Q1 2025).
+ * When an operation is marked as `deprecated: true`, its description should include a specific
+ * date or timeline so that consumers know when the endpoint will be removed. This rule checks for
+ * ISO dates (YYYY-MM-DD) or quarter notation (Q1 2025).
  *
- * A non-empty `x-sunset` OAS extension on the operation also satisfies
- * the requirement.
+ * A non-empty `x-sunset` OAS extension on the operation also satisfies the requirement.
  */
 final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
 {
@@ -50,7 +48,9 @@ final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
         // A non-empty x-sunset extension satisfies the requirement.
         $extensions = $operation->raw->x;
 
-        if (is_array($extensions) && isset($extensions['x-sunset']) && is_string($extensions['x-sunset']) && $extensions['x-sunset'] !== '') {
+        if (is_array($extensions) && isset($extensions['x-sunset']) && is_string(
+            $extensions['x-sunset'],
+        ) && $extensions['x-sunset'] !== '') {
             return;
         }
 

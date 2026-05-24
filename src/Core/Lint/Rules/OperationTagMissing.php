@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,8 +22,8 @@ use function sprintf;
 /**
  * Reports operations that have no tags assigned.
  *
- * Tags help organize operations in generated documentation and client SDKs.
- * Every operation should have at least one tag.
+ * Tags help organize operations in generated documentation and client SDKs. Every operation
+ * should have at least one tag.
  */
 final class OperationTagMissing implements Rule, OperationRuleVisitor
 {

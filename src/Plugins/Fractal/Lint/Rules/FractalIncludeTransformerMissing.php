@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,8 +24,8 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Flags a `#[TransformerInclude]` declared with no `transformer` class — the
- * included resource is emitted as an opaque `type: object`.
+ * Flags a `#[TransformerInclude]` declared with no `transformer` class — the included resource
+ * is emitted as an opaque `type: object`.
  */
 final readonly class FractalIncludeTransformerMissing implements Rule, OperationRule
 {
@@ -53,7 +53,12 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
             return;
         }
 
-        foreach ($context->reflectionCache->classAttributes($transformer, TransformerInclude::class) as $includeAttribute) {
+        foreach (
+            $context->reflectionCache->classAttributes(
+                $transformer,
+                TransformerInclude::class,
+            ) as $includeAttribute
+        ) {
             $include = $includeAttribute->newInstance();
 
             if ($include->transformer !== null) {

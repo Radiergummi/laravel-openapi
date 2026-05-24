@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -52,18 +52,6 @@ use function strtoupper;
 final readonly class StandardResponsesExtractor
 {
     use DetectsAuthMiddleware;
-    /**
-     * @param list<ErrorResponseFactory>                             $errorResponseFactories
-     * @param array<string, array{status: int, description: string}> $exceptionMap
-     * @param array<string, array{status: int, description: string}> $middlewareMap
-     */
-    public function __construct(
-        private ComponentSchemaRegistry $registry,
-        private FindingsCollector $findings,
-        private array $errorResponseFactories = [],
-        private array $exceptionMap = [],
-        private array $middlewareMap = [],
-    ) {}
 
     /**
      * Maps HTTP status codes to stable `components.responses` component names.
@@ -82,6 +70,19 @@ final readonly class StandardResponsesExtractor
         429 => 'TooManyRequests',
         500 => 'InternalServerError',
     ];
+
+    /**
+     * @param list<ErrorResponseFactory>                             $errorResponseFactories
+     * @param array<string, array{status: int, description: string}> $exceptionMap
+     * @param array<string, array{status: int, description: string}> $middlewareMap
+     */
+    public function __construct(
+        private ComponentSchemaRegistry $registry,
+        private FindingsCollector $findings,
+        private array $errorResponseFactories = [],
+        private array $exceptionMap = [],
+        private array $middlewareMap = [],
+    ) {}
 
     /**
      * @return list<OA\Response>
@@ -185,44 +186,46 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * Resolves the error-response body from the first registered
-     * {@see ErrorResponseFactory} that yields content. Returns null when no
-     * factory is registered (or none produces content) — error responses are
-     * then emitted description-only, with no body.
+     * Returns null when the class cannot be loaded or carries no {@see ExceptionResponse} attribute.
      *
-     * @return null|list<OA\MediaType>
+     * `IS_INSTANCEOF` matches user-defined subclasses of {@see ExceptionResponse}.
+     *
+     * @return null|array{status: int, description: string}
      */
-    private function errorResponseContent(): ?array
+    private function resolveFromAttribute(string $fqcn): ?array
     {
-        foreach ($this->errorResponseFactories as $factory) {
-            $content = $factory->errorResponseContent();
-
-            if ($content !== null) {
-                return $content;
-            }
+        if (!class_exists($fqcn)) {
+            return null;
         }
 
-        return null;
+        $attrs = new ReflectionClass($fqcn)->getAttributes(
+            ExceptionResponse::class,
+            ReflectionAttribute::IS_INSTANCEOF,
+        );
+
+        if ($attrs === []) {
+            return null;
+        }
+
+        $attr = $attrs[0]->newInstance();
+
+        return ['status' => $attr->status, 'description' => $attr->description];
     }
 
     /**
-     * Builds an error {@see OA\Response}, attaching the resolved body content
-     * only when a factory provided it.
+     * @param array<string, array{status: int, description: string}> $map
      *
-     * @param null|list<OA\MediaType> $content
+     * @return null|array{status: int, description: string}
      */
-    private function makeErrorResponse(string $response, string $description, ?array $content): OA\Response
+    private function matchException(string $name, array $map): ?array
     {
-        $properties = [
-            'response' => $response,
-            'description' => $description,
-        ];
-
-        if ($content !== null) {
-            $properties['content'] = $content;
+        if (isset($map[$name])) {
+            return $map[$name];
         }
 
-        return new OA\Response($properties);
+        $basename = class_basename($name);
+
+        return $map[$basename] ?? null;
     }
 
     /**
@@ -290,49 +293,6 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * Returns null when the class cannot be loaded or carries no {@see ExceptionResponse} attribute.
-     *
-     * `IS_INSTANCEOF` matches user-defined subclasses of {@see ExceptionResponse}.
-     *
-     * @return null|array{status: int, description: string}
-     */
-    private function resolveFromAttribute(string $fqcn): ?array
-    {
-        if (!class_exists($fqcn)) {
-            return null;
-        }
-
-        $attrs = new ReflectionClass($fqcn)->getAttributes(
-            ExceptionResponse::class,
-            ReflectionAttribute::IS_INSTANCEOF,
-        );
-
-        if ($attrs === []) {
-            return null;
-        }
-
-        $attr = $attrs[0]->newInstance();
-
-        return ['status' => $attr->status, 'description' => $attr->description];
-    }
-
-    /**
-     * @param array<string, array{status: int, description: string}> $map
-     *
-     * @return null|array{status: int, description: string}
-     */
-    private function matchException(string $name, array $map): ?array
-    {
-        if (isset($map[$name])) {
-            return $map[$name];
-        }
-
-        $basename = class_basename($name);
-
-        return $map[$basename] ?? null;
-    }
-
-    /**
      * @param array<int, array{description: string}>  $byStatus
      * @param array{status: int, description: string} $entry
      */
@@ -369,6 +329,47 @@ final readonly class StandardResponsesExtractor
             $middleware,
             static fn(string $entry): bool => $entry === 'throttle' || str_starts_with($entry, 'throttle:'),
         );
+    }
+
+    /**
+     * Resolves the error-response body from the first registered
+     * {@see ErrorResponseFactory} that yields content. Returns null when no
+     * factory is registered (or none produces content) — error responses are
+     * then emitted description-only, with no body.
+     *
+     * @return null|list<OA\MediaType>
+     */
+    private function errorResponseContent(): ?array
+    {
+        foreach ($this->errorResponseFactories as $factory) {
+            $content = $factory->errorResponseContent();
+
+            if ($content !== null) {
+                return $content;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Builds an error {@see OA\Response}, attaching the resolved body content
+     * only when a factory provided it.
+     *
+     * @param null|list<OA\MediaType> $content
+     */
+    private function makeErrorResponse(string $response, string $description, ?array $content): OA\Response
+    {
+        $properties = [
+            'response' => $response,
+            'description' => $description,
+        ];
+
+        if ($content !== null) {
+            $properties['content'] = $content;
+        }
+
+        return new OA\Response($properties);
     }
 
 }

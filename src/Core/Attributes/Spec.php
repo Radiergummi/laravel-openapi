@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -42,9 +42,9 @@ final readonly class Spec
     public function __construct(array|string|null $name = null)
     {
         $this->names = match (true) {
-            $name === null    => ['default'],
-            is_string($name)  => [$name],
-            default           => array_values($name),
+            $name === null => ['default'],
+            is_string($name) => [$name],
+            default => array_values($name),
         };
     }
 }

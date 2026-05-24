@@ -14,14 +14,15 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes;
 use Attribute;
 use BackedEnum;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Core\Attributes\QueryParam;
 
 /**
- * Declares one `spatie/laravel-query-builder` allowed filter — emitted as a
- * `filter[name]` query-string parameter. Repeatable and method-level.
+ * Declares one `spatie/laravel-query-builder` allowed filter — emitted as a `filter[name]`
+ * query-string parameter. Repeatable and method-level.
  *
- * Mirrors {@see \Radiergummi\OpenApi\Core\Attributes\QueryParam}'s JSON-Schema
- * surface (sans `required`/`deprecated` — filter parameters are always optional
- * and the deprecation marker lives on the operation, not the filter).
+ * Mirrors {@see QueryParam}'s JSON-Schema surface (sans `required`/`deprecated` — filter
+ * parameters are always optional and the deprecation marker lives on the operation, not the
+ * filter).
  *
  * ```php
  * #[AllowedFilter('status', type: 'string', enum: ['draft', 'published'])]

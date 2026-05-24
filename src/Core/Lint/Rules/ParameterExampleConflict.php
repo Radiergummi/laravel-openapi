@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,9 +23,9 @@ use function sprintf;
 /**
  * Reports parameters that set both `example` (singular) and `examples` (plural).
  *
- * The OpenAPI specification states these two fields are mutually exclusive.
- * Having both present on a parameter object is a spec violation that causes
- * ambiguity for documentation and code-generation tooling.
+ * The OpenAPI specification states these two fields are mutually exclusive. Having both present
+ * on a parameter object is a spec violation that causes ambiguity for documentation and
+ * code-generation tooling.
  */
 final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
 {

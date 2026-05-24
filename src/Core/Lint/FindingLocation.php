@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -88,6 +88,15 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
     #[Override]
     public function toArray(): array
     {
@@ -99,14 +108,5 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
             'routeUri' => $this->routeUri,
             'jsonPointer' => $this->jsonPointer,
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    #[Override]
-    public function jsonSerialize(): array
-    {
-        return $this->toArray();
     }
 }

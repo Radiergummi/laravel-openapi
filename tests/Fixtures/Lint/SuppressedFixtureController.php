@@ -15,9 +15,9 @@ use Illuminate\Http\JsonResponse;
 use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
 
 /**
- * Fixture exercising every {@see IgnoreLint} scope for SuppressionCollector tests:
- * class scope on the controller, method scope on an action, and class/property
- * scope reached transitively through a Data-class parameter.
+ * Fixture exercising every {@see IgnoreLint} scope for SuppressionCollector tests: class scope
+ * on the controller, method scope on an action, and class/property scope reached transitively
+ * through a Data-class parameter.
  */
 #[IgnoreLint('tag.duplicate', reason: 'class scope')]
 final class SuppressedFixtureController

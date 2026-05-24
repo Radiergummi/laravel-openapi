@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,9 +24,8 @@ use function trim;
 /**
  * Reports top-level tags that have no description.
  *
- * Tags without descriptions reduce the usefulness of generated API
- * documentation. Every tag declared in the root `tags` array should include
- * a meaningful description.
+ * Tags without descriptions reduce the usefulness of generated API documentation. Every tag
+ * declared in the root `tags` array should include a meaningful description.
  */
 final class TagsNoDescription implements Rule, ApiRuleVisitor
 {

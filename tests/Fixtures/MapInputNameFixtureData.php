@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -11,14 +11,15 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
+use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
 use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 use Spatie\LaravelData\Optional;
 
 /**
- * Fixture {@see Data} class exercising `#[MapInputName]` resolution in
- * {@see \Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass} (OAPI-001).
+ * Fixture {@see Data} class exercising `#[MapInputName]` resolution in {@see SchemaFromDataClass}
+ * (OAPI-001).
  *
  * - `literalName` carries a literal wire-name attribute → schema must use
  *   `literal_name`.

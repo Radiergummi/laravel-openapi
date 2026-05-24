@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -41,12 +41,6 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
     }
 
     #[Override]
-    public function level(): int
-    {
-        return 0;
-    }
-
-    #[Override]
     public function description(): string
     {
         return "#[Spec(name:)] references a spec name not declared in config('openapi.specs').";
@@ -63,15 +57,23 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
 
             foreach ($names as $name) {
                 if (!$specs->has($name)) {
-                    $findings->emit(new Finding(
-                        ruleId: self::ID,
-                        level: $this->level(),
-                        message: "Spec name '{$name}' referenced by #[Spec] is not declared in config('openapi.specs').",
-                        location: FindingLocation::fromDescriptor($descriptor),
-                        fixHint: "Add '{$name}' to config('openapi.specs') or remove the attribute argument.",
-                    ));
+                    $findings->emit(
+                        new Finding(
+                            ruleId: self::ID,
+                            level: $this->level(),
+                            message: "Spec name '{$name}' referenced by #[Spec] is not declared in config('openapi.specs').",
+                            location: FindingLocation::fromDescriptor($descriptor),
+                            fixHint: "Add '{$name}' to config('openapi.specs') or remove the attribute argument.",
+                        ),
+                    );
                 }
             }
         }
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 0;
     }
 }

@@ -18,10 +18,9 @@ use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 uses()->group('openapi', 'lint');
 
 /**
- * Build a `ComponentSchemaNode` whose raw `OA\Schema` carries the requested
- * combination of `example` / `examples` / `enum` keys. Keys are only added
- * when non-null so the rule sees the same "missing key" shape it would see
- * on a freshly built schema.
+ * Build a `ComponentSchemaNode` whose raw `OA\Schema` carries the requested combination of
+ * `example` / `examples` / `enum` keys. Keys are only added when non-null so the rule sees the
+ * same "missing key" shape it would see on a freshly built schema.
  */
 function makeSchemaForExampleMissing(
     string $name,

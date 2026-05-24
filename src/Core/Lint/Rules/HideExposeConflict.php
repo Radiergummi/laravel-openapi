@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,24 +24,12 @@ use function in_array;
 use function sprintf;
 
 /**
- * Reports routes that carry both #[Hide] and #[Expose] attributes whose env
- * scopes overlap in the current environment. Hide always wins on conflict;
- * the attributes are still flagged so the author can disambiguate.
+ * Reports routes that carry both #[Hide] and #[Expose] attributes whose env scopes overlap in the
+ * current environment. Hide always wins on conflict; the attributes are still flagged so the
+ * author can disambiguate.
  */
 final class HideExposeConflict implements Rule, RouteRule
 {
-    #[Override]
-    public function id(): string
-    {
-        return 'visibility.hide-expose-conflict';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        return 1;
-    }
-
     #[Override]
     public function description(): string
     {
@@ -118,5 +106,17 @@ final class HideExposeConflict implements Rule, RouteRule
         }
 
         return !in_array($env, $except ?? [], true);
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'visibility.hide-expose-conflict';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 1;
     }
 }

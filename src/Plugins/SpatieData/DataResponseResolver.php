@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -19,10 +19,13 @@ use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
+use Radiergummi\OpenApi\Plugins\ApiResources\ResourceResponseResolver;
 use ReflectionException;
 use ReflectionNamedType;
+use RuntimeException;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
+use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
 use function class_exists;
 use function is_a;
@@ -34,20 +37,18 @@ use function sprintf;
  * Handles two cases:
  * - `FlightData` (a {@see Data} subclass) → `$ref` to the Data component schema.
  * - `DataCollection<int, FlightData>` → array of `$ref`s, item class read from
- *   the `@return DataCollection<…, Item>` PHPDoc generic.
+ *   the `@return DataCollection<T, Item>` PHPDoc generic.
  *
  * Paginated Spatie collections (`PaginatedDataCollection<…>` /
- * `CursorPaginatedDataCollection<…>`) are recognised by {@see PaginatorKind} and
- * handled by `PaginatorResponseResolver` via the shared `RefSchemaResolver`
- * chain (which includes {@see DataRefSchemaResolver}); this resolver returns
- * null for them so the core resolver claims the route.
+ * `CursorPaginatedDataCollection<…>`) are recognised by {@see PaginatorKind} and handled by
+ * `PaginatorResponseResolver` via the shared `RefSchemaResolver` chain (which includes
+ * {@see DataRefSchemaResolver}); this resolver returns null for them so the core resolver claims
+ * the route.
  *
- * Returns null when the return type is not a Data class or non-paginating
- * collection, or when the collection's item generic is missing — the next
- * resolver gets a turn.
+ * Returns null when the return type is not a Data class or non-paginating collection, or when the
+ * collection's item generic is missing — the next resolver gets a turn.
  *
- * Mirror of {@see \Radiergummi\OpenApi\Plugins\ApiResources\ResourceResponseResolver}
- * for the SpatieData plugin.
+ * Mirror of {@see ResourceResponseResolver} for the SpatieData plugin.
  */
 #[Scoped]
 final readonly class DataResponseResolver implements PrimaryResponseResolver
@@ -58,25 +59,36 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
         private LoggerInterface $logger,
     ) {}
 
+    /**
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         try {
             return $this->resolve($descriptor);
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException $exception) {
             // Tolerate reflection failures only (e.g. a Data class that disappears between
-            // attribute resolution and schema build). Real bugs — attribute construction
-            // errors, schema-build logic errors — propagate so they surface in dev rather
-            // than disappearing into a warning log.
-            $this->logger->warning(sprintf(
-                'DataResponseResolver reflection failure for route %s: %s',
-                $descriptor->route->uri(),
-                $e->getMessage(),
-            ));
+            // attribute resolution and schema build). Real bugs — attribute construction errors,
+            // schema-build logic errors — propagate so they surface in dev rather than disappearing
+            // into a warning log.
+            $this->logger->warning(
+                sprintf(
+                    'DataResponseResolver reflection failure for route %s: %s',
+                    $descriptor->route->uri(),
+                    $exception->getMessage(),
+                ),
+            );
 
             return null;
         }
     }
 
+    /**
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
     private function resolve(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;
@@ -117,14 +129,20 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
 
         $itemClass = $this->returnTypeExtractor->genericArgument($reflector);
 
-        if ($itemClass === null || !class_exists($itemClass) || !is_a($itemClass, Data::class, allow_string: true)) {
-            $this->logger->warning(sprintf(
-                'Route %s returns a Spatie %s but its item type is undeclared; '
-                . 'add a `@return %s<Item>` docblock.',
-                $descriptor->route->uri(),
-                $returnClass,
-                $returnClass,
-            ));
+        if (
+            $itemClass === null
+            || !class_exists($itemClass)
+            || !is_a($itemClass, Data::class, allow_string: true)
+        ) {
+            $this->logger->warning(
+                sprintf(
+                    'Route %s returns a Spatie %s but its item type is undeclared; '
+                    . 'add a `@return %s<Item>` docblock.',
+                    $descriptor->route->uri(),
+                    $returnClass,
+                    $returnClass,
+                ),
+            );
 
             return null;
         }

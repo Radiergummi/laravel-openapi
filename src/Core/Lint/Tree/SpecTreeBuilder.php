@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -57,6 +57,8 @@ final class SpecTreeBuilder
      * Build the domain tree from an OpenAPI spec and action descriptors.
      *
      * @param list<ActionDescriptor> $actionDescriptors
+     *
+     * @throws LogicException
      */
     public function build(OA\OpenApi $spec, array $actionDescriptors): ApiNode
     {
@@ -94,6 +96,43 @@ final class SpecTreeBuilder
     }
 
     /**
+     * @return array<string, OA\Schema>
+     */
+    private function indexComponentSchemas(OA\OpenApi $spec): array
+    {
+        $components = $spec->components;
+
+        if ($components === Generator::UNDEFINED || $components === null) {
+            return [];
+        }
+
+        $schemas = $components->schemas;
+
+        if ($schemas === Generator::UNDEFINED || !is_array($schemas)) {
+            return [];
+        }
+
+        $index = [];
+
+        foreach ($schemas as $schema) {
+            if (
+                !$schema instanceof OA\Schema
+                || $schema === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+            ) {
+                continue;
+            }
+
+            if ($schema->schema === Generator::UNDEFINED) {
+                continue;
+            }
+
+            $index[$schema->schema] = $schema;
+        }
+
+        return $index;
+    }
+
+    /**
      * Build an index of action descriptors keyed by "METHOD /uri".
      *
      * @param list<ActionDescriptor> $descriptors
@@ -121,6 +160,8 @@ final class SpecTreeBuilder
      * @param array<string, ActionDescriptor> $descriptorIndex
      *
      * @return list<OperationNode>
+     *
+     * @throws LogicException
      */
     private function buildOperations(
         OA\OpenApi $spec,
@@ -170,6 +211,9 @@ final class SpecTreeBuilder
         return $operations;
     }
 
+    /**
+     * @throws LogicException
+     */
     private function buildOperation(
         OA\Operation $oaOperation,
         string $pathUri,
@@ -227,6 +271,8 @@ final class SpecTreeBuilder
      * Extract path parameters from the operation.
      *
      * @return list<ParameterNode>
+     *
+     * @throws LogicException
      */
     private function buildParameters(OA\Operation $operation): array
     {
@@ -256,9 +302,11 @@ final class SpecTreeBuilder
                     : '(unknown)',
                 required: $param->required !== Generator::UNDEFINED
                 && $param->required === true,
-                schema: SchemaAccessor::extractSchemaType($param->schema ?? null), // @phpstan-ignore nullCoalesce.property
+                // @phpstan-ignore nullCoalesce.property (defensive; $schema may be unset at runtime)
+                schema: SchemaAccessor::extractSchemaType($param->schema ?? null),
                 description: SchemaAccessor::undefinedToNull($param->description),
-                pattern: SchemaAccessor::extractSchemaPattern($param->schema ?? null), // @phpstan-ignore nullCoalesce.property
+                // @phpstan-ignore nullCoalesce.property (defensive; $schema may be unset at runtime)
+                pattern: SchemaAccessor::extractSchemaPattern($param->schema ?? null),
                 examples: $examples,
                 raw: $param,
             );
@@ -274,9 +322,54 @@ final class SpecTreeBuilder
     }
 
     /**
+     * Build examples from a parameter's examples array.
+     *
+     * @return list<ExampleNode>
+     */
+    private function buildExamplesFromParameter(OA\Parameter $param): array
+    {
+        $examples = $param->examples ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+
+        if ($examples === Generator::UNDEFINED || !is_array($examples)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($examples as $example) {
+            if ($example === Generator::UNDEFINED) {
+                continue;
+            }
+
+            if ($example instanceof OA\Examples) {
+                $result[] = $this->buildExampleNode($example);
+            }
+        }
+
+        return $result;
+    }
+
+    private function buildExampleNode(OA\Examples $example): ExampleNode
+    {
+        return new ExampleNode(
+            name: $example->example !== Generator::UNDEFINED
+                ? $example->example
+                : null,
+            value: $example->value !== Generator::UNDEFINED
+                ? $example->value
+                : null,
+            summary: SchemaAccessor::undefinedToNull($example->summary),
+            description: SchemaAccessor::undefinedToNull($example->description),
+            raw: $example,
+        );
+    }
+
+    /**
      * Extract query parameters from the operation.
      *
      * @return list<QueryParameterNode>
+     *
+     * @throws LogicException
      */
     private function buildQueryParameters(OA\Operation $operation): array
     {
@@ -300,7 +393,7 @@ final class SpecTreeBuilder
             }
 
             $examples = $this->buildExamplesFromParameter($param);
-            $schema = $param->schema ?? null; // @phpstan-ignore nullCoalesce.property
+            $schema = $param->schema ?? null; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
             $node = new QueryParameterNode(
                 name: $param->name !== Generator::UNDEFINED
                     ? $param->name
@@ -416,142 +509,6 @@ final class SpecTreeBuilder
     }
 
     /**
-     * @return list<ResponseNode>
-     */
-    private function buildResponses(OA\Operation $operation): array
-    {
-        $responses = $operation->responses;
-
-        if ($responses === Generator::UNDEFINED || !is_array($responses)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($responses as $response) {
-            if ($response === Generator::UNDEFINED) {
-                continue;
-            }
-
-            $statusCode
-                = $response->response !== Generator::UNDEFINED
-                ? $response->response
-                : 'default';
-
-            $description = SchemaAccessor::undefinedToNull($response->description);
-            $fields = [];
-            $examples = [];
-            $schemaRef = null;
-            $headers = [];
-            $links = [];
-
-            // Extract schema from response content
-            $content = $response->content ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
-
-            if ($content !== Generator::UNDEFINED && is_array($content)) {
-                foreach ($content as $mediaType) {
-                    if ($mediaType === Generator::UNDEFINED) {
-                        continue;
-                    }
-
-                    // Extract fields from the first media type with a schema
-                    if ($fields === [] && $schemaRef === null) {
-                        $schema = $mediaType->schema ?? null;
-
-                        if (
-                            $schema !== null
-                            && !is_array($schema)
-                            && $schema !== Generator::UNDEFINED
-                        ) {
-                            $ref = SchemaAccessor::extractRef($schema);
-
-                            if ($ref !== null) {
-                                $schemaRef = $ref;
-                            } elseif ($schema instanceof OA\Schema) {
-                                $fields = $this->buildFields($schema);
-                            }
-                        }
-                    }
-
-                    // Extract body-level examples
-                    $mtExamples = $mediaType->examples ?? Generator::UNDEFINED;
-
-                    if (
-                        $mtExamples !== Generator::UNDEFINED
-                        && is_array($mtExamples)
-                    ) {
-                        foreach ($mtExamples as $ex) {
-                            if ($ex === Generator::UNDEFINED) {
-                                continue;
-                            }
-
-                            $examples[] = $this->buildExampleNode($ex);
-                        }
-                    }
-                }
-            }
-
-            // Extract headers
-            $oaHeaders = $response->headers ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
-
-            if ($oaHeaders !== Generator::UNDEFINED && is_array($oaHeaders)) {
-                foreach ($oaHeaders as $header) {
-                    if ($header === Generator::UNDEFINED) {
-                        continue;
-                    }
-
-                    $headers[] = $this->buildHeader($header);
-                }
-            }
-
-            // Extract links
-            $oaLinks = $response->links ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
-
-            if ($oaLinks !== Generator::UNDEFINED && is_array($oaLinks)) {
-                foreach ($oaLinks as $link) {
-                    if ($link === Generator::UNDEFINED) {
-                        continue;
-                    }
-
-                    $links[] = $this->buildLink($link);
-                }
-            }
-
-            $node = new ResponseNode(
-                statusCode: $statusCode,
-                description: $description,
-                fields: $fields,
-                examples: $examples,
-                schemaRef: $schemaRef,
-                headers: $headers,
-                links: $links,
-                raw: $response,
-            );
-
-            // Link children
-            foreach ($fields as $field) {
-                $field->linkParent($node);
-            }
-
-            foreach ($examples as $example) {
-                $example->linkParent($node);
-            }
-
-            foreach ($headers as $header) {
-                $header->linkParent($node);
-            }
-
-            foreach ($links as $link) {
-                $link->linkParent($node);
-            }
-
-            $result[] = $node;
-        }
-
-        return $result;
-    }
-
-    /**
      * Recursively build field nodes from JSON Schema properties.
      *
      * Resolves `allOf` composition: a schema written as
@@ -574,8 +531,10 @@ final class SpecTreeBuilder
      */
     private function buildFields(?OA\Schema $schema, array $visited = []): array
     {
-        // @phpstan-ignore-next-line identical.alwaysFalse
-        if ($schema === null || $schema === Generator::UNDEFINED) {
+        if (
+            $schema === null
+            || $schema === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+        ) {
             return [];
         }
 
@@ -646,8 +605,10 @@ final class SpecTreeBuilder
 
         if (is_array($allOf)) {
             foreach ($allOf as $branch) {
-                // @phpstan-ignore-next-line identical.alwaysFalse
-                if (!$branch instanceof OA\Schema || $branch === Generator::UNDEFINED) {
+                if (
+                    !$branch instanceof OA\Schema
+                    || $branch === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+                ) {
                     continue;
                 }
 
@@ -696,8 +657,10 @@ final class SpecTreeBuilder
 
         if (is_array($localProperties)) {
             foreach ($localProperties as $property) {
-                // @phpstan-ignore-next-line identical.alwaysFalse
-                if (!$property instanceof OA\Property || $property === Generator::UNDEFINED) {
+                if (
+                    !$property instanceof OA\Property
+                    || $property === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+                ) {
                     continue;
                 }
 
@@ -719,44 +682,273 @@ final class SpecTreeBuilder
     }
 
     /**
-     * @return array<string, OA\Schema>
+     * Build examples from a schema's examples.
+     *
+     * @return list<ExampleNode>
      */
-    private function indexComponentSchemas(OA\OpenApi $spec): array
+    private function buildExamplesFromSchema(OA\Schema $schema): array
     {
-        $components = $spec->components;
+        $examples = $schema->examples ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
-        if ($components === Generator::UNDEFINED || $components === null) {
+        if ($examples === Generator::UNDEFINED || !is_array($examples)) {
             return [];
         }
 
-        $schemas = $components->schemas;
+        $result = [];
 
-        if ($schemas === Generator::UNDEFINED || !is_array($schemas)) {
+        foreach ($examples as $example) {
+            if ($example === Generator::UNDEFINED) {
+                continue;
+            }
+
+            if ($example instanceof OA\Examples) {
+                $result[] = $this->buildExampleNode($example);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return list<ResponseNode>
+     *
+     * @throws LogicException
+     */
+    private function buildResponses(OA\Operation $operation): array
+    {
+        $responses = $operation->responses;
+
+        if ($responses === Generator::UNDEFINED || !is_array($responses)) {
             return [];
         }
 
-        $index = [];
+        $result = [];
 
-        foreach ($schemas as $schema) {
-            if (
-                // @phpstan-ignore-next-line identical.alwaysFalse
-                !$schema instanceof OA\Schema || $schema === Generator::UNDEFINED
-            ) {
+        foreach ($responses as $response) {
+            if ($response === Generator::UNDEFINED) {
                 continue;
             }
 
-            if ($schema->schema === Generator::UNDEFINED) {
-                continue;
+            $statusCode
+                = $response->response !== Generator::UNDEFINED
+                ? $response->response
+                : 'default';
+
+            $description = SchemaAccessor::undefinedToNull($response->description);
+            $fields = [];
+            $examples = [];
+            $schemaRef = null;
+            $headers = [];
+            $links = [];
+
+            // Extract schema from response content
+            $content = $response->content ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+
+            if ($content !== Generator::UNDEFINED && is_array($content)) {
+                foreach ($content as $mediaType) {
+                    if ($mediaType === Generator::UNDEFINED) {
+                        continue;
+                    }
+
+                    // Extract fields from the first media type with a schema
+                    if ($fields === [] && $schemaRef === null) {
+                        $schema = $mediaType->schema ?? null;
+
+                        if (
+                            $schema !== null
+                            && !is_array($schema)
+                            && $schema !== Generator::UNDEFINED
+                        ) {
+                            $ref = SchemaAccessor::extractRef($schema);
+
+                            if ($ref !== null) {
+                                $schemaRef = $ref;
+                            } elseif ($schema instanceof OA\Schema) {
+                                $fields = $this->buildFields($schema);
+                            }
+                        }
+                    }
+
+                    // Extract body-level examples
+                    $mtExamples = $mediaType->examples ?? Generator::UNDEFINED;
+
+                    if (
+                        $mtExamples !== Generator::UNDEFINED
+                        && is_array($mtExamples)
+                    ) {
+                        foreach ($mtExamples as $ex) {
+                            if ($ex === Generator::UNDEFINED) {
+                                continue;
+                            }
+
+                            $examples[] = $this->buildExampleNode($ex);
+                        }
+                    }
+                }
             }
 
-            $index[$schema->schema] = $schema;
+            // Extract headers
+            $oaHeaders = $response->headers ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+
+            if ($oaHeaders !== Generator::UNDEFINED && is_array($oaHeaders)) {
+                foreach ($oaHeaders as $header) {
+                    if ($header === Generator::UNDEFINED) {
+                        continue;
+                    }
+
+                    $headers[] = $this->buildHeader($header);
+                }
+            }
+
+            // Extract links
+            $oaLinks = $response->links ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+
+            if ($oaLinks !== Generator::UNDEFINED && is_array($oaLinks)) {
+                foreach ($oaLinks as $link) {
+                    if ($link === Generator::UNDEFINED) {
+                        continue;
+                    }
+
+                    $links[] = $this->buildLink($link);
+                }
+            }
+
+            $node = new ResponseNode(
+                statusCode: $statusCode,
+                description: $description,
+                fields: $fields,
+                examples: $examples,
+                schemaRef: $schemaRef,
+                headers: $headers,
+                links: $links,
+                raw: $response,
+            );
+
+            // Link children
+            foreach ($fields as $field) {
+                $field->linkParent($node);
+            }
+
+            foreach ($examples as $example) {
+                $example->linkParent($node);
+            }
+
+            foreach ($headers as $header) {
+                $header->linkParent($node);
+            }
+
+            foreach ($links as $link) {
+                $link->linkParent($node);
+            }
+
+            $result[] = $node;
         }
 
-        return $index;
+        return $result;
+    }
+
+    private function buildHeader(OA\Header $header): HeaderNode
+    {
+        return new HeaderNode(
+            name: $header->header !== Generator::UNDEFINED
+                ? $header->header
+                : '(unknown)',
+            schema: SchemaAccessor::extractSchemaType($header->schema ?? null), // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            description: SchemaAccessor::undefinedToNull($header->description),
+            required: $header->required !== Generator::UNDEFINED
+            && $header->required === true,
+            raw: $header,
+        );
+    }
+
+    private function buildLink(OA\Link $link): LinkNode
+    {
+        $parameters = [];
+        $oaParams = $link->parameters;
+
+        if ($oaParams !== Generator::UNDEFINED && is_array($oaParams)) {
+            foreach ($oaParams as $key => $value) {
+                if (is_string($key) && is_string($value)) {
+                    $parameters[$key] = $value;
+                }
+            }
+        }
+
+        return new LinkNode(
+            name: $link->link !== Generator::UNDEFINED
+                ? $link->link
+                : '(unnamed)',
+            operationId: SchemaAccessor::undefinedToNull($link->operationId),
+            operationRef: SchemaAccessor::undefinedToNull($link->operationRef),
+            parameters: $parameters,
+            description: SchemaAccessor::undefinedToNull($link->description),
+            raw: $link,
+        );
+    }
+
+    /**
+     * @return list<array{scheme: string, scopes: list<string>}>
+     */
+    private function buildSecurity(OA\Operation $operation): array
+    {
+        $security = $operation->security;
+
+        if ($security === Generator::UNDEFINED || !is_array($security)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($security as $requirement) {
+            if ($requirement === Generator::UNDEFINED) {
+                continue;
+            }
+
+            // OA\SecurityScheme annotation — varies by swagger-php version
+            if ($requirement instanceof OA\SecurityScheme) {
+                $scheme
+                    = $requirement->securityScheme !== Generator::UNDEFINED
+                    ? $requirement->securityScheme
+                    : '(unknown)';
+                $result[] = ['scheme' => $scheme, 'scopes' => []];
+            } elseif (is_array($requirement)) {
+                foreach ($requirement as $scheme => $scopes) {
+                    $result[] = [
+                        'scheme' => (string) $scheme,
+                        'scopes' => is_array($scopes)
+                            ? array_values(array_map('strval', $scopes))
+                            : [],
+                    ];
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildOperationTags(OA\Operation $operation): array
+    {
+        $tags = $operation->tags;
+
+        if ($tags === Generator::UNDEFINED || !is_array($tags)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $tags,
+                static fn($tag): bool => is_string($tag), // @phpstan-ignore function.alreadyNarrowedType (defensive; OA\Operation::$tags may contain non-strings at runtime)
+            ),
+        );
     }
 
     /**
      * @return list<ComponentSchemaNode>
+     *
+     * @throws LogicException
      */
     private function buildComponents(OA\OpenApi $spec): array
     {
@@ -806,10 +998,12 @@ final class SpecTreeBuilder
 
     /**
      * @return list<WebhookNode>
+     *
+     * @throws LogicException
      */
     private function buildWebhooks(OA\OpenApi $spec): array
     {
-        $webhooks = $spec->webhooks ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
+        $webhooks = $spec->webhooks ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
         if ($webhooks === Generator::UNDEFINED || !is_array($webhooks)) {
             return [];
@@ -825,7 +1019,7 @@ final class SpecTreeBuilder
             $webhookName = is_string($name) ? $name : '(unknown)';
 
             $description = SchemaAccessor::undefinedToNull(
-                $pathItem->description ?? Generator::UNDEFINED, // @phpstan-ignore nullCoalesce.property
+                $pathItem->description ?? Generator::UNDEFINED, // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
             );
 
             // Build one WebhookNode per HTTP method defined on this path item
@@ -899,175 +1093,6 @@ final class SpecTreeBuilder
         }
 
         return [$names, $descriptions];
-    }
-
-    /**
-     * @return list<array{scheme: string, scopes: list<string>}>
-     */
-    private function buildSecurity(OA\Operation $operation): array
-    {
-        $security = $operation->security;
-
-        if ($security === Generator::UNDEFINED || !is_array($security)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($security as $requirement) {
-            if ($requirement === Generator::UNDEFINED) {
-                continue;
-            }
-
-            // OA\SecurityScheme annotation — varies by swagger-php version
-            if ($requirement instanceof OA\SecurityScheme) {
-                $scheme
-                    = $requirement->securityScheme !== Generator::UNDEFINED
-                    ? $requirement->securityScheme
-                    : '(unknown)';
-                $result[] = ['scheme' => $scheme, 'scopes' => []];
-            } elseif (is_array($requirement)) {
-                foreach ($requirement as $scheme => $scopes) {
-                    $result[] = [
-                        'scheme' => (string) $scheme,
-                        'scopes' => is_array($scopes)
-                            ? array_values(array_map('strval', $scopes))
-                            : [],
-                    ];
-                }
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function buildOperationTags(OA\Operation $operation): array
-    {
-        $tags = $operation->tags;
-
-        if ($tags === Generator::UNDEFINED || !is_array($tags)) {
-            return [];
-        }
-
-        return array_values(
-            array_filter(
-                $tags,
-                static fn($tag): bool => is_string($tag), // @phpstan-ignore function.alreadyNarrowedType
-            ),
-        );
-    }
-
-    private function buildHeader(OA\Header $header): HeaderNode
-    {
-        return new HeaderNode(
-            name: $header->header !== Generator::UNDEFINED
-                ? $header->header
-                : '(unknown)',
-            schema: SchemaAccessor::extractSchemaType($header->schema ?? null), // @phpstan-ignore nullCoalesce.property
-            description: SchemaAccessor::undefinedToNull($header->description),
-            required: $header->required !== Generator::UNDEFINED
-            && $header->required === true,
-            raw: $header,
-        );
-    }
-
-    private function buildLink(OA\Link $link): LinkNode
-    {
-        $parameters = [];
-        $oaParams = $link->parameters;
-
-        if ($oaParams !== Generator::UNDEFINED && is_array($oaParams)) {
-            foreach ($oaParams as $key => $value) {
-                if (is_string($key) && is_string($value)) {
-                    $parameters[$key] = $value;
-                }
-            }
-        }
-
-        return new LinkNode(
-            name: $link->link !== Generator::UNDEFINED
-                ? $link->link
-                : '(unnamed)',
-            operationId: SchemaAccessor::undefinedToNull($link->operationId),
-            operationRef: SchemaAccessor::undefinedToNull($link->operationRef),
-            parameters: $parameters,
-            description: SchemaAccessor::undefinedToNull($link->description),
-            raw: $link,
-        );
-    }
-
-    private function buildExampleNode(OA\Examples $example): ExampleNode
-    {
-        return new ExampleNode(
-            name: $example->example !== Generator::UNDEFINED
-                ? $example->example
-                : null,
-            value: $example->value !== Generator::UNDEFINED
-                ? $example->value
-                : null,
-            summary: SchemaAccessor::undefinedToNull($example->summary),
-            description: SchemaAccessor::undefinedToNull($example->description),
-            raw: $example,
-        );
-    }
-
-    /**
-     * Build examples from a parameter's examples array.
-     *
-     * @return list<ExampleNode>
-     */
-    private function buildExamplesFromParameter(OA\Parameter $param): array
-    {
-        $examples = $param->examples ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
-
-        if ($examples === Generator::UNDEFINED || !is_array($examples)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($examples as $example) {
-            if ($example === Generator::UNDEFINED) {
-                continue;
-            }
-
-            if ($example instanceof OA\Examples) {
-                $result[] = $this->buildExampleNode($example);
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Build examples from a schema's examples.
-     *
-     * @return list<ExampleNode>
-     */
-    private function buildExamplesFromSchema(OA\Schema $schema): array
-    {
-        $examples = $schema->examples ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
-
-        if ($examples === Generator::UNDEFINED || !is_array($examples)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($examples as $example) {
-            if ($example === Generator::UNDEFINED) {
-                continue;
-            }
-
-            if ($example instanceof OA\Examples) {
-                $result[] = $this->buildExampleNode($example);
-            }
-        }
-
-        return $result;
     }
 
 }

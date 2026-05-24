@@ -15,14 +15,12 @@ use Radiergummi\OpenApi\Core\Attributes\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Fixture controller that is fully documented and produces zero lint findings
- * at level 0.
+ * Fixture controller that is fully documented and produces zero lint findings at level 0.
  *
- * Uses a {@see StreamedResponse} return type so the response-schema extractor
- * detects streaming automatically (no {@code response.empty}), and the
- * description-only {@see Response} override replaces the auto-derived streaming
- * response with a schema-free 200 — avoiding {@code spec.invalid} false
- * positives from the OpenAPI 3.1 meta-schema validator.
+ * Uses a {@see StreamedResponse} return type so the response-schema extractor detects streaming
+ * automatically (no {@code response.empty}), and the description-only {@see Response} override
+ * replaces the auto-derived streaming response with a schema-free 200 — avoiding
+ * {@code spec.invalid} false positives from the OpenAPI 3.1 meta-schema validator.
  */
 final class CleanController
 {

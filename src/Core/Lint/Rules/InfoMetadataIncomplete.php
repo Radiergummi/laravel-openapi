@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,9 +24,8 @@ use function implode;
 /**
  * Reports documents whose info object is missing a contact and/or license.
  *
- * Including contact and license information makes it clear who owns the API
- * and under what terms it may be used — important for both internal and
- * external consumers.
+ * Including contact and license information makes it clear who owns the API and under what terms
+ * it may be used — important for both internal and external consumers.
  */
 final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
 {

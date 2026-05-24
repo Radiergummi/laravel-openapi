@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,9 +24,9 @@ use function trim;
 /**
  * Reports webhook operations that have no description.
  *
- * Webhook consumers need more context than REST consumers because they receive
- * unexpected incoming requests. Each webhook operation should include a
- * description explaining when and why the webhook fires.
+ * Webhook consumers need more context than REST consumers because they receive unexpected
+ * incoming requests. Each webhook operation should include a description explaining when and why
+ * the webhook fires.
  */
 final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
 {

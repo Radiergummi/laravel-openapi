@@ -11,10 +11,11 @@ declare(strict_types=1);
 
 namespace Examples\SpatieData\Data\Examples;
 
+use Examples\SpatieData\Data\FlightData;
 use Radiergummi\OpenApi\Core\Attributes\BaseExample;
 
 /**
- * Curated example payload for {@see \Examples\SpatieData\Data\FlightData}.
+ * Curated example payload for {@see FlightData}.
  *
  * Extends {@see BaseExample} to demonstrate the subclassing pattern — the
  * subclass hard-codes a stable, realistic payload that downstream tooling

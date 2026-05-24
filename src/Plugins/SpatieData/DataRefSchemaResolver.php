@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -15,6 +15,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use ReflectionException;
+use RuntimeException;
 use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
@@ -34,6 +35,7 @@ final readonly class DataRefSchemaResolver implements RefSchemaResolver
 
     /**
      * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnsupportedException
      */
     public function resolveRef(string $class): ?string

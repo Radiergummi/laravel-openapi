@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -74,6 +74,13 @@ final readonly class ResourceClassLocator
         return new ResourceTarget(resourceClass: $name, isCollection: false);
     }
 
+    private function isCollectionType(?ReflectionType $returnType): bool
+    {
+        return $returnType instanceof ReflectionNamedType
+            && !$returnType->isBuiltin()
+            && is_a($returnType->getName(), ResourceCollection::class, allow_string: true);
+    }
+
     private function readResponseResource(
         ReflectionFunctionAbstract $reflector,
         ActionDescriptor $descriptor,
@@ -85,12 +92,5 @@ final readonly class ResourceClassLocator
         }
 
         return $source?->newInstance();
-    }
-
-    private function isCollectionType(?ReflectionType $returnType): bool
-    {
-        return $returnType instanceof ReflectionNamedType
-            && !$returnType->isBuiltin()
-            && is_a($returnType->getName(), ResourceCollection::class, allow_string: true);
     }
 }

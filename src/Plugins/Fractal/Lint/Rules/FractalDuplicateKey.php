@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -26,8 +26,8 @@ use function sprintf;
 
 /**
  * Flags a transformer that declares the same output key more than once across
- * `#[TransformerField]` and/or `#[TransformerInclude]`. swagger-php emits both
- * properties; the resulting OpenAPI schema is invalid.
+ * `#[TransformerField]` and/or `#[TransformerInclude]`. swagger-php emits both properties; the
+ * resulting OpenAPI schema is invalid.
  */
 final readonly class FractalDuplicateKey implements Rule, OperationRule
 {
@@ -63,7 +63,12 @@ final readonly class FractalDuplicateKey implements Rule, OperationRule
             $counts[$name] = ($counts[$name] ?? 0) + 1;
         }
 
-        foreach ($context->reflectionCache->classAttributes($transformer, TransformerInclude::class) as $includeAttribute) {
+        foreach (
+            $context->reflectionCache->classAttributes(
+                $transformer,
+                TransformerInclude::class,
+            ) as $includeAttribute
+        ) {
             $name = $includeAttribute->newInstance()->name;
             $counts[$name] = ($counts[$name] ?? 0) + 1;
         }

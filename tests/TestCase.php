@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests;
 
+use Illuminate\Foundation\Application;
 use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
 use RuntimeException;
 use Spatie\LaravelData\LaravelDataServiceProvider;
@@ -13,7 +15,7 @@ use Spatie\LaravelData\LaravelDataServiceProvider;
 abstract class TestCase extends Orchestra
 {
     /**
-     * @param \Illuminate\Foundation\Application $app
+     * @param Application $app
      *
      * @return list<class-string>
      */
@@ -30,9 +32,11 @@ abstract class TestCase extends Orchestra
      * Mirror the package's example-payload fixtures into the Testbench skeleton app so that
      * `base_path()`-relative resources resolve.
      *
-     * Code paths such as {@see \Radiergummi\OpenApi\Core\Generator\ExampleFileLoader} resolve
-     * `file:` example payloads relative to the host-app root. In the test environment the host
-     * app is the Testbench skeleton, so the package fixtures must be made available there.
+     * Code paths such as {@see ExampleFileLoader} resolve `file:` example payloads relative to the
+     * host-app root. In the test environment the host app is the Testbench skeleton, so the package
+     * fixtures must be made available there.
+     *
+     * @throws RuntimeException
      */
     protected function setUp(): void
     {
@@ -46,7 +50,11 @@ abstract class TestCase extends Orchestra
 
         $destination = base_path('tests/Fixtures/OpenApi/example_payloads');
 
-        if (!is_dir($destination) && !mkdir($destination, 0o777, true) && !is_dir($destination)) {
+        if (
+            !is_dir($destination)
+            && !mkdir($destination, 0o777, true)
+            && !is_dir($destination)
+        ) {
             throw new RuntimeException("Failed to create fixture destination: {$destination}");
         }
 

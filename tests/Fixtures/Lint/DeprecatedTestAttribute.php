@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,12 +12,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Attribute;
+use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedAttribute;
 
 /**
- * Fixture attribute for testing the {@see \Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedAttribute} rule
+ * Fixture attribute for testing the {@see DeprecatedAttribute} rule.
  *
- * This attribute carries at-deprecated to trigger a finding when the rule is configured
- * to scan the {@see Radiergummi\OpenApi\Tests\Fixtures\Lint} namespace.
+ * This attribute carries at-deprecated to trigger a finding when the rule is configured to scan
+ * the {@see Radiergummi\OpenApi\Tests\Fixtures\Lint} namespace.
  *
  * @deprecated Use FreshTestAttribute instead
  */

@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Helper\TableStyle;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function array_map;
@@ -31,9 +32,9 @@ use const JSON_UNESCAPED_SLASHES;
  * Renders the registered lint-rule catalog (id, level, description) for the
  * `openapi:lint --list` command, in CLI, JSON, or Markdown form.
  *
- * Writes to a Symfony {@see OutputInterface}, so the CLI format can leverage Symfony's
- * {@see Table} helper (column alignment, coloured severity column) and tests can use a
- * {@see \Symfony\Component\Console\Output\BufferedOutput} to assert on the rendered text.
+ * Writes to a Symfony {@see OutputInterface}, so the CLI format can leverage Symfony's {@see Table}
+ * helper (column alignment, coloured severity column) and tests can use a {@see BufferedOutput} to
+ * assert on the rendered text.
  */
 final readonly class RuleCatalogRenderer
 {
@@ -61,11 +62,12 @@ final readonly class RuleCatalogRenderer
     private function rows(RuleRegistry $registry): array
     {
         $rows = array_map(
-            static fn(Rule $rule): array => [
-                'id' => $rule->id(),
-                'level' => $rule->level(),
-                'description' => $rule->description(),
-            ],
+            static fn(Rule $rule): array
+                => [
+                    'id' => $rule->id(),
+                    'level' => $rule->level(),
+                    'description' => $rule->description(),
+                ],
             $registry->all(),
         );
 
@@ -75,41 +77,6 @@ final readonly class RuleCatalogRenderer
         );
 
         return $rows;
-    }
-
-    /**
-     * @param list<array{id: string, level: int, description: string}> $rows
-     *
-     * @throws JsonException
-     */
-    private function renderJson(array $rows, OutputInterface $output): void
-    {
-        $output->writeln(
-            json_encode(
-                $rows,
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
-            ),
-        );
-    }
-
-    /**
-     * @param list<array{id: string, level: int, description: string}> $rows
-     */
-    private function renderMarkdown(array $rows, OutputInterface $output): void
-    {
-        $table = new Table($output);
-        $table->setStyle($this->markdownTableStyle());
-        $table->setHeaders(['Rule ID', 'Level', 'Description']);
-
-        foreach ($rows as $row) {
-            $table->addRow([
-                sprintf('`%s`', $row['id']),
-                (string) $row['level'],
-                $row['description'],
-            ]);
-        }
-
-        $table->render();
     }
 
     /**
@@ -155,6 +122,41 @@ final readonly class RuleCatalogRenderer
             $level === 4 => 'yellow',
             default => 'red',
         };
+    }
+
+    /**
+     * @param list<array{id: string, level: int, description: string}> $rows
+     *
+     * @throws JsonException
+     */
+    private function renderJson(array $rows, OutputInterface $output): void
+    {
+        $output->writeln(
+            json_encode(
+                $rows,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+            ),
+        );
+    }
+
+    /**
+     * @param list<array{id: string, level: int, description: string}> $rows
+     */
+    private function renderMarkdown(array $rows, OutputInterface $output): void
+    {
+        $table = new Table($output);
+        $table->setStyle($this->markdownTableStyle());
+        $table->setHeaders(['Rule ID', 'Level', 'Description']);
+
+        foreach ($rows as $row) {
+            $table->addRow([
+                sprintf('`%s`', $row['id']),
+                (string) $row['level'],
+                $row['description'],
+            ]);
+        }
+
+        $table->render();
     }
 
     /**

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Core\Lint\Formatters;
 use Override;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LinterSummary;
+use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function array_map;
@@ -96,9 +97,8 @@ final class CliFormatter implements Formatter
 
     /**
      * Split findings into pre-build (spec === null) and per-spec buckets. Pre-build findings
-     * come from {@see \Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule}s that run once
-     * per lint invocation; per-spec findings come from rules dispatched against each generated
-     * spec.
+     * come from {@see PreBuildRule}s that run once per lint invocation; per-spec findings come
+     * from rules dispatched against each generated spec.
      *
      * @param list<Finding> $findings
      *
@@ -228,36 +228,23 @@ final class CliFormatter implements Formatter
         }
     }
 
+    private function fileLink(string $path, ?int $line = null): string
+    {
+        $basePath = $this->basePath !== '' ? $this->basePath : base_path('/');
+        $label = str_replace($basePath, '', $path);
+
+        if ($line !== null) {
+            $label .= ":{$line}";
+        }
+
+        return sprintf('<href=file://%s>%s</>', $path, $label);
+    }
+
     private function wrapText(string $text, string $prefix = ''): string
     {
         $lines = explode(PHP_EOL, wordwrap($text, min(120, terminal()->width()) - strlen($prefix)));
 
         return implode(PHP_EOL, array_map(static fn(string $line) => $prefix . $line, $lines));
-    }
-
-    private function renderSummary(LinterSummary $summary, OutputInterface $output): void
-    {
-        $summaryParts = [];
-
-        foreach ($summary->findingCountsPerLevel as $severity => $count) {
-            $label = $count === 1
-                ? self::LEVEL_SINGULAR[$severity] ?? "L{$severity}"
-                : self::LEVEL_PLURAL[$severity] ?? "L{$severity}";
-            $summaryParts[] = "{$count} {$label}";
-        }
-
-        $output->writeln([
-            '',
-            '',
-            sprintf(
-                ' Summary: %s (%d total across %d %s)',
-                implode(', ', $summaryParts),
-                $summary->total,
-                $summary->affectedRoutesCount,
-                $summary->affectedRoutesCount === 1 ? 'route' : 'routes',
-            ),
-            '',
-        ]);
     }
 
     /**
@@ -295,15 +282,28 @@ final class CliFormatter implements Formatter
         return sprintf('%s %s', $verb, $uri);
     }
 
-    private function fileLink(string $path, ?int $line = null): string
+    private function renderSummary(LinterSummary $summary, OutputInterface $output): void
     {
-        $basePath = $this->basePath !== '' ? $this->basePath : base_path('/');
-        $label = str_replace($basePath, '', $path);
+        $summaryParts = [];
 
-        if ($line !== null) {
-            $label .= ":{$line}";
+        foreach ($summary->findingCountsPerLevel as $severity => $count) {
+            $label = $count === 1
+                ? self::LEVEL_SINGULAR[$severity] ?? "L{$severity}"
+                : self::LEVEL_PLURAL[$severity] ?? "L{$severity}";
+            $summaryParts[] = "{$count} {$label}";
         }
 
-        return sprintf('<href=file://%s>%s</>', $path, $label);
+        $output->writeln([
+            '',
+            '',
+            sprintf(
+                ' Summary: %s (%d total across %d %s)',
+                implode(', ', $summaryParts),
+                $summary->total,
+                $summary->affectedRoutesCount,
+                $summary->affectedRoutesCount === 1 ? 'route' : 'routes',
+            ),
+            '',
+        ]);
     }
 }

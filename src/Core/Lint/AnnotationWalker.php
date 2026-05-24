@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -32,6 +32,54 @@ final class AnnotationWalker
     {
         $visited = [];
         self::doWalk($root, $visitor, $visited);
+    }
+
+    /**
+     * @param callable(OA\AbstractAnnotation): void $visitor
+     * @param array<int, true>                      $visited
+     */
+    private static function doWalk(
+        OA\AbstractAnnotation $annotation,
+        callable $visitor,
+        array &$visited,
+    ): void {
+        $objectId = spl_object_id($annotation);
+
+        if (isset($visited[$objectId])) {
+            return;
+        }
+
+        $visited[$objectId] = true;
+        $visitor($annotation);
+
+        /** @var array<class-string, list<string>|string> $nestedMap */
+        $nestedMap = $annotation::$_nested;
+
+        foreach ($nestedMap as $nestedConfig) {
+            $propertyName = is_array($nestedConfig)
+                ? $nestedConfig[0]
+                : $nestedConfig;
+
+            if (!property_exists($annotation, $propertyName)) {
+                continue;
+            }
+
+            $value = $annotation->{$propertyName} ?? Generator::UNDEFINED;
+
+            if ($value === Generator::UNDEFINED) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                foreach ($value as $child) {
+                    if ($child instanceof OA\AbstractAnnotation) {
+                        self::doWalk($child, $visitor, $visited);
+                    }
+                }
+            } elseif ($value instanceof OA\AbstractAnnotation) {
+                self::doWalk($value, $visitor, $visited);
+            }
+        }
     }
 
     /**
@@ -116,53 +164,5 @@ final class AnnotationWalker
             // and has no extractable string name in the components map.
             ComponentType::PathItems => null,
         };
-    }
-
-    /**
-     * @param callable(OA\AbstractAnnotation): void $visitor
-     * @param array<int, true>                      $visited
-     */
-    private static function doWalk(
-        OA\AbstractAnnotation $annotation,
-        callable $visitor,
-        array &$visited,
-    ): void {
-        $objectId = spl_object_id($annotation);
-
-        if (isset($visited[$objectId])) {
-            return;
-        }
-
-        $visited[$objectId] = true;
-        $visitor($annotation);
-
-        /** @var array<class-string, list<string>|string> $nestedMap */
-        $nestedMap = $annotation::$_nested;
-
-        foreach ($nestedMap as $nestedConfig) {
-            $propertyName = is_array($nestedConfig)
-                ? $nestedConfig[0]
-                : $nestedConfig;
-
-            if (!property_exists($annotation, $propertyName)) {
-                continue;
-            }
-
-            $value = $annotation->{$propertyName} ?? Generator::UNDEFINED;
-
-            if ($value === Generator::UNDEFINED) {
-                continue;
-            }
-
-            if (is_array($value)) {
-                foreach ($value as $child) {
-                    if ($child instanceof OA\AbstractAnnotation) {
-                        self::doWalk($child, $visitor, $visited);
-                    }
-                }
-            } elseif ($value instanceof OA\AbstractAnnotation) {
-                self::doWalk($value, $visitor, $visited);
-            }
-        }
     }
 }

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -56,11 +56,13 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
             $fractalResponse = $attribute->newInstance();
 
             if (!class_exists($fractalResponse->transformer)) {
-                $this->logger->warning(sprintf(
-                    '#[FractalResponse] on route %s names unknown transformer %s',
-                    $descriptor->route->uri(),
-                    $fractalResponse->transformer,
-                ));
+                $this->logger->warning(
+                    sprintf(
+                        '#[FractalResponse] on route %s names unknown transformer %s',
+                        $descriptor->route->uri(),
+                        $fractalResponse->transformer,
+                    ),
+                );
 
                 return null;
             }
@@ -81,11 +83,13 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
             // declares present but fails to instantiate via ReflectionClass). Real bugs —
             // attribute constructor TypeErrors, schema-build logic errors — propagate so
             // they surface in dev instead of disappearing into a warning log.
-            $this->logger->warning(sprintf(
-                'FractalResponseResolver reflection failure for route %s: %s',
-                $descriptor->route->uri(),
-                $e->getMessage(),
-            ));
+            $this->logger->warning(
+                sprintf(
+                    'FractalResponseResolver reflection failure for route %s: %s',
+                    $descriptor->route->uri(),
+                    $e->getMessage(),
+                ),
+            );
 
             return null;
         }

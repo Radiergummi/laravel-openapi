@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Core\Lint\Formatters\GithubFormatter;
 use Radiergummi\OpenApi\Core\Lint\Formatters\JsonFormatter;
 use Radiergummi\OpenApi\Core\Lint\LinterOutputFormat;
 use Radiergummi\OpenApi\Core\Lint\LintOptions;
+use Radiergummi\OpenApi\Core\Lint\LintResult;
 use Radiergummi\OpenApi\Core\Lint\LintRunner;
 use Radiergummi\OpenApi\Core\Lint\RuleCatalogRenderer;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
@@ -50,8 +51,7 @@ use function sprintf;
  * Lints OpenAPI documentation gaps across the API surface.
  *
  * Thin adapter over {@see LintRunner}: parses CLI options into a {@see LintOptions}, hands off
- * to the runner, and renders the resulting {@see \Radiergummi\OpenApi\Core\Lint\LintResult}
- * through the chosen formatter.
+ * to the runner, and renders the resulting {@see LintResult} through the chosen formatter.
  */
 #[Signature('openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
@@ -67,6 +67,7 @@ use function sprintf;
 class LintCommand extends Command
 {
     /**
+     * @throws \LogicException
      * @throws BindingResolutionException
      * @throws InvalidArgumentException
      * @throws JsonException
@@ -97,6 +98,50 @@ class LintCommand extends Command
         );
 
         return $result->exitCode;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     * @throws JsonException
+     */
+    private function renderCatalog(RuleRegistry $registry): int
+    {
+        // Pass $this->output (the OutputStyle) rather than ->getOutput() — Laravel's
+        // PendingCommand mocks writeln/write on the OutputStyle for assertion capture, so
+        // writes to the unwrapped OutputInterface bypass tests that use
+        // expectsOutputToContain().
+        new RuleCatalogRenderer()->render(
+            $registry,
+            $this->resolveFormat(),
+            $this->output,
+        );
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function resolveFormat(): LinterOutputFormat
+    {
+        $formatIdentifier = $this->option('format');
+
+        if (!is_string($formatIdentifier) || $formatIdentifier === '') {
+            return match (true) {
+                getenv('GITHUB_ACTIONS') === 'true' => LinterOutputFormat::GitHub,
+                $this->output->isDecorated() => LinterOutputFormat::Cli,
+                default => LinterOutputFormat::Json,
+            };
+        }
+
+        return LinterOutputFormat::tryFrom($formatIdentifier)
+            ?? throw new InvalidArgumentException(
+                sprintf(
+                    'Invalid format: %s. Allowed values are: %s.',
+                    $formatIdentifier,
+                    implode(', ', array_column(LinterOutputFormat::cases(), 'value')),
+                ),
+            );
     }
 
     private function buildOptions(): LintOptions
@@ -136,25 +181,6 @@ class LintCommand extends Command
     }
 
     /**
-     * @throws InvalidArgumentException
-     * @throws JsonException
-     */
-    private function renderCatalog(RuleRegistry $registry): int
-    {
-        // Pass $this->output (the OutputStyle) rather than ->getOutput() — Laravel's
-        // PendingCommand mocks writeln/write on the OutputStyle for assertion capture, so
-        // writes to the unwrapped OutputInterface bypass tests that use
-        // expectsOutputToContain().
-        new RuleCatalogRenderer()->render(
-            $registry,
-            $this->resolveFormat(),
-            $this->output,
-        );
-
-        return self::SUCCESS;
-    }
-
-    /**
      * @throws BindingResolutionException
      * @throws InvalidArgumentException
      */
@@ -168,30 +194,5 @@ class LintCommand extends Command
             LinterOutputFormat::Json => $this->laravel->make(JsonFormatter::class),
             LinterOutputFormat::GitHub => $this->laravel->make(GithubFormatter::class),
         };
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    private function resolveFormat(): LinterOutputFormat
-    {
-        $formatIdentifier = $this->option('format');
-
-        if (! is_string($formatIdentifier) || $formatIdentifier === '') {
-            return match (true) {
-                getenv('GITHUB_ACTIONS') === 'true' => LinterOutputFormat::GitHub,
-                $this->output->isDecorated() => LinterOutputFormat::Cli,
-                default => LinterOutputFormat::Json,
-            };
-        }
-
-        return LinterOutputFormat::tryFrom($formatIdentifier)
-            ?? throw new InvalidArgumentException(
-                sprintf(
-                    'Invalid format: %s. Allowed values are: %s.',
-                    $formatIdentifier,
-                    implode(', ', array_column(LinterOutputFormat::cases(), 'value')),
-                ),
-            );
     }
 }

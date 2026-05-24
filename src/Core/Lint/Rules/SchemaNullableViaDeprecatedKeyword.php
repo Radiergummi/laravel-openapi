@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,8 +21,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
 use function sprintf;
 
 /**
- * Reports fields that use the deprecated `nullable: true` keyword instead
- * of the OAS 3.1 type-union pattern (`type: ['string', 'null']`).
+ * Reports fields that use the deprecated `nullable: true` keyword instead of the OAS 3.1
+ * type-union pattern (`type: ['string', 'null']`).
  */
 final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
 {

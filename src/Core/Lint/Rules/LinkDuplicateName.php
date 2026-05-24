@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,8 +24,8 @@ use function array_map;
 use function sprintf;
 
 /**
- * Reports when a controller method has multiple `#[Link]` attributes with the
- * same name. Each link name must be unique within the same operation.
+ * Reports when a controller method has multiple `#[Link]` attributes with the same name. Each
+ * link name must be unique within the same operation.
  */
 final class LinkDuplicateName implements Rule, OperationRuleVisitor
 {

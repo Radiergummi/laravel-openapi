@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -17,9 +17,8 @@ use Radiergummi\OpenApi\Core\Generator\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Core\Lint\Rules;
 
 /**
- * Registers the framework-agnostic built-ins — the core request-schema
- * resolver and every core lint rule — into the registry. Runs first, before
- * plugins and config extras.
+ * Registers the framework-agnostic built-ins — the core request-schema resolver and every core
+ * lint rule — into the registry. Runs first, before plugins and config extras.
  */
 final class CoreRegistration
 {

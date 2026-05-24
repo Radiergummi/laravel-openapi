@@ -14,9 +14,8 @@ namespace Radiergummi\OpenApi\Tests\Fixtures;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Fixture FormRequest used by {@see RemoteMediaFixtureController} to exercise
- * FormRequest-based request-schema extraction (required fields, max length,
- * `sometimes` rules).
+ * Fixture FormRequest used by {@see RemoteMediaFixtureController} to exercise FormRequest-based
+ * request-schema extraction (required fields, max length, `sometimes` rules).
  */
 class RemoteMediaFixtureRequest extends FormRequest
 {

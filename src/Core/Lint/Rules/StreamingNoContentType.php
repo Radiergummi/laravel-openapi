@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -27,9 +27,9 @@ use function sprintf;
 /**
  * Reports streaming endpoints that do not declare `text/event-stream` content type.
  *
- * When a controller method is annotated with `#[Operation(streaming: true)]`,
- * its corresponding OpenAPI operation should declare `text/event-stream` as a
- * response content type so that clients know to expect server-sent events.
+ * When a controller method is annotated with `#[Operation(streaming: true)]`, its corresponding
+ * OpenAPI operation should declare `text/event-stream` as a response content type so that clients
+ * know to expect server-sent events.
  */
 final class StreamingNoContentType implements Rule, OperationRuleVisitor
 {

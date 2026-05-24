@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,30 +12,32 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Routing\Controller;
+use Radiergummi\OpenApi\Core\Attributes\Example;
+use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
 
 /**
- * Fixture controller exercising the {@see \Radiergummi\OpenApi\Core\Attributes\Example} and
- * {@see \Radiergummi\OpenApi\Core\Attributes\ResponseExample} attributes end-to-end. Registered ad-hoc by
- * tests; not auto-discovered by `route:sync` or production routing.
+ * Fixture controller exercising the {@see Example} and {@see ResponseExample} attributes
+ * end-to-end. Registered ad-hoc by tests; not auto-discovered by `route:sync` or production
+ * routing.
  */
 final class ExampleFixtureController extends Controller
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\Example(
+    #[Example(
         name: 'minimal',
         value: ['name' => 'Aerospace Q1'],
         summary: 'Bare-minimum payload',
     )]
-    #[\Radiergummi\OpenApi\Core\Attributes\Example(
+    #[Example(
         name: 'full',
         value: ['name' => 'Aerospace Q1', 'callbackUrl' => 'https://hooks.example.com'],
     )]
     #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 422, description: 'Validation failed')]
-    #[\Radiergummi\OpenApi\Core\Attributes\ResponseExample(
+    #[ResponseExample(
         status: 200,
         name: 'happy-path',
         value: ['data' => ['id' => 'abc', 'type' => 'project']],
     )]
-    #[\Radiergummi\OpenApi\Core\Attributes\ResponseExample(
+    #[ResponseExample(
         status: 422,
         name: 'missing-name',
         value: ['errors' => [['detail' => 'The name field is required.']]],

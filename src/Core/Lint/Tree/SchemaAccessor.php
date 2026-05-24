@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -40,7 +40,7 @@ final class SchemaAccessor
 
         if (
             $ref === Generator::UNDEFINED
-            || $ref === null // @phpstan-ignore identical.alwaysFalse
+            || $ref === null // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may emit null at runtime)
             || !is_string($ref)
         ) {
             return null;
@@ -95,10 +95,13 @@ final class SchemaAccessor
             return null;
         }
 
-        $pattern = $schema->pattern ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property
+        // @phpstan-ignore nullCoalesce.property (defensive; pattern may be unset at runtime)
+        $pattern = $schema->pattern ?? Generator::UNDEFINED;
 
-        // @phpstan-ignore-next-line identical.alwaysFalse
-        if ($pattern === Generator::UNDEFINED || $pattern === null) {
+        if (
+            $pattern === Generator::UNDEFINED
+            || $pattern === null // @phpstan-ignore identical.alwaysFalse (defensive; pattern may be null at runtime)
+        ) {
             return null;
         }
 

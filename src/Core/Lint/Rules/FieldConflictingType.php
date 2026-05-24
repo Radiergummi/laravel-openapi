@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -34,6 +34,12 @@ final class FieldConflictingType extends AbstractFieldRule
         'string' => 'string',
         'array' => 'array',
     ];
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Field declares conflicting type and format values.';
+    }
 
     /**
      * @return iterable<Finding>
@@ -95,11 +101,5 @@ final class FieldConflictingType extends AbstractFieldRule
     public function level(): int
     {
         return 1;
-    }
-
-    #[Override]
-    public function description(): string
-    {
-        return 'Field declares conflicting type and format values.';
     }
 }

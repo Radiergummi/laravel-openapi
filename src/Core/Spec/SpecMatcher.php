@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Spec;
 
 use Illuminate\Container\Attributes\Scoped;
+use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 
 use function array_any;
 use function fnmatch;
@@ -35,9 +36,9 @@ use function str_starts_with;
  * AND across the three keys (every present key must match); OR within a single key's array.
  *
  * An empty/missing match block matches nothing — the higher-level catch-all semantics for the
- * implicit `default` spec live in {@see \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator},
- * which short-circuits before reaching the matcher. This keeps {@see SpecMatcher} a pure
- * predicate over the three config keys.
+ * implicit `default` spec live in {@see InclusionEvaluator}, which short-circuits before
+ * reaching the matcher. This keeps {@see SpecMatcher} a pure predicate over the three config
+ * keys.
  */
 #[Scoped]
 final readonly class SpecMatcher

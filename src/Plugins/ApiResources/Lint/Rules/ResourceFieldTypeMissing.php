@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,8 +23,8 @@ use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 use function sprintf;
 
 /**
- * Flags a `#[ResourceField]` declared with no `type` — its schema cannot be
- * derived, so the field is emitted untyped.
+ * Flags a `#[ResourceField]` declared with no `type` — its schema cannot be derived, so the
+ * field is emitted untyped.
  */
 final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisitor
 {

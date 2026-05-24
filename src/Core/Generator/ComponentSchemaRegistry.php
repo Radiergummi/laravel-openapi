@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -95,59 +95,6 @@ final class ComponentSchemaRegistry
     private array $hasFileFields = [];
 
     /**
-     * Reserves the disambiguated component key for `$className` without storing a schema.
-     *
-     * Used internally by {@see self::buildOnce()} as part of the cycle guard: returning a
-     * reserved key on recursive re-entry lets the caller emit a `$ref` pointing at the same
-     * key {@see register()} will ultimately assign.
-     *
-     * Idempotent — a second call for the same class is a no-op.
-     *
-     * Accepts any string: the key is derived purely from the name, so the
-     * class need not exist (used for synthetic and not-yet-loaded classes).
-     */
-    public function reserveKey(string $className): string
-    {
-        if (!array_key_exists($className, $this->classToKey)) {
-            $key = $this->deriveKey($className);
-            $this->classToKey[$className] = $key;
-            $this->keyToClass[$key] = $className;
-        }
-
-        return $this->classToKey[$className];
-    }
-
-    /**
-     * If the key is already taken by a different class (basename collision), the new class is
-     * disambiguated with its parent namespace segment.
-     *
-     * @param class-string $className
-     */
-    public function register(string $className, OA\Schema $schema): void
-    {
-        // First schema wins — honour the docblock's idempotency guarantee without relying on every
-        // caller to check isRegisteredOrReserved() first.
-        if (array_key_exists($className, $this->classToKey) && array_key_exists($this->classToKey[$className], $this->schemas)) {
-            return;
-        }
-
-        // Key may already be reserved by reserveKey() — reuse it so the $ref emitted by the cycle
-        // guard and the component key assigned here remain in sync.
-        $key = $this->reserveKey($className);
-
-        // swagger-php requires the `schema` property to equal the component key so that $ref
-        // resolution works during validation.
-        $schema->schema = $key;
-
-        OpenApiExtensions::applySchemaTransformers(
-            $schema,
-            new SchemaContext($key, $className),
-        );
-
-        $this->schemas[$key] = $schema;
-    }
-
-    /**
      * Used for shared envelopes such as the JSON:API error response schema.
      *
      * This is idempotent: Later calls with the same key are no-ops.
@@ -232,6 +179,14 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * @param class-string $className
+     */
+    private function isInProgress(string $className): bool
+    {
+        return array_key_exists($className, $this->inProgress);
+    }
+
+    /**
      * Returns true when the class has had its component key reserved OR its schema fully registered
      *
      * This covers both the "cycle guard" state (key reserved, schema still building) and the
@@ -246,6 +201,95 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * Reserves the disambiguated component key for `$className` without storing a schema.
+     *
+     * Used internally by {@see self::buildOnce()} as part of the cycle guard: returning a
+     * reserved key on recursive re-entry lets the caller emit a `$ref` pointing at the same
+     * key {@see register()} will ultimately assign.
+     *
+     * Idempotent — a second call for the same class is a no-op.
+     *
+     * Accepts any string: the key is derived purely from the name, so the
+     * class need not exist (used for synthetic and not-yet-loaded classes).
+     */
+    public function reserveKey(string $className): string
+    {
+        if (!array_key_exists($className, $this->classToKey)) {
+            $key = $this->deriveKey($className);
+            $this->classToKey[$className] = $key;
+            $this->keyToClass[$key] = $className;
+        }
+
+        return $this->classToKey[$className];
+    }
+
+    /**
+     * Derives a unique, human-readable component key for `$className`.
+     *
+     * 1. Try the bare basename (e.g. `CreateData`).
+     * 2. On collision, prepend successive ancestor namespace segments, skipping generic container
+     *    segments (`Data`, `Domain`), until the key is unique. E.g. `App\Domain\Foo\Bar\CreateData`
+     *    → `Bar.CreateData`, then if still taken → `Foo.Bar.CreateData`, and so on.
+     * 3. If the full namespace is exhausted and the key is still taken (extremely unlikely — would
+     *    require two classes with identical FQCNs), append a short hash suffix as a last resort.
+     *
+     * OpenAPI component keys are restricted to `[A-Za-z0-9._-]`, so backslashes are replaced
+     * with dots.
+     */
+    private function deriveKey(string $className): string
+    {
+        $basename = class_basename($className);
+
+        if (!$this->isKeyTaken($basename, $className)) {
+            return $basename;
+        }
+
+        // Collect all namespace segments except the class name itself, in nearest-first
+        // order (innermost → outermost), filtering generic segments.
+        $parts = explode('\\', $className);
+        array_pop($parts); // remove the class name
+
+        $ancestors = [];
+
+        $skipParts = ['App', 'Controllers', 'Data', 'Domain', 'External', 'Global', 'Http', 'Internal'];
+
+        foreach (array_reverse($parts) as $part) {
+            if (in_array($part, $skipParts, strict: true)) {
+                continue;
+            }
+
+            $ancestors[] = $part;
+        }
+
+        // Walk from innermost ancestor outward, accumulating prefix segments.
+        $prefix = '';
+
+        foreach ($ancestors as $segment) {
+            $prefix = $prefix === '' ? $segment : "{$segment}.{$prefix}";
+            $qualified = "{$prefix}.{$basename}";
+
+            if (!$this->isKeyTaken($qualified, $className)) {
+                return $qualified;
+            }
+        }
+
+        // Last resort: the full namespace prefix is still ambiguous — append a short hash to
+        // guarantee uniqueness.
+        $hash = substr(md5($className), 0, 6);
+
+        return $prefix === ''
+            ? "{$basename}.{$hash}"
+            : "{$prefix}.{$basename}.{$hash}";
+    }
+
+    private function isKeyTaken(string $key, string $forClass): bool
+    {
+        $owner = $this->keyToClass[$key] ?? null;
+
+        return $owner !== null && $owner !== $forClass;
+    }
+
+    /**
      * @param class-string $className
      */
     private function markInProgress(string $className): void
@@ -254,11 +298,36 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * If the key is already taken by a different class (basename collision), the new class is
+     * disambiguated with its parent namespace segment.
+     *
      * @param class-string $className
      */
-    private function isInProgress(string $className): bool
+    public function register(string $className, OA\Schema $schema): void
     {
-        return array_key_exists($className, $this->inProgress);
+        // First schema wins — honour the docblock's idempotency guarantee without relying on every
+        // caller to check isRegisteredOrReserved() first.
+        if (array_key_exists($className, $this->classToKey) && array_key_exists(
+            $this->classToKey[$className],
+            $this->schemas,
+        )) {
+            return;
+        }
+
+        // Key may already be reserved by reserveKey() — reuse it so the $ref emitted by the cycle
+        // guard and the component key assigned here remain in sync.
+        $key = $this->reserveKey($className);
+
+        // swagger-php requires the `schema` property to equal the component key so that $ref
+        // resolution works during validation.
+        $schema->schema = $key;
+
+        OpenApiExtensions::applySchemaTransformers(
+            $schema,
+            new SchemaContext($key, $className),
+        );
+
+        $this->schemas[$key] = $schema;
     }
 
     /**
@@ -346,71 +415,5 @@ final class ComponentSchemaRegistry
     public function qualifyKey(string $key, ComponentType $type = ComponentType::Schemas): string
     {
         return "#/components/{$type->value}/{$key}";
-    }
-
-    /**
-     * Derives a unique, human-readable component key for `$className`.
-     *
-     * 1. Try the bare basename (e.g. `CreateData`).
-     * 2. On collision, prepend successive ancestor namespace segments, skipping generic container
-     *    segments (`Data`, `Domain`), until the key is unique. E.g. `App\Domain\Foo\Bar\CreateData`
-     *    → `Bar.CreateData`, then if still taken → `Foo.Bar.CreateData`, and so on.
-     * 3. If the full namespace is exhausted and the key is still taken (extremely unlikely — would
-     *    require two classes with identical FQCNs), append a short hash suffix as a last resort.
-     *
-     * OpenAPI component keys are restricted to `[A-Za-z0-9._-]`, so backslashes are replaced
-     * with dots.
-     */
-    private function deriveKey(string $className): string
-    {
-        $basename = class_basename($className);
-
-        if (!$this->isKeyTaken($basename, $className)) {
-            return $basename;
-        }
-
-        // Collect all namespace segments except the class name itself, in nearest-first
-        // order (innermost → outermost), filtering generic segments.
-        $parts = explode('\\', $className);
-        array_pop($parts); // remove the class name
-
-        $ancestors = [];
-
-        $skipParts = ['App', 'Controllers', 'Data', 'Domain', 'External', 'Global', 'Http', 'Internal'];
-
-        foreach (array_reverse($parts) as $part) {
-            if (in_array($part, $skipParts, strict: true)) {
-                continue;
-            }
-
-            $ancestors[] = $part;
-        }
-
-        // Walk from innermost ancestor outward, accumulating prefix segments.
-        $prefix = '';
-
-        foreach ($ancestors as $segment) {
-            $prefix = $prefix === '' ? $segment : "{$segment}.{$prefix}";
-            $qualified = "{$prefix}.{$basename}";
-
-            if (!$this->isKeyTaken($qualified, $className)) {
-                return $qualified;
-            }
-        }
-
-        // Last resort: the full namespace prefix is still ambiguous — append a short hash to
-        // guarantee uniqueness.
-        $hash = substr(md5($className), 0, 6);
-
-        return $prefix === ''
-            ? "{$basename}.{$hash}"
-            : "{$prefix}.{$basename}.{$hash}";
-    }
-
-    private function isKeyTaken(string $key, string $forClass): bool
-    {
-        $owner = $this->keyToClass[$key] ?? null;
-
-        return $owner !== null && $owner !== $forClass;
     }
 }

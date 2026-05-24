@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -53,6 +53,12 @@ final class FieldInvalidFormat extends AbstractFieldRule
         'uri-template',
     ];
 
+    #[Override]
+    public function description(): string
+    {
+        return 'format value is not a recognised OAS 3.1 format (custom formats are advisory but non-standard).';
+    }
+
     /**
      * @return iterable<Finding>
      */
@@ -97,11 +103,5 @@ final class FieldInvalidFormat extends AbstractFieldRule
     public function level(): int
     {
         return 3;
-    }
-
-    #[Override]
-    public function description(): string
-    {
-        return 'format value is not a recognised OAS 3.1 format (custom formats are advisory but non-standard).';
     }
 }

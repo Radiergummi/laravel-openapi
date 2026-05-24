@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,7 +21,8 @@ use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
  * `ResourceCollection` wraps a paginator, and is handled by the ApiResources
  * plugin.
  *
- * Nullable paginator fields (cursors, page URLs) are modelled as non-nullable for this first cut; OpenAPI 3.1 nullability would be layered in via NullableSchema later.
+ * Nullable paginator fields (cursors, page URLs) are modelled as non-nullable for this first cut; OpenAPI 3.1
+ * nullability would be layered in via NullableSchema later.
  */
 final class PaginatorSchemaFactory
 {

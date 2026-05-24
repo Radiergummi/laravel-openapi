@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,8 +23,8 @@ use function sprintf;
 /**
  * Reports query parameters that have no schema defined.
  *
- * Query parameters should declare a schema so that clients and documentation
- * tools know the expected type and format of the parameter.
+ * Query parameters should declare a schema so that clients and documentation tools know the
+ * expected type and format of the parameter.
  */
 final class ParameterQueryNoSchema implements Rule, QueryParameterRuleVisitor
 {

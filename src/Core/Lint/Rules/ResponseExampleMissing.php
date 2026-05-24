@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,9 +22,9 @@ use function sprintf;
 /**
  * Reports response objects whose media-type content has no example.
  *
- * Examples on responses let API consumers and documentation generators show
- * what a real payload looks like. Responses that carry no content at all
- * (e.g. 204 No Content — no schema ref and no inline fields) are exempt.
+ * Examples on responses let API consumers and documentation generators show what a real payload
+ * looks like. Responses that carry no content at all (e.g. 204 No Content — no schema ref and no
+ * inline fields) are exempt.
  */
 final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
 {
@@ -34,8 +34,8 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
     #[Override]
     public function checkResponse(ResponseNode $response, LintContext $context): iterable
     {
-        // Responses with no content (no schema ref, no inline fields) have
-        // nothing to illustrate — skip them (e.g. 204 No Content).
+        // Responses with no content (no schema ref, no inline fields) have nothing to
+        // illustrate — skip them (e.g. 204 No Content).
         if ($response->schemaRef === null && $response->fields === []) {
             return;
         }

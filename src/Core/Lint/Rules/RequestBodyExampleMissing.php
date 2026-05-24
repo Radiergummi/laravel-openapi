@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -20,8 +20,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\RequestBodyNode;
 /**
  * Reports request bodies whose media-type content has no example.
  *
- * Examples on request bodies let API consumers copy-paste a working payload
- * instead of guessing the expected structure from the schema alone.
+ * Examples on request bodies let API consumers copy-paste a working payload instead of guessing
+ * the expected structure from the schema alone.
  */
 final class RequestBodyExampleMissing implements Rule, RequestBodyRuleVisitor
 {

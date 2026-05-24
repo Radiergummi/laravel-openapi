@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -13,9 +13,10 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Radiergummi\OpenApi\Core\Attributes\PathParam;
 use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 
 /**
- * Fixture controller for {@see \Radiergummi\OpenApi\Core\Lint\Rules\FieldAttributeWrongScope}.
+ * Fixture controller for {@see FieldAttributeWrongScope}.
  */
 final class WrongScopeFixtureController
 {

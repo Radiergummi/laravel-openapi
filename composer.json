@@ -64,11 +64,13 @@
         }
     },
     "scripts": {
-        "test": "pest --no-coverage",
-        "test-coverage": "pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage",
-        "lint": "pint",
-        "format": "@lint",
-        "analyse": "phpstan analyse",
+        "pest": "pest --parallel --cache-directory .cache/pest --cache-result",
+        "test": "@pest --no-coverage",
+        "test-coverage": "@pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage",
+        "format": "pint --parallel --max-processes=auto --cache-file=.cache/pint.json",
+        "fmt": "@format",
+        "lint": "phpstan analyse",
+        "analyse": "@lint",
         "examples:vanilla":       "@php examples/generate.php vanilla",
         "examples:form-requests": "@php examples/generate.php form-requests",
         "examples:spatie-data":   "@php examples/generate.php spatie-data",

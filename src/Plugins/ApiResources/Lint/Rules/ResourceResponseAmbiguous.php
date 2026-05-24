@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,9 +22,9 @@ use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 use function sprintf;
 
 /**
- * Flags an operation that returns a resource collection type without a
- * `#[ResponseResource]` naming the item class — the response shape cannot be
- * derived and the endpoint falls back to a bare `200 OK`.
+ * Flags an operation that returns a resource collection type without a `#[ResponseResource]`
+ * naming the item class — the response shape cannot be derived and the endpoint falls back to a
+ * bare `200 OK`.
  */
 final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVisitor
 {

@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -11,11 +11,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Alpha;
 
+use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
 use Spatie\LaravelData\Data;
 
 /**
- * Fixture for OAPI-008: same basename as {@see \Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData}
- * in a different namespace, with a self-referential property.
+ * Fixture for OAPI-008: same basename as {@see BetaSelfRefData} in a different namespace, with a
+ * self-referential property.
  */
 final class SelfRefData extends Data
 {

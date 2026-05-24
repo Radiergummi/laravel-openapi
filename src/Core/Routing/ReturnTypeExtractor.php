@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Routing;
 
+use Illuminate\Container\Attributes\Scoped;
 use phpDocumentor\Reflection\DocBlock\Tags\Return_;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
@@ -37,6 +38,7 @@ use function spl_object_id;
  * Returned names are not verified — callers run `class_exists()` before
  * trusting them.
  */
+#[Scoped]
 final class ReturnTypeExtractor
 {
     /**

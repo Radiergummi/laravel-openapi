@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -22,15 +22,14 @@ use function is_array;
 use function sprintf;
 
 /**
- * Reports when a route has auth or scope middleware but the generated operation
- * declares no `security` requirement, implying the endpoint is public while the
- * runtime enforces authentication. The forward mirror of
- * {@see PublicEndpointContradictsMw}.
+ * Reports when a route has auth or scope middleware but the generated operation declares no
+ * `security` requirement, implying the endpoint is public while the runtime enforces
+ * authentication. The forward mirror of {@see PublicEndpointContradictsMw}.
  *
  * The rule fires only when ALL of the following hold:
  *  1. The route carries `auth:*`, `scope:*`, or `scopes:*` middleware.
- *  2. The operation's `security` field is `UNDEFINED` (never set — not even an
- *     explicit empty array which signals a intentional public override).
+ *  2. The operation's `security` field is `UNDEFINED` (never set — not even an explicit empty
+ *     array which signals a intentional public override).
  *  3. The controller method or class is NOT marked `#[PublicEndpoint]`.
  */
 final class OperationSecurityMissing implements Rule, OperationRuleVisitor
@@ -74,12 +73,12 @@ final class OperationSecurityMissing implements Rule, OperationRuleVisitor
     }
 
     /**
-     * Returns true when the operation has `security` set in the raw annotation —
-     * either an explicit empty array (`security: []`, the OpenAPI "public" signal
-     * emitted by `#[PublicEndpoint]`) or a non-empty list of requirements.
+     * Returns true when the operation has `security` set in the raw annotation — either an
+     * explicit empty array (`security: []`, the OpenAPI "public" signal emitted by
+     * `#[PublicEndpoint]`) or a non-empty list of requirements.
      *
-     * `Generator::UNDEFINED` means the property was never written, i.e. the spec
-     * has no `security` key for this operation.
+     * `Generator::UNDEFINED` means the property was never written, i.e. the spec has no
+     * `security` key for this operation.
      */
     private function hasSecurityDeclared(OperationNode $operation): bool
     {

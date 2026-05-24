@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -12,9 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Routing;
 
 /**
- * Documentation Comment
- *
- * Represents a parsed documentation comment.
+ * A parsed documentation comment.
  *
  * @bundle Radiergummi\OpenApi\Core\Routing
  */

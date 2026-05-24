@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,19 +24,16 @@ use function in_array;
 use function sprintf;
 
 /**
- * Flags a controller method that injects a `league/fractal` `Manager` but
- * carries no `#[FractalResponse]` — it produces Fractal output the generated
- * document does not describe.
+ * Flags a controller method that injects a `league/fractal` `Manager` but carries no
+ * `#[FractalResponse]` — it produces Fractal output the generated document does not describe.
  *
- * Detection is deliberately conservative: it keys off an injected `Manager`
- * parameter (matched by FQCN string via {@see PayloadParameterScanner}, so the
- * package need not be installed), not a body-inference heuristic. See
- * OAPI-053 for what this misses.
+ * Detection is deliberately conservative: it keys off an injected `Manager` parameter (matched
+ * by FQCN string via {@see PayloadParameterScanner}, so the package need not be installed), not
+ * a body-inference heuristic. See OAPI-053 for what this misses.
  *
- * Ships at level 2 (opt-in) so the dominant `fractal()` helper / facade
- * patterns — which never inject a `Manager` and therefore never trigger this
- * rule — do not lull users into reading silence as endorsement at the default
- * lint level. See OAPI-060.
+ * Ships at level 2 (opt-in) so the dominant `fractal()` helper / facade patterns — which never
+ * inject a `Manager` and therefore never trigger this rule — do not lull users into reading
+ * silence as endorsement at the default lint level. See OAPI-060.
  */
 final readonly class FractalResponseUnbound implements Rule, OperationRule
 {

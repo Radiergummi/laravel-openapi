@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -25,11 +25,10 @@ use function sprintf;
 use function str_ends_with;
 
 /**
- * Reports when some paths end with a trailing slash and others don't,
- * indicating an inconsistency in path naming conventions.
+ * Reports when some paths end with a trailing slash and others don't, indicating an inconsistency
+ * in path naming conventions.
  *
- * The root path `/` is excluded from the check since it trivially ends with
- * a slash.
+ * The root path `/` is excluded from the check since it trivially ends with a slash.
  */
 final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
 {
@@ -39,8 +38,8 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
     #[Override]
     public function checkApi(ApiNode $api, LintContext $context): iterable
     {
-        // Keyed by path URI so multiple operations on the same path (GET, POST,
-        // …) are only counted once.
+        // Keyed by path URI so multiple operations on the same path (GET, POST, …) are only
+        // counted once.
         /** @var array<string, true> $withSlash */
         $withSlash = [];
 

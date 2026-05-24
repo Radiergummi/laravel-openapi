@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -64,6 +64,32 @@ final class GithubFormatter implements Formatter
         return implode(',', $parts);
     }
 
+    /**
+     * Percent-encode a workflow command property value (file=, title=, etc.).
+     * Same as body, plus: , → %2C, : → %3A.
+     */
+    private function encodePropertyValue(string $value): string
+    {
+        return str_replace(
+            [',', ':'],
+            ['%2C', '%3A'],
+            $this->encodeBody($value),
+        );
+    }
+
+    /**
+     * Percent-encode a workflow command body value.
+     * GitHub requires: % → %25, \r → %0D, \n → %0A.
+     */
+    private function encodeBody(string $value): string
+    {
+        return str_replace(
+            ['%', "\r", "\n"],
+            ['%25', '%0D', '%0A'],
+            $value,
+        );
+    }
+
     private function buildBody(Finding $finding): string
     {
         $body = $finding->spec !== null
@@ -81,31 +107,5 @@ final class GithubFormatter implements Formatter
         }
 
         return $this->encodeBody($body);
-    }
-
-    /**
-     * Percent-encode a workflow command body value.
-     * GitHub requires: % → %25, \r → %0D, \n → %0A.
-     */
-    private function encodeBody(string $value): string
-    {
-        return str_replace(
-            ['%',   "\r",  "\n"],
-            ['%25', '%0D', '%0A'],
-            $value,
-        );
-    }
-
-    /**
-     * Percent-encode a workflow command property value (file=, title=, etc.).
-     * Same as body, plus: , → %2C, : → %3A.
-     */
-    private function encodePropertyValue(string $value): string
-    {
-        return str_replace(
-            [',',   ':'],
-            ['%2C', '%3A'],
-            $this->encodeBody($value),
-        );
     }
 }

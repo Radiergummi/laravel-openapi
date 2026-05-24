@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -38,10 +38,12 @@ final readonly class DocCommentParser
             ->map(fn(string $line) => ltrim($line, ' *'))
             ->all();
 
-        $lines = array_values(array_filter(
-            $allLines,
-            static fn(string $line): bool => !preg_match('/^\s*@/', $line),
-        ));
+        $lines = array_values(
+            array_filter(
+                $allLines,
+                static fn(string $line): bool => !preg_match('/^\s*@/', $line),
+            ),
+        );
 
         /** @var list<string> $summaryLines */
         $summaryLines = [];

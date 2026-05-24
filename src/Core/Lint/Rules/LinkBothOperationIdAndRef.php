@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -20,8 +20,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\LinkNode;
 use function sprintf;
 
 /**
- * Reports when a Link annotation has both `operationId` and `operationRef`
- * set. The OpenAPI specification requires exactly one of the two.
+ * Reports when a Link annotation has both `operationId` and `operationRef` set. The OpenAPI
+ * specification requires exactly one of the two.
  */
 final class LinkBothOperationIdAndRef implements Rule, LinkRuleVisitor
 {

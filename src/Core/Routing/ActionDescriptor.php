@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -68,48 +68,6 @@ final class ActionDescriptor
     ) {}
 
     /**
-     * Returns the `ReflectionAttribute`s of the given class declared on the controller class, or an
-     * empty list if there is no controller or none are declared.
-     *
-     * @template T of object
-     *
-     * @param class-string<T> $attribute
-     *
-     * @return list<ReflectionAttribute<T>>
-     */
-    public function controllerAttributes(string $attribute): array
-    {
-        if ($this->controller === null) {
-            return [];
-        }
-
-        // Bucket entries indexed by $attribute hold `ReflectionAttribute<$attribute>`
-        // by construction; PHPStan cannot follow the per-key narrowing through a
-        // single array, so the covariance is asserted here.
-        return $this->bucketFor($this->controller)[$attribute] ?? []; // @phpstan-ignore return.type
-    }
-
-    /**
-     * Returns the `ReflectionAttribute`s of the given class declared on the action reflector
-     * (method or closure), or an empty list if there is no action reflector or none are declared.
-     *
-     * @template T of object
-     *
-     * @param class-string<T> $attribute
-     *
-     * @return list<ReflectionAttribute<T>>
-     */
-    public function actionAttributes(string $attribute): array
-    {
-        if ($this->actionReflector === null) {
-            return [];
-        }
-
-        // See {@see controllerAttributes()} for the covariance note.
-        return $this->bucketFor($this->actionReflector)[$attribute] ?? []; // @phpstan-ignore return.type
-    }
-
-    /**
      * Instantiate every `$attribute` declared on the action reflector and the controller class,
      * action first. Convenience wrapper over {@see actionAttributes()} + {@see controllerAttributes()}
      * for callers that want concrete attribute objects rather than `ReflectionAttribute` wrappers.
@@ -136,6 +94,26 @@ final class ActionDescriptor
     }
 
     /**
+     * Returns the `ReflectionAttribute`s of the given class declared on the action reflector
+     * (method or closure), or an empty list if there is no action reflector or none are declared.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $attribute
+     *
+     * @return list<ReflectionAttribute<T>>
+     */
+    public function actionAttributes(string $attribute): array
+    {
+        if ($this->actionReflector === null) {
+            return [];
+        }
+
+        // See {@see controllerAttributes()} for the covariance note.
+        return $this->bucketFor($this->actionReflector)[$attribute] ?? []; // @phpstan-ignore return.type (bucket keyed by $attribute holds matching ReflectionAttribute<T> by construction)
+    }
+
+    /**
      * @param ReflectionClass<object>|ReflectionFunctionAbstract $reflector
      *
      * @return array<class-string, list<ReflectionAttribute<object>>>
@@ -155,6 +133,28 @@ final class ActionDescriptor
         }
 
         return $this->attributeBuckets[$key];
+    }
+
+    /**
+     * Returns the `ReflectionAttribute`s of the given class declared on the controller class, or an
+     * empty list if there is no controller or none are declared.
+     *
+     * @template T of object
+     *
+     * @param class-string<T> $attribute
+     *
+     * @return list<ReflectionAttribute<T>>
+     */
+    public function controllerAttributes(string $attribute): array
+    {
+        if ($this->controller === null) {
+            return [];
+        }
+
+        // Bucket entries indexed by $attribute hold `ReflectionAttribute<$attribute>`
+        // by construction; PHPStan cannot follow the per-key narrowing through a
+        // single array, so the covariance is asserted here.
+        return $this->bucketFor($this->controller)[$attribute] ?? []; // @phpstan-ignore return.type (bucket keyed by $attribute holds matching ReflectionAttribute<T> by construction)
     }
 
     /**

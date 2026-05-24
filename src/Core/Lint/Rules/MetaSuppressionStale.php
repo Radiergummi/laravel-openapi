@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -17,21 +17,30 @@ use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PostWalkRule;
 use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
+use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
 
 use function sprintf;
 
 /**
- * Reports suppression directives that did not actually suppress any finding.
- * Stale suppressions add noise and may hide the fact that a previous issue was
- * resolved.
+ * Reports suppression directives that did not actually suppress any finding. Stale suppressions
+ * add noise and may hide that a previous issue was resolved.
  *
- * This rule implements {@see PostWalkRule} because it needs the complete set
- * of findings from all other rules before it can determine which suppressions
- * are stale. It is intentionally excluded from the RULES array in
- * {@see \Radiergummi\OpenApi\Core\Registry\CoreRegistration}.
+ * Implements {@see PostWalkRule} because it needs the complete set of findings from all other
+ * rules before it can determine which suppressions are stale. Intentionally excluded from the
+ * RULES array in {@see CoreRegistration}.
  */
 final class MetaSuppressionStale implements Rule, PostWalkRule
 {
+    /**
+     * Canonical rule ID.
+     *
+     * Exposed as a constant because this rule is not part of the registered rule set, so callers
+     * assembling the known-rule-ID list (the lint command, or tests building a {@see TreeIndex}
+     * directly) must reference it without instantiating the rule.
+     */
+    public const string ID = 'meta.suppression-stale';
+
     /**
      * @param list<Finding> $walkFindings
      *
@@ -86,16 +95,6 @@ final class MetaSuppressionStale implements Rule, PostWalkRule
 
         return false;
     }
-
-    /**
-     * Canonical rule ID.
-     *
-     * Exposed as a constant because this rule is not part of the registered
-     * rule set, so callers assembling the known-rule-ID list (the lint command,
-     * or tests building a {@see \Radiergummi\OpenApi\Core\Lint\TreeIndex}
-     * directly) must reference it without instantiating the rule.
-     */
-    public const string ID = 'meta.suppression-stale';
 
     #[Override]
     public function id(): string

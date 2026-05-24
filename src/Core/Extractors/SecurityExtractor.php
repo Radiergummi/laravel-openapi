@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -102,6 +102,109 @@ final class SecurityExtractor
     }
 
     /**
+     * Build the two Passport-derived OAuth2 schemes. Returns an empty array if Passport is
+     * not installed or its named routes are not registered.
+     *
+     * @return list<OA\SecurityScheme>
+     */
+    private function passportSchemes(): array
+    {
+        if (!$this->passportAvailable()) {
+            return [];
+        }
+
+        $scopes = $this->allScopes();
+
+        return [
+            new OA\SecurityScheme([
+                'securityScheme' => self::SCHEME_AUTHORIZATION_CODE,
+                'type' => 'oauth2',
+                'description' => 'OAuth 2.0 Authorization Code flow for interactive users.',
+                'flows' => [
+                    new OA\Flow([
+                        'flow' => 'authorizationCode',
+                        'authorizationUrl' => route('passport.authorizations.authorize'),
+                        'tokenUrl' => route('passport.token'),
+                        'refreshUrl' => route('passport.token.refresh'),
+                        'scopes' => $scopes,
+                    ]),
+                ],
+            ]),
+            new OA\SecurityScheme([
+                'securityScheme' => self::SCHEME_CLIENT_CREDENTIALS,
+                'type' => 'oauth2',
+                'description' => 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).',
+                'flows' => [
+                    new OA\Flow([
+                        'flow' => 'clientCredentials',
+                        'tokenUrl' => route('passport.token'),
+                        'scopes' => $scopes,
+                    ]),
+                ],
+            ]),
+        ];
+    }
+
+    private function passportAvailable(): bool
+    {
+        return $this->passportAvailable ??= (
+            class_exists(Passport::class)
+            && $this->router->has('passport.token')
+            && $this->router->has('passport.token.refresh')
+            && $this->router->has('passport.authorizations.authorize')
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function allScopes(): array
+    {
+        $map = [];
+
+        foreach (Passport::scopes() as $scope) {
+            $map[$scope->id] = $scope->description;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Schemes registered via `openapi.security_schemes`. Each value is passed through to
+     * {@see OA\SecurityScheme} verbatim; the map key becomes `securityScheme`.
+     *
+     * @return array<string, OA\SecurityScheme>
+     */
+    private function configSchemes(): array
+    {
+        if ($this->configSchemesCache !== null) {
+            return $this->configSchemesCache;
+        }
+
+        /** @var mixed $raw */
+        $raw = config('openapi.security_schemes', []);
+
+        if (!is_array($raw)) {
+            return $this->configSchemesCache = [];
+        }
+
+        $schemes = [];
+
+        foreach ($raw as $name => $shape) {
+            if (!is_string($name) || !is_array($shape)) {
+                continue;
+            }
+
+            $schemes[$name] = new OA\SecurityScheme([
+                'securityScheme' => $name,
+                ...$shape,
+            ]);
+        }
+
+        return $this->configSchemesCache = $schemes;
+    }
+
+    /**
      * @return list<array<string, list<string>>>
      */
     public function forRoute(Route $route): array
@@ -118,6 +221,67 @@ final class SecurityExtractor
         }
 
         return $this->requirementForScopes($scopes);
+    }
+
+    /**
+     * Recursively expands middleware group names in $middleware against $groups.
+     * Entries that are not group keys are left untouched. A depth cap guards against
+     * cyclic group definitions.
+     *
+     * @param list<string>            $middleware
+     * @param array<string, string[]> $groups
+     *
+     * @return list<string>
+     */
+    private function expandGroups(array $middleware, array $groups, int $depth = 0): array
+    {
+        if ($depth >= self::MAX_GROUP_EXPANSION_DEPTH) {
+            return $middleware;
+        }
+
+        $result = [];
+
+        foreach ($middleware as $entry) {
+            if (isset($groups[$entry])) {
+                foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
+                    $result[] = $expanded;
+                }
+            } else {
+                $result[] = $entry;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function middlewareGroups(): array
+    {
+        return $this->middlewareGroups ??= $this->router->getMiddlewareGroups();
+    }
+
+    /**
+     * @param list<string> $middleware
+     *
+     * @return list<string>
+     */
+    private function extractScopes(array $middleware): array
+    {
+        $scopes = [];
+
+        foreach ($middleware as $entry) {
+            if (str_starts_with($entry, 'scope:')) {
+                $scopes[] = substr($entry, 6);
+            } elseif (str_starts_with($entry, 'scopes:')) {
+                foreach (explode(',', substr($entry, 7)) as $s) {
+                    $scopes[] = $s;
+                }
+            }
+        }
+
+        return array_values(array_unique($scopes));
     }
 
     /**
@@ -201,169 +365,5 @@ final class SecurityExtractor
         }
 
         return $names;
-    }
-
-    /**
-     * Recursively expands middleware group names in $middleware against $groups.
-     * Entries that are not group keys are left untouched. A depth cap guards against
-     * cyclic group definitions.
-     *
-     * @param list<string>            $middleware
-     * @param array<string, string[]> $groups
-     *
-     * @return list<string>
-     */
-    private function expandGroups(array $middleware, array $groups, int $depth = 0): array
-    {
-        if ($depth >= self::MAX_GROUP_EXPANSION_DEPTH) {
-            return $middleware;
-        }
-
-        $result = [];
-
-        foreach ($middleware as $entry) {
-            if (isset($groups[$entry])) {
-                foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
-                    $result[] = $expanded;
-                }
-            } else {
-                $result[] = $entry;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param list<string> $middleware
-     *
-     * @return list<string>
-     */
-    private function extractScopes(array $middleware): array
-    {
-        $scopes = [];
-
-        foreach ($middleware as $entry) {
-            if (str_starts_with($entry, 'scope:')) {
-                $scopes[] = substr($entry, 6);
-            } elseif (str_starts_with($entry, 'scopes:')) {
-                foreach (explode(',', substr($entry, 7)) as $s) {
-                    $scopes[] = $s;
-                }
-            }
-        }
-
-        return array_values(array_unique($scopes));
-    }
-
-    /**
-     * Build the two Passport-derived OAuth2 schemes. Returns an empty array if Passport is
-     * not installed or its named routes are not registered.
-     *
-     * @return list<OA\SecurityScheme>
-     */
-    private function passportSchemes(): array
-    {
-        if (!$this->passportAvailable()) {
-            return [];
-        }
-
-        $scopes = $this->allScopes();
-
-        return [
-            new OA\SecurityScheme([
-                'securityScheme' => self::SCHEME_AUTHORIZATION_CODE,
-                'type' => 'oauth2',
-                'description' => 'OAuth 2.0 Authorization Code flow for interactive users.',
-                'flows' => [
-                    new OA\Flow([
-                        'flow' => 'authorizationCode',
-                        'authorizationUrl' => route('passport.authorizations.authorize'),
-                        'tokenUrl' => route('passport.token'),
-                        'refreshUrl' => route('passport.token.refresh'),
-                        'scopes' => $scopes,
-                    ]),
-                ],
-            ]),
-            new OA\SecurityScheme([
-                'securityScheme' => self::SCHEME_CLIENT_CREDENTIALS,
-                'type' => 'oauth2',
-                'description' => 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).',
-                'flows' => [
-                    new OA\Flow([
-                        'flow' => 'clientCredentials',
-                        'tokenUrl' => route('passport.token'),
-                        'scopes' => $scopes,
-                    ]),
-                ],
-            ]),
-        ];
-    }
-
-    /**
-     * Schemes registered via `openapi.security_schemes`. Each value is passed through to
-     * {@see OA\SecurityScheme} verbatim; the map key becomes `securityScheme`.
-     *
-     * @return array<string, OA\SecurityScheme>
-     */
-    private function configSchemes(): array
-    {
-        if ($this->configSchemesCache !== null) {
-            return $this->configSchemesCache;
-        }
-
-        /** @var mixed $raw */
-        $raw = config('openapi.security_schemes', []);
-
-        if (!is_array($raw)) {
-            return $this->configSchemesCache = [];
-        }
-
-        $schemes = [];
-
-        foreach ($raw as $name => $shape) {
-            if (!is_string($name) || !is_array($shape)) {
-                continue;
-            }
-
-            $schemes[$name] = new OA\SecurityScheme([
-                'securityScheme' => $name,
-                ...$shape,
-            ]);
-        }
-
-        return $this->configSchemesCache = $schemes;
-    }
-
-    private function passportAvailable(): bool
-    {
-        return $this->passportAvailable ??= (
-            class_exists(Passport::class)
-            && $this->router->has('passport.token')
-            && $this->router->has('passport.token.refresh')
-            && $this->router->has('passport.authorizations.authorize')
-        );
-    }
-
-    /**
-     * @return array<string, array<int, string>>
-     */
-    private function middlewareGroups(): array
-    {
-        return $this->middlewareGroups ??= $this->router->getMiddlewareGroups();
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function allScopes(): array
-    {
-        $map = [];
-
-        foreach (Passport::scopes() as $scope) {
-            $map[$scope->id] = $scope->description;
-        }
-
-        return $map;
     }
 }

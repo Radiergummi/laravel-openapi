@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -118,6 +118,53 @@ final class SpecTreeWalker
     }
 
     /**
+     * Call $callback once for every registered rule (deduplicated).
+     *
+     * @param callable(Rule): void $callback
+     */
+    private function forEachUniqueRule(callable $callback): void
+    {
+        foreach ($this->uniqueRules() as $rule) {
+            $callback($rule);
+        }
+    }
+
+    /**
+     * Iterate over every registered rule exactly once, regardless of how many visitor
+     * interfaces it implements. Uses spl_object_id to deduplicate across buckets.
+     *
+     * @return iterable<Rule>
+     */
+    private function uniqueRules(): iterable
+    {
+        $seen = [];
+
+        foreach ($this->visitors as $rules) {
+            foreach ($rules as $rule) {
+                $id = spl_object_id($rule);
+
+                if (isset($seen[$id])) {
+                    continue;
+                }
+
+                $seen[$id] = true;
+                yield $rule;
+            }
+        }
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function dispatchApi(ApiNode $node, LintContext $context): iterable
+    {
+        foreach ($this->visitors[ApiRule::class] ?? [] as $rule) {
+            assert($rule instanceof ApiRule);
+            yield from $rule->checkApi($node, $context);
+        }
+    }
+
+    /**
      * @return iterable<Finding>
      */
     private function walkOperation(OperationNode $operation, LintContext $context): iterable
@@ -221,6 +268,84 @@ final class SpecTreeWalker
     }
 
     /**
+     * Enrich each finding with contextual location defaults.
+     *
+     * When `$defaults` is null (e.g., component schema context without an operation), findings pass
+     * through unchanged.
+     *
+     * @param iterable<Finding> $findings
+     *
+     * @return iterable<Finding>
+     */
+    private function enrichAll(iterable $findings, ?FindingLocation $defaults): iterable
+    {
+        if ($defaults === null) {
+            yield from $findings;
+
+            return;
+        }
+
+        foreach ($findings as $finding) {
+            yield $finding->withLocationDefaults($defaults);
+        }
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function dispatchOperation(OperationNode $node, LintContext $context): iterable
+    {
+        foreach ($this->visitors[OperationRule::class] ?? [] as $rule) {
+            assert($rule instanceof OperationRule);
+            yield from $rule->checkOperation($node, $context);
+        }
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function dispatchParameter(ParameterNode $node, LintContext $context): iterable
+    {
+        foreach ($this->visitors[ParameterRule::class] ?? [] as $rule) {
+            assert($rule instanceof ParameterRule);
+            yield from $rule->checkParameter($node, $context);
+        }
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function dispatchExample(ExampleNode $node, LintContext $context): iterable
+    {
+        foreach ($this->visitors[ExampleRule::class] ?? [] as $rule) {
+            assert($rule instanceof ExampleRule);
+            yield from $rule->checkExample($node, $context);
+        }
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function dispatchQueryParameter(QueryParameterNode $node, LintContext $context): iterable
+    {
+        foreach ($this->visitors[QueryParameterRule::class] ?? [] as $rule) {
+            assert($rule instanceof QueryParameterRule);
+            yield from $rule->checkQueryParameter($node, $context);
+        }
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function dispatchRequestBody(RequestBodyNode $node, LintContext $context): iterable
+    {
+        foreach ($this->visitors[RequestBodyRule::class] ?? [] as $rule) {
+            assert($rule instanceof RequestBodyRule);
+            yield from $rule->checkRequestBody($node, $context);
+        }
+    }
+
+    /**
      * Recursively walk fields. Skips the entire subtree if no FieldRule or ExampleRule
      * is registered.
      *
@@ -272,55 +397,11 @@ final class SpecTreeWalker
     /**
      * @return iterable<Finding>
      */
-    private function dispatchApi(ApiNode $node, LintContext $context): iterable
+    private function dispatchField(FieldNode $node, LintContext $context): iterable
     {
-        foreach ($this->visitors[ApiRule::class] ?? [] as $rule) {
-            assert($rule instanceof ApiRule);
-            yield from $rule->checkApi($node, $context);
-        }
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function dispatchOperation(OperationNode $node, LintContext $context): iterable
-    {
-        foreach ($this->visitors[OperationRule::class] ?? [] as $rule) {
-            assert($rule instanceof OperationRule);
-            yield from $rule->checkOperation($node, $context);
-        }
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function dispatchParameter(ParameterNode $node, LintContext $context): iterable
-    {
-        foreach ($this->visitors[ParameterRule::class] ?? [] as $rule) {
-            assert($rule instanceof ParameterRule);
-            yield from $rule->checkParameter($node, $context);
-        }
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function dispatchQueryParameter(QueryParameterNode $node, LintContext $context): iterable
-    {
-        foreach ($this->visitors[QueryParameterRule::class] ?? [] as $rule) {
-            assert($rule instanceof QueryParameterRule);
-            yield from $rule->checkQueryParameter($node, $context);
-        }
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function dispatchRequestBody(RequestBodyNode $node, LintContext $context): iterable
-    {
-        foreach ($this->visitors[RequestBodyRule::class] ?? [] as $rule) {
-            assert($rule instanceof RequestBodyRule);
-            yield from $rule->checkRequestBody($node, $context);
+        foreach ($this->visitors[FieldRule::class] ?? [] as $rule) {
+            assert($rule instanceof FieldRule);
+            yield from $rule->checkField($node, $context);
         }
     }
 
@@ -332,17 +413,6 @@ final class SpecTreeWalker
         foreach ($this->visitors[ResponseRule::class] ?? [] as $rule) {
             assert($rule instanceof ResponseRule);
             yield from $rule->checkResponse($node, $context);
-        }
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function dispatchField(FieldNode $node, LintContext $context): iterable
-    {
-        foreach ($this->visitors[FieldRule::class] ?? [] as $rule) {
-            assert($rule instanceof FieldRule);
-            yield from $rule->checkField($node, $context);
         }
     }
 
@@ -365,17 +435,6 @@ final class SpecTreeWalker
         foreach ($this->visitors[LinkRule::class] ?? [] as $rule) {
             assert($rule instanceof LinkRule);
             yield from $rule->checkLink($node, $context);
-        }
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function dispatchExample(ExampleNode $node, LintContext $context): iterable
-    {
-        foreach ($this->visitors[ExampleRule::class] ?? [] as $rule) {
-            assert($rule instanceof ExampleRule);
-            yield from $rule->checkExample($node, $context);
         }
     }
 
@@ -413,65 +472,6 @@ final class SpecTreeWalker
             if ($rule instanceof Finalizable) {
                 yield from $rule->finalize($context);
             }
-        }
-    }
-
-    /**
-     * Iterate over every registered rule exactly once, regardless of how many visitor
-     * interfaces it implements. Uses spl_object_id to deduplicate across buckets.
-     *
-     * @return iterable<Rule>
-     */
-    private function uniqueRules(): iterable
-    {
-        $seen = [];
-
-        foreach ($this->visitors as $rules) {
-            foreach ($rules as $rule) {
-                $id = spl_object_id($rule);
-
-                if (isset($seen[$id])) {
-                    continue;
-                }
-
-                $seen[$id] = true;
-                yield $rule;
-            }
-        }
-    }
-
-    /**
-     * Call $callback once for every registered rule (deduplicated).
-     *
-     * @param callable(Rule): void $callback
-     */
-    private function forEachUniqueRule(callable $callback): void
-    {
-        foreach ($this->uniqueRules() as $rule) {
-            $callback($rule);
-        }
-    }
-
-    /**
-     * Enrich each finding with contextual location defaults.
-     *
-     * When `$defaults` is null (e.g., component schema context without an operation), findings pass
-     * through unchanged.
-     *
-     * @param iterable<Finding> $findings
-     *
-     * @return iterable<Finding>
-     */
-    private function enrichAll(iterable $findings, ?FindingLocation $defaults): iterable
-    {
-        if ($defaults === null) {
-            yield from $findings;
-
-            return;
-        }
-
-        foreach ($findings as $finding) {
-            yield $finding->withLocationDefaults($defaults);
         }
     }
 }

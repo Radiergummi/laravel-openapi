@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,8 +24,8 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Flags an operation bound via `#[FractalResponse]` whose transformer declares
- * no `#[TransformerField]` — the response shape is unknown.
+ * Flags an operation bound via `#[FractalResponse]` whose transformer declares no
+ * `#[TransformerField]` — the response shape is unknown.
  */
 final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 {

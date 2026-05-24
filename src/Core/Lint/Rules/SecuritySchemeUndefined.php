@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -25,11 +25,11 @@ use function is_array;
 use function sprintf;
 
 /**
- * Reports when an operation's `security` array references a scheme name that
- * is not declared in `components.securitySchemes`.
+ * Reports when an operation's `security` array references a scheme name that is not declared in
+ * `components.securitySchemes`.
  *
- * This is distinct from {@see SecurityInvalidScope}, which checks scope names
- * within a declared scheme.
+ * This is distinct from {@see SecurityInvalidScope}, which checks scope names within a declared
+ * scheme.
  */
 final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Resettable
 {

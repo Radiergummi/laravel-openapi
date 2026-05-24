@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -16,9 +16,9 @@ use Attribute;
 /**
  * Marks an operation as fully public — no security requirement is emitted.
  *
- * Use this when middleware-based derivation misrepresents the endpoint, e.g.
- * a route that has `auth:api` in the stack purely for context but is
- * effectively reachable without a token. Emits `security: []` in the spec.
+ * Use this when middleware-based derivation misrepresents the endpoint, e.g. a route that has
+ * `auth:api` in the stack purely for context but is effectively reachable without a token. Emits
+ * `security: []` in the spec.
  *
  * Mutually exclusive with {@see Security}; if both are present, this wins.
  */

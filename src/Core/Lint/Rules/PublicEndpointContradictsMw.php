@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -23,9 +23,9 @@ use function sprintf;
 use function str_starts_with;
 
 /**
- * Reports when a controller method or class is marked `#[PublicEndpoint]` but
- * the route still carries `auth:*` or `scope:*` middleware, indicating a
- * contradiction between the declared intent and the actual middleware stack.
+ * Reports when a controller method or class is marked `#[PublicEndpoint]` but the route still
+ * carries `auth:*` or `scope:*` middleware, indicating a contradiction between the declared
+ * intent and the actual middleware stack.
  */
 final class PublicEndpointContradictsMw implements Rule, OperationRuleVisitor
 {

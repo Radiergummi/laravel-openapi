@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -27,19 +27,19 @@ use function sprintf;
 use function str_contains;
 
 /**
- * Reports path and query parameter names that do not follow the configured
- * naming convention.
+ * Reports path and query parameter names that do not follow the configured naming convention.
  *
  * Default: {@see IdentifierCase::Snake} (e.g. `project_id`).
  *
  * Query parameter exclusions (framework-generated, not author-controlled):
- * - Names containing `[` — JSON:API bracket notation such as
- *   `filter[id]` or `page[number]`.
- * - The exact names `page`, `per_page`, `sort`, and `include` — standard
- *   JSON:API / Spatie QueryBuilder parameters injected by the request layer.
+ * - Names containing `[` — JSON:API bracket notation such as `filter[id]` or `page[number]`.
+ * - The exact names `page`, `per_page`, `sort`, and `include` — standard JSON:API / Spatie
+ *   QueryBuilder parameters injected by the request layer.
  */
 #[Scoped]
-final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule implements ParameterRuleVisitor, QueryParameterRuleVisitor
+final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule implements
+    ParameterRuleVisitor,
+    QueryParameterRuleVisitor
 {
     /** @var list<string> */
     private const array FRAMEWORK_QUERY_PARAMS = ['page', 'per_page', 'sort', 'include'];
@@ -64,6 +64,26 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
         yield $this->finding($parameter->name);
     }
 
+    private function finding(string $name): Finding
+    {
+        return new Finding(
+            ruleId: $this->id(),
+            level: $this->level(),
+            message: sprintf(
+                'Parameter name "%s" does not follow the %s naming convention',
+                $name,
+                $this->case->label(),
+            ),
+            fixHint: $this->fixHint('parameter names'),
+        );
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'parameter.name-naming-inconsistent';
+    }
+
     /**
      * @return iterable<Finding>
      */
@@ -81,18 +101,6 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
         yield $this->finding($queryParameter->name);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.name-naming-inconsistent';
-    }
-
-    #[Override]
-    public function description(): string
-    {
-        return "Parameter name doesn't follow the project's parameter_name_case convention.";
-    }
-
     private function isExcludedQueryParam(string $name): bool
     {
         if (str_contains($name, '[')) {
@@ -102,17 +110,9 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
         return in_array($name, self::FRAMEWORK_QUERY_PARAMS, strict: true);
     }
 
-    private function finding(string $name): Finding
+    #[Override]
+    public function description(): string
     {
-        return new Finding(
-            ruleId: $this->id(),
-            level: $this->level(),
-            message: sprintf(
-                'Parameter name "%s" does not follow the %s naming convention',
-                $name,
-                $this->case->label(),
-            ),
-            fixHint: $this->fixHint('parameter names'),
-        );
+        return "Parameter name doesn't follow the project's parameter_name_case convention.";
     }
 }

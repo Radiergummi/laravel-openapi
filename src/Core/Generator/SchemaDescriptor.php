@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -51,6 +51,25 @@ final readonly class SchemaDescriptor
         public ?bool $writeOnly = null,
     ) {}
 
+    /**
+     * Builds a standalone `OA\Schema` from this descriptor, applying the OAS 3.1
+     * `type: [..., 'null']` shape when `$this->nullable === true`.
+     *
+     * `toOpenApi()` deliberately omits `nullable`; this helper is the canonical
+     * place to apply it for callers that produce a `Schema` (parameter resolvers)
+     * rather than a `Property` ({@see applyTo()}).
+     */
+    public function toSchema(): OA\Schema
+    {
+        $schema = new OA\Schema(['type' => 'string', ...$this->toOpenApi()]);
+
+        if ($this->nullable === true) {
+            NullableSchema::applyTo($schema);
+        }
+
+        return $schema;
+    }
+
     /** @return array<string, mixed> */
     public function toOpenApi(): array
     {
@@ -79,7 +98,7 @@ final readonly class SchemaDescriptor
         if ($this->enum !== null) {
             $out['enum'] = array_map(
                 static fn(BackedEnum|int|string $case): int|string
-                => $case instanceof BackedEnum ? $case->value : $case,
+                    => $case instanceof BackedEnum ? $case->value : $case,
                 $this->enum,
             );
         }
@@ -105,24 +124,5 @@ final readonly class SchemaDescriptor
         if ($this->nullable === true) {
             NullableSchema::applyTo($property);
         }
-    }
-
-    /**
-     * Builds a standalone `OA\Schema` from this descriptor, applying the OAS 3.1
-     * `type: [..., 'null']` shape when `$this->nullable === true`.
-     *
-     * `toOpenApi()` deliberately omits `nullable`; this helper is the canonical
-     * place to apply it for callers that produce a `Schema` (parameter resolvers)
-     * rather than a `Property` ({@see applyTo()}).
-     */
-    public function toSchema(): OA\Schema
-    {
-        $schema = new OA\Schema(['type' => 'string', ...$this->toOpenApi()]);
-
-        if ($this->nullable === true) {
-            NullableSchema::applyTo($schema);
-        }
-
-        return $schema;
     }
 }

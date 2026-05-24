@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -16,15 +16,14 @@ use Attribute;
 /**
  * Documents an HTTP response header that the operation emits.
  *
- * Repeatable on classes, methods, and functions. The `status` argument scopes
- * the header to a particular response (e.g. `Location` on a `201 Created`); if
- * no matching response exists for the given status, the header is dropped
- * silently.
+ * Repeatable on classes, methods, and functions. The `status` argument scopes the header to a
+ * particular response (e.g. `Location` on a `201 Created`); if no matching response exists for the
+ * given status, the header is dropped silently.
  *
- * Declaring on the controller class applies the header to every action on that
- * controller — useful for headers like `X-Request-Id` or `X-RateLimit-Remaining`
- * that every operation emits. Method-level declarations win on
- * `(status, name)` collision; declaration order is otherwise preserved.
+ * Declaring on the controller class applies the header to every action on that controller — useful
+ * for headers like `X-Request-Id` or `X-RateLimit-Remaining` that every operation emits.
+ * Method-level declarations win on `(status, name)` collision; declaration order is otherwise
+ * preserved.
  *
  * ```php
  * #[OpenApi\Response(status: 201, description: 'Created')]

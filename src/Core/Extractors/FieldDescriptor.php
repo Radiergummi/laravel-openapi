@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -203,26 +203,26 @@ final class FieldDescriptor
                     $inner = new OA\Schema(['type' => $target->type]);
 
                     if (!Generator::isDefault($target->items)) {
-                        $inner->items  = $target->items;
-                        $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                        $inner->items = $target->items;
+                        $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
                     if (!Generator::isDefault($target->properties)) {
-                        $inner->properties  = $target->properties;
-                        $target->properties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                        $inner->properties = $target->properties;
+                        $target->properties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
                     if (!Generator::isDefault($target->additionalProperties)) {
-                        $inner->additionalProperties  = $target->additionalProperties;
-                        $target->additionalProperties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                        $inner->additionalProperties = $target->additionalProperties;
+                        $target->additionalProperties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
                     if (!Generator::isDefault($target->required)) {
-                        $inner->required  = $target->required;
-                        $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType
+                        $inner->required = $target->required;
+                        $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
-                    $target->type  = Generator::UNDEFINED;
+                    $target->type = Generator::UNDEFINED;
                     $target->oneOf = [
                         $inner,
                         new OA\Schema(['type' => 'null']),

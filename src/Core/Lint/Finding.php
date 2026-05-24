@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -21,9 +21,9 @@ use Override;
 final readonly class Finding implements Arrayable, JsonSerializable
 {
     /**
-     * Context keys identifying the source property a finding was derived from.
-     * Stamped by {@see Rules\AbstractFieldRule} so
-     * a property-scoped suppression can match the finding structurally.
+     * Context keys identifying the source property a finding was derived from. Stamped by
+     * {@see Rules\AbstractFieldRule} so a property-scoped suppression can match the finding
+     * structurally.
      */
     public const string CONTEXT_SOURCE_CLASS = 'sourceClass';
 
@@ -43,8 +43,8 @@ final readonly class Finding implements Arrayable, JsonSerializable
     ) {}
 
     /**
-     * Return a copy of this finding whose location has been enriched with
-     * default values (file, line, route info) from `$defaults`.
+     * Return a copy of this finding whose location has been enriched with default values
+     * (file, line, route info) from `$defaults`.
      *
      * Fields that the rule already set explicitly are preserved.
      */
@@ -64,8 +64,8 @@ final readonly class Finding implements Arrayable, JsonSerializable
     /**
      * Return a copy of this finding with a different severity level.
      *
-     * All other fields are preserved. Used by the lint command to apply
-     * `severity_overrides` from config after findings are collected.
+     * All other fields are preserved. Used by the lint command to apply `severity_overrides`
+     * from config after findings are collected.
      */
     public function withLevel(int $level): self
     {
@@ -115,20 +115,6 @@ final readonly class Finding implements Arrayable, JsonSerializable
         );
     }
 
-    #[Override]
-    public function toArray(): array
-    {
-        return [
-            'rule_id'  => $this->ruleId,
-            'level'    => $this->level,
-            'message'  => $this->message,
-            'fix_hint' => $this->fixHint,
-            'location' => $this->location->toArray(),
-            'context'  => $this->context,
-            'spec'     => $this->spec,
-        ];
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -136,5 +122,19 @@ final readonly class Finding implements Arrayable, JsonSerializable
     public function jsonSerialize(): array
     {
         return $this->toArray();
+    }
+
+    #[Override]
+    public function toArray(): array
+    {
+        return [
+            'rule_id' => $this->ruleId,
+            'level' => $this->level,
+            'message' => $this->message,
+            'fix_hint' => $this->fixHint,
+            'location' => $this->location->toArray(),
+            'context' => $this->context,
+            'spec' => $this->spec,
+        ];
     }
 }

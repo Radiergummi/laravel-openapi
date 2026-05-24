@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Console;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use OpenApi\Analysis;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
@@ -22,15 +23,19 @@ use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use ReflectionException;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Throwable;
+use UnexpectedValueException;
 
 use function app;
 use function count;
 use function dirname;
 use function file_put_contents;
 use function fwrite;
+use function in_array;
 use function is_writable;
 use function realpath;
 
@@ -48,7 +53,17 @@ use function realpath;
 class GenerateCommand extends Command
 {
     /**
+     * @var list<string>
+     */
+    private const array SUPPORTED_FORMATS = ['yaml', 'json'];
+
+    /**
+     * @throws \InvalidArgumentException
+     * @throws BindingResolutionException
      * @throws InvalidArgumentException
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
      */
     public function handle(
         OpenApiGenerationOrchestrator $orchestrator,
@@ -59,6 +74,13 @@ class GenerateCommand extends Command
         $specName = $this->argument('spec');
         $outputOverride = $this->option('output');
         $explain = (bool) $this->option('explain');
+        $format = (string) $this->option('format');
+
+        if (!in_array($format, self::SUPPORTED_FORMATS, true)) {
+            $this->components->error("Unsupported --format value '{$format}'. Use 'yaml' or 'json'.");
+
+            return self::FAILURE;
+        }
 
         $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];
 
@@ -75,7 +97,7 @@ class GenerateCommand extends Command
         foreach ($targets as $spec) {
             $document = $orchestrator->generateOne($spec->name, app()->environment());
 
-            if (! $this->validate($document)) {
+            if (!$this->validate($document)) {
                 return self::FAILURE;
             }
 
@@ -101,8 +123,33 @@ class GenerateCommand extends Command
     // region Private helpers
 
     /**
-     * Validates the generated document using swagger-php's Analysis pipeline.
-     * Reports any validation errors to the console and returns false on failure.
+     * @param list<SpecDefinition> $specs
+     *
+     * @throws ReflectionException
+     * @throws UnexpectedValueException
+     */
+    private function emitExplain(
+        InclusionEvaluator $evaluator,
+        RouteIntrospector $introspector,
+        array $specs,
+    ): void {
+        foreach ($introspector->discover() as $descriptor) {
+            foreach ($specs as $spec) {
+                $decision = $evaluator->decide($descriptor, $spec, app()->environment());
+                $mark = $decision->included ? '✓' : '✗';
+                $method = $descriptor->route->methods()[0] ?? 'GET';
+                $uri = $descriptor->route->uri();
+                fwrite(STDERR, "[{$spec->name}] {$mark} {$method} {$uri}  {$decision->summary}" . PHP_EOL);
+            }
+        }
+    }
+
+    /**
+     * Validates the generated document using swagger-php's Analysis pipeline. Reports any
+     * validation errors to the console and returns false on failure.
+     *
+     * @throws \InvalidArgumentException
+     * @throws InvalidArgumentException
      */
     private function validate(OA\OpenApi $openapi): bool
     {
@@ -112,7 +159,7 @@ class GenerateCommand extends Command
 
         $valid = $analysis->validate();
 
-        if (! $valid) {
+        if (!$valid) {
             $this->components->error('OpenAPI validation failed. The document may be incomplete.');
         }
 
@@ -120,16 +167,14 @@ class GenerateCommand extends Command
     }
 
     /**
-     * Serializes the document to YAML or JSON depending on --format.
+     * Serializes the document to YAML or JSON depending on --format. --format is validated in
+     * handle() so only 'yaml' or 'json' can reach this point.
      */
     private function serialise(OA\OpenApi $openapi): string
     {
-        $format = $this->option('format');
-
-        return match ($format) {
-            'json' => $openapi->toJson(),
-            default => $openapi->toYaml(),
-        };
+        return $this->option('format') === 'json'
+            ? $openapi->toJson()
+            : $openapi->toYaml();
     }
 
     /**
@@ -147,30 +192,11 @@ class GenerateCommand extends Command
             throw new RuntimeException("Output directory does not exist: {$path}");
         }
 
-        if (! is_writable(dirname($path))) {
+        if (!is_writable(dirname($path))) {
             throw new RuntimeException("Output directory is not writable: {$path}");
         }
 
         file_put_contents($path, $content);
-    }
-
-    /**
-     * @param list<SpecDefinition> $specs
-     */
-    private function emitExplain(
-        InclusionEvaluator $evaluator,
-        RouteIntrospector $introspector,
-        array $specs,
-    ): void {
-        foreach ($introspector->discover() as $descriptor) {
-            foreach ($specs as $spec) {
-                $decision = $evaluator->decide($descriptor, $spec, app()->environment());
-                $mark = $decision->included ? '✓' : '✗';
-                $method = $descriptor->route->methods()[0] ?? 'GET';
-                $uri = $descriptor->route->uri();
-                fwrite(STDERR, "[{$spec->name}] {$mark} {$method} {$uri}  {$decision->summary}" . PHP_EOL);
-            }
-        }
     }
 
     // endregion

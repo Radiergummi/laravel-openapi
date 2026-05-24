@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -11,13 +11,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
+use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
 use Spatie\LaravelData\Attributes\Validation\In;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Optional;
 
 /**
- * Fixture {@see Data} class exercising validation-rule → OpenAPI schema
- * constraint merging in {@see \Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass}.
+ * Fixture {@see Data} class exercising validation-rule → OpenAPI schema constraint merging in
+ * {@see SchemaFromDataClass}.
  *
  * Each property covers a distinct rule-to-constraint mapping:
  * - `name`        → maxLength from `max:250`

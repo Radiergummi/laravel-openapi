@@ -3,7 +3,7 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
@@ -24,8 +24,8 @@ use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
 use function is_array;
 
 /**
- * Reports schemas that declare an empty `enum` array, which makes the schema
- * unsatisfiable — no value can ever be valid.
+ * Reports schemas that declare an empty `enum` array, which makes the schema unsatisfiable — no
+ * value can ever be valid.
  */
 final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRuleVisitor
 {
@@ -47,6 +47,29 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
                 fixHint: 'Add at least one valid enum value or remove the enum constraint.',
             );
         }
+    }
+
+    /**
+     * Returns true only when the enum was explicitly set to an empty array.
+     * A null value means the key was absent entirely — not an error.
+     *
+     * @param null|list<mixed>|mixed $enum
+     */
+    private function isEmptyEnum(mixed $enum): bool
+    {
+        return is_array($enum) && $enum === [];
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'schema.enum-empty';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 1;
     }
 
     /**
@@ -82,31 +105,8 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
     }
 
     #[Override]
-    public function id(): string
-    {
-        return 'schema.enum-empty';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        return 1;
-    }
-
-    #[Override]
     public function description(): string
     {
         return 'A schema declares an empty enum (enum: []) and is unsatisfiable.';
-    }
-
-    /**
-     * Returns true only when the enum was explicitly set to an empty array.
-     * A null value means the key was absent entirely — not an error.
-     *
-     * @param null|list<mixed>|mixed $enum
-     */
-    private function isEmptyEnum(mixed $enum): bool
-    {
-        return is_array($enum) && $enum === [];
     }
 }
