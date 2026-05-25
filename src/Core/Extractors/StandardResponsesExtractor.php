@@ -130,11 +130,11 @@ final readonly class StandardResponsesExtractor
             $status = (int) $entry['status'];
 
             if (!array_key_exists($status, $byStatus)) {
-                assert(class_exists($throw) && is_a($throw, Throwable::class, true));
-                $byStatus[$status] = [
-                    'description' => (string) $entry['description'],
-                    'exception'   => $throw,
-                ];
+                $stored = ['description' => (string) $entry['description']];
+                if (class_exists($throw) && is_a($throw, Throwable::class, true)) {
+                    $stored['exception'] = $throw;
+                }
+                $byStatus[$status] = $stored;
             }
         }
 
@@ -162,7 +162,6 @@ final readonly class StandardResponsesExtractor
 
         foreach ($byStatus as $status => $entry) {
             $exceptionClass = $entry['exception'] ?? null;
-            assert($exceptionClass === null || is_a($exceptionClass, Throwable::class, true));
 
             $errorDescriptor = new ErrorDescriptor(
                 status: $status,
@@ -301,7 +300,10 @@ final readonly class StandardResponsesExtractor
 
         $stored = ['description' => (string) $entry['description']];
 
-        if (isset($entry['exception'])) {
+        if (isset($entry['exception'])
+            && class_exists($entry['exception'])
+            && is_a($entry['exception'], Throwable::class, true)
+        ) {
             $stored['exception'] = $entry['exception'];
         }
         $byStatus[$status] = $stored;
@@ -351,6 +353,14 @@ final readonly class StandardResponsesExtractor
     /**
      * Composes the resolver's body slice with the extractor-owned fields: response key,
      * default description, named-component registration.
+     *
+     * A named component is only used when the body is empty (description-only). When a
+     * resolver produces content, headers, or links, the response is inlined per operation to
+     * avoid first-write-wins collisions on the shared component — e.g. two operations at 422
+     * with different resolver outputs (generic Error vs. ValidationError) would otherwise
+     * silently share the first registration. The shared schemas referenced inside the content
+     * (e.g. `$ref: '#/components/schemas/Error'`) are still reused; only the response wrapper
+     * is inlined.
      */
     private function buildResponse(
         ErrorDescriptor $descriptor,
@@ -375,8 +385,29 @@ final readonly class StandardResponsesExtractor
             }
         }
 
+        $hasBody = $content !== null || $headers !== null || $links !== null;
+
+        // Share via a named response component only when the body is empty
+        // (description-only). Resolver-produced bodies may vary by descriptor —
+        // e.g. validation vs generic at status 422 — so we inline them per operation
+        // to avoid first-write-wins collisions on the shared component.
+        if ($componentName !== null && !$hasBody) {
+            $this->registry->registerNamedResponse(
+                $componentName,
+                new OA\Response([
+                    'response'    => $componentName,
+                    'description' => $description,
+                ]),
+            );
+
+            return new OA\Response([
+                'response' => (string) $descriptor->status,
+                'ref'      => $this->registry->qualifyKey($componentName, ComponentType::Responses),
+            ]);
+        }
+
         $properties = [
-            'response'    => $componentName ?? (string) $descriptor->status,
+            'response'    => (string) $descriptor->status,
             'description' => $description,
         ];
 
@@ -388,18 +419,6 @@ final readonly class StandardResponsesExtractor
         }
         if ($links !== null) {
             $properties['links'] = $links;
-        }
-
-        if ($componentName !== null) {
-            $this->registry->registerNamedResponse(
-                $componentName,
-                new OA\Response($properties),
-            );
-
-            return new OA\Response([
-                'response' => (string) $descriptor->status,
-                'ref'      => $this->registry->qualifyKey($componentName, ComponentType::Responses),
-            ]);
         }
 
         return new OA\Response($properties);

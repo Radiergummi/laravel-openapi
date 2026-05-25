@@ -36,10 +36,9 @@ it('renders the configured envelope on error responses', function (
 
     $spec = generateSpec();
 
-    $unauthorizedResponse = $spec['components']['responses']['Unauthorized'];
-
     if ($preset === 'none') {
-        // Bodyless — description present, no content key.
+        // Bodyless — shared component exists with description but no content.
+        $unauthorizedResponse = $spec['components']['responses']['Unauthorized'];
         expect($unauthorizedResponse)->toHaveKey('description');
         expect($unauthorizedResponse)->not->toHaveKey('content');
 
@@ -49,17 +48,22 @@ it('renders the configured envelope on error responses', function (
     assert($expectedMediaType !== null && $expectedSchemaKey !== null);
     assert($preset === 'laravel' || $preset === 'rfc7807' || $preset === 'json-api');
 
-    // 401 Unauthorized
+    // When a resolver produces a body, responses are inlined per-operation to avoid
+    // first-write-wins collisions on shared components (e.g. two operations at 422
+    // with different resolver outputs). Look up the inline path on the operation.
+    $operation = $spec['paths']['/widgets/{id}']['get'];
+
+    // 401 Unauthorized — inlined on the operation
+    $unauthorizedResponse = $operation['responses']['401'];
     expect($unauthorizedResponse)->toHaveKey('content');
     expect($unauthorizedResponse['content'])->toHaveKey($expectedMediaType);
 
     $schema = $unauthorizedResponse['content'][$expectedMediaType]['schema'];
-
     expect($schema)->toHaveKey('$ref');
     expect($schema['$ref'])->toBe('#/components/schemas/' . $expectedSchemaKey);
 
-    // 422 ValidationFailed
-    $validationFailedResponse = $spec['components']['responses']['ValidationFailed'];
+    // 422 ValidationFailed — inlined on the operation
+    $validationFailedResponse = $operation['responses']['422'];
     expect($validationFailedResponse)->toHaveKey('content');
     expect($validationFailedResponse['content'])->toHaveKey($expectedMediaType);
 
@@ -74,8 +78,8 @@ it('renders the configured envelope on error responses', function (
     };
     expect($validationSchema['$ref'])->toBe('#/components/schemas/' . $expectedValidationSchemaKey);
 
-    // 404 NotFound
-    $notFoundResponse = $spec['components']['responses']['NotFound'];
+    // 404 NotFound — inlined on the operation
+    $notFoundResponse = $operation['responses']['404'];
     expect($notFoundResponse)->toHaveKey('content');
     expect($notFoundResponse['content'])->toHaveKey($expectedMediaType);
 
