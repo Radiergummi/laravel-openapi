@@ -34,6 +34,11 @@ use Radiergummi\OpenApi\Core\Extractors\StandardResponsesExtractor;
  *
  * Branching on `$descriptor->exceptionClass` must use `is_a($cls, X::class, true)`, not
  * strict equality — user code routinely subclasses framework exceptions.
+ *
+ * Implementations that register shared component schemas via `ComponentSchemaRegistry` must
+ * do so idempotently — typically by guarding with `$registry->hasKey()`. This method is
+ * invoked once per status code per operation, so non-idempotent registration silently bakes
+ * the first call's context into the shared component for every subsequent call.
  */
 interface ErrorResponseResolver
 {

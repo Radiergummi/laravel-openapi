@@ -370,6 +370,8 @@ final class MyEnvelope implements ErrorResponseResolver
 {
     public function resolveErrorResponse(ErrorDescriptor $descriptor): ?ErrorResponse
     {
+        // $descriptor->exceptionClass is null for middleware-detected responses whose
+        // middleware_responses entry has no 'exception' key — always guard the is_a check.
         // Use is_a — never strict equality on framework exceptions.
         if ($descriptor->exceptionClass !== null
             && is_a($descriptor->exceptionClass, MyDomainException::class, true)
