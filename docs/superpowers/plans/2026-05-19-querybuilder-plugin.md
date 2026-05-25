@@ -1,12 +1,12 @@
 # QueryBuilder Plugin Implementation Plan
 
-> **Read first:** `docs/superpowers/plans/plugin-suite-program.md` — the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
+> **Read first:** `docs/superpowers/plans/plugin-suite-program.md`—the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
 >
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Teach the OpenAPI core to document the `filter[...]`, `sort`, and `include` query-string parameters that `spatie/laravel-query-builder` endpoints accept, deriving them from method-level `#[AllowedFilter]`, `#[AllowedSort]`, and `#[AllowedInclude]` attributes.
 
-**Architecture:** This is build step 3 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). It depends on build step 1 being merged. A query-builder call (`QueryBuilder::for(Model::class)->allowedFilters(...)`) defines the accepted parameters in a method body, which the generator never reads (OAPI-017); the plugin resolves them from attributes instead. The plugin registers one `QueryParameterResolver` (the first the package ships) and two lint rules. **No third-party dependency at generation time** — the plugin only reads its own attributes; `spatie/laravel-query-builder` is added to `require-dev` / `suggest` in build step 5. The plugin is **shipped commented-out** in `config/openapi.php`; users uncomment it after installing the package.
+**Architecture:** This is build step 3 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). It depends on build step 1 being merged. A query-builder call (`QueryBuilder::for(Model::class)->allowedFilters(...)`) defines the accepted parameters in a method body, which the generator never reads (OAPI-017); the plugin resolves them from attributes instead. The plugin registers one `QueryParameterResolver` (the first the package ships) and two lint rules. **No third-party dependency at generation time**—the plugin only reads its own attributes; `spatie/laravel-query-builder` is added to `require-dev` / `suggest` in build step 5. The plugin is **shipped commented-out** in `config/openapi.php`; users uncomment it after installing the package.
 
 **Tech Stack:** PHP 8.4, Laravel 12/13, swagger-php (`OpenApi\Annotations`), Pest + Orchestra Testbench.
 
@@ -24,17 +24,17 @@
 
 | File | Responsibility |
 |---|---|
-| `src/Plugins/QueryBuilder/Attributes/AllowedFilter.php` (create) | Repeatable method-level attribute — one `filter[name]` parameter. |
-| `src/Plugins/QueryBuilder/Attributes/AllowedSort.php` (create) | Method-level attribute — the `sort` parameter and its allowed fields. |
-| `src/Plugins/QueryBuilder/Attributes/AllowedInclude.php` (create) | Method-level attribute — the `include` parameter and its allowed relations. |
+| `src/Plugins/QueryBuilder/Attributes/AllowedFilter.php` (create) | Repeatable method-level attribute—one `filter[name]` parameter. |
+| `src/Plugins/QueryBuilder/Attributes/AllowedSort.php` (create) | Method-level attribute—the `sort` parameter and its allowed fields. |
+| `src/Plugins/QueryBuilder/Attributes/AllowedInclude.php` (create) | Method-level attribute—the `include` parameter and its allowed relations. |
 | `src/Plugins/QueryBuilder/QueryBuilderParameterResolver.php` (create) | `QueryParameterResolver` turning the attributes into `OA\Parameter`s. |
-| `src/Plugins/QueryBuilder/QueryBuilderPlugin.php` (create) | `Plugin` — registers the resolver and lint rules. |
+| `src/Plugins/QueryBuilder/QueryBuilderPlugin.php` (create) | `Plugin`—registers the resolver and lint rules. |
 | `src/Plugins/QueryBuilder/Lint/Rules/QueryBuilderParamsUndeclared.php` (create) | Lint rule `query-builder.params-undeclared`. |
 | `src/Plugins/QueryBuilder/Lint/Rules/QueryBuilderFilterTypeMissing.php` (create) | Lint rule `query-builder.filter-type-missing`. |
 | `config/openapi.php` (modify) | Add a commented-out `QueryBuilderPlugin::class` entry. |
 | `tests/Feature/Plugins/QueryBuilder/QueryBuilderParameterTest.php` (create) | End-to-end document generation. |
 | `tests/Unit/Plugins/QueryBuilder/*` (create) | Unit tests for the resolver and lint rules. |
-| `docs/known-gaps.md`, `CHANGELOG.md`, `docs/usage.md` (modify) | Per-change doc obligations. |
+| `../../internal/known-gaps.md`, `CHANGELOG.md`, `docs/usage.md` (modify) | Per-change doc obligations. |
 
 **No `OpenApiServiceProvider` change is needed:** `QueryBuilderParameterResolver`, the two lint rules, and `QueryBuilderPlugin` have no constructor dependencies and are autowired by the container.
 
@@ -79,7 +79,7 @@ it('is repeatable and targets methods', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Attributes/AllowedFilterTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -97,7 +97,7 @@ use BackedEnum;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 
 /**
- * Declares one `spatie/laravel-query-builder` allowed filter — emitted as a
+ * Declares one `spatie/laravel-query-builder` allowed filter—emitted as a
  * `filter[name]` query-string parameter. Repeatable and method-level.
  *
  * ```php
@@ -110,7 +110,7 @@ use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 final readonly class AllowedFilter extends FieldAttribute
 {
     /**
-     * @param string                           $name The filter key — becomes `filter[name]`.
+     * @param string                           $name The filter key—becomes `filter[name]`.
      * @param null|list<BackedEnum|int|string> $enum
      */
     public function __construct(
@@ -147,7 +147,7 @@ final readonly class AllowedFilter extends FieldAttribute
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Attributes/AllowedFilterTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -161,7 +161,7 @@ git commit -m "feat: add AllowedFilter attribute for QueryBuilder plugin"
 
 ## Task 2: `AllowedSort` and `AllowedInclude` attributes
 
-Both are method-level and **not** repeatable — each endpoint emits exactly one `sort` and one `include` parameter. Each carries a `list<string>` of allowed values; they do not need the JSON-Schema field surface, so they do not extend `FieldAttribute`.
+Both are method-level and **not** repeatable—each endpoint emits exactly one `sort` and one `include` parameter. Each carries a `list<string>` of allowed values; they do not need the JSON-Schema field surface, so they do not extend `FieldAttribute`.
 
 **Files:**
 - Create: `src/Plugins/QueryBuilder/Attributes/AllowedSort.php`
@@ -196,7 +196,7 @@ it('stores the allowed include relations', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Attributes/AllowedSortIncludeTest.php`
-Expected: FAIL — classes not found.
+Expected: FAIL—classes not found.
 
 - [x] **Step 3: Write the implementations**
 
@@ -249,7 +249,7 @@ use Attribute;
 
 /**
  * Declares the `spatie/laravel-query-builder` allowed includes for an endpoint
- * — emitted as the `include` query-string parameter. Method-level, not
+ *—emitted as the `include` query-string parameter. Method-level, not
  * repeatable.
  *
  * ```php
@@ -272,7 +272,7 @@ final readonly class AllowedInclude
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Attributes/AllowedSortIncludeTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -383,7 +383,7 @@ it('returns an empty array when no query-builder attributes are present', functi
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/QueryBuilderParameterResolverTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -497,7 +497,7 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/QueryBuilderParameterResolverTest.php`
-Expected: PASS — 4 tests.
+Expected: PASS—4 tests.
 
 - [x] **Step 5: Commit**
 
@@ -511,7 +511,7 @@ git commit -m "feat: add QueryBuilderParameterResolver"
 
 ## Task 4: `QueryBuilderPlugin` + config
 
-`QueryBuilderPlugin` registers the resolver and the two lint rules (created in Tasks 6–7 — register all now; the suite goes green at the end of Task 7). The plugin ships **commented-out** in `config/openapi.php`.
+`QueryBuilderPlugin` registers the resolver and the two lint rules (created in Tasks 6–7—register all now; the suite goes green at the end of Task 7). The plugin ships **commented-out** in `config/openapi.php`.
 
 **Files:**
 - Create: `src/Plugins/QueryBuilder/QueryBuilderPlugin.php`
@@ -567,7 +567,7 @@ In `config/openapi.php`, change the `plugins` array (which by build step 2 also 
 - [x] **Step 3: Run lint + analyse**
 
 Run: `vendor/bin/pint && composer analyse`
-Expected: Pint clean; PHPStan clean. (`composer test` fails until Tasks 6–7 create the two lint-rule classes — expected.)
+Expected: Pint clean; PHPStan clean. (`composer test` fails until Tasks 6–7 create the two lint-rule classes—expected.)
 
 - [x] **Step 4: Commit**
 
@@ -578,7 +578,7 @@ git commit -m "feat: add QueryBuilderPlugin (shipped disabled)"
 
 ---
 
-## Task 5: Feature test — query-builder parameters end-to-end
+## Task 5: Feature test—query-builder parameters end-to-end
 
 The plugin is disabled by default, so the test enables it via a `config()` override in `beforeEach` (set before the `scoped` `OpenApiRegistry` is first resolved). Fixture controller carries the attributes; no `spatie/laravel-query-builder` package is needed.
 
@@ -649,7 +649,7 @@ it('documents filter, sort, and include query parameters', function (): void {
 - [x] **Step 2: Run the test**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/QueryBuilder/QueryBuilderParameterTest.php`
-Expected: PASS — 1 test. (If the two lint-rule classes are still missing, complete Tasks 6–7 first.)
+Expected: PASS—1 test. (If the two lint-rule classes are still missing, complete Tasks 6–7 first.)
 
 - [x] **Step 3: Commit**
 
@@ -663,7 +663,7 @@ git commit -m "test: cover query-builder parameter generation end-to-end"
 
 ## Task 6: Lint rule `query-builder.filter-type-missing`
 
-Low severity (`level: 3`). Flags any `#[AllowedFilter]` on an operation's method whose `type` is `null` — the filter parameter is emitted with the default `string` type, which may be wrong.
+Low severity (`level: 3`). Flags any `#[AllowedFilter]` on an operation's method whose `type` is `null`—the filter parameter is emitted with the default `string` type, which may be wrong.
 
 **Files:**
 - Create: `src/Plugins/QueryBuilder/Lint/Rules/QueryBuilderFilterTypeMissing.php`
@@ -720,7 +720,7 @@ it('flags an #[AllowedFilter] declared without a type', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Lint/QueryBuilderFilterTypeMissingTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -744,7 +744,7 @@ use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use function sprintf;
 
 /**
- * Flags an `#[AllowedFilter]` declared with no `type` — the filter parameter
+ * Flags an `#[AllowedFilter]` declared with no `type`—the filter parameter
  * falls back to `string`, which may misrepresent the accepted value.
  */
 final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRule
@@ -772,7 +772,7 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
                 ruleId: $this->id(),
                 level: $this->level(),
                 message: sprintf(
-                    '#[AllowedFilter(\'%s\')] on %s %s has no type — the filter parameter defaults to string',
+                    '#[AllowedFilter(\'%s\')] on %s %s has no type—the filter parameter defaults to string',
                     $filter->name,
                     $operation->method,
                     $operation->pathUri,
@@ -805,7 +805,7 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Lint/QueryBuilderFilterTypeMissingTest.php`
-Expected: PASS — 1 test.
+Expected: PASS—1 test.
 
 - [x] **Step 5: Commit**
 
@@ -821,7 +821,7 @@ git commit -m "feat: add query-builder.filter-type-missing lint rule"
 
 Medium severity (`level: 2`). Flags an operation whose controller method **injects a `spatie/laravel-query-builder` `QueryBuilder`** (a method parameter typed `Spatie\QueryBuilder\QueryBuilder`) yet declares **none** of `#[AllowedFilter]` / `#[AllowedSort]` / `#[AllowedInclude]`.
 
-**Design decision — conservative detection.** Without method-body inference the generator cannot see `QueryBuilder::for(...)` calls inside a body. The one body-free signal of query-builder intent is an injected `QueryBuilder` parameter, so the rule keys off exactly that. The package class name is compared as a **string** (`$type->getName() === 'Spatie\\QueryBuilder\\QueryBuilder'`) so the rule needs neither the package installed nor the class loaded. The rule is intentionally narrow (few false positives) rather than heuristic; Medium severity keeps it off at the default lint level.
+**Design decision—conservative detection.** Without method-body inference the generator cannot see `QueryBuilder::for(...)` calls inside a body. The one body-free signal of query-builder intent is an injected `QueryBuilder` parameter, so the rule keys off exactly that. The package class name is compared as a **string** (`$type->getName() === 'Spatie\\QueryBuilder\\QueryBuilder'`) so the rule needs neither the package installed nor the class loaded. The rule is intentionally narrow (few false positives) rather than heuristic; Medium severity keeps it off at the default lint level.
 
 **Files:**
 - Create: `src/Plugins/QueryBuilder/Lint/Rules/QueryBuilderParamsUndeclared.php`
@@ -898,7 +898,7 @@ it('does not flag a method that declares query-builder attributes', function ():
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/QueryBuilder/Lint/QueryBuilderParamsUndeclaredTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -928,7 +928,7 @@ use function sprintf;
 /**
  * Flags a controller method that injects a `spatie/laravel-query-builder`
  * `QueryBuilder` but declares none of `#[AllowedFilter]`, `#[AllowedSort]`, or
- * `#[AllowedInclude]` — the endpoint accepts filter/sort/include parameters
+ * `#[AllowedInclude]`—the endpoint accepts filter/sort/include parameters
  * that the generated document does not describe.
  *
  * Detection is deliberately conservative: it keys off an injected `QueryBuilder`
@@ -1025,7 +1025,7 @@ git commit -m "feat: add query-builder.params-undeclared lint rule"
 ## Task 8: Documentation
 
 **Files:**
-- Modify: `CHANGELOG.md`, `docs/usage.md`, `docs/known-gaps.md`
+- Modify: `CHANGELOG.md`, `docs/usage.md`, `../../internal/known-gaps.md`
 
 - [x] **Step 1: Add a `CHANGELOG.md` entry**
 
@@ -1033,7 +1033,7 @@ Under `## [Unreleased]` → `### Added`, append:
 
 ```markdown
 - `spatie/laravel-query-builder` filter/sort/include query parameters are now
-  documented via the optional `QueryBuilderPlugin` (shipped disabled — uncomment
+  documented via the optional `QueryBuilderPlugin` (shipped disabled—uncomment
   it in `config/openapi.php` after installing the package). Endpoints declare
   parameters with `#[AllowedFilter]`, `#[AllowedSort]`, and `#[AllowedInclude]`.
   Two lint rules (`query-builder.params-undeclared`,
@@ -1044,7 +1044,7 @@ Under `## [Unreleased]` → `### Added`, append:
 
 Add a short subsection: how to enable `QueryBuilderPlugin` (uncomment in config + `composer require spatie/laravel-query-builder`), and how to declare the three attributes. Keep it to the minimal observable-behaviour description CLAUDE.md mandates.
 
-- [x] **Step 3: Update `docs/known-gaps.md`**
+- [x] **Step 3: Update `../../internal/known-gaps.md`**
 
 In the OAPI-017 section, note that query-builder parameters are derived from `#[AllowedFilter]` / `#[AllowedSort]` / `#[AllowedInclude]` attributes rather than from `QueryBuilder::for(...)` calls in method bodies.
 
@@ -1068,7 +1068,7 @@ git commit -m "docs: document the QueryBuilder plugin"
 
 **Type consistency:** `AllowedFilter` exposes `name` + `type` + `descriptor()` (from `FieldAttribute`), used identically in Tasks 3 and 6. `AllowedSort::$fields` and `AllowedInclude::$names` are `list<string>`, consumed by `QueryBuilderParameterResolver::listParameter()` (Task 3). `QueryBuilderParameterResolver::resolveQueryParameters(): list<OA\Parameter>` matches the `QueryParameterResolver` interface.
 
-**Design decision noted:** `query-builder.params-undeclared` keys off an injected `QueryBuilder` parameter rather than a body-inference heuristic — documented in Task 7. This is conservative (low false positives) at the cost of missing the common `QueryBuilder::for(...)`-in-body pattern; acceptable given the no-method-body-inference rule.
+**Design decision noted:** `query-builder.params-undeclared` keys off an injected `QueryBuilder` parameter rather than a body-inference heuristic—documented in Task 7. This is conservative (low false positives) at the cost of missing the common `QueryBuilder::for(...)`-in-body pattern; acceptable given the no-method-body-inference rule.
 
 **Done criteria:**
 - `composer test` is green with the new unit + feature tests.
@@ -1077,5 +1077,5 @@ git commit -m "docs: document the QueryBuilder plugin"
 
 ## Next plans in this program
 
-4. `FractalPlugin` — `docs/superpowers/plans/2026-05-19-fractal-plugin.md`.
-5. composer.json + config-defaults wiring — `docs/superpowers/plans/2026-05-19-plugin-suite-wiring.md`.
+4. `FractalPlugin`—`docs/superpowers/plans/2026-05-19-fractal-plugin.md`.
+5. composer.json + config-defaults wiring—`docs/superpowers/plans/2026-05-19-plugin-suite-wiring.md`.

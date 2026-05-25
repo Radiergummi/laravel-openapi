@@ -1,4 +1,4 @@
-# Examples Suite — Design
+# Examples Suite—Design
 
 **Date:** 2026-05-20
 **Status:** Approved (brainstorming)
@@ -10,7 +10,7 @@
 
 - Give a viewer a one-screen mental model: *here is the code I write, here is the OpenAPI spec it produces.*
 - Cover the five permutations of "how Laravel devs typically structure controllers": vanilla, FormRequest, Spatie Data, Spatie QueryBuilder, and a realistic mix.
-- Keep every example **booted by a real Laravel container** (via Testbench) so the spec generation path is the production path — no special demo wiring.
+- Keep every example **booted by a real Laravel container** (via Testbench) so the spec generation path is the production path—no special demo wiring.
 - Commit the generated `openapi.yaml` alongside each example so colleagues can read code and output side-by-side without running anything.
 - Catch drift: committed YAMLs are verified against fresh generation in CI.
 
@@ -24,28 +24,28 @@
 
 ## Shared domain
 
-All examples expose the same two resources with the same field shape. The shape is intentionally simple — interest should be in *how each flavor expresses it*, not the domain.
+All examples expose the same two resources with the same field shape. The shape is intentionally simple—interest should be in *how each flavor expresses it*, not the domain.
 
 **Flight**
-- `id` — uuid
-- `number` — string, e.g. `"LH400"`
-- `origin` — string, IATA airport code (3 letters)
-- `destination` — string, IATA airport code (3 letters)
-- `departs_at` — ISO 8601 datetime
-- `arrives_at` — ISO 8601 datetime
-- `status` — enum: `scheduled | boarding | departed | arrived | cancelled`
-- `aircraft_type` — string, e.g. `"A320"`
+- `id`—uuid
+- `number`—string, e.g. `"LH400"`
+- `origin`—string, IATA airport code (3 letters)
+- `destination`—string, IATA airport code (3 letters)
+- `departs_at`—ISO 8601 datetime
+- `arrives_at`—ISO 8601 datetime
+- `status`—enum: `scheduled | boarding | departed | arrived | cancelled`
+- `aircraft_type`—string, e.g. `"A320"`
 
 **Booking**
-- `id` — uuid
-- `flight_id` — uuid
-- `passenger_name` — string
-- `seat` — string, e.g. `"12A"`
-- `created_at` — ISO 8601 datetime
+- `id`—uuid
+- `flight_id`—uuid
+- `passenger_name`—string
+- `seat`—string, e.g. `"12A"`
+- `created_at`—ISO 8601 datetime
 
 ## API surface
 
-Every flavor exposes the same eight endpoints with the same URIs and methods. The request/response *body* shapes are equivalent across flavors. The **query string** of `GET /flights` and `GET /flights/{flight}/bookings` is intentionally richer in the `query-builder` and `combined` flavors — that surface area is the whole point of those flavors.
+Every flavor exposes the same eight endpoints with the same URIs and methods. The request/response *body* shapes are equivalent across flavors. The **query string** of `GET /flights` and `GET /flights/{flight}/bookings` is intentionally richer in the `query-builder` and `combined` flavors—that surface area is the whole point of those flavors.
 
 | Method | Path | Purpose |
 |--------|------|---------|
@@ -141,14 +141,14 @@ examples/
 
 Each `ExampleServiceProvider` is the **only** plumbing file. It:
 1. Loads its `routes/api.php`.
-2. Returns its routes namespaced under `/examples/<flavor>` — *not* used at generation time (each flavor is generated in isolation, against a clean container), but kept so a curious developer could mount multiple flavors in one boot for comparison.
+2. Returns its routes namespaced under `/examples/<flavor>`—*not* used at generation time (each flavor is generated in isolation, against a clean container), but kept so a curious developer could mount multiple flavors in one boot for comparison.
 
 Each flavor's controllers use **only the techniques its name advertises**. No FormRequests in `vanilla/`. No QueryBuilder outside `query-builder/` and `combined/`. The point is that each spec is attributable to its technique.
 
 ### `vanilla`
 - Controllers use `$request->validate([...])` for input.
 - Responses are returned as plain associative arrays.
-- Demonstrates: the generator's baseline coverage when given no extra hints — what does it derive from a method signature and a `return ['id' => ...]`?
+- Demonstrates: the generator's baseline coverage when given no extra hints—what does it derive from a method signature and a `return ['id' => ...]`?
 
 ### `form-requests`
 - Each write endpoint has a dedicated `FormRequest` subclass with `rules()`.
@@ -161,7 +161,7 @@ Each flavor's controllers use **only the techniques its name advertises**. No Fo
 
 ### `query-builder`
 - `GET /flights` and `GET /flights/{flight}/bookings` go through `QueryBuilder::for(Flight::class)` with `AllowedFilter`s (`number`, `status`, `origin`), `AllowedSort`s (`departs_at`, `number`), and `AllowedInclude`s (`bookings`).
-- Write endpoints use plain validation (kept simple — the point of this flavor is the list-endpoint surface).
+- Write endpoints use plain validation (kept simple—the point of this flavor is the list-endpoint surface).
 - Demonstrates: the QueryBuilder plugin generating filter/sort/include query parameters.
 
 ### `combined`
@@ -205,14 +205,14 @@ One new Pest feature test, `tests/Feature/ExamplesTest.php`, parameterised over 
 1. Boot Testbench with the flavor's `ExampleServiceProvider` (using the same `TestbenchBoot` helper).
 2. Run the generator in-memory (capture output to a string, do not write to disk).
 3. Assert the captured YAML matches `examples/<flavor>/openapi.yaml` byte-for-byte. **Snapshot mismatch fails CI.**
-4. Assert the captured YAML validates against the OpenAPI 3.1 JSON Schema — reusing the existing validator from `tests/Support` (the test suite already validates generated docs; this is the same call).
+4. Assert the captured YAML validates against the OpenAPI 3.1 JSON Schema—reusing the existing validator from `tests/Support` (the test suite already validates generated docs; this is the same call).
 
 This guarantees the committed snapshots can't drift from the code, and that every flavor produces a spec that is structurally valid OpenAPI 3.1.
 
 ## Documentation
 
-- `examples/README.md` — short intro, a table of flavors with one-line pitches, and links into each subdirectory. Mentions the auth flavors as "coming next."
-- `examples/<flavor>/README.md` — three or four sentences per flavor: what's distinctive, which files to read first, what to notice in the generated `openapi.yaml`.
+- `examples/README.md`—short intro, a table of flavors with one-line pitches, and links into each subdirectory. Mentions the auth flavors as "coming next."
+- `examples/<flavor>/README.md`—three or four sentences per flavor: what's distinctive, which files to read first, what to notice in the generated `openapi.yaml`.
 
 ## Out of scope (explicit deferrals)
 

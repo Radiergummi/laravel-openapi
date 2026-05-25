@@ -2,30 +2,30 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let one Laravel application produce several independent OpenAPI documents — `default`, plus any number of named specs partitioned by URL prefix, middleware, namespace, or `#[Spec]` attribute.
+**Goal:** Let one Laravel application produce several independent OpenAPI documents—`default`, plus any number of named specs partitioned by URL prefix, middleware, namespace, or `#[Spec]` attribute.
 
-**Architecture:** A new `SpecRegistry` (config-derived, `scoped`) materialises a list of `SpecDefinition` value objects. An `InclusionEvaluator` is the single source of truth for "does route R belong to spec X?" — used by the generator, by `openapi:why`, and by `openapi:generate --explain`. The existing `OpenApiGenerator::generate()` becomes spec-parameterised; a thin `OpenApiGenerationOrchestrator` exposes `generateOne()` / `generateAll()`. Lint gains a `PreBuildRule` interface for config-level rules and loops per-spec for the existing visitor rules. HTTP serving mounts one `spec` + one `playground` route per spec with non-null `route_uri` / `playground_uri`.
+**Architecture:** A new `SpecRegistry` (config-derived, `scoped`) materialises a list of `SpecDefinition` value objects. An `InclusionEvaluator` is the single source of truth for "does route R belong to spec X?"—used by the generator, by `openapi:why`, and by `openapi:generate --explain`. The existing `OpenApiGenerator::generate()` becomes spec-parameterised; a thin `OpenApiGenerationOrchestrator` exposes `generateOne()` / `generateAll()`. Lint gains a `PreBuildRule` interface for config-level rules and loops per-spec for the existing visitor rules. HTTP serving mounts one `spec` + one `playground` route per spec with non-null `route_uri` / `playground_uri`.
 
 **Tech Stack:** PHP 8.4 strict-typed, Laravel 12/13, Pest (Testbench), Larastan level 8, swagger-php (OpenAPI 3.1).
 
-**Spec:** `docs/superpowers/specs/2026-05-22-multi-spec-design.md` — implementation MUST match the design verbatim. When the plan and spec disagree, the spec wins; revise the plan rather than drift.
+**Spec:** `docs/superpowers/specs/2026-05-22-multi-spec-design.md`—implementation MUST match the design verbatim. When the plan and spec disagree, the spec wins; revise the plan rather than drift.
 
 ---
 
 ## File map
 
 **New (production):**
-- `src/Core/Spec/SpecDefinition.php` — immutable value object
-- `src/Core/Spec/SpecRegistry.php` — config-derived registry
-- `src/Core/Spec/SpecMatcher.php` — `prefix` / `middleware` / `namespace` evaluator
-- `src/Core/Spec/SpecResolver.php` — reads `#[Spec]` from an `ActionDescriptor`
-- `src/Core/Attributes/Spec.php` — the new attribute
-- `src/Core/Inclusion/InclusionEvaluator.php` — the 4-rule decision
-- `src/Core/Inclusion/InclusionDecision.php` — result value object
-- `src/Core/Inclusion/TraceEntry.php` — debug trace line
-- `src/Core/Generator/OpenApiGenerationOrchestrator.php` — `generateOne` / `generateAll`
-- `src/Console/WhyCommand.php` — `openapi:why`
-- `src/Core/Lint/Rules/Visitors/PreBuildRule.php` — pre-build rule contract
+- `src/Core/Spec/SpecDefinition.php`—immutable value object
+- `src/Core/Spec/SpecRegistry.php`—config-derived registry
+- `src/Core/Spec/SpecMatcher.php`—`prefix` / `middleware` / `namespace` evaluator
+- `src/Core/Spec/SpecResolver.php`—reads `#[Spec]` from an `ActionDescriptor`
+- `src/Core/Attributes/Spec.php`—the new attribute
+- `src/Core/Inclusion/InclusionEvaluator.php`—the 4-rule decision
+- `src/Core/Inclusion/InclusionDecision.php`—result value object
+- `src/Core/Inclusion/TraceEntry.php`—debug trace line
+- `src/Core/Generator/OpenApiGenerationOrchestrator.php`—`generateOne` / `generateAll`
+- `src/Console/WhyCommand.php`—`openapi:why`
+- `src/Core/Lint/Rules/Visitors/PreBuildRule.php`—pre-build rule contract
 - `src/Core/Lint/Rules/SpecUnknownReference.php`
 - `src/Core/Lint/Rules/SpecRouteOrphaned.php`
 - `src/Core/Lint/Rules/SpecConfigOrphaned.php`
@@ -48,32 +48,32 @@
 - `tests/Feature/NoEagerResolutionTest.php`
 
 **Modified (production):**
-- `src/Core/Generator/OpenApiGenerator.php` — `generate(SpecDefinition $spec, …)` signature; reads info/servers/tags from spec; routes through `InclusionEvaluator`
-- `src/OpenApiServiceProvider.php` — bind new services; mount per-spec routes
-- `src/Http/DocsController.php` — accept `?string $spec` route binding
-- `src/Console/GenerateCommand.php` — optional positional `spec`; `--explain` flag; loops over orchestrator
-- `src/Console/ClearCommand.php` — optional positional `spec`
-- `src/Console/LintCommand.php` — `--spec=` option
-- `src/Core/Lint/LintRunner.php` — pre-build phase; per-spec generation loop; spec-tagged findings
-- `src/Core/Lint/LintOptions.php` — `?string $spec` field
-- `src/Core/Lint/LintResult.php` — `spec` key on per-finding grouping (already in `Finding`)
-- `src/Core/Lint/Finding.php` — add `?string $spec` field
-- `src/Core/Lint/Formatters/CliFormatter.php` — group by spec
-- `src/Core/Lint/Formatters/GithubFormatter.php` — add `spec` to annotation context
-- `src/Core/Lint/Formatters/JsonFormatter.php` — passes through (`spec` already on Finding)
-- `config/openapi.php` — commented `'specs'` example
-- `tests/Pest.php` — update `generateSpec()` helper
+- `src/Core/Generator/OpenApiGenerator.php`—`generate(SpecDefinition $spec, …)` signature; reads info/servers/tags from spec; routes through `InclusionEvaluator`
+- `src/OpenApiServiceProvider.php`—bind new services; mount per-spec routes
+- `src/Http/DocsController.php`—accept `?string $spec` route binding
+- `src/Console/GenerateCommand.php`—optional positional `spec`; `--explain` flag; loops over orchestrator
+- `src/Console/ClearCommand.php`—optional positional `spec`
+- `src/Console/LintCommand.php`—`--spec=` option
+- `src/Core/Lint/LintRunner.php`—pre-build phase; per-spec generation loop; spec-tagged findings
+- `src/Core/Lint/LintOptions.php`—`?string $spec` field
+- `src/Core/Lint/LintResult.php`—`spec` key on per-finding grouping (already in `Finding`)
+- `src/Core/Lint/Finding.php`—add `?string $spec` field
+- `src/Core/Lint/Formatters/CliFormatter.php`—group by spec
+- `src/Core/Lint/Formatters/GithubFormatter.php`—add `spec` to annotation context
+- `src/Core/Lint/Formatters/JsonFormatter.php`—passes through (`spec` already on Finding)
+- `config/openapi.php`—commented `'specs'` example
+- `tests/Pest.php`—update `generateSpec()` helper
 - `README.md`, `docs/usage.md`, `docs/lint-rules.md`, `CHANGELOG.md`
 
 ---
 
-## Phase A — Foundations
+## Phase A—Foundations
 
-> **Note on per-run state.** Commit `621df4b` deliberately removed `reset()` methods from the per-run-stateful services. The supported pattern is `$container->forgetScopedInstances()` — the same approach `LintRunner::installArrayCollector()` already uses. Task C2 (orchestrator) applies this between spec generations; no `reset()` methods need to be re-introduced.
+> **Note on per-run state.** Commit `621df4b` deliberately removed `reset()` methods from the per-run-stateful services. The supported pattern is `$container->forgetScopedInstances()`—the same approach `LintRunner::installArrayCollector()` already uses. Task C2 (orchestrator) applies this between spec generations; no `reset()` methods need to be re-introduced.
 
 ### Task A1: `SpecDefinition` value object
 
-Immutable record describing one named spec. Pure data — no logic, no Laravel deps. Used by `SpecRegistry`, `OpenApiGenerator`, `InclusionEvaluator`.
+Immutable record describing one named spec. Pure data—no logic, no Laravel deps. Used by `SpecRegistry`, `OpenApiGenerator`, `InclusionEvaluator`.
 
 **Files:**
 - Create: `src/Core/Spec/SpecDefinition.php`
@@ -213,7 +213,7 @@ git commit -m "feat(spec): add SpecDefinition value object"
 
 ---
 
-### Task A2: `SpecMatcher` — config-driven matching
+### Task A2: `SpecMatcher`—config-driven matching
 
 Pure evaluator for the three `match` config keys (`prefix`, `middleware`, `namespace`). No Laravel container access. Operates on a route URI + middleware list + controller FQCN.
 
@@ -236,7 +236,7 @@ beforeEach(function (): void {
     $this->matcher = new SpecMatcher();
 });
 
-it('matches empty / missing config — matches everything', function (): void {
+it('matches empty / missing config—matches everything', function (): void {
     expect($this->matcher->matches(uri: 'api/anything', middleware: [], controller: null, match: []))->toBeTrue();
 });
 
@@ -276,7 +276,7 @@ it('matches namespace prefix on controller FQCN', function (): void {
         ->and($this->matcher->matches('x', [], null, $match))->toBeFalse();
 });
 
-it('ANDs the three keys — every present key must match', function (): void {
+it('ANDs the three keys—every present key must match', function (): void {
     $match = [
         'prefix'     => 'api/v1/*',
         'middleware' => 'auth:partner',
@@ -330,11 +330,11 @@ use function str_starts_with;
  *
  * Pure: no Laravel container access, no reflection. Stateless. Three supported keys:
  *
- * - `prefix`     — string|string[]: URI glob(s); matches if any matches via {@see fnmatch()}.
- * - `middleware` — string|string[]: middleware token(s); matches if any of the route's
+ * - `prefix`    —string|string[]: URI glob(s); matches if any matches via {@see fnmatch()}.
+ * - `middleware`—string|string[]: middleware token(s); matches if any of the route's
  *                  middleware entries equals the token OR shares the token's pre-`:` prefix
  *                  (so `'auth'` matches `'auth:api'`).
- * - `namespace`  — string|string[]: controller FQCN prefix(es); matches if the controller's
+ * - `namespace` —string|string[]: controller FQCN prefix(es); matches if the controller's
  *                  class name starts with any prefix. Closure routes (controller === null)
  *                  never match a namespace constraint.
  *
@@ -433,7 +433,7 @@ git commit -m "feat(spec): add SpecMatcher (prefix/middleware/namespace evaluato
 
 ---
 
-### Task A3: `SpecRegistry` — parses config into `SpecDefinition` list
+### Task A3: `SpecRegistry`—parses config into `SpecDefinition` list
 
 Reads root config + `'specs'` to produce one `SpecDefinition` per spec. Resolves defaults for `output_path`, `route_uri`, `playground_uri`. Handles `false`/`null` opt-out. Deep-merges `info` over root; replaces `servers` and `tags` wholesale.
 
@@ -611,7 +611,7 @@ use function sprintf;
  * the per-spec fields; missing keys fall back to root.
  *
  * Resolved lazily on first call and memoised for the lifetime of the registry
- * instance (which is bound `scoped` by the service provider — one instance per
+ * instance (which is bound `scoped` by the service provider—one instance per
  * generation run / per request).
  */
 final class SpecRegistry
@@ -845,11 +845,11 @@ use function is_string;
 /**
  * Pin a route to one or more named specs explicitly.
  *
- * When present, the spec partition's `match` config is ignored for this route — `#[Spec]` is
+ * When present, the spec partition's `match` config is ignored for this route—`#[Spec]` is
  * the definitive declaration. Global filters and `#[Hide]` / `#[Expose]` still apply.
  *
  * Forms:
- *   #[Spec]                 // ['default']  — opt out of named specs
+ *   #[Spec]                 // ['default'] —opt out of named specs
  *   #[Spec('v1')]           // ['v1']
  *   #[Spec(['v1', 'v2'])]   // ['v1', 'v2']
  *
@@ -890,7 +890,7 @@ git commit -m "feat(attributes): add #[Spec] for explicit per-route spec assignm
 
 ---
 
-### Task A5: `SpecResolver` — extracts the effective `#[Spec]` list from an `ActionDescriptor`
+### Task A5: `SpecResolver`—extracts the effective `#[Spec]` list from an `ActionDescriptor`
 
 Implements the class/method resolution rule: method-level `#[Spec]` attributes (union) replace class-level if any are present; otherwise class-level union; otherwise `null` (= no attribute, defer to filter).
 
@@ -900,7 +900,7 @@ Implements the class/method resolution rule: method-level `#[Spec]` attributes (
 
 - [ ] **Step 1: Write the failing test**
 
-Test fixtures are inline anonymous classes — no need for separate fixture files. Use real reflection.
+Test fixtures are inline anonymous classes—no need for separate fixture files. Use real reflection.
 
 ```php
 <?php
@@ -918,7 +918,7 @@ beforeEach(function (): void {
     $this->resolver = new SpecResolver();
 });
 
-// Fixtures — declared at module level so reflection sees them.
+// Fixtures—declared at module level so reflection sees them.
 
 #[Spec('v1')]
 final class FxClassOnly
@@ -1041,7 +1041,7 @@ use function array_values;
  * Returns:
  * - `null` when neither the controller class nor the action method carries `#[Spec]`
  *   (i.e. the route is subject to filter-based assignment).
- * - `list<string>` (possibly empty) — the union of all method-level `#[Spec]` attributes if
+ * - `list<string>` (possibly empty)—the union of all method-level `#[Spec]` attributes if
  *   the method carries any, otherwise the union of all class-level attributes.
  *
  * Method presence shadows the class: a method carrying `#[Spec]` ignores the class's
@@ -1106,7 +1106,7 @@ git commit -m "feat(spec): add SpecResolver (extracts effective #[Spec] from ref
 
 ---
 
-## Phase B — Inclusion engine
+## Phase B—Inclusion engine
 
 ### Task B1: `TraceEntry` + `InclusionDecision` value objects
 
@@ -1137,7 +1137,7 @@ namespace Radiergummi\OpenApi\Core\Inclusion;
  * One line in an inclusion-decision trace.
  *
  * Composed by {@see InclusionEvaluator} and rendered by the `openapi:why` command and
- * `openapi:generate --explain`. Pure data — no formatting decisions live here.
+ * `openapi:generate --explain`. Pure data—no formatting decisions live here.
  *
  * `stage` identifies the conceptual phase (e.g. `'global-filter'`, `'spec-attribute'`,
  * `'spec-match'`, `'visibility'`); `name` identifies the specific thing under that stage
@@ -1268,7 +1268,7 @@ use OpenApi\Annotations as OA;
 /**
  * Builds a minimal ActionDescriptor for testing. The evaluator only reads route + reflectors;
  * other descriptor fields can be safely null/empty. Implementations of this helper should
- * mirror the actual ActionDescriptor constructor — check current shape before authoring.
+ * mirror the actual ActionDescriptor constructor—check current shape before authoring.
  */
 function makeDescriptor(
     string $uri,
@@ -1593,7 +1593,7 @@ final readonly class InclusionEvaluator
 vendor/bin/pest tests/Unit/Inclusion/InclusionEvaluatorTest.php
 ```
 
-Expected: every test PASS. If the `makeDescriptor` helper struggles, read `src/Core/Routing/ActionDescriptor.php` and align the constructor arguments — the helper's job is to produce a real descriptor, no shortcuts.
+Expected: every test PASS. If the `makeDescriptor` helper struggles, read `src/Core/Routing/ActionDescriptor.php` and align the constructor arguments—the helper's job is to produce a real descriptor, no shortcuts.
 
 - [ ] **Step 5: Run the full unit suite**
 
@@ -1612,7 +1612,7 @@ git commit -m "feat(inclusion): add InclusionEvaluator (single source of truth f
 
 ---
 
-## Phase C — Generator integration
+## Phase C—Generator integration
 
 ### Task C1: Refactor `OpenApiGenerator::generate()` to take `SpecDefinition`
 
@@ -1620,9 +1620,9 @@ Replace the parameterless `$filters = []` shape with a `SpecDefinition $spec` fi
 
 **Files:**
 - Modify: `src/Core/Generator/OpenApiGenerator.php`
-- Modify: `tests/Unit/Core/Generator/OpenApiGeneratorTest.php` (existing — adapt to new signature)
+- Modify: `tests/Unit/Core/Generator/OpenApiGeneratorTest.php` (existing—adapt to new signature)
 - Modify: `tests/Pest.php` (the `generateSpec()` helper)
-- Modify: `src/OpenApiServiceProvider.php` (it constructs OpenApiGenerator; the constructor signature changes too — add the evaluator)
+- Modify: `src/OpenApiServiceProvider.php` (it constructs OpenApiGenerator; the constructor signature changes too—add the evaluator)
 
 - [ ] **Step 1: Adapt `OpenApiGenerator` constructor + `generate()`**
 
@@ -1637,7 +1637,7 @@ public function __construct(
 ) {}
 ```
 
-The `VisibilityResolver` member is removed — the evaluator owns visibility now. Update the class's `use` block to drop the now-unused `Visibility\*` imports and add the `Inclusion\*` import.
+The `VisibilityResolver` member is removed—the evaluator owns visibility now. Update the class's `use` block to drop the now-unused `Visibility\*` imports and add the `Inclusion\*` import.
 
 Change `generate()`:
 
@@ -1725,7 +1725,7 @@ private function fallbackServers(): array
 }
 ```
 
-Remove the now-unused `buildInfo`, `buildServers`, `buildTags`, `shouldSkip`, `isHidden`, `collectAttributes` methods — they all migrated into `SpecRegistry` / `InclusionEvaluator`. Run static analysis to find any leftovers.
+Remove the now-unused `buildInfo`, `buildServers`, `buildTags`, `shouldSkip`, `isHidden`, `collectAttributes` methods—they all migrated into `SpecRegistry` / `InclusionEvaluator`. Run static analysis to find any leftovers.
 
 - [ ] **Step 2: Update the `tests/Pest.php` helper**
 
@@ -1746,7 +1746,7 @@ function generateSpec(?string $specName = null, string $environment = 'testing')
 }
 ```
 
-Delete the old `$filters` parameter usage everywhere it appears in tests (a few feature tests call `generateSpec([...])` to inject custom filters — those filters now belong on the SpecDefinition or in a fresh helper).
+Delete the old `$filters` parameter usage everywhere it appears in tests (a few feature tests call `generateSpec([...])` to inject custom filters—those filters now belong on the SpecDefinition or in a fresh helper).
 
 Search:
 
@@ -1762,7 +1762,7 @@ Plan: any call passing filters needs to be revisited. For the immediate refactor
 vendor/bin/pest tests/Unit/Core/Generator/OpenApiGeneratorTest.php
 ```
 
-Failing tests need to pass `SpecRegistry::default()` + `$environment` to `generate()`. Adapt all calls. If the test was previously asserting against `config('openapi.info')`, it now asserts against the registry's resolved default spec — semantically equivalent.
+Failing tests need to pass `SpecRegistry::default()` + `$environment` to `generate()`. Adapt all calls. If the test was previously asserting against `config('openapi.info')`, it now asserts against the registry's resolved default spec—semantically equivalent.
 
 - [ ] **Step 4: Provide the evaluator in the service provider binding**
 
@@ -1780,7 +1780,7 @@ $this->app->scoped(
 );
 ```
 
-The `InclusionEvaluator` binding is added in Task D1 — this commit may temporarily break the boot. That's fine: D1 follows immediately and adds the binding.
+The `InclusionEvaluator` binding is added in Task D1—this commit may temporarily break the boot. That's fine: D1 follows immediately and adds the binding.
 
 - [ ] **Step 5: Adapt remaining feature tests**
 
@@ -1788,7 +1788,7 @@ The `InclusionEvaluator` binding is added in Task D1 — this commit may tempora
 vendor/bin/pest tests/Feature/ -v
 ```
 
-Many will fail because `generateSpec()` formerly accepted callable filters. Search them with `grep -rn "generateSpec(\[" tests/Feature/` — for each, replace the call with the new no-arg or named-spec form. If a test genuinely needs a route filter, register the filter through a temporary config push (`config(['openapi.filters' => [MyFilter::class]])` in the test's `beforeEach`).
+Many will fail because `generateSpec()` formerly accepted callable filters. Search them with `grep -rn "generateSpec(\[" tests/Feature/`—for each, replace the call with the new no-arg or named-spec form. If a test genuinely needs a route filter, register the filter through a temporary config push (`config(['openapi.filters' => [MyFilter::class]])` in the test's `beforeEach`).
 
 - [ ] **Step 6: Confirm Larastan still passes**
 
@@ -1802,10 +1802,10 @@ Expected: no errors. Fix any nullable/readonly mismatches introduced by removing
 
 ```
 git add src/Core/Generator/OpenApiGenerator.php src/OpenApiServiceProvider.php tests/Pest.php tests/
-git commit -m "refactor(generator): generate(SpecDefinition, env) — route through InclusionEvaluator"
+git commit -m "refactor(generator): generate(SpecDefinition, env)—route through InclusionEvaluator"
 ```
 
-(The service-provider compile error remains until D1 binds InclusionEvaluator — the next phase commit closes the loop. The plan deliberately couples this so the generator refactor lands as one focused change.)
+(The service-provider compile error remains until D1 binds InclusionEvaluator—the next phase commit closes the loop. The plan deliberately couples this so the generator refactor lands as one focused change.)
 
 ---
 
@@ -1859,7 +1859,7 @@ it('generateOne returns the document for the named spec', function (): void {
 it('resets ComponentSchemaRegistry between specs (no leakage)', function (): void {
     // Two specs claim different routes; the schemas referenced by spec A must not appear
     // in spec B. Use a real fixture pair under tests/Fixtures with distinct Data classes.
-    // (Implementation note: pick fixtures already used elsewhere in the suite — do not
+    // (Implementation note: pick fixtures already used elsewhere in the suite—do not
     // create new ones here; that would balloon scope.)
     // Concrete assertion: component keys in document A and document B are disjoint when
     // the route prefixes are disjoint and only-one-spec routes exist.
@@ -1886,7 +1886,7 @@ Expected: class-not-found.
 
 - [ ] **Step 3: Create the orchestrator**
 
-The orchestrator uses `Container::forgetScopedInstances()` to flush per-run state between spec generations — the established pattern (see `LintRunner::installArrayCollector()`). It re-resolves the generator after each forget so the fresh `ComponentSchemaRegistry` / `ExampleFileLoader` instances are used.
+The orchestrator uses `Container::forgetScopedInstances()` to flush per-run state between spec generations—the established pattern (see `LintRunner::installArrayCollector()`). It re-resolves the generator after each forget so the fresh `ComponentSchemaRegistry` / `ExampleFileLoader` instances are used.
 
 ```php
 <?php
@@ -1970,7 +1970,7 @@ $this->app->scoped(
 );
 ```
 
-The orchestrator only needs the container and the spec registry — fresh `OpenApiGenerator` instances are pulled out of the container on demand.
+The orchestrator only needs the container and the spec registry—fresh `OpenApiGenerator` instances are pulled out of the container on demand.
 
 - [ ] **Step 5: Run the test, confirm pass**
 
@@ -1989,7 +1989,7 @@ git commit -m "feat(generator): add OpenApiGenerationOrchestrator with per-spec 
 
 ---
 
-## Phase D — Service wiring
+## Phase D—Service wiring
 
 ### Task D1: Register `SpecRegistry` + `InclusionEvaluator` in the service provider
 
@@ -2083,7 +2083,7 @@ Iterate `SpecRegistry::all()` in `registerRoutes()`; mount one `spec` + one `pla
 **Files:**
 - Modify: `src/OpenApiServiceProvider.php`
 - Modify: `src/Http/DocsController.php`
-- Modify: `resources/views/playground.blade.php` (so the playground view receives the spec URL — read the current view first, may already accept `$specUrl`)
+- Modify: `resources/views/playground.blade.php` (so the playground view receives the spec URL—read the current view first, may already accept `$specUrl`)
 - Test: `tests/Feature/MultiSpecRoutesTest.php`
 
 - [ ] **Step 1: Write the failing test**
@@ -2148,7 +2148,7 @@ private function registerRoutes(): void
     }
 
     // Resolve eagerly here because routes must be declared during boot, not lazily.
-    // SpecRegistry is scoped, but its sole job is config parsing — no heavy work happens
+    // SpecRegistry is scoped, but its sole job is config parsing—no heavy work happens
     // on construction and the result is memoised inside the registry.
     $registry = $this->app->make(\Radiergummi\OpenApi\Core\Spec\SpecRegistry::class);
 
@@ -2246,7 +2246,7 @@ Expected: PASS for all three cases.
 vendor/bin/pest tests/Feature/
 ```
 
-Expected: green. (The `ScopedDiBindingsTest` may need a small adjustment since the binding set grew — read its expectations.)
+Expected: green. (The `ScopedDiBindingsTest` may need a small adjustment since the binding set grew—read its expectations.)
 
 - [ ] **Step 8: Commit**
 
@@ -2257,9 +2257,9 @@ git commit -m "feat(http): mount one spec + playground route per defined spec"
 
 ---
 
-## Phase E — CLI
+## Phase E—CLI
 
-### Task E1: `GenerateCommand` — optional positional `spec`, `--explain`
+### Task E1: `GenerateCommand`—optional positional `spec`, `--explain`
 
 The command now drives the orchestrator. With no arg it generates every spec; with a positional name it generates one.
 
@@ -2377,8 +2377,8 @@ public function handle(
 
         try {
             $this->writeOutput($path, $content);
-        } catch (Throwable $e) {
-            $this->components->error("Failed to write OpenAPI file for spec '{$spec->name}': {$e->getMessage()}");
+        } catch (Throwable $exception) {
+            $this->components->error("Failed to write OpenAPI file for spec '{$spec->name}': {$exception->getMessage()}");
             return self::FAILURE;
         }
 
@@ -2450,7 +2450,7 @@ public const string OPTION_OUTPUT = 'output';
 public const string OPTION_EXPLAIN = 'explain';
 ```
 
-Drop the old `ARGUMENT_PATH` constant — see Task E2 for the `ClearCommand` update that depended on it.
+Drop the old `ARGUMENT_PATH` constant—see Task E2 for the `ClearCommand` update that depended on it.
 
 - [ ] **Step 4: Run, confirm pass**
 
@@ -2469,7 +2469,7 @@ git commit -m "feat(cli): openapi:generate accepts positional spec; adds --expla
 
 ---
 
-### Task E2: `ClearCommand` — optional positional `spec`
+### Task E2: `ClearCommand`—optional positional `spec`
 
 Without arg: clears every spec's output file. With arg: only that spec's.
 
@@ -2529,8 +2529,8 @@ class ClearCommand extends Command
 
         try {
             $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];
-        } catch (\InvalidArgumentException $e) {
-            $this->components->error($e->getMessage());
+        } catch (\InvalidArgumentException $exception) {
+            $this->components->error($exception->getMessage());
             return self::FAILURE;
         }
 
@@ -2755,7 +2755,7 @@ class WhyCommand extends Command
         $this->line("{$specName}:");
         foreach ($decision->trace as $entry) {
             $mark = $entry->passed ? '✓' : '✗';
-            $this->line("    {$mark} {$entry->stage} {$entry->name} — {$entry->reason}");
+            $this->line("    {$mark} {$entry->stage} {$entry->name}—{$entry->reason}");
         }
         $this->line('    → ' . $decision->summary);
         $this->line('');
@@ -2784,7 +2784,7 @@ git commit -m "feat(cli): add openapi:why for spec-inclusion debugging"
 
 ---
 
-## Phase F — Lint
+## Phase F—Lint
 
 ### Task F1: Add `?string $spec` to `Finding`
 
@@ -2792,7 +2792,7 @@ Findings need a spec tag so formatters can group output.
 
 **Files:**
 - Modify: `src/Core/Lint/Finding.php`
-- Modify: `tests/Unit/Lint/...` (any tests that construct Finding directly — adapt to the new optional arg)
+- Modify: `tests/Unit/Lint/...` (any tests that construct Finding directly—adapt to the new optional arg)
 
 - [ ] **Step 1: Add the field + constructor arg + helper**
 
@@ -2848,7 +2848,7 @@ public function toArray(): array
 composer analyse && vendor/bin/pest tests/Unit/
 ```
 
-Expected: green. Larastan may flag the JSON formatter snapshot tests — adjust expected JSON to include the new `spec` field (defaulting `null` for existing fixtures).
+Expected: green. Larastan may flag the JSON formatter snapshot tests—adjust expected JSON to include the new `spec` field (defaulting `null` for existing fixtures).
 
 - [ ] **Step 3: Commit**
 
@@ -2916,14 +2916,14 @@ git commit -m "feat(lint): add PreBuildRule visitor interface"
 
 ---
 
-### Task F3: `LintRunner` — pre-build phase + per-spec loop + `--spec=` option
+### Task F3: `LintRunner`—pre-build phase + per-spec loop + `--spec=` option
 
 Loops every spec, calling the generator + tree walker per spec; tags emitted findings with the spec name. Runs pre-build rules once with the descriptor list and registry. Aggregates findings and returns one `LintResult` whose exit code is the max severity across specs.
 
 **Files:**
 - Modify: `src/Core/Lint/LintRunner.php`
-- Modify: `src/Core/Lint/LintOptions.php` — add `?string $spec = null`
-- Modify: `src/Console/LintCommand.php` — accept `--spec=`, pass through
+- Modify: `src/Core/Lint/LintOptions.php`—add `?string $spec = null`
+- Modify: `src/Console/LintCommand.php`—accept `--spec=`, pass through
 
 - [ ] **Step 1: Add `spec` to `LintOptions`**
 
@@ -2954,9 +2954,9 @@ And in `buildOptions()`, pass `spec: $this->option('spec') ?: null`.
 
 The detailed shape: split the current `runWithCollector()` into:
 
-- `runPreBuild()` — iterate every `PreBuildRule` in the registry, call `checkConfiguration($specRegistry, $descriptors, $collector)`. Findings emitted carry `spec: null`.
-- `runPerSpec(SpecDefinition $spec)` — extract the existing tree-walking + RouteRule + meta-suppression-stale logic; before emission, `$collector->emit($finding->withSpec($spec->name))`. The orchestrator's `generateOne($spec->name, $env)` produces the document; the rest is unchanged.
-- `run(LintOptions $options)` — orchestrates: collect descriptors → resolve target specs (`$options->spec ? [$registry->get($options->spec)] : $registry->all()`) → run pre-build once → loop per-spec.
+- `runPreBuild()`—iterate every `PreBuildRule` in the registry, call `checkConfiguration($specRegistry, $descriptors, $collector)`. Findings emitted carry `spec: null`.
+- `runPerSpec(SpecDefinition $spec)`—extract the existing tree-walking + RouteRule + meta-suppression-stale logic; before emission, `$collector->emit($finding->withSpec($spec->name))`. The orchestrator's `generateOne($spec->name, $env)` produces the document; the rest is unchanged.
+- `run(LintOptions $options)`—orchestrates: collect descriptors → resolve target specs (`$options->spec ? [$registry->get($options->spec)] : $registry->all()`) → run pre-build once → loop per-spec.
 
 Pseudocode for the new outer flow inside `runWithCollector()`:
 
@@ -3013,7 +3013,7 @@ it('runs pre-build rules once even with --spec= narrowing', function (): void {
     ]);
 
     // Trigger a pre-build rule violation: a route with #[Spec('does-not-exist')]
-    // — register a temporary controller in the test app, then assert the rule fires.
+    //—register a temporary controller in the test app, then assert the rule fires.
     // (Use the existing test-controller registration pattern from other lint feature tests.)
 });
 
@@ -3058,7 +3058,7 @@ Three rules implementing `PreBuildRule`. Each follows the existing rule pattern 
 - Create: `src/Core/Lint/Rules/SpecRouteOrphaned.php`
 - Create: `src/Core/Lint/Rules/SpecConfigOrphaned.php`
 - Create: 3 corresponding `tests/Unit/Lint/Rules/Spec*Test.php`
-- Modify: `src/Core/Registry/CoreRegistration.php` — register the three rules
+- Modify: `src/Core/Registry/CoreRegistration.php`—register the three rules
 
 - [ ] **Step 1: Read an existing simple rule to copy the structure**
 
@@ -3262,7 +3262,7 @@ $prefix = $finding->spec !== null ? "[spec:{$finding->spec}] " : '';
 $line = "::{$severity} ... ::{$prefix}{$finding->message}";
 ```
 
-- [ ] **Step 3: JSON formatter — `Finding::jsonSerialize()` already emits `spec`, no change required**
+- [ ] **Step 3: JSON formatter—`Finding::jsonSerialize()` already emits `spec`, no change required**
 
 - [ ] **Step 4: Add a formatter test**
 
@@ -3295,7 +3295,7 @@ git commit -m "feat(lint): group findings by spec in CLI formatter, prefix in Gi
 
 ---
 
-## Phase G — Guardrails & docs
+## Phase G—Guardrails & docs
 
 ### Task G1: Feature test: no eager DI resolution on unrelated requests
 
@@ -3371,7 +3371,7 @@ Outline to follow:
 ```markdown
 # Multi-Spec
 
-> One Laravel application can generate any number of OpenAPI documents — `default`, plus
+> One Laravel application can generate any number of OpenAPI documents—`default`, plus
 > any number of named specs partitioned by URL prefix, middleware, namespace, or `#[Spec]`
 > attribute.
 
@@ -3383,9 +3383,9 @@ extras…
 
 ## When to use it
 
-- **API versions** — `v1` / `v2` partitioned by URL prefix.
-- **Audience splits** — `partner` / `internal` partitioned by middleware.
-- **Domain splits** — `storefront` / `admin` partitioned by namespace.
+- **API versions**—`v1` / `v2` partitioned by URL prefix.
+- **Audience splits**—`partner` / `internal` partitioned by middleware.
+- **Domain splits**—`storefront` / `admin` partitioned by namespace.
 
 ## Inclusion rule
 
@@ -3399,7 +3399,7 @@ extras…
 
 (reproduce the attribute table from the design spec verbatim)
 
-## Debugging — `openapi:why`
+## Debugging—`openapi:why`
 
 (show the formatted output)
 
@@ -3430,10 +3430,10 @@ git commit -m "docs(multi-spec): add concept, config reference, and worked examp
 ### Task G3: Update `docs/usage.md`, `docs/lint-rules.md`, `README.md`
 
 **Files:**
-- Modify: `docs/usage.md` (or `docs/README.md` — check which is the index)
+- Modify: `docs/usage.md` (or `docs/README.md`—check which is the index)
 - Modify: `docs/lint-rules.md` (add the three new pre-build rules with their IDs and severities)
 - Modify: `README.md` (mention multi-spec in feature list, link to docs/multi-spec.md)
-- Modify: `CHANGELOG.md` ([Unreleased] entry — one bullet, no migration framing)
+- Modify: `CHANGELOG.md` ([Unreleased] entry—one bullet, no migration framing)
 
 - [ ] **Step 1: Add "Multi-spec" to docs index**
 
@@ -3448,7 +3448,7 @@ In `docs/lint-rules.md`, add:
 #[Spec('foo')] references a spec name that is not declared in `config('openapi.specs')`.
 
 ### `spec.route-orphaned` (level 0)
-A route's #[Spec] list resolves to no defined specs — the route appears nowhere.
+A route's #[Spec] list resolves to no defined specs—the route appears nowhere.
 
 ### `spec.config-orphaned` (level 3)
 A configured spec ends up with zero routes assigned after evaluation.
@@ -3459,7 +3459,7 @@ A configured spec ends up with zero routes assigned after evaluation.
 Add a bullet under the feature list:
 
 ```markdown
-- **Multi-spec** — partition routes into multiple OpenAPI documents (v1/v2, public/partner/internal, …) with optional `#[Spec]` override. See [`docs/multi-spec.md`](docs/multi-spec.md).
+- **Multi-spec**—partition routes into multiple OpenAPI documents (v1/v2, public/partner/internal, …) with optional `#[Spec]` override. See [`docs/multi-spec.md`](docs/multi-spec.md).
 ```
 
 - [ ] **Step 4: Update `CHANGELOG.md`**
@@ -3489,7 +3489,7 @@ Add the commented `'specs' => [...]` example block teaching the multi-spec confi
 
 - [ ] **Step 1: Insert a new section before the existing `output_path` block**
 
-Add (placement: between the `visibility` block and the `lint` block — find an appropriate location):
+Add (placement: between the `visibility` block and the `lint` block—find an appropriate location):
 
 ```php
     /*
@@ -3571,4 +3571,4 @@ This is a 19-task plan in 7 phases. Spec coverage spot-check:
 
 Decisions deferred (spec sec. "Decisions deferred to the implementation plan") are surfaced as: tag merge default (replace wholesale; revisit), `specs.default` overlay semantics (additive on top of root), `openapi:why` ambiguity policy (list + exit 1), formatter grouping (CLI grouped, JSON/GH spec-tagged), and the orchestrator's reset coverage (G1 test).
 
-No `TBD`, `TODO`, or "see above" stubs. All code shown is concrete enough to type in. Some test bodies reference fixtures or test patterns the engineer needs to read first (existing rule tests, `ActionDescriptor` constructor shape, current playground view, `RouteIntrospector` usage) — these are explicitly called out as "read this file before writing the test" steps, not handwaved.
+No `TBD`, `TODO`, or "see above" stubs. All code shown is concrete enough to type in. Some test bodies reference fixtures or test patterns the engineer needs to read first (existing rule tests, `ActionDescriptor` constructor shape, current playground view, `RouteIntrospector` usage)—these are explicitly called out as "read this file before writing the test" steps, not handwaved.

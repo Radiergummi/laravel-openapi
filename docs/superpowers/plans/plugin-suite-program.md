@@ -1,10 +1,10 @@
-# Plugin Suite Program — Agent Context & Tracker
+# Plugin Suite Program—Agent Context & Tracker
 
 > **Read this before implementing any plan in this program.** It carries the shared
 > ground rules, the locked cross-cutting decisions, the build order, and the live
 > status. The individual plan files assume you have read this.
 
-**Last updated:** 2026-05-20 — build steps 1–5 complete on the branch; plugin-system gap pass folded in (OAPI-048/049/052/055-062 closed, OAPI-053 marked won't-fix); 1166 tests green, ready to merge.
+**Last updated:** 2026-05-20—build steps 1–5 complete on the branch; plugin-system gap pass folded in (OAPI-048/049/052/055-062 closed, OAPI-053 marked won't-fix); 1166 tests green, ready to merge.
 
 ---
 
@@ -14,7 +14,7 @@ Workstream 1 of 5 in the pre-1.0 publication program. It extends
 `radiergummi/laravel-openapi` so it can document the response and query
 conventions of a typical Laravel API codebase without hand-written OpenAPI.
 
-- **Spec (authoritative):** `docs/superpowers/specs/2026-05-18-plugin-suite-design.md` — status *Approved*.
+- **Spec (authoritative):** `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`—status *Approved*.
 - **Scope:** three new plugins + two Core additions. Documentation prose, the wider
   test suite, type-safety cleanup, and example apps are *separate* workstreams.
 
@@ -24,11 +24,11 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
 
 | Step | Plan file | Status |
 |---|---|---|
-| 1 — Core PHPDoc generics + paginator resolver | `2026-05-18-core-phpdoc-generics-and-paginators.md` | ✅ **Complete** (on branch, not merged) |
-| 2 — `ApiResourcesPlugin` | `2026-05-19-apiresources-plugin.md` | ✅ **Complete** (on branch, not merged) |
-| 3 — `QueryBuilderPlugin` | `2026-05-19-querybuilder-plugin.md` | ✅ **Complete** (on branch, not merged) |
-| 4 — `FractalPlugin` | `2026-05-19-fractal-plugin.md` | ✅ **Complete** (on branch, not merged) |
-| 5 — composer.json + config wiring | `2026-05-19-plugin-suite-wiring.md` | ✅ **Complete** (on branch, not merged) |
+| 1—Core PHPDoc generics + paginator resolver | `2026-05-18-core-phpdoc-generics-and-paginators.md` | ✅ **Complete** (on branch, not merged) |
+| 2—`ApiResourcesPlugin` | `2026-05-19-apiresources-plugin.md` | ✅ **Complete** (on branch, not merged) |
+| 3—`QueryBuilderPlugin` | `2026-05-19-querybuilder-plugin.md` | ✅ **Complete** (on branch, not merged) |
+| 4—`FractalPlugin` | `2026-05-19-fractal-plugin.md` | ✅ **Complete** (on branch, not merged) |
+| 5—composer.json + config wiring | `2026-05-19-plugin-suite-wiring.md` | ✅ **Complete** (on branch, not merged) |
 
 **Status legend:** ⬜ not started · 🔄 in progress · ✅ complete · ⛔ blocked.
 **When you finish a plan (or a notable chunk), update this table and the "Last updated" line.**
@@ -36,7 +36,7 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
 ## Current state
 
 - All work happens on the branch **`feature/plugin-suite`**, rebased onto `main`
-  (which already carries the merged type-safety workstream — PHPStan level 8,
+  (which already carries the merged type-safety workstream—PHPStan level 8,
   swagger-php 6, `phpdocumentor/reflection-docblock` 6).
 - **Step 1 is done on the branch:** `PaginatorKind`, `ReturnTypeExtractor`,
   `PaginatorSchemaFactory`, `PaginatorResponseResolver`, registered and wired.
@@ -60,7 +60,7 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
   `FractalResponseResolver`, and the five lint rules
   `fractal.fields-undeclared` (level 1),
   `fractal.include-transformer-missing` (level 2),
-  `fractal.response-unbound` (level 2 — opt-in; see OAPI-060),
+  `fractal.response-unbound` (level 2—opt-in; see OAPI-060),
   `fractal.duplicate-key` (level 1),
   `fractal.transformer-class-missing` (level 1). Shipped commented-out in
   `config/openapi.php`.
@@ -71,7 +71,7 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
   closed by downgrading `fractal.response-unbound` to level 2 and surfacing
   the blind spot in the rule's `description()`. Remaining open gaps
   (OAPI-017/038/045/046/047/050/051/054) are explicitly out-of-scope for
-  the plugin-suite workstream — see `docs/known-gaps.md`.
+  the plugin-suite workstream—see `../../internal/known-gaps.md`.
 - Full suite green (1166 tests, 3005 assertions), Pint clean, PHPStan
   level 8 clean.
 
@@ -82,9 +82,9 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
   docblock (verbatim from `src/Core/Generator/OperationBuilder.php` lines 3-8) ·
   blank · `declare(strict_types=1);` · blank · `namespace`. Plan code blocks
   abbreviate the docblock as `// <copyright header>`.
-- **Verification gate — all three must pass before every commit:**
+- **Verification gate—all three must pass before every commit:**
   `composer test` (green), `vendor/bin/pint --test` (no violations),
-  `composer analyse` (PHPStan level 8, **CI-blocking — no errors**).
+  `composer analyse` (PHPStan level 8, **CI-blocking—no errors**).
 - **Commit messages:** imperative mood, `feat:` / `test:` / `docs:` / `build:`
   prefix, and the trailer
   `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
@@ -95,10 +95,10 @@ Execute in order. Each step is a self-contained plan that leaves the suite green
 - **Core stays convention-agnostic:** `src/Core/` must not depend on any plugin
   or third-party convention package. Plugin code lives under `src/Plugins/<Name>/`.
 
-## Locked cross-cutting decisions — do not contradict
+## Locked cross-cutting decisions—do not contradict
 
 These were resolved during planning. If you believe one is wrong, raise it with
-the maintainer before deviating — do not silently change course.
+the maintainer before deviating—do not silently change course.
 
 1. **Container-cycle break.** A plugin's schema builder (`SchemaFromResource`,
    `SchemaFromTransformer`) and its own `RefSchemaResolver` would form a
@@ -118,13 +118,13 @@ the maintainer before deviating — do not silently change course.
      `SchemaFromResource` should be migrated to the same pattern next time it
      is touched.
 2. **Plugins are package-free at generation time.** A plugin reads **only its own
-   attributes** — never the third-party convention class. `QueryBuilderPlugin`
+   attributes**—never the third-party convention class. `QueryBuilderPlugin`
    never references `Spatie\QueryBuilder\QueryBuilder`; `FractalPlugin` never
    references `League\Fractal\TransformerAbstract` (a "transformer" is *any class
    carrying `#[TransformerField]`*). Third-party packages are `require-dev` +
    `suggest` only.
 3. **`#[ResponseResource]` is the consumed attribute.** The ApiResources plugin
-   consumes the existing Core `#[ResponseResource]` — there is **no**
+   consumes the existing Core `#[ResponseResource]`—there is **no**
    `#[ResourceResponse]` attribute (the spec's Section 1 table is a typo;
    Section 2 is authoritative).
 4. **Conservative lint detection.** `query-builder.params-undeclared` and
@@ -167,7 +167,7 @@ the maintainer before deviating — do not silently change course.
 ## Open items for the maintainer
 
 Two planning decisions are reasonable but worth a maintainer's eye before
-execution — revisiting them is cheap now, expensive after the code lands:
+execution—revisiting them is cheap now, expensive after the code lands:
 
 - The resource-collection envelope always emits `links` + `meta` (decision #5).
   Fine for paginated collections (the dominant case); slightly over-documents a

@@ -19,9 +19,9 @@ with their own specs.
 
 In scope:
 
-- `ApiResourcesPlugin` — Eloquent API Resources (`JsonResource` / `ResourceCollection`).
-- `QueryBuilderPlugin` — `spatie/laravel-query-builder` filter/sort/include parameters.
-- `FractalPlugin` — `league/fractal` / `spatie/laravel-fractal` transformers.
+- `ApiResourcesPlugin`—Eloquent API Resources (`JsonResource` / `ResourceCollection`).
+- `QueryBuilderPlugin`—`spatie/laravel-query-builder` filter/sort/include parameters.
+- `FractalPlugin`—`league/fractal` / `spatie/laravel-fractal` transformers.
 - Core: PHPDoc generic parsing for return types (`@return Foo<Bar>`).
 - Core: Laravel paginator return types → response envelopes.
 - Tests for all of the above (unit + feature), per the existing `SpatieData`
@@ -42,7 +42,7 @@ Out of scope (other workstreams):
 - **No method-body inference.** The generator reads signatures and PHPDoc only
   (OAPI-017). API Resources, Fractal transformers, and query-builder calls all
   define their shape in method bodies; the plugins resolve this with
-  **attributes** instead — the same "convention + attribute escape hatch" model
+  **attributes** instead—the same "convention + attribute escape hatch" model
   the package already uses.
 
 - **No primary-response pipeline exists yet.** The package ships zero
@@ -58,7 +58,7 @@ Out of scope (other workstreams):
   never hard `require`. A plugin loads only when listed in
   `config('openapi.plugins')`.
 
-## Section 1 — Plugin inventory & placement
+## Section 1—Plugin inventory & placement
 
 Three new plugins, each under `src/Plugins/<Name>/`, mirroring the existing
 `SpatieData/` layout. Each implements `Core\Registry\Plugin` and registers its
@@ -70,17 +70,17 @@ resolvers, attributes' payload markers, and lint rules.
 | `QueryBuilderPlugin` | `src/Plugins/QueryBuilder/` | controller method carries query-builder attributes | query-parameter resolver, lint rules |
 | `FractalPlugin` | `src/Plugins/Fractal/` | method carries `#[FractalResponse]` | primary-response resolver, ref-schema resolver, lint rules |
 
-Enums and paginators are **not** plugins — they are language/framework
+Enums and paginators are **not** plugins—they are language/framework
 primitives and become Core behavior (Section 4).
 
-## Section 2 — Attributes
+## Section 2—Attributes
 
 Plugin attributes live in `src/Plugins/<Name>/Attributes/`. Core attributes
 stay in `src/Core/Attributes/`.
 
 ### ApiResources
 
-- `#[ResourceField(name, type, ...)]` — repeatable, **class-level** on the
+- `#[ResourceField(name, type, ...)]`—repeatable, **class-level** on the
   `JsonResource` subclass. Declares one output key. Class-level (not
   property-level) because a Resource's keys are arbitrary `toArray()` entries,
   not typed class properties.
@@ -93,19 +93,19 @@ stay in `src/Core/Attributes/`.
 
 ### QueryBuilder
 
-- `#[AllowedFilter(name, type, ...)]` — repeatable, **method-level**; emits a
+- `#[AllowedFilter(name, type, ...)]`—repeatable, **method-level**; emits a
   `filter[name]` query parameter.
-- `#[AllowedSort(fields)]` — **method-level**; emits the `sort` query parameter.
-- `#[AllowedInclude(names)]` — **method-level**; emits the `include` query
+- `#[AllowedSort(fields)]`—**method-level**; emits the `sort` query parameter.
+- `#[AllowedInclude(names)]`—**method-level**; emits the `include` query
   parameter.
 
 ### Fractal
 
-- `#[TransformerField(name, type, ...)]` — repeatable, **class-level** on the
+- `#[TransformerField(name, type, ...)]`—repeatable, **class-level** on the
   transformer.
-- `#[TransformerInclude(name, transformer: ..., default: bool)]` — repeatable,
+- `#[TransformerInclude(name, transformer: ..., default: bool)]`—repeatable,
   class-level; models `availableIncludes` / `defaultIncludes`.
-- `#[FractalResponse(transformer: ..., collection: bool)]` — **method-level**,
+- `#[FractalResponse(transformer: ..., collection: bool)]`—**method-level**,
   binds an endpoint to its transformer.
 
 ### Nested-object shorthand
@@ -115,7 +115,7 @@ stay in `src/Core/Attributes/`.
 ref-schema resolvers and emitted as a `$ref`, so nested Resources / Data
 classes / transformers compose without re-declaring their fields.
 
-## Section 3 — Lint rules
+## Section 3—Lint rules
 
 Each plugin registers rules with stable prefixed string IDs, using the existing
 `Rules/*` + visitor-interface model, config-driven severity overrides, and
@@ -123,40 +123,40 @@ Each plugin registers rules with stable prefixed string IDs, using the existing
 
 ### ApiResources
 
-- `resource.fields-undeclared` — Resource used as a response but carries no
+- `resource.fields-undeclared`—Resource used as a response but carries no
   `#[ResourceField]` (shape unknown → empty schema). High severity.
-- `resource.field-type-missing` — a `#[ResourceField]` without a resolvable
+- `resource.field-type-missing`—a `#[ResourceField]` without a resolvable
   type. Medium.
-- `resource.response-ambiguous` — generic return type with no
+- `resource.response-ambiguous`—generic return type with no
   `#[ResourceResponse]`. High.
 
 ### QueryBuilder
 
-- `query-builder.params-undeclared` — query-builder attributes expected but
+- `query-builder.params-undeclared`—query-builder attributes expected but
   none declared. Medium.
-- `query-builder.filter-type-missing` — an `#[AllowedFilter]` without a type.
+- `query-builder.filter-type-missing`—an `#[AllowedFilter]` without a type.
   Low.
 
 ### Fractal
 
-- `fractal.response-unbound` — endpoint resolves to Fractal output with no
+- `fractal.response-unbound`—endpoint resolves to Fractal output with no
   `#[FractalResponse]`. High.
-- `fractal.fields-undeclared` — transformer used with no `#[TransformerField]`.
+- `fractal.fields-undeclared`—transformer used with no `#[TransformerField]`.
   High.
-- `fractal.include-transformer-missing` — a `#[TransformerInclude]` without a
+- `fractal.include-transformer-missing`—a `#[TransformerInclude]` without a
   transformer class. Medium.
 
 Severity rule of thumb: "shape entirely unknown" defaults high; "missing
 polish" defaults low. All overridable via `config('openapi.lint.rules')`.
 
-## Section 4 — Core changes: PHPDoc generics & paginators
+## Section 4—Core changes: PHPDoc generics & paginators
 
 These add Core infrastructure; no new attributes, no plugin. (Enum mapping is
 already implemented and out of scope.)
 
 ### PHPDoc generic parsing
 
-PHP native return types cannot express generics — `function index():
+PHP native return types cannot express generics—`function index():
 LengthAwarePaginator` carries no inner type. The inner type lives only in a
 PHPDoc `@return LengthAwarePaginator<UserResource>`. Core gains a small
 PHPDoc-generic parser that, given a `ReflectionFunctionAbstract`, extracts the
@@ -167,9 +167,9 @@ bounded: it reads only the `@return` PHPDoc tag, never method bodies.
 
 ### Paginator primary-response resolver
 
-A new Core `PrimaryResponseResolver` — the **first** one the package ships.
+A new Core `PrimaryResponseResolver`—the **first** one the package ships.
 When a method return type is `LengthAwarePaginator`, `Paginator`, or
-`CursorPaginator` (a native signature — detection needs no PHPDoc):
+`CursorPaginator` (a native signature—detection needs no PHPDoc):
 
 - Wrap the inner item schema in the matching Laravel `toArray()` envelope —
   the *flat* shape Laravel actually serializes a bare paginator to:
@@ -192,20 +192,20 @@ When a method return type is `LengthAwarePaginator`, `Paginator`, or
 The inner type is rendered through the existing ref-schema resolvers, so a
 paginated Data class or API Resource composes as a `$ref`.
 
-A generation-log warning — not a lint rule — is the right channel: lint rules
+A generation-log warning—not a lint rule—is the right channel: lint rules
 walk the produced document and cannot distinguish a deferred paginator from a
 genuinely empty endpoint, whereas the generation log exists precisely for
 "could not resolve this during generation".
 
-`docs/known-gaps.md` is updated to reflect the narrowed OAPI-017 surface.
+`../../internal/known-gaps.md` is updated to reflect the narrowed OAPI-017 surface.
 
-## Section 5 — Config, dependencies, structure
+## Section 5—Config, dependencies, structure
 
 ### Config defaults (`config/openapi.php` → `plugins`)
 
-- `ApiResourcesPlugin` — **enabled by default**. `JsonResource` is Laravel
+- `ApiResourcesPlugin`—**enabled by default**. `JsonResource` is Laravel
   core; no third-party dependency; dominant convention.
-- `QueryBuilderPlugin`, `FractalPlugin` — **shipped commented-out**; they
+- `QueryBuilderPlugin`, `FractalPlugin`—**shipped commented-out**; they
   require third-party packages. Users uncomment after installing the package.
 
 ### composer.json

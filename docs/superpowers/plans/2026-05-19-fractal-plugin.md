@@ -1,6 +1,6 @@
 # Fractal Plugin Implementation Plan
 
-> **Read first:** `docs/superpowers/plans/plugin-suite-program.md` — the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
+> **Read first:** `docs/superpowers/plans/plugin-suite-program.md`—the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
 >
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,9 +8,9 @@
 
 **Architecture:** This is build step 4 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). It depends on build step 1 being merged. A Fractal transformer's `transform()` shape lives in a method body, which the generator never reads (OAPI-017); the plugin resolves the shape from attributes instead. The plugin registers a `PrimaryResponseResolver`, a `RefSchemaResolver`, and **four** lint rules.
 
-**Serializer assumption.** The emitted envelope shapes — `{data}` for a single item, `{data: [...]}` for a collection, `{data: [...], meta: {pagination: {…}}}` for a paginated collection — model Fractal's default `DataArraySerializer` plus `IlluminatePaginatorAdapter`. Other serializers (`JsonApiSerializer`, custom) produce different shapes and are out of scope; this is recorded as an OAPI known-gap (Task 13).
+**Serializer assumption.** The emitted envelope shapes—`{data}` for a single item, `{data: [...]}` for a collection, `{data: [...], meta: {pagination: {…}}}` for a paginated collection—model Fractal's default `DataArraySerializer` plus `IlluminatePaginatorAdapter`. Other serializers (`JsonApiSerializer`, custom) produce different shapes and are out of scope; this is recorded as an OAPI known-gap (Task 13).
 
-**Package-free by design.** The plugin keys off **its own attributes only** — it never references `League\Fractal\TransformerAbstract`. A "transformer" is simply any class carrying `#[TransformerField]` attributes. This keeps the plugin (and its tests) independent of `league/fractal`; the package is added to `require-dev` / `suggest` in build step 5 for discoverability and realistic integration only. `FractalPlugin` is **shipped commented-out** in `config/openapi.php`.
+**Package-free by design.** The plugin keys off **its own attributes only**—it never references `League\Fractal\TransformerAbstract`. A "transformer" is simply any class carrying `#[TransformerField]` attributes. This keeps the plugin (and its tests) independent of `league/fractal`; the package is added to `require-dev` / `suggest` in build step 5 for discoverability and realistic integration only. `FractalPlugin` is **shipped commented-out** in `config/openapi.php`.
 
 **Container-cycle note.** As in the ApiResources plugin, `TransformerRefSchemaResolver` depends on `SchemaFromTransformer`, which needs the registered `RefSchemaResolver` list. `SchemaFromTransformer` recurses **directly** for nested transformer-shaped classes and receives a resolver list with `TransformerRefSchemaResolver` **filtered out**.
 
@@ -30,14 +30,14 @@
 
 | File | Responsibility |
 |---|---|
-| `src/Plugins/Fractal/Attributes/TransformerField.php` (create) | Repeatable class-level attribute — one transformer output key. |
-| `src/Plugins/Fractal/Attributes/TransformerInclude.php` (create) | Repeatable class-level attribute — one `availableIncludes` / `defaultIncludes` entry. |
+| `src/Plugins/Fractal/Attributes/TransformerField.php` (create) | Repeatable class-level attribute—one transformer output key. |
+| `src/Plugins/Fractal/Attributes/TransformerInclude.php` (create) | Repeatable class-level attribute—one `availableIncludes` / `defaultIncludes` entry. |
 | `src/Plugins/Fractal/Attributes/FractalResponse.php` (create) | Method-level attribute binding an endpoint to its transformer; declares cardinality and pagination. |
 | `src/Plugins/Fractal/SchemaFromTransformer.php` (create) | Builds the `OA\Schema` for a transformer from its attributes. |
 | `src/Plugins/Fractal/TransformerRefSchemaResolver.php` (create) | `RefSchemaResolver` for transformer-shaped classes. |
 | `src/Plugins/Fractal/FractalEnvelopeFactory.php` (create) | Builds the `{data}` / `{data: [...]}` / paginated envelope schemas. |
 | `src/Plugins/Fractal/FractalResponseResolver.php` (create) | `PrimaryResponseResolver` for `#[FractalResponse]` endpoints. |
-| `src/Plugins/Fractal/FractalPlugin.php` (create) | `Plugin` — registers resolvers and the four lint rules. |
+| `src/Plugins/Fractal/FractalPlugin.php` (create) | `Plugin`—registers resolvers and the four lint rules. |
 | `src/Plugins/Fractal/Lint/Rules/FractalFieldsUndeclared.php` (create) | Lint rule `fractal.fields-undeclared`. |
 | `src/Plugins/Fractal/Lint/Rules/FractalIncludeTransformerMissing.php` (create) | Lint rule `fractal.include-transformer-missing`. |
 | `src/Plugins/Fractal/Lint/Rules/FractalResponseUnbound.php` (create) | Lint rule `fractal.response-unbound`. |
@@ -46,7 +46,7 @@
 | `config/openapi.php` (modify) | Add a commented-out `FractalPlugin::class` entry. |
 | `tests/Feature/Plugins/Fractal/FractalResponseTest.php` (create) | End-to-end document generation. |
 | `tests/Unit/Plugins/Fractal/*` (create) | Unit tests for each class. |
-| `docs/known-gaps.md`, `CHANGELOG.md`, `docs/usage.md` (modify) | Per-change doc obligations. |
+| `../../internal/known-gaps.md`, `CHANGELOG.md`, `docs/usage.md` (modify) | Per-change doc obligations. |
 
 ---
 
@@ -89,7 +89,7 @@ it('is repeatable and targets classes', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerFieldTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -175,7 +175,7 @@ final readonly class TransformerField extends FieldAttribute
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerFieldTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -189,7 +189,7 @@ git commit -m "feat: add TransformerField attribute for Fractal plugin"
 
 ## Task 2: `TransformerInclude` and `FractalResponse` attributes
 
-`#[TransformerInclude]` is repeatable and class-level on a transformer — it models one `availableIncludes` / `defaultIncludes` entry (`default: true` ⇒ in the response by default). `#[FractalResponse]` is method-level and not repeatable — it binds an endpoint to its transformer and declares cardinality plus pagination.
+`#[TransformerInclude]` is repeatable and class-level on a transformer—it models one `availableIncludes` / `defaultIncludes` entry (`default: true` ⇒ in the response by default). `#[FractalResponse]` is method-level and not repeatable—it binds an endpoint to its transformer and declares cardinality plus pagination.
 
 **Target audit.** `#[FractalResponse]` targets **`TARGET_METHOD` only**: the rest of the codebase's endpoint attributes are method-level, and closure-route support is out of scope for this plan. Drop `TARGET_FUNCTION` versus an earlier draft.
 
@@ -253,7 +253,7 @@ it('targets methods only', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerIncludeResponseTest.php`
-Expected: FAIL — classes not found.
+Expected: FAIL—classes not found.
 
 - [x] **Step 3: Write the implementations**
 
@@ -271,7 +271,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 use Attribute;
 
 /**
- * Declares one Fractal include — an `availableIncludes` entry, or a
+ * Declares one Fractal include—an `availableIncludes` entry, or a
  * `defaultIncludes` entry when `default` is true. Repeatable, class-level on
  * the transformer.
  *
@@ -316,7 +316,7 @@ use Attribute;
  * Method-level: a Fractal transformer is applied inside a method body, which
  * the generator never reads, so the binding is declared explicitly.
  *
- * `paginated: true` implies a paginated collection — the envelope gains
+ * `paginated: true` implies a paginated collection—the envelope gains
  * `meta.pagination` matching Fractal's `IlluminatePaginatorAdapter` shape, and
  * the resolver treats the response as a collection regardless of the
  * `collection` flag.
@@ -334,7 +334,7 @@ final readonly class FractalResponse
     /**
      * @param class-string $transformer The transformer class shaping the response.
      * @param bool         $collection  True when the endpoint returns a (non-paginated) collection.
-     * @param bool         $paginated   True for a paginated collection — implies `collection: true`.
+     * @param bool         $paginated   True for a paginated collection—implies `collection: true`.
      */
     public function __construct(
         public string $transformer,
@@ -347,7 +347,7 @@ final readonly class FractalResponse
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Attributes/TransformerIncludeResponseTest.php`
-Expected: PASS — 5 tests.
+Expected: PASS—5 tests.
 
 - [x] **Step 5: Commit**
 
@@ -363,10 +363,10 @@ git commit -m "feat: add TransformerInclude and FractalResponse attributes"
 
 Builds the `OA\Schema` (type: object) for a transformer from its `#[TransformerField]` and `#[TransformerInclude]` attributes, registers it as a component, and returns the key. Mirrors `SchemaFromResource`:
 
-- Use the registry's **public** `buildOnce(class, factory)` API — the manual `markInProgress` / `markComplete` calls used in earlier drafts hit private methods.
+- Use the registry's **public** `buildOnce(class, factory)` API—the manual `markInProgress` / `markComplete` calls used in earlier drafts hit private methods.
 - Provide `buildRef(class): string` returning a `#/components/schemas/<key>` ref (thin wrapper over `build()` + `qualifyKey()`).
 - For scalar `#[TransformerField]` values, use `$field->descriptor()->applyTo($property)` so `NullableSchema` handling and `toOpenApi()` spreading happen in one call (matches `SchemaFromResource::buildProperty()`).
-- For class-string `#[TransformerField]` values, propagate the field's `description` onto the wrapping property — same as `SchemaFromResource` does for `JsonResource`-typed fields.
+- For class-string `#[TransformerField]` values, propagate the field's `description` onto the wrapping property—same as `SchemaFromResource` does for `JsonResource`-typed fields.
 
 Per-field semantics:
 - `#[TransformerField]` with a class-string `type` → a transformer-shaped class (carries `#[TransformerField]`) recurses via `build()`; any other class resolves via the injected resolver list; an unresolved class → `type: object`. A scalar `type` → `descriptor()->applyTo()`.
@@ -477,7 +477,7 @@ it('exposes buildRef returning a qualified components ref', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -507,7 +507,7 @@ use function class_exists;
  * Nested transformer-shaped field types (classes carrying `#[TransformerField]`)
  * recurse through {@see build()} directly; other class-string types resolve via
  * the injected resolver list (which excludes {@see TransformerRefSchemaResolver}
- * — see the plan's architecture note).
+ *—see the plan's architecture note).
  */
 final readonly class SchemaFromTransformer
 {
@@ -642,7 +642,7 @@ final readonly class SchemaFromTransformer
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/SchemaFromTransformerTest.php`
-Expected: PASS — 5 tests.
+Expected: PASS—5 tests.
 
 - [x] **Step 5: Commit**
 
@@ -656,7 +656,7 @@ git commit -m "feat: add SchemaFromTransformer schema builder"
 
 ## Task 4: `TransformerRefSchemaResolver`
 
-A `RefSchemaResolver`: claims any **transformer-shaped class** — one carrying at least one `#[TransformerField]` attribute — and delegates to `SchemaFromTransformer::buildRef()`. This is what lets a transformer compose as a `$ref` when nested in another transformer or a resource.
+A `RefSchemaResolver`: claims any **transformer-shaped class**—one carrying at least one `#[TransformerField]` attribute—and delegates to `SchemaFromTransformer::buildRef()`. This is what lets a transformer compose as a `$ref` when nested in another transformer or a resource.
 
 **Files:**
 - Create: `src/Plugins/Fractal/TransformerRefSchemaResolver.php`
@@ -701,7 +701,7 @@ it('returns null for a class with no #[TransformerField]', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/TransformerRefSchemaResolverTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -723,7 +723,7 @@ use function class_exists;
 /**
  * Resolves a Fractal transformer class to a `#/components/schemas/…` ref. A
  * "transformer" is any class carrying at least one `#[TransformerField]`
- * attribute — the plugin never references `league/fractal` directly.
+ * attribute—the plugin never references `league/fractal` directly.
  */
 final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
 {
@@ -749,7 +749,7 @@ final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/TransformerRefSchemaResolverTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -763,7 +763,7 @@ git commit -m "feat: add TransformerRefSchemaResolver"
 
 ## Task 5: `FractalEnvelopeFactory`
 
-A small factory for the three envelope shapes the response resolver needs. Mirrors `ResourceEnvelopeFactory`'s split between factory and resolver — keeps shape logic out of the resolver and unit-testable in isolation.
+A small factory for the three envelope shapes the response resolver needs. Mirrors `ResourceEnvelopeFactory`'s split between factory and resolver—keeps shape logic out of the resolver and unit-testable in isolation.
 
 - `single($ref)` → `{data: $ref}`
 - `collection($ref)` → `{data: [$ref…]}`
@@ -826,7 +826,7 @@ it('builds a paginated envelope with pagination meta', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/FractalEnvelopeFactoryTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -845,9 +845,9 @@ use OpenApi\Annotations as OA;
  * Builds the response envelope shapes Fractal's default `DataArraySerializer`
  * serializes into:
  *
- * - {@see single()}     — `{data}`
- * - {@see collection()} — `{data: [...]}`
- * - {@see paginated()}  — `{data: [...], meta: {pagination: {…}}}`,
+ * - {@see single()}    —`{data}`
+ * - {@see collection()}—`{data: [...]}`
+ * - {@see paginated()} —`{data: [...], meta: {pagination: {…}}}`,
  *                         matching `IlluminatePaginatorAdapter`.
  *
  * Other Fractal serializers (`JsonApiSerializer`, custom) produce different
@@ -923,7 +923,7 @@ final readonly class FractalEnvelopeFactory
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/FractalEnvelopeFactoryTest.php`
-Expected: PASS — 3 tests.
+Expected: PASS—3 tests.
 
 - [x] **Step 5: Commit**
 
@@ -940,7 +940,7 @@ git commit -m "feat: add FractalEnvelopeFactory for single/collection/paginated 
 The `PrimaryResponseResolver`. Reads `#[FractalResponse]` off the action; defers (`null`) when absent. Builds the transformer `$ref` via `SchemaFromTransformer::buildRef()` and delegates envelope construction to `FractalEnvelopeFactory`. Degrades gracefully.
 
 Envelope selection (in priority order):
-1. `paginated: true` → `paginated($ref)` — also accepted when the caller forgot `collection: true`.
+1. `paginated: true` → `paginated($ref)`—also accepted when the caller forgot `collection: true`.
 2. `collection: true` → `collection($ref)`.
 3. otherwise → `single($ref)`.
 
@@ -975,7 +975,7 @@ use function sprintf;
  *
  * Defers (returns null) when the action carries no `#[FractalResponse]`. The
  * transformer's schema is wrapped in the Fractal `data` envelope produced by
- * {@see FractalEnvelopeFactory} — paginated, collection, or single depending on
+ * {@see FractalEnvelopeFactory}—paginated, collection, or single depending on
  * the attribute flags.
  */
 final readonly class FractalResponseResolver implements PrimaryResponseResolver
@@ -1017,11 +1017,11 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
                 'description' => 'OK',
                 'content' => [MediaType::Json->schema($envelope)],
             ]);
-        } catch (Throwable $e) {
+        } catch (Throwable $exception) {
             $this->logger->warning(sprintf(
                 'FractalResponseResolver failed for route %s: %s',
                 $descriptor->route->uri(),
-                $e->getMessage(),
+                $exception->getMessage(),
             ));
 
             return null;
@@ -1059,7 +1059,7 @@ git commit -m "feat: add FractalResponseResolver primary-response resolver"
 
 ## Task 7: `FractalPlugin` + service-provider wiring + config
 
-`FractalPlugin` registers the resolvers and **four** lint rules (created in Tasks 9–12 — register all now). The plugin ships **commented-out** in `config/openapi.php`.
+`FractalPlugin` registers the resolvers and **four** lint rules (created in Tasks 9–12—register all now). The plugin ships **commented-out** in `config/openapi.php`.
 
 **Files:**
 - Create: `src/Plugins/Fractal/FractalPlugin.php`
@@ -1118,7 +1118,7 @@ Add this method after `registerApiResourcesPlugin()`. As in the ApiResources plu
      * Binds the Fractal plugin services.
      *
      * `SchemaFromTransformer` receives every ref resolver except this plugin's
-     * own `TransformerRefSchemaResolver` — it recurses for nested transformers
+     * own `TransformerRefSchemaResolver`—it recurses for nested transformers
      * directly, and injecting its own resolver would form a construction cycle.
      */
     private function registerFractalPlugin(): void
@@ -1168,7 +1168,7 @@ Add this method after `registerApiResourcesPlugin()`. As in the ApiResources plu
     }
 ```
 
-The four lint rules have no constructor dependencies — they are autowired; no explicit binding is needed.
+The four lint rules have no constructor dependencies—they are autowired; no explicit binding is needed.
 
 - [x] **Step 3: Add the commented-out config entry**
 
@@ -1190,7 +1190,7 @@ In `config/openapi.php`, extend the `plugins` array (which by build steps 2–3 
 - [x] **Step 4: Run lint + analyse**
 
 Run: `vendor/bin/pint && composer analyse`
-Expected: Pint clean; PHPStan clean. (`composer test` fails until Tasks 9–12 create the four lint-rule classes — expected.)
+Expected: Pint clean; PHPStan clean. (`composer test` fails until Tasks 9–12 create the four lint-rule classes—expected.)
 
 - [x] **Step 5: Commit**
 
@@ -1201,11 +1201,11 @@ git commit -m "feat: register and wire the Fractal plugin (shipped disabled)"
 
 ---
 
-## Task 8: Feature test — Fractal transformer endpoints end-to-end
+## Task 8: Feature test—Fractal transformer endpoints end-to-end
 
-The plugin is disabled by default; the test enables it via a `config()` override in `beforeEach`. Fixture transformers are plain classes carrying `#[TransformerField]` — no `league/fractal` package is needed.
+The plugin is disabled by default; the test enables it via a `config()` override in `beforeEach`. Fixture transformers are plain classes carrying `#[TransformerField]`—no `league/fractal` package is needed.
 
-**Namespacing.** The test file declares `namespace Radiergummi\OpenApi\Tests\Feature\Plugins\Fractal;` at the top. Every fixture class declared in this file lives in that namespace, even when written as a bare `class FooTransformer {}` further down — that's how PHP namespaces work, but state it explicitly so reviewers don't second-guess collisions with fixtures in other test files.
+**Namespacing.** The test file declares `namespace Radiergummi\OpenApi\Tests\Feature\Plugins\Fractal;` at the top. Every fixture class declared in this file lives in that namespace, even when written as a bare `class FooTransformer {}` further down—that's how PHP namespaces work, but state it explicitly so reviewers don't second-guess collisions with fixtures in other test files.
 
 **Files:**
 - Create: `tests/Feature/Plugins/Fractal/FractalResponseTest.php`
@@ -1312,7 +1312,7 @@ it('registers the transformer as a reusable component schema', function (): void
 - [x] **Step 2: Run the test**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/Fractal/FractalResponseTest.php`
-Expected: PASS — 4 tests. (If the four lint-rule classes are still missing, complete Tasks 9–12 first.)
+Expected: PASS—4 tests. (If the four lint-rule classes are still missing, complete Tasks 9–12 first.)
 
 - [x] **Step 3: Commit**
 
@@ -1383,7 +1383,7 @@ it('flags a #[FractalResponse] transformer that declares no #[TransformerField]'
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalFieldsUndeclaredTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -1411,7 +1411,7 @@ use function sprintf;
 
 /**
  * Flags an operation bound via `#[FractalResponse]` whose transformer declares
- * no `#[TransformerField]` — the response shape is unknown.
+ * no `#[TransformerField]`—the response shape is unknown.
  */
 final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 {
@@ -1447,7 +1447,7 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
-                '%s %s is bound to %s, which declares no #[TransformerField] — the response schema is empty',
+                '%s %s is bound to %s, which declares no #[TransformerField]—the response schema is empty',
                 $operation->method,
                 $operation->pathUri,
                 $transformer,
@@ -1479,7 +1479,7 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalFieldsUndeclaredTest.php`
-Expected: PASS — 1 test.
+Expected: PASS—1 test.
 
 - [x] **Step 5: Commit**
 
@@ -1493,7 +1493,7 @@ git commit -m "feat: add fractal.fields-undeclared lint rule"
 
 ## Task 10: Lint rule `fractal.include-transformer-missing`
 
-Medium severity (`level: 2`). Flags any `#[TransformerInclude]` — on the transformer bound by an operation's `#[FractalResponse]` — whose `transformer` is `null`. Such an include is emitted as an opaque `type: object`.
+Medium severity (`level: 2`). Flags any `#[TransformerInclude]`—on the transformer bound by an operation's `#[FractalResponse]`—whose `transformer` is `null`. Such an include is emitted as an opaque `type: object`.
 
 **Files:**
 - Create: `src/Plugins/Fractal/Lint/Rules/FractalIncludeTransformerMissing.php`
@@ -1553,7 +1553,7 @@ it('flags a #[TransformerInclude] with no transformer class', function (): void 
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalIncludeTransformerMissingTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -1580,7 +1580,7 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Flags a `#[TransformerInclude]` declared with no `transformer` class — the
+ * Flags a `#[TransformerInclude]` declared with no `transformer` class—the
  * included resource is emitted as an opaque `type: object`.
  */
 final readonly class FractalIncludeTransformerMissing implements Rule, OperationRule
@@ -1620,7 +1620,7 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
                 ruleId: $this->id(),
                 level: $this->level(),
                 message: sprintf(
-                    '#[TransformerInclude(\'%s\')] on %s has no transformer — the include is emitted as an opaque object',
+                    '#[TransformerInclude(\'%s\')] on %s has no transformer—the include is emitted as an opaque object',
                     $include->name,
                     $transformer,
                 ),
@@ -1652,7 +1652,7 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalIncludeTransformerMissingTest.php`
-Expected: PASS — 1 test.
+Expected: PASS—1 test.
 
 - [x] **Step 5: Commit**
 
@@ -1666,9 +1666,9 @@ git commit -m "feat: add fractal.include-transformer-missing lint rule"
 
 ## Task 11: Lint rule `fractal.response-unbound`
 
-High severity (`level: 1`). Flags a controller method that **injects a `league/fractal` `Manager`** (a parameter typed `League\Fractal\Manager`) yet carries no `#[FractalResponse]` — the endpoint produces Fractal output the document does not describe.
+High severity (`level: 1`). Flags a controller method that **injects a `league/fractal` `Manager`** (a parameter typed `League\Fractal\Manager`) yet carries no `#[FractalResponse]`—the endpoint produces Fractal output the document does not describe.
 
-**Design decision — conservative detection (and what it misses).** As with the QueryBuilder plugin's `query-builder.params-undeclared`, the only body-free signal of Fractal intent is an injected dependency. The rule keys off a `League\Fractal\Manager` parameter, matched by FQCN **string** so neither the package nor the loaded class is required. This is narrow rather than heuristic — and worth being honest about: the rule will **not** fire for the common patterns of using the `fractal()` helper or the `Spatie\Fractalistic\Fractal` facade inside the method body, which are the dominant usage patterns in Laravel codebases. The rule's `description()` and the usage doc (Task 13) state this explicitly so users don't read silence as endorsement.
+**Design decision—conservative detection (and what it misses).** As with the QueryBuilder plugin's `query-builder.params-undeclared`, the only body-free signal of Fractal intent is an injected dependency. The rule keys off a `League\Fractal\Manager` parameter, matched by FQCN **string** so neither the package nor the loaded class is required. This is narrow rather than heuristic—and worth being honest about: the rule will **not** fire for the common patterns of using the `fractal()` helper or the `Spatie\Fractalistic\Fractal` facade inside the method body, which are the dominant usage patterns in Laravel codebases. The rule's `description()` and the usage doc (Task 13) state this explicitly so users don't read silence as endorsement.
 
 **Files:**
 - Create: `src/Plugins/Fractal/Lint/Rules/FractalResponseUnbound.php`
@@ -1742,7 +1742,7 @@ it('does not flag a method that declares #[FractalResponse]', function (): void 
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalResponseUnboundTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -1769,14 +1769,14 @@ use function sprintf;
 
 /**
  * Flags a controller method that injects a `league/fractal` `Manager` but
- * carries no `#[FractalResponse]` — it produces Fractal output the generated
+ * carries no `#[FractalResponse]`—it produces Fractal output the generated
  * document does not describe.
  *
  * Detection is deliberately conservative: it keys off an injected `Manager`
  * parameter (matched by FQCN string, so the package need not be installed),
  * not a body-inference heuristic. The rule will NOT fire for the common
  * patterns of using the `fractal()` helper or the `Spatie\Fractalistic\Fractal`
- * facade inside the method body — under OAPI-017 the generator does not read
+ * facade inside the method body—under OAPI-017 the generator does not read
  * method bodies. See `docs/known-gaps.md` (OAPI-053).
  */
 final readonly class FractalResponseUnbound implements Rule, OperationRule
@@ -1853,7 +1853,7 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
 - [x] **Step 4: Run the test**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalResponseUnboundTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -1867,7 +1867,7 @@ git commit -m "feat: add fractal.response-unbound lint rule"
 
 ## Task 12: Lint rule `fractal.duplicate-key`
 
-High severity (`level: 1`). Flags a transformer that declares two or more output keys with the same name — across `#[TransformerField]` and/or `#[TransformerInclude]`. swagger-php would happily emit both properties; the result is an invalid OpenAPI schema. Operation-level rule, fires once per duplicated name on the transformer bound by `#[FractalResponse]`.
+High severity (`level: 1`). Flags a transformer that declares two or more output keys with the same name—across `#[TransformerField]` and/or `#[TransformerInclude]`. swagger-php would happily emit both properties; the result is an invalid OpenAPI schema. Operation-level rule, fires once per duplicated name on the transformer bound by `#[FractalResponse]`.
 
 The `SchemaFromTransformer` builder intentionally does not deduplicate (matches `SchemaFromResource`'s behavior). This rule is the single source of truth for catching the mistake.
 
@@ -1933,7 +1933,7 @@ it('flags a transformer with a name shared between #[TransformerField] and #[Tra
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/Fractal/Lint/FractalDuplicateKeyTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -2062,7 +2062,7 @@ git commit -m "feat: add fractal.duplicate-key lint rule"
 ## Task 13: Documentation
 
 **Files:**
-- Modify: `CHANGELOG.md`, `docs/usage.md`, `docs/known-gaps.md`
+- Modify: `CHANGELOG.md`, `docs/usage.md`, `../../internal/known-gaps.md`
 
 - [x] **Step 1: Add a `CHANGELOG.md` entry**
 
@@ -2070,7 +2070,7 @@ Under `## [Unreleased]` → `### Added`, append:
 
 ```markdown
 - `league/fractal` transformer responses are now documented via the optional
-  `FractalPlugin` (shipped disabled — uncomment it in `config/openapi.php` after
+  `FractalPlugin` (shipped disabled—uncomment it in `config/openapi.php` after
   installing the package). Transformers declare output keys with
   `#[TransformerField]` and includes with `#[TransformerInclude]`; endpoints bind
   to a transformer with `#[FractalResponse]`, which accepts `collection: true`
@@ -2083,15 +2083,15 @@ Under `## [Unreleased]` → `### Added`, append:
 
 - [x] **Step 2: Update `docs/usage.md`**
 
-Add a short subsection: how to enable `FractalPlugin` (uncomment in config + `composer require league/fractal`), how to declare the three attributes (`#[TransformerField]`, `#[TransformerInclude]`, `#[FractalResponse]` with its `collection` / `paginated` flags), and a one-line note that `fractal.response-unbound` only fires for `Manager`-injected methods — not for the `fractal()` helper or facade. Keep it to the minimal observable-behaviour description CLAUDE.md mandates.
+Add a short subsection: how to enable `FractalPlugin` (uncomment in config + `composer require league/fractal`), how to declare the three attributes (`#[TransformerField]`, `#[TransformerInclude]`, `#[FractalResponse]` with its `collection` / `paginated` flags), and a one-line note that `fractal.response-unbound` only fires for `Manager`-injected methods—not for the `fractal()` helper or facade. Keep it to the minimal observable-behaviour description CLAUDE.md mandates.
 
-- [x] **Step 3: Update `docs/known-gaps.md`**
+- [x] **Step 3: Update `../../internal/known-gaps.md`**
 
 In the OAPI-017 section, note that Fractal response shapes are derived from `#[TransformerField]` / `#[TransformerInclude]` / `#[FractalResponse]` attributes rather than from `transform()` method bodies or Fractal manager calls.
 
 Add two new gap entries under their own headings, formatted to match existing entries:
 
-- **OAPI-052: Fractal serializer assumed to be `DataArraySerializer`.** The emitted envelopes — `{data}`, `{data: [...]}`, `{data: [...], meta: {pagination: {…}}}` — model Fractal's default `DataArraySerializer` + `IlluminatePaginatorAdapter`. Other serializers (`JsonApiSerializer`, `ArraySerializer`, custom) produce different shapes and are not modelled; the generated document will not match the runtime output for endpoints using them. Workaround: use `#[Response]` to override the schema for those endpoints.
+- **OAPI-052: Fractal serializer assumed to be `DataArraySerializer`.** The emitted envelopes—`{data}`, `{data: [...]}`, `{data: [...], meta: {pagination: {…}}}`—model Fractal's default `DataArraySerializer` + `IlluminatePaginatorAdapter`. Other serializers (`JsonApiSerializer`, `ArraySerializer`, custom) produce different shapes and are not modelled; the generated document will not match the runtime output for endpoints using them. Workaround: use `#[Response]` to override the schema for those endpoints.
 - **OAPI-053: `fractal.response-unbound` does not detect `fractal()` helper / facade usage.** The lint rule keys off an injected `League\Fractal\Manager` parameter (a body-free signal). It does not flag methods that use the `fractal()` helper or `Spatie\Fractalistic\Fractal` facade inside the method body, because the generator does not read method bodies (OAPI-017). Endpoints using those patterns will silently produce undocumented Fractal output.
 
 - [x] **Step 4: Run the full suite once more**
@@ -2110,11 +2110,11 @@ git commit -m "docs: document the Fractal plugin"
 
 ## Self-Review
 
-**Spec coverage:** `FractalPlugin` under `src/Plugins/Fractal/` (Task 7); `#[TransformerField]` repeatable class-level (Task 1); `#[TransformerInclude]` repeatable class-level with `transformer` + `default`, modelling `availableIncludes` / `defaultIncludes` (Tasks 2, 3); `#[FractalResponse]` method-only binding with `transformer` + `collection` + `paginated` (Tasks 2, 6); primary-response resolver (Task 6) and ref-schema resolver (Task 4); envelope shapes split into `FractalEnvelopeFactory` (Task 5); nested class-string shorthand via the ref resolvers (Task 3); the four lint rules with the spec's IDs and severities (Tasks 9–12); shipped commented-out in config (Task 7); unit + feature tests (every task); `CHANGELOG.md` + `docs/usage.md` + `docs/known-gaps.md` per-change updates (Task 13).
+**Spec coverage:** `FractalPlugin` under `src/Plugins/Fractal/` (Task 7); `#[TransformerField]` repeatable class-level (Task 1); `#[TransformerInclude]` repeatable class-level with `transformer` + `default`, modelling `availableIncludes` / `defaultIncludes` (Tasks 2, 3); `#[FractalResponse]` method-only binding with `transformer` + `collection` + `paginated` (Tasks 2, 6); primary-response resolver (Task 6) and ref-schema resolver (Task 4); envelope shapes split into `FractalEnvelopeFactory` (Task 5); nested class-string shorthand via the ref resolvers (Task 3); the four lint rules with the spec's IDs and severities (Tasks 9–12); shipped commented-out in config (Task 7); unit + feature tests (every task); `CHANGELOG.md` + `docs/usage.md` + `../../internal/known-gaps.md` per-change updates (Task 13).
 
-**Type consistency:** `TransformerField` exposes `name` + `type` + `descriptor()` + `conditional` + `nullable`, consumed identically in Tasks 3, 9, 12. `TransformerInclude` exposes `name` + `?transformer` + `default`, consumed in Tasks 3, 10, 12. `FractalResponse` exposes `transformer` + `collection` + `paginated`, consumed in Tasks 6, 9, 10, 11, 12. `SchemaFromTransformer::build(): string` returns a bare component key; `buildRef(): string` returns the qualified `#/components/schemas/<key>` ref — Tasks 4 and 6 use `buildRef()`. A "transformer" is consistently defined as "a class carrying `#[TransformerField]`" across Tasks 3, 4, 9, 12.
+**Type consistency:** `TransformerField` exposes `name` + `type` + `descriptor()` + `conditional` + `nullable`, consumed identically in Tasks 3, 9, 12. `TransformerInclude` exposes `name` + `?transformer` + `default`, consumed in Tasks 3, 10, 12. `FractalResponse` exposes `transformer` + `collection` + `paginated`, consumed in Tasks 6, 9, 10, 11, 12. `SchemaFromTransformer::build(): string` returns a bare component key; `buildRef(): string` returns the qualified `#/components/schemas/<key>` ref—Tasks 4 and 6 use `buildRef()`. A "transformer" is consistently defined as "a class carrying `#[TransformerField]`" across Tasks 3, 4, 9, 12.
 
-**Codebase alignment:** Task 3 uses the public `ComponentSchemaRegistry::buildOnce()` API (not the now-private `markInProgress`/`markComplete` calls earlier drafts named) and `SchemaDescriptor::applyTo()` for scalar field properties — matching `SchemaFromResource`. Task 5 splits envelope shape into a factory, mirroring `ResourceEnvelopeFactory`. Task 2 drops `TARGET_FUNCTION` from `#[FractalResponse]`'s attribute target to match the codebase's method-only endpoint-attribute convention.
+**Codebase alignment:** Task 3 uses the public `ComponentSchemaRegistry::buildOnce()` API (not the now-private `markInProgress`/`markComplete` calls earlier drafts named) and `SchemaDescriptor::applyTo()` for scalar field properties—matching `SchemaFromResource`. Task 5 splits envelope shape into a factory, mirroring `ResourceEnvelopeFactory`. Task 2 drops `TARGET_FUNCTION` from `#[FractalResponse]`'s attribute target to match the codebase's method-only endpoint-attribute convention.
 
 **Design decisions documented:** the plugin never references `League\Fractal\TransformerAbstract`; `fractal.response-unbound` keys off an injected `League\Fractal\Manager` parameter and is honest about what it misses (Task 11, OAPI-053). The envelope shapes assume `DataArraySerializer` + `IlluminatePaginatorAdapter` (OAPI-052). Duplicate key detection lives in `fractal.duplicate-key` rather than as silent dedup in the builder, matching the codebase's lint-as-warning pattern (Task 12).
 
@@ -2125,4 +2125,4 @@ git commit -m "docs: document the Fractal plugin"
 
 ## Next plan in this program
 
-5. composer.json + config-defaults wiring — `docs/superpowers/plans/2026-05-19-plugin-suite-wiring.md`.
+5. composer.json + config-defaults wiring—`docs/superpowers/plans/2026-05-19-plugin-suite-wiring.md`.

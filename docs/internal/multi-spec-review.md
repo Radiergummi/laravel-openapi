@@ -54,7 +54,7 @@ expressions.
 **2. `openapi:why` cannot explain globally-filtered routes.** The design says the trace
 should show the global-filter stage for filtered-out routes, but `WhyCommand` iterates
 `RouteIntrospector::discover()` which has already dropped them. Restoring this requires
-exposing an unfiltered iterator on `RouteIntrospector`. Deferred — not blocking.
+exposing an unfiltered iterator on `RouteIntrospector`. Deferred—not blocking.
 
 **3. `info` is shallow-merged.** `SpecRegistry::buildSpec` uses `array_merge` which
 clobbers nested `contact` / `license` when a spec overrides one field. Design specifies

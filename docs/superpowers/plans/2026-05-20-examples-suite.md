@@ -15,24 +15,24 @@
 ## File map (locked-in decomposition)
 
 **Foundation (Task 1):**
-- Create `examples/_shared/Models/Flight.php` — Eloquent model
-- Create `examples/_shared/Models/Booking.php` — Eloquent model
+- Create `examples/_shared/Models/Flight.php`—Eloquent model
+- Create `examples/_shared/Models/Booking.php`—Eloquent model
 - Create `examples/_shared/Database/migrations/0000_00_00_000000_create_flights_and_bookings_tables.php`
-- Create `examples/_shared/Database/Seeder.php` — three static flights, a few bookings
-- Create `examples/_shared/TestbenchBoot.php` — `boot(string $flavor): Application` helper
-- Create `examples/_shared/OpenApiConfig.php` — small static class returning a config override array used by every flavor (info, tags, exception_responses)
-- Create `examples/generate.php` — CLI entry that takes a flavor name and writes the snapshot
-- Modify `composer.json` — add `autoload-dev` PSR-4 entries, add `scripts.examples:*`
-- Modify `tests/TestCase.php` — extract the Testbench-boot logic into `Examples\Shared\TestbenchBoot::boot()` and have `TestCase` reuse it (only the bits not specific to TestCase tooling)
-- Create `tests/Feature/ExamplesTest.php` — parameterised test (initially with no flavors registered)
+- Create `examples/_shared/Database/Seeder.php`—three static flights, a few bookings
+- Create `examples/_shared/TestbenchBoot.php`—`boot(string $flavor): Application` helper
+- Create `examples/_shared/OpenApiConfig.php`—small static class returning a config override array used by every flavor (info, tags, exception_responses)
+- Create `examples/generate.php`—CLI entry that takes a flavor name and writes the snapshot
+- Modify `composer.json`—add `autoload-dev` PSR-4 entries, add `scripts.examples:*`
+- Modify `tests/TestCase.php`—extract the Testbench-boot logic into `Examples\Shared\TestbenchBoot::boot()` and have `TestCase` reuse it (only the bits not specific to TestCase tooling)
+- Create `tests/Feature/ExamplesTest.php`—parameterised test (initially with no flavors registered)
 
 **Per-flavor (Tasks 2–6):** see each task for its file list.
 
 **Documentation (Task 7):**
 - Create `examples/README.md`
 - Create `examples/<flavor>/README.md` (×5)
-- Modify `docs/usage.md` — add a "See the examples" section pointing to `examples/`
-- Modify `CHANGELOG.md` — add `[Unreleased]` entry
+- Modify `docs/usage.md`—add a "See the examples" section pointing to `examples/`
+- Modify `CHANGELOG.md`—add `[Unreleased]` entry
 
 ---
 
@@ -551,11 +551,11 @@ it('lints clean', function (string $serviceProvider, string $flavor): void {
 })->with('flavors');
 ```
 
-- [ ] **Step 12: Run the test scaffolding (expected to fail — no flavors exist yet)**
+- [ ] **Step 12: Run the test scaffolding (expected to fail—no flavors exist yet)**
 
 Run: `vendor/bin/pest tests/Feature/ExamplesTest.php -v`
 
-Expected: failures, because none of the `Examples\*\ExampleServiceProvider` classes exist yet and no `examples/*/openapi.yaml` snapshots have been committed. This is correct — Tasks 2–6 each make their flavor's three test rows go green.
+Expected: failures, because none of the `Examples\*\ExampleServiceProvider` classes exist yet and no `examples/*/openapi.yaml` snapshots have been committed. This is correct—Tasks 2–6 each make their flavor's three test rows go green.
 
 - [ ] **Step 13: Run lint + analyse on what's there so far**
 
@@ -578,7 +578,7 @@ implemented yet)."
 
 ## Task 2: Vanilla flavor
 
-This flavor's purpose: show what the generator produces when given **plain Laravel code with no opinionated stack**. Heavy use of authoring attributes is the point — when nothing teaches the generator about a method, attributes are how you teach it.
+This flavor's purpose: show what the generator produces when given **plain Laravel code with no opinionated stack**. Heavy use of authoring attributes is the point—when nothing teaches the generator about a method, attributes are how you teach it.
 
 **Files:**
 - Create: `examples/vanilla/ExampleServiceProvider.php`
@@ -861,7 +861,7 @@ Run: `vendor/bin/pest tests/Feature/ExamplesTest.php --filter vanilla -v`
 
 Expected: all three vanilla rows pass (snapshot match, OAS 3.1 valid, lint clean).
 
-If lint fails: read the findings, decide whether each is a legitimate signal to fix in the example code or a noisy rule worth disabling in `OpenApiConfig::apply()` via `config()->set('openapi.lint.disabled_rules', ...)`. **Default to fixing the example** — these are showcase examples and should be lint-clean by construction.
+If lint fails: read the findings, decide whether each is a legitimate signal to fix in the example code or a noisy rule worth disabling in `OpenApiConfig::apply()` via `config()->set('openapi.lint.disabled_rules', ...)`. **Default to fixing the example**—these are showcase examples and should be lint-clean by construction.
 
 - [ ] **Step 8: Run full lint + analyse**
 
@@ -933,7 +933,7 @@ final class ExampleServiceProvider extends ServiceProvider
 
 - [ ] **Step 2: Create the routes file**
 
-`examples/form-requests/routes/api.php` — identical structure to vanilla, but importing `Examples\FormRequests\Http\*` controllers. (Copy the vanilla routes file, change the namespace on the two `use` lines.)
+`examples/form-requests/routes/api.php`—identical structure to vanilla, but importing `Examples\FormRequests\Http\*` controllers. (Copy the vanilla routes file, change the namespace on the two `use` lines.)
 
 - [ ] **Step 3: Create `StoreFlightRequest`**
 
@@ -1704,7 +1704,7 @@ Expected: lock file updated, package installed in `vendor/spatie/laravel-query-b
 "spatie/laravel-query-builder": "Enables documentation of #[AllowedFilter]/#[AllowedSort]/#[AllowedInclude] (^6.0)."
 ```
 
-- [ ] **Step 2: Create ServiceProvider — register the QueryBuilderPlugin**
+- [ ] **Step 2: Create ServiceProvider—register the QueryBuilderPlugin**
 
 ```php
 <?php
@@ -1731,7 +1731,7 @@ final class ExampleServiceProvider extends ServiceProvider
     {
         OpenApiConfig::apply('QueryBuilder');
 
-        // The default config ships with QueryBuilderPlugin commented out — this flavor
+        // The default config ships with QueryBuilderPlugin commented out—this flavor
         // demonstrates it.
         config()->set('openapi.plugins', array_merge(
             (array) config('openapi.plugins', []),
@@ -1743,7 +1743,7 @@ final class ExampleServiceProvider extends ServiceProvider
 }
 ```
 
-- [ ] **Step 3: Routes file — same eight routes, importing `Examples\QueryBuilder\Http\*`**
+- [ ] **Step 3: Routes file—same eight routes, importing `Examples\QueryBuilder\Http\*`**
 
 - [ ] **Step 4: Create `FlightController` with QueryBuilder on the index endpoint**
 
@@ -1874,7 +1874,7 @@ including a nullable filter on departs_after."
 
 ## Task 6: combined flavor
 
-The realistic-mix flavor — FormRequest in, Data out, QueryBuilder on indexes — plus the remaining feature demos: `#[Security]`, `#[PublicEndpoint]`, `#[Link]` between operations, `#[Hide]` on one internal endpoint, a multipart file-upload endpoint, and a `file:`-loaded example payload via the `ExampleFileLoader`.
+The realistic-mix flavor—FormRequest in, Data out, QueryBuilder on indexes—plus the remaining feature demos: `#[Security]`, `#[PublicEndpoint]`, `#[Link]` between operations, `#[Hide]` on one internal endpoint, a multipart file-upload endpoint, and a `file:`-loaded example payload via the `ExampleFileLoader`.
 
 **Files:**
 - Create: `examples/combined/ExampleServiceProvider.php`
@@ -1888,7 +1888,7 @@ The realistic-mix flavor — FormRequest in, Data out, QueryBuilder on indexes �
 - Create: `examples/combined/example_payloads/flight.json` (loaded via `file:` reference)
 - Create: `examples/combined/openapi.yaml`
 
-- [ ] **Step 1: ServiceProvider — set up security scheme + register QueryBuilderPlugin**
+- [ ] **Step 1: ServiceProvider—set up security scheme + register QueryBuilderPlugin**
 
 ```php
 <?php
@@ -1935,9 +1935,9 @@ final class ExampleServiceProvider extends ServiceProvider
 }
 ```
 
-Confirm the config key for security schemes by reading `src/OpenApiServiceProvider.php` / `SecurityExtractor` — if a different key is used (e.g. `openapi.security`), adjust.
+Confirm the config key for security schemes by reading `src/OpenApiServiceProvider.php` / `SecurityExtractor`—if a different key is used (e.g. `openapi.security`), adjust.
 
-- [ ] **Step 2: Routes — eight standard routes plus two extras**
+- [ ] **Step 2: Routes—eight standard routes plus two extras**
 
 `examples/combined/routes/api.php`:
 
@@ -2032,7 +2032,7 @@ The example loader resolves paths relative to `base_path()`. Read `src/Core/Gene
 Single file, but lots happening in it. Highlights:
 - `#[Tag('Flights')]` on class.
 - `index` carries `#[AllowedFilter]`/`#[AllowedSort]`/`#[AllowedInclude]` and `#[PublicEndpoint]`.
-- `show` carries `#[ResponseExample]` referencing `file:examples/combined/example_payloads/flight.json` (or whatever syntax `ExampleFileLoader` expects — verify in source).
+- `show` carries `#[ResponseExample]` referencing `file:examples/combined/example_payloads/flight.json` (or whatever syntax `ExampleFileLoader` expects—verify in source).
 - `store` consumes the FormRequest, returns Data; carries `#[Security('bearer')]` + `#[Link]` to `flights.show` (Link parameters: `flight: $response.body#/id`).
 - `update`, `destroy` carry `#[Security('bearer')]`.
 - `@throws ModelNotFoundException` on the per-id endpoints.
@@ -2226,7 +2226,7 @@ file uploads, and file: example payloads via ExampleFileLoader."
 
 Each subdirectory is a small, runnable Laravel-shaped example exposing the same
 flights + bookings API. Read the code in one, then read `openapi.yaml` next to
-it — that's the showcase.
+it—that's the showcase.
 
 | Flavor | What it demonstrates |
 |--------|----------------------|
@@ -2249,7 +2249,7 @@ an in-memory SQLite database, and writes `examples/<flavor>/openapi.yaml`.
 
 The verification test (`tests/Feature/ExamplesTest.php`) asserts that every
 committed snapshot matches a fresh generation, validates as OpenAPI 3.1, and
-lints clean — so the committed YAMLs can never silently drift from the code.
+lints clean—so the committed YAMLs can never silently drift from the code.
 
 ## Coming next
 
@@ -2264,7 +2264,7 @@ Authentication flavors (Passport, Sanctum) are deferred to a follow-up pass.
 # Vanilla
 
 Plain Laravel controllers, no opinionated stack. Open `Http/FlightController.php`
-first — every endpoint is annotated with `#[Tag]`, `#[QueryParam]`, `#[Response]`,
+first—every endpoint is annotated with `#[Tag]`, `#[QueryParam]`, `#[Response]`,
 and `@throws`, which is how you teach the generator about a method when no
 FormRequest/Data class is doing it for you.
 
@@ -2316,23 +2316,23 @@ git commit -m "docs(examples): top-level readme, per-flavor readmes, usage + cha
 
 ---
 
-## Self-Review (writer's pass — not to be executed by an implementer)
+## Self-Review (writer's pass—not to be executed by an implementer)
 
 **Spec coverage:**
-- *Goals* — every bullet in the spec's Goals section has a task: one-screen mental model (Task 7 README), five permutations (Tasks 2–6), real Laravel boot (Task 1 TestbenchBoot), committed snapshots (each flavor's Step 5+), drift caught (Task 1 Step 11 test).
-- *Non-goals* — auth flavors, per-example composer skeletons, hosted Swagger UI, factories, JSON output: none of the tasks introduce these. ✓
-- *Shared domain* — Task 1 Steps 2–5 implement Flight/Booking models, migration, seeder with the exact field shape from the spec. ✓
-- *API surface* — every flavor's routes file lists the same eight endpoints (combined adds two demonstration-only routes; the spec explicitly allows this for the Hide + upload demos — see "include as much of the package's functionality as possible" mandate from the user). ✓
-- *Directory layout* — File-map at the top of each task matches the spec's tree exactly. ✓
-- *Flavor responsibilities* — each flavor's task covers the techniques in the spec's table; the user's "include as much of the package's functionality as possible" overlay extends each flavor with additional attribute demonstrations without violating the "techniques are attributable to the flavor" rule. ✓
-- *Generation runner* — Task 1 Steps 8–10. ✓
-- *Verification* — Task 1 Step 11 (snapshot match + OAS 3.1 validation + lint). ✓
-- *Documentation* — Task 7. ✓
+- *Goals*—every bullet in the spec's Goals section has a task: one-screen mental model (Task 7 README), five permutations (Tasks 2–6), real Laravel boot (Task 1 TestbenchBoot), committed snapshots (each flavor's Step 5+), drift caught (Task 1 Step 11 test).
+- *Non-goals*—auth flavors, per-example composer skeletons, hosted Swagger UI, factories, JSON output: none of the tasks introduce these. ✓
+- *Shared domain*—Task 1 Steps 2–5 implement Flight/Booking models, migration, seeder with the exact field shape from the spec. ✓
+- *API surface*—every flavor's routes file lists the same eight endpoints (combined adds two demonstration-only routes; the spec explicitly allows this for the Hide + upload demos—see "include as much of the package's functionality as possible" mandate from the user). ✓
+- *Directory layout*—File-map at the top of each task matches the spec's tree exactly. ✓
+- *Flavor responsibilities*—each flavor's task covers the techniques in the spec's table; the user's "include as much of the package's functionality as possible" overlay extends each flavor with additional attribute demonstrations without violating the "techniques are attributable to the flavor" rule. ✓
+- *Generation runner*—Task 1 Steps 8–10. ✓
+- *Verification*—Task 1 Step 11 (snapshot match + OAS 3.1 validation + lint). ✓
+- *Documentation*—Task 7. ✓
 
-**Placeholder scan:** Three explicit instructions to verify attribute parameter names against source before generating (`#[RequestField]` in Task 3 Step 3, `#[ResponseField]` in Task 3 Step 6/7, `#[ResponseExample]`/`#[Link]`/`#[RequestBody]` in Task 6 Step 7/5/7). These are not placeholders for missing content — they're guardrails because the package's attribute constructors evolve and the writer (me) only sampled a couple of them. The implementer is told which source files to read.
+**Placeholder scan:** Three explicit instructions to verify attribute parameter names against source before generating (`#[RequestField]` in Task 3 Step 3, `#[ResponseField]` in Task 3 Step 6/7, `#[ResponseExample]`/`#[Link]`/`#[RequestBody]` in Task 6 Step 7/5/7). These are not placeholders for missing content—they're guardrails because the package's attribute constructors evolve and the writer (me) only sampled a couple of them. The implementer is told which source files to read.
 
 **Type consistency:** `ExampleServiceProvider` lives in `Examples\<Flavor>\` everywhere; `Flight`/`Booking` models are `Examples\Shared\Models\` everywhere; the `composer examples:<flavor>` script invocations match the `generate.php` provider-map keys. Snapshot paths (`examples/<flavor>/openapi.yaml`) consistent across `generate.php`, `ExamplesTest`, and per-flavor steps. ✓
 
 **Known soft spots flagged for the implementer:**
-- The `tests/TestCase.php` "extract boot logic" line in the original file-map is aspirational; verifying the existing TestCase logic actually composes with `TestbenchBoot::boot()` is the implementer's first verification step in Task 1. If a clean refactor isn't trivial, leave `TestCase.php` alone — the two boot paths can coexist.
+- The `tests/TestCase.php` "extract boot logic" line in the original file-map is aspirational; verifying the existing TestCase logic actually composes with `TestbenchBoot::boot()` is the implementer's first verification step in Task 1. If a clean refactor isn't trivial, leave `TestCase.php` alone—the two boot paths can coexist.
 - Several attribute names/parameters were inferred from filenames + one or two read passes. The implementer is told three times to verify attribute shapes from source before pasting; this is deliberate.

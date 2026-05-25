@@ -1,10 +1,10 @@
-# Auth-Flavor Examples — Design
+# Auth-Flavor Examples—Design
 
 **Date:** 2026-05-22
 **Status:** Draft (to be expanded before implementation)
 **Purpose:** Showcase how `radiergummi/laravel-openapi` documents the two auth conventions
-that consumer Laravel apps actually run in production — Passport (OAuth 2.0) and Sanctum
-(token / SPA cookie) — as new entries in the `examples/` suite.
+that consumer Laravel apps actually run in production—Passport (OAuth 2.0) and Sanctum
+(token / SPA cookie)—as new entries in the `examples/` suite.
 
 The existing five flavors (`vanilla`, `form-requests`, `spatie-data`, `query-builder`,
 `combined`) cover request/response shape conventions; none of them exercises an auth
@@ -29,7 +29,7 @@ concrete work.
 ## Non-goals
 
 - Wiring a working OAuth dance (token issuance, login UI, social providers). The
-  example only documents the *spec surface* — auth runtime behaviour is out of scope.
+  example only documents the *spec surface*—auth runtime behaviour is out of scope.
 - A combined `passport + sanctum` flavor. Mixed-scheme support already lives in the
   `combined` flavor's `bearer + oauth2` setup and shouldn't be duplicated.
 - Custom guards, custom token drivers, custom scope storage. These are application
@@ -48,7 +48,7 @@ present. `auth:api` middleware → `401`; `scope:flights:read` middleware →
 
 **Code on display.**
 - A `FlightController` and `BookingController` with `auth:api` + `scope:*` middleware on
-  the routes. No `#[Security]` attributes — the requirements flow entirely from
+  the routes. No `#[Security]` attributes—the requirements flow entirely from
   middleware, since that's the Passport-flavored project's natural source of truth.
 - A `Passport::tokensCan([...])` registration in a service provider so the lint rule
   `security.scope-undeclared` can verify scope coverage.
@@ -71,12 +71,12 @@ sets `openapi.security_default_scheme = 'bearer'`. `auth:sanctum` middleware →
 
 **Code on display.**
 - The same controllers, with `auth:sanctum` + `abilities:*` middleware. Again no
-  `#[Security]` on call sites — middleware is the source of truth.
+  `#[Security]` on call sites—middleware is the source of truth.
 - A `config/openapi.php` overlay declaring the `bearer` scheme and the default.
 
 **Spec output asserted.**
 - `components.securitySchemes.bearer` has `type: http, scheme: bearer, bearerFormat:
-  JWT` (or `Bearer`, TBD during implementation — the spec is permissive, just pick one
+  JWT` (or `Bearer`, TBD during implementation—the spec is permissive, just pick one
   and stick to it).
 - `security_default_scheme = 'bearer'` flows through, so middleware-derived security
   references the bearer scheme without per-attribute `scheme:` arguments.
@@ -100,7 +100,7 @@ auth stack is the variable. Re-using the shared domain keeps the diff against
   cover it but adds surface area. Decide during implementation.
 - **CI integration.** The capstone `PluginSuiteIntegrationTest` shape (one suite,
   multi-flavor assertions) vs. per-flavor feature tests. Probably per-flavor for these
-  two — they're more demo than smoke.
+  two—they're more demo than smoke.
 
 ## Build steps (when picked up)
 

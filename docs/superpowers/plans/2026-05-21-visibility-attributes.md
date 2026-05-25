@@ -8,7 +8,7 @@
 
 **Tech Stack:** PHP 8.4, Pest, Larastan level 8, Laravel 12/13 via Orchestra Testbench. Spec reference: `docs/superpowers/specs/2026-05-21-visibility-attributes-design.md`.
 
-**Spec clarification carried into this plan:** The spec's `visibility.attribute-no-op` rule is implemented as "fire only for *unconditional* no-op attributes." Env-scoped `Hide`/`Expose` are never flagged — their effect can flip across environments, so flagging them risks false positives. This resolves an internal ambiguity in the spec section.
+**Spec clarification carried into this plan:** The spec's `visibility.attribute-no-op` rule is implemented as "fire only for *unconditional* no-op attributes." Env-scoped `Hide`/`Expose` are never flagged—their effect can flip across environments, so flagging them risks false positives. This resolves an internal ambiguity in the spec section.
 
 ---
 
@@ -124,7 +124,7 @@ git commit -m "feat: add VisibilityMode enum"
 
 ---
 
-### Task 2: Refactor `Hide` — `only` / `except` + mutual exclusion
+### Task 2: Refactor `Hide`—`only` / `except` + mutual exclusion
 
 **Files:**
 - Modify: `src/Core/Attributes/Hide.php`
@@ -132,7 +132,7 @@ git commit -m "feat: add VisibilityMode enum"
 - Modify: `tests/Feature/ClosureRouteAttributesTest.php` (two call sites at lines 45, 53)
 - Test: `tests/Unit/Attributes/HideTest.php` (new)
 
-This task changes the attribute signature AND every call site in one commit — leaving them out of sync would break the existing test suite mid-plan.
+This task changes the attribute signature AND every call site in one commit—leaving them out of sync would break the existing test suite mid-plan.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -171,7 +171,7 @@ it('throws LogicException when both only and except are supplied', function (): 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Attributes/HideTest.php`
-Expected: FAIL — `only`/`except` are not constructor parameters of `Hide`.
+Expected: FAIL—`only`/`except` are not constructor parameters of `Hide`.
 
 - [ ] **Step 3: Rewrite `src/Core/Attributes/Hide.php`**
 
@@ -202,7 +202,7 @@ use LogicException;
  *
  * Environment scoping: pass `only` to hide *only* when the application
  * environment is in the list, or `except` to hide *everywhere except* the
- * listed environments. The two arguments are mutually exclusive — passing
+ * listed environments. The two arguments are mutually exclusive—passing
  * both throws {@see LogicException}. With neither, the route is hidden
  * unconditionally.
  *
@@ -224,7 +224,7 @@ final readonly class Hide
     ) {
         if ($only !== null && $except !== null) {
             throw new LogicException(
-                '#[Hide] cannot use both `only` and `except` — they are mutually exclusive.',
+                '#[Hide] cannot use both `only` and `except`—they are mutually exclusive.',
             );
         }
     }
@@ -251,9 +251,9 @@ Route::get('/closure/env-hidden', #[Hide(only: ['production'])] static fn(): arr
 vendor/bin/pest tests/Unit/Attributes/HideTest.php tests/Feature/AuthoringAttributesTest.php tests/Feature/ClosureRouteAttributesTest.php
 ```
 
-Expected: all green. The feature tests still pass because the generator currently still reads `$environments` — that will break in step 6.
+Expected: all green. The feature tests still pass because the generator currently still reads `$environments`—that will break in step 6.
 
-- [ ] **Step 6: Note** — Step 5 currently *will* fail because the generator at `src/Core/Generator/OpenApiGenerator.php:275` still reads `$hide->environments`. Patch that single read inline to `$hide->only` for now, deferring the full refactor to Task 6:
+- [ ] **Step 6: Note**—Step 5 currently *will* fail because the generator at `src/Core/Generator/OpenApiGenerator.php:275` still reads `$hide->environments`. Patch that single read inline to `$hide->only` for now, deferring the full refactor to Task 6:
 
 ```php
 if (($hide->only === null && $hide->except === null) || ($hide->only !== null && in_array($env, $hide->only, true))) {
@@ -309,7 +309,7 @@ it('throws LogicException when both only and except are supplied', function (): 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Attributes/ExposeTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [ ] **Step 3: Create `src/Core/Attributes/Expose.php`**
 
@@ -361,7 +361,7 @@ final readonly class Expose
     ) {
         if ($only !== null && $except !== null) {
             throw new LogicException(
-                '#[Expose] cannot use both `only` and `except` — they are mutually exclusive.',
+                '#[Expose] cannot use both `only` and `except`—they are mutually exclusive.',
             );
         }
     }
@@ -449,7 +449,7 @@ it('lets Hide beat Expose when both apply', function () use ($resolver): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Visibility/VisibilityResolverTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [ ] **Step 3: Write the resolver**
 
@@ -597,7 +597,7 @@ In `src/Core/Generator/OpenApiGenerator.php`:
 
 a) Add import: `use Radiergummi\OpenApi\Core\Attributes\Expose;` and `use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;`.
 
-b) Inject `VisibilityResolver` into the constructor (matching the existing constructor-injection style — likely already a Laravel-managed singleton/scoped class). Find the constructor and add `private readonly VisibilityResolver $visibilityResolver` to the parameter list.
+b) Inject `VisibilityResolver` into the constructor (matching the existing constructor-injection style—likely already a Laravel-managed singleton/scoped class). Find the constructor and add `private readonly VisibilityResolver $visibilityResolver` to the parameter list.
 
 c) Replace the `isHidden()` method body:
 
@@ -667,7 +667,7 @@ git commit -m "refactor: route visibility through VisibilityResolver"
 
 ---
 
-### Task 6: Feature test — default-hidden mode
+### Task 6: Feature test—default-hidden mode
 
 **Files:**
 - Create: `tests/Feature/VisibilityDefaultHiddenTest.php`
@@ -756,12 +756,12 @@ it('exposes env-scoped #[Expose] inside the matching environment', function (): 
 });
 ```
 
-> Verify the precise generator entry-point method (`generate()` here is a placeholder — adapt to whatever existing feature tests like `AuthoringAttributesTest` use). The fixture file pattern matches `AuthoringFixtureController`.
+> Verify the precise generator entry-point method (`generate()` here is a placeholder—adapt to whatever existing feature tests like `AuthoringAttributesTest` use). The fixture file pattern matches `AuthoringFixtureController`.
 
 - [ ] **Step 3: Run test to verify it fails or passes per expectation**
 
 Run: `vendor/bin/pest tests/Feature/VisibilityDefaultHiddenTest.php`
-Expected: all 4 pass — Task 5 already wired the resolver.
+Expected: all 4 pass—Task 5 already wired the resolver.
 
 If a test fails because the generator caches per the route-set or env, debug by reading `tests/Feature/ClosureRouteAttributesTest.php` for the canonical pattern of forcing a fresh generation.
 
@@ -819,7 +819,7 @@ interface RouteRule
 
 Find the section of `LintCommand::handle()` that runs `SpecTreeWalker`. Immediately after that walk, before findings are formatted, add a pass that iterates `$descriptors` and invokes each `RouteRule`-implementing rule from the registry. Use the existing `LintContext` and `$collector`.
 
-Sketch (adapt to surrounding variable names — read the existing flow first):
+Sketch (adapt to surrounding variable names—read the existing flow first):
 
 ```php
 $routeRules = array_values(array_filter(
@@ -942,12 +942,12 @@ it('does not report when Hide and Expose env scopes are disjoint', function (): 
 });
 ```
 
-> `runLint()` / `toContainFindingWithId()` are placeholders — match whatever idiom the existing `tests/Feature/Lint/` files use. Read one existing file (e.g. `tests/Feature/Lint/OperationIdDuplicateTest.php` or whichever exists) to copy the bootstrap. If no helpers exist, invoke the lint command directly via `$this->artisan('openapi:lint --format=json')` and decode the JSON.
+> `runLint()` / `toContainFindingWithId()` are placeholders—match whatever idiom the existing `tests/Feature/Lint/` files use. Read one existing file (e.g. `tests/Feature/Lint/OperationIdDuplicateTest.php` or whichever exists) to copy the bootstrap. If no helpers exist, invoke the lint command directly via `$this->artisan('openapi:lint --format=json')` and decode the JSON.
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Feature/Lint/HideExposeConflictTest.php`
-Expected: FAIL — rule not registered.
+Expected: FAIL—rule not registered.
 
 - [ ] **Step 3: Implement the rule**
 
@@ -1003,7 +1003,7 @@ final readonly class HideExposeConflict implements Rule, RouteRule
         }
 
         $hideMatches = array_filter($hides, fn(Hide $h): bool => $this->scopeMatches($h->only, $h->except, $env));
-        $exposeMatches = array_filter($exposes, fn(Expose $e): bool => $this->scopeMatches($e->only, $e->except, $env));
+        $exposeMatches = array_filter($exposes, fn(Expose $expose): bool => $this->scopeMatches($expose->only, $expose->except, $env));
 
         if ($hideMatches === [] || $exposeMatches === []) {
             return;
@@ -1069,7 +1069,7 @@ final readonly class HideExposeConflict implements Rule, RouteRule
 
 - [ ] **Step 4: Register the rule**
 
-In `src/Core/Registry/CoreRegistration.php`, add to the `RULES` array (group with other visibility rules — if no obvious section, append at the end):
+In `src/Core/Registry/CoreRegistration.php`, add to the `RULES` array (group with other visibility rules—if no obvious section, append at the end):
 
 ```php
 Rules\HideExposeConflict::class,
@@ -1171,7 +1171,7 @@ it('flags unconditional #[Hide] in hidden-default mode', function (): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Feature/Lint/VisibilityAttributeNoOpTest.php`
-Expected: FAIL — rule not registered.
+Expected: FAIL—rule not registered.
 
 - [ ] **Step 3: Implement the rule**
 
@@ -1345,9 +1345,9 @@ Under the `[Unreleased]` heading (or create one above the most recent release en
 
 ### Added
 - `#[Expose]` attribute (`src/Core/Attributes/Expose.php`) to opt routes into the generated document when the new hidden-default mode is active.
-- `visibility.default` config flag (`config/openapi.php`) — accepts `'public'` (current behavior) or `'hidden'`.
-- `visibility.hide-expose-conflict` lint rule (level 1) — reports routes with overlapping `#[Hide]`/`#[Expose]` in the current environment.
-- `visibility.attribute-no-op` lint rule (level 2) — reports unconditional attributes that have no effect under the active default mode.
+- `visibility.default` config flag (`config/openapi.php`)—accepts `'public'` (current behavior) or `'hidden'`.
+- `visibility.hide-expose-conflict` lint rule (level 1)—reports routes with overlapping `#[Hide]`/`#[Expose]` in the current environment.
+- `visibility.attribute-no-op` lint rule (level 2)—reports unconditional attributes that have no effect under the active default mode.
 
 ### Changed (breaking)
 - `#[Hide]` constructor argument renamed: `environments` → `only`. Also gains `except` as an exclusive alternative. Migration: rewrite `#[Hide(environments: [...])]` to `#[Hide(only: [...])]`.
@@ -1388,10 +1388,10 @@ git commit -m "docs: document visibility modes and #[Expose]"
 - VisibilityResolver extracted from `matchesHide` → Task 4 + 5.
 - `visibility.hide-expose-conflict` rule → Task 8.
 - `visibility.attribute-no-op` rule → Task 9.
-- `#[IgnoreLint]` integration: relies on the existing `SuppressionCollector` pipeline that already walks descriptors. The `Finding::withLocationDefaults()` call in Task 7's route-walking pass stamps the controller/method location, which is what the suppression directives match against. **This is an inferred guarantee** — if the suppression match turns out to require additional context keys (e.g., source class) for route-level findings, Task 7's `locationFor()` helper is the place to fix it.
+- `#[IgnoreLint]` integration: relies on the existing `SuppressionCollector` pipeline that already walks descriptors. The `Finding::withLocationDefaults()` call in Task 7's route-walking pass stamps the controller/method location, which is what the suppression directives match against. **This is an inferred guarantee**—if the suppression match turns out to require additional context keys (e.g., source class) for route-level findings, Task 7's `locationFor()` helper is the place to fix it.
 
-**Placeholders:** None. The `runLint()` / `toContainFindingWithId()` helpers in lint tests are flagged as "match existing idiom" — read one existing lint feature test to pick up the convention. This is concrete enough that the engineer can resolve it from the codebase.
+**Placeholders:** None. The `runLint()` / `toContainFindingWithId()` helpers in lint tests are flagged as "match existing idiom"—read one existing lint feature test to pick up the convention. This is concrete enough that the engineer can resolve it from the codebase.
 
 **Type consistency:** Both attributes expose `?array $only` and `?array $except` (same names, same nullability). Resolver method is `isVisible(array $hides, array $exposes, string $environment): bool` in every reference. Rule IDs are `visibility.hide-expose-conflict` and `visibility.attribute-no-op` in every reference.
 
-**Duplication call-out:** `collectAttributes()` is implemented inline three times (generator + two lint rules). The plan notes this as intentional — three call sites do not yet justify a shared utility, and `VisibilityResolver` is kept pure (no reflection). Revisit if a fourth caller appears.
+**Duplication call-out:** `collectAttributes()` is implemented inline three times (generator + two lint rules). The plan notes this as intentional—three call sites do not yet justify a shared utility, and `VisibilityResolver` is kept pure (no reflection). Revisit if a fourth caller appears.

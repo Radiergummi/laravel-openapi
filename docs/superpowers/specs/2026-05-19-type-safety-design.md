@@ -28,7 +28,7 @@ modified configs. This revised the original estimates:
   `ignore.unmatchedIdentifier` (3), `ignore.unmatchedLine` (2).
 - The earlier spec draft listed `deadCode.unreachable` (3), `return.missing`
   (1), `arrayValues.list` (1), and `function.impossibleType` (1) as "genuine"
-  errors. **They are not.** They are certainty artifacts — PHPStan treating a
+  errors. **They are not.** They are certainty artifacts—PHPStan treating a
   swagger-php `Generator::UNDEFINED` comparison as always-true and concluding
   the following `yield` is unreachable. They vanish when the flag is flipped.
   Removing that "unreachable" code would have broken the
@@ -61,7 +61,7 @@ Out of scope:
 - Raising the PHPStan level above 8 (level 9 / `max`).
 - Adding `phpstan-strict-rules` or bleeding-edge rules.
 - Test-suite expansion (workstream 3).
-- The plugin code from workstream 1 — that code must land already clean at
+- The plugin code from workstream 1—that code must land already clean at
   level 8; once this workstream makes CI blocking, the gate enforces it.
 
 ## Design principles
@@ -77,9 +77,9 @@ Out of scope:
 - **Flag flip before everything.** The flag flip is applied first, after
   sampling confirms the flagged checks are real guards. Working at level 8
   with the flag still `true` would mean fixing 130+ certainty artifacts that
-  the flip deletes for free — wasted, risky work.
+  the flip deletes for free—wasted, risky work.
 
-## Section 1 — The `treatPhpDocTypesAsCertain` flip
+## Section 1—The `treatPhpDocTypesAsCertain` flip
 
 Set `treatPhpDocTypesAsCertain: false` in `phpstan.neon`.
 
@@ -103,54 +103,54 @@ One sample point is already confirmed: the `deadCode.unreachable` errors in
 `SchemaConstraintsMissing::inspectSchema()` guard against swagger-php
 sentinels and are genuine; their `yield` statements are reachable at runtime.
 
-## Section 2 — Fixing the 80 level-8 errors
+## Section 2—Fixing the 80 level-8 errors
 
 After the flag flip and the level raise, 80 errors remain. They are fixed by
 identifier category. None require dead-code removal.
 
 **Annotation-only categories (mechanical, behavior-preserving):**
 
-- `missingType.generics` (17) — add the missing generic type parameter to
+- `missingType.generics` (17)—add the missing generic type parameter to
   methods, `@var` tags, and `implements` clauses.
-- `missingType.iterableValue` (5) — add the value type to `iterable` / `array`
+- `missingType.iterableValue` (5)—add the value type to `iterable` / `array`
   return types and parameters.
-- `assign.propertyType` (9) — tighten property type declarations (or the
+- `assign.propertyType` (9)—tighten property type declarations (or the
   setter parameter types) so the assigned value matches; concentrated in
   `OpenApiRegistry` (7 sites).
-- `ignore.unmatchedIdentifier` (3) + `ignore.unmatchedLine` (2) — remove the
+- `ignore.unmatchedIdentifier` (3) + `ignore.unmatchedLine` (2)—remove the
   now-stale `@phpstan-ignore` lines.
 
 **Investigation categories (may expose latent bugs):**
 
-- `argument.type` (24) — a value of the wrong type passed to a method;
+- `argument.type` (24)—a value of the wrong type passed to a method;
   frequently `ReflectionClass` constructors expecting `class-string`. Fix at
   the call site: narrow or correct the type.
-- `property.notFound` (8) — property access on a union type or bare `object`
+- `property.notFound` (8)—property access on a union type or bare `object`
   where the property does not exist on every member. Narrow the type before
   access.
-- `property.nonObject` (7) + `method.nonObject` (2) — property/method access
+- `property.nonObject` (7) + `method.nonObject` (2)—property/method access
   on a possibly-`null` value, mostly `ActionDescriptor` fields and
   `ReflectionMethod|null`. Add the null guard; if the null path is genuinely
-  reachable, that is a latent bug — fix it and add a `CHANGELOG.md` entry.
-- `return.type` (2) — returned value does not match the declared return type.
-- `foreach.nonIterable` (1) — `RouteIntrospector` iterating a value that may
+  reachable, that is a latent bug—fix it and add a `CHANGELOG.md` entry.
+- `return.type` (2)—returned value does not match the declared return type.
+- `foreach.nonIterable` (1)—`RouteIntrospector` iterating a value that may
   not be iterable. Narrow before the loop.
 
-## Section 3 — CI enforcement
+## Section 3—CI enforcement
 
 - Raise `level: 6` → `level: 8` in `phpstan.neon`.
 - Remove `continue-on-error: true` from the PHPStan step in
   `.github/workflows/quality.yml` so findings fail the build.
-- Update `CONTRIBUTING.md` — remove the text describing the backlog as known
+- Update `CONTRIBUTING.md`—remove the text describing the backlog as known
   and non-blocking; PHPStan is now a hard gate alongside Pint.
-- Update `CLAUDE.md` — the line stating "PHPStan is non-blocking in CI … known
+- Update `CLAUDE.md`—the line stating "PHPStan is non-blocking in CI … known
   pre-existing backlog" becomes "PHPStan is CI-blocking at level 8; keep it
   clean."
 
 ## Verification
 
 - `composer analyse` exits 0 (no errors) at level 8.
-- `composer test` stays green — fixes are behavior-preserving unless flagged.
+- `composer test` stays green—fixes are behavior-preserving unless flagged.
 - `composer lint` reports no violations.
 
 ## Build sequence

@@ -1,12 +1,12 @@
 # ApiResources Plugin Implementation Plan
 
-> **Read first:** `docs/superpowers/plans/plugin-suite-program.md` — the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
+> **Read first:** `docs/superpowers/plans/plugin-suite-program.md`—the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
 >
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Teach the OpenAPI core to document Laravel Eloquent API Resources (`JsonResource` / `ResourceCollection` subclasses) as response schemas, deriving each resource's shape from repeatable class-level `#[ResourceField]` attributes.
 
-**Architecture:** This is build step 2 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). It depends on build step 1 (plan `2026-05-18-core-phpdoc-generics-and-paginators.md`) being merged — the package now ships a `PrimaryResponseResolver` pipeline. This plan adds the first *plugin* that contributes to it. A resource's `toArray()` shape lives in a method body, which the generator never reads (OAPI-017); the plugin resolves the shape from `#[ResourceField]` attributes instead. The plugin registers a `PrimaryResponseResolver` (the `200 OK` body), a `RefSchemaResolver` (so a resource composes as a `$ref` when nested or named via `#[ResponseResource]`), and three lint rules. `ApiResourcesPlugin` is **default-enabled** — `JsonResource` is Laravel core, no third-party dependency.
+**Architecture:** This is build step 2 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). It depends on build step 1 (plan `2026-05-18-core-phpdoc-generics-and-paginators.md`) being merged—the package now ships a `PrimaryResponseResolver` pipeline. This plan adds the first *plugin* that contributes to it. A resource's `toArray()` shape lives in a method body, which the generator never reads (OAPI-017); the plugin resolves the shape from `#[ResourceField]` attributes instead. The plugin registers a `PrimaryResponseResolver` (the `200 OK` body), a `RefSchemaResolver` (so a resource composes as a `$ref` when nested or named via `#[ResponseResource]`), and three lint rules. `ApiResourcesPlugin` is **default-enabled**—`JsonResource` is Laravel core, no third-party dependency.
 
 **Container-cycle note:** `ResourceRefSchemaResolver` depends on `SchemaFromResource`; `SchemaFromResource` needs the registered `RefSchemaResolver` list to resolve nested non-resource classes. Injecting the full list would form a construction cycle. Resolution mirrors `SchemaFromDataClass`: `SchemaFromResource` recurses **directly** for nested `JsonResource` subclasses (`build()`), and receives a resolver list with `ResourceRefSchemaResolver` **filtered out** for everything else.
 
@@ -33,7 +33,7 @@
 | `src/Plugins/ApiResources/SchemaFromResource.php` (create) | Builds the `OA\Schema` (type: object) for a resource class from its `#[ResourceField]`s. |
 | `src/Plugins/ApiResources/ResourceRefSchemaResolver.php` (create) | `RefSchemaResolver` for `JsonResource` subclasses. |
 | `src/Plugins/ApiResources/ResourceResponseResolver.php` (create) | `PrimaryResponseResolver` tying detection + envelope together. |
-| `src/Plugins/ApiResources/ApiResourcesPlugin.php` (create) | `Plugin` — registers resolvers, payload markers, lint rules. |
+| `src/Plugins/ApiResources/ApiResourcesPlugin.php` (create) | `Plugin`—registers resolvers, payload markers, lint rules. |
 | `src/Plugins/ApiResources/Lint/Rules/ResourceFieldsUndeclared.php` (create) | Lint rule `resource.fields-undeclared`. |
 | `src/Plugins/ApiResources/Lint/Rules/ResourceFieldTypeMissing.php` (create) | Lint rule `resource.field-type-missing`. |
 | `src/Plugins/ApiResources/Lint/Rules/ResourceResponseAmbiguous.php` (create) | Lint rule `resource.response-ambiguous`. |
@@ -43,13 +43,13 @@
 | `tests/Support/OperationNodeFactory.php` (create) | Shared test helper: builds a minimal `OperationNode` + `LintContext` for lint-rule tests. |
 | `tests/Unit/Plugins/ApiResources/*` (create) | Unit tests for each class. |
 | `tests/Feature/Plugins/ApiResources/ApiResourceResponseTest.php` (create) | End-to-end document generation. |
-| `docs/known-gaps.md`, `CHANGELOG.md`, `docs/usage.md` (modify) | Per-change doc obligations. |
+| `../../internal/known-gaps.md`, `CHANGELOG.md`, `docs/usage.md` (modify) | Per-change doc obligations. |
 
 ---
 
 ## Task 1: `ResourceField` attribute
 
-`#[ResourceField]` is repeatable and class-level on a `JsonResource` subclass. It extends the Core `FieldAttribute` base (which carries the full JSON-Schema field surface and the `descriptor()` mapping), adding only `name` and reusing `type` — when `type` is a class-string it is treated as a nested-schema reference, otherwise a JSON-Schema scalar type.
+`#[ResourceField]` is repeatable and class-level on a `JsonResource` subclass. It extends the Core `FieldAttribute` base (which carries the full JSON-Schema field surface and the `descriptor()` mapping), adding only `name` and reusing `type`—when `type` is a class-string it is treated as a nested-schema reference, otherwise a JSON-Schema scalar type.
 
 **Files:**
 - Create: `src/Plugins/ApiResources/Attributes/ResourceField.php`
@@ -92,7 +92,7 @@ it('is repeatable and targets classes only', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/Attributes/ResourceFieldTest.php`
-Expected: FAIL — `Class "…\ResourceField" not found`.
+Expected: FAIL—`Class "…\ResourceField" not found`.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -132,7 +132,7 @@ final readonly class ResourceField extends FieldAttribute
     /**
      * @param string                           $name        The output key.
      * @param null|class-string|string          $type        A JSON-Schema scalar type, or a class-string for a nested `$ref`.
-     * @param bool                             $conditional When true, the key is kept in `properties` but omitted from `required` — for `$this->when()` / `$this->whenLoaded()` fields.
+     * @param bool                             $conditional When true, the key is kept in `properties` but omitted from `required`—for `$this->when()` / `$this->whenLoaded()` fields.
      * @param null|list<BackedEnum|int|string> $enum
      */
     public function __construct(
@@ -179,7 +179,7 @@ final readonly class ResourceField extends FieldAttribute
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/Attributes/ResourceFieldTest.php`
-Expected: PASS — 3 tests.
+Expected: PASS—3 tests.
 
 - [x] **Step 5: Commit**
 
@@ -193,7 +193,7 @@ git commit -m "feat: add ResourceField attribute for ApiResources plugin"
 
 ## Task 2: `ResourceTarget` value object
 
-A tiny immutable value object: the resource class an action returns, and whether the response is a collection. `resourceClass === null` is the **ambiguous** state — the action returns a resource collection type but no `#[ResponseResource]` names the item class.
+A tiny immutable value object: the resource class an action returns, and whether the response is a collection. `resourceClass === null` is the **ambiguous** state—the action returns a resource collection type but no `#[ResponseResource]` names the item class.
 
 **Files:**
 - Create: `src/Plugins/ApiResources/ResourceTarget.php`
@@ -228,7 +228,7 @@ it('reports an ambiguous target when the resource class is null', function (): v
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceTargetTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -243,7 +243,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
 /**
  * The resource an action returns: the resource class and the response
- * cardinality. A null `resourceClass` marks an *ambiguous* endpoint — it
+ * cardinality. A null `resourceClass` marks an *ambiguous* endpoint—it
  * returns a resource collection type but no `#[ResponseResource]` names the
  * item class, so the shape cannot be derived.
  */
@@ -267,7 +267,7 @@ final readonly class ResourceTarget
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceTargetTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -286,7 +286,7 @@ Resolves an `ActionDescriptor` to a `ResourceTarget`, or `null` when the action 
 Resolution precedence:
 1. A `#[ResponseResource]` attribute on the action (method, then class) → `resourceClass` = `attr->class`; `isCollection` = `attr->collection` if non-null, else inferred from the return type.
 2. Native return type is a `JsonResource` subclass:
-   - a `ResourceCollection` subclass → collection; `resourceClass` is `null` (ambiguous — item class unknown).
+   - a `ResourceCollection` subclass → collection; `resourceClass` is `null` (ambiguous—item class unknown).
    - any other `JsonResource` subclass → single; `resourceClass` is the return type.
 3. Otherwise → `null` (not a resource endpoint).
 
@@ -368,7 +368,7 @@ it('returns null when the action does not return a resource', function (): void 
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceClassLocatorTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -432,7 +432,7 @@ final readonly class ResourceClassLocator
 
         if (is_a($name, ResourceCollection::class, allow_string: true)) {
             // Collection return type with no #[ResponseResource]: the item
-            // class is not recoverable from the signature — ambiguous.
+            // class is not recoverable from the signature—ambiguous.
             return new ResourceTarget(resourceClass: null, isCollection: true);
         }
 
@@ -467,7 +467,7 @@ final readonly class ResourceClassLocator
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceClassLocatorTest.php`
-Expected: PASS — 4 tests.
+Expected: PASS—4 tests.
 
 - [x] **Step 5: Commit**
 
@@ -484,7 +484,7 @@ git commit -m "feat: add ResourceClassLocator for ApiResources plugin"
 Laravel wraps a `JsonResource` response in a `data` key (`JsonResource::$wrap`). A paginated `ResourceCollection` additionally serializes `links` and `meta`. This factory builds the `OA\Schema` envelope around a resolved item `$ref`.
 
 - **Single:** `{ data: {$ref} }`.
-- **Collection:** `{ data: [{$ref}], links: {first,last,prev,next}, meta: {current_page,from,last_page,path,per_page,to,total} }`. This models the paginated-collection shape — the dominant API convention. (A non-paginated collection is just `{data: […]}`; the extra keys are harmless documentation when absent at runtime.)
+- **Collection:** `{ data: [{$ref}], links: {first,last,prev,next}, meta: {current_page,from,last_page,path,per_page,to,total} }`. This models the paginated-collection shape—the dominant API convention. (A non-paginated collection is just `{data: […]}`; the extra keys are harmless documentation when absent at runtime.)
 
 **Files:**
 - Create: `src/Plugins/ApiResources/ResourceEnvelopeFactory.php`
@@ -541,7 +541,7 @@ it('wraps a collection in data/links/meta', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceEnvelopeFactoryTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -615,7 +615,7 @@ final class ResourceEnvelopeFactory
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceEnvelopeFactoryTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -629,11 +629,11 @@ git commit -m "feat: add ResourceEnvelopeFactory for ApiResources plugin"
 
 ## Task 5: `SchemaFromResource`
 
-Builds the `OA\Schema` (type: object) for a resource class from its `#[ResourceField]` attributes, registers it in `ComponentSchemaRegistry`, and returns the component key. Mirrors `SchemaFromDataClass::build()` — including the in-progress cycle guard.
+Builds the `OA\Schema` (type: object) for a resource class from its `#[ResourceField]` attributes, registers it in `ComponentSchemaRegistry`, and returns the component key. Mirrors `SchemaFromDataClass::build()`—including the in-progress cycle guard.
 
 Per-field logic:
 - `type` is a `JsonResource` subclass → recurse `build()` directly, emit `$ref`.
-- `type` is any other class-string → resolve via the injected `RefSchemaResolver` list (which excludes `ResourceRefSchemaResolver` — see the container-cycle note). If no resolver claims it → `type: object`.
+- `type` is any other class-string → resolve via the injected `RefSchemaResolver` list (which excludes `ResourceRefSchemaResolver`—see the container-cycle note). If no resolver claims it → `type: object`.
 - `type` is a scalar (or null) → spread `descriptor()->toOpenApi()` onto the property.
 - `conditional: false` → field is added to the schema's `required` list.
 
@@ -710,7 +710,7 @@ it('emits a $ref for a nested resource and registers it', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/SchemaFromResourceTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -741,7 +741,7 @@ use function is_a;
  * Nested `JsonResource` field types recurse through {@see build()} directly;
  * other class-string field types are resolved via the injected resolver list
  * (which deliberately excludes {@see ResourceRefSchemaResolver} to avoid a
- * container construction cycle — see the plan's architecture note).
+ * container construction cycle—see the plan's architecture note).
  */
 final class SchemaFromResource
 {
@@ -874,7 +874,7 @@ final class SchemaFromResource
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/SchemaFromResourceTest.php`
-Expected: PASS — 3 tests.
+Expected: PASS—3 tests.
 
 - [x] **Step 5: Commit**
 
@@ -932,7 +932,7 @@ it('returns null for a non-resource class', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceRefSchemaResolverTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -975,7 +975,7 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Plugins/ApiResources/ResourceRefSchemaResolverTest.php`
-Expected: PASS — 2 tests.
+Expected: PASS—2 tests.
 
 - [x] **Step 5: Commit**
 
@@ -989,9 +989,9 @@ git commit -m "feat: add ResourceRefSchemaResolver"
 
 ## Task 7: `ResourceResponseResolver`
 
-The `PrimaryResponseResolver`. Locates the `ResourceTarget`; defers (`null`) when the action is not a resource endpoint or is ambiguous; otherwise builds the inner resource `$ref` and wraps it via `ResourceEnvelopeFactory`. Degrades gracefully — catches its own exceptions and returns `null`.
+The `PrimaryResponseResolver`. Locates the `ResourceTarget`; defers (`null`) when the action is not a resource endpoint or is ambiguous; otherwise builds the inner resource `$ref` and wraps it via `ResourceEnvelopeFactory`. Degrades gracefully—catches its own exceptions and returns `null`.
 
-**Resolver ordering (by design — do not change).** Core's `PaginatorResponseResolver` (build step 1) is registered before this resolver. A method whose *native return type* is a paginator (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) is therefore claimed by the paginator resolver and gets Core's *flat* paginator envelope — even if its item type is an API Resource. This resolver only claims actions whose return type is a `JsonResource` / `ResourceCollection` subclass (a paginator is neither), and emits the `{data}` / `{data, links, meta}` resource envelope. The two envelopes are intentionally different shapes (program decision #5); which one an endpoint gets is decided entirely by its native return type.
+**Resolver ordering (by design—do not change).** Core's `PaginatorResponseResolver` (build step 1) is registered before this resolver. A method whose *native return type* is a paginator (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) is therefore claimed by the paginator resolver and gets Core's *flat* paginator envelope—even if its item type is an API Resource. This resolver only claims actions whose return type is a `JsonResource` / `ResourceCollection` subclass (a paginator is neither), and emits the `{data}` / `{data, links, meta}` resource envelope. The two envelopes are intentionally different shapes (program decision #5); which one an endpoint gets is decided entirely by its native return type.
 
 **Files:**
 - Create: `src/Plugins/ApiResources/ResourceResponseResolver.php`
@@ -1021,7 +1021,7 @@ use function sprintf;
  * Resolves an Eloquent API Resource return type into its `200 OK` response.
  *
  * Defers (returns null) when the action is not a resource endpoint, or when it
- * returns a collection type whose item class is undeclared — the latter is
+ * returns a collection type whose item class is undeclared—the latter is
  * reported by the `resource.response-ambiguous` lint rule.
  */
 final readonly class ResourceResponseResolver implements PrimaryResponseResolver
@@ -1055,11 +1055,11 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
                 'description' => 'OK',
                 'content' => [MediaType::Json->schema($envelope)],
             ]);
-        } catch (Throwable $e) {
+        } catch (Throwable $exception) {
             $this->logger->warning(sprintf(
                 'ResourceResponseResolver failed for route %s: %s',
                 $descriptor->route->uri(),
-                $e->getMessage(),
+                $exception->getMessage(),
             ));
 
             return null;
@@ -1084,7 +1084,7 @@ git commit -m "feat: add ResourceResponseResolver primary-response resolver"
 
 ## Task 8: `ApiResourcesPlugin` + service-provider wiring + config
 
-Register the plugin's resolvers, bind its services, and enable it by default. The plugin's `register()` method is created here registering only the two resolvers — the three lint rules are added in Task 13, *after* their classes exist. Registering them here would reference not-yet-created classes and break `composer analyse` (PHPStan would error on the unknown class-strings); deferring keeps both `composer test` and `composer analyse` green throughout the plan.
+Register the plugin's resolvers, bind its services, and enable it by default. The plugin's `register()` method is created here registering only the two resolvers—the three lint rules are added in Task 13, *after* their classes exist. Registering them here would reference not-yet-created classes and break `composer analyse` (PHPStan would error on the unknown class-strings); deferring keeps both `composer test` and `composer analyse` green throughout the plan.
 
 **Files:**
 - Create: `src/Plugins/ApiResources/ApiResourcesPlugin.php`
@@ -1130,7 +1130,7 @@ In `src/OpenApiServiceProvider.php`, add the call inside `register()` after `reg
         $this->registerGenerator();
 ```
 
-Add this method after `registerSpatieDataPlugin()`. Note `SchemaFromResource` receives the registry's ref resolvers **minus** `ResourceRefSchemaResolver` — this breaks the construction cycle:
+Add this method after `registerSpatieDataPlugin()`. Note `SchemaFromResource` receives the registry's ref resolvers **minus** `ResourceRefSchemaResolver`—this breaks the construction cycle:
 
 ```php
     /**
@@ -1183,7 +1183,7 @@ Add this method after `registerSpatieDataPlugin()`. Note `SchemaFromResource` re
     }
 ```
 
-`ResourceClassLocator` and `ResourceEnvelopeFactory` have no constructor dependencies — Laravel autowires them; no explicit binding is needed. `ApiResourcesPlugin` itself is autowired when the registry instantiates it.
+`ResourceClassLocator` and `ResourceEnvelopeFactory` have no constructor dependencies—Laravel autowires them; no explicit binding is needed. `ApiResourcesPlugin` itself is autowired when the registry instantiates it.
 
 - [x] **Step 3: Enable the plugin in `config/openapi.php`**
 
@@ -1213,7 +1213,7 @@ to:
 - [x] **Step 4: Run lint + analyse**
 
 Run: `vendor/bin/pint && composer analyse && composer test`
-Expected: Pint clean; PHPStan clean; `composer test` green. The plugin registers only its two resolvers, so nothing references a not-yet-created class — analyse and the suite both stay green.
+Expected: Pint clean; PHPStan clean; `composer test` green. The plugin registers only its two resolvers, so nothing references a not-yet-created class—analyse and the suite both stay green.
 
 - [x] **Step 5: Commit**
 
@@ -1224,7 +1224,7 @@ git commit -m "feat: register and wire the ApiResources plugin"
 
 ---
 
-## Task 9: Feature test — API Resource endpoints end-to-end
+## Task 9: Feature test—API Resource endpoints end-to-end
 
 Mirrors `tests/Feature/Plugins/SpatieData/` structure: fixture resources + controllers, routes registered per test, the document generated via `app(OpenApiGenerator::class)->generate()->toYaml()` and parsed with `Yaml::parse()`.
 
@@ -1266,7 +1266,7 @@ class WidgetResourceController extends Controller
         return new WidgetResource(null);
     }
 
-    /** List widgets — item class declared by attribute. */
+    /** List widgets—item class declared by attribute. */
     #[ResponseResource(WidgetResource::class, collection: true)]
     public function index(): WidgetCollection
     {
@@ -1274,7 +1274,7 @@ class WidgetResourceController extends Controller
         return new WidgetCollection([]);
     }
 
-    /** List widgets — item class undeclared. */
+    /** List widgets—item class undeclared. */
     public function ambiguous(): WidgetCollection
     {
         /** @phpstan-ignore-next-line */
@@ -1326,7 +1326,7 @@ it('falls back to a bare 200 for an ambiguous collection endpoint', function ():
 - [x] **Step 2: Run the test**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/ApiResources/ApiResourceResponseTest.php`
-Expected: PASS — 4 tests. (Generation does not instantiate lint rules, so this test stands alone — it does not depend on Tasks 10–13.)
+Expected: PASS—4 tests. (Generation does not instantiate lint rules, so this test stands alone—it does not depend on Tasks 10–13.)
 
 - [x] **Step 3: Commit**
 
@@ -1340,7 +1340,7 @@ git commit -m "test: cover API Resource response resolution end-to-end"
 
 ## Task 10: Lint rule `resource.fields-undeclared`
 
-High severity (`level: 1`). Flags an operation that resolves to a resource response whose resource class carries **zero** `#[ResourceField]` attributes — the shape is unknown, producing an empty schema. Uses `ResourceClassLocator` for resolution.
+High severity (`level: 1`). Flags an operation that resolves to a resource response whose resource class carries **zero** `#[ResourceField]` attributes—the shape is unknown, producing an empty schema. Uses `ResourceClassLocator` for resolution.
 
 **Detection approach (all three rules).** These rules re-resolve the resource from the operation's `ActionDescriptor` via `ResourceClassLocator` (reflection on the return type + `#[ResponseResource]`), rather than inspecting the produced `200` response in the spec tree. This mirrors existing descriptor-based core rules (e.g. `OperationNode::hasPublicEndpointAttribute()`). Consequence to accept: the rules key off the *signature*, so an endpoint that documents its response another way (e.g. an explicit `#[Response]` attribute) could still be flagged. This is consistent with the no-method-body-inference rule and the conservative-detection program decisions; it is a deliberate trade-off, not an oversight.
 
@@ -1392,13 +1392,13 @@ it('flags a resource response whose class declares no #[ResourceField]', functio
 });
 ```
 
-> **Shared test helper — create `tests/Support/OperationNodeFactory.php` first.** The
+> **Shared test helper—create `tests/Support/OperationNodeFactory.php` first.** The
 > three lint-rule tests (Tasks 10–12) all need a minimal `OperationNode` carrying an
 > `ActionDescriptor`, plus a `LintContext` to pass to `checkOperation()`. `OperationNode`
-> has **14 required constructor parameters** and `LintContext` has **5** — neither can be
+> has **14 required constructor parameters** and `LintContext` has **5**—neither can be
 > default-constructed. The plugin lint rules read only `$operation->descriptor` (and
 > `webhook` / `method` / `pathUri`); they never touch the `LintContext`, so the context is
-> a minimal valid stub. `OA\Operation` is **abstract** — `raw` must be a concrete subclass
+> a minimal valid stub. `OA\Operation` is **abstract**—`raw` must be a concrete subclass
 > (`OA\Get`). Autoload-dev maps `Radiergummi\OpenApi\Tests\` → `tests/`, so no
 > `composer dump-autoload` is needed. Create the file (with the standard copyright header):
 >
@@ -1480,7 +1480,7 @@ it('flags a resource response whose class declares no #[ResourceField]', functio
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/ApiResources/Lint/ResourceFieldsUndeclaredTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -1507,7 +1507,7 @@ use function sprintf;
 
 /**
  * Flags an operation whose resource response class declares no
- * `#[ResourceField]` — the response shape is unknown, yielding an empty schema.
+ * `#[ResourceField]`—the response shape is unknown, yielding an empty schema.
  */
 final readonly class ResourceFieldsUndeclared implements Rule, OperationRule
 {
@@ -1542,7 +1542,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRule
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
-                '%s %s returns %s but it declares no #[ResourceField] — the response schema is empty',
+                '%s %s returns %s but it declares no #[ResourceField]—the response schema is empty',
                 $operation->method,
                 $operation->pathUri,
                 $resourceClass,
@@ -1574,7 +1574,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRule
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/ApiResources/Lint/ResourceFieldsUndeclaredTest.php`
-Expected: PASS — 1 test.
+Expected: PASS—1 test.
 
 - [x] **Step 5: Commit**
 
@@ -1588,7 +1588,7 @@ git commit -m "feat: add resource.fields-undeclared lint rule"
 
 ## Task 11: Lint rule `resource.field-type-missing`
 
-Medium severity (`level: 2`). Flags any `#[ResourceField]` whose `type` is `null` — the field's schema cannot be derived. Walks every `#[ResourceField]` on the resource class behind a resource response.
+Medium severity (`level: 2`). Flags any `#[ResourceField]` whose `type` is `null`—the field's schema cannot be derived. Walks every `#[ResourceField]` on the resource class behind a resource response.
 
 **Files:**
 - Create: `src/Plugins/ApiResources/Lint/Rules/ResourceFieldTypeMissing.php`
@@ -1646,7 +1646,7 @@ it('flags a #[ResourceField] with no type', function (): void {
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/ApiResources/Lint/ResourceFieldTypeMissingTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -1672,7 +1672,7 @@ use ReflectionClass;
 use function sprintf;
 
 /**
- * Flags a `#[ResourceField]` declared with no `type` — its schema cannot be
+ * Flags a `#[ResourceField]` declared with no `type`—its schema cannot be
  * derived, so the field is emitted untyped.
  */
 final readonly class ResourceFieldTypeMissing implements Rule, OperationRule
@@ -1711,7 +1711,7 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRule
                 ruleId: $this->id(),
                 level: $this->level(),
                 message: sprintf(
-                    '#[ResourceField(\'%s\')] on %s has no type — the field is emitted untyped',
+                    '#[ResourceField(\'%s\')] on %s has no type—the field is emitted untyped',
                     $field->name,
                     $resourceClass,
                 ),
@@ -1743,7 +1743,7 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRule
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/ApiResources/Lint/ResourceFieldTypeMissingTest.php`
-Expected: PASS — 1 test.
+Expected: PASS—1 test.
 
 - [x] **Step 5: Commit**
 
@@ -1757,7 +1757,7 @@ git commit -m "feat: add resource.field-type-missing lint rule"
 
 ## Task 12: Lint rule `resource.response-ambiguous`
 
-High severity (`level: 1`). Flags an operation whose `ResourceTarget` is **ambiguous** — a resource collection return type with no `#[ResponseResource]` naming the item class.
+High severity (`level: 1`). Flags an operation whose `ResourceTarget` is **ambiguous**—a resource collection return type with no `#[ResponseResource]` naming the item class.
 
 **Files:**
 - Create: `src/Plugins/ApiResources/Lint/Rules/ResourceResponseAmbiguous.php`
@@ -1811,7 +1811,7 @@ it('flags a collection return type with no #[ResponseResource]', function (): vo
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Feature/Plugins/ApiResources/Lint/ResourceResponseAmbiguousTest.php`
-Expected: FAIL — class not found.
+Expected: FAIL—class not found.
 
 - [x] **Step 3: Write minimal implementation**
 
@@ -1836,7 +1836,7 @@ use function sprintf;
 
 /**
  * Flags an operation that returns a resource collection type without a
- * `#[ResponseResource]` naming the item class — the response shape cannot be
+ * `#[ResponseResource]` naming the item class—the response shape cannot be
  * derived and the endpoint falls back to a bare `200 OK`.
  */
 final readonly class ResourceResponseAmbiguous implements Rule, OperationRule
@@ -1911,7 +1911,7 @@ git commit -m "feat: add resource.response-ambiguous lint rule"
 
 The three lint-rule classes now exist (Tasks 10–12), so they can be wired into
 `ApiResourcesPlugin` without breaking `composer analyse`. This single change is
-what makes the rules active — the rules registered with `OpenApiRegistry` are
+what makes the rules active—the rules registered with `OpenApiRegistry` are
 instantiated by `RuleRegistry` and run by `openapi:lint`.
 
 **Files:**
@@ -1920,7 +1920,7 @@ instantiated by `RuleRegistry` and run by `openapi:lint`.
 - [x] **Step 1: Add the three rule registrations**
 
 Merge these imports into the existing `use` block (Pint enforces alphabetical
-ordering — run `vendor/bin/pint` before committing):
+ordering—run `vendor/bin/pint` before committing):
 
 ```php
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
@@ -1959,7 +1959,7 @@ git commit -m "feat: register ApiResources lint rules in the plugin"
 ## Task 14: Documentation
 
 **Files:**
-- Modify: `CHANGELOG.md`, `docs/usage.md`, `docs/known-gaps.md`
+- Modify: `CHANGELOG.md`, `docs/usage.md`, `../../internal/known-gaps.md`
 
 - [x] **Step 1: Add a `CHANGELOG.md` entry**
 
@@ -1977,9 +1977,9 @@ Under the existing `## [Unreleased]` → `### Added` list, append:
 
 - [x] **Step 2: Update `docs/usage.md`**
 
-Find the section that documents response handling / the SpatieData plugin and add a short subsection: how to enable the plugin (it is on by default), how to declare `#[ResourceField]` keys, the nested class-string shorthand, and that collection endpoints need `#[ResponseResource(..., collection: true)]` when the return type is a generic collection. Keep it to the minimal observable-behaviour description CLAUDE.md mandates — the full prose pass is a separate workstream.
+Find the section that documents response handling / the SpatieData plugin and add a short subsection: how to enable the plugin (it is on by default), how to declare `#[ResourceField]` keys, the nested class-string shorthand, and that collection endpoints need `#[ResponseResource(..., collection: true)]` when the return type is a generic collection. Keep it to the minimal observable-behaviour description CLAUDE.md mandates—the full prose pass is a separate workstream.
 
-- [x] **Step 3: Update `docs/known-gaps.md`**
+- [x] **Step 3: Update `../../internal/known-gaps.md`**
 
 In the OAPI-017 section, note that API Resource response shapes are derived from `#[ResourceField]` attributes rather than the resource's `toArray()` body, consistent with the no-method-body-inference rule.
 
@@ -2001,7 +2001,7 @@ git commit -m "docs: document the ApiResources plugin"
 
 **Spec coverage:** `ApiResourcesPlugin` under `src/Plugins/ApiResources/` (Task 8); `#[ResourceField]` repeatable class-level attribute (Task 1); consumes the existing Core `#[ResponseResource]` with no new method-level attribute (Task 3 `ResourceClassLocator`); nested-object class-string shorthand resolved through ref resolvers (Task 5); primary-response resolver (Task 7), ref-schema resolver (Task 6); the three spec lint rules with the spec's IDs and severities (Tasks 10–12), wired into the plugin in Task 13; default-enabled in config (Task 8); unit + feature tests mirroring the SpatieData coverage pattern (every task); `CHANGELOG.md` + `docs/usage.md` per-change updates (Task 14).
 
-**Type consistency:** `ResourceTarget(?string $resourceClass, bool $isCollection)` / `isAmbiguous()` are used identically across Tasks 2, 3, 7, 10–12. `SchemaFromResource::build(): string` returns a bare component key; callers prepend `#/components/schemas/` (Tasks 6, 7) — the registry's `qualifyKey()` is used inside `SchemaFromResource` for nested refs. `ResourceClassLocator::locate(): ?ResourceTarget` signature is constant across all consumers.
+**Type consistency:** `ResourceTarget(?string $resourceClass, bool $isCollection)` / `isAmbiguous()` are used identically across Tasks 2, 3, 7, 10–12. `SchemaFromResource::build(): string` returns a bare component key; callers prepend `#/components/schemas/` (Tasks 6, 7)—the registry's `qualifyKey()` is used inside `SchemaFromResource` for nested refs. `ResourceClassLocator::locate(): ?ResourceTarget` signature is constant across all consumers.
 
 **Done criteria:**
 - `composer test` is green with the new unit + feature tests.
@@ -2010,6 +2010,6 @@ git commit -m "docs: document the ApiResources plugin"
 
 ## Next plans in this program
 
-3. `QueryBuilderPlugin` — `docs/superpowers/plans/2026-05-19-querybuilder-plugin.md`.
-4. `FractalPlugin` — `docs/superpowers/plans/2026-05-19-fractal-plugin.md`.
-5. composer.json + config-defaults wiring — `docs/superpowers/plans/2026-05-19-plugin-suite-wiring.md`.
+3. `QueryBuilderPlugin`—`docs/superpowers/plans/2026-05-19-querybuilder-plugin.md`.
+4. `FractalPlugin`—`docs/superpowers/plans/2026-05-19-fractal-plugin.md`.
+5. composer.json + config-defaults wiring—`docs/superpowers/plans/2026-05-19-plugin-suite-wiring.md`.

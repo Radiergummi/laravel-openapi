@@ -1,20 +1,20 @@
-# Core PHPDoc Generics & Paginator Response Resolver — Implementation Plan
+# Core PHPDoc Generics & Paginator Response Resolver—Implementation Plan
 
-> **Read first:** `docs/superpowers/plans/plugin-suite-program.md` — the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
+> **Read first:** `docs/superpowers/plans/plugin-suite-program.md`—the program tracker with shared ground rules, locked cross-cutting decisions, build order, and live status.
 >
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Teach the OpenAPI core to document Laravel paginator return types (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) as the flat schema Laravel actually serializes, resolving the paginated item type from a `#[ResponseResource]` attribute or a `@return Paginator<Item>` PHPDoc generic.
 
-**Architecture:** This is build step 1 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). The package ships **no** `PrimaryResponseResolver` today — routes without a `#[Response]` attribute get a bare `200 OK`. This plan adds the **first** such resolver. It is Core-only; no plugin, no third-party dependency. Four new classes plus three small modifications. Each is consulted by `OperationBuilder` in registration order, first non-null wins; the resolver degrades gracefully (catches its own exceptions, returns `null`).
+**Architecture:** This is build step 1 of 5 in the plugin-suite program (spec: `docs/superpowers/specs/2026-05-18-plugin-suite-design.md`). The package ships **no** `PrimaryResponseResolver` today—routes without a `#[Response]` attribute get a bare `200 OK`. This plan adds the **first** such resolver. It is Core-only; no plugin, no third-party dependency. Four new classes plus three small modifications. Each is consulted by `OperationBuilder` in registration order, first non-null wins; the resolver degrades gracefully (catches its own exceptions, returns `null`).
 
-**Tech Stack:** PHP 8.4, Laravel 12/13, swagger-php (`OpenApi\Annotations`), `phpdocumentor/reflection-docblock` (already a dependency — see `ThrowsExtractor`), Pest + Orchestra Testbench.
+**Tech Stack:** PHP 8.4, Laravel 12/13, swagger-php (`OpenApi\Annotations`), `phpdocumentor/reflection-docblock` (already a dependency—see `ThrowsExtractor`), Pest + Orchestra Testbench.
 
 ---
 
 ## Conventions every task must follow
 
-- Every new PHP file starts with `<?php`, a blank line, the MIT/copyright docblock header copied verbatim from any existing `src/` file (the block in `src/Core/Generator/OperationBuilder.php` lines 3-8), a blank line, `declare(strict_types=1);`, a blank line, then the `namespace`. (219 of 225 `src/` files carry this header — it is the convention.)
+- Every new PHP file starts with `<?php`, a blank line, the MIT/copyright docblock header copied verbatim from any existing `src/` file (the block in `src/Core/Generator/OperationBuilder.php` lines 3-8), a blank line, `declare(strict_types=1);`, a blank line, then the `namespace`. (219 of 225 `src/` files carry this header—it is the convention.)
 - Run `composer test` (full Pest suite) and `vendor/bin/pint` before every commit. Pint must report no violations; the suite must be green.
 - Commit messages: imperative mood, `feat:` / `test:` / `docs:` prefix, and the trailer `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
 - Work happens on the existing branch `feature/plugin-suite`.
@@ -33,7 +33,7 @@
 | `tests/Unit/Core/Routing/ReturnTypeExtractorTest.php` (create) | Unit tests for `ReturnTypeExtractor`. |
 | `tests/Unit/Core/Generator/PaginatorSchemaFactoryTest.php` (create) | Unit tests for `PaginatorSchemaFactory`. |
 | `tests/Feature/PaginatorResponseTest.php` (create) | End-to-end: generate a document from paginator-returning fixture controllers. |
-| `docs/known-gaps.md` (modify) | Note the narrowed OAPI-017 surface. |
+| `../../internal/known-gaps.md` (modify) | Note the narrowed OAPI-017 surface. |
 | `CHANGELOG.md` (modify) | Add an `[Unreleased]` entry. |
 
 ---
@@ -85,7 +85,7 @@ it('returns null for a class that does not exist', function (): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Core/Enums/PaginatorKindTest.php`
-Expected: FAIL — `Class "Radiergummi\OpenApi\Core\Enums\PaginatorKind" not found`.
+Expected: FAIL—`Class "Radiergummi\OpenApi\Core\Enums\PaginatorKind" not found`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -134,7 +134,7 @@ enum PaginatorKind
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Core/Enums/PaginatorKindTest.php`
-Expected: PASS — 5 tests.
+Expected: PASS—5 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -227,7 +227,7 @@ it('returns null when the method has no docblock', function (): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Core/Routing/ReturnTypeExtractorTest.php`
-Expected: FAIL — `Class "Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor" not found`.
+Expected: FAIL—`Class "Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor" not found`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -254,12 +254,12 @@ use function ltrim;
 /**
  * Extracts the single generic argument of an action's `@return` PHPDoc tag.
  *
- * PHP native return types cannot carry generics — `function index():
+ * PHP native return types cannot carry generics—`function index():
  * LengthAwarePaginator` has no inner type. The inner type lives only in a
  * PHPDoc `@return LengthAwarePaginator<UserResource>`. This reader exposes
  * exactly that one piece of information; it never reads method bodies.
  *
- * Returned names are not verified — callers run `class_exists()` before
+ * Returned names are not verified—callers run `class_exists()` before
  * trusting them.
  */
 final class ReturnTypeExtractor
@@ -286,7 +286,7 @@ final class ReturnTypeExtractor
             $context = $this->contextFactory->createFromReflector($reflector);
         } catch (UnexpectedValueException) {
             // ContextFactory does not support every Reflector (e.g. closures).
-            // Without context, short class names will not resolve — acceptable.
+            // Without context, short class names will not resolve—acceptable.
             $context = new Context('');
         }
 
@@ -318,7 +318,7 @@ final class ReturnTypeExtractor
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Core/Routing/ReturnTypeExtractorTest.php`
-Expected: PASS — 3 tests. (If `genericArgument` returns the FQCN `stdClass` for a root-namespace class, the assertion `toBe('stdClass')` passes; if phpDocumentor yields `\stdClass`, the `ltrim` already strips the backslash.)
+Expected: PASS—3 tests. (If `genericArgument` returns the FQCN `stdClass` for a root-namespace class, the assertion `toBe('stdClass')` passes; if phpDocumentor yields `\stdClass`, the `ltrim` already strips the backslash.)
 
 - [ ] **Step 5: Commit**
 
@@ -332,7 +332,7 @@ git commit -m "feat: add ReturnTypeExtractor for @return PHPDoc generics"
 
 ## Task 3: `PaginatorSchemaFactory`
 
-Builds the flat `OA\Schema` Laravel actually serializes a bare paginator to (its `toArray()` shape) — **not** the `{data, links, meta}` resource envelope, which the ApiResources plugin handles separately.
+Builds the flat `OA\Schema` Laravel actually serializes a bare paginator to (its `toArray()` shape)—**not** the `{data, links, meta}` resource envelope, which the ApiResources plugin handles separately.
 
 **Files:**
 - Create: `src/Core/Generator/PaginatorSchemaFactory.php`
@@ -425,7 +425,7 @@ it('wires the supplied items into the data array', function (): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Core/Generator/PaginatorSchemaFactoryTest.php`
-Expected: FAIL — `Class "Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory" not found`.
+Expected: FAIL—`Class "Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory" not found`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -502,7 +502,7 @@ final class PaginatorSchemaFactory
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `vendor/bin/pest tests/Unit/Core/Generator/PaginatorSchemaFactoryTest.php`
-Expected: PASS — 4 tests.
+Expected: PASS—4 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -516,7 +516,7 @@ git commit -m "feat: add PaginatorSchemaFactory for paginator response schemas"
 
 ## Task 4: `PaginatorResponseResolver`
 
-The `PrimaryResponseResolver` itself. It: (a) reads the action's native return type; (b) maps it to a `PaginatorKind`, deferring (`null`) if it is not a paginator; (c) resolves the item class — `#[ResponseResource]` attribute wins, else the `@return` PHPDoc generic; (d) turns the item class into an `OA\Items` `$ref` via the registered `RefSchemaResolver`s, or a generic `OA\Items` when no resolver claims it; (e) builds the envelope and an `OA\Response`. When no item type can be found it logs a generation warning and returns `null`.
+The `PrimaryResponseResolver` itself. It: (a) reads the action's native return type; (b) maps it to a `PaginatorKind`, deferring (`null`) if it is not a paginator; (c) resolves the item class—`#[ResponseResource]` attribute wins, else the `@return` PHPDoc generic; (d) turns the item class into an `OA\Items` `$ref` via the registered `RefSchemaResolver`s, or a generic `OA\Items` when no resolver claims it; (e) builds the envelope and an `OA\Response`. When no item type can be found it logs a generation warning and returns `null`.
 
 **Files:**
 - Create: `src/Core/Extractors/PaginatorResponseResolver.php`
@@ -575,11 +575,11 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     {
         try {
             return $this->resolve($descriptor);
-        } catch (Throwable $e) {
+        } catch (Throwable $exception) {
             $this->logger->warning(sprintf(
                 'PaginatorResponseResolver failed for route %s: %s',
                 $descriptor->route->uri(),
-                $e->getMessage(),
+                $exception->getMessage(),
             ));
 
             return null;
@@ -692,7 +692,7 @@ git commit -m "feat: add PaginatorResponseResolver primary-response resolver"
 
 ## Task 5: Register and wire the resolver
 
-`PaginatorResponseResolver` needs the `list<RefSchemaResolver>` built from the registry, so — like `OperationBuilder` and `DataRefSchemaResolver` — it cannot be plain autowired; it needs an explicit `scoped` binding. `CoreRegistration` adds it to the registry's primary-response-resolver list; `OperationBuilder`'s existing constructor wiring (`src/OpenApiServiceProvider.php` `registerGenerator()`, the `primaryResponseResolvers:` argument) then picks it up via `$app->make()`.
+`PaginatorResponseResolver` needs the `list<RefSchemaResolver>` built from the registry, so—like `OperationBuilder` and `DataRefSchemaResolver`—it cannot be plain autowired; it needs an explicit `scoped` binding. `CoreRegistration` adds it to the registry's primary-response-resolver list; `OperationBuilder`'s existing constructor wiring (`src/OpenApiServiceProvider.php` `registerGenerator()`, the `primaryResponseResolvers:` argument) then picks it up via `$app->make()`.
 
 **Files:**
 - Modify: `src/Core/Registry/CoreRegistration.php`
@@ -756,7 +756,7 @@ In `src/OpenApiServiceProvider.php`, locate the method that binds `DataRefSchema
         );
 ```
 
-Add any missing imports to the top of `src/OpenApiServiceProvider.php` — check which are already present before adding:
+Add any missing imports to the top of `src/OpenApiServiceProvider.php`—check which are already present before adding:
 
 ```php
 use Psr\Log\LoggerInterface;
@@ -766,7 +766,7 @@ use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 ```
 
-`ReturnTypeExtractor` is autowireable only if `DocBlockFactoryInterface` and `ContextFactory` are container-resolvable. `ThrowsExtractor` already depends on both — confirm they resolve (search `src/OpenApiServiceProvider.php` for `DocBlockFactory` / `ContextFactory`). If `ThrowsExtractor` is autowired without an explicit binding, `ReturnTypeExtractor` will autowire too. If `ThrowsExtractor` has an explicit `scoped`/`singleton` binding, add a matching one for `ReturnTypeExtractor` right beside it:
+`ReturnTypeExtractor` is autowireable only if `DocBlockFactoryInterface` and `ContextFactory` are container-resolvable. `ThrowsExtractor` already depends on both—confirm they resolve (search `src/OpenApiServiceProvider.php` for `DocBlockFactory` / `ContextFactory`). If `ThrowsExtractor` is autowired without an explicit binding, `ReturnTypeExtractor` will autowire too. If `ThrowsExtractor` has an explicit `scoped`/`singleton` binding, add a matching one for `ReturnTypeExtractor` right beside it:
 
 ```php
         $this->app->scoped(
@@ -794,7 +794,7 @@ git commit -m "feat: register PaginatorResponseResolver in the core pipeline"
 
 ---
 
-## Task 6: Feature test — paginator endpoints end-to-end
+## Task 6: Feature test—paginator endpoints end-to-end
 
 Mirrors the structure of `tests/Feature/Oapi024Test.php`: fixture controllers declared in the test file, routes registered per test, the document generated via `app(OpenApiGenerator::class)->generate()->toYaml()` and parsed with `Yaml::parse()`.
 
@@ -843,7 +843,7 @@ class PaginatorDocblockController extends Controller
 
 class PaginatorAttributeController extends Controller
 {
-    /** List widgets — item type declared by attribute. */
+    /** List widgets—item type declared by attribute. */
     #[ResponseResource(PaginatedWidget::class, collection: true)]
     public function index(): LengthAwarePaginatorContract
     {
@@ -853,7 +853,7 @@ class PaginatorAttributeController extends Controller
 
 class PaginatorUndeclaredController extends Controller
 {
-    /** List widgets — no item type anywhere. */
+    /** List widgets—no item type anywhere. */
     public function index(): LengthAwarePaginatorContract
     {
         return new LengthAwarePaginator([], 0, 15);
@@ -923,9 +923,9 @@ it('documents a cursor paginator with cursor metadata', function (): void {
 - [ ] **Step 2: Run the test**
 
 Run: `vendor/bin/pest tests/Feature/PaginatorResponseTest.php`
-Expected: PASS — 4 tests.
+Expected: PASS—4 tests.
 
-If the attribute test or docblock test instead emits `data.items` as a `$ref`, that is also correct (it means a `RefSchemaResolver` claimed `PaginatedWidget`); the assertions above only check `data` is an array and so hold either way. If a test fails because the generated `data.items` is undefined, widen the assertion to accept either an inline object or a `$ref` — do not weaken the `type: array` check.
+If the attribute test or docblock test instead emits `data.items` as a `$ref`, that is also correct (it means a `RefSchemaResolver` claimed `PaginatedWidget`); the assertions above only check `data` is an array and so hold either way. If a test fails because the generated `data.items` is undefined, widen the assertion to accept either an inline object or a `$ref`—do not weaken the `type: array` check.
 
 - [ ] **Step 3: Commit**
 
@@ -940,16 +940,16 @@ git commit -m "test: cover paginator response resolution end-to-end"
 ## Task 7: Documentation
 
 **Files:**
-- Modify: `docs/known-gaps.md`
+- Modify: `../../internal/known-gaps.md`
 - Modify: `CHANGELOG.md`
 
-- [ ] **Step 1: Update `docs/known-gaps.md`**
+- [ ] **Step 1: Update `../../internal/known-gaps.md`**
 
 Find the OAPI-017 section (the "no controller method-body inference" gap). Append this paragraph to it:
 
 ```markdown
 As of the paginator-response work, the generator reads one PHPDoc tag —
-`@return Foo<Bar>` — to recover the item type of a paginated return value.
+`@return Foo<Bar>`—to recover the item type of a paginated return value.
 This is the only place the generator looks beyond a native signature; it still
 never reads method bodies. A paginator return type whose item type is declared
 by neither `#[ResponseResource]` nor a `@return` generic falls back to a bare
@@ -994,7 +994,7 @@ git commit -m "docs: document paginator response support"
 
 ## Next plans in this program
 
-2. `ApiResourcesPlugin` — `src/Plugins/ApiResources/`, `#[ResourceField]`, consuming the existing `#[ResponseResource]`, the `{data, links, meta}` resource envelope.
+2. `ApiResourcesPlugin`—`src/Plugins/ApiResources/`, `#[ResourceField]`, consuming the existing `#[ResponseResource]`, the `{data, links, meta}` resource envelope.
 3. `QueryBuilderPlugin`.
 4. `FractalPlugin`.
 5. composer.json + config-defaults wiring.
