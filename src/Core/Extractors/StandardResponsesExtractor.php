@@ -357,23 +357,37 @@ final readonly class StandardResponsesExtractor
         ?ErrorResponse $body,
         ?string $componentName,
     ): OA\Response {
-        $description = ($body !== null ? $body->description : null) ?? $descriptor->description;
+        $description = $descriptor->description;
+        $content = $headers = $links = null;
+
+        if ($body !== null) {
+            if ($body->description !== null) {
+                $description = $body->description;
+            }
+            if ($body->content !== []) {
+                $content = $body->content;
+            }
+            if ($body->headers !== []) {
+                $headers = $body->headers;
+            }
+            if ($body->links !== []) {
+                $links = $body->links;
+            }
+        }
 
         $properties = [
             'response'    => $componentName ?? (string) $descriptor->status,
             'description' => $description,
         ];
 
-        if ($body !== null && $body->content !== []) {
-            $properties['content'] = $body->content;
+        if ($content !== null) {
+            $properties['content'] = $content;
         }
-
-        if ($body !== null && $body->headers !== []) {
-            $properties['headers'] = $body->headers;
+        if ($headers !== null) {
+            $properties['headers'] = $headers;
         }
-
-        if ($body !== null && $body->links !== []) {
-            $properties['links'] = $body->links;
+        if ($links !== null) {
+            $properties['links'] = $links;
         }
 
         if ($componentName !== null) {
