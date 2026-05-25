@@ -16,6 +16,7 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,10 @@ use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Console\WhyCommand;
+use Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope;
+use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
+use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
+use Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope;
 use Radiergummi\OpenApi\Core\Extractors;
 use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
@@ -34,10 +39,6 @@ use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
-use Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope;
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
-use Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope;
 use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
 use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
@@ -55,8 +56,6 @@ use Radiergummi\OpenApi\Http\DocsController;
 use RuntimeException;
 use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
-
-use InvalidArgumentException;
 
 use function class_exists;
 use function is_a;
@@ -455,6 +454,7 @@ class OpenApiServiceProvider extends ServiceProvider
      * unknown preset name so failures surface at boot, not later as an autoload error.
      *
      * @return class-string<ErrorResponseResolver>
+     *
      * @throws InvalidArgumentException
      */
     private static function resolveErrorEnvelopeClass(string $envelope): string
@@ -470,6 +470,7 @@ class OpenApiServiceProvider extends ServiceProvider
 
     /**
      * @return class-string<ErrorResponseResolver>
+     *
      * @throws InvalidArgumentException
      */
     private static function validateCustomEnvelopeClass(string $envelope): string
