@@ -20,9 +20,9 @@ it('is a FieldAttribute', function (): void {
 
 it('maps schema parameters onto the descriptor', function (): void {
     $descriptor = new ResponseField(
-        type: 'integer',
         description: 'Number of items in the bucket.',
         example: 7,
+        type: 'integer',
         readOnly: true,
     )->descriptor();
 

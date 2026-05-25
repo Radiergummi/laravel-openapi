@@ -20,11 +20,11 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
  *
  * @mixin \Examples\Shared\Models\Booking
  */
-#[ResourceField('id', type: 'string', format: 'uuid', description: 'Server-assigned booking identifier.')]
-#[ResourceField('flight_id', type: 'string', format: 'uuid', description: 'Identifier of the flight this booking belongs to.')]
-#[ResourceField('passenger_name', type: 'string', description: 'Full name of the passenger.', minLength: 1, maxLength: 200)]
-#[ResourceField('seat', type: 'string', description: 'Seat assignment, e.g. 12A.', pattern: '^\\d{1,3}[A-Z]$')]
-#[ResourceField('created_at', type: 'string', format: 'date-time', description: 'Booking creation timestamp.')]
+#[ResourceField('id', description: 'Server-assigned booking identifier.', type: 'string', format: 'uuid')]
+#[ResourceField('flight_id', description: 'Identifier of the flight this booking belongs to.', type: 'string', format: 'uuid')]
+#[ResourceField('passenger_name', description: 'Full name of the passenger.', type: 'string', minLength: 1, maxLength: 200)]
+#[ResourceField('seat', description: 'Seat assignment, e.g. 12A.', type: 'string', pattern: '^\\d{1,3}[A-Z]$')]
+#[ResourceField('created_at', description: 'Booking creation timestamp.', type: 'string', format: 'date-time')]
 final class BookingResource extends JsonResource
 {
     /**

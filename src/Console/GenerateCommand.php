@@ -106,8 +106,8 @@ class GenerateCommand extends Command
 
             try {
                 $this->writeOutput($path, $content);
-            } catch (Throwable $e) {
-                $this->components->error("Failed to write OpenAPI file for spec '{$spec->name}': {$e->getMessage()}");
+            } catch (Throwable $exception) {
+                $this->components->error("Failed to write OpenAPI file for spec '{$spec->name}': {$exception->getMessage()}");
 
                 return self::FAILURE;
             }

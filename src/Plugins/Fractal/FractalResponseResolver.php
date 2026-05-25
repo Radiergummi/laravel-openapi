@@ -78,7 +78,7 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
                 'description' => 'OK',
                 'content' => [$mediaType->schema($envelope)],
             ]);
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException $exception) {
             // Tolerate reflection failures only (e.g. a transformer FQCN that class_exists
             // declares present but fails to instantiate via ReflectionClass). Real bugs —
             // attribute constructor TypeErrors, schema-build logic errors — propagate so
@@ -87,7 +87,7 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
                 sprintf(
                     'FractalResponseResolver reflection failure for route %s: %s',
                     $descriptor->route->uri(),
-                    $e->getMessage(),
+                    $exception->getMessage(),
                 ),
             );
 

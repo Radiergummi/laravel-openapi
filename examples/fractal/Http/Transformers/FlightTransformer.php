@@ -22,14 +22,14 @@ use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
  * properties, so each field is declared at class level via
  * `#[TransformerField]`. The generator never reads `transform()` itself.
  */
-#[TransformerField('id', type: 'string', format: 'uuid', description: 'Server-assigned flight identifier.')]
-#[TransformerField('number', type: 'string', description: 'IATA-style flight number.', example: 'LH123')]
-#[TransformerField('origin', type: 'string', description: 'Three-letter IATA origin code.', example: 'FRA')]
-#[TransformerField('destination', type: 'string', description: 'Three-letter IATA destination code.', example: 'JFK')]
-#[TransformerField('departs_at', type: 'string', format: 'date-time', description: 'Scheduled departure timestamp.')]
-#[TransformerField('arrives_at', type: 'string', format: 'date-time', description: 'Scheduled arrival timestamp.')]
-#[TransformerField('status', type: 'string', description: 'Operational status.', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]
-#[TransformerField('aircraft_type', type: 'string', description: 'Aircraft model / type designator.')]
+#[TransformerField('id', description: 'Server-assigned flight identifier.', type: 'string', format: 'uuid')]
+#[TransformerField('number', description: 'IATA-style flight number.', example: 'LH123', type: 'string')]
+#[TransformerField('origin', description: 'Three-letter IATA origin code.', example: 'FRA', type: 'string')]
+#[TransformerField('destination', description: 'Three-letter IATA destination code.', example: 'JFK', type: 'string')]
+#[TransformerField('departs_at', description: 'Scheduled departure timestamp.', type: 'string', format: 'date-time')]
+#[TransformerField('arrives_at', description: 'Scheduled arrival timestamp.', type: 'string', format: 'date-time')]
+#[TransformerField('status', description: 'Operational status.', type: 'string', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]
+#[TransformerField('aircraft_type', description: 'Aircraft model / type designator.', type: 'string')]
 final class FlightTransformer extends TransformerAbstract
 {
     /**

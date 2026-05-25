@@ -17,11 +17,11 @@ uses()->group('openapi');
 it('descriptor() returns a SchemaDescriptor with schema fields', function (): void {
     $attr = new QueryParam(
         'limit',
-        type: 'integer',
         description: 'Max results to return.',
+        type: 'integer',
+        default: 25,
         minimum: 1,
         maximum: 100,
-        default: 25,
     );
 
     $descriptor = $attr->descriptor();

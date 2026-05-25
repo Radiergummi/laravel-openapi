@@ -25,8 +25,8 @@ it('has the correct rule id and level', function (): void {
 
 it('emits a finding for deprecated operations missing replacement guidance', function (?string $description): void {
     $operation = OperationNodeFactory::makeOperation(
-        deprecated: true,
         description: $description,
+        deprecated: true,
         responses: [],
     );
 
@@ -45,8 +45,8 @@ it('emits a finding for deprecated operations missing replacement guidance', fun
 
 it('emits no findings when description mentions a replacement keyword', function (string $description): void {
     $operation = OperationNodeFactory::makeOperation(
-        deprecated: true,
         description: $description,
+        deprecated: true,
         responses: [],
     );
 

@@ -60,7 +60,7 @@ final class ReturnTypeExtractor
 
     /**
      * Returns the FQCN (without a leading backslash) of the generic argument of
-     * the `@return` tag, or null when there is no docblock, no `@return` tag,
+     * the at-return tag, or null when there is no docblock, no at-return tag,
      * or no generic argument.
      */
     public function genericArgument(ReflectionFunctionAbstract $reflector): ?string

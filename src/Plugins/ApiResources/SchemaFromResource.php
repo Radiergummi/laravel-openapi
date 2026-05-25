@@ -20,7 +20,6 @@ use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use ReflectionClass;
-
 use ReflectionException;
 
 use function assert;

@@ -97,13 +97,10 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
         }
 
         // Check if the description mentions at least one enum value
-        foreach ($enumValues as $value) {
-            if (str_contains($description, (string) $value)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            $enumValues,
+            fn(mixed $value): bool => str_contains($description, (string) $value),
+        );
     }
 
     #[Override]

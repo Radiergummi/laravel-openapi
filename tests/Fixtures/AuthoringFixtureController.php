@@ -47,7 +47,7 @@ class AuthoringFixtureController extends Controller
         return [];
     }
 
-    #[Header('X-Tenant-Id', required: true, example: 'acme-corp')]
+    #[Header('X-Tenant-Id', example: 'acme-corp', required: true)]
     #[Header('Idempotency-Key', description: 'Client idempotency key')]
     public function headeredAction(): array
     {

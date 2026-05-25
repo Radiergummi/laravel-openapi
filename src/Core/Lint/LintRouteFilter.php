@@ -160,7 +160,7 @@ class LintRouteFilter
             $process->run();
             $output = trim($process->getOutput());
 
-            if ($process->isSuccessful() && $output !== '') {
+            if ($output !== '' && $process->isSuccessful()) {
                 return $output;
             }
         }

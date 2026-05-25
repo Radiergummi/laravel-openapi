@@ -15,6 +15,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use ReflectionClass;
+use ReflectionException;
 
 use function class_exists;
 
@@ -30,6 +31,9 @@ final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
         private SchemaFromTransformer $schemaFromTransformer,
     ) {}
 
+    /**
+     * @throws ReflectionException
+     */
     public function resolveRef(string $class): ?string
     {
         if (!class_exists($class)) {

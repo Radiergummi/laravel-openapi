@@ -14,7 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder\Attributes;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 
 it('exposes its name and forwards schema fields to the descriptor', function (): void {
-    $filter = new AllowedFilter('status', type: 'string', description: 'Filter by status.');
+    $filter = new AllowedFilter('status', description: 'Filter by status.', type: 'string');
 
     expect($filter->name)->toBe('status')
         ->and($filter->type)->toBe('string')

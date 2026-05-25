@@ -20,13 +20,13 @@ use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use function in_array;
 use function sprintf;
 
-final class SecurityInvalidScope implements Rule, OperationRuleVisitor
+final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
 {
     /**
      * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
      *                                            resolved from the context index.
      */
-    public function __construct(private readonly ?array $registeredScopes = null) {}
+    public function __construct(private ?array $registeredScopes = null) {}
 
     /**
      * @return iterable<Finding>

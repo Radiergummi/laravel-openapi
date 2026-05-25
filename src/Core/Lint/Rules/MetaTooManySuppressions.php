@@ -24,9 +24,9 @@ use function sprintf;
  * Reports when a single file has too many suppression directives, which may indicate that the
  * file needs refactoring rather than more suppressions.
  */
-final class MetaTooManySuppressions implements Rule, ApiRuleVisitor
+final readonly class MetaTooManySuppressions implements Rule, ApiRuleVisitor
 {
-    public function __construct(private readonly int $threshold = 5) {}
+    public function __construct(private int $threshold = 5) {}
 
     /**
      * @return iterable<Finding>

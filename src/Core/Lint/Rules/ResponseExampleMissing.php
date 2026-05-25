@@ -50,8 +50,8 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
-                'Response %s on %s %s has no example',
-                (string) $response->statusCode,
+                'Response %d on %s %s has no example',
+                $response->statusCode,
                 $operation !== null ? $operation->method : '(unknown)',
                 $operation !== null ? $operation->pathUri : '(unknown)',
             ),

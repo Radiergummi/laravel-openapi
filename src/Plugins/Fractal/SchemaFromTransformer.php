@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use ReflectionClass;
+use ReflectionException;
 
 use function class_exists;
 
@@ -51,6 +52,8 @@ final readonly class SchemaFromTransformer
      * Registers the transformer and returns its qualified `$ref` string.
      *
      * @param class-string $transformerClass
+     *
+     * @throws ReflectionException
      */
     public function buildRef(string $transformerClass): string
     {
@@ -61,6 +64,8 @@ final readonly class SchemaFromTransformer
      * Registers the transformer as a component schema and returns its key.
      *
      * @param class-string $transformerClass
+     *
+     * @throws ReflectionException
      */
     public function build(string $transformerClass): string
     {
@@ -72,6 +77,8 @@ final readonly class SchemaFromTransformer
 
     /**
      * @param class-string $transformerClass
+     *
+     * @throws ReflectionException
      */
     private function buildSchema(string $transformerClass): OA\Schema
     {
@@ -110,6 +117,9 @@ final readonly class SchemaFromTransformer
         return new OA\Schema($props);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function buildFieldProperty(TransformerField $field): OA\Property
     {
         $type = $field->type;
@@ -136,6 +146,8 @@ final readonly class SchemaFromTransformer
 
     /**
      * @param class-string $class
+     *
+     * @throws ReflectionException
      */
     private function resolveClassRef(string $class): ?string
     {
@@ -154,6 +166,9 @@ final readonly class SchemaFromTransformer
         return null;
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function buildIncludeProperty(TransformerInclude $include): OA\Property
     {
         $ref = $include->transformer !== null && class_exists($include->transformer)

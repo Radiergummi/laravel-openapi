@@ -135,9 +135,9 @@ final class SpecRegistry
 
         $tags = [];
 
-        foreach ($tagsArray as $tagName => $cfg) {
-            $cfg = is_array($cfg) ? $cfg : [];
-            $tags[] = new OA\Tag(['name' => (string) $tagName] + $cfg);
+        foreach ($tagsArray as $tagName => $config) {
+            $config = is_array($config) ? $config : [];
+            $tags[] = new OA\Tag(['name' => $tagName] + $config);
         }
 
         $match = is_array($overrides['match'] ?? null) ? $overrides['match'] : [];

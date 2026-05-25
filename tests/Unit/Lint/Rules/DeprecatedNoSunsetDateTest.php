@@ -25,8 +25,8 @@ it('has the correct rule id and level', function (): void {
 
 it('emits a finding when a deprecated operation has no concrete sunset date', function (?string $description): void {
     $operation = OperationNodeFactory::makeOperation(
-        deprecated: true,
         description: $description,
+        deprecated: true,
         responses: [],
     );
 
@@ -47,8 +47,8 @@ it('emits a finding when a deprecated operation has no concrete sunset date', fu
 
 it('emits no findings when description contains a concrete date', function (string $description): void {
     $operation = OperationNodeFactory::makeOperation(
-        deprecated: true,
         description: $description,
+        deprecated: true,
         responses: [],
     );
 

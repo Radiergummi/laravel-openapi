@@ -38,7 +38,7 @@ final class ComponentSchemaNode implements Node
     public function linkParent(Node $parent): void
     {
         if ($this->parent !== null) {
-            throw new LogicException(sprintf('Parent already linked on %s', static::class));
+            throw new LogicException(sprintf('Parent already linked on %s', __CLASS__));
         }
 
         $this->parent = $parent;
@@ -51,8 +51,8 @@ final class ComponentSchemaNode implements Node
 
     public function pointer(string $append = ''): string
     {
-        $base = '#/components/schemas/' . $this->name;
+        $base = "#/components/schemas/{$this->name}";
 
-        return $append !== '' ? $base . '/' . $append : $base;
+        return $append !== '' ? "{$base}/{$append}" : $base;
     }
 }

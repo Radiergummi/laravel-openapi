@@ -83,8 +83,8 @@ final class NullableSchema
         if ($schema->type !== $undefined && is_array($schema->type)) {
             $hasStructured = false;
 
-            foreach ($schema->type as $t) {
-                if (!in_array($t, self::SCALAR_TYPES, strict: true) && $t !== 'null') {
+            foreach ($schema->type as $type) {
+                if ($type !== 'null' && !in_array($type, self::SCALAR_TYPES, strict: true)) {
                     $hasStructured = true;
 
                     break;

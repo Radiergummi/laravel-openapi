@@ -32,7 +32,13 @@ function operationSecurityFindings(
     $descriptor = ActionDescriptorFactory::forRoute($route, OperationSecurityMissingController::class, $method);
 
     $operation = $webhook
-        ? OperationNodeFactory::makeOperation(pathUri: $uri, descriptor: $descriptor, raw: $raw, responses: [], webhook: true)
+        ? OperationNodeFactory::makeOperation(
+            pathUri: $uri,
+            responses: [],
+            descriptor: $descriptor,
+            raw: $raw,
+            webhook: true,
+        )
         : OperationNodeFactory::forDescriptor($descriptor, raw: $raw);
 
     return iterator_to_array(

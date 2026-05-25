@@ -93,7 +93,7 @@ final readonly class SchemaDescriptor
             'uniqueItems' => $this->uniqueItems,
             'readOnly' => $this->readOnly,
             'writeOnly' => $this->writeOnly,
-        ], fn($value) => $value !== null);
+        ], static fn($value) => $value !== null);
 
         if ($this->enum !== null) {
             $out['enum'] = array_map(

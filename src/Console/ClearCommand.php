@@ -34,8 +34,8 @@ class ClearCommand extends Command
 
         try {
             $targets = $specName === null ? $registry->all() : [$registry->get((string) $specName)];
-        } catch (InvalidArgumentException $e) {
-            $this->components->error($e->getMessage());
+        } catch (InvalidArgumentException $exception) {
+            $this->components->error($exception->getMessage());
 
             return self::FAILURE;
         }

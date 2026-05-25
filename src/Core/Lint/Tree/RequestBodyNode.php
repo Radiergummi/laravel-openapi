@@ -45,7 +45,7 @@ final class RequestBodyNode implements Node
     {
         if ($this->parent !== null) {
             throw new LogicException(
-                sprintf('Parent already linked on %s', static::class),
+                sprintf('Parent already linked on %s', __CLASS__),
             );
         }
 

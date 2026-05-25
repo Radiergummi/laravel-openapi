@@ -54,12 +54,12 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     {
         try {
             return $this->resolve($descriptor);
-        } catch (Throwable $e) {
+        } catch (Throwable $exception) {
             $this->logger->warning(
                 sprintf(
                     'PaginatorResponseResolver failed for route %s: %s',
                     $descriptor->route->uri(),
-                    $e->getMessage(),
+                    $exception->getMessage(),
                 ),
             );
 

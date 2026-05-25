@@ -49,7 +49,7 @@ final class FlightController
      *
      * @return DataCollection<int, FlightData>
      */
-    #[AllowedFilter('number', type: 'string', description: 'Exact match on IATA flight designator')]
+    #[AllowedFilter('number', description: 'Exact match on IATA flight designator', type: 'string')]
     #[AllowedFilter('status', type: 'string', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]
     #[AllowedFilter('origin', type: 'string', minLength: 3, maxLength: 3)]
     #[AllowedSort(['departs_at', 'number'])]
@@ -84,9 +84,9 @@ final class FlightController
     #[ResponseExample(
         status: 200,
         name: 'lh400-from-file',
-        file: 'examples/combined/example_payloads/flight.json',
         summary: 'Curated example loaded from disk',
         description: 'Loaded at spec-generation time by ExampleFileLoader from the JSON file shipped alongside the flavor.',
+        file: 'examples/combined/example_payloads/flight.json',
     )]
     public function show(string $flight): FlightData
     {

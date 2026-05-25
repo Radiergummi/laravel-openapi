@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
 
 use function sprintf;
 
@@ -34,10 +35,8 @@ final class ResponseNoSuccess implements Rule, OperationRuleVisitor
             return;
         }
 
-        foreach ($operation->responses as $response) {
-            if ($response->isDefault()) {
-                return;
-            }
+        if (array_any($operation->responses, fn(ResponseNode $response): bool => $response->isDefault())) {
+            return;
         }
 
         if ($operation->successResponses() === []) {

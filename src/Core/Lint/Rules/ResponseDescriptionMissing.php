@@ -45,8 +45,8 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
-                'Response %s on %s %s has no description',
-                (string) $response->statusCode,
+                'Response %d on %s %s has no description',
+                $response->statusCode,
                 $operation !== null ? $operation->method : '(unknown)',
                 $operation !== null ? $operation->pathUri : '(unknown)',
             ),

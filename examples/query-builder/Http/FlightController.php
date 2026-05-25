@@ -34,10 +34,10 @@ final class FlightController
      * `spatie/laravel-query-builder` conventions documented by the
      * `#[AllowedFilter]`, `#[AllowedSort]` and `#[AllowedInclude]` attributes.
      */
-    #[AllowedFilter('number', type: 'string', description: 'Exact match on IATA flight designator')]
+    #[AllowedFilter('number', description: 'Exact match on IATA flight designator', type: 'string')]
     #[AllowedFilter('status', type: 'string', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]
     #[AllowedFilter('origin', type: 'string', minLength: 3, maxLength: 3)]
-    #[AllowedFilter('departs_after', type: 'string', format: 'date-time', nullable: true, description: 'Only flights departing at or after this timestamp')]
+    #[AllowedFilter('departs_after', description: 'Only flights departing at or after this timestamp', type: 'string', format: 'date-time', nullable: true)]
     #[AllowedSort(['departs_at', 'number'])]
     #[AllowedInclude(['bookings'])]
     #[Response(status: 200, description: 'A page of flights', schema: ['type' => 'object'])]

@@ -20,7 +20,6 @@ use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule as OperationRuleV
 use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
 use ReflectionAttribute;
 use ReflectionClass;
-use ReflectionException;
 use ReflectionProperty;
 
 use function assert;
@@ -47,8 +46,6 @@ abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
 
     /**
      * @return iterable<Finding>
-     *
-     * @throws ReflectionException
      */
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable

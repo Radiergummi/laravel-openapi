@@ -42,11 +42,11 @@ use function str_ends_with;
  * propagating it to the controller's PHPDoc, which in turn means the OpenAPI spec will lack the
  * corresponding error response.
  */
-final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
+final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
 {
-    private readonly DocBlockFactoryInterface $docBlockFactory;
+    private DocBlockFactoryInterface $docBlockFactory;
 
-    private readonly ContextFactory $contextFactory;
+    private ContextFactory $contextFactory;
 
     public function __construct(
         ?DocBlockFactoryInterface $docBlockFactory = null,

@@ -36,7 +36,7 @@ final class ExampleNode implements Node
     public function linkParent(Node $parent): void
     {
         if ($this->parent !== null) {
-            throw new LogicException(sprintf('Parent already linked on %s', static::class));
+            throw new LogicException(sprintf('Parent already linked on %s', __CLASS__));
         }
 
         $this->parent = $parent;
@@ -52,6 +52,6 @@ final class ExampleNode implements Node
         $name = $this->name ?? 'default';
         $base = ($this->parent?->pointer() ?? '') . '/examples/' . $name;
 
-        return $append !== '' ? $base . '/' . $append : $base;
+        return $append !== '' ? "{$base}/{$append}" : $base;
     }
 }

@@ -61,7 +61,7 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
                 'description' => 'OK',
                 'content' => [MediaType::Json->schema($envelope)],
             ]);
-        } catch (ReflectionException $e) {
+        } catch (ReflectionException $exception) {
             // Tolerate reflection failures only (e.g. a resource class that disappears between
             // locator resolution and schema build). Real bugs — attribute construction errors,
             // schema-build logic errors — propagate so they surface in dev rather than
@@ -70,7 +70,7 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
                 sprintf(
                     'ResourceResponseResolver reflection failure for route %s: %s',
                     $descriptor->route->uri(),
-                    $e->getMessage(),
+                    $exception->getMessage(),
                 ),
             );
 

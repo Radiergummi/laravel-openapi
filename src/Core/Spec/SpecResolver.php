@@ -16,9 +16,9 @@ use Radiergummi\OpenApi\Core\Attributes\Spec;
 use ReflectionClass;
 use ReflectionMethod;
 
-use function array_merge;
 use function array_unique;
 use function array_values;
+use function assert;
 
 /**
  * Resolves the effective list of spec names declared by `#[Spec]` attributes on a route.
@@ -70,9 +70,9 @@ final readonly class SpecResolver
         $names = [];
 
         foreach ($attributes as $attr) {
-            /** @var Spec $instance */
             $instance = $attr->newInstance();
-            $names = array_merge($names, $instance->names);
+            assert($instance instanceof Spec);
+            $names = [...$names, ...$instance->names];
         }
 
         return array_values(array_unique($names));

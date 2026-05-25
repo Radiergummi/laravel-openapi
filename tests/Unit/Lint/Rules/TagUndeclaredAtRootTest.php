@@ -26,8 +26,8 @@ function tagUndeclaredAtRootContext(array $operationTags, array $rootTags = []):
         $operations[] = OperationNodeFactory::makeOperation(
             pathUri: '/path-' . $index,
             operationId: 'op.' . $index,
-            tags: $tags,
             responses: [],
+            tags: $tags,
         );
     }
 

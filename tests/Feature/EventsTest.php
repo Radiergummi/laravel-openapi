@@ -64,11 +64,11 @@ it('dispatches SpecGenerationStarted and SpecGenerationCompleted around generati
     /** @var list<SpecGenerationCompleted> $completed */
     $completed = [];
 
-    Event::listen(SpecGenerationStarted::class, static function (SpecGenerationStarted $e) use (&$started): void {
-        $started[] = $e;
+    Event::listen(SpecGenerationStarted::class, static function (SpecGenerationStarted $exception) use (&$started): void {
+        $started[] = $exception;
     });
-    Event::listen(SpecGenerationCompleted::class, static function (SpecGenerationCompleted $e) use (&$completed): void {
-        $completed[] = $e;
+    Event::listen(SpecGenerationCompleted::class, static function (SpecGenerationCompleted $exception) use (&$completed): void {
+        $completed[] = $exception;
     });
 
     generateSpec();
@@ -88,7 +88,7 @@ it('dispatches RouteSkipped with Visibility reason for #[Hide]', function (): vo
 
     $hidden = array_values(array_filter(
         $captured,
-        static fn(RouteSkipped $e): bool => str_contains($e->route->uri(), 'oa-events/hidden'),
+        static fn(RouteSkipped $event): bool => str_contains($event->route->uri(), 'oa-events/hidden'),
     ));
 
     expect($hidden)->toHaveCount(1)
@@ -116,7 +116,7 @@ it('dispatches RouteSkipped with GlobalFilter reason when a route is rejected by
 
     $skipped = array_values(array_filter(
         $captured,
-        static fn(RouteSkipped $e): bool => str_contains($e->route->uri(), 'oa-events/filtered'),
+        static fn(RouteSkipped $event): bool => str_contains($event->route->uri(), 'oa-events/filtered'),
     ));
 
     expect($skipped)->toHaveCount(1)
@@ -141,7 +141,7 @@ it('dispatches RouteSkipped with SpecMembership reason when a route is not in th
 
     $skipped = array_values(array_filter(
         $captured,
-        static fn(RouteSkipped $e): bool => str_contains($e->route->uri(), 'oa-events/v2-only'),
+        static fn(RouteSkipped $event): bool => str_contains($event->route->uri(), 'oa-events/v2-only'),
     ));
 
     expect($skipped)->toHaveCount(1)
@@ -153,8 +153,8 @@ it('dispatches LintFindingEmitted whenever a finding is collected', function ():
     /** @var list<LintFindingEmitted> $captured */
     $captured = [];
 
-    Event::listen(LintFindingEmitted::class, static function (LintFindingEmitted $e) use (&$captured): void {
-        $captured[] = $e;
+    Event::listen(LintFindingEmitted::class, static function (LintFindingEmitted $event) use (&$captured): void {
+        $captured[] = $event;
     });
 
     /** @var FindingsCollector $collector */

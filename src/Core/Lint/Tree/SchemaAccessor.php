@@ -143,11 +143,7 @@ final class SchemaAccessor
         // OAS 3.1 style (type as array including "null")
         $type = $schema->type;
 
-        if (is_array($type) && in_array('null', $type, true)) {
-            return true;
-        }
-
-        return false;
+        return is_array($type) && in_array('null', $type, true);
     }
 
     public static function undefinedToNull(mixed $value): ?string

@@ -30,10 +30,10 @@ use function is_a;
  * request-payload classes behind the linted routes.
  */
 #[Scoped]
-final class SuppressionCollector
+final readonly class SuppressionCollector
 {
     /** @var list<class-string> */
-    private readonly array $payloadClasses;
+    private array $payloadClasses;
 
     /**
      * @param list<class-string> $indirectionClasses Base types whose constructors are also scanned
@@ -42,7 +42,7 @@ final class SuppressionCollector
     public function __construct(
         OpenApiRegistry $registry,
         #[Config('openapi.request_payload_indirection', [])]
-        private readonly array $indirectionClasses = [],
+        private array $indirectionClasses = [],
     ) {
         $this->payloadClasses = $registry->payloadClasses();
     }

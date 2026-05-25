@@ -28,8 +28,8 @@ final class PropertyFixtureData extends Data
         )]
         public string $name,
         #[RequestField(
-            format: 'uri',
             example: 'https://hooks.example.com/projects',
+            format: 'uri',
         )]
         public ?string $callbackUrl = null,
         public int $limit = 25,

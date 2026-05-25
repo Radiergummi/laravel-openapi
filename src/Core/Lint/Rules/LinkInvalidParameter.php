@@ -94,7 +94,7 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
     {
         return array_flip(
             array_map(
-                fn(ParameterNode|QueryParameterNode $param): string => $param->name,
+                static fn(ParameterNode|QueryParameterNode $param): string => $param->name,
                 [...$targetOperation->parameters, ...$targetOperation->queryParameters],
             ),
         );

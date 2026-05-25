@@ -46,16 +46,18 @@ final readonly class VisibilityResolver
      */
     public function isVisible(array $hides, array $exposes, string $environment): bool
     {
-        foreach ($hides as $hide) {
-            if ($this->scopeMatches($hide->only, $hide->except, $environment)) {
-                return false;
-            }
+        if (array_any(
+            $hides,
+            fn(Hide $hide): bool => $this->scopeMatches($hide->only, $hide->except, $environment),
+        )) {
+            return false;
         }
 
-        foreach ($exposes as $expose) {
-            if ($this->scopeMatches($expose->only, $expose->except, $environment)) {
-                return true;
-            }
+        if (array_any(
+            $exposes,
+            fn(Expose $expose): bool => $this->scopeMatches($expose->only, $expose->except, $environment),
+        )) {
+            return true;
         }
 
         return $this->defaultMode === VisibilityMode::Public;

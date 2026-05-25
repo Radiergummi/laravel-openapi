@@ -60,10 +60,10 @@ final class ExampleFileLoader
 
         try {
             $decoded = json_decode($contents, associative: true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
+        } catch (JsonException $exception) {
             throw new RuntimeException(
-                "OpenAPI example file contains invalid JSON ({$absolute}): {$e->getMessage()}",
-                previous: $e,
+                "OpenAPI example file contains invalid JSON ({$absolute}): {$exception->getMessage()}",
+                previous: $exception,
             );
         }
 

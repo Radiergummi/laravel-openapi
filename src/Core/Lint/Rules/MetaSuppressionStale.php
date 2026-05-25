@@ -87,13 +87,10 @@ final class MetaSuppressionStale implements Rule, PostWalkRule
         SuppressionDirective $directive,
         array $allFindings,
     ): bool {
-        foreach ($allFindings as $finding) {
-            if ($directive->suppresses($finding)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            $allFindings,
+            fn(Finding $finding): bool => $directive->suppresses($finding),
+        );
     }
 
     #[Override]

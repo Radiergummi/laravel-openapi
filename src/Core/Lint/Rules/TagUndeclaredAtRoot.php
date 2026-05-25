@@ -52,8 +52,8 @@ final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
                         $operation->pathUri,
                     ),
                     location: new FindingLocation(
-                        routeUri: $operation->pathUri,
                         routeMethod: $operation->method,
+                        routeUri: $operation->pathUri,
                     ),
                     fixHint: 'Add the tag to the top-level tags array with a description, or use #[Tag] on a controller.',
                 );

@@ -248,17 +248,15 @@ final class SpecTreeBuilder
         );
 
         // Link children's parent references
-        foreach ($parameters as $param) {
-            $param->linkParent($operation);
+        foreach ($parameters as $parameter) {
+            $parameter->linkParent($operation);
         }
 
-        foreach ($queryParameters as $qp) {
-            $qp->linkParent($operation);
+        foreach ($queryParameters as $parameter) {
+            $parameter->linkParent($operation);
         }
 
-        if ($requestBody !== null) {
-            $requestBody->linkParent($operation);
-        }
+        $requestBody?->linkParent($operation);
 
         foreach ($responses as $response) {
             $response->linkParent($operation);

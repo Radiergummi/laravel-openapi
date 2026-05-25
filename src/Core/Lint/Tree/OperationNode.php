@@ -65,7 +65,7 @@ final class OperationNode implements Node
     public function linkParent(Node $parent): void
     {
         if ($this->parent !== null) {
-            throw new LogicException(sprintf('Parent already linked on %s', static::class));
+            throw new LogicException(sprintf('Parent already linked on %s', __CLASS__));
         }
 
         $this->parent = $parent;

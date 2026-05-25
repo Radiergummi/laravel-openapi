@@ -88,7 +88,7 @@ it('emits no findings when a method has no header attributes', function (): void
 });
 
 it('emits no findings when operation has no descriptor', function (): void {
-    $operation = OperationNodeFactory::makeOperation(descriptor: null, responses: []);
+    $operation = OperationNodeFactory::makeOperation(responses: [], descriptor: null);
 
     $findings = iterator_to_array(
         new HeaderInvalidName()->checkOperation($operation, OperationNodeFactory::emptyContext()),

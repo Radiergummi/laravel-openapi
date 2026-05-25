@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
+use ReflectionException;
 use Throwable;
 
 use function array_any;
@@ -76,6 +77,8 @@ final readonly class SchemaFromFormRequest
 
     /**
      * @param class-string<FormRequest> $formRequestClass
+     *
+     * @throws ReflectionException
      */
     private function buildSchema(string $formRequestClass): OA\Schema
     {
@@ -96,12 +99,12 @@ final readonly class SchemaFromFormRequest
         try {
             $instance = new $formRequestClass();
             $rules = $instance->rules();
-        } catch (Throwable $e) {
+        } catch (Throwable $exception) {
             $this->logger->warning(
                 sprintf(
                     'SchemaFromFormRequest failed for %s: %s',
                     $formRequestClass,
-                    $e->getMessage(),
+                    $exception->getMessage(),
                 ),
             );
 
@@ -208,6 +211,8 @@ final readonly class SchemaFromFormRequest
      * @param class-string<FormRequest> $formRequestClass
      *
      * @return array<string, FieldAttribute>
+     *
+     * @throws ReflectionException
      */
     private function readConstantFieldAttributes(string $formRequestClass): array
     {

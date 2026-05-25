@@ -24,14 +24,14 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
  *
  * @mixin \Examples\Shared\Models\Flight
  */
-#[ResourceField('id', type: 'string', format: 'uuid', description: 'Server-assigned flight identifier.')]
-#[ResourceField('number', type: 'string', description: 'IATA-style flight number.', example: 'LH123')]
-#[ResourceField('origin', type: 'string', description: 'Three-letter IATA origin code.', example: 'FRA')]
-#[ResourceField('destination', type: 'string', description: 'Three-letter IATA destination code.', example: 'JFK')]
-#[ResourceField('departs_at', type: 'string', format: 'date-time', description: 'Scheduled departure timestamp.')]
-#[ResourceField('arrives_at', type: 'string', format: 'date-time', description: 'Scheduled arrival timestamp.')]
-#[ResourceField('status', type: 'string', description: 'Operational status.', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]
-#[ResourceField('aircraft_type', type: 'string', description: 'Aircraft model / type designator.')]
+#[ResourceField('id', description: 'Server-assigned flight identifier.', type: 'string', format: 'uuid')]
+#[ResourceField('number', description: 'IATA-style flight number.', example: 'LH123', type: 'string')]
+#[ResourceField('origin', description: 'Three-letter IATA origin code.', example: 'FRA', type: 'string')]
+#[ResourceField('destination', description: 'Three-letter IATA destination code.', example: 'JFK', type: 'string')]
+#[ResourceField('departs_at', description: 'Scheduled departure timestamp.', type: 'string', format: 'date-time')]
+#[ResourceField('arrives_at', description: 'Scheduled arrival timestamp.', type: 'string', format: 'date-time')]
+#[ResourceField('status', description: 'Operational status.', type: 'string', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]
+#[ResourceField('aircraft_type', description: 'Aircraft model / type designator.', type: 'string')]
 final class FlightResource extends JsonResource
 {
     /**

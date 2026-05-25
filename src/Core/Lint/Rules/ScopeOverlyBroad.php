@@ -25,13 +25,13 @@ use function sprintf;
  * Reports when an operation's only OAuth scope is the wildcard `*` and more specific scopes are
  * available in Passport. Using `*` alone defeats the purpose of scope-based access control.
  */
-final class ScopeOverlyBroad implements Rule, OperationRuleVisitor
+final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
 {
     /**
      * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
      *                                            resolved from the context index.
      */
-    public function __construct(private readonly ?array $registeredScopes = null) {}
+    public function __construct(private ?array $registeredScopes = null) {}
 
     /**
      * @return iterable<Finding>

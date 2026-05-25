@@ -35,6 +35,8 @@ final class DocsController extends Controller
      * schemas are reflected immediately. Everywhere else, the spec is built at deploy time by the
      * `openapi:generate` command and served as a static file with etag/last-modified semantics. A
      * missing file in a deployed environment indicates a broken build.
+     *
+     * @noinspection PhpUnhandledExceptionInspection
      */
     public function spec(
         OpenApiGenerationOrchestrator $orchestrator,
@@ -77,6 +79,8 @@ final class DocsController extends Controller
      *
      * The page is a minimal HTML shell that loads Scalar from a CDN and points it at the OpenAPI
      * YAML endpoint for this spec.
+     *
+     * @noinspection PhpUnhandledExceptionInspection
      */
     public function playground(SpecRegistry $registry, string $spec = 'default'): View
     {

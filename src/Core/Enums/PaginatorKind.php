@@ -47,11 +47,11 @@ enum PaginatorKind
     public static function fromClass(string $class): ?self
     {
         return match (true) {
-            is_a($class, CursorPaginator::class, allow_string: true) => self::Cursor,
-            is_a($class, LengthAwarePaginator::class, allow_string: true) => self::LengthAware,
-            is_a($class, Paginator::class, allow_string: true) => self::Simple,
+            is_a($class, CursorPaginator::class, allow_string: true),
             is_a($class, self::SPATIE_CURSOR_PAGINATED_DATA_COLLECTION, allow_string: true) => self::Cursor,
+            is_a($class, LengthAwarePaginator::class, allow_string: true),
             is_a($class, self::SPATIE_PAGINATED_DATA_COLLECTION, allow_string: true) => self::LengthAware,
+            is_a($class, Paginator::class, allow_string: true) => self::Simple,
             default => null,
         };
     }
