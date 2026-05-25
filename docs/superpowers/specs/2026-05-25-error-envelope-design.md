@@ -1,0 +1,239 @@
+# Error Envelope—Design
+
+**Date:** 2026-05-25
+**Status:** Approved (brainstorming)
+**Purpose:** Make the body shape of standard error responses (the 4xx/5xx responses derived from `@throws` and auth/scope/throttle middleware) configurable via shipped presets, so the generated spec accurately reflects how the host application actually returns errors. Spec-only — the package does not install runtime handlers; it documents whatever shape the host emits.
+
+---
+
+## Goals
+
+- Ship four envelope presets covering the common Laravel surface area: `none` (current bodyless behavior), `laravel` (default `{message, errors?}`), `rfc7807` (problem details), `json-api` (JSON:API errors document).
+- Let users select a preset with one flat config key, or plug in a custom resolver class for anything exotic.
+- Replace the loose `?list<OA\MediaType>` return type on the existing extension point with a typed value object that disambiguates "pass" from "claim with no body".
+- Unify naming with the existing `PrimaryResponseResolver` convention: resolvers consume a descriptor and return a typed result, chained first-non-null-wins.
+
+## Non-goals
+
+- Changing the host application's exception handler, middleware, or response transformers. This package documents; it does not mutate runtime behavior. Recipes for matching handlers belong in a companion package or docs cookbook, not here.
+- Per-status-code preset selection. One preset governs all error responses; the resolver may branch internally on the `ErrorDescriptor` (which carries status + exception class) when its shape varies across statuses.
+- Per-spec preset selection. Multi-spec integration can extend this later; first cut is one global setting.
+- Customizing the well-known status code → component-response mapping (`Unauthorized`, `Forbidden`, etc.) — that's still owned by `StandardResponsesExtractor`.
+
+## Architecture
+
+Two architectural moves, building on the existing `ErrorResponseFactory` extension point in `src/Core/Registry/`:
+
+1. **Rename and re-shape the existing interface** for consistency with `PrimaryResponseResolver` and to carry richer per-call context.
+2. **Ship four built-in resolvers** under `src/Core/Errors/`, selectable via one config key.
+
+### Interface change
+
+```php
+namespace Radiergummi\OpenApi\Core\Registry;
+
+interface ErrorResponseResolver
+{
+    public function resolveErrorResponse(ErrorDescriptor $descriptor): ?ErrorResponseBody;
+}
+```
+
+Chain semantics, now explicit in the type system:
+
+| Return | Meaning |
+|---|---|
+| `null` | Resolver passes. Try the next resolver in the chain. |
+| `ErrorResponseBody::none()` | Resolver claims the response, emits no body. Chain stops. |
+| `new ErrorResponseBody([...mediaTypes])` | Resolver claims the response with body. Chain stops. |
+
+Today's loose convention ("first non-null wins, and an empty list also means no body but we don't distinguish") becomes a typed contract. A user chaining a custom resolver in front of `LaravelEnvelope` can now reliably express "I handle these specific exception classes, defer everything else."
+
+### New value objects
+
+```php
+namespace Radiergummi\OpenApi\Core\Errors;
+
+final readonly class ErrorDescriptor
+{
+    public function __construct(
+        public int $status,
+        /** @var class-string<\Throwable>|null */
+        public ?string $exceptionClass,
+        public string $description,
+    ) {}
+}
+
+final readonly class ErrorResponseBody
+{
+    /** @param list<OA\MediaType> $content */
+    public function __construct(public array $content) {}
+
+    public static function none(): self {
+        return new self([]);
+    }
+}
+```
+
+`ErrorDescriptor` mirrors `ActionDescriptor` in naming and intent: a small, immutable view of "what we've inferred about this error response, handed to the resolver." It carries the exception class (the *semantic* origin) alongside the status code (needed for problem details' literal `status` field, JSON:API's per-error `status`, and well-known component-name lookup).
+
+`exceptionClass` is nullable because not every standard response originates from a `@throws`. Middleware-detected responses (auth/scope/throttle) carry their canonical thrown exception via the extended `middlewareMap` config (see below), but third-party middleware mappings users add without an exception class still work.
+
+### Extractor change
+
+`StandardResponsesExtractor::extract()` today calls `errorResponseContent()` once per operation and reuses the body for every status. Under this design it loops:
+
+```php
+foreach ($byStatus as $status => $entry) {
+    $descriptor = new ErrorDescriptor(
+        status: $status,
+        exceptionClass: $entry['exception'] ?? null,
+        description: $entry['description'],
+    );
+    $body = $this->resolveBody($descriptor);  // walk the chain
+    // ... existing response-registration logic, using $body->content if non-null
+}
+```
+
+The existing per-status response-component registration (named `Unauthorized`, `Forbidden`, etc., or inline for unmapped statuses) is unchanged.
+
+### middlewareMap shape
+
+The config block `standard_responses.middleware` grows an `exception` key so middleware-origin responses can fill `ErrorDescriptor::exceptionClass`:
+
+```php
+// config/openapi.php — standard_responses block (existing, extended)
+'middleware' => [
+    'auth' => [
+        'status'      => 401,
+        'description' => 'Unauthenticated.',
+        'exception'   => \Illuminate\Auth\AuthenticationException::class,
+    ],
+    'scope' => [
+        'status'      => 403,
+        'description' => 'Insufficient scopes.',
+        'exception'   => \Laravel\Passport\Exceptions\MissingScopeException::class,
+    ],
+    'throttle' => [
+        'status'      => 429,
+        'description' => 'Too many requests.',
+        'exception'   => \Illuminate\Http\Exceptions\ThrottleRequestsException::class,
+    ],
+],
+```
+
+`exception` is optional; if absent, `ErrorDescriptor::exceptionClass` is null and resolvers fall back to status-based branching.
+
+### Built-in resolvers
+
+All four live in `src/Core/Errors/` and implement `ErrorResponseResolver`. Each idempotently registers its component schemas with the injected `ComponentSchemaRegistry` on first use.
+
+| Class | Schemas registered | Media type | Branching logic |
+|---|---|---|---|
+| `NoneEnvelope` | (none) | — | Returns `ErrorResponseBody::none()` for every descriptor. |
+| `LaravelEnvelope` | `Error`, `ValidationError` | `application/json` | Refs `ValidationError` when `$exceptionClass` is `ValidationException` (or status 422 as fallback); refs `Error` otherwise. |
+| `Rfc7807Envelope` | `Problem`, `ValidationProblem` | `application/problem+json` | Same split as Laravel; `status` field in the schema constrained to the descriptor's status. |
+| `JsonApiEnvelope` | `ErrorDocument` | `application/vnd.api+json` | Single uniform shape for every status. |
+
+Schema names are reserved by the preset; if a user already has a same-named Data class, `ComponentSchemaRegistry`'s existing dedup conflict trips with a clear error (documented caveat — workaround is to switch presets or rename the class).
+
+### Service-provider wiring
+
+```php
+// OpenApiServiceProvider::register()
+$envelope = config('openapi.error_envelope', 'none');
+$resolverClass = match ($envelope) {
+    'none'     => NoneEnvelope::class,
+    'laravel'  => LaravelEnvelope::class,
+    'rfc7807'  => Rfc7807Envelope::class,
+    'json-api' => JsonApiEnvelope::class,
+    default    => $envelope,  // treat as FQCN of user-supplied resolver
+};
+$registry->addErrorResponseResolver($resolverClass);
+```
+
+Default is `'none'` — no behavior change on upgrade.
+
+## User-facing surface
+
+### Config
+
+```php
+// config/openapi.php
+return [
+    // 'none' (default) | 'laravel' | 'rfc7807' | 'json-api' | FQCN of a user-supplied
+    // ErrorResponseResolver implementation.
+    'error_envelope' => 'laravel',
+
+    // ... existing keys
+];
+```
+
+### Custom resolvers
+
+Implement the interface; register the FQCN in config:
+
+```php
+use Radiergummi\OpenApi\Core\Errors\{ErrorDescriptor, ErrorResponseBody};
+use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+
+final class MyEnvelope implements ErrorResponseResolver
+{
+    public function resolveErrorResponse(ErrorDescriptor $descriptor): ?ErrorResponseBody
+    {
+        if ($descriptor->exceptionClass === MyDomainException::class) {
+            // build and return ErrorResponseBody
+        }
+        return null;  // defer to next resolver (or fall through to bodyless if none)
+    }
+}
+```
+
+Chaining a custom resolver in front of a built-in preset is not first-class today (the config takes a single value) — users wanting composition write a single resolver that internally branches and falls back. If real-world demand surfaces, a list form can be added later without breaking the scalar form.
+
+## File map
+
+**New (production):**
+- `src/Core/Errors/ErrorDescriptor.php`
+- `src/Core/Errors/ErrorResponseBody.php`
+- `src/Core/Errors/NoneEnvelope.php`
+- `src/Core/Errors/LaravelEnvelope.php`
+- `src/Core/Errors/Rfc7807Envelope.php`
+- `src/Core/Errors/JsonApiEnvelope.php`
+
+**Modified (production):**
+- `src/Core/Registry/ErrorResponseFactory.php` → renamed to `ErrorResponseResolver.php`; method renamed and re-typed.
+- `src/Core/Registry/OpenApiRegistry.php` — `addErrorResponseFactory()` → `addErrorResponseResolver()`; field rename to match.
+- `src/Core/Extractors/StandardResponsesExtractor.php` — per-status loop calling the chain with `ErrorDescriptor`; consume `ErrorResponseBody`.
+- `src/OpenApiServiceProvider.php` — resolve config key, register resolver class.
+- `config/openapi.php` — add `'error_envelope' => 'none'`; extend `standard_responses.middleware` entries with optional `exception` key.
+
+**New (tests):**
+- `tests/Unit/Errors/NoneEnvelopeTest.php`
+- `tests/Unit/Errors/LaravelEnvelopeTest.php`
+- `tests/Unit/Errors/Rfc7807EnvelopeTest.php`
+- `tests/Unit/Errors/JsonApiEnvelopeTest.php`
+- `tests/Unit/Errors/ErrorResponseBodyTest.php` — `none()` factory, content immutability.
+- `tests/Unit/Registry/ResolverChainSemanticsTest.php` — `null` continues; `none()` short-circuits.
+- `tests/Feature/Errors/EnvelopePresetTest.php` — one case per preset over a fixture controller, snapshot-comparing generated YAML.
+- `tests/Feature/Errors/DefaultBodylessTest.php` — assert the shipped default (`'none'`) reproduces today's bodyless output.
+
+**Modified (docs):**
+- `docs/getting-started.md` — mention `error_envelope` config key in the "what gets derived" section.
+- `docs/recipes.md` — new section: "Choosing an error envelope," with one example per preset showing the generated response shape.
+- `CHANGELOG.md` — entry under `[Unreleased]`: interface rename + new presets.
+
+## Testing strategy
+
+Standard Pest + Testbench, PHPStan level 8, Pint clean.
+
+- **Per-preset unit tests** assert that for representative `(status, exceptionClass)` pairs, the resolver returns an `ErrorResponseBody` with the expected media type and a `$ref` to the right schema. Schema registration is idempotent — calling the resolver twice with the same descriptor does not re-register.
+- **Chain semantics** verified by registering ad-hoc resolvers that return `null` / `ErrorResponseBody::none()` / a body, asserting the extractor honors each.
+- **Integration** snapshots generate a YAML spec from a small fixture (controller with `@throws ModelNotFoundException`, auth middleware, a FormRequest); one snapshot per preset.
+- **Default behavior** snapshot verifies `'error_envelope' => 'none'` matches today's bodyless output byte-for-byte, guarding the no-behavior-change-on-upgrade promise.
+
+## Trade-offs and open questions
+
+- **Resolver chaining via config.** The first cut takes a single value, not a list. Users wanting "custom resolver in front of Laravel preset" must write one resolver that delegates internally. A list form is non-breaking to add later; we wait for demand.
+- **Schema name collisions.** `Error`, `Problem`, etc. are short and prone to collide with user-defined Data classes. We accept this; the collision is caught by `ComponentSchemaRegistry` with a clear error, and a docs note explains the workaround. Prefixing (`OpenApiError`, etc.) was considered and rejected — the names are conventional and most apps don't define same-named classes.
+- **`exceptionClass` nullability.** Required by middleware-origin responses where the user's config might omit the `exception` key. Resolvers must defensively fall back to status-based branching when null. Documented in the `ErrorResponseResolver` interface docblock.
+- **Multi-spec interaction.** Per-spec envelope selection is out of scope for this design; when multi-spec ships, the natural extension is to allow `error_envelope` inside each `specs.<name>` block, falling back to the root key.
