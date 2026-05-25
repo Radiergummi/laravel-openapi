@@ -130,9 +130,23 @@ return [
     */
 
     'middleware_responses' => [
-        'auth' => ['status' => 401, 'description' => 'Unauthenticated'],
-        'scope' => ['status' => 403, 'description' => 'Insufficient scope'],
-        'throttle' => ['status' => 429, 'description' => 'Too many requests'],
+        'auth' => [
+            'status'      => 401,
+            'description' => 'Unauthenticated',
+            'exception'   => AuthenticationException::class,
+        ],
+        'scope' => [
+            'status'      => 403,
+            'description' => 'Insufficient scope',
+            // No canonical scope exception ships with Laravel core; Passport's
+            // MissingScopeException is the conventional choice when Passport is installed.
+            // 'exception' => \Laravel\Passport\Exceptions\MissingScopeException::class,
+        ],
+        'throttle' => [
+            'status'      => 429,
+            'description' => 'Too many requests',
+            'exception'   => ThrottleRequestsException::class,
+        ],
     ],
 
     /*
