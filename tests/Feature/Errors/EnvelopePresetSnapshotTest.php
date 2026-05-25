@@ -47,7 +47,9 @@ it('renders the configured envelope on error responses', function (
     }
 
     assert($expectedMediaType !== null && $expectedSchemaKey !== null);
+    assert($preset === 'laravel' || $preset === 'rfc7807' || $preset === 'json-api');
 
+    // 401 Unauthorized
     expect($unauthorizedResponse)->toHaveKey('content');
     expect($unauthorizedResponse['content'])->toHaveKey($expectedMediaType);
 
@@ -55,4 +57,36 @@ it('renders the configured envelope on error responses', function (
 
     expect($schema)->toHaveKey('$ref');
     expect($schema['$ref'])->toBe('#/components/schemas/' . $expectedSchemaKey);
+
+    // 422 ValidationFailed
+    $validationFailedResponse = $spec['components']['responses']['ValidationFailed'];
+    expect($validationFailedResponse)->toHaveKey('content');
+    expect($validationFailedResponse['content'])->toHaveKey($expectedMediaType);
+
+    $validationSchema = $validationFailedResponse['content'][$expectedMediaType]['schema'];
+    expect($validationSchema)->toHaveKey('$ref');
+
+    // laravel and rfc7807 use specialized validation schemas; json-api uses uniform ref
+    $expectedValidationSchemaKey = match ($preset) {
+        'laravel'  => 'ValidationError',
+        'rfc7807'  => 'ValidationProblem',
+        'json-api' => 'ErrorDocument',
+    };
+    expect($validationSchema['$ref'])->toBe('#/components/schemas/' . $expectedValidationSchemaKey);
+
+    // 404 NotFound
+    $notFoundResponse = $spec['components']['responses']['NotFound'];
+    expect($notFoundResponse)->toHaveKey('content');
+    expect($notFoundResponse['content'])->toHaveKey($expectedMediaType);
+
+    $notFoundSchema = $notFoundResponse['content'][$expectedMediaType]['schema'];
+    expect($notFoundSchema)->toHaveKey('$ref');
+
+    // Generic non-validation errors use the preset's base schema
+    $expectedNotFoundSchemaKey = match ($preset) {
+        'laravel'  => 'Error',
+        'rfc7807'  => 'Problem',
+        'json-api' => 'ErrorDocument',
+    };
+    expect($notFoundSchema['$ref'])->toBe('#/components/schemas/' . $expectedNotFoundSchemaKey);
 })->with('envelopes');
