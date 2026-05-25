@@ -95,9 +95,22 @@ final class ComponentSchemaRegistry
     private array $hasFileFields = [];
 
     /**
+     * Sentinel owner stored in {@see $keyToClass} for keys claimed by {@see registerNamed()}.
+     *
+     * Real PHP class strings cannot start with a NUL byte, so this value never collides with a
+     * user-supplied `class-string` — and `isKeyTaken()` correctly reports the key as taken
+     * for any user class probing the same basename.
+     */
+    private const string NAMED_KEY_OWNER = "\0named";
+
+    /**
      * Used for shared envelopes such as the JSON:API error response schema.
      *
-     * This is idempotent: Later calls with the same key are no-ops.
+     * Reserves the key in {@see $keyToClass} (under a synthetic sentinel owner) so a later
+     * user-class registration with the same basename takes the disambiguation path in
+     * {@see deriveKey()} instead of silently overwriting the named schema.
+     *
+     * Idempotent: later calls with the same key are no-ops.
      */
     public function registerNamed(string $key, OA\Schema $schema): void
     {
@@ -113,6 +126,7 @@ final class ComponentSchemaRegistry
         );
 
         $this->schemas[$key] = $schema;
+        $this->keyToClass[$key] = self::NAMED_KEY_OWNER;
     }
 
     public function hasKey(string $key): bool

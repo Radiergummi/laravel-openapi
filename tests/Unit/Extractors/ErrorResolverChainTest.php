@@ -23,7 +23,7 @@ it('falls through to the next resolver when one returns null', function (): void
     $registry = new ComponentSchemaRegistry();
     $envelope = new LaravelEnvelope($registry);
 
-    $passthrough = new class implements ErrorResponseResolver {
+    $passthrough = new class () implements ErrorResponseResolver {
         public function resolveErrorResponse(ErrorDescriptor $descriptor): ?ErrorResponse
         {
             return null;
@@ -33,13 +33,17 @@ it('falls through to the next resolver when one returns null', function (): void
     $resolvers = [$passthrough, $envelope];
 
     $body = null;
+
     foreach ($resolvers as $resolver) {
         $body = $resolver->resolveErrorResponse(new ErrorDescriptor(
             status: 422,
             exceptionClass: ValidationException::class,
             description: 'Validation failed',
         ));
-        if ($body !== null) break;
+
+        if ($body !== null) {
+            break;
+        }
     }
 
     expect($body)->not->toBeNull();
@@ -47,7 +51,7 @@ it('falls through to the next resolver when one returns null', function (): void
 });
 
 it('short-circuits on the first non-null result', function (): void {
-    $custom = new class implements ErrorResponseResolver {
+    $custom = new class () implements ErrorResponseResolver {
         public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
         {
             return new ErrorResponse(
@@ -56,7 +60,7 @@ it('short-circuits on the first non-null result', function (): void {
         }
     };
 
-    $passthrough = new class implements ErrorResponseResolver {
+    $passthrough = new class () implements ErrorResponseResolver {
         public function resolveErrorResponse(ErrorDescriptor $descriptor): ?ErrorResponse
         {
             return null;
@@ -66,9 +70,13 @@ it('short-circuits on the first non-null result', function (): void {
     $resolvers = [$custom, $passthrough];
 
     $body = null;
+
     foreach ($resolvers as $resolver) {
         $body = $resolver->resolveErrorResponse(new ErrorDescriptor(401, null, 'Unauthenticated'));
-        if ($body !== null) break;
+
+        if ($body !== null) {
+            break;
+        }
     }
 
     expect($body)->not->toBeNull();
@@ -76,7 +84,7 @@ it('short-circuits on the first non-null result', function (): void {
 });
 
 it('honors ErrorResponse::bodyless() as a claim with no body', function (): void {
-    $custom = new class implements ErrorResponseResolver {
+    $custom = new class () implements ErrorResponseResolver {
         public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
         {
             return ErrorResponse::bodyless();

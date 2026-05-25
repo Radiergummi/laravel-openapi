@@ -150,11 +150,15 @@ foreach ($byStatus as $status => $entry) {
 ```
 
 `buildResponse()` is a small private method that:
-1. Uses `$body->description ?? $descriptor->description` for the response description.
+1. Uses the resolver's `description` only when it is a **non-empty** string; otherwise falls back to `$descriptor->description`. OpenAPI 3.1 requires `response.description` to be non-empty, so empty-string overrides are ignored.
 2. Uses `$body?->content ?? []`, `$body?->headers ?? []`, `$body?->links ?? []` for the body fields.
-3. Sets `response` from `$componentName` (or `$status` for inline cases), and registers the named component via `ComponentSchemaRegistry::registerNamedResponse()` when a component name exists.
+3. **Sharing strategy.** Two paths:
+   - **Bodyless** (no content, no headers, no links — including `ErrorResponse::bodyless()`): the response is shared via `components.responses.<ComponentName>` for known statuses (`Unauthorized`, `Forbidden`, `NotFound`, …). Inline otherwise.
+   - **Body-bearing**: the response is **inlined per operation**. Sharing via a named response component would silently collapse different bodies at the same status to whichever registered first (e.g. `ValidationException` → `ValidationError` schema vs `UnprocessableEntityHttpException` → generic `Error` schema, both at 422), and `ComponentSchemaRegistry::registerNamedResponse()` is first-write-wins. Inlining is the safe default; shared *schemas* referenced inside the inlined response (e.g. `#/components/schemas/Error`) are still reused via `$ref`.
 
-The existing per-status response-component registration (named `Unauthorized`, `Forbidden`, etc., or inline for unmapped statuses) is unchanged in semantics — just refactored into the helper.
+This is a deliberate divergence from the original draft of this spec, which proposed sharing the response wrapper in both paths. The collision risk on body-bearing presets made that unworkable in practice.
+
+**Resolver robustness.** The `resolveBody()` walker wraps each resolver call in a `try`/`catch`: a thrown exception emits a `errors.resolver-failed` finding and the chain continues. The interface contract still requires implementations to catch internally and return `null` on failure; the extractor defends against misbehaving resolvers as a backstop so a single bad resolver does not abort the full generation run.
 
 ### middlewareMap shape
 
@@ -194,7 +198,7 @@ All four live in `src/Core/Errors/` and implement `ErrorResponseResolver`. Each 
 | `Rfc7807Envelope` | `Problem`, `ValidationProblem` | `application/problem+json` | Same split as Laravel; `status` field in the schema constrained to the descriptor's status. |
 | `JsonApiEnvelope` | `ErrorDocument` | `application/vnd.api+json` | Single uniform shape for every status. |
 
-Schema names are reserved by the preset; if a user already has a same-named Data class, `ComponentSchemaRegistry`'s existing dedup conflict trips with a clear error (documented caveat — workaround is to switch presets or rename the class).
+Schema names are reserved by the preset. `ComponentSchemaRegistry::registerNamed()` populates the basename-collision index alongside `$schemas`, so a later user-class registration with the same basename (e.g. an app `App\Errors\Error` Data class while the Laravel envelope holds `Error`) is disambiguated via the normal namespace-prefixing rule (`App.Errors.Error`) instead of silently overwriting the named schema. The preset always keeps the short basename; the user class moves to the disambiguated key.
 
 ### Service-provider wiring
 
@@ -305,7 +309,7 @@ Standard Pest + Testbench, PHPStan level 8, Pint clean.
 ## Trade-offs and open questions
 
 - **Resolver chaining via config.** The config value selects exactly *one* resolver — there is no list form. Plugins may register additional resolvers; the config-selected envelope runs **last as a fallback** (see "Chain composition" above). Users wanting "custom resolver in front of the Laravel preset" without going through a plugin must write a single resolver that delegates internally. A list form is non-breaking to add later; we wait for demand.
-- **Schema name collisions.** `Error`, `Problem`, `ValidationError`, `ValidationProblem`, `ErrorDocument` are short and prone to collide with user-defined Data classes — or worse, with future plugin-registered schemas (a hypothetical JSON:API resource plugin would naturally want an `ErrorDocument` of its own). Two options for first cut: short names (chosen, matches the RFCs verbatim — RFC 7807 *says* the schema is named `Problem`), or namespaced names (`Errors/Problem`). We accept the collision risk for now; the registry catches it with a clear error and a docs note explains the workaround. Revisit if real-world collisions surface.
+- **Schema name collisions.** `Error`, `Problem`, `ValidationError`, `ValidationProblem`, `ErrorDocument` are short and prone to collide with user-defined Data classes — or worse, with future plugin-registered schemas (a hypothetical JSON:API resource plugin would naturally want an `ErrorDocument` of its own). Two options were considered for first cut: short names (chosen, matches the RFCs verbatim — RFC 7807 *says* the schema is named `Problem`), or namespaced names (`Errors/Problem`). `ComponentSchemaRegistry::registerNamed()` reserves the basename so a colliding user class moves to a disambiguated key via the normal namespace-prefixing rule; no error is raised, and the preset's short name wins. Revisit if real-world collisions surface that benefit from explicit namespacing.
 - **`exceptionClass` nullability.** Required by middleware-origin responses where the user's config might omit the `exception` key, and by `#[ExceptionResponse]` attributes on unmapped statuses. Resolvers must defensively fall back to status-based branching when null. Documented in the `ErrorResponseResolver` interface docblock.
 - **Response examples not generated.** Built-in presets register schemas but no canonical `examples` on the media type. RFC 7807 and JSON:API both benefit greatly from worked examples (`{"type": "about:blank", "title": "Not Found", "status": 404, ...}`). Easy follow-up since presets already build the `OA\MediaType` — add examples per preset. Out of scope for the first cut to keep the surface small.
 - **Headers and links are first-class on `ErrorResponse`.** Presets that want `Retry-After` on 429 (problem details + `ThrottleRequestsException`) populate `headers:` directly. `links:` is exposed for symmetry with OpenAPI's response model; no built-in preset uses it today but future presets (HAL-style envelopes, hypermedia errors) can.

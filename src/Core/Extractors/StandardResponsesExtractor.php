@@ -131,7 +131,10 @@ final readonly class StandardResponsesExtractor
 
             if (!array_key_exists($status, $byStatus)) {
                 $stored = ['description' => (string) $entry['description']];
-                if (class_exists($throw) && is_a($throw, Throwable::class, true)) {
+
+                if ((class_exists($throw) || interface_exists($throw))
+                    && is_a($throw, Throwable::class, true)
+                ) {
                     $stored['exception'] = $throw;
                 }
                 $byStatus[$status] = $stored;
@@ -301,7 +304,7 @@ final readonly class StandardResponsesExtractor
         $stored = ['description' => (string) $entry['description']];
 
         if (isset($entry['exception'])
-            && class_exists($entry['exception'])
+            && (class_exists($entry['exception']) || interface_exists($entry['exception']))
             && is_a($entry['exception'], Throwable::class, true)
         ) {
             $stored['exception'] = $entry['exception'];
@@ -336,11 +339,38 @@ final readonly class StandardResponsesExtractor
     /**
      * Walks the resolver chain for one descriptor. First non-null wins. Returns null when
      * every resolver passes — the extractor then emits a bodyless response.
+     *
+     * The {@see ErrorResponseResolver} contract requires implementations to catch internally
+     * and return null on failure, but the extractor defends against misbehaving resolvers
+     * anyway: a throwing resolver emits a `errors.resolver-failed` finding and the chain
+     * continues, matching the spec's promise that a single bad resolver does not abort the
+     * full generation run.
      */
     private function resolveBody(ErrorDescriptor $descriptor): ?ErrorResponse
     {
         foreach ($this->errorResponseResolvers as $resolver) {
-            $body = $resolver->resolveErrorResponse($descriptor);
+            try {
+                $body = $resolver->resolveErrorResponse($descriptor);
+            } catch (Throwable $e) {
+                $this->findings->emit(new Finding(
+                    ruleId: 'errors.resolver-failed',
+                    level: 2,
+                    message: sprintf(
+                        'Error-response resolver %s threw %s while resolving status %d: %s',
+                        $resolver::class,
+                        $e::class,
+                        $descriptor->status,
+                        $e->getMessage(),
+                    ),
+                    context: [
+                        'resolver'  => $resolver::class,
+                        'status'    => $descriptor->status,
+                        'exception' => $descriptor->exceptionClass,
+                    ],
+                ));
+
+                continue;
+            }
 
             if ($body !== null) {
                 return $body;
@@ -371,15 +401,20 @@ final readonly class StandardResponsesExtractor
         $content = $headers = $links = null;
 
         if ($body !== null) {
-            if ($body->description !== null) {
+            // Only override the curated default description when the resolver supplied a
+            // non-empty string; OpenAPI 3.1 requires response.description to be non-empty.
+            if ($body->description !== null && $body->description !== '') {
                 $description = $body->description;
             }
+
             if ($body->content !== []) {
                 $content = $body->content;
             }
+
             if ($body->headers !== []) {
                 $headers = $body->headers;
             }
+
             if ($body->links !== []) {
                 $links = $body->links;
             }
@@ -414,9 +449,11 @@ final readonly class StandardResponsesExtractor
         if ($content !== null) {
             $properties['content'] = $content;
         }
+
         if ($headers !== null) {
             $properties['headers'] = $headers;
         }
+
         if ($links !== null) {
             $properties['links'] = $links;
         }

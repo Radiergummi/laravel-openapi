@@ -9,6 +9,7 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Bar\CreateData as BarCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Baz\Bar\CreateData as BazBarCreateData;
@@ -119,6 +120,52 @@ it('returns null from keyFor() for a class that has not been reserved', function
 
     expect($registry->keyFor(ProjectsCreateData::class))->toBeNull()
         ->and($registry->isRegisteredOrReserved(ProjectsCreateData::class))->toBeFalse();
+});
+
+// endregion
+
+// region registerNamed — key reservation against user-class collisions
+
+it('reserves the key in registerNamed so a later user-class registration with the same basename disambiguates instead of overwriting', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $envelopeSchema = new OA\Schema([
+        'type'       => 'object',
+        'required'   => ['message'],
+        'properties' => [
+            new OA\Property(['property' => 'message', 'type' => 'string']),
+        ],
+    ]);
+    $registry->registerNamed('Error', $envelopeSchema);
+
+    $userClass = 'App\\Errors\\Error';
+    $userKey = $registry->reserveKey($userClass);
+
+    expect($userKey)->not->toBe('Error');
+    expect($registry->hasKey('Error'))->toBeTrue();
+    expect($registry->keyFor($userClass))->toBe($userKey);
+});
+
+it('keeps the envelope schema intact when a user class with the same basename is registered after', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $envelopeSchema = new OA\Schema(['type' => 'object']);
+    $registry->registerNamed('Error', $envelopeSchema);
+
+    $registry->register('App\\Errors\\Error', new OA\Schema(['type' => 'string']));
+
+    $schemas = $registry->all();
+    $errorEntry = null;
+
+    foreach ($schemas as $schema) {
+        if ($schema->schema === 'Error') {
+            $errorEntry = $schema;
+
+            break;
+        }
+    }
+
+    expect($errorEntry)->toBe($envelopeSchema);
 });
 
 // endregion

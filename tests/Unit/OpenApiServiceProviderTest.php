@@ -98,13 +98,13 @@ it('defaults to NoneEnvelope when no envelope is configured', function (): void 
 it('throws InvalidArgumentException on a typoed preset name', function (): void {
     config()->set('openapi.error_envelope', 'larvel');
 
-    expect(fn () => app(OpenApiRegistry::class))
+    expect(fn() => app(OpenApiRegistry::class))
         ->toThrow(InvalidArgumentException::class, 'Unknown error_envelope "larvel"');
 });
 
 it('throws InvalidArgumentException when a custom FQCN does not implement the resolver', function (): void {
     config()->set('openapi.error_envelope', stdClass::class);
 
-    expect(fn () => app(OpenApiRegistry::class))
+    expect(fn() => app(OpenApiRegistry::class))
         ->toThrow(InvalidArgumentException::class, 'does not implement');
 });
