@@ -130,9 +130,23 @@ return [
     */
 
     'middleware_responses' => [
-        'auth' => ['status' => 401, 'description' => 'Unauthenticated'],
-        'scope' => ['status' => 403, 'description' => 'Insufficient scope'],
-        'throttle' => ['status' => 429, 'description' => 'Too many requests'],
+        'auth' => [
+            'status'      => 401,
+            'description' => 'Unauthenticated',
+            'exception'   => AuthenticationException::class,
+        ],
+        'scope' => [
+            'status'      => 403,
+            'description' => 'Insufficient scope',
+            // No canonical scope exception ships with Laravel core; Passport's
+            // MissingScopeException is the conventional choice when Passport is installed.
+            // 'exception' => \Laravel\Passport\Exceptions\MissingScopeException::class,
+        ],
+        'throttle' => [
+            'status'      => 429,
+            'description' => 'Too many requests',
+            'exception'   => ThrottleRequestsException::class,
+        ],
     ],
 
     /*
@@ -320,6 +334,26 @@ return [
     'request_payload_indirection' => [
         // App\Domain\Action::class,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Error Envelope
+    |--------------------------------------------------------------------------
+    |
+    | Controls the shape of 4xx/5xx response bodies in the generated document.
+    |
+    | Built-in presets:
+    |   'none'     — no body schema (status code + description only)
+    |   'laravel'  — Laravel's default JSON error shape: { message: string }
+    |   'rfc7807'  — RFC 7807 Problem Details: { type, title, status, detail, instance }
+    |   'json-api' — JSON:API error envelope: { errors: [{ status, title, detail }] }
+    |
+    | Pass a fully-qualified class name implementing ErrorResponseResolver for a
+    | custom envelope. Unknown preset names fail at boot with a clear message.
+    |
+    */
+
+    'error_envelope' => 'none',
 
     /*
     |--------------------------------------------------------------------------

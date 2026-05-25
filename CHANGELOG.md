@@ -5,6 +5,9 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `config('openapi.error_envelope')` config key with four presets (`none`, `laravel`, `rfc7807`, `json-api`) selecting the body shape of standard error responses.
+- `ErrorDescriptor` and `ErrorResponse` value objects in `Radiergummi\OpenApi\Core\Errors\`.
+- Optional `exception` key on `middleware_responses` entries, carrying the canonical thrown exception per middleware so resolvers can branch on exception class.
 - `#[Summary]` and `#[Description]` attributes. **On controllers / operations**
   they're standalone alternatives to `#[Operation(summary: …, description: …)]`
   for the common case of overriding just one of those fields. Precedence:
@@ -65,6 +68,8 @@ All notable changes to this project are documented here.
   config-driven --skip merging, and `--level=max` resolution.
 
 ### Changed
+- Renamed `ErrorResponseFactory` → `ErrorResponseResolver`. Method renamed to `resolveErrorResponse(ErrorDescriptor): ?ErrorResponse`. `OpenApiRegistry::addErrorResponseFactory()` → `addErrorResponseResolver()`.
+- `StandardResponsesExtractor` calls the resolver chain per status code (instead of once per operation) so each status can carry a distinct body shape.
 - `openapi:generate` now rejects unrecognised `--format` values with a
   non-zero exit and an explicit error message. The previous behaviour silently
   fell back to YAML for anything other than `json`. Covered by

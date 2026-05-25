@@ -35,13 +35,13 @@ instances are resolved from the container when the pipeline runs.
 | `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g. a DTO or resource) | `RefSchemaResolver` |
 | `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
 | `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
-| `addErrorResponseFactory(string $class)` | An error-response schema factory | `ErrorResponseFactory` |
+| `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
 | `addRule(string $class)` | A lint rule | `Core\Lint\Rules\Rule` + one or more visitor interfaces |
 
 Getters (`requestSchemaResolvers()`, `refSchemaResolvers()`,
 `queryParameterResolvers()`, `primaryResponseResolvers()`,
-`errorResponseFactories()`, `payloadClasses()`, `rules()`) are consumed by
+`errorResponseResolvers()`, `payloadClasses()`, `rules()`) are consumed by
 the generator and linter; plugin authors don't call them.
 
 ### Resolver interfaces
@@ -59,8 +59,9 @@ The resolver interfaces live in `src/Core/Registry/`:
   `ActionDescriptor`. Used for `?filter[…]`, `?include`, `?sort`, paging.
 - **`PrimaryResponseResolver`**: resolve the 2xx response schema from the
   return type or attributes.
-- **`ErrorResponseFactory`**: build the error-response schema (RFC 7807,
-  JSON:API error envelope, etc.) for 4xx/5xx responses.
+- **`ErrorResponseResolver`**: given an `ErrorDescriptor`, decide whether
+  it handles the error-response schema and produce an `ErrorResponse` (or null).
+  Used for error envelopes (RFC 7807, JSON:API, etc.) on 4xx/5xx responses.
 
 Each resolver pairs a "can I handle this?" predicate with a "produce the
 result" method. The pipeline iterates registered resolvers in registration
@@ -131,7 +132,7 @@ envelopes) would register:
 
 - a `QueryParameterResolver` (for `?filter`, `?include`, `?sort`)
 - a `PrimaryResponseResolver` and `RefSchemaResolver` (for the resource envelope)
-- an `ErrorResponseFactory` (for the error envelope)
+- an `ErrorResponseResolver` (for the error envelope)
 - lint rules enforcing its conventions
 
 The SpatieData plugin exercises three of the seven hooks; the rest follow the

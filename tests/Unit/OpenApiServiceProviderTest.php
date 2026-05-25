@@ -14,10 +14,13 @@ use Illuminate\Support\ServiceProvider;
 use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
+use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
+use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
 use Radiergummi\OpenApi\Core\Extractors\SecurityExtractor;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
 
 uses()->group('openapi');
@@ -74,4 +77,34 @@ it('declares the config file as publishable under the openapi-config tag', funct
     foreach ($paths as $target) {
         expect($target)->toEndWith('openapi.php');
     }
+});
+
+it('registers the configured envelope resolver', function (): void {
+    config()->set('openapi.error_envelope', 'laravel');
+
+    $registry = app(OpenApiRegistry::class);
+
+    expect($registry->errorResponseResolvers())->toContain(LaravelEnvelope::class);
+});
+
+it('defaults to NoneEnvelope when no envelope is configured', function (): void {
+    config()->set('openapi.error_envelope', 'none');
+
+    $registry = app(OpenApiRegistry::class);
+
+    expect($registry->errorResponseResolvers())->toContain(NoneEnvelope::class);
+});
+
+it('throws InvalidArgumentException on a typoed preset name', function (): void {
+    config()->set('openapi.error_envelope', 'larvel');
+
+    expect(fn () => app(OpenApiRegistry::class))
+        ->toThrow(InvalidArgumentException::class, 'Unknown error_envelope "larvel"');
+});
+
+it('throws InvalidArgumentException when a custom FQCN does not implement the resolver', function (): void {
+    config()->set('openapi.error_envelope', stdClass::class);
+
+    expect(fn () => app(OpenApiRegistry::class))
+        ->toThrow(InvalidArgumentException::class, 'does not implement');
 });

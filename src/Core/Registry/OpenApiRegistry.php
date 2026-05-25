@@ -52,9 +52,9 @@ final class OpenApiRegistry
     private array $payloadClasses = [];
 
     /**
-     * @var list<class-string<ErrorResponseFactory>>
+     * @var list<class-string<ErrorResponseResolver>>
      */
-    private array $errorResponseFactories = [];
+    private array $errorResponseResolvers = [];
 
     /**
      * @var list<class-string>
@@ -112,12 +112,12 @@ final class OpenApiRegistry
     }
 
     /**
-     * @param class-string<ErrorResponseFactory> $class
+     * @param class-string<ErrorResponseResolver> $class
      */
-    public function addErrorResponseFactory(string $class): void
+    public function addErrorResponseResolver(string $class): void
     {
-        if (!in_array($class, $this->errorResponseFactories, strict: true)) {
-            $this->errorResponseFactories[] = $class;
+        if (!in_array($class, $this->errorResponseResolvers, strict: true)) {
+            $this->errorResponseResolvers[] = $class;
         }
     }
 
@@ -188,15 +188,15 @@ final class OpenApiRegistry
     }
 
     /**
-     * Returns the list of all registered error response factories.
+     * Returns the list of all registered error response resolvers.
      *
      * These are used to generate OpenAPI responses for exceptions thrown by the application.
      *
-     * @return list<class-string<ErrorResponseFactory>>
+     * @return list<class-string<ErrorResponseResolver>>
      */
-    public function errorResponseFactories(): array
+    public function errorResponseResolvers(): array
     {
-        return $this->errorResponseFactories;
+        return $this->errorResponseResolvers;
     }
 
     /**
