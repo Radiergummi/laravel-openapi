@@ -1,22 +1,19 @@
 # Extensions
 
-For cases that can't be expressed with authoring attributes, `OpenApiExtensions`
-exposes three static hook points. Register them at boot (typically in a service
-provider's `boot()` method).
+`OpenApiExtensions` exposes three hook points for behaviour that authoring
+attributes can't express. Register them from a service provider's `boot()`:
 
 ```php
 use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 ```
 
 > [!TIP]
-> Extensions are for project-specific behaviour. If you find yourself writing a
-> hook that would apply to every consumer of a third-party package, consider
-> writing a [plugin](plugin-authoring.md) instead.
+> Extensions are for project-specific behaviour. For logic that applies to
+> every consumer of a third-party package, write a [plugin](plugin-authoring.md).
 
 ## Operation transformer
 
-Invoked once per assembled operation, after all attributes and extractors have
-run:
+Runs once per assembled operation, after all attributes and extractors:
 
 ```php
 use Radiergummi\OpenApi\Core\Extensions\OperationContext;
@@ -33,14 +30,14 @@ OpenApiExtensions::transformOperation(
 
 `OperationContext` exposes:
 
-- `$descriptor` — the full `ActionDescriptor`
+- `$descriptor`: the full `ActionDescriptor`
 - `$httpMethod`
 - `$controllerClass`, `$methodName`, `$routeUri`
 
 ## Schema transformer
 
-Invoked once per component schema. Primary escape hatch for custom `Rule`
-objects the generic extractor cannot handle:
+Runs once per component schema. The primary escape hatch for custom `Rule`
+objects the validation-rule mapper doesn't recognise.
 
 ```php
 use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
@@ -61,13 +58,12 @@ OpenApiExtensions::transformSchema(
 
 `SchemaContext` exposes:
 
-- `$componentKey` — the `components.schemas` key
-- `$sourceClass` — the PHP class the schema was derived from (`null` for
-  hand-built schemas)
+- `$componentKey`: the `components.schemas` key
+- `$sourceClass`: the PHP class the schema was derived from (`null` for hand-built schemas)
 
 ## Document transformer
 
-Invoked once on the fully assembled `OA\OpenApi` document before it is returned:
+Runs once on the fully assembled `OA\OpenApi` document before it is returned:
 
 ```php
 OpenApiExtensions::transformDocument(
@@ -80,7 +76,7 @@ OpenApiExtensions::transformDocument(
 ## Flushing (tests)
 
 `OpenApiExtensions::flush()` removes all registered transformers. Call it in
-`afterEach()` when testing code that registers transformers:
+`afterEach()` when testing code that registers them:
 
 ```php
 afterEach(function (): void {
@@ -90,16 +86,16 @@ afterEach(function (): void {
 
 ## Events
 
-For *observability* — not mutation — the generator and linter dispatch standard
-Laravel events. Use a transformer to modify the spec; use an event listener to
-observe, log, export, or notify. Four events ship out of the box:
+The generator and linter dispatch standard Laravel events for observability,
+not mutation. Use a transformer to modify the spec; use an event listener to
+log, export, or notify. Four events ship:
 
 | Event | When | Carries |
 |---|---|---|
-| [`SpecGenerationStarted`](../src/Core/Events/SpecGenerationStarted.php) | Immediately before a spec is assembled. | `spec`, `environment` |
-| [`SpecGenerationCompleted`](../src/Core/Events/SpecGenerationCompleted.php) | After the document (and document transformers) finish. | `spec`, `environment`, `document`, `durationMs` |
-| [`RouteSkipped`](../src/Core/Events/RouteSkipped.php) | Once per (route × spec) pair the [`InclusionEvaluator`](../src/Core/Inclusion/InclusionEvaluator.php) excludes. | `route`, `spec`, `reason` (`SkipReason` enum), `summary` |
-| [`LintFindingEmitted`](../src/Core/Events/LintFindingEmitted.php) | Whenever a `FindingsCollector` accepts a finding — both during generation and during lint runs. | `finding` |
+| [`SpecGenerationStarted`](../src/Core/Events/SpecGenerationStarted.php) | Before a spec is assembled. | `spec`, `environment` |
+| [`SpecGenerationCompleted`](../src/Core/Events/SpecGenerationCompleted.php) | After document transformers finish. | `spec`, `environment`, `document`, `durationMs` |
+| [`RouteSkipped`](../src/Core/Events/RouteSkipped.php) | Once per (route × spec) pair excluded. | `route`, `spec`, `reason` (`SkipReason` enum), `summary` |
+| [`LintFindingEmitted`](../src/Core/Events/LintFindingEmitted.php) | Whenever a finding is accepted (during generation or lint runs). | `finding` |
 
 Register listeners the usual way:
 
@@ -115,7 +111,6 @@ Event::listen(static function (SpecGenerationCompleted $event): void {
 });
 ```
 
-`RouteSkipped` fires for every exclusion the inclusion evaluator handles: the
-bundled vendor skippers (Telescope, Nova, Ignition, Passport), any
-user-configured `RouteFilter`, spec membership decisions, and visibility
-attributes. If a route never makes it into your spec, you get an event.
+`RouteSkipped` fires for every exclusion: bundled vendor skippers (Telescope,
+Nova, Ignition, Passport), user-configured `RouteFilter`s, spec membership
+decisions, and visibility attributes. Any excluded route emits an event.

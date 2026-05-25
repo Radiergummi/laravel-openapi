@@ -1,45 +1,44 @@
 # Documentation
 
-`radiergummi/laravel-openapi` generates an OpenAPI 3.1 document from your
-existing Laravel route definitions — no hand-written YAML.
+`radiergummi/laravel-openapi` generates an OpenAPI 3.1 document from Laravel
+routes. No hand-written YAML.
 
-If you're new, start with **[Getting started](getting-started.md)** and then
-read **[Auto-derivation](auto-derivation.md)** — together they take ten
-minutes and cover what most projects need.
+New to the package? Read [Getting started](getting-started.md), then
+[Auto-derivation](auto-derivation.md).
 
 ## Guides
 
-| Page | What it covers |
+| Page | Covers |
 |---|---|
-| [Getting started](getting-started.md) | Install, generate your first spec, view the playground. |
-| [Auto-derivation](auto-derivation.md) | What's derived from what. The magic table. |
-| [Request bodies](request-bodies.md) | FormRequest vs Spatie Data; validation-rule → schema mapping. |
-| [Attributes](attributes.md) | The escape-hatch catalog. |
-| [Recipes](recipes.md) | 22 short snippets: streaming, multipart, polymorphism, links, security schemes. |
+| [Getting started](getting-started.md) | Install, generate the first spec, view the playground. |
+| [Auto-derivation](auto-derivation.md) | Which part of the spec comes from which part of your code. |
+| [Request bodies](request-bodies.md) | `FormRequest` vs Spatie Data; validation-rule → schema mapping. |
+| [Attributes](attributes.md) | Escape-hatch catalog. |
+| [Recipes](recipes.md) | Short snippets for streaming, multipart, polymorphism, links, and security schemes. |
 | [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal. |
-| [Linting](linting.md) | `openapi:lint`, severity scale, the rule catalog, `#[IgnoreLint]`. |
-| [Multi-spec](multi-spec.md) | Partition routes into multiple OpenAPI documents. |
-| [Configuration](config.md) | Every `config/openapi.php` key. |
-| [Troubleshooting](troubleshooting.md) | Symptom-indexed answers. |
+| [Linting](linting.md) | `openapi:lint`, severity levels, rule catalog, `#[IgnoreLint]`. |
+| [Multi-spec](multi-spec.md) | Multiple OpenAPI documents from one app. |
+| [Configuration](config.md) | `config/openapi.php` keys. |
+| [Troubleshooting](troubleshooting.md) | Symptom index. |
 
 ## Extending
 
-| Page | What it covers |
+| Page | Covers |
 |---|---|
-| [Extensions](extensions.md) | Programmatic transformers for operations, schemas, and the whole document. |
-| [Plugin authoring](plugin-authoring.md) | Writing your own plugin against the `Plugin` interface. |
+| [Extensions](extensions.md) | Programmatic transformers for operations, schemas, documents. |
+| [Plugin authoring](plugin-authoring.md) | Implementing the `Plugin` interface. |
 | [Architecture](architecture.md) | Generation pipeline, plugin system, service lifecycle. |
 
 ## Project
 
-| Page | What it covers |
+| Page | Covers |
 |---|---|
-| [Known gaps](known-gaps.md) | Documented limitations and their workarounds. |
+| [Known gaps](internal/known-gaps.md) | Documented limitations and workarounds. |
 | [Changelog](../CHANGELOG.md) | Release notes. |
 | [Contributing](../CONTRIBUTING.md) | Local dev, test suite, CI gates. |
 
 ## Worked examples
 
-Five runnable Laravel apps live under [`examples/`](../examples/), each
-exposing the same flights + bookings API in a different style. See
+Five runnable Laravel apps live under [`examples/`](../examples/). Each
+serves the same flights + bookings API in a different style. See
 [`examples/README.md`](../examples/README.md) for the matrix.

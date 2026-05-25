@@ -1,37 +1,47 @@
 # Multi-spec
 
-Multi-spec lets one Laravel application produce several independent OpenAPI documents from a single set of routes.
+Produce several independent OpenAPI documents from one Laravel application.
 
-## Concept
+A **spec** is one generated OpenAPI document. Without a `'specs'` key in your
+config, there is one spec (the **default**), and the package behaves as in
+single-spec mode.
 
-A **spec** is one generated OpenAPI document. Without a `'specs'` key in your config there is always one spec — the **default** — and the package behaves exactly as it always has.
+Add a `'specs'` map to produce additional named documents alongside the
+default. Each named spec gets its own generated file, HTTP endpoint, and
+Scalar playground. Routes are distributed across specs by config-driven
+matching or by `#[Spec]` attributes.
 
-Add a `'specs'` map to produce additional named documents alongside the default. Each named spec gets its own generated file, its own HTTP endpoint, and its own Scalar playground. Routes are distributed across specs by config-driven matching or by explicit `#[Spec]` attributes.
-
-The root config keys (`info`, `servers`, `tags`, `output_path`) define the default spec. Named specs inherit these values and may override any of them.
+Root config keys (`info`, `servers`, `tags`, `output_path`) define the
+default spec. Named specs inherit these and may override any of them.
 
 ## When to use it
 
-- **API versioning** — `v1` and `v2` docs served at separate URLs while routes live in the same app.
-- **Audience splits** — a `public` spec and an `internal` spec, where internal routes are gated by different middleware and not served over HTTP.
-- **Domain splits** — a `storefront` spec and an `admin` spec partitioned by controller namespace.
+- **API versioning**: `v1` and `v2` documents served at separate URLs while
+  routes live in the same app.
+- **Audience splits**: `public` and `internal` documents gated by different
+  middleware; the internal spec is served as a file only.
+- **Domain splits**: `storefront` and `admin` partitioned by controller
+  namespace.
 
 ## Inclusion rule
 
-A route is included in a spec when **all four** conditions hold:
+A route is included in a spec when all four conditions hold:
 
 | Step | Rule |
 |---|---|
-| 1 — global filter | No `RouteFilter` in `config('openapi.filters')` returns `shouldSkip() = true`. |
-| 2 — spec membership | Either the route has no `#[Spec]` and the spec's `match` config matches, or the route has `#[Spec]` and the spec name is in its list. |
-| 3 — not hidden | The route is not `#[Hide]`-d for the current environment. |
-| 4 — visible | `visibility.default = 'public'`, or the route carries `#[Expose]` for the current environment. |
+| 1. Global filter | No `RouteFilter` in `config('openapi.filters')` returns `shouldSkip() = true`. |
+| 2. Spec membership | Either the route has no `#[Spec]` and the spec's `match` config matches, or the route has `#[Spec]` and the spec name is in its list. |
+| 3. Not hidden | The route is not `#[Hide]`-d for the current environment. |
+| 4. Visible | `visibility.default = 'public'`, or the route carries `#[Expose]` for the current environment. |
 
-The `default` spec has no `match` config by default, so it matches every route — it is the catch-all. Named specs have independent `match` configs; a route may satisfy several at once and appear in multiple specs.
+The `default` spec has no `match` config and matches every route. Named specs
+have independent `match` configs; a route may satisfy several and appear in
+multiple specs.
 
 ## Config reference
 
-The `'specs'` map sits at the top level of `config/openapi.php`. Each key names a spec.
+The `'specs'` map sits at the top level of `config/openapi.php`. Each key
+names a spec.
 
 ```php
 // config/openapi.php
@@ -50,12 +60,12 @@ return [
         'playground' => ['enabled' => env('APP_ENV') === 'local', 'uri' => 'docs'],
     ],
 
-    // Optional — omit for single-spec mode.
+    // Optional. Omit for single-spec mode.
     'specs' => [
 
-        // 'default' may be listed explicitly to add a match constraint on the
-        // default spec or to override one of its root-key values. All keys you
-        // don't list fall back to the root values above.
+        // List 'default' explicitly to add a match constraint on it, or to
+        // override one of its root-key values. Unlisted keys fall back to
+        // the root values above.
         // 'default' => ['match' => ['prefix' => 'api/v2/*']],
 
         'v1' => [
@@ -100,13 +110,14 @@ return [
 | `route_uri` | `"openapi-{name}.yaml"` | URI served under the routes prefix. `false` or `null` to not mount. |
 | `playground_uri` | `"docs/{name}"` | URI for the Scalar playground. `false` or `null` to not mount. |
 
-A missing or empty `match` block matches every route — useful only for the `default` spec or for a deliberate catch-all.
+A missing or empty `match` block matches every route. Useful only for the
+`default` spec or as a deliberate catch-all.
 
-The global `filters` key in `config/openapi.php` applies to every spec. There is no per-spec filter.
+The global `filters` key applies to every spec. There is no per-spec filter.
 
 ## The `#[Spec]` attribute
 
-Use `#[Spec]` on a controller class or action method to pin the route to specific specs regardless of `match` config.
+Pin a route to specific specs regardless of `match` config:
 
 ```php
 use Radiergummi\OpenApi\Core\Attributes\Spec;
@@ -126,44 +137,35 @@ class BookingController {
 | `#[Spec]` / `#[Spec(null)]` | `['default']` |
 | `#[Spec('v1')]` | `['v1']` |
 | `#[Spec(['v1', 'v2'])]` | `['v1', 'v2']` |
-| `#[Spec('v1')]` on class, `#[Spec('v2')]` on method | method wins — `['v2']` |
-| `#[Spec('v1'), Spec('v2')]` on the same target | union — `['v1', 'v2']` |
+| `#[Spec('v1')]` on class, `#[Spec('v2')]` on method | method wins: `['v2']` |
+| `#[Spec('v1'), Spec('v2')]` on the same target | union: `['v1', 'v2']` |
 
-When `#[Spec]` is present on a method, all class-level `#[Spec]` attributes are ignored for that action. When only class-level attributes are present, they apply to every action that doesn't carry its own.
+Method-level `#[Spec]` overrides class-level. When only the class declares
+`#[Spec]`, it applies to every action that doesn't carry its own.
 
-When `#[Spec]` is present, `match` is bypassed for that route. Global filters and `#[Hide]`/`#[Expose]` still apply.
+`#[Spec]` bypasses `match` for the route. Global filters and `#[Hide]` /
+`#[Expose]` still apply.
 
 ## Generating
 
 ```bash
-# Generate every spec
-php artisan openapi:generate
-
-# Generate one spec
-php artisan openapi:generate v1
-
-# Write to stdout
-php artisan openapi:generate v1 --output=-
-
-# Show per-route inclusion decisions on stderr while generating
-php artisan openapi:generate --explain
+php artisan openapi:generate              # every spec
+php artisan openapi:generate v1           # one spec
+php artisan openapi:generate v1 --output=-   # stdout
+php artisan openapi:generate --explain    # per-route inclusion decisions on stderr
 ```
 
-With multiple specs configured, `--output=` is only accepted when a single spec is also named.
+`--output=` requires a single spec name when multiple specs are configured.
 
 ## Linting
 
 ```bash
-# Lint every spec (default)
-php artisan openapi:lint
-
-# Lint one spec
-php artisan openapi:lint --spec=v1
+php artisan openapi:lint              # every spec
+php artisan openapi:lint --spec=v1    # one spec
 ```
 
-Pre-build rules — which check `#[Spec]` consistency against your config — always run even when `--spec` narrows the per-spec pass.
-
-The three pre-build rules are:
+Pre-build rules check `#[Spec]` consistency against your config and always
+run, even when `--spec` narrows the per-spec pass:
 
 | Rule ID | Level | Detects |
 |---|---|---|
@@ -171,9 +173,9 @@ The three pre-build rules are:
 | `spec.route-orphaned` | 0 | A route's `#[Spec]` list resolves to zero valid specs. |
 | `spec.config-orphaned` | 3 | A configured spec ends up with zero routes. |
 
-## Debugging — `openapi:why`
+## Debugging with `openapi:why`
 
-`openapi:why` traces the four-rule decision for one route across every configured spec.
+Traces the four-rule decision for one route across every configured spec:
 
 ```bash
 php artisan openapi:why flights.index
@@ -181,7 +183,8 @@ php artisan openapi:why api/flights
 php artisan openapi:why api/flights --for-env=production
 ```
 
-The `--for-env` flag overrides `app()->environment()` for the `#[Hide]`/`#[Expose]` check without changing `APP_ENV`.
+`--for-env` overrides `app()->environment()` for the `#[Hide]` / `#[Expose]`
+check without changing `APP_ENV`.
 
 Example output:
 
@@ -192,13 +195,13 @@ Route: GET api/v1/flights
   environment: production
 
 default:
-    ✗ spec-match (no match config) — match config did not match
+    ✗ spec-match (no match config)—match config did not match
     → match config did not match for default
 
 v1:
-    ✓ global-filter SkipNovaRoutes — shouldSkip = false
-    ✓ spec-match prefix — match config matched
-    ✓ visibility production — visible in environment
+    ✓ global-filter SkipNovaRoutes—shouldSkip = false
+    ✓ spec-match prefix—match config matched
+    ✓ visibility production—visible in environment
     → included in v1
 
 Result: included in [v1]
@@ -223,7 +226,11 @@ Result: included in [v1]
 ],
 ```
 
-Routes under `api/v1/*` appear only in `openapi-v1.yaml`; routes under `api/v2/*` appear only in `openapi-v2.yaml`. The implicit `default` spec matches both (no match constraint) — serve it if you want a combined view, or add `'default' => ['route_uri' => false, 'playground_uri' => false]` to suppress its HTTP endpoints.
+Routes under `api/v1/*` appear only in `openapi-v1.yaml`; routes under
+`api/v2/*` appear only in `openapi-v2.yaml`. The implicit `default` spec
+matches both. Serve it for a combined view, or set
+`'default' => ['route_uri' => false, 'playground_uri' => false]` to suppress
+its HTTP endpoints.
 
 ### Example 2: public / partner / internal audience split by middleware
 
@@ -245,7 +252,7 @@ Routes under `api/v1/*` appear only in `openapi-v1.yaml`; routes under `api/v2/*
     'internal' => [
         'info'           => ['title' => 'Internal API'],
         'match'          => ['middleware' => 'auth:internal'],
-        'route_uri'      => false,   // file only — not served over HTTP
+        'route_uri'      => false,   // file only, not served over HTTP
         'playground_uri' => false,
     ],
 ],
@@ -267,7 +274,8 @@ Route::middleware(['api', 'auth:internal'])->group(function () {
 });
 ```
 
-Each group appears in exactly one spec. `internal` is generated to `storage_path('openapi-internal.yaml')` but not mounted as an HTTP route.
+Each group appears in exactly one spec. `internal` is written to
+`storage_path('openapi-internal.yaml')` but never mounted as an HTTP route.
 
 ### Example 3: domain split by namespace, shared endpoint pinned to multiple specs
 
@@ -288,7 +296,7 @@ Each group appears in exactly one spec. `internal` is generated to `storage_path
 ```
 
 ```php
-// App\Http\Controllers\Storefront\ProductController — in 'storefront' only via namespace match
+// App\Http\Controllers\Storefront\ProductController: in 'storefront' only via namespace match
 
 namespace App\Http\Controllers\Storefront;
 
@@ -299,7 +307,7 @@ class ProductController
 ```
 
 ```php
-// App\Http\Controllers\Shared\SearchController — pinned explicitly to both specs
+// App\Http\Controllers\Shared\SearchController: pinned explicitly to both specs
 
 namespace App\Http\Controllers\Shared;
 
@@ -312,4 +320,7 @@ class SearchController
 }
 ```
 
-`SearchController` sits outside both namespace prefixes, so the `match` config would not pick it up. `#[Spec(['storefront', 'admin'])]` pins it explicitly. The `match` config is bypassed for this class; global filters and visibility still apply.
+`SearchController` sits outside both namespace prefixes, so `match` config
+wouldn't pick it up. `#[Spec(['storefront', 'admin'])]` pins it explicitly.
+`match` is bypassed for this class; global filters and visibility still
+apply.

@@ -1,12 +1,11 @@
 # Architecture
 
-This page is for plugin authors and contributors. If you're just using the
-package, you don't need to read it.
+For plugin authors and contributors. Library users don't need this page.
 
-The subsystem is split into a convention-agnostic **Core** (`src/Core/`) and
-**Plugins** (`src/Plugins/`) that teach Core about specific packages. The
-package ships four plugins — see [Plugins](plugins.md) — and a `Plugin`
-interface so you can write your own (see [Plugin authoring](plugin-authoring.md)).
+The codebase splits into a convention-agnostic **Core** (`src/Core/`) and
+**Plugins** (`src/Plugins/`) that register support for specific third-party
+packages. Four plugins ship; see [Plugins](plugins.md). The `Plugin`
+interface is public; see [Plugin authoring](plugin-authoring.md).
 
 ## Generation pipeline
 
@@ -56,10 +55,10 @@ Laravel routes                      │
 
 ## Plugin system
 
-`Core` itself is package-agnostic. It ships a `Plugin` interface
-(`src/Core/Registry/Plugin.php`). Plugins register resolvers, extractors,
+Plugins implement the `Plugin` interface
+(`src/Core/Registry/Plugin.php`) and register resolvers, extractors,
 error-response factories, payload class markers, and lint rules into an
-`OpenApiRegistry` instance.
+`OpenApiRegistry`.
 
 ```php
 namespace Radiergummi\OpenApi\Core\Registry;
@@ -91,15 +90,14 @@ For the rule catalog and severity scale, see [Linting](linting.md).
 
 ## Service lifecycle
 
-All pipeline classes are bound as **scoped** singletons (not regular
-singletons). Octane resets scoped bindings between requests, so each
-generation run gets fresh instances — `ComponentSchemaRegistry` and
-`ExampleFileLoader` carry mutable per-run state and would corrupt concurrent
-runs otherwise.
+Pipeline classes are bound as **scoped** singletons (not regular singletons).
+Octane resets scoped bindings between requests, so each generation run gets
+fresh instances. `ComponentSchemaRegistry` and `ExampleFileLoader` carry
+mutable per-run state and would otherwise corrupt concurrent runs.
 
 `reset()` methods exist but are redundant under the scoped lifecycle.
 
 > [!WARNING]
-> Don't downgrade any of the package's bindings to a regular `singleton()`
-> in a host service provider — that would share mutable per-run state across
-> requests and break concurrent generation.
+> Don't downgrade these bindings to regular `singleton()` in a host service
+> provider. That shares mutable per-run state across requests and breaks
+> concurrent generation.

@@ -1,7 +1,7 @@
 # Attribute catalog
 
-All authoring attributes live in `Radiergummi\OpenApi\Core\Attributes`. Import
-once and reference with the namespace alias:
+Authoring attributes live in `Radiergummi\OpenApi\Core\Attributes`. Import
+once and reference via the namespace alias:
 
 ```php
 use Radiergummi\OpenApi\Core\Attributes as OpenApi;
@@ -10,10 +10,8 @@ use Radiergummi\OpenApi\Core\Attributes as OpenApi;
 public function store(FlightData $data): FlightData { … }
 ```
 
-Authoring attributes are the **escape hatch** — most endpoints don't need any.
-Reach for them only when convention can't derive what you need.
-
-For runnable examples of each attribute, see [Recipes](recipes.md).
+Use them when convention can't derive what you need. Runnable examples live
+in [Recipes](recipes.md).
 
 ## Operation-level attributes
 
@@ -21,11 +19,13 @@ Attach to controller classes or methods.
 
 | Attribute | Target | Repeatable | Purpose |
 |---|---|---|---|
-| `Operation` | class, method | no | Override `summary`, `description`, `operationId`, or the auto-derived tag set. `replace: true` discards auto-derived tags; default merges. `streaming: true` advertises `text/event-stream` as the response content type. |
+| `Operation` | class, method | no | Override `summary`, `description`, `operationId`, or the auto-derived tag set. `replace: true` discards auto-derived tags; the default merges. `streaming: true` advertises `text/event-stream` as the response content type. |
+| `Summary` | class, method | no | On a controller/operation: set the operation summary. Standalone alternative to `#[Operation(summary: …)]`. Precedence: method `#[Summary]` → method `#[Operation(summary)]` → method docblock → class `#[Summary]` → class `#[Operation(summary)]`. Class-level placement is for `__invoke` controllers. On a Spatie `Data` class or Eloquent `JsonResource` class: sets the component schema's `title`. |
+| `Description` | class, method | no | Same as `#[Summary]` but for the long-form description. On a Data / JsonResource class it sets the component schema's `description`. |
 | `Tag` | class, method | yes | Add a tag to the already-derived set (merge, not replace). |
 | `QueryParam` | class, method | yes | Document an ad-hoc query string parameter. Each instance defines one parameter. |
 | `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (e.g. `multipart/form-data`). |
-| `ResponseResource` | class, method | no | Explicit response-resource class for the 200 response. `collection: true/false` overrides envelope detection; `null` = auto-detect. |
+| `ResponseResource` | class, method | no | Explicit response-resource class for the 200 response. `collection: true/false` overrides envelope detection; `null` auto-detects. |
 | `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. |
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
@@ -34,7 +34,7 @@ Attach to controller classes or methods.
 | `Security` | class, method | no | Override the auto-derived scopes. Pass an empty list for "token required, no specific scope". `scheme:` targets a specific scheme name from `openapi.security_schemes` (or one of the Passport-derived defaults); omit for the project default. See [Declare custom security schemes](recipes.md#declare-custom-security-schemes). |
 | `PublicEndpoint` | class, method | no | Mark as public (no auth advertised) even if middleware would imply otherwise. |
 | `Hide` | class, method | no | Exclude from the spec. `only: ['production']` hides only in those environments; `except: ['local']` hides everywhere except. Pass no argument to hide unconditionally. The two arguments are mutually exclusive. |
-| `Expose` | class, method | no | Include in the spec when `config('openapi.visibility.default')` is `'hidden'`. Same `only` / `except` semantics as `Hide`. A no-op in public-default mode (flagged by `visibility.attribute-no-op`). |
+| `Expose` | class, method | no | Include in the spec when `config('openapi.visibility.default')` is `'hidden'`. Same `only` / `except` semantics as `Hide`. No-op in public-default mode (flagged by `visibility.attribute-no-op`). |
 | `ExternalDocs` | method | no | Add an "external documentation" link to the operation. |
 | `Link` | method | yes | Declare an OpenAPI Link on the primary 2xx response. `operationId` (preferred) or `operationRef` must be provided. See [Link to another operation from a response](recipes.md#link-to-another-operation-from-a-response). |
 | `Discriminator` | class | no | Mark a polymorphic base class (a `Data` class or a response-resource class). Schema becomes `oneOf` + `discriminator`. See [Document a polymorphic response with a discriminator](recipes.md#document-a-polymorphic-response-with-a-discriminator). |
@@ -45,14 +45,13 @@ Attach to controller classes or methods.
 
 ## Field-enrichment attributes
 
-`FieldAttribute` has four **scoped** subclasses. Pick the one that matches the
-target — the wrong scope is caught by the `field.attribute-wrong-scope` lint
-rule.
+`FieldAttribute` has four scoped subclasses. Pick the one matching the
+target. The wrong scope is caught by `field.attribute-wrong-scope`.
 
 | Attribute | Target | Scope | Notes |
 |---|---|---|---|
 | `RequestField` | property, parameter, class-constant | Request-body input fields | Place on a Spatie Data class property / promoted constructor parameter, or on a `FormRequest` field constant. Supports `writeOnly`. No `readOnly` or `default`. |
-| `ResponseField` | class-constant, property | Response output fields | Place on a response class field constant or property. Supports `readOnly` and `conditional`. `conditional: true` keeps the field in `properties` but removes it from `required` — use for conditionally-present fields. |
+| `ResponseField` | class-constant, property | Response output fields | Place on a response class field constant or property. Supports `readOnly` and `conditional`. `conditional: true` keeps the field in `properties` but removes it from `required`. Use for conditionally-present fields. |
 | `PathParam` | parameter | URI path parameters | Place on a controller action parameter for a route-bound model or scalar segment. Only `description`, `example`, `format`, and `pattern` apply (type is inferred from the binding). |
 | `QueryParam` | class, method | Ad-hoc query parameters | See operation-level table above. |
 
@@ -66,8 +65,8 @@ All four subclasses share the same JSON Schema field surface inherited from
 
 ## Exception-level attribute
 
-Attach to an exception class so the generator can map it to a status code
-wherever the exception appears in a `@throws` tag.
+Attach to an exception class to map it to a status code wherever the
+exception appears in a `@throws` tag.
 
 | Attribute | Target | Purpose |
 |---|---|---|
@@ -80,10 +79,10 @@ class TeapotException extends RuntimeException {}
 
 ## Plugin attributes
 
-The bundled plugins ship their own attributes for the conventions they document.
-They live in `Radiergummi\OpenApi\Plugins\<plugin>\Attributes` and are covered
-in detail on the [Plugins page](plugins.md):
+Bundled plugins ship their own attributes under
+`Radiergummi\OpenApi\Plugins\<plugin>\Attributes`. See [Plugins](plugins.md)
+for full details.
 
-- **ApiResources** — `#[ResourceField]`
-- **QueryBuilder** — `#[AllowedFilter]`, `#[AllowedSort]`, `#[AllowedInclude]`
-- **Fractal** — `#[FractalResponse]`, `#[TransformerField]`, `#[TransformerInclude]`
+- **ApiResources**: `#[ResourceField]`
+- **QueryBuilder**: `#[AllowedFilter]`, `#[AllowedSort]`, `#[AllowedInclude]`
+- **Fractal**: `#[FractalResponse]`, `#[TransformerField]`, `#[TransformerInclude]`

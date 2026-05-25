@@ -1,50 +1,34 @@
 # Linting
 
-`php artisan openapi:lint` generates the spec then walks a domain tree to check
-convention and completeness. It is fully independent of the generation pipeline
-from the consumer's perspective.
+`openapi:lint` generates the spec and reports documentation gaps and
+convention violations.
 
 ```bash
 php artisan openapi:lint            # default: level 1 (broken + degraded)
 php artisan openapi:lint --level=max
 ```
 
-## How it works
-
-1. The command generates the spec (optionally restricted by `--path` or `--diff`).
-2. `SpecTreeBuilder` converts the raw `OA\OpenApi` graph into a typed node tree
-   (`ApiNode`, `OperationNode`, `ResponseNode`, `FieldNode`, …) in
-   `Core/Lint/Tree/`.
-3. `SpecTreeWalker` dispatches each node to rules that implement the matching
-   visitor interface (`OperationRule`, `ResponseRule`, `FieldRule`,
-   `ParameterRule`, `HeaderRule`, `LinkRule`, `WebhookRule`,
-   `ComponentSchemaRule`, `ApiRule`, `QueryParameterRule`, `RequestBodyRule`,
-   `ExampleRule`).
-4. Rules may also implement `Finalizable` (called after each operation's
-   sub-tree) or `Resettable` (reset between operations).
-5. `MetaSuppressionStale` runs as a `PostWalkRule` after the tree walk,
-   because it needs the complete findings set.
-6. Findings are filtered to the active severity level, suppressed by
-   `#[IgnoreLint]` directives, and formatted for output.
+For the tree-walk internals (needed only when writing a custom rule), see
+[Architecture → Lint subsystem](architecture.md#lint-subsystem).
 
 ## Severity levels
 
-Rules carry a numeric severity level. The scale is an **open-ended gradient of
-decreasing severity** (lower = more severe), modelled on PHPStan — levels are
-not fixed categories, and finer levels may be added over time. The `--level`
-flag (or `config/openapi.lint.level`) sets the threshold: only rules at or
-below it run.
+Each rule carries a numeric level. The scale is an open-ended gradient of
+decreasing severity (lower = more severe), modelled on PHPStan. Levels are
+not fixed categories, and finer levels may be added later. The `--level` flag
+(or `config/openapi.lint.level`) sets the threshold; only rules at or below
+it run.
 
 | Level | Name | Meaning |
 |---|---|---|
 | 0 | Broken | A conformant OpenAPI validator rejects the document, or a major consumer (Scalar, codegen) fails outright. |
-| 1 | Degraded | The document parses, but a violation makes part of it wrong — it lies about the API, drops information, or misbehaves in tooling. |
-| 2 | Underspecified | Correct but incomplete — a component that should carry detail is missing it. |
+| 1 | Degraded | The document parses, but the violation makes part of it incorrect: it misrepresents the API, drops information, or misbehaves in tooling. |
+| 2 | Underspecified | Correct but incomplete. A component that should carry detail is missing it. |
 | 3 | Inconsistent | Complete and correct, but violates a naming/structure convention or a hygiene meta-rule. |
 | 4 | Improvable | Optional polish whose absence costs nothing concrete. |
 
-Pass `--level=max` to run every rule regardless of level. The default
-threshold is **level 1** (broken + degraded).
+Pass `--level=max` to run every rule. The default threshold is level 1
+(broken + degraded).
 
 ## Commands
 
@@ -95,10 +79,10 @@ public function internal(): JsonResponse { … }
 
 Scope follows the annotated symbol:
 
-- **Class** — silences the rule for every operation in the controller.
-- **Method** — silences it for that action only.
-- **Property** — silences `field.*` findings for that property; place it on the
-  Data-class property.
+- **Class**: silences the rule for every operation in the controller.
+- **Method**: silences it for that action only.
+- **Property**: silences `field.*` findings for that property. Place it on
+  the Data-class property.
 
 > [!WARNING]
 > `spec.invalid` can never be suppressed. Run with `--no-suppress` to ignore
@@ -106,9 +90,9 @@ Scope follows the annotated symbol:
 
 Meta-rules enforce directive hygiene:
 
-- `meta.no-suppression-reason` — directive has no `reason` parameter.
-- `meta.suppression-stale` — directive did not suppress any finding.
-- `meta.too-many-suppressions` — a symbol carries an excessive number of
+- `meta.no-suppression-reason`: directive has no `reason` parameter.
+- `meta.suppression-stale`: directive did not suppress any finding.
+- `meta.too-many-suppressions`: a symbol carries an excessive number of
   directives.
 
 ## Style conventions (naming rules)
@@ -129,16 +113,16 @@ Supported case values: `dot`, `kebab`, `snake`, `camel`, `pascal`, `train`,
 
 ## Adding a custom rule
 
-1. Implement `Radiergummi\OpenApi\Core\Lint\Rules\Rule` and one or more visitor
-   interfaces from `Core/Lint/Rules/Visitors/`.
-2. Add the class to `config/openapi.lint.rules` (or register it in a plugin via
-   `$registry->addRule(YourRule::class)` — see
-   [Plugin authoring](plugin-authoring.md)).
+1. Implement `Radiergummi\OpenApi\Core\Lint\Rules\Rule` and one or more
+   visitor interfaces from `Core/Lint/Rules/Visitors/`.
+2. Add the class to `config/openapi.lint.rules`, or register it from a plugin
+   via `$registry->addRule(YourRule::class)`. See
+   [Plugin authoring](plugin-authoring.md).
 
 ## Rule catalog
 
-All built-in rule IDs. Run `php artisan openapi:lint --list` for the live
-catalog with the current state of any plugin-registered rules.
+Built-in rule IDs. Run `openapi:lint --list` for the live catalog including
+plugin-registered rules.
 
 <!-- BEGIN: lint-rule-catalog -->
 | Rule ID | Level | Description |
@@ -175,7 +159,7 @@ catalog with the current state of any plugin-registered rules.
 | `field.conflicting-type` | 1 | Field declares conflicting type and format values. |
 | `header.invalid-name` | 1 | Header name contains invalid characters. |
 | `link.invalid-operation` | 1 | Link references an operationId that doesn't exist in the document. |
-| `multipart.file-without-multipart` | 1 | Data class has a file property but the request body isn't multipart/form-data — produces an incorrect spec. |
+| `multipart.file-without-multipart` | 1 | Data class has a file property but the request body isn't multipart/form-data—produces an incorrect spec. |
 | `operation.id-invalid-chars` | 1 | operationId is not a codegen-safe identifier. |
 | `operation.id-missing` | 1 | Operation has no operationId. |
 | `operation.security-missing` | 1 | Route enforces auth middleware but the operation declares no security, implying the endpoint is public. |

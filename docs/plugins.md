@@ -1,58 +1,49 @@
 # Plugins
 
-Core is convention-agnostic. **Plugins** teach Core about specific packages —
-how to read their request DTOs, how to document their response envelopes, what
-lint rules enforce their conventions. The package ships four:
+A plugin registers resolvers, extractors, and lint rules for a specific
+package or convention. Four plugins ship with the package:
 
 | Plugin | Default | Requires | Documents |
 |---|---|---|---|
-| [`SpatieData`](#spatiedata) | enabled (auto-skips without the package) | `spatie/laravel-data` | Data-class request bodies and responses |
-| [`ApiResources`](#apiresources) | enabled | — (Laravel core) | `JsonResource` / `ResourceCollection` responses |
+| [`SpatieData`](#spatiedata) | enabled (no-ops without the package) | `spatie/laravel-data` | Data-class request bodies and responses |
+| [`ApiResources`](#apiresources) | enabled | Laravel core | `JsonResource` / `ResourceCollection` responses |
 | [`QueryBuilder`](#querybuilder) | disabled | `spatie/laravel-query-builder` | `filter[]` / `sort` / `include` query parameters |
 | [`Fractal`](#fractal) | disabled | `league/fractal` | Fractal transformer responses |
 
-`FormRequest` request bodies are handled by Core directly — **no plugin
-required**.
+`FormRequest` request bodies are supported natively. No plugin required.
 
-Plugins are listed in `config/openapi.plugins` and resolved from the container.
-Core registers first, then each plugin in declaration order, then any
-`config/openapi.lint.rules` extras.
+Plugins are listed in `config/openapi.plugins` and resolved from the
+container, in declaration order, after Core registers.
 
-To write your own plugin, see [Plugin authoring](plugin-authoring.md).
+To write your own, see [Plugin authoring](plugin-authoring.md).
 
 ## SpatieData
 
-Default-enabled. Reads request and response schemas from Spatie Data classes —
-including `DataCollection<…>` and `PaginatedDataCollection<…>`.
+Reads request and response schemas from Spatie Data classes, including
+`DataCollection<…>` and `PaginatedDataCollection<…>`.
 
-`spatie/laravel-data` is an **optional runtime dependency**. The plugin ships in
-the default `config/openapi.plugins` list, but `SpatieDataPlugin::register()`
-is guarded by `class_exists(\Spatie\LaravelData\Data::class)` — without the
-package installed it silently no-ops and imposes no autoload cost. Install
-`spatie/laravel-data` to activate.
+`spatie/laravel-data` is an optional runtime dependency. The plugin entry
+stays in `config/openapi.plugins` either way; without the package installed
+it no-ops. Install `spatie/laravel-data` to activate.
 
-Covered in detail under [Request bodies](request-bodies.md). For PATCH semantics
-with `Optional|…|null` typing, see
-[Request bodies → PATCH semantics](request-bodies.md#patch-semantics).
+See [Request bodies](request-bodies.md) for the full surface, and
+[Request bodies → PATCH semantics](request-bodies.md#patch-semantics) for
+`Optional|…|null` handling.
 
-**Ships these lint rules:**
+Lint rules:
 
 | Rule | Level |
 |---|---|
 | `field.attribute-wrong-scope` | 1 |
 | `multipart.file-without-multipart` | 1 |
 
-See [`examples/spatie-data/`](../examples/spatie-data/) for a worked endpoint.
+Worked endpoint: [`examples/spatie-data/`](../examples/spatie-data/).
 
 ## ApiResources
 
-Default-enabled. Controllers that return a typed `JsonResource` subclass are
-documented automatically — no attribute needed for the response envelope.
-
-### Declaring fields
-
-To declare the fields the resource emits, add `#[ResourceField]` attributes at
-the class level:
+Controllers returning a typed `JsonResource` subclass are documented
+automatically. Declare the resource's fields with class-level
+`#[ResourceField]` attributes:
 
 ```php
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
@@ -72,22 +63,22 @@ class ProjectResource extends JsonResource { … }
 
 ### Collection endpoints
 
-For collection endpoints that return a `JsonResponse` or an untyped value, tell
-the generator which resource and envelope to use:
+For collection endpoints returning `JsonResponse` or an untyped value, name
+the resource and envelope explicitly:
 
 ```php
 #[OpenApi\ResponseResource(ProjectResource::class, collection: true)]
 public function index(): JsonResponse { … }
 ```
 
-Single responses wrap fields in `{ data: {…} }`; collection responses wrap them
-in `{ data: [{…}], links: {…}, meta: {…} }`.
+Single responses wrap fields in `{ data: {…} }`; collection responses in
+`{ data: [{…}], links: {…}, meta: {…} }`.
 
 > [!NOTE]
-> Omitting `#[ResourceField]` attributes triggers the `resource.fields-undeclared`
+> Omitting `#[ResourceField]` triggers the `resource.fields-undeclared`
 > lint rule (level 1).
 
-**Ships these lint rules:**
+Lint rules:
 
 | Rule | Level |
 |---|---|
@@ -95,26 +86,22 @@ in `{ data: [{…}], links: {…}, meta: {…} }`.
 | `resource.response-ambiguous` | 1 |
 | `resource.field-type-missing` | 2 |
 
-See [`examples/form-requests/`](../examples/form-requests/) for a worked
-endpoint using ApiResources alongside FormRequests.
+Worked endpoint: [`examples/form-requests/`](../examples/form-requests/).
 
 ## QueryBuilder
 
-Shipped **disabled**. Documents `spatie/laravel-query-builder` parameters as
-OpenAPI query parameters.
+Documents `spatie/laravel-query-builder` parameters as OpenAPI query
+parameters.
 
 ### Enable
 
-1. Install the runtime dependency:
-   ```bash
-   composer require spatie/laravel-query-builder
-   ```
-2. Uncomment the `QueryBuilderPlugin::class` entry under `plugins` in
+1. `composer require spatie/laravel-query-builder`
+2. Uncomment `QueryBuilderPlugin::class` under `plugins` in
    `config/openapi.php`.
 
 ### Usage
 
-Declare the accepted parameters on the controller method:
+Declare accepted parameters on the controller method:
 
 ```php
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
@@ -128,46 +115,41 @@ use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
 public function index(QueryBuilder $query): JsonResponse { … }
 ```
 
-Each `#[AllowedFilter]` becomes one `filter[name]` query parameter;
-`#[AllowedSort]` becomes the `sort` parameter (comma-separated, with the listed
-fields as `enum`); `#[AllowedInclude]` becomes `include` the same way.
+Each `#[AllowedFilter]` becomes one `filter[name]` query parameter.
+`#[AllowedSort]` becomes the `sort` parameter (comma-separated, with the
+listed fields as `enum`); `#[AllowedInclude]` becomes `include` the same way.
 
-**Ships these lint rules:**
+Lint rules:
 
 | Rule | Level |
 |---|---|
 | `query-builder.params-undeclared` | 2 |
 | `query-builder.filter-type-missing` | 3 |
 
-A method that injects `QueryBuilder` but declares none of the three triggers
-`query-builder.params-undeclared`; an `#[AllowedFilter]` without a `type`
-triggers `query-builder.filter-type-missing`.
+`query-builder.params-undeclared` fires when a method injects `QueryBuilder`
+but declares none of the three attributes. `query-builder.filter-type-missing`
+fires for an `#[AllowedFilter]` without a `type`.
 
-See [`examples/query-builder/`](../examples/query-builder/) for a worked
-endpoint.
+Worked endpoint: [`examples/query-builder/`](../examples/query-builder/).
 
 ## Fractal
 
-Shipped **disabled**. Documents `league/fractal` transformer responses with
-three serializer envelopes: `DataArraySerializer` (default), `ArraySerializer`,
-and `JsonApiSerializer`.
+Documents `league/fractal` transformer responses with three serializer
+envelopes: `DataArraySerializer` (default), `ArraySerializer`, and
+`JsonApiSerializer`.
 
 ### Enable
 
-1. Install the runtime dependency:
-   ```bash
-   composer require league/fractal
-   ```
-   (or `spatie/laravel-fractal`, which depends on it.)
-2. Uncomment the `FractalPlugin::class` entry under `plugins` in
-   `config/openapi.php`.
+1. `composer require league/fractal` (or `spatie/laravel-fractal`, which
+   depends on it).
+2. Uncomment `FractalPlugin::class` under `plugins` in `config/openapi.php`.
 
 ### Usage
 
-Declare each transformer's output keys on the transformer class with repeatable
-`#[TransformerField]` attributes; declare `availableIncludes` / `defaultIncludes`
-entries with `#[TransformerInclude]`. Bind each endpoint to its transformer with
-a method-level `#[FractalResponse]`:
+Declare each transformer's output keys with repeatable `#[TransformerField]`
+attributes on the transformer class. Declare `availableIncludes` /
+`defaultIncludes` entries with `#[TransformerInclude]`. Bind each endpoint to
+its transformer with `#[FractalResponse]`:
 
 ```php
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
@@ -191,9 +173,9 @@ public function paginated(): JsonResponse { … }
 
 ### Serializers
 
-The default envelope models Fractal's `DataArraySerializer` plus
-`IlluminatePaginatorAdapter`. Set `serializer:` on `#[FractalResponse]` when the
-action calls `Manager::setSerializer(…)` to switch shape:
+The default envelope models `DataArraySerializer` plus
+`IlluminatePaginatorAdapter`. Set `serializer:` on `#[FractalResponse]` when
+the action calls `Manager::setSerializer(…)`:
 
 ```php
 use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
@@ -208,11 +190,11 @@ public function arrayCollection(): JsonResponse { … } // top-level array
 public function jsonApiShow(): JsonResponse { … }     // {data: {type, id, attributes: $ref}} as application/vnd.api+json
 ```
 
-`Serializer::JsonApi` responses are emitted under `application/vnd.api+json`
-instead of `application/json`. Custom serializers outside the three named cases
-fall back to a `#[Response]` override on the action.
+`Serializer::JsonApi` responses are emitted under `application/vnd.api+json`.
+For custom serializers outside the three named cases, override the response
+with `#[Response]` on the action.
 
-**Ships these lint rules:**
+Lint rules:
 
 | Rule | Level |
 |---|---|
@@ -223,8 +205,8 @@ fall back to a `#[Response]` override on the action.
 | `fractal.include-transformer-missing` | 2 |
 
 > [!NOTE]
-> `fractal.response-unbound` is opt-in because the `fractal()` helper and the
-> `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies and
-> never inject a `Manager`. The generator does not read method bodies — see
-> [OAPI-017](known-gaps.md#oapi-017--no-method-body-inference) and
-> [OAPI-053](known-gaps.md).
+> `fractal.response-unbound` is opt-in. The `fractal()` helper and
+> `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies, and
+> the generator does not read method bodies. See
+> [OAPI-017](internal/known-gaps.md#oapi-017--no-method-body-inference) and
+> [OAPI-053](internal/known-gaps.md).

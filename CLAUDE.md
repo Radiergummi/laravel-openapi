@@ -80,6 +80,6 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 
 ## Known gaps
 
-See `docs/known-gaps.md`. Notably: no controller method-body inference (OAPI-017) — the
+See `docs/internal/known-gaps.md`. Notably: no controller method-body inference (OAPI-017) — the
 generator reads signatures only — and lint rules miss `allOf`-composed schema properties
 (OAPI-038).

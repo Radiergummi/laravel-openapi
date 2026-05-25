@@ -1,12 +1,12 @@
 # Writing a plugin
 
-A plugin teaches Core about a specific package or convention — how to read its
-request DTOs, how to document its response envelopes, what lint rules enforce
-its conventions. Implement the `Plugin` interface and register the class in
-`config/openapi.plugins`.
+A plugin adds support for a third-party package or convention: how to read
+its request DTOs, document its response envelopes, and what lint rules
+enforce its conventions. Implement the `Plugin` interface and register the
+class in `config/openapi.plugins`.
 
-For the four bundled plugins, see [Plugins](plugins.md). For the architectural
-context, see [Architecture](architecture.md).
+Bundled plugins: [Plugins](plugins.md). Architectural context:
+[Architecture](architecture.md).
 
 ## The `Plugin` interface
 
@@ -19,16 +19,15 @@ interface Plugin
 }
 ```
 
-`register()` is called once at boot, after `CoreRegistration` and in
-`config/openapi.plugins` declaration order. The plugin instance itself is
-resolved from the Laravel container, so it may take constructor dependencies.
+`register()` runs once at boot, after Core's own registration, in
+`config/openapi.plugins` declaration order. The plugin instance is resolved
+from the Laravel container, so it may take constructor dependencies.
 
 ## The `OpenApiRegistry` API
 
-`OpenApiRegistry` is the assembled inventory the generator and linter read
-from. A plugin contributes by calling its `add*` methods — each takes a
-**class-string**; instances are resolved from the container when the pipeline
-runs.
+`OpenApiRegistry` is the inventory the generator and linter read from. A
+plugin contributes by calling its `add*` methods. Each takes a class-string;
+instances are resolved from the container when the pipeline runs.
 
 | Method | Contributes | Interface the class must implement |
 |---|---|---|
@@ -40,46 +39,41 @@ runs.
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
 | `addRule(string $class)` | A lint rule | `Core\Lint\Rules\Rule` + one or more visitor interfaces |
 
-The corresponding getters (`requestSchemaResolvers()`, `refSchemaResolvers()`,
+Getters (`requestSchemaResolvers()`, `refSchemaResolvers()`,
 `queryParameterResolvers()`, `primaryResponseResolvers()`,
-`errorResponseFactories()`, `payloadClasses()`, `rules()`) are what the
-generator and linter consume — a plugin author does not call them.
+`errorResponseFactories()`, `payloadClasses()`, `rules()`) are consumed by
+the generator and linter; plugin authors don't call them.
 
 ### Resolver interfaces
 
 The resolver interfaces live in `src/Core/Registry/`:
 
-- **`RequestSchemaResolver`** — given an `ActionDescriptor`, decide whether it
-  can resolve a request body for that action, and if so produce the body
-  schema. Used to support a new kind of request DTO. The bundled
-  `DataClassRequestSchemaResolver` handles Spatie Data classes; Core's
-  `FormRequestRequestSchemaResolver` handles `FormRequest` subclasses.
-- **`RefSchemaResolver`** — given a class-string, decide whether it owns that
-  class's shape and produce a component schema for it. Used to teach the
-  shared `$ref` pool how to serialise a class (a DTO base, a resource base,
-  an entity). The bundled `DataRefSchemaResolver` handles Spatie Data classes.
-- **`QueryParameterResolver`** — given an `ActionDescriptor`, produce
-  query-string parameters. Used to derive `?filter[…]`, `?include`, `?sort`,
-  paging, etc. from a request-class convention.
-- **`PrimaryResponseResolver`** — given an `ActionDescriptor`, resolve the
-  primary 2xx response schema from the controller's return type or attributes.
-- **`ErrorResponseFactory`** — build the error-response schema (e.g. an
-  RFC 7807 or JSON:API error envelope) used for the 4xx/5xx responses
-  contributed by `StandardResponsesExtractor`.
+- **`RequestSchemaResolver`**: given an `ActionDescriptor`, decide whether
+  it handles the request body and produce the schema. Bundled:
+  `DataClassRequestSchemaResolver` (Spatie Data),
+  `FormRequestRequestSchemaResolver` (`FormRequest`).
+- **`RefSchemaResolver`**: given a class-string, decide whether it owns the
+  class's shape and produce a component schema. Used to teach the shared
+  `$ref` pool how to serialise a class. Bundled: `DataRefSchemaResolver`.
+- **`QueryParameterResolver`**: produce query parameters from the
+  `ActionDescriptor`. Used for `?filter[…]`, `?include`, `?sort`, paging.
+- **`PrimaryResponseResolver`**: resolve the 2xx response schema from the
+  return type or attributes.
+- **`ErrorResponseFactory`**: build the error-response schema (RFC 7807,
+  JSON:API error envelope, etc.) for 4xx/5xx responses.
 
-Each resolver follows the same shape: a "can I handle this?" predicate plus a
-"produce the result" method. The generator iterates registered resolvers in
-registration order and uses the first that claims the input.
+Each resolver pairs a "can I handle this?" predicate with a "produce the
+result" method. The pipeline iterates registered resolvers in registration
+order and uses the first that claims the input.
 
 > [!TIP]
-> Read the interface source for the exact method signatures — they are small
-> and self-documenting.
+> Read the interface source for the exact signatures. They're small and
+> self-documenting.
 
 ## Worked example: the bundled SpatieData plugin
 
-The shipped `SpatieDataPlugin`
-(`src/Plugins/SpatieData/SpatieDataPlugin.php`) is the reference implementation.
-It teaches Core to read request schemas from Spatie Data classes:
+`SpatieDataPlugin` (`src/Plugins/SpatieData/SpatieDataPlugin.php`) is the
+reference implementation. It registers support for Spatie Data classes:
 
 ```php
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
@@ -103,53 +97,45 @@ final class SpatieDataPlugin implements Plugin
 }
 ```
 
-What each line does:
+Line by line:
 
-- `addRequestSchemaResolver(DataClassRequestSchemaResolver::class)` — when a
-  controller action type-hints a Spatie Data class (directly or via a
-  configured payload-indirection object), this resolver builds the request
-  body from the Data class's PHP types, validation rules, and field attributes.
-- `addRefSchemaResolver(DataRefSchemaResolver::class)` — when a Data class is
-  referenced from another schema (a nested DTO, a `#[Response(ref: …)]`), this
-  resolver emits it as a `$ref` into `components.schemas`.
-- `addPayloadClass(Data::class)` — marks `Spatie\LaravelData\Data` as a payload
-  base so `PayloadParameterScanner` treats any subclass found on an action
-  signature as a request body.
-- `addRule(...)` — registers the two plugin-specific lint rules
-  (`field.attribute-wrong-scope`, `multipart.file-without-multipart`), so they
-  only run when the plugin is installed.
+- `addRequestSchemaResolver(DataClassRequestSchemaResolver::class)`: when a
+  controller action type-hints a Data class (directly or via a configured
+  payload-indirection object), build the request body from PHP types,
+  validation rules, and field attributes.
+- `addRefSchemaResolver(DataRefSchemaResolver::class)`: when a Data class is
+  referenced from another schema (a nested DTO, a `#[Response(ref: …)]`),
+  emit it as a `$ref` into `components.schemas`.
+- `addPayloadClass(Data::class)`: mark `Spatie\LaravelData\Data` as a payload
+  base so any subclass on an action signature is treated as a request body.
+- `addRule(...)`: register the two plugin-specific lint rules so they only
+  run when the plugin is installed.
 
 ## Building your own plugin
 
-To support a different request-class convention or resource library, follow the
-same shape:
-
-1. Write the resolver classes implementing the relevant interfaces from
-   `src/Core/Registry/`. Use `src/Plugins/SpatieData/` as a template — for
-   instance, mirror `DataClassRequestSchemaResolver` for a
-   `RequestSchemaResolver`, or `DataRefSchemaResolver` for a
-   `RefSchemaResolver`.
-2. Optionally write lint rules in a `Lint/Rules/` sub-namespace, each
-   implementing `Core\Lint\Rules\Rule` plus the visitor interfaces it needs.
+1. Write resolver classes implementing the relevant interfaces from
+   `src/Core/Registry/`. Use `src/Plugins/SpatieData/` as a template (e.g.
+   mirror `DataClassRequestSchemaResolver` for a `RequestSchemaResolver`, or
+   `DataRefSchemaResolver` for a `RefSchemaResolver`).
+2. Optionally write lint rules under `Lint/Rules/`, implementing
+   `Core\Lint\Rules\Rule` plus the visitor interfaces they need.
 3. Write a `Plugin` class whose `register()` calls the matching
    `OpenApiRegistry` `add*` methods.
 4. Bind any services your resolvers need in a service provider (the bundled
-   plugin's bindings live in `OpenApiServiceProvider`; an external plugin
-   would supply its own provider).
+   plugin's bindings live in `OpenApiServiceProvider`; external plugins ship
+   their own).
 5. Add the plugin class to `config/openapi.plugins`.
 
-A plugin that adds a query-parameter convention plus a resource/response shape
-— i.e. a plugin for a JSON:API-style library — would register:
+A JSON:API-style plugin (query-parameter convention plus resource and error
+envelopes) would register:
 
-- a `QueryParameterResolver` (to derive `?filter`, `?include`, `?sort` parameters)
-- a `PrimaryResponseResolver` and `RefSchemaResolver` (to serialise its
-  resource envelope)
-- an `ErrorResponseFactory` (to emit its error envelope)
-- whatever lint rules enforce its conventions
+- a `QueryParameterResolver` (for `?filter`, `?include`, `?sort`)
+- a `PrimaryResponseResolver` and `RefSchemaResolver` (for the resource envelope)
+- an `ErrorResponseFactory` (for the error envelope)
+- lint rules enforcing its conventions
 
-All of those hooks exist on the registry; the SpatieData plugin exercises
-three of the seven, and the remaining four follow the identical
-class-string-registration pattern.
+The SpatieData plugin exercises three of the seven hooks; the rest follow the
+same class-string registration pattern.
 
 > [!NOTE]
 > Plugin-specific lint rules should follow the package's

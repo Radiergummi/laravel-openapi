@@ -1,15 +1,17 @@
 # Recipes
 
-Short cookbook entries for the cases where convention doesn't quite reach. Each
-recipe assumes:
+Snippets for cases convention doesn't cover. Each recipe assumes:
 
 ```php
 use Radiergummi\OpenApi\Core\Attributes as OpenApi;
 ```
 
-For the full attribute reference, see [Attributes](attributes.md).
+Full attribute reference: [Attributes](attributes.md).
 
-## Override the summary or description
+## Set the summary or description
+
+The PHPDoc is the default source. The first paragraph becomes the summary;
+remaining paragraphs become the description.
 
 ```php
 class ProjectController extends Controller
@@ -23,9 +25,22 @@ class ProjectController extends Controller
 }
 ```
 
-Most cases don't need an attribute — the PHPDoc is the source of truth. Reach
-for `#[OpenApi\Operation]` only when the PHPDoc has to say something different
-from the spec.
+When the spec needs to say something different from the docblock, use the
+standalone `#[Summary]` and `#[Description]` attributes:
+
+```php
+#[OpenApi\Summary('Retrieve a project')]
+#[OpenApi\Description('Returns the project envelope including phases and supplier counts.')]
+public function show(Project $project): ProjectResource { … }
+```
+
+Both win over the docblock. Use `#[Operation(summary: …, description: …)]`
+instead when overriding several operation fields at once.
+
+Precedence: method attribute → method `#[Operation(...)]` → method docblock →
+class attribute → class `#[Operation(...)]`. Class-level placement is
+intended for `__invoke` (single-action) controllers, where it outranks the
+class docblock.
 
 ## Document an ad-hoc query parameter
 
@@ -36,6 +51,9 @@ public function search(Request $request): JsonResponse { … }
 ```
 
 ## Enrich a request-body field
+
+`RequestField` layers on top of type-derived and rule-derived schema. Use it
+for documentation; let validation rules carry constraints.
 
 ```php
 class CreateProjectData extends Data
@@ -49,10 +67,6 @@ class CreateProjectData extends Data
     ) {}
 }
 ```
-
-> [!NOTE]
-> `RequestField` is layered **on top of** type-derived and rule-derived schema
-> — use it for documentation enrichment; let validation rules carry constraints.
 
 ## Enrich a response field
 
@@ -92,32 +106,30 @@ public function store(CreateProjectData $data): ProjectResource { … }
 
 ## Make an exception self-describing
 
-Instead of adding an entry to `config/openapi.php`, decorate the exception class:
+Decorate the exception class instead of adding an entry to `config/openapi.php`:
 
 ```php
 #[OpenApi\ExceptionResponse(status: 418, description: "I'm a teapot")]
 class TeapotException extends RuntimeException {}
 ```
 
-Anywhere this exception appears in a controller's `@throws`, it's mapped
-automatically.
+Anywhere this exception appears in a `@throws`, it maps automatically.
 
 ## Multipart / file upload
 
-A Spatie Data class with an `UploadedFile` property (or a `file` validation
-rule) auto-switches the request body to `multipart/form-data` with
-`format: binary` on the relevant field. For request bodies not backed by a
-Data class:
+A Data class with an `UploadedFile` property, or any `file` / `image`
+validation rule, switches the request body to `multipart/form-data` with
+`format: binary` on the relevant field. For non-Data bodies:
 
 ```php
 #[OpenApi\RequestBody(description: 'Webhook payload', mediaType: 'application/x-www-form-urlencoded')]
 public function webhook(Request $request): Response { … }
 ```
 
-## Document a streaming endpoint (SSE / `text/event-stream`)
+## Document a streaming endpoint (SSE)
 
-Streaming content types are **not** auto-detected. Advertise a streaming
-response explicitly with `#[OpenApi\Operation(streaming: true)]`:
+Streaming content types are not auto-detected. Advertise them with
+`#[OpenApi\Operation(streaming: true)]`:
 
 ```php
 #[OpenApi\Operation(streaming: true)]
@@ -129,7 +141,7 @@ public function stream(): StreamedResponse
 }
 ```
 
-To document a per-event payload schema, override the 200 response and set its
+To document a per-event payload schema, override the 200 response and set the
 media type explicitly:
 
 ```php
@@ -138,7 +150,7 @@ use Radiergummi\OpenApi\Core\Enums\MediaType;
 #[OpenApi\Operation(streaming: true)]
 #[OpenApi\Response(
     status: 200,
-    description: 'SSE stream — one JSON object per event',
+    description: 'SSE stream. One JSON object per event.',
     schema: [
         'type' => 'object',
         'properties' => [
@@ -171,9 +183,9 @@ Multiple `#[Link]` attributes may be stacked. Common runtime expressions:
 | `$request.body#/name` | Field echoed from the request body |
 | `$url` | The full request URL |
 
-Use `operationId` (preferred) for intra-document links, or `operationRef` (a
-JSON Pointer) for cross-document links. Exactly one must be provided. Links
-attach to the primary 2xx response only.
+Use `operationId` for intra-document links, or `operationRef` (a JSON Pointer)
+for cross-document links. Exactly one must be provided. Links attach to the
+primary 2xx response only.
 
 ## Document a polymorphic response with a discriminator
 
@@ -213,9 +225,8 @@ Pass no argument (`#[OpenApi\Hide]`) to hide unconditionally.
 
 ## Switch between public-default and hidden-default visibility
 
-By default every discovered route appears in the generated document; mark
-individual routes with `#[OpenApi\Hide]` to opt them out. Flip the default for
-internal/admin APIs by setting:
+Every discovered route appears in the document by default; opt out with
+`#[OpenApi\Hide]`. To flip the default (useful for internal/admin APIs):
 
 ```php
 // config/openapi.php
@@ -225,8 +236,8 @@ internal/admin APIs by setting:
 ```
 
 In hidden-default mode every route is excluded unless it carries an applicable
-`#[OpenApi\Expose]` attribute. Both attributes support mutually-exclusive `only`
-and `except` arguments scoping them to specific application environments:
+`#[OpenApi\Expose]`. Both attributes accept mutually-exclusive `only` and
+`except` arguments scoping them to environments:
 
 ```php
 #[OpenApi\Expose(only: ['staging'])]      // staging only
@@ -234,20 +245,19 @@ and `except` arguments scoping them to specific application environments:
 ```
 
 > [!IMPORTANT]
-> When both `#[Hide]` and `#[Expose]` apply to the same route in the current
-> environment, `#[Hide]` wins — the route stays hidden.
+> When both `#[Hide]` and `#[Expose]` apply in the current environment,
+> `#[Hide]` wins.
 
-The `visibility.hide-expose-conflict` lint rule flags overlapping declarations
-so authors can disambiguate intent; `visibility.attribute-no-op` reports
-unconditional attributes that have no effect under the active default
-(e.g. `#[Expose]` while `visibility.default = 'public'`).
+`visibility.hide-expose-conflict` flags overlapping declarations.
+`visibility.attribute-no-op` flags unconditional attributes with no effect
+under the active default (e.g. `#[Expose]` while `visibility.default = 'public'`).
 
 ## Declare custom security schemes
 
-By default the package emits Laravel Passport's `oauth2` (Authorization Code)
-and `oauth2ClientCredentials` schemes when Passport is installed. Apps using a
-different auth shape — plain bearer JWT, API key, basic auth — declare
-additional schemes via the `openapi.security_schemes` config map:
+Laravel Passport's `oauth2` (Authorization Code) and `oauth2ClientCredentials`
+schemes are emitted automatically when Passport is installed. For different
+auth shapes (bearer JWT, API key, basic auth), declare schemes under
+`openapi.security_schemes`:
 
 ```php
 // config/openapi.php
@@ -263,20 +273,22 @@ additional schemes via the `openapi.security_schemes` config map:
 
 Each entry passes through to swagger-php's `OA\SecurityScheme` unchanged; the
 map key becomes the scheme name. Config entries are merged with the
-Passport-derived pair (config wins on key collision), and operations point at
-a specific scheme through `#[Security]`:
+Passport-derived pair (config wins on key collision). Target a specific scheme
+with `#[Security]`:
 
 ```php
 #[OpenApi\Security(['flights:write'], scheme: 'bearer')]
 public function store(StoreFlightRequest $request): FlightData { … }
 ```
 
-Omit `scheme:` to fall back to the project default (Passport's pair when
-available, otherwise the first config-declared scheme). The combined-flavor
-example ([`examples/combined/`](../examples/combined/)) demonstrates both
-halves end-to-end.
+Omit `scheme:` to use the project default (Passport's pair if available,
+otherwise the first declared scheme). See
+[`examples/combined/`](../examples/combined/) for an end-to-end demo.
 
 ## Document an inbound webhook
+
+The route still exists. The generator extracts it normally and diverts it to
+`webhooks` in the spec.
 
 ```php
 #[OpenApi\Webhook(name: 'stripe.webhook')]
@@ -285,23 +297,19 @@ halves end-to-end.
 public function handleWebhook(Request $request): Response { … }
 ```
 
-The route still exists — the generator extracts it normally and diverts it to
-`webhooks` in the spec.
-
 ## Force the response resource
+
+Use when resource resolution can't infer the resource (a warning is logged
+during generation):
 
 ```php
 #[OpenApi\ResponseResource(SupplierResource::class, collection: true)]
 public function index(Request $request): JsonResponse { … }
 ```
 
-Use this when the resource-resolution heuristic fails (you'll see warnings
-during generation if so).
-
 ## Add a vendor extension (`x-*`) to an operation
 
-Vendor extensions don't have a dedicated attribute — register an operation
-transformer at boot and scope it by controller, method, or route:
+There is no dedicated attribute. Register an operation transformer at boot:
 
 ```php
 // AppServiceProvider::boot()
@@ -319,9 +327,9 @@ OpenApiExtensions::transformOperation(
 );
 ```
 
-For an extension that applies to **every** operation, drop the scoping check.
-For document-level or schema-level extensions, use `transformDocument()` and
-`transformSchema()` — see [Extensions](extensions.md) for the full reference.
+Drop the scoping check to apply the extension to every operation. For
+document-level or schema-level extensions, use `transformDocument()` and
+`transformSchema()`. See [Extensions](extensions.md).
 
 ## Suppress a lint finding
 
@@ -330,5 +338,5 @@ For document-level or schema-level extensions, use `transformDocument()` and
 public function internal(): JsonResponse { … }
 ```
 
-Always pass a `reason`. See [Linting → Suppress a finding](linting.md#suppress-a-finding)
-for scope rules and meta-rules that enforce directive hygiene.
+Always pass a `reason`. For scope rules and hygiene meta-rules, see
+[Linting → Suppress a finding](linting.md#suppress-a-finding).
