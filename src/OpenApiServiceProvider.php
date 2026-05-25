@@ -34,7 +34,12 @@ use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
+use Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope;
+use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
+use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
+use Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope;
 use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
+use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Core\Registry\Plugin;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
@@ -51,7 +56,11 @@ use RuntimeException;
 use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
+use InvalidArgumentException;
+
 use function class_exists;
+use function is_a;
+use function sprintf;
 
 /**
  * Wires the OpenAPI generation pipeline.
@@ -157,6 +166,12 @@ class OpenApiServiceProvider extends ServiceProvider
                 foreach (config('openapi.lint.rules', []) as $ruleClass) {
                     $registry->addRule($ruleClass);
                 }
+
+                $registry->addErrorResponseResolver(
+                    OpenApiServiceProvider::resolveErrorEnvelopeClass(
+                        (string) config('openapi.error_envelope', 'none'),
+                    ),
+                );
 
                 return $registry;
             },
@@ -430,6 +445,54 @@ class OpenApiServiceProvider extends ServiceProvider
                 );
             },
         );
+    }
+
+    /**
+     * Resolve the configured error envelope to its resolver class.
+     *
+     * Accepts the four preset names (`'none'`, `'laravel'`, `'rfc7807'`, `'json-api'`) or a
+     * fully-qualified class name of a custom {@see ErrorResponseResolver}. Throws on an
+     * unknown preset name so failures surface at boot, not later as an autoload error.
+     *
+     * @return class-string<ErrorResponseResolver>
+     * @throws InvalidArgumentException
+     */
+    private static function resolveErrorEnvelopeClass(string $envelope): string
+    {
+        return match ($envelope) {
+            'none'     => NoneEnvelope::class,
+            'laravel'  => LaravelEnvelope::class,
+            'rfc7807'  => Rfc7807Envelope::class,
+            'json-api' => JsonApiEnvelope::class,
+            default    => self::validateCustomEnvelopeClass($envelope),
+        };
+    }
+
+    /**
+     * @return class-string<ErrorResponseResolver>
+     * @throws InvalidArgumentException
+     */
+    private static function validateCustomEnvelopeClass(string $envelope): string
+    {
+        if (!class_exists($envelope)) {
+            throw new InvalidArgumentException(sprintf(
+                'Unknown error_envelope "%s". Known presets: none, laravel, rfc7807, json-api.'
+                . ' Or supply a fully-qualified class name implementing %s.',
+                $envelope,
+                ErrorResponseResolver::class,
+            ));
+        }
+
+        if (!is_a($envelope, ErrorResponseResolver::class, true)) {
+            throw new InvalidArgumentException(sprintf(
+                'Class %s does not implement %s.',
+                $envelope,
+                ErrorResponseResolver::class,
+            ));
+        }
+
+        /** @var class-string<ErrorResponseResolver> $envelope */
+        return $envelope;
     }
 
     /**

@@ -337,6 +337,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Error Envelope
+    |--------------------------------------------------------------------------
+    |
+    | Controls the shape of 4xx/5xx response bodies in the generated document.
+    |
+    | Built-in presets:
+    |   'none'     — no body schema (status code + description only)
+    |   'laravel'  — Laravel's default JSON error shape: { message: string }
+    |   'rfc7807'  — RFC 7807 Problem Details: { type, title, status, detail, instance }
+    |   'json-api' — JSON:API error envelope: { errors: [{ status, title, detail }] }
+    |
+    | Pass a fully-qualified class name implementing ErrorResponseResolver for a
+    | custom envelope. Unknown preset names fail at boot with a clear message.
+    |
+    */
+
+    'error_envelope' => 'none',
+
+    /*
+    |--------------------------------------------------------------------------
     | Plugins
     |--------------------------------------------------------------------------
     |
