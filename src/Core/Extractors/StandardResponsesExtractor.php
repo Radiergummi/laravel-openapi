@@ -25,6 +25,7 @@ use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
+use Throwable;
 
 use function array_key_exists;
 use function base_path;
@@ -74,9 +75,9 @@ final readonly class StandardResponsesExtractor
     ];
 
     /**
-     * @param list<ErrorResponseResolver>                                                $errorResponseResolvers
-     * @param array<string, array{status: int, description: string}>                     $exceptionMap
-     * @param array<string, array{status: int, description: string, exception?: string}> $middlewareMap
+     * @param list<ErrorResponseResolver>                                                                 $errorResponseResolvers
+     * @param array<string, array{status: int, description: string}>                                      $exceptionMap
+     * @param array<string, array{status: int, description: string, exception?: class-string<Throwable>}> $middlewareMap
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
@@ -93,7 +94,7 @@ final readonly class StandardResponsesExtractor
      */
     public function extract(ActionDescriptor $descriptor): array
     {
-        /** @var array<int, array{description: string, exception?: string}> $byStatus */
+        /** @var array<int, array{description: string, exception?: class-string<Throwable>}> $byStatus */
         $byStatus = [];
 
         foreach ($descriptor->throws as $throw) {
@@ -129,6 +130,7 @@ final readonly class StandardResponsesExtractor
             $status = (int) $entry['status'];
 
             if (!array_key_exists($status, $byStatus)) {
+                assert(class_exists($throw) && is_a($throw, Throwable::class, true));
                 $byStatus[$status] = [
                     'description' => (string) $entry['description'],
                     'exception'   => $throw,
@@ -160,6 +162,7 @@ final readonly class StandardResponsesExtractor
 
         foreach ($byStatus as $status => $entry) {
             $exceptionClass = $entry['exception'] ?? null;
+            assert($exceptionClass === null || is_a($exceptionClass, Throwable::class, true));
 
             $errorDescriptor = new ErrorDescriptor(
                 status: $status,
@@ -285,8 +288,8 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * @param array<int, array{description: string, exception?: string}>  $byStatus
-     * @param array{status: int, description: string, exception?: string} $entry
+     * @param array<int, array{description: string, exception?: class-string<Throwable>}>  $byStatus
+     * @param array{status: int, description: string, exception?: class-string<Throwable>} $entry
      */
     private function addOnce(array &$byStatus, array $entry): void
     {
@@ -354,9 +357,7 @@ final readonly class StandardResponsesExtractor
         ?ErrorResponse $body,
         ?string $componentName,
     ): OA\Response {
-        $description = $body?->description !== null && $body->description !== ''
-            ? $body->description
-            : $descriptor->description;
+        $description = ($body !== null ? $body->description : null) ?? $descriptor->description;
 
         $properties = [
             'response'    => $componentName ?? (string) $descriptor->status,
