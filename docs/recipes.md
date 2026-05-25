@@ -358,6 +358,15 @@ Standard error responses (4xx/5xx derived from `@throws` and auth/scope/throttle
 | `rfc7807` | `application/problem+json`    | Problem (`type`, `title`, ...)   | ValidationProblem (`+ errors`)                             |
 | `json-api`| `application/vnd.api+json`    | `{ errors: [...] }` (uniform)    | same shape                                                 |
 
+### How responses appear in the document
+
+- **`none`**: a single shared `components.responses.<Name>` (e.g. `Unauthorized`, `NotFound`, `ValidationFailed`) is emitted per known status, and every operation that returns that status `$ref`s the shared entry.
+- **`laravel` / `rfc7807` / `json-api` / any custom envelope that returns content**: the response is **inlined per operation**. Two operations at the same status can carry different bodies (e.g. `ValidationException` → `ValidationError` vs `UnprocessableEntityHttpException` → generic `Error`, both at 422), so the response wrapper is not shared via `components.responses`. The body schemas referenced from inside the inlined response (e.g. `#/components/schemas/Error`) are still reused via `$ref`.
+
+### Schema name collisions
+
+The body-bearing presets register short component-schema names: `Error`, `ValidationError` (Laravel); `Problem`, `ValidationProblem` (RFC 7807); `ErrorDocument` (JSON:API). If your application has a Spatie Data class with the same basename (e.g. `App\Errors\Error`), the registry disambiguates the user class via the normal namespace-prefixing rule (`App.Errors.Error`); the preset always keeps the short name. The user class's `$ref` moves with the disambiguated key, so existing usage stays consistent — but downstream consumers that hard-coded `#/components/schemas/Error` for the user class will see the envelope schema there once the envelope is enabled. Rename the conflicting Data class if you need the short name back.
+
 ### Custom envelopes
 
 Implement `ErrorResponseResolver` and point `error_envelope` at your class:
@@ -382,6 +391,12 @@ final class MyEnvelope implements ErrorResponseResolver
     }
 }
 ```
+
+Contract notes for custom resolvers:
+
+- **Catch internally, return null.** A throwing resolver no longer aborts the generation run — the extractor catches and emits a `errors.resolver-failed` lint finding so the misbehaviour is visible — but you should still catch internally and return `null` to defer cleanly.
+- **`description` overrides.** `ErrorResponse::description` overrides the curated default only when it is a **non-empty** string. Pass `null` (the default) when you don't want to override; OpenAPI 3.1 requires `response.description` to be non-empty.
+- **Registering shared schemas idempotently.** If your resolver registers component schemas via `ComponentSchemaRegistry::registerNamed()` / `register()`, guard with `hasKey()` / `isRegisteredOrReserved()` — `resolveErrorResponse()` is invoked **per status × per operation**.
 
 ```php
 'error_envelope' => App\OpenApi\MyEnvelope::class,

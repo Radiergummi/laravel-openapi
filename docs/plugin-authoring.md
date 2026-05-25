@@ -62,6 +62,13 @@ The resolver interfaces live in `src/Core/Registry/`:
 - **`ErrorResponseResolver`**: given an `ErrorDescriptor`, decide whether
   it handles the error-response schema and produce an `ErrorResponse` (or null).
   Used for error envelopes (RFC 7807, JSON:API, etc.) on 4xx/5xx responses.
+  Implementations must catch internally and return `null` on failure — the
+  extractor wraps each call in a `try`/`catch` and emits a
+  `errors.resolver-failed` lint finding as a backstop, but a clean `null`
+  return defers to the next resolver in the chain without noise.
+  `resolveErrorResponse()` is invoked **per status × per operation**, so any
+  schema registrations on `ComponentSchemaRegistry` must be idempotent (guard
+  with `hasKey()` / `isRegisteredOrReserved()`).
 
 Each resolver pairs a "can I handle this?" predicate with a "produce the
 result" method. The pipeline iterates registered resolvers in registration
