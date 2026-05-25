@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Alpha\SelfRefData as AlphaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\MapInputNameFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
+use Radiergummi\OpenApi\Tests\Fixtures\SchemaTitleDescriptionFixtureData;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
@@ -48,6 +49,14 @@ class AlphaSelfRefController extends Controller
 class BetaSelfRefController extends Controller
 {
     public function store(BetaSelfRefData $data): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
+
+class SchemaTitleDescriptionController extends Controller
+{
+    public function store(SchemaTitleDescriptionFixtureData $data): JsonResponse
     {
         return new JsonResponse();
     }
@@ -169,6 +178,19 @@ it('disambiguates same-basename Data classes across namespaces (OAPI-008)', func
     $refs = array_column($betaProps['child']['oneOf'], '$ref');
 
     expect($refs)->toContain('#/components/schemas/' . $betaSchemaKey);
+});
+
+// endregion
+
+// region #[Summary] / #[Description] on a Data class
+
+it('maps #[Summary] to schema title and #[Description] to schema description', function (): void {
+    Route::post('/spatie-data/titled', [SchemaTitleDescriptionController::class, 'store']);
+
+    $schema = generateSpec()['components']['schemas']['SchemaTitleDescriptionFixtureData'];
+
+    expect($schema['title'])->toBe('Fixture Title')
+        ->and($schema['description'])->toBe('Fixture data class for schema-level title/description.');
 });
 
 // endregion

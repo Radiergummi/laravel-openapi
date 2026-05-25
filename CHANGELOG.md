@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `#[Summary]` and `#[Description]` attributes. **On controllers / operations**
+  they're standalone alternatives to `#[Operation(summary: …, description: …)]`
+  for the common case of overriding just one of those fields. Precedence:
+  method `#[Summary]` → method `#[Operation(summary)]` → method docblock →
+  class `#[Summary]` → class `#[Operation(summary)]`. Anything written on the
+  method — including the docblock — beats class-level attributes. Class-level
+  placement is for `__invoke` (single-action) controllers, where it outranks
+  the class docblock. **On a Spatie `Data` class or Eloquent `JsonResource`
+  class** the same attributes set the component schema's `title` /
+  `description`.
 - Two new example flavors. `examples/api-resources/` isolates the Laravel
   `JsonResource` convention (output-side only; no FormRequest or Data class).
   `examples/fractal/` exercises `league/fractal` with `#[FractalResponse]` and

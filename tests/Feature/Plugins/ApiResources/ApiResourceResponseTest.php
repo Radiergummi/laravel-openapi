@@ -16,7 +16,9 @@ use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
+use Radiergummi\OpenApi\Core\Attributes\Description;
 use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Core\Attributes\Summary;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 
 uses()->group('openapi', 'plugin:api-resources');
@@ -24,6 +26,19 @@ uses()->group('openapi', 'plugin:api-resources');
 #[ResourceField('id', type: 'integer')]
 #[ResourceField('name', type: 'string')]
 class WidgetResource extends JsonResource {}
+
+#[Summary('Widget Profile')]
+#[Description('Public-facing widget representation returned by the API.')]
+#[ResourceField('id', type: 'integer')]
+class TitledWidgetResource extends JsonResource {}
+
+class TitledWidgetController extends Controller
+{
+    public function show(): TitledWidgetResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+}
 
 class WidgetCollection extends ResourceCollection {}
 
@@ -87,4 +102,14 @@ it('falls back to a bare 200 for an ambiguous collection endpoint', function ():
 
     expect($response)->not->toBeNull()
         ->and($response['content'] ?? [])->not->toHaveKey('application/json');
+});
+
+it('maps #[Summary] to schema title and #[Description] to schema description on a JsonResource', function (): void {
+    Route::get('/titled-widget', [TitledWidgetController::class, 'show']);
+
+    $schema = generateSpec()['components']['schemas']['TitledWidgetResource'] ?? null;
+
+    expect($schema)->not->toBeNull()
+        ->and($schema['title'])->toBe('Widget Profile')
+        ->and($schema['description'])->toBe('Public-facing widget representation returned by the API.');
 });

@@ -14,11 +14,16 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 use Closure;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Attributes\Description as DescriptionAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use ReflectionClass;
 
+use ReflectionException;
+
+use function assert;
 use function class_exists;
 use function is_a;
 
@@ -68,6 +73,8 @@ final readonly class SchemaFromResource
 
     /**
      * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
      */
     private function buildSchema(string $resourceClass): OA\Schema
     {
@@ -94,7 +101,37 @@ final readonly class SchemaFromResource
             $props['required'] = $required;
         }
 
+        $title = $this->readClassAttributeValue($reflection, SummaryAttribute::class);
+
+        if ($title !== null) {
+            $props['title'] = $title;
+        }
+
+        $description = $this->readClassAttributeValue($reflection, DescriptionAttribute::class);
+
+        if ($description !== null) {
+            $props['description'] = $description;
+        }
+
         return new OA\Schema($props);
+    }
+
+    /**
+     * @param ReflectionClass<JsonResource>                       $reflection
+     * @param class-string<DescriptionAttribute|SummaryAttribute> $attribute
+     */
+    private function readClassAttributeValue(ReflectionClass $reflection, string $attribute): ?string
+    {
+        $attrs = $reflection->getAttributes($attribute);
+
+        if ($attrs === []) {
+            return null;
+        }
+
+        $instance = $attrs[0]->newInstance();
+        assert($instance instanceof SummaryAttribute || $instance instanceof DescriptionAttribute);
+
+        return $instance->value;
     }
 
     private function buildProperty(ResourceField $field): OA\Property

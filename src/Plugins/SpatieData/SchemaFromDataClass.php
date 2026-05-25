@@ -17,8 +17,10 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Attributes\Deprecated as DeprecatedAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Discriminator as DiscriminatorAttribute;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
 use Radiergummi\OpenApi\Core\Extractors\RequestBodyExtractor;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
@@ -112,6 +114,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     private function buildSchema(string $dataClass): OA\Schema
     {
         $reflection = new ReflectionClass($dataClass);
+        $title = $this->readClassAttributeValue($reflection, SummaryAttribute::class);
+        $description = $this->readClassAttributeValue($reflection, DescriptionAttribute::class);
 
         // Discriminator path: emit oneOf + discriminator instead of a flat object schema.
         $discriminatorAttrs = $reflection->getAttributes(DiscriminatorAttribute::class);
@@ -119,8 +123,17 @@ final class SchemaFromDataClass implements FilePropertyChecker
         if ($discriminatorAttrs !== []) {
             /** @var DiscriminatorAttribute $discriminator */
             $discriminator = $discriminatorAttrs[0]->newInstance();
+            $schema = $this->buildDiscriminatorSchema($discriminator);
 
-            return $this->buildDiscriminatorSchema($discriminator);
+            if ($title !== null) {
+                $schema->title = $title;
+            }
+
+            if ($description !== null) {
+                $schema->description = $description;
+            }
+
+            return $schema;
         }
 
         $contexts = $this->buildPropertyContexts($reflection, $dataClass);
@@ -205,7 +218,33 @@ final class SchemaFromDataClass implements FilePropertyChecker
             $schemaProps['required'] = $required;
         }
 
+        if ($title !== null) {
+            $schemaProps['title'] = $title;
+        }
+
+        if ($description !== null) {
+            $schemaProps['description'] = $description;
+        }
+
         return new OA\Schema($schemaProps);
+    }
+
+    /**
+     * @param ReflectionClass<Data>                               $reflection
+     * @param class-string<DescriptionAttribute|SummaryAttribute> $attribute
+     */
+    private function readClassAttributeValue(ReflectionClass $reflection, string $attribute): ?string
+    {
+        $attrs = $reflection->getAttributes($attribute);
+
+        if ($attrs === []) {
+            return null;
+        }
+
+        $instance = $attrs[0]->newInstance();
+        assert($instance instanceof SummaryAttribute || $instance instanceof DescriptionAttribute);
+
+        return $instance->value;
     }
 
     /**
@@ -588,12 +627,12 @@ final class SchemaFromDataClass implements FilePropertyChecker
     /**
      * Detects whether the property is deprecated.
      *
-     * Three signals are honoured, in order of authoring convenience:
+     * Three signals are honored, in order of authoring convenience:
      *
      * 1. The package's own `#[Deprecated]` attribute on the property or its promoted constructor
      *    parameter — the symmetric authoring path.
-     * 2. The PHPDoc `@deprecated` tag on the property — works on every Data class with a
-     *    PHPDoc block, and is what most IDEs surface in completion.
+     * 2. The PHPDoc at-deprecated tag on the property — works on every Data class with a PHPDoc
+     *    block, and is what most IDEs surface in completion.
      *
      * PHP 8.4's native `#[\Deprecated]` is not consulted here because it does not support
      * `TARGET_PROPERTY` or `TARGET_PARAMETER`.
@@ -707,7 +746,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
             // When the property is expressed as oneOf (nullable array wrapped by NullableSchema),
             // items must go onto the type:'array' inner schema — not on the outer oneOf wrapper,
-            // which would trigger swagger-php's "OA\Items() parent type must be array" check.
+            // which would trigger swagger-php's "OA\Items() parent type must be an array" check.
             if (is_array($prop->oneOf)) {
                 foreach ($prop->oneOf as $branch) {
                     if ($branch instanceof OA\Schema && $branch->type === 'array') {

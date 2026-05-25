@@ -16,6 +16,7 @@ use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\BaseExample as BaseExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Deprecated as DeprecatedAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Example as ExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ExternalDocs as ExternalDocsAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Header as HeaderAttribute;
@@ -27,6 +28,7 @@ use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ResponseExample as ResponseExampleAttribute;
 use Radiergummi\OpenApi\Core\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Security as SecurityAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Core\Attributes\Tag as TagAttribute;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
 use Radiergummi\OpenApi\Core\Extractors\RequestBodyExtractor;
@@ -180,9 +182,10 @@ final readonly class OperationBuilder
         $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
+        $summary = $this->resolveSummary($action);
+        $description = $this->resolveDescription($action);
+
         if ($operationOverride !== null) {
-            $summary = $operationOverride->summary ?? $action->summary;
-            $description = $operationOverride->description ?? $action->description;
             $baseTags = match (true) {
                 // Explicit opt-in: discard namespace-derived tags.
                 $operationOverride->tags !== null && $operationOverride->replace => $operationOverride->tags,
@@ -195,8 +198,6 @@ final readonly class OperationBuilder
                 default => $defaultTags,
             };
         } else {
-            $summary = $action->summary;
-            $description = $action->description;
             $baseTags = $defaultTags;
         }
 
@@ -425,6 +426,91 @@ final readonly class OperationBuilder
         assert($instance === null || $instance instanceof OperationAttribute);
 
         return $instance;
+    }
+
+    /**
+     * Resolves the operation summary across attribute scopes and the docblock.
+     *
+     * Precedence (multi-method controllers):
+     *   1. method-level `#[Summary]`
+     *   2. method-level `#[Operation(summary: …)]`
+     *   3. method docblock
+     *   4. class-level `#[Summary]`
+     *   5. class-level `#[Operation(summary: …)]`
+     *
+     * For `__invoke` (single-action) controllers the class IS the action, so class-level
+     * attributes win over the class docblock — the docblock is the final fallback.
+     */
+    private function resolveSummary(ActionDescriptor $descriptor): ?string
+    {
+        $methodAttr = $this->readScopedSummary(
+            $descriptor->actionAttributes(SummaryAttribute::class),
+            $descriptor->actionAttributes(OperationAttribute::class),
+        );
+        $classAttr = $this->readScopedSummary(
+            $descriptor->controllerAttributes(SummaryAttribute::class),
+            $descriptor->controllerAttributes(OperationAttribute::class),
+        );
+
+        // For `__invoke` controllers the action reflector IS the class, so $descriptor->summary
+        // is the class docblock — class-level attributes must beat it. Closure routes have no
+        // class, so $classAttr is null and the result is just docblock or nothing.
+        if ($descriptor->actionReflector === null) {
+            return $classAttr ?? $descriptor->summary;
+        }
+
+        return $methodAttr ?? $descriptor->summary ?? $classAttr;
+    }
+
+    /**
+     * Resolves the operation description. Same precedence as {@see resolveSummary()}.
+     */
+    private function resolveDescription(ActionDescriptor $descriptor): ?string
+    {
+        $methodAttr = $this->readScopedDescription(
+            $descriptor->actionAttributes(DescriptionAttribute::class),
+            $descriptor->actionAttributes(OperationAttribute::class),
+        );
+        $classAttr = $this->readScopedDescription(
+            $descriptor->controllerAttributes(DescriptionAttribute::class),
+            $descriptor->controllerAttributes(OperationAttribute::class),
+        );
+
+        if ($descriptor->actionReflector === null) {
+            return $classAttr ?? $descriptor->description;
+        }
+
+        return $methodAttr ?? $descriptor->description ?? $classAttr;
+    }
+
+    /**
+     * @param list<ReflectionAttribute<SummaryAttribute>>   $summaryAttributes
+     * @param list<ReflectionAttribute<OperationAttribute>> $operationAttributes
+     */
+    private function readScopedSummary(array $summaryAttributes, array $operationAttributes): ?string
+    {
+        $summary = $summaryAttributes[0] ?? null;
+
+        if ($summary !== null) {
+            return $summary->newInstance()->value;
+        }
+
+        return ($operationAttributes[0] ?? null)?->newInstance()->summary;
+    }
+
+    /**
+     * @param list<ReflectionAttribute<DescriptionAttribute>> $descriptionAttributes
+     * @param list<ReflectionAttribute<OperationAttribute>>   $operationAttributes
+     */
+    private function readScopedDescription(array $descriptionAttributes, array $operationAttributes): ?string
+    {
+        $description = $descriptionAttributes[0] ?? null;
+
+        if ($description !== null) {
+            return $description->newInstance()->value;
+        }
+
+        return ($operationAttributes[0] ?? null)?->newInstance()->description;
     }
 
     /** @return list<string> */
