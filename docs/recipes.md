@@ -340,3 +340,49 @@ public function internal(): JsonResponse { … }
 
 Always pass a `reason`. For scope rules and hygiene meta-rules, see
 [Linting → Suppress a finding](linting.md#suppress-a-finding).
+
+## Choosing an error envelope
+
+Standard error responses (4xx/5xx derived from `@throws` and auth/scope/throttle middleware) ship with no body by default. Select an envelope preset via `config/openapi.php`:
+
+```php
+'error_envelope' => 'laravel',  // or 'rfc7807' | 'json-api' | 'none'
+```
+
+### Presets
+
+| Preset    | Media type                    | Generic shape                    | 422 shape                                                  |
+|-----------|-------------------------------|----------------------------------|------------------------------------------------------------|
+| `none`    | — (no body)                   | description only                 | description only                                           |
+| `laravel` | `application/json`            | `{ message: string }`            | `{ message: string, errors: { <field>: string[] } }`       |
+| `rfc7807` | `application/problem+json`    | Problem (`type`, `title`, ...)   | ValidationProblem (`+ errors`)                             |
+| `json-api`| `application/vnd.api+json`    | `{ errors: [...] }` (uniform)    | same shape                                                 |
+
+### Custom envelopes
+
+Implement `ErrorResponseResolver` and point `error_envelope` at your class:
+
+```php
+use Radiergummi\OpenApi\Core\Errors\{ErrorDescriptor, ErrorResponse};
+use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+
+final class MyEnvelope implements ErrorResponseResolver
+{
+    public function resolveErrorResponse(ErrorDescriptor $descriptor): ?ErrorResponse
+    {
+        // Use is_a — never strict equality on framework exceptions.
+        if ($descriptor->exceptionClass !== null
+            && is_a($descriptor->exceptionClass, MyDomainException::class, true)
+        ) {
+            return new ErrorResponse(content: [/* OA\MediaType */]);
+        }
+        return null;  // defer to the next resolver in the chain
+    }
+}
+```
+
+```php
+'error_envelope' => App\OpenApi\MyEnvelope::class,
+```
+
+> **Note:** This package documents your error shapes; it does not install a Laravel exception handler that emits them. The recipes cookbook for matching runtime handlers is separate.

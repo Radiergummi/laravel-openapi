@@ -78,6 +78,7 @@ final class FlightController
   `destination` (3 chars), and `departs_at` (`string`, `date-time`).
 - A 404 response if the method's `@throws` lists `ModelNotFoundException`.
 - A security requirement if the route uses `auth:api` middleware.
+- Error response bodies from the configured envelope preset (`config('openapi.error_envelope')`): `none` (default, no body), `laravel`, `rfc7807`, or `json-api`. See [Recipes › Choosing an error envelope](recipes.md#choosing-an-error-envelope).
 
 ## Examples
 
