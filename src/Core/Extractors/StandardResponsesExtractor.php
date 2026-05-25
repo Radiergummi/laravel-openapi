@@ -14,11 +14,13 @@ namespace Radiergummi\OpenApi\Core\Extractors;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
 use Radiergummi\OpenApi\Core\Enums\ComponentType;
+use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseFactory;
+use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use ReflectionAttribute;
 use ReflectionClass;
@@ -43,7 +45,7 @@ use function strtoupper;
  * in `config('openapi.middleware_responses')`.
  *
  * This extractor only decides *which* status codes an operation exposes and their descriptions.
- * The error response *body* is contributed by registered {@see ErrorResponseFactory}
+ * The error response *body* is contributed by registered {@see ErrorResponseResolver}
  * implementations, keeping the error-envelope shape (e.g. JSON:API) a plugin concern.
  *
  * Status codes are deduplicated (first wins). Explicit `#[OpenApi\Response]` attributes override
@@ -72,14 +74,14 @@ final readonly class StandardResponsesExtractor
     ];
 
     /**
-     * @param list<ErrorResponseFactory>                             $errorResponseFactories
-     * @param array<string, array{status: int, description: string}> $exceptionMap
-     * @param array<string, array{status: int, description: string}> $middlewareMap
+     * @param list<ErrorResponseResolver>                                                $errorResponseResolvers
+     * @param array<string, array{status: int, description: string}>                     $exceptionMap
+     * @param array<string, array{status: int, description: string, exception?: string}> $middlewareMap
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
         private FindingsCollector $findings,
-        private array $errorResponseFactories = [],
+        private array $errorResponseResolvers = [],
         private array $exceptionMap = [],
         private array $middlewareMap = [],
     ) {}
@@ -91,7 +93,7 @@ final readonly class StandardResponsesExtractor
      */
     public function extract(ActionDescriptor $descriptor): array
     {
-        /** @var array<int, array{description: string}> $byStatus */
+        /** @var array<int, array{description: string, exception?: string}> $byStatus */
         $byStatus = [];
 
         foreach ($descriptor->throws as $throw) {
@@ -127,7 +129,10 @@ final readonly class StandardResponsesExtractor
             $status = (int) $entry['status'];
 
             if (!array_key_exists($status, $byStatus)) {
-                $byStatus[$status] = ['description' => (string) $entry['description']];
+                $byStatus[$status] = [
+                    'description' => (string) $entry['description'],
+                    'exception'   => $throw,
+                ];
             }
         }
 
@@ -149,37 +154,24 @@ final readonly class StandardResponsesExtractor
             return [];
         }
 
-        $content = $this->errorResponseContent();
-
         ksort($byStatus);
 
         $responses = [];
 
         foreach ($byStatus as $status => $entry) {
+            $exceptionClass = $entry['exception'] ?? null;
+
+            $errorDescriptor = new ErrorDescriptor(
+                status: $status,
+                exceptionClass: $exceptionClass,
+                description: (string) $entry['description'],
+            );
+
+            $body = $this->resolveBody($errorDescriptor);
+
             $componentName = self::STATUS_COMPONENT_NAMES[$status] ?? null;
 
-            if ($componentName !== null) {
-                // Register the full response definition at once; later operations reference it by
-                // $ref, no per-operation schema inline. registerNamedResponse() is idempotent.
-                $this->registry->registerNamedResponse(
-                    $componentName,
-                    $this->makeErrorResponse($componentName, $entry['description'], $content),
-                );
-
-                $responses[] = new OA\Response([
-                    'response' => (string) $status,
-                    'ref' => $this->registry->qualifyKey($componentName, ComponentType::Responses),
-                ]);
-
-                continue;
-            }
-
-            // Unknown status — inline (no component name mapped).
-            $responses[] = $this->makeErrorResponse(
-                (string) $status,
-                $entry['description'],
-                $content,
-            );
+            $responses[] = $this->buildResponse($errorDescriptor, $body, $componentName);
         }
 
         return $responses;
@@ -293,8 +285,8 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * @param array<int, array{description: string}>  $byStatus
-     * @param array{status: int, description: string} $entry
+     * @param array<int, array{description: string, exception?: string}>  $byStatus
+     * @param array{status: int, description: string, exception?: string} $entry
      */
     private function addOnce(array &$byStatus, array $entry): void
     {
@@ -304,7 +296,12 @@ final readonly class StandardResponsesExtractor
             return;
         }
 
-        $byStatus[$status] = ['description' => (string) $entry['description']];
+        $stored = ['description' => (string) $entry['description']];
+
+        if (isset($entry['exception'])) {
+            $stored['exception'] = $entry['exception'];
+        }
+        $byStatus[$status] = $stored;
     }
 
     /**
@@ -332,20 +329,16 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * Resolves the error-response body from the first registered
-     * {@see ErrorResponseFactory} that yields content. Returns null when no
-     * factory is registered (or none produces content) — error responses are
-     * then emitted description-only, with no body.
-     *
-     * @return null|list<OA\MediaType>
+     * Walks the resolver chain for one descriptor. First non-null wins. Returns null when
+     * every resolver passes — the extractor then emits a bodyless response.
      */
-    private function errorResponseContent(): ?array
+    private function resolveBody(ErrorDescriptor $descriptor): ?ErrorResponse
     {
-        foreach ($this->errorResponseFactories as $factory) {
-            $content = $factory->errorResponseContent();
+        foreach ($this->errorResponseResolvers as $resolver) {
+            $body = $resolver->resolveErrorResponse($descriptor);
 
-            if ($content !== null) {
-                return $content;
+            if ($body !== null) {
+                return $body;
             }
         }
 
@@ -353,20 +346,45 @@ final readonly class StandardResponsesExtractor
     }
 
     /**
-     * Builds an error {@see OA\Response}, attaching the resolved body content
-     * only when a factory provided it.
-     *
-     * @param null|list<OA\MediaType> $content
+     * Composes the resolver's body slice with the extractor-owned fields: response key,
+     * default description, named-component registration.
      */
-    private function makeErrorResponse(string $response, string $description, ?array $content): OA\Response
-    {
+    private function buildResponse(
+        ErrorDescriptor $descriptor,
+        ?ErrorResponse $body,
+        ?string $componentName,
+    ): OA\Response {
+        $description = $body?->description !== null && $body->description !== ''
+            ? $body->description
+            : $descriptor->description;
+
         $properties = [
-            'response' => $response,
+            'response'    => $componentName ?? (string) $descriptor->status,
             'description' => $description,
         ];
 
-        if ($content !== null) {
-            $properties['content'] = $content;
+        if ($body !== null && $body->content !== []) {
+            $properties['content'] = $body->content;
+        }
+
+        if ($body !== null && $body->headers !== []) {
+            $properties['headers'] = $body->headers;
+        }
+
+        if ($body !== null && $body->links !== []) {
+            $properties['links'] = $body->links;
+        }
+
+        if ($componentName !== null) {
+            $this->registry->registerNamedResponse(
+                $componentName,
+                new OA\Response($properties),
+            );
+
+            return new OA\Response([
+                'response' => (string) $descriptor->status,
+                'ref'      => $this->registry->qualifyKey($componentName, ComponentType::Responses),
+            ]);
         }
 
         return new OA\Response($properties);

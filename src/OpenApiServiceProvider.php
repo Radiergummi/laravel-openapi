@@ -237,9 +237,9 @@ class OpenApiServiceProvider extends ServiceProvider
                 return new Extractors\StandardResponsesExtractor(
                     registry: $app->make(ComponentSchemaRegistry::class),
                     findings: $app->make(FindingsCollector::class),
-                    errorResponseFactories: array_map(
+                    errorResponseResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->errorResponseFactories(),
+                        $registry->errorResponseResolvers(),
                     ),
                     exceptionMap: (array) config('openapi.exception_responses', []),
                     middlewareMap: (array) config('openapi.middleware_responses', []),

@@ -11,8 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Errors;
 
-use Throwable;
-
 /**
  * A small immutable view of "what we've inferred about this error response, handed to the
  * resolver."
@@ -29,9 +27,6 @@ use Throwable;
  */
 final readonly class ErrorDescriptor
 {
-    /**
-     * @param null|class-string<Throwable> $exceptionClass
-     */
     public function __construct(
         public int $status,
         public ?string $exceptionClass,
