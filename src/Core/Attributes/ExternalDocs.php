@@ -14,20 +14,8 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 use Attribute;
 
 /**
- * Attaches an external documentation link to an operation.
- *
- * Renders in Scalar / Swagger UI as a clickable "Learn more" link beside the operation. Use it to
- * point at the deeper internal docs that don't belong in the spec text itself (Notion ADRs,
- * integration runbooks, knowledge base).
- *
- * Method-level wins over class-level. Only one entry per operation is supported.
- *
- * ```php
- * #[OpenApi\ExternalDocs(
- *     url: 'https://www.notion.so/matchory/Search-RFC',
- *     description: 'Search pipeline RFC',
- * )]
- * ```
+ * Attaches an external documentation link to an operation — renders as a "Learn more" link in
+ * Scalar/Swagger UI. One entry per operation; method-level wins over class-level.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class ExternalDocs

@@ -14,50 +14,17 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 use Attribute;
 
 /**
- * Declares an OpenAPI Link on the operation's primary 2xx response.
+ * Declares an OpenAPI Link on the operation's primary 2xx response so consumers can chain
+ * operations — e.g. after `POST /projects` succeeds, the response `uuid` flows into `GET
+ * /projects/{uuid}`. Repeatable. Exactly one of `operationId` or `operationRef` is required.
  *
- * Links let consumers understand how to chain operations — e.g. after
- * `POST /projects` succeeds, the `uuid` in the response body can be passed
- * directly to `GET /projects/{uuid}`. Scalar and Stoplight render these as
- * call-graph hints alongside the response.
- *
- * Multiple `#[Link]` attributes may be stacked on a single action.
- *
- * **Parameters** is a map of `parameterName => runtimeExpression` where a
- * runtime expression refers to a value extracted from the current response,
- * request, or URL. Common expressions:
- * - `$response.body#/data/uuid`  — field from the response body
- * - `$response.body#/data/id`    — numeric primary key in the response body
- * - `$request.body#/name`        — field echoed from the request body
- * - `$url`                       — the full request URL
- *
- * Exactly one of `operationId` or `operationRef` must be provided:
- * - `operationId` — references the `operationId` of the target operation in
- *   this same document; preferred for intra-document links.
- * - `operationRef` — a relative or absolute JSON Pointer to the target
- *   operation; use when the target is in a different document.
+ * `parameters` maps `parameterName => runtimeExpression`, where common expressions are
+ * `$response.body#/data/uuid`, `$request.body#/name`, or `$url`.
  *
  * ```php
- * // Minimal: link from POST /projects to GET /projects/{uuid}
  * #[OpenApi\Link(
  *     name: 'GetProject',
  *     operationId: 'api.v0.projects.single',
- *     parameters: ['uuid' => '$response.body#/data/uuid'],
- * )]
- * public function create(CreateProjectData $data): ProjectResource { … }
- *
- * // With description
- * #[OpenApi\Link(
- *     name: 'GetProject',
- *     operationId: 'api.v0.projects.single',
- *     parameters: ['uuid' => '$response.body#/data/uuid'],
- *     description: 'Retrieve the newly created project.',
- * )]
- *
- * // Using operationRef for cross-document links
- * #[OpenApi\Link(
- *     name: 'GetProject',
- *     operationRef: '#/paths/~1projects~1{uuid}/get',
  *     parameters: ['uuid' => '$response.body#/data/uuid'],
  * )]
  * ```

@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
-use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Route;
@@ -32,7 +31,6 @@ use Radiergummi\OpenApi\Core\Extractors;
 use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
@@ -62,24 +60,12 @@ use function is_a;
 use function sprintf;
 
 /**
- * Wires the OpenAPI generation pipeline.
+ * The pipeline is registered as `scoped` so Octane resets it between requests — {@see ComponentSchemaRegistry}
+ * and {@see ExampleFileLoader} carry mutable per-run state that would otherwise corrupt concurrent runs.
+ * To re-run generation within a single scope (e.g. tests), call `$app->forgetScopedInstances()` first.
  *
- * Most classes in the pipeline are stateless and could be singletons, but
- * {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} carry mutable per-run state.
- * Under Octane the same PHP process handles many requests, so concurrent calls to
- * {@see OpenApiGenerator::generate()} would corrupt each other's in-progress cycle guards if
- * these were singletons.
- *
- * **Fix (Approach A):** the entire pipeline is registered as `scoped`. Octane resets scoped
- * bindings between requests, giving each generation run its own fresh instances. To re-run
- * generation within a single scope (rare — but exercised by tests and possible from custom
- * tooling), call `$app->forgetScopedInstances()` first.
- *
- * Wiring style: classes whose constructor dependencies are all container-resolvable carry the
- * `#[Scoped]` attribute ({@see Scoped}) and self-register on first resolve. The provider only
- * contains bindings that need explicit closures — config values, factory methods,
- * registry-derived arrays, interface→implementation mappings, or decorated wrappers reflection
- * cannot supply.
+ * Classes with fully container-resolvable constructors carry `#[Scoped]` and self-register;
+ * this provider only contains bindings that need explicit closures.
  */
 class OpenApiServiceProvider extends ServiceProvider
 {

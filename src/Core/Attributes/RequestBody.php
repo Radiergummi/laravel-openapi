@@ -13,26 +13,11 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
 use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Spatie\LaravelData\Data;
 
 /**
- * Overrides metadata on the auto-derived request body or creates one for endpoints that don't
- * accept a {@see Data} class.
- *
- * Any property left null falls through to the auto-derived value: the body stays attached to its
- * `Data` schema (when present), the media type defaults to `application/json`, and `required`
- * defaults to true.
- *
- * Useful escape hatches:
- *
- * - Stripe/Slack webhook endpoints that accept opaque JSON.
- * - Multipart uploads where the underlying Data class only models the metadata.
- * - Marking an otherwise-required body as optional.
- *
- * ```php
- * #[OpenApi\RequestBody(description: 'Stripe event payload', mediaType: MediaType::Json)]
- * public function handleWebhook(Request $request) { … }
- * ```
+ * Overrides the auto-derived request body — useful for opaque webhook payloads, multipart
+ * uploads, or marking a required body optional. Null properties fall through to the auto-derived
+ * value (attached `Data` schema, `application/json`, `required: true`).
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class RequestBody

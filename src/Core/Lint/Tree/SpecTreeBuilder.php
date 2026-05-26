@@ -451,7 +451,6 @@ final class SpecTreeBuilder
                     $contentTypes[] = $mediaType->mediaType;
                 }
 
-                // Extract schema fields from the first media type that has a schema
                 if ($fields === [] && $schemaRef === null) {
                     $schema = $mediaType->schema ?? null;
 
@@ -466,7 +465,6 @@ final class SpecTreeBuilder
                     }
                 }
 
-                // Extract body-level examples from media type
                 $mtExamples = $mediaType->examples ?? Generator::UNDEFINED;
 
                 if (
@@ -739,7 +737,6 @@ final class SpecTreeBuilder
             $headers = [];
             $links = [];
 
-            // Extract schema from response content
             $content = $response->content ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
             if ($content !== Generator::UNDEFINED && is_array($content)) {
@@ -748,7 +745,6 @@ final class SpecTreeBuilder
                         continue;
                     }
 
-                    // Extract fields from the first media type with a schema
                     if ($fields === [] && $schemaRef === null) {
                         $schema = $mediaType->schema ?? null;
 
@@ -767,7 +763,6 @@ final class SpecTreeBuilder
                         }
                     }
 
-                    // Extract body-level examples
                     $mtExamples = $mediaType->examples ?? Generator::UNDEFINED;
 
                     if (
@@ -785,7 +780,6 @@ final class SpecTreeBuilder
                 }
             }
 
-            // Extract headers
             $oaHeaders = $response->headers ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
             if ($oaHeaders !== Generator::UNDEFINED && is_array($oaHeaders)) {
@@ -798,7 +792,6 @@ final class SpecTreeBuilder
                 }
             }
 
-            // Extract links
             $oaLinks = $response->links ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
             if ($oaLinks !== Generator::UNDEFINED && is_array($oaLinks)) {
@@ -1020,7 +1013,6 @@ final class SpecTreeBuilder
                 $pathItem->description ?? Generator::UNDEFINED, // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
             );
 
-            // Build one WebhookNode per HTTP method defined on this path item
             foreach (self::HTTP_METHODS as $method) {
                 $oaOperation = $pathItem->{$method} ?? null;
 

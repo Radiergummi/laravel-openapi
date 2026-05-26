@@ -15,25 +15,13 @@ use Attribute;
 use BackedEnum;
 
 /**
- * Documents an ad-hoc query string parameter that isn't covered by the
- * JSON:API filter/sort/include/page extraction.
- *
- * Use this for endpoints whose query parameters are read directly off the
- * request (`$request->query('q')`) or driven by a non-JSON:API
- * form request. Each attribute defines one parameter; the attribute is
- * repeatable on both class and method targets.
- *
- * Class-level entries apply to every action on the controller; method-level
- * entries are appended afterwards. When the same `name` appears at both
- * levels, the method-level entry wins.
- *
- * The `in` location is always `query` — it is not exposed as a constructor
- * parameter.
+ * Documents an ad-hoc query parameter not covered by JSON:API filter/sort/include/page extraction —
+ * for parameters read directly off the request or driven by a non-JSON:API form request.
+ * Repeatable; method-level wins over class-level on `name` collision.
  *
  * ```php
  * #[QueryParam('q', description: 'Free-text search query.', example: 'cnc machining')]
  * #[QueryParam('limit', type: 'integer', default: 25, maximum: 100)]
- * public function search(Request $request): JsonResponse { … }
  * ```
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]

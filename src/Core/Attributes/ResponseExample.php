@@ -14,27 +14,9 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 use Attribute;
 
 /**
- * Attaches a named example payload to a specific response status.
- *
- * Use one attribute per example. The `$status` selects which response receives the example: it
- * must match the status code of either the auto-derived primary response or one of the explicit
- * {@see Response} entries.
- *
- * Examples are skipped silently when the matching response has no content schema — an example
- * without a backing schema is not meaningful.
- *
- * ```php
- * #[OpenApi\ResponseExample(
- *     status: 200,
- *     name: 'first-page',
- *     value: ['data' => [['id' => 'abc', 'type' => 'project']]],
- * )]
- * #[OpenApi\ResponseExample(
- *     status: 422,
- *     name: 'missing-name',
- *     value: ['errors' => [['source' => ['pointer' => '/data/attributes/name']]]],
- * )]
- * ```
+ * Attaches a named example to a response with the matching `$status` (auto-derived primary or
+ * declared via {@see Response}). Repeatable. Skipped silently when the matching response has no
+ * content schema.
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class ResponseExample extends BaseExample

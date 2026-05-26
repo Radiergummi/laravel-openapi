@@ -54,18 +54,9 @@ use function array_values;
 use function assert;
 
 /**
- * Assembles the per-operation property bag for a single route descriptor.
- *
- * {@see build()} returns the property array that {@see OpenApiGenerator} dispatches onto an
- * HTTP-method-specific annotation subclass (OA\Get, OA\Post, etc.).
- *
- * Authoring overrides are layered on top of auto-derived metadata in this order:
- * 1. Auto-derived defaults (docblock, namespace tag, route name) from {@see ActionDescriptor}.
- * 2. Class-level {@see OperationAttribute} — fields override defaults.
- * 3. Method-level {@see OperationAttribute} — fields override class-level.
- * 4. {@see TagAttribute}s (class + method) — merged onto the tag set from steps 1–3.
- * 5. {@see ResponseAttribute}s (method only) — appended to the responses list.
- * 6. PHP 8.4 native `Deprecated` (method, else class) — sets `deprecated: true`.
+ * Builds the property array {@see OpenApiGenerator} dispatches onto OA\Get/OA\Post/etc.
+ * Override precedence: auto-derived defaults → class `#[Operation]` → method `#[Operation]` →
+ * `#[Tag]`s merged → `#[Response]`s appended → native `#[\Deprecated]`.
  */
 final readonly class OperationBuilder
 {
@@ -715,14 +706,8 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Attaches `#[ResponseHeader]` attributes to the response whose status matches the attribute's
-     * `status:`. Walks both controller and method (or just the function for closure routes) so
-     * authors can declare a shared header once on the controller; method-level entries win on
-     * `(status, name)` collision and declaration order is otherwise preserved. Headers without a
-     * matching response are dropped silently.
-     *
-     * Per RFC7230, header names are case-insensitive — the swagger-php Header object carries the
-     * casing the author chose.
+     * Method-level entries win on `(status, name)` collision; headers without a matching
+     * response are dropped silently.
      *
      * @param list<OA\Response> $responses
      */
@@ -795,10 +780,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Attaches `#[Link]` attributes declared on the method to the primary 2xx response.
-     *
-     * Each link becomes an entry in `responses.{status}.links`, keyed by `$link->name`. Links are
-     * only supported on method-level (they are per-operation, not per-controller).
+     * Method-level only — links are per-operation, not per-controller.
      */
     private function applyLinkAttributes(ActionDescriptor $descriptor, OA\Response $primaryResponse): void
     {
