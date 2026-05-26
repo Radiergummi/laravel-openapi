@@ -189,6 +189,16 @@ All notable changes to this project are documented here.
   (one existing test was migrated to demonstrate the pattern).
 
 ### Documentation
+- Document exception → response resolution precedence in `docs/config.md` (new
+  *Exception-response precedence* section) and cross-link from `docs/recipes.md`.
+  Clarify `middleware_responses` keyed by Laravel middleware alias and that it
+  only fills statuses no `@throws`-derived response already supplied. Fix the
+  inverted "short name first, then FQCN" comment in `config/openapi.php` —
+  actual lookup is FQCN first, short name second. Clarify
+  `lint.enabled_rules: null` semantics in the config comment.
+- `meta.no-suppression-reason` finding now shows the actual rule ID being
+  silenced (`#[IgnoreLint('rule.id', reason: '…')]`) instead of a generic
+  placeholder.
 - **Documentation restructure.** The single 1,335-line `docs/usage.md` is split
   into per-concept pages under `docs/`: `getting-started.md`,
   `auto-derivation.md`, `request-bodies.md`, `attributes.md`, `recipes.md`,

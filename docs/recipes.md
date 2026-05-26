@@ -115,6 +115,11 @@ class TeapotException extends RuntimeException {}
 
 Anywhere this exception appears in a `@throws`, it maps automatically.
 
+The `#[ExceptionResponse]` attribute takes precedence over `exception_responses` in
+`config/openapi.php` — use the attribute to override a config entry on a per-exception basis. See
+[Config → Exception-response precedence](config.md#exception-response-precedence) for the full
+resolution order.
+
 ## Multipart / file upload
 
 A Data class with an `UploadedFile` property, or any `file` / `image`

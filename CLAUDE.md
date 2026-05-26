@@ -29,7 +29,9 @@ passes. PHPStan runs at level 8 with `treatPhpDocTypesAsCertain: false` and is *
 ## Architecture
 
 The codebase splits into a convention-agnostic **Core** (`src/Core/`) and **Plugins**
-(`src/Plugins/`) that teach Core about specific packages. One plugin ships: **SpatieData**.
+(`src/Plugins/`) that teach Core about specific packages. Four plugins ship: **SpatieData**
+and **ApiResources** are enabled by default in `config/openapi.plugins`; **QueryBuilder** and
+**Fractal** are present but commented out (each requires opting into a third-party package).
 
 ### Generation pipeline
 

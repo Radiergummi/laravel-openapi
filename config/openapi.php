@@ -93,11 +93,20 @@ return [
     |--------------------------------------------------------------------------
     |
     | Maps exception class names (short OR fully-qualified) that appear in
-    | `@throws` annotations to OpenAPI response definitions. The generator
-    | matches by short name first, then by FQCN, so importing the exception
-    | in the controller is enough — no need to repeat the namespace here.
+    | `@throws` annotations to OpenAPI response definitions. Lookup order is
+    | FQCN exact match first, short-name (basename) match second.
     |
     | Each entry: ['status' => int, 'description' => string].
+    |
+    | Resolution precedence for any `@throws` (highest wins):
+    |   1. #[ExceptionResponse(...)] attribute on the exception class
+    |   2. This map by FQCN
+    |   3. This map by short name (basename)
+    | If none match, the `throws.unmapped` lint rule fires.
+    |
+    | `middleware_responses` below is independent: it adds 401/403/429 from
+    | the route's middleware stack only for status codes no @throws-derived
+    | response already filled.
     |
     */
 
@@ -122,10 +131,16 @@ return [
     | Standard Middleware Responses
     |--------------------------------------------------------------------------
     |
-    | Toggles for the responses derived from a route's middleware stack:
+    | Keyed by Laravel middleware alias (not exception class — see
+    | `exception_responses` above for that). These entries describe responses
+    | derived from a route's middleware stack:
     | - `auth` → emits 401 when `auth:api` / `auth` middleware is present.
     | - `scope` → emits 403 when one or more `scope:*` / `scopes:*` middleware is present.
     | - `throttle` → emits 429 when any `throttle*` middleware is present.
+    |
+    | A middleware-derived response is only added for status codes no
+    | @throws-derived response already supplied — so an explicit
+    | @throws AuthenticationException wins over the `auth` entry.
     |
     */
 
@@ -267,8 +282,10 @@ return [
         // Default severity level when --level is not passed.
         'level' => 1,
 
-        // null = every rule at or below the active level. A non-null list is an
-        // explicit allowlist (still bounded by the active level).
+        // Rule allowlist.
+        //   null  → run every registered rule whose level is ≤ the active level (the default).
+        //   array → run only the listed rule IDs, still bounded by the active level.
+        // Use `disabled_rules` below to subtract from the active set instead of replacing it.
         'enabled_rules' => null,
 
         // Always-off rules, regardless of level. `spec.invalid` cannot be disabled.
