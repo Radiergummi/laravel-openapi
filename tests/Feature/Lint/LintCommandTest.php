@@ -25,7 +25,7 @@ beforeEach(function (): void {
     Route::get('lint-fixtures/clean', [CleanController::class, 'list'])->name('lint.clean.list');
     Route::get('lint-fixtures/broken/stream', [BrokenController::class, 'stream'])->name('lint.broken.stream');
     Route::get('lint-fixtures/suppressed/stream', [SuppressedController::class, 'stream'])->name('lint.suppressed.stream');
-    // Dedicated single-finding fixtures: emit only response.empty (level 2) at levels 0–2.
+    // Dedicated single-finding fixtures: emit only response.success-empty-body (level 2) at levels 0–2.
     Route::get('lint-fixtures/response-empty', [ResponseEmptyController::class, 'index'])->name('lint.response-empty');
     Route::get('lint-fixtures/suppressed-response-empty', [SuppressedResponseEmptyController::class, 'index'])->name('lint.suppressed-response-empty');
 });
@@ -47,7 +47,7 @@ it('exits 1 when broken controller has findings', function (): void {
 });
 
 it('respects suppression directives', function (): void {
-    // SuppressedResponseEmptyController suppresses response.empty (level 2) —
+    // SuppressedResponseEmptyController suppresses response.success-empty-body (level 2) —
     // the only finding that would fire at this level. Exit 0 proves suppression works.
     $this->artisan('openapi:lint', [
         '--level' => 2,
@@ -57,7 +57,7 @@ it('respects suppression directives', function (): void {
 });
 
 it('--no-suppress disables directives', function (): void {
-    // With suppression disabled, response.empty (level 2) surfaces — exit 1.
+    // With suppression disabled, response.success-empty-body (level 2) surfaces — exit 1.
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--path' => 'lint-fixtures/suppressed-response-empty',
@@ -78,9 +78,9 @@ it('uses config lint level when --level is not passed', function (): void {
 });
 
 it('config disabled_rules suppresses a rule without --skip on CLI', function (): void {
-    // ResponseEmptyController emits only response.empty (level 2). Disabling it
-    // must produce exit 0; without the rule disabled it would exit 1.
-    config(['openapi.lint.disabled_rules' => ['response.empty']]);
+    // ResponseEmptyController emits only response.success-empty-body (level 2). Disabling
+    // it must produce exit 0; without the rule disabled it would exit 1.
+    config(['openapi.lint.disabled_rules' => ['response.success-empty-body']]);
 
     // Verify the pipeline is live on a route that is clean at level 0.
     $this->artisan('openapi:lint', [
@@ -89,7 +89,7 @@ it('config disabled_rules suppresses a rule without --skip on CLI', function ():
         '--format' => 'json',
     ])->assertExitCode(0);
 
-    // ResponseEmptyController exits 0 once response.empty is disabled.
+    // ResponseEmptyController exits 0 once response.success-empty-body is disabled.
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--path' => 'lint-fixtures/response-empty',
@@ -98,9 +98,9 @@ it('config disabled_rules suppresses a rule without --skip on CLI', function ():
 });
 
 it('severity_overrides remaps a finding level so it is excluded at the original threshold', function (): void {
-    // ResponseEmptyController emits only response.empty at level 2. Remapping it
-    // to level 4 means it no longer appears at --level 2 — exit 0.
-    config(['openapi.lint.severity_overrides' => ['response.empty' => 4]]);
+    // ResponseEmptyController emits only response.success-empty-body at level 2. Remapping
+    // it to level 4 means it no longer appears at --level 2 — exit 0.
+    config(['openapi.lint.severity_overrides' => ['response.success-empty-body' => 4]]);
 
     $this->artisan('openapi:lint', [
         '--level' => 2,

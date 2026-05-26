@@ -20,13 +20,9 @@ use function is_string;
 use function sprintf;
 
 /**
- * Adds an OpenAPI tag to an operation in addition to whatever tags are auto-derived from the
- * namespace.
- *
- * Use this when an endpoint logically belongs in multiple groups, or to relabel a single endpoint
- * without overriding the entire tag set the way {@see Operation::$tags} would.
- *
- * Class-level and method-level tags are merged. Duplicates are deduplicated.
+ * Adds an OpenAPI tag to an operation in addition to the namespace-derived set. Use for purely
+ * additive tagging — to replace the auto-derived set entirely, use {@see Operation::$tags} with
+ * `replace: true`. Class- and method-level entries merge; duplicates dedupe.
  *
  * The name may be a plain string or a string-backed {@see BackedEnum} case — the latter lets
  * consumers centralise tag taxonomies in an enum. Int-backed enums are rejected at construction

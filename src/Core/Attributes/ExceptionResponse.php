@@ -14,13 +14,8 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 use Attribute;
 
 /**
- * Declares the HTTP response that a throwable class produces.
- *
- * Place this on an exception class to register its OpenAPI response mapping directly on the class
- * itself, rather than in `config/openapi.php`. The {@see StandardResponsesExtractor} checks for
- * this attribute first; the config map acts as a fallback for framework exceptions you don't own.
- *
- * Example:
+ * Declares the HTTP response a throwable produces, replacing the config-map fallback used for
+ * framework exceptions you don't own.
  *
  * ```php
  * #[ExceptionResponse(status: 409, description: 'The resource already exists')]

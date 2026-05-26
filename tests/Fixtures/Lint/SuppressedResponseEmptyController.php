@@ -16,7 +16,7 @@ use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
 
 /**
  * Fixture identical to {@see ResponseEmptyController} but with an additional {@see IgnoreLint}
- * that silences {@code response.empty}.
+ * that silences {@code response.success-empty-body}.
  *
  * Used by command-level tests that verify suppression directives cause exit 0.
  */
@@ -26,9 +26,9 @@ final class SuppressedResponseEmptyController
      * Return an undocumented JSON payload.
      *
      * No ApiResource return type is declared, so the response-schema extractor cannot derive a
-     * schema — triggering response.empty.
+     * schema — triggering response.success-empty-body.
      */
-    #[IgnoreLint('response.empty', reason: 'fixture: testing suppression mechanics')]
+    #[IgnoreLint('response.success-empty-body', reason: 'fixture: testing suppression mechanics')]
     #[IgnoreLint('response.no-error', reason: 'fixture: not testing error responses')]
     #[IgnoreLint('response.resource.indeterminate', reason: 'fixture: intentionally missing resource')]
     public function index(): JsonResponse

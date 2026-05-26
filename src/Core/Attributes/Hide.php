@@ -15,21 +15,10 @@ use Attribute;
 use LogicException;
 
 /**
- * Excludes the annotated route(s) from the generated OpenAPI document.
+ * Excludes the annotated route(s) from the generated document. `only` and `except` are
+ * mutually exclusive environment filters; with neither, the route is hidden unconditionally.
  *
- * Applied to a controller class, every route declared on that class is
- * excluded. Applied to a single method, only that method's routes are
- * excluded. Useful for internal endpoints that should not show up in the
- * public API reference yet.
- *
- * Environment scoping: pass `only` to hide *only* when the application
- * environment is in the list, or `except` to hide *everywhere except* the
- * listed environments. The two arguments are mutually exclusive — passing
- * both throws {@see LogicException}. With neither, the route is hidden
- * unconditionally.
- *
- * Examples:
- *   #[Hide]                            // hide unconditionally
+ *   #[Hide]                            // unconditional
  *   #[Hide(only: ['production'])]      // hide only in production
  *   #[Hide(except: ['local'])]         // hide everywhere except local
  */
@@ -37,8 +26,8 @@ use LogicException;
 final readonly class Hide
 {
     /**
-     * @param null|list<string> $only   Hide *only* when `app()->environment()` is one of these.
-     * @param null|list<string> $except Hide *except* when `app()->environment()` is one of these.
+     * @param null|list<string> $only
+     * @param null|list<string> $except
      *
      * @throws LogicException
      */

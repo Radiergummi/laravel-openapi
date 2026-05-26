@@ -14,27 +14,9 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 use Attribute;
 
 /**
- * Sets the long-form description of the surrounding symbol.
- *
- * Two uses:
- *
- * - **Operations** (controller method, controller class, or closure route) — overrides the value
- *   derived from the docblock or {@see Operation::$description}. Standalone alternative to
- *   `#[Operation(description: '…')]`. Precedence: method `#[Description]` → method
- *   `#[Operation(description)]` → method docblock → class `#[Description]` → class
- *   `#[Operation(description)]`. The method docblock always outranks class-level attributes.
- *   Class-level placement is intended for `__invoke` (single-action) controllers, where it
- *   outranks the class docblock.
- * - **Schemas** — placed on a Spatie `Data` class or an Eloquent `JsonResource` class, it sets
- *   the component schema's `description`.
- *
- * ```php
- * #[OpenApi\Description('Returns paginated results matching the given query.')]
- * public function search(): JsonResponse { … }
- *
- * #[OpenApi\Description('A confirmed flight booking with passenger details.')]
- * final class FlightBookingData extends Data { … }
- * ```
+ * Sets the long-form description of an operation (controller method or class) or a schema
+ * (Spatie Data, JsonResource). Method docblock outranks class-level attributes; method
+ * `#[Description]` outranks the method docblock and `#[Operation(description:)]`.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class Description

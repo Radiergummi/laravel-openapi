@@ -19,6 +19,10 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Lint\Finding;
+use Radiergummi\OpenApi\Core\Lint\FindingLocation;
+use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Core\Lint\Rules\RequestBodySchemaDegraded;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
@@ -51,6 +55,7 @@ final readonly class SchemaFromFormRequest
         private ComponentSchemaRegistry $registry,
         private LoggerInterface $logger,
         private FakerExampleSynthesiser $synthesiser,
+        private FindingsCollector $findings,
     ) {}
 
     /**
@@ -111,6 +116,7 @@ final readonly class SchemaFromFormRequest
                 ),
             );
 
+            $this->emitDegradedFinding($formRequestClass, $exception);
             $this->registry->setHasFileFields($formRequestClass, false);
 
             return new OA\Schema([
@@ -271,5 +277,37 @@ final readonly class SchemaFromFormRequest
         $d->applyTo($property);
 
         return $property;
+    }
+
+    /**
+     * @param class-string<FormRequest> $formRequestClass
+     */
+    private function emitDegradedFinding(string $formRequestClass, Throwable $exception): void
+    {
+        $file = null;
+        $line = null;
+
+        try {
+            $reflection = new ReflectionClass($formRequestClass);
+            $file = $reflection->getFileName() ?: null;
+            $line = $reflection->getStartLine() ?: null;
+        } catch (ReflectionException) {
+            // Reflection failure here is non-fatal — the finding is still useful without
+            // file/line, and we are already in a degraded path.
+        }
+
+        $this->findings->emit(
+            new Finding(
+                ruleId: 'request-body.schema-degraded',
+                level: 1,
+                message: sprintf(
+                    'Schema introspection failed for %s: %s',
+                    $formRequestClass,
+                    $exception->getMessage(),
+                ),
+                location: new FindingLocation(file: $file, line: $line),
+                fixHint: RequestBodySchemaDegraded::FIX_HINT,
+            ),
+        );
     }
 }

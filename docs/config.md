@@ -17,8 +17,8 @@ this page is the at-a-glance summary.
 | `servers` | List of `OA\Server` entries. Default uses `APP_URL`. |
 | `tags` | Document-level tag descriptions keyed by tag name. |
 | `output_path` | Absolute path the `openapi:generate` command writes to and the spec route serves from. Defaults to `storage_path('openapi.yaml')`. |
-| `exception_responses` | Maps exception FQCNs to `['status', 'description']`. Checked after `#[ExceptionResponse]` attributes. |
-| `middleware_responses` | Toggles for 401/403/429 responses derived from `auth`/`scope`/`throttle` middleware. |
+| `exception_responses` | Maps exception FQCNs (or short names) to `['status', 'description']`. See [precedence](#exception-response-precedence) below. |
+| `middleware_responses` | 401/403/429 responses keyed by Laravel middleware alias (`auth`/`scope`/`throttle`) — only fills status codes no `@throws`-derived response already supplied. |
 | `security_schemes` | Custom OpenAPI security schemes. Merged with the Passport-derived defaults; config wins on key collision. See [Recipes → Declare custom security schemes](recipes.md#declare-custom-security-schemes). |
 | `security_default_scheme` | Default scheme name targeted by scope-only `#[Security]` requirements when no `scheme:` is passed. |
 | `plugins` | Ordered list of `Plugin` class-strings. Ships with `SpatieDataPlugin` and `ApiResourcesPlugin` enabled; `QueryBuilderPlugin` and `FractalPlugin` shipped commented out. |
@@ -26,6 +26,21 @@ this page is the at-a-glance summary.
 | `visibility` | `default` accepts `'public'` (every route documented unless `#[Hide]`) or `'hidden'` (every route excluded unless `#[Expose]`). See [Recipes → Switch between public-default and hidden-default visibility](recipes.md#switch-between-public-default-and-hidden-default-visibility). |
 | `routes` | Spec/playground route registration. See below. |
 | `filters` | Route-exclusion filters. Ships with filters that exclude Nova, Telescope, Ignition, and (when installed) Passport routes. |
+
+## Exception-response precedence
+
+For each `@throws` declaration the generator resolves the response in this order (highest wins):
+
+1. `#[ExceptionResponse(...)]` attribute on the exception class
+2. `exception_responses` config — exact FQCN match
+3. `exception_responses` config — short-name match (basename)
+
+If none match, the `throws.unmapped` lint rule fires.
+
+`middleware_responses` is independent and runs *after* the per-`@throws` resolution above: it
+adds 401/403/429 derived from the route's middleware stack only for status codes no
+`@throws`-derived response already filled. An explicit `@throws AuthenticationException` therefore
+wins over the `auth` middleware entry.
 
 ## Routes
 

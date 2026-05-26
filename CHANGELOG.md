@@ -11,6 +11,8 @@ All notable changes to this project are documented here.
 - Faker example synthesis now also runs for Spatie `Data` class properties, matching the behaviour previously limited to `FormRequest` fields so a `Data` class and its equivalent `FormRequest` produce consistent example slots.
 - New `SelfDocumentingRule` interface lets custom Laravel validation rule objects declare their own schema constraints (`description`, `type`, `format`, `pattern`, `enum`, `minLength`/`maxLength`/`minimum`/`maximum`) instead of being dropped to a `rule.unknown` lint finding. A second lint rule ID, `rule.invalid-enum-value`, fires when such a rule returns a non-scalar enum entry; the offending value is dropped and the rest of the documentation still applies.
 - `#[Tag]` attribute now accepts a `BackedEnum` case in addition to a string, so consumers can centralise tag taxonomies as an enum.
+- Lint rule `response.success-empty-body` (level 2) — flags 2xx responses (other than 204/205/304) that declare no body schema. Catches the silent footgun where a controller with no return type produces a `200` with empty content, breaking client codegen. HEAD operations are skipped.
+- Lint rule `request-body.schema-degraded` (level 1) — emitted by `SchemaFromFormRequest` when instantiating a FormRequest or calling its `rules()` method throws. Previously the failure was only visible as a single log warning; the placeholder schema landed in the spec silently. The finding surfaces in `openapi:lint` (and in CI) with the exception message and the FormRequest's file/line.
 - `config('openapi.error_envelope')` config key with four presets (`none`, `laravel`, `rfc7807`, `json-api`) selecting the body shape of standard error responses.
 - `ErrorDescriptor` and `ErrorResponse` value objects in `Radiergummi\OpenApi\Core\Errors\`.
 - Optional `exception` key on `middleware_responses` entries, carrying the canonical thrown exception per middleware so resolvers can branch on exception class.
@@ -193,6 +195,16 @@ All notable changes to this project are documented here.
   (one existing test was migrated to demonstrate the pattern).
 
 ### Documentation
+- Document exception → response resolution precedence in `docs/config.md` (new
+  *Exception-response precedence* section) and cross-link from `docs/recipes.md`.
+  Clarify `middleware_responses` keyed by Laravel middleware alias and that it
+  only fills statuses no `@throws`-derived response already supplied. Fix the
+  inverted "short name first, then FQCN" comment in `config/openapi.php` —
+  actual lookup is FQCN first, short name second. Clarify
+  `lint.enabled_rules: null` semantics in the config comment.
+- `meta.no-suppression-reason` finding now shows the actual rule ID being
+  silenced (`#[IgnoreLint('rule.id', reason: '…')]`) instead of a generic
+  placeholder.
 - **Documentation restructure.** The single 1,335-line `docs/usage.md` is split
   into per-concept pages under `docs/`: `getting-started.md`,
   `auto-derivation.md`, `request-bodies.md`, `attributes.md`, `recipes.md`,

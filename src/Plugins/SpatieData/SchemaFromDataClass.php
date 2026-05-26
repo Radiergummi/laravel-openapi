@@ -77,9 +77,7 @@ use function sprintf;
 final class SchemaFromDataClass implements FilePropertyChecker
 {
     /**
-     * Per-class memoization cache for {@see hasFileProperties()}.
-     * Keyed by Data-class FQCN; stored as local instance state so it stays
-     * within the SpatieData plugin without touching Core registries.
+     * Instance-local so the SpatieData plugin doesn't touch Core registries.
      *
      * @var array<class-string<Data>, bool>
      */
@@ -97,9 +95,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
     ) {}
 
     /**
-     * Registers the Data class as a component schema and returns the component key.
-     *
-     * No-op when already registered — returns the existing key.
+     * Idempotent — returns the existing component key if the class is already registered.
      *
      * @param class-string<Data> $dataClass
      *
@@ -264,11 +260,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Builds a `oneOf` + `discriminator` schema for a polymorphic base class.
-     *
-     * Each variant class in the mapping is registered as its own component schema (via the normal
-     * `build()` path). The base class schema becomes a `oneOf` listing each variant's `$ref` plus a
-     * `discriminator` object.
+     * Each variant in the mapping is registered as its own component schema.
      *
      * @throws ReflectionException
      * @throws RuntimeException

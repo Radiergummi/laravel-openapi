@@ -18,6 +18,8 @@ use Radiergummi\OpenApi\Core\Lint\LintContext;
 use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\ApiRule as ApiRuleVisitor;
 use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
 
+use function sprintf;
+
 final class MetaNoSuppressionReason implements Rule, ApiRuleVisitor
 {
     /**
@@ -34,9 +36,16 @@ final class MetaNoSuppressionReason implements Rule, ApiRuleVisitor
             yield new Finding(
                 ruleId: $this->id(),
                 level: $this->level(),
-                message: 'Suppression directive has no reason — add a reason: argument to #[IgnoreLint]',
+                message: sprintf(
+                    "Suppression of '%s' has no reason — change to #[IgnoreLint('%s', reason: '…')]",
+                    $directive->ruleId,
+                    $directive->ruleId,
+                ),
                 location: new FindingLocation(file: $directive->file, line: $directive->line),
-                fixHint: "Add a reason argument: #[IgnoreLint('rule.id', reason: 'explanation')]",
+                fixHint: sprintf(
+                    "Replace with #[IgnoreLint('%s', reason: 'why this rule is silenced here')]",
+                    $directive->ruleId,
+                ),
             );
         }
     }
