@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Attributes;
 
 use BackedEnum;
+use Radiergummi\OpenApi\Core\Attributes\Support\DescriptionDirectives;
 use Radiergummi\OpenApi\Core\Generator\SchemaDescriptor;
 
 /**
@@ -59,15 +60,19 @@ abstract readonly class FieldAttribute
 
     public function descriptor(): SchemaDescriptor
     {
+        $parsed = DescriptionDirectives::parse($this->description);
+
         return new SchemaDescriptor(
             title: $this->title,
-            description: $this->description,
-            example: $this->example,
+            description: $parsed->cleanDescription,
+            example: $parsed->suppressExample
+                ? null
+                : ($this->example ?? $parsed->example),
             type: $this->type,
             format: $this->format,
             nullable: $this->nullable,
             default: $this->default,
-            enum: $this->enum,
+            enum: $this->enum ?? $parsed->enum,
             minimum: $this->minimum,
             maximum: $this->maximum,
             exclusiveMinimum: $this->exclusiveMinimum,

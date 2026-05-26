@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Field-attribute descriptions now recognise three inline directives — `Example: <value>`, `No-example`, `Enum: a,b,c` — letting authors declare examples and enum domains without a separate attribute.
 - New `SelfDocumentingRule` interface lets custom Laravel validation rule objects declare their own schema constraints (`description`, `type`, `format`, `pattern`, `enum`, `minLength`/`maxLength`/`minimum`/`maximum`) instead of being dropped to a `rule.unknown` lint finding.
 - `#[Tag]` attribute now accepts a `BackedEnum` case in addition to a string, so consumers can centralise tag taxonomies as an enum.
 - `config('openapi.error_envelope')` config key with four presets (`none`, `laravel`, `rfc7807`, `json-api`) selecting the body shape of standard error responses.

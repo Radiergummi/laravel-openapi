@@ -63,6 +63,21 @@ All four subclasses share the same JSON Schema field surface inherited from
 `minLength` / `maxLength`, `pattern`, `minItems` / `maxItems`, `uniqueItems`,
 `readOnly`, `writeOnly`.
 
+### Inline description directives
+
+The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[ResponseField]`, and
+`#[PathParam]` accepts three keyword directives on their own line:
+
+- `Example: <value>` — declare the field's example without a separate attribute. The value is
+  coerced by lexical shape (`42` → int, `3.14` → float, `true`/`false` → bool, anything else → string).
+- `No-example` — suppress example generation for this field. Wins against any `Example:` directive
+  (whether earlier or later in the description).
+- `Enum: a, b, c` — declare the field's enum domain.
+
+Explicit attribute arguments (`example:`, `enum:`) always beat directives. Directive lines are
+stripped from the rendered description; multiple `Example:` or `Enum:` directives keep the last
+one.
+
 ## Exception-level attribute
 
 Attach to an exception class to map it to a status code wherever the
