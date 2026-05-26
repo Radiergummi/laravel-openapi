@@ -26,6 +26,7 @@ New to the package? Read [Getting started](getting-started.md), then
 | Page | Covers |
 |---|---|
 | [Extensions](extensions.md) | Programmatic transformers for operations, schemas, documents. |
+| [Custom validation rules](extending/custom-validation-rules.md) | Letting custom `Rule` objects declare their own schema constraints. |
 | [Plugin authoring](plugin-authoring.md) | Implementing the `Plugin` interface. |
 | [Architecture](architecture.md) | Generation pipeline, plugin system, service lifecycle. |
 
