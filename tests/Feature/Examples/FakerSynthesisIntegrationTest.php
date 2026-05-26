@@ -26,7 +26,7 @@ uses()->group('openapi', 'examples');
 /**
  * @return class-string<FormRequest>
  */
-function makeEmailFormRequest(): string
+function fakerSynthesisMakeEmailFormRequest(): string
 {
     return new class () extends FormRequest {
         public function rules(): array
@@ -38,7 +38,7 @@ function makeEmailFormRequest(): string
     }::class;
 }
 
-function buildSchema(bool $synthesise): OA\Schema
+function fakerSynthesisBuildSchema(bool $synthesise): OA\Schema
 {
     $registry = new ComponentSchemaRegistry();
     $builder  = new SchemaFromFormRequest(
@@ -48,7 +48,7 @@ function buildSchema(bool $synthesise): OA\Schema
         synthesiser: new FakerExampleSynthesiser(enabled: $synthesise, seed: 1234),
     );
 
-    $builder->build(makeEmailFormRequest());
+    $builder->build(fakerSynthesisMakeEmailFormRequest());
 
     return $registry->all()[0];
 }
@@ -56,7 +56,7 @@ function buildSchema(bool $synthesise): OA\Schema
 /**
  * @return array<string, OA\Property>
  */
-function synthesisPropertiesByName(OA\Schema $schema): array
+function fakerSynthesisPropertiesByName(OA\Schema $schema): array
 {
     $out = [];
 
@@ -72,8 +72,8 @@ function synthesisPropertiesByName(OA\Schema $schema): array
 // region Synthesis enabled
 
 it('synthesises an email example for a field with format:email', function (): void {
-    $schema = buildSchema(synthesise: true);
-    $props  = synthesisPropertiesByName($schema);
+    $schema = fakerSynthesisBuildSchema(synthesise: true);
+    $props  = fakerSynthesisPropertiesByName($schema);
 
     expect($props)->toHaveKey('contact_email');
 
@@ -84,11 +84,11 @@ it('synthesises an email example for a field with format:email', function (): vo
 });
 
 it('example is deterministic across runs with the same seed', function (): void {
-    $schema1 = buildSchema(synthesise: true);
-    $props1  = synthesisPropertiesByName($schema1);
+    $schema1 = fakerSynthesisBuildSchema(synthesise: true);
+    $props1  = fakerSynthesisPropertiesByName($schema1);
 
-    $schema2 = buildSchema(synthesise: true);
-    $props2  = synthesisPropertiesByName($schema2);
+    $schema2 = fakerSynthesisBuildSchema(synthesise: true);
+    $props2  = fakerSynthesisPropertiesByName($schema2);
 
     expect($props1['contact_email']->example)
         ->toBe($props2['contact_email']->example);
@@ -99,8 +99,8 @@ it('example is deterministic across runs with the same seed', function (): void 
 // region Synthesis disabled
 
 it('leaves example unset when synthesis is disabled', function (): void {
-    $schema = buildSchema(synthesise: false);
-    $props  = synthesisPropertiesByName($schema);
+    $schema = fakerSynthesisBuildSchema(synthesise: false);
+    $props  = fakerSynthesisPropertiesByName($schema);
 
     expect($props)->toHaveKey('contact_email');
 
@@ -138,7 +138,7 @@ it('does not overwrite an authored example from a #[RequestField] attribute', fu
     $builder->build($request::class);
 
     $schema = $registry->all()[0];
-    $props  = synthesisPropertiesByName($schema);
+    $props  = fakerSynthesisPropertiesByName($schema);
 
     expect($props['contact_email']->example)->toBe('authored@example.com');
 });

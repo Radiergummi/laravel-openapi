@@ -93,6 +93,11 @@ it('returns null for unknown types — no lorem-ipsum leakage', function (): voi
     expect($value)->toBeNull();
 });
 
+it('never throws from its constructor even on unusual seed input', function (): void {
+    expect(fn(): FakerExampleSynthesiser => new FakerExampleSynthesiser(seed: PHP_INT_MIN))
+        ->not->toThrow(Throwable::class);
+});
+
 it('produces deterministic output for the same seed', function (): void {
     $descriptor = new FieldDescriptor();
     $descriptor->type = 'string';

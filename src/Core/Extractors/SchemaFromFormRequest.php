@@ -154,7 +154,7 @@ final readonly class SchemaFromFormRequest
             // Use the property's effective format (which may have been overridden by a #[RequestField]
             // attribute) rather than the rules-derived descriptor format.
             if ($property->example === Generator::UNDEFINED) {
-                if (!Generator::isDefault($property->format)) {
+                if (is_string($property->format)) {
                     $descriptor->format = $property->format;
                 }
 

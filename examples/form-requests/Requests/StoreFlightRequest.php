@@ -32,10 +32,10 @@ final class StoreFlightRequest extends FormRequest
     #[RequestField(description: 'Three-letter IATA code of the destination airport.', example: 'JFK')]
     public const string PARAM_DESTINATION = 'destination';
 
-    #[RequestField(description: 'Scheduled departure timestamp.', format: 'date-time')]
+    #[RequestField(description: 'Scheduled departure timestamp.', format: 'date-time', example: '2026-08-01T09:00:00Z')]
     public const string PARAM_DEPARTS_AT = 'departs_at';
 
-    #[RequestField(description: 'Scheduled arrival timestamp; must be after departs_at.', format: 'date-time')]
+    #[RequestField(description: 'Scheduled arrival timestamp; must be after departs_at.', format: 'date-time', example: '2026-08-15T17:30:00Z')]
     public const string PARAM_ARRIVES_AT = 'arrives_at';
 
     #[RequestField(description: 'Operational status of the flight.', enum: ['scheduled', 'boarding', 'departed', 'arrived', 'cancelled'])]

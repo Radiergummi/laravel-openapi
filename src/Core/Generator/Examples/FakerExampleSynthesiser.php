@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Core\Generator\Examples;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as Faker;
 use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
+use Throwable;
 
 use function class_exists;
 use function preg_match;
@@ -55,13 +56,17 @@ final readonly class FakerExampleSynthesiser
             return;
         }
 
-        $faker = FakerFactory::create();
+        try {
+            $faker = FakerFactory::create();
 
-        if ($seed !== null) {
-            $faker->seed($seed);
+            if ($seed !== null) {
+                $faker->seed($seed);
+            }
+
+            $this->faker = $faker;
+        } catch (Throwable) {
+            $this->faker = null;
         }
-
-        $this->faker = $faker;
     }
 
     public function synthesise(string $fieldName, FieldDescriptor $descriptor): mixed
