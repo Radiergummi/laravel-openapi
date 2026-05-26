@@ -14,9 +14,11 @@ namespace Radiergummi\OpenApi\Core\Extractors;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Core\Lint\Finding;
 use Radiergummi\OpenApi\Core\Lint\FindingLocation;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
@@ -52,6 +54,7 @@ final readonly class SchemaFromFormRequest
         private ValidationRulesToSchema $rulesMapper,
         private ComponentSchemaRegistry $registry,
         private LoggerInterface $logger,
+        private FakerExampleSynthesiser $synthesiser,
         private FindingsCollector $findings,
     ) {}
 
@@ -151,6 +154,27 @@ final readonly class SchemaFromFormRequest
 
             if (array_key_exists($fieldName, $constantOverrides)) {
                 $constantOverrides[$fieldName]->descriptor()->applyTo($property);
+            }
+
+            // Lowest-priority fallback: synthesise an example when no authored source set one.
+            // Use the property's effective type/format (which may have been overridden by a
+            // #[RequestField] attribute on a PARAM_* constant) rather than the rules-derived
+            // descriptor values — otherwise a type change in the override produces a wrong-typed
+            // example.
+            if ($property->example === Generator::UNDEFINED) {
+                if (is_string($property->type) && $property->type !== Generator::UNDEFINED) {
+                    $descriptor->type = $property->type;
+                }
+
+                if (is_string($property->format) && $property->format !== Generator::UNDEFINED) {
+                    $descriptor->format = $property->format;
+                }
+
+                $synthesised = $this->synthesiser->synthesise($fieldName, $descriptor);
+
+                if ($synthesised !== null) {
+                    $property->example = $synthesised;
+                }
             }
 
             $properties[] = $property;

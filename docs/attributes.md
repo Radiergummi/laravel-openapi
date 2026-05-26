@@ -63,6 +63,25 @@ All four subclasses share the same JSON Schema field surface inherited from
 `minLength` / `maxLength`, `pattern`, `minItems` / `maxItems`, `uniqueItems`,
 `readOnly`, `writeOnly`.
 
+### Inline description directives
+
+The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[ResponseField]`, and
+`#[PathParam]` accepts three keyword directives, each on its own line. The `@` prefix is required —
+it keeps directives visibly distinct from prose so a sentence like `Enum: see docs at /enums` is
+not silently parsed as a directive.
+
+- `@example <value>` — declare the field's example without a separate attribute. The value is
+  coerced by lexical shape (`42` → int, `3.14` → float, `true`/`false` → bool, anything else → string).
+- `@no-example` — suppress example generation for this field. Wins against any `@example` directive
+  (whether earlier or later in the description).
+- `@enum a, b, c` — declare the field's enum domain. Tokens are coerced by the same lexical rules
+  as `@example`, so `@enum 200, 404, 500` yields ints, not strings.
+
+Explicit attribute arguments (`example:`, `enum:`) always beat directives — including when the
+explicit value is `null`, which is the conventional way to suppress directive-derived values from
+a single field. Directive lines are stripped from the rendered description; when multiple
+`@example` / `@enum` directives appear, the last one wins.
+
 ## Exception-level attribute
 
 Attach to an exception class to map it to a status code wherever the

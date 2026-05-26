@@ -60,12 +60,12 @@ final class FieldNoEffect extends AbstractFieldRule
     {
         return $field->title === null
             && $field->description === null
-            && $field->example === null
+            && $field->explicitExample() === null
             && $field->type === null
             && $field->format === null
             && $field->nullable === null
             && $field->default === null
-            && $field->enum === null
+            && $field->explicitEnum() === null
             && $field->minimum === null
             && $field->maximum === null
             && $field->exclusiveMinimum === null

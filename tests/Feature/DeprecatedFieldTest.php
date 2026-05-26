@@ -15,6 +15,7 @@ use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
@@ -60,6 +61,7 @@ function makeDeprecatedSchemaBuilder(?ComponentSchemaRegistry $registry = null):
         rulesToSchema: new ValidationRulesToSchema(),
         dataConfig: app(DataConfig::class),
         logger: new NullLogger(),
+        synthesiser: new FakerExampleSynthesiser(enabled: false),
     );
 }
 

@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Core\Routing;
 use Illuminate\Support\Str;
 
 use function array_filter;
+use function array_key_exists;
 use function array_values;
 use function implode;
 use function ltrim;
@@ -28,10 +29,17 @@ use function trim;
  * as the summary; everything after the first blank line as the description. `@`-prefixed lines are
  * dropped; `@throws` is handled separately by {@see ThrowsExtractor}.
  */
-final readonly class DocCommentParser
+final class DocCommentParser
 {
+    /** @var array<string, DocComment> */
+    private array $cache = [];
+
     public function parse(string $comment): DocComment
     {
+        if (array_key_exists($comment, $this->cache)) {
+            return $this->cache[$comment];
+        }
+
         $allLines = Str::of($comment)
             ->explode("\n")
             ->slice(1, -1)
@@ -79,6 +87,6 @@ final readonly class DocCommentParser
             ? trim(preg_replace('/\n{3,}/', "\n\n", implode("\n", $descriptionLines)) ?? '')
             : null;
 
-        return new DocComment($summary ?: null, $description ?: null);
+        return $this->cache[$comment] = new DocComment($summary ?: null, $description ?: null);
     }
 }

@@ -265,6 +265,12 @@ final readonly class ValidationRulesToSchema
             return;
         }
 
+        if ($rule instanceof SelfDocumentingRule) {
+            $this->applySelfDocumentingRule($rule, $field);
+
+            return;
+        }
+
         $this->findings->emit(
             new Finding(
                 ruleId: 'rule.unknown',
@@ -282,6 +288,81 @@ final readonly class ValidationRulesToSchema
                 ],
             ),
         );
+    }
+
+    private function applySelfDocumentingRule(SelfDocumentingRule $rule, FieldDescriptor $field): void
+    {
+        $doc = $rule->documentation();
+
+        if ($doc->type !== null && $field->type === null) {
+            $field->type = $doc->type;
+        }
+
+        if ($doc->format !== null && $field->format === null) {
+            $field->format = $doc->format;
+        }
+
+        if ($doc->pattern !== null && $field->pattern === null) {
+            $field->pattern = $doc->pattern;
+        }
+
+        if ($doc->enum !== null && $field->enum === null) {
+            // PHPStan-types `RuleDocumentation::$enum` as `list<float|int|string>|null`, but
+            // user code can ignore PHPStan. Filter at runtime so non-scalars don't propagate to
+            // swagger-php's YAML emitter (where they fail with an opaque serialisation error far
+            // from the source).
+            $sanitised = [];
+            $rejected = false;
+
+            foreach ($doc->enum as $value) {
+                if (is_int($value) || is_float($value) || is_string($value)) {
+                    $sanitised[] = $value;
+                } else {
+                    $rejected = true;
+                }
+            }
+
+            if ($rejected) {
+                $this->findings->emit(
+                    new Finding(
+                        ruleId: 'rule.invalid-enum-value',
+                        level: 2,
+                        message: sprintf(
+                            'SelfDocumentingRule %s returned a non-scalar enum value — only int/float/string are allowed.',
+                            $rule::class,
+                        ),
+                        fixHint: 'Return enum values as int|float|string from RuleDocumentation::$enum.',
+                        context: ['rule_class' => $rule::class],
+                    ),
+                );
+            }
+
+            if ($sanitised !== []) {
+                $field->enum = $sanitised;
+            }
+        }
+
+        if ($doc->minLength !== null && $field->minLength === null) {
+            $field->minLength = $doc->minLength;
+        }
+
+        if ($doc->maxLength !== null && $field->maxLength === null) {
+            $field->maxLength = $doc->maxLength;
+        }
+
+        if ($doc->minimum !== null && $field->minimum === null) {
+            $field->minimum = $doc->minimum;
+        }
+
+        if ($doc->maximum !== null && $field->maximum === null) {
+            $field->maximum = $doc->maximum;
+        }
+
+        if ($doc->description !== null) {
+            $field->description = $field->description === null
+                ? $doc->description
+                : $field->description . "\n\n" . $doc->description;
+        }
     }
 
     private function applyStringRule(

@@ -144,8 +144,13 @@ final readonly class SchemaFromResource
                 ? new OA\Property(['property' => $field->name, 'ref' => $ref])
                 : new OA\Property(['property' => $field->name, 'type' => 'object']);
 
-            if ($field->description !== null) {
-                $property->description = $field->description;
+            // Route description through the field's descriptor so inline directives are stripped
+            // — matches the scalar branch below. Example/enum directives don't make sense on a
+            // `$ref` schema, so only the cleaned description is propagated.
+            $description = $field->descriptor()->description;
+
+            if ($description !== null) {
+                $property->description = $description;
             }
 
             return $property;

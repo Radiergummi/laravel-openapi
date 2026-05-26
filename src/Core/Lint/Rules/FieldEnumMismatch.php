@@ -43,7 +43,9 @@ final class FieldEnumMismatch extends AbstractFieldRule
         ReflectionProperty $property,
         OperationNode $operation,
     ): iterable {
-        if ($field->enum === null) {
+        $enum = $field->explicitEnum();
+
+        if ($enum === null) {
             return;
         }
 
@@ -74,7 +76,7 @@ final class FieldEnumMismatch extends AbstractFieldRule
                 => $value instanceof BackedEnum
                 ? (string) $value->value
                 : (string) $value,
-            $field->enum,
+            $enum,
         );
 
         sort($enumCaseValues, SORT_STRING);

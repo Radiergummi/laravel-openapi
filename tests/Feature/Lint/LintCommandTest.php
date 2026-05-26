@@ -25,7 +25,7 @@ beforeEach(function (): void {
     Route::get('lint-fixtures/clean', [CleanController::class, 'list'])->name('lint.clean.list');
     Route::get('lint-fixtures/broken/stream', [BrokenController::class, 'stream'])->name('lint.broken.stream');
     Route::get('lint-fixtures/suppressed/stream', [SuppressedController::class, 'stream'])->name('lint.suppressed.stream');
-    // Dedicated single-finding fixtures: emit only response.empty (level 2) at levels 0–2.
+    // Dedicated single-finding fixtures: emit only response.success-empty-body (level 2) at levels 0–2.
     Route::get('lint-fixtures/response-empty', [ResponseEmptyController::class, 'index'])->name('lint.response-empty');
     Route::get('lint-fixtures/suppressed-response-empty', [SuppressedResponseEmptyController::class, 'index'])->name('lint.suppressed-response-empty');
 });
@@ -47,7 +47,7 @@ it('exits 1 when broken controller has findings', function (): void {
 });
 
 it('respects suppression directives', function (): void {
-    // SuppressedResponseEmptyController suppresses response.empty (level 2) —
+    // SuppressedResponseEmptyController suppresses response.success-empty-body (level 2) —
     // the only finding that would fire at this level. Exit 0 proves suppression works.
     $this->artisan('openapi:lint', [
         '--level' => 2,
@@ -57,7 +57,7 @@ it('respects suppression directives', function (): void {
 });
 
 it('--no-suppress disables directives', function (): void {
-    // With suppression disabled, response.empty (level 2) surfaces — exit 1.
+    // With suppression disabled, response.success-empty-body (level 2) surfaces — exit 1.
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--path' => 'lint-fixtures/suppressed-response-empty',

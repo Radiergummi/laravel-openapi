@@ -80,16 +80,18 @@ it('applies #[RequestField] description, example and maxLength to schema propert
         ->and($props['callbackUrl']['example'])->toBe('https://hooks.example.com/projects');
 });
 
-it('leaves properties without #[RequestField] untouched', function (): void {
+it('leaves properties without #[RequestField] description-free', function (): void {
     Route::post('/spatie-data/property', [PropertyDataController::class, 'store']);
 
     $spec = generateSpec();
 
     $props = $spec['components']['schemas']['PropertyFixtureData']['properties'];
 
+    // No authoring annotation means no description; the Faker example-synthesis pass may still
+    // populate an example slot from the property's PHP type, since that is a non-authored
+    // fallback applied uniformly across FormRequests and Data classes.
     expect($props['limit']['type'])->toBe('integer')
-        ->and($props['limit'])->not->toHaveKey('description')
-        ->and($props['limit'])->not->toHaveKey('example');
+        ->and($props['limit'])->not->toHaveKey('description');
 });
 
 // endregion

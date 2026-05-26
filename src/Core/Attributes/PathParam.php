@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
+use Radiergummi\OpenApi\Core\Attributes\Support\FieldDefault;
 
 /**
  * Documents a URI path parameter on a controller action parameter.
@@ -32,7 +33,7 @@ final readonly class PathParam extends FieldAttribute
 {
     public function __construct(
         ?string $description = null,
-        mixed $example = null,
+        mixed $example = FieldDefault::Unset,
         ?string $format = null,
         ?string $pattern = null,
     ) {

@@ -515,7 +515,7 @@ final readonly class OperationBuilder
                 ...$descriptor->actionAttributes(TagAttribute::class),
             ] as $attr
         ) {
-            $tags[] = $attr->newInstance()->name;
+            $tags[] = $attr->newInstance()->value();
         }
 
         return $tags;

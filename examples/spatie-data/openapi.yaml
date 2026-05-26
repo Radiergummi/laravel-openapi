@@ -261,6 +261,7 @@ components:
           type: string
         status:
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding
@@ -300,12 +301,15 @@ components:
           description: 'Unmapped object type: DateTimeInterface'
           type: string
           format: date
+          example: '2022-01-26'
         arrives_at:
           description: 'Unmapped object type: DateTimeInterface'
           type: string
           format: date
+          example: '2021-09-29'
         status:
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding
@@ -336,6 +340,7 @@ components:
           type: string
         status:
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding

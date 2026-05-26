@@ -20,6 +20,7 @@ use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\ClearCommand;
+use Radiergummi\OpenApi\Console\DiffConfigCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Console\WhyCommand;
@@ -31,6 +32,7 @@ use Radiergummi\OpenApi\Core\Extractors;
 use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
@@ -94,6 +96,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 LintCommand::class,
                 ClearCommand::class,
                 WhyCommand::class,
+                DiffConfigCommand::class,
             ]);
         }
 
@@ -214,6 +217,16 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerRequestSchemas(): void
     {
+        $this->app->scoped(
+            FakerExampleSynthesiser::class,
+            static fn(): FakerExampleSynthesiser => new FakerExampleSynthesiser(
+                enabled: (bool) (config('openapi.examples.synthesise') ?? true),
+                seed: config('openapi.examples.faker_seed') !== null
+                    ? (int) config('openapi.examples.faker_seed')
+                    : null,
+            ),
+        );
+
         $this->app->scoped(
             Extractors\RequestBodyExtractor::class,
             static function (Container $app): Extractors\RequestBodyExtractor {

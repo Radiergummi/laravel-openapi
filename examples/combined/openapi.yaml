@@ -349,6 +349,7 @@ components:
           type: string
         status:
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding
@@ -389,13 +390,16 @@ components:
           description: 'Scheduled departure timestamp.'
           type: string
           format: date-time
+          example: '2026-08-01T09:00:00Z'
         arrives_at:
           description: 'Scheduled arrival timestamp; must be after departs_at.'
           type: string
           format: date-time
+          example: '2026-08-15T17:30:00Z'
         status:
           description: 'Operational status of the flight.'
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding

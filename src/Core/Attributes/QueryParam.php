@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
 use BackedEnum;
+use Radiergummi\OpenApi\Core\Attributes\Support\FieldDefault;
 
 /**
  * Documents an ad-hoc query parameter not covered by JSON:API filter/sort/include/page extraction —
@@ -28,7 +29,7 @@ use BackedEnum;
 final readonly class QueryParam extends FieldAttribute
 {
     /**
-     * @param null|list<BackedEnum|int|string> $enum Allowed values; renders as a dropdown.
+     * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum Allowed values; renders as a dropdown.
      */
     public function __construct(
         public string $name,
@@ -36,12 +37,12 @@ final readonly class QueryParam extends FieldAttribute
         public bool $deprecated = false,
         ?string $title = null,
         ?string $description = null,
-        mixed $example = null,
+        mixed $example = FieldDefault::Unset,
         ?string $type = null,
         ?string $format = null,
         ?bool $nullable = null,
         mixed $default = null,
-        ?array $enum = null,
+        array|FieldDefault|null $enum = FieldDefault::Unset,
         int|float|null $minimum = null,
         int|float|null $maximum = null,
         int|float|null $exclusiveMinimum = null,
