@@ -14,9 +14,11 @@ namespace Radiergummi\OpenApi\Core\Extractors;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
@@ -48,6 +50,7 @@ final readonly class SchemaFromFormRequest
         private ValidationRulesToSchema $rulesMapper,
         private ComponentSchemaRegistry $registry,
         private LoggerInterface $logger,
+        private FakerExampleSynthesiser $synthesiser,
     ) {}
 
     /**
@@ -145,6 +148,21 @@ final readonly class SchemaFromFormRequest
 
             if (array_key_exists($fieldName, $constantOverrides)) {
                 $constantOverrides[$fieldName]->descriptor()->applyTo($property);
+            }
+
+            // Lowest-priority fallback: synthesise an example when no authored source set one.
+            // Use the property's effective format (which may have been overridden by a #[RequestField]
+            // attribute) rather than the rules-derived descriptor format.
+            if ($property->example === Generator::UNDEFINED) {
+                if (!Generator::isDefault($property->format)) {
+                    $descriptor->format = $property->format;
+                }
+
+                $synthesised = $this->synthesiser->synthesise($fieldName, $descriptor);
+
+                if ($synthesised !== null) {
+                    $property->example = $synthesised;
+                }
             }
 
             $properties[] = $property;

@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
 use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
@@ -37,6 +38,7 @@ function makeFormRequestResolver(): FormRequestRequestSchemaResolver
         rulesMapper: new ValidationRulesToSchema(),
         registry: $registry,
         logger: new NullLogger(),
+        synthesiser: new FakerExampleSynthesiser(enabled: false),
     );
 
     return new FormRequestRequestSchemaResolver(
@@ -101,6 +103,7 @@ it('registers the FormRequest schema in the component registry', function (): vo
         rulesMapper: new ValidationRulesToSchema(),
         registry: $registry,
         logger: new NullLogger(),
+        synthesiser: new FakerExampleSynthesiser(enabled: false),
     );
     $resolver = new FormRequestRequestSchemaResolver(
         schemaBuilder: $builder,

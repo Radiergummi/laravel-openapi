@@ -389,13 +389,16 @@ components:
           description: 'Scheduled departure timestamp.'
           type: string
           format: date-time
+          example: '2022-01-26T11:36:11Z'
         arrives_at:
           description: 'Scheduled arrival timestamp; must be after departs_at.'
           type: string
           format: date-time
+          example: '2021-09-29T23:52:40Z'
         status:
           description: 'Operational status of the flight.'
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding

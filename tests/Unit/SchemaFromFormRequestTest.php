@@ -16,6 +16,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 
@@ -27,6 +28,7 @@ beforeEach(function (): void {
         rulesMapper: new ValidationRulesToSchema(),
         registry: $this->registry,
         logger: new NullLogger(),
+        synthesiser: new FakerExampleSynthesiser(enabled: false),
     );
 });
 
@@ -161,6 +163,7 @@ it('registers a placeholder schema and logs a warning when rules() throws', func
         rulesMapper: new ValidationRulesToSchema(),
         registry: $this->registry,
         logger: $logger,
+        synthesiser: new FakerExampleSynthesiser(enabled: false),
     );
 
     $brokenClass = new class () extends FormRequest {

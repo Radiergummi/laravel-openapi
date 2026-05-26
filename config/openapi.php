@@ -395,6 +395,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Examples
+    |--------------------------------------------------------------------------
+    |
+    | Controls auto-generated example values for request/response fields that
+    | have no authored example (#[Example] attribute, example file, or inline
+    | `Example:` directive in a description).
+    |
+    | - `synthesise`: master switch. When false, fields without an authored
+    |   example emit none. Faker is never invoked.
+    | - `faker_seed`: integer seed passed to Faker. Set to a fixed value so
+    |   example output is deterministic across generation runs; set to null
+    |   to use Faker's default (time-based) seed.
+    |
+    */
+
+    'examples' => [
+        'synthesise' => true,
+        'faker_seed' => 1234,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Routes
     |--------------------------------------------------------------------------
     |

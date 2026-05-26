@@ -21,6 +21,7 @@
         "zircote/swagger-php": "^6.1.2"
     },
     "require-dev": {
+        "fakerphp/faker": "^1.24",
         "larastan/larastan": "^v3.9.6",
         "laravel/passport": "^13.7.5",
         "laravel/pint": "^1.29.1",
@@ -34,6 +35,7 @@
         "spatie/laravel-query-builder": "^7.3.0"
     },
     "suggest": {
+        "fakerphp/faker": "Enables auto-generated examples for fields without an authored example. Already installed in any project shipping model factories.",
         "laravel/passport": "Enables OAuth scope-coverage validation in `openapi:lint` (^13.0).",
         "league/fractal": "Enables the FractalPlugin — documents league/fractal transformer responses.",
         "spatie/laravel-data": "Enables support for Spatie Laravel Data objects as schema components (^4.0).",
