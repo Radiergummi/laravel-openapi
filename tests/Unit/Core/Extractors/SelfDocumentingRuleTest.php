@@ -47,6 +47,48 @@ it('applies self-documenting rule metadata to the field descriptor', function ()
         ->and($field->maxLength)->toBe(17)
         ->and($field->description)->toBe('ISBN-10 or ISBN-13.');
 
-    expect($collector->all())
-        ->each->ruleId->not->toBe('rule.unknown');
+    expect($collector->all())->toBeEmpty();
+});
+
+final class FakeIntegerRule implements SelfDocumentingRule
+{
+    public function documentation(): RuleDocumentation
+    {
+        return new RuleDocumentation(type: 'integer');
+    }
+}
+
+it('does not overwrite a sibling rule\'s already-set type', function (): void {
+    $collector = new ArrayFindingsCollector();
+    $mapper = new ValidationRulesToSchema($collector);
+
+    $result = $mapper->process([
+        'value' => ['string', new FakeIntegerRule()],
+    ]);
+
+    expect($result['fields']['value']->type)->toBe('string');
+});
+
+final class FakeDescriptionRule implements SelfDocumentingRule
+{
+    public function __construct(private readonly string $text) {}
+
+    public function documentation(): RuleDocumentation
+    {
+        return new RuleDocumentation(description: $this->text);
+    }
+}
+
+it('appends descriptions across multiple self-documenting rules', function (): void {
+    $collector = new ArrayFindingsCollector();
+    $mapper = new ValidationRulesToSchema($collector);
+
+    $result = $mapper->process([
+        'thing' => [new FakeDescriptionRule('First.'), new FakeDescriptionRule('Second.')],
+    ]);
+
+    expect($result['fields']['thing']->description)
+        ->toContain('First.')
+        ->and($result['fields']['thing']->description)
+        ->toContain('Second.');
 });

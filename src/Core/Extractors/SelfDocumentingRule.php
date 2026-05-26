@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Extractors;
 
 /**
- * Marker interface for Laravel validation rule objects that can describe themselves to the
+ * Extension interface for Laravel validation rule objects that can describe themselves to the
  * OpenAPI generator.
  *
  * Implement this on a custom `Rule` or `ValidationRule` class to declare the schema constraint

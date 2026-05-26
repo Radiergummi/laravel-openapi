@@ -58,3 +58,5 @@ human-readable context alongside an already-derived description.
 | `maxLength` | `int\|null` | Maximum string length. |
 | `minimum` | `int\|float\|null` | Numeric minimum. |
 | `maximum` | `int\|float\|null` | Numeric maximum. |
+
+`minItems` and `maxItems` are intentionally absent: array-typed custom rules are best served by combining the built-in `array` rule with `min`/`max`/`size` rules on the array field itself, rather than embedding array-length constraints inside a custom rule object.

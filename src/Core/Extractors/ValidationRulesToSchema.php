@@ -329,7 +329,7 @@ final readonly class ValidationRulesToSchema
         if ($doc->description !== null) {
             $field->description = $field->description === null
                 ? $doc->description
-                : $field->description . ' ' . $doc->description;
+                : $field->description . "\n\n" . $doc->description;
         }
     }
 
