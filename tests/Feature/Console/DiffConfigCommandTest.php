@@ -17,6 +17,7 @@ it('reports drift when the user config differs from defaults', function (): void
 
     $this->artisan('openapi:diff:config')
         ->expectsOutputToContain('error_envelope')
+        ->expectsOutputToContain('Drift between')
         ->assertExitCode(0);
 });
 

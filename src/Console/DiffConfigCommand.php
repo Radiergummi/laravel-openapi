@@ -22,7 +22,7 @@ use function var_export;
 
 #[Signature('openapi:diff:config')]
 #[Description('Show drift between the published config/openapi.php and the package default')]
-final class DiffConfigCommand extends Command
+class DiffConfigCommand extends Command
 {
     public function handle(ConfigRepository $config): int
     {

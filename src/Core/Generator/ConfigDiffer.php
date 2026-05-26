@@ -14,9 +14,9 @@ namespace Radiergummi\OpenApi\Core\Generator;
 use function array_is_list;
 use function array_key_exists;
 use function array_keys;
-use function array_merge;
+use function array_unique;
 use function is_array;
-use function ksort;
+use function sort;
 
 /**
  * Compares the package's default `config/openapi.php` against a user-published copy and reports
@@ -44,10 +44,10 @@ final class ConfigDiffer
         /** @var list<array{kind: string, path: string, default?: mixed, user?: mixed}> $out */
         $out = [];
 
-        $keys = array_merge($default, $user);
-        ksort($keys);
+        $keys = array_unique([...array_keys($default), ...array_keys($user)]);
+        sort($keys);
 
-        foreach (array_keys($keys) as $key) {
+        foreach ($keys as $key) {
             $path = $prefix === '' ? (string) $key : $prefix . '.' . $key;
             $hasDefault = array_key_exists($key, $default);
             $hasUser = array_key_exists($key, $user);
