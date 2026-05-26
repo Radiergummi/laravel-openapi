@@ -21,6 +21,7 @@ use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\ClearCommand;
+use Radiergummi\OpenApi\Console\DiffConfigCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Console\WhyCommand;
@@ -109,6 +110,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 LintCommand::class,
                 ClearCommand::class,
                 WhyCommand::class,
+                DiffConfigCommand::class,
             ]);
         }
 

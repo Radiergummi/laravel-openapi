@@ -5,6 +5,7 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- New `openapi:diff:config` artisan command reports drift between the published `config/openapi.php` and the package default — flags added keys, removed keys, and changed default values.
 - Auto-synthesised examples for fields without an authored example, using a targeted Faker map keyed by format (`email`, `uuid`, `uri`, etc.) and field-name suffix (`*_email`, `*_url`, etc.). Strict lowest-priority fallback — authored sources always win. Disabled per spec via `config('openapi.examples.synthesise') = false`. Deterministic via `config('openapi.examples.faker_seed')`. `fakerphp/faker` is an optional `require-dev` dependency that degrades to "no example" when absent.
 - Field-attribute descriptions now recognise three inline directives — `Example: <value>`, `No-example`, `Enum: a,b,c` — letting authors declare examples and enum domains without a separate attribute.
 - New `SelfDocumentingRule` interface lets custom Laravel validation rule objects declare their own schema constraints (`description`, `type`, `format`, `pattern`, `enum`, `minLength`/`maxLength`/`minimum`/`maximum`) instead of being dropped to a `rule.unknown` lint finding.
