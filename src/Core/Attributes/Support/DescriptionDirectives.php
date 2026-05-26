@@ -24,22 +24,26 @@ use function trim;
 /**
  * Parses inline documentation directives out of a field description string.
  *
- * Recognised directives, one per line, case-sensitive:
+ * Recognised directives, one per line, case-sensitive. The `@` prefix is deliberate — it makes
+ * directive lines visibly distinct from prose so a line like `Enum: see docs at /enums` cannot be
+ * confused for a directive.
  *
- * - `Example: 42`           — declare the field's example value.
- * - `No-example`            — suppress example generation entirely.
- * - `Enum: a, b, c`         — declare the field's enum values.
+ * - `@example 42`           — declare the field's example value.
+ * - `@no-example`           — suppress example generation entirely.
+ * - `@enum a, b, c`         — declare the field's enum values. Tokens are coerced by lexical
+ *                             shape (`1` → int, `1.5` → float, `true`/`false` → bool).
  *
  * Directives may appear anywhere in the description; their lines are stripped from the clean
- * output. Multiple `Example:` / `Enum:` lines: the *last* wins. `No-example` always wins over
- * any `Example:` directive (whether earlier or later in the description).
+ * output. Multiple `@example` / `@enum` lines: the *last* wins. `@no-example` always wins over
+ * any `@example` directive (whether earlier or later in the description); an explicit `example:`
+ * argument on the attribute beats both.
  */
 final readonly class DescriptionDirectives
 {
     public static function parse(?string $description): ParsedDescription
     {
         if ($description === null || trim($description) === '') {
-            return new ParsedDescription(cleanDescription: $description);
+            return new ParsedDescription(cleanDescription: null);
         }
 
         $cleanLines = [];
@@ -50,24 +54,22 @@ final readonly class DescriptionDirectives
         foreach (explode("\n", $description) as $line) {
             $trimmed = trim($line);
 
-            if ($trimmed === 'No-example') {
+            if ($trimmed === '@no-example') {
                 $suppress = true;
 
                 continue;
             }
 
-            if (str_starts_with($trimmed, 'Example:')) {
-                $example = self::coerceScalar(trim(substr($trimmed, 8)));
+            if (str_starts_with($trimmed, '@example ') || $trimmed === '@example') {
+                $value = trim(substr($trimmed, 8));
+                $example = $value === '' ? null : self::coerceScalar($value);
 
                 continue;
             }
 
-            if (str_starts_with($trimmed, 'Enum:')) {
-                $enum = self::splitList(trim(substr($trimmed, 5)));
-
-                if ($enum === []) {
-                    $enum = null;
-                }
+            if (str_starts_with($trimmed, '@enum ') || $trimmed === '@enum') {
+                $values = self::splitList(trim(substr($trimmed, 5)));
+                $enum = $values === [] ? null : $values;
 
                 continue;
             }
@@ -107,13 +109,16 @@ final readonly class DescriptionDirectives
     }
 
     /**
-     * @return list<string>
+     * @return list<bool|float|int|string>
      */
     private static function splitList(string $raw): array
     {
-        return array_values(array_filter(array_map(
-            'trim',
-            explode(',', $raw),
-        ), static fn(string $v): bool => $v !== ''));
+        return array_values(array_map(
+            self::coerceScalar(...),
+            array_filter(
+                array_map('trim', explode(',', $raw)),
+                static fn(string $v): bool => $v !== '',
+            ),
+        ));
     }
 }

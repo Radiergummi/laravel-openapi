@@ -13,6 +13,11 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
 use BackedEnum;
+use InvalidArgumentException;
+
+use function assert;
+use function is_string;
+use function sprintf;
 
 /**
  * Adds an OpenAPI tag to an operation in addition to whatever tags are auto-derived from the
@@ -23,8 +28,10 @@ use BackedEnum;
  *
  * Class-level and method-level tags are merged. Duplicates are deduplicated.
  *
- * The name may be a plain string or a {@see BackedEnum} case whose backing value is the tag
- * string — the latter lets consumers centralise tag taxonomies in an enum.
+ * The name may be a plain string or a string-backed {@see BackedEnum} case — the latter lets
+ * consumers centralise tag taxonomies in an enum. Int-backed enums are rejected at construction
+ * time because numeric tag names ("1", "2") are surprising for consumers and trip tag-naming
+ * lint rules.
  *
  * ```php
  * #[OpenApi\Tag('Beta')]
@@ -37,12 +44,29 @@ use BackedEnum;
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Tag
 {
-    public function __construct(public string|BackedEnum $name) {}
+    /**
+     * @throws InvalidArgumentException When `$name` is an int-backed enum.
+     */
+    public function __construct(public string|BackedEnum $name)
+    {
+        if ($name instanceof BackedEnum && !is_string($name->value)) {
+            throw new InvalidArgumentException(sprintf(
+                '#[Tag] requires a string-backed enum; %s is backed by int. Numeric tag names are surprising for consumers.',
+                $name::class,
+            ));
+        }
+    }
 
     public function value(): string
     {
-        return $this->name instanceof BackedEnum
-            ? (string) $this->name->value
-            : $this->name;
+        if (!$this->name instanceof BackedEnum) {
+            return $this->name;
+        }
+
+        // Guaranteed to be a string by the constructor's int-backed-enum guard.
+        $value = $this->name->value;
+        assert(is_string($value));
+
+        return $value;
     }
 }

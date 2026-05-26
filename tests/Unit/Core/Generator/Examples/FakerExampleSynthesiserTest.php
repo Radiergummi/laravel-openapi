@@ -83,6 +83,25 @@ it('picks the first enum value when enum is set', function (): void {
     expect($value)->toBe('pending');
 });
 
+it('does not synthesise an email for a non-string field whose name contains email', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'boolean';
+
+    $value = $this->synth->synthesise('email_verified', $descriptor);
+
+    // boolean field — must not pick up the byFieldName email match
+    expect($value)->toBeBool();
+});
+
+it('does not synthesise an email for an integer field whose name contains email', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'integer';
+
+    $value = $this->synth->synthesise('email_count', $descriptor);
+
+    expect($value)->toBeInt();
+});
+
 it('returns null for unknown types — no lorem-ipsum leakage', function (): void {
     $descriptor = new FieldDescriptor();
     $descriptor->type = 'string';

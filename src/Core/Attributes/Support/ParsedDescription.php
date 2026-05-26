@@ -14,15 +14,17 @@ namespace Radiergummi\OpenApi\Core\Attributes\Support;
 /**
  * Result of running {@see DescriptionDirectives::parse()} over a field-attribute description.
  *
- * - {@see $cleanDescription} is the description with all directive lines stripped.
- * - {@see $example} is the value declared by `Example: …` (or `null` if none / suppressed).
- * - {@see $suppressExample} is `true` when `No-example` was present.
- * - {@see $enum} is the value list declared by `Enum: a,b,c` (or `null` if none).
+ * - {@see $cleanDescription} is the description with all directive lines stripped (or `null`
+ *   when the description was null, empty, or whitespace-only).
+ * - {@see $example} is the value declared by `@example …` (or `null` if none / suppressed).
+ * - {@see $suppressExample} is `true` when `@no-example` was present.
+ * - {@see $enum} is the value list declared by `@enum a,b,c` (or `null` if none); tokens are
+ *   coerced by lexical shape so integer-looking values become ints, etc.
  */
 final readonly class ParsedDescription
 {
     /**
-     * @param null|list<string> $enum
+     * @param null|list<bool|float|int|string> $enum
      */
     public function __construct(
         public ?string $cleanDescription,

@@ -25,6 +25,7 @@ use Radiergummi\OpenApi\Core\Extractors\FieldDescriptor;
 use Radiergummi\OpenApi\Core\Extractors\RequestBodyExtractor;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Core\Generator\NullableSchema;
 use ReflectionAttribute;
@@ -51,9 +52,15 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Throwable;
 
 use function array_any;
+use function array_filter;
 use function array_key_exists;
+use function array_values;
 use function assert;
 use function is_a;
+use function is_array;
+use function is_float;
+use function is_int;
+use function is_string;
 use function preg_match;
 use function sprintf;
 
@@ -86,6 +93,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         private readonly ValidationRulesToSchema $rulesToSchema,
         private readonly DataConfig $dataConfig,
         private readonly LoggerInterface $logger,
+        private readonly FakerExampleSynthesiser $synthesiser,
     ) {}
 
     /**
@@ -207,6 +215,14 @@ final class SchemaFromDataClass implements FilePropertyChecker
             if (isset($propsByWire[$context->wireName])) {
                 $this->applyPropertyAttribute($context->reflection, $propsByWire[$context->wireName]);
             }
+        }
+
+        // Pass 4: synthesise a Faker example for any property whose example slot is still
+        // unclaimed. Runs last so authored sources (type-derived examples, rule defaults, scoped
+        // field attributes) always win. Mirrors SchemaFromFormRequest::buildSchema() so the same
+        // logical field gets a consistent example on both FormRequest and equivalent Data class.
+        foreach ($propsByWire as $wireName => $property) {
+            $this->synthesiseExample($wireName, $property);
         }
 
         $schemaProps = [
@@ -775,6 +791,71 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         $attributes[0]->newInstance()->descriptor()->applyTo($property);
+    }
+
+    /**
+     * Lowest-priority example fallback — runs after every authored source.
+     *
+     * Skips composed schemas ($ref, oneOf/allOf/anyOf) and array/object types, where synthesising a
+     * scalar example makes no sense. The synthesiser itself returns null for unknown types/formats
+     * so the schema stays example-less rather than picking up lorem-ipsum.
+     */
+    private function synthesiseExample(string $wireName, OA\Property $property): void
+    {
+        if ($property->example !== Generator::UNDEFINED) {
+            return;
+        }
+
+        // Composed or referenced schemas — Faker has nothing useful to contribute.
+        if (
+            $property->ref !== Generator::UNDEFINED
+            || $property->oneOf !== Generator::UNDEFINED
+            || $property->allOf !== Generator::UNDEFINED
+            || $property->anyOf !== Generator::UNDEFINED
+        ) {
+            return;
+        }
+
+        // Only scalar leaves get synthesised; nested arrays/objects don't.
+        // `Generator::UNDEFINED` is itself a string sentinel, so `is_string()` is not enough —
+        // we must reject the sentinel explicitly or it leaks into the descriptor as a literal
+        // value (and silently bypasses the byFieldName guard which only fires for `null`/'string').
+        $type = (is_string($property->type) && $property->type !== Generator::UNDEFINED)
+            ? $property->type
+            : null;
+
+        if ($type === 'array' || $type === 'object') {
+            return;
+        }
+
+        $descriptor = new FieldDescriptor();
+        $descriptor->type = $type;
+        $descriptor->format = (is_string($property->format) && $property->format !== Generator::UNDEFINED)
+            ? $property->format
+            : null;
+
+        if (is_array($property->enum)) {
+            /** @var list<float|int|string> $enum */
+            $enum = array_values(array_filter(
+                $property->enum,
+                static fn(mixed $value): bool => is_int($value) || is_float($value) || is_string($value),
+            ));
+            $descriptor->enum = $enum;
+        }
+
+        if (is_int($property->minimum) || is_float($property->minimum)) {
+            $descriptor->minimum = $property->minimum;
+        }
+
+        if (is_int($property->maximum) || is_float($property->maximum)) {
+            $descriptor->maximum = $property->maximum;
+        }
+
+        $synthesised = $this->synthesiser->synthesise($wireName, $descriptor);
+
+        if ($synthesised !== null) {
+            $property->example = $synthesised;
+        }
     }
 
     /**

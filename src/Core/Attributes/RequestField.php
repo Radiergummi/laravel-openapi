@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Core\Attributes;
 
 use Attribute;
 use BackedEnum;
+use Radiergummi\OpenApi\Core\Attributes\Support\FieldDefault;
 
 /**
  * Documents a request-body input field.
@@ -25,17 +26,17 @@ use BackedEnum;
 final readonly class RequestField extends FieldAttribute
 {
     /**
-     * @param null|list<BackedEnum|int|string> $enum
+     * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum
      */
     public function __construct(
         ?string $title = null,
         ?string $description = null,
-        mixed $example = null,
+        mixed $example = FieldDefault::Unset,
         ?string $type = null,
         ?string $format = null,
         ?bool $nullable = null,
         mixed $default = null,
-        ?array $enum = null,
+        array|FieldDefault|null $enum = FieldDefault::Unset,
         int|float|null $minimum = null,
         int|float|null $maximum = null,
         int|float|null $exclusiveMinimum = null,

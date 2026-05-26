@@ -16,7 +16,7 @@ uses()->group('attributes', 'openapi');
 
 it('strips directives from the description in RequestField::descriptor()', function (): void {
     $field = new RequestField(
-        description: "The product price.\nExample: 1999",
+        description: "The product price.\n@example 1999",
     );
 
     $descriptor = $field->descriptor();
@@ -25,9 +25,9 @@ it('strips directives from the description in RequestField::descriptor()', funct
         ->and($descriptor->example)->toBe(1999);
 });
 
-it('honours an explicit example over an inline Example: directive', function (): void {
+it('honours an explicit example over an inline @example directive', function (): void {
     $field = new RequestField(
-        description: "Price.\nExample: 1999",
+        description: "Price.\n@example 1999",
         example: 2999,
     );
 
@@ -36,10 +36,10 @@ it('honours an explicit example over an inline Example: directive', function ():
     expect($descriptor->example)->toBe(2999);
 });
 
-it('honours No-example by leaving example null', function (): void {
+it('honours @no-example by leaving example null when no explicit arg given', function (): void {
     $field = new QueryParam(
         name: 'limit',
-        description: "Limit.\nNo-example",
+        description: "Limit.\n@no-example",
     );
 
     $descriptor = $field->descriptor();
@@ -47,20 +47,29 @@ it('honours No-example by leaving example null', function (): void {
     expect($descriptor->example)->toBeNull();
 });
 
-it('No-example overrides an explicit example argument', function (): void {
-    $field = new QueryParam(
-        name: 'limit',
-        description: "Limit.\nNo-example",
-        example: 9999,
+it('honours an explicit example: null to suppress the directive-derived example', function (): void {
+    $field = new RequestField(
+        description: "Phone.\n@example 555-1234",
+        example: null,
     );
 
     expect($field->descriptor()->example)->toBeNull();
 });
 
-it('applies Enum: directive when no explicit enum is set', function (): void {
+it('lets an explicit example argument win over @no-example', function (): void {
+    $field = new QueryParam(
+        name: 'limit',
+        description: "Limit.\n@no-example",
+        example: 9999,
+    );
+
+    expect($field->descriptor()->example)->toBe(9999);
+});
+
+it('applies @enum directive when no explicit enum is set', function (): void {
     $field = new QueryParam(
         name: 'status',
-        description: "Status filter.\nEnum: pending, active, archived",
+        description: "Status filter.\n@enum pending, active, archived",
     );
 
     $descriptor = $field->descriptor();
@@ -68,14 +77,33 @@ it('applies Enum: directive when no explicit enum is set', function (): void {
     expect($descriptor->enum)->toBe(['pending', 'active', 'archived']);
 });
 
-it('preserves an explicit enum over an Enum: directive', function (): void {
+it('preserves an explicit enum over an @enum directive', function (): void {
     $field = new QueryParam(
         name: 'status',
-        description: "Status.\nEnum: foo, bar",
+        description: "Status.\n@enum foo, bar",
         enum: ['pending', 'active'],
     );
 
     $descriptor = $field->descriptor();
 
     expect($descriptor->enum)->toBe(['pending', 'active']);
+});
+
+it('honours an explicit enum: null to suppress the directive-derived enum', function (): void {
+    $field = new QueryParam(
+        name: 'status',
+        description: "Status.\n@enum foo, bar",
+        enum: null,
+    );
+
+    expect($field->descriptor()->enum)->toBeNull();
+});
+
+it('coerces integer @enum tokens to ints in the descriptor', function (): void {
+    $field = new RequestField(
+        description: "Status code.\n@enum 200, 404, 500",
+        type: 'integer',
+    );
+
+    expect($field->descriptor()->enum)->toBe([200, 404, 500]);
 });

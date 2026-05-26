@@ -24,7 +24,7 @@ use function strtolower;
  * Synthesises an example value for a field that has no authored example.
  *
  * Strict priority: this synthesiser is the **lowest** rung in the example-resolution chain.
- * Authored sources (`#[Example]` attribute, example file, inline `Example:` directive) always
+ * Authored sources (`#[Example]` attribute, example file, inline `@example` directive) always
  * win. The synthesiser only runs when those have been tried and returned nothing.
  *
  * Wired in at: `SchemaFromFormRequest::buildSchema()` — in the per-field loop, after the
@@ -85,10 +85,15 @@ final readonly class FakerExampleSynthesiser
             return $byFormat;
         }
 
-        $byName = $this->byFieldName($fieldName);
+        // Field-name hints (email_, uuid_, …) only apply when the field is actually a string.
+        // Without this guard a boolean `email_verified` or integer `email_count` would be
+        // assigned a fake email by virtue of its name alone.
+        if ($descriptor->type === null || $descriptor->type === 'string') {
+            $byName = $this->byFieldName($fieldName);
 
-        if ($byName !== null) {
-            return $byName;
+            if ($byName !== null) {
+                return $byName;
+            }
         }
 
         return $this->byType($descriptor);

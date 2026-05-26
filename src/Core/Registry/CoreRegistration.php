@@ -74,6 +74,7 @@ final class CoreRegistration
         Rules\RequestEmpty::class,
         Rules\ThrowsUnmapped::class,
         Rules\RuleUnknown::class,
+        Rules\RuleInvalidEnumValue::class,
 
         Rules\OperationSecurityMissing::class,
 

@@ -349,6 +349,7 @@ components:
           type: string
         status:
           type: string
+          example: scheduled
           enum:
             - scheduled
             - boarding

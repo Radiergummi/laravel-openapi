@@ -151,10 +151,16 @@ final readonly class SchemaFromFormRequest
             }
 
             // Lowest-priority fallback: synthesise an example when no authored source set one.
-            // Use the property's effective format (which may have been overridden by a #[RequestField]
-            // attribute) rather than the rules-derived descriptor format.
+            // Use the property's effective type/format (which may have been overridden by a
+            // #[RequestField] attribute on a PARAM_* constant) rather than the rules-derived
+            // descriptor values — otherwise a type change in the override produces a wrong-typed
+            // example.
             if ($property->example === Generator::UNDEFINED) {
-                if (is_string($property->format)) {
+                if (is_string($property->type) && $property->type !== Generator::UNDEFINED) {
+                    $descriptor->type = $property->type;
+                }
+
+                if (is_string($property->format) && $property->format !== Generator::UNDEFINED) {
                     $descriptor->format = $property->format;
                 }
 

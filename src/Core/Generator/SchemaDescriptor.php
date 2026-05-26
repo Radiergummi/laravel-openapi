@@ -19,13 +19,13 @@ use OpenApi\Annotations as OA;
  * attributes ({@see RequestField}, {@see ResponseField}, {@see PathParam}, {@see QueryParam}).
  *
  * Null means "not set": {@see toOpenApi()} omits null keys so extractors' inferred values are
- * preserved. `enum` entries may be strings, ints, or {@see BackedEnum} cases; {@see toOpenApi()}
- * converts BackedEnum cases to their backing values.
+ * preserved. `enum` entries are any JSON-Schema scalar (`bool`, `float`, `int`, `string`) or a
+ * {@see BackedEnum} case; {@see toOpenApi()} converts BackedEnum cases to their backing values.
  */
 final readonly class SchemaDescriptor
 {
     /**
-     * @param null|list<BackedEnum|int|string> $enum
+     * @param null|list<BackedEnum|bool|float|int|string> $enum
      */
     public function __construct(
         public ?string $title = null,
@@ -97,7 +97,7 @@ final readonly class SchemaDescriptor
 
         if ($this->enum !== null) {
             $out['enum'] = array_map(
-                static fn(BackedEnum|int|string $case): int|string
+                static fn(BackedEnum|bool|float|int|string $case): bool|float|int|string
                     => $case instanceof BackedEnum ? $case->value : $case,
                 $this->enum,
             );

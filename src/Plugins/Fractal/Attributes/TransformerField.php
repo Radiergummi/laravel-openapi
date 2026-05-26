@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 use Attribute;
 use BackedEnum;
 use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Core\Attributes\Support\FieldDefault;
 
 /**
  * Declares one output key of a Fractal transformer.
@@ -35,22 +36,22 @@ use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
 final readonly class TransformerField extends FieldAttribute
 {
     /**
-     * @param string                           $name        The output key.
-     * @param null|class-string|string         $type        A JSON-Schema scalar type, or a class-string for a nested
-     *                                                      `$ref`.
-     * @param bool                             $conditional When true, the key is kept in `properties` but omitted from
-     *                                                      `required`.
-     * @param null|list<BackedEnum|int|string> $enum
+     * @param string                                              $name        The output key.
+     * @param null|class-string|string                            $type        A JSON-Schema scalar type, or a class-string for a nested
+     *                                                                         `$ref`.
+     * @param bool                                                $conditional When true, the key is kept in `properties` but omitted from
+     *                                                                         `required`.
+     * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum
      */
     public function __construct(
         public string $name,
         ?string $title = null,
         ?string $description = null,
-        mixed $example = null,
+        mixed $example = FieldDefault::Unset,
         ?string $type = null,
         ?string $format = null,
         ?bool $nullable = null,
-        ?array $enum = null,
+        array|FieldDefault|null $enum = FieldDefault::Unset,
         int|float|null $minimum = null,
         int|float|null $maximum = null,
         ?int $minLength = null,
