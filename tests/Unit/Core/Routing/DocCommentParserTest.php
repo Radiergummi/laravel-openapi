@@ -99,3 +99,34 @@ it('returns null summary/description for a docblock containing only non-throws t
 
     expect($doc->isEmpty())->toBeTrue();
 });
+
+it('returns the same DocComment instance for identical input (memoised)', function (): void {
+    $comment = <<<'PHPDOC'
+        /**
+         * Summary line.
+         *
+         * Description paragraph.
+         */
+        PHPDOC;
+
+    $first = $this->parser->parse($comment);
+    $second = $this->parser->parse($comment);
+
+    expect($second)->toBe($first);
+});
+
+it('does not collide caches across different inputs', function (): void {
+    $a = $this->parser->parse(<<<'PHPDOC'
+        /**
+         * First.
+         */
+        PHPDOC);
+    $b = $this->parser->parse(<<<'PHPDOC'
+        /**
+         * Second.
+         */
+        PHPDOC);
+
+    expect($a->summary)->toBe('First.')
+        ->and($b->summary)->toBe('Second.');
+});
