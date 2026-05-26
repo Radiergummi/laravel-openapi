@@ -47,6 +47,16 @@ it('honours No-example by leaving example null', function (): void {
     expect($descriptor->example)->toBeNull();
 });
 
+it('No-example overrides an explicit example argument', function (): void {
+    $field = new QueryParam(
+        name: 'limit',
+        description: "Limit.\nNo-example",
+        example: 9999,
+    );
+
+    expect($field->descriptor()->example)->toBeNull();
+});
+
 it('applies Enum: directive when no explicit enum is set', function (): void {
     $field = new QueryParam(
         name: 'status',

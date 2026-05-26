@@ -69,3 +69,15 @@ it('uses the last Example: when multiple are present', function (): void {
 
     expect($result->example)->toBe(2);
 });
+
+it('treats an empty Enum: directive as no directive', function (): void {
+    $result = DescriptionDirectives::parse("Status code.\nEnum:");
+
+    expect($result->enum)->toBeNull();
+});
+
+it('treats Enum: with only whitespace/empty entries as no directive', function (): void {
+    $result = DescriptionDirectives::parse("Status code.\nEnum: , ,");
+
+    expect($result->enum)->toBeNull();
+});

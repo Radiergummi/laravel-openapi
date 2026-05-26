@@ -44,7 +44,6 @@ final readonly class DescriptionDirectives
 
         $cleanLines = [];
         $example = null;
-        $exampleSet = false;
         $suppress = false;
         $enum = null;
 
@@ -59,13 +58,16 @@ final readonly class DescriptionDirectives
 
             if (str_starts_with($trimmed, 'Example:')) {
                 $example = self::coerceScalar(trim(substr($trimmed, 8)));
-                $exampleSet = true;
 
                 continue;
             }
 
             if (str_starts_with($trimmed, 'Enum:')) {
                 $enum = self::splitList(trim(substr($trimmed, 5)));
+
+                if ($enum === []) {
+                    $enum = null;
+                }
 
                 continue;
             }
@@ -77,7 +79,7 @@ final readonly class DescriptionDirectives
 
         return new ParsedDescription(
             cleanDescription: $clean === '' ? null : $clean,
-            example: $suppress ? null : ($exampleSet ? $example : null),
+            example: $suppress ? null : $example,
             suppressExample: $suppress,
             enum: $enum,
         );
