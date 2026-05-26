@@ -64,6 +64,7 @@ final class CoreRegistration
         Rules\SchemaEnumTypeMismatch::class,
         Rules\PublicEndpointContradictsMw::class,
         Rules\ResponseNoSuccess::class,
+        Rules\ResponseSuccessEmptyBody::class,
         Rules\ResponseRedirectWithoutLocation::class,
         Rules\OperationIdMissing::class,
         Rules\SchemaAllOfTypeConflict::class,
@@ -72,6 +73,7 @@ final class CoreRegistration
         Rules\ResponseDescriptionMissing::class,
 
         Rules\RequestEmpty::class,
+        Rules\RequestBodySchemaDegraded::class,
         Rules\ThrowsUnmapped::class,
         Rules\RuleUnknown::class,
 

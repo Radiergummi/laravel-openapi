@@ -16,6 +16,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 
@@ -23,10 +24,12 @@ uses()->group('openapi');
 
 beforeEach(function (): void {
     $this->registry = new ComponentSchemaRegistry();
+    $this->findings = new ArrayFindingsCollector();
     $this->builder  = new SchemaFromFormRequest(
         rulesMapper: new ValidationRulesToSchema(),
         registry: $this->registry,
         logger: new NullLogger(),
+        findings: $this->findings,
     );
 });
 
@@ -151,16 +154,19 @@ it('builds file field with type=string and format=binary', function (): void {
 
 // region Error resilience
 
-it('registers a placeholder schema and logs a warning when rules() throws', function (): void {
+it('registers a placeholder schema, logs a warning, and emits a finding when rules() throws', function (): void {
     $logger = Mockery::mock(LoggerInterface::class);
     $logger->shouldReceive('warning')
         ->once()
         ->withArgs(static fn(string $msg): bool => str_contains($msg, 'SchemaFromFormRequest failed'));
 
+    $findings = new ArrayFindingsCollector();
+
     $builder = new SchemaFromFormRequest(
         rulesMapper: new ValidationRulesToSchema(),
         registry: $this->registry,
         logger: $logger,
+        findings: $findings,
     );
 
     $brokenClass = new class () extends FormRequest {
@@ -178,6 +184,13 @@ it('registers a placeholder schema and logs a warning when rules() throws', func
     expect($schemas)->toHaveCount(1)
         ->and($schemas[0]->type)->toBe('object')
         ->and($schemas[0]->description)->toContain('Schema introspection failed');
+
+    $emitted = $findings->all();
+    expect($emitted)->toHaveCount(1)
+        ->and($emitted[0]->ruleId)->toBe('request-body.schema-degraded')
+        ->and($emitted[0]->level)->toBe(1)
+        ->and($emitted[0]->message)->toContain('DB not available')
+        ->and($emitted[0]->message)->toContain($brokenClassName);
 });
 
 // endregion

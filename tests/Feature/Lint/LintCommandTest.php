@@ -78,9 +78,9 @@ it('uses config lint level when --level is not passed', function (): void {
 });
 
 it('config disabled_rules suppresses a rule without --skip on CLI', function (): void {
-    // ResponseEmptyController emits only response.empty (level 2). Disabling it
-    // must produce exit 0; without the rule disabled it would exit 1.
-    config(['openapi.lint.disabled_rules' => ['response.empty']]);
+    // ResponseEmptyController emits only response.success-empty-body (level 2). Disabling
+    // it must produce exit 0; without the rule disabled it would exit 1.
+    config(['openapi.lint.disabled_rules' => ['response.success-empty-body']]);
 
     // Verify the pipeline is live on a route that is clean at level 0.
     $this->artisan('openapi:lint', [
@@ -89,7 +89,7 @@ it('config disabled_rules suppresses a rule without --skip on CLI', function ():
         '--format' => 'json',
     ])->assertExitCode(0);
 
-    // ResponseEmptyController exits 0 once response.empty is disabled.
+    // ResponseEmptyController exits 0 once response.success-empty-body is disabled.
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--path' => 'lint-fixtures/response-empty',
@@ -98,9 +98,9 @@ it('config disabled_rules suppresses a rule without --skip on CLI', function ():
 });
 
 it('severity_overrides remaps a finding level so it is excluded at the original threshold', function (): void {
-    // ResponseEmptyController emits only response.empty at level 2. Remapping it
-    // to level 4 means it no longer appears at --level 2 — exit 0.
-    config(['openapi.lint.severity_overrides' => ['response.empty' => 4]]);
+    // ResponseEmptyController emits only response.success-empty-body at level 2. Remapping
+    // it to level 4 means it no longer appears at --level 2 — exit 0.
+    config(['openapi.lint.severity_overrides' => ['response.success-empty-body' => 4]]);
 
     $this->artisan('openapi:lint', [
         '--level' => 2,

@@ -5,6 +5,8 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Lint rule `response.success-empty-body` (level 2) — flags 2xx responses (other than 204/205/304) that declare no body schema. Catches the silent footgun where a controller with no return type produces a `200` with empty content, breaking client codegen. HEAD operations are skipped.
+- Lint rule `request-body.schema-degraded` (level 1) — emitted by `SchemaFromFormRequest` when instantiating a FormRequest or calling its `rules()` method throws. Previously the failure was only visible as a single log warning; the placeholder schema landed in the spec silently. The finding surfaces in `openapi:lint` (and in CI) with the exception message and the FormRequest's file/line.
 - `config('openapi.error_envelope')` config key with four presets (`none`, `laravel`, `rfc7807`, `json-api`) selecting the body shape of standard error responses.
 - `ErrorDescriptor` and `ErrorResponse` value objects in `Radiergummi\OpenApi\Core\Errors\`.
 - Optional `exception` key on `middleware_responses` entries, carrying the canonical thrown exception per middleware so resolvers can branch on exception class.

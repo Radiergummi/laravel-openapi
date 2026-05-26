@@ -187,9 +187,11 @@ plugin-registered rules.
 | `parameter.description-missing` | 2 | Parameter has no description. |
 | `request-body.description-missing` | 2 | requestBody has no description. |
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
+| `request-body.schema-degraded` | 1 | A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules. |
 | `errors.resolver-failed` | 2 | A registered `ErrorResponseResolver` threw while building an error response; the extractor caught the throw and the chain continued, but the offending resolver should be fixed. |
 | `resource.field-type-missing` | 2 | A #[ResourceField] is declared without a resolvable type. |
 | `response.no-success` | 2 | Operation has no 2xx response. |
+| `response.success-empty-body` | 2 | A 2xx response (other than 204/205/304) declares no body schema. Likely a void-return controller. |
 | `response.redirect-without-location` | 2 | 3xx response has no Location header. |
 | `rule.unknown` | 2 | A Laravel validation Rule object cannot be mapped to a JSON Schema constraint and was dropped. |
 | `schema.description-missing` | 2 | Named component schema has no description. |
