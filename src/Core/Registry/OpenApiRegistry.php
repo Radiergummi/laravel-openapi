@@ -62,6 +62,11 @@ final class OpenApiRegistry
     private array $rules = [];
 
     /**
+     * @var list<class-string<\Radiergummi\OpenApi\Core\Generator\Pipeline\SpecStage>>
+     */
+    private array $stages = [];
+
+    /**
      * @param class-string<RequestSchemaResolver> $class
      */
     public function addRequestSchemaResolver(string $class): void
@@ -129,6 +134,24 @@ final class OpenApiRegistry
         if (!in_array($class, $this->rules, strict: true)) {
             $this->rules[] = $class;
         }
+    }
+
+    /**
+     * @param class-string<\Radiergummi\OpenApi\Core\Generator\Pipeline\SpecStage> $class
+     */
+    public function addStage(string $class): void
+    {
+        if (!in_array($class, $this->stages, strict: true)) {
+            $this->stages[] = $class;
+        }
+    }
+
+    /**
+     * @return list<class-string<\Radiergummi\OpenApi\Core\Generator\Pipeline\SpecStage>>
+     */
+    public function stages(): array
+    {
+        return $this->stages;
     }
 
     /**

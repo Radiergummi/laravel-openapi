@@ -50,9 +50,15 @@ use OpenApi\Annotations as OA;
  *
  * ```php
  * OpenApiExtensions::transformDocument(static function (OA\OpenApi $doc): void {
- *     $doc->{'x-api-version'} = '2026-01';
+ *     $doc->x = ['api-version' => '2026-01'];
  * });
  * ```
+ *
+ * Vendor extensions go through the declared `$x` array property on swagger-php annotations.
+ * Keys are emitted prefixed with `x-`, so `$doc->x = ['api-version' => …]` produces
+ * `x-api-version: …` in the output. Avoid `$doc->{'x-api-version'} = …` — PHP 8.2+ deprecates
+ * dynamic property assignment on classes without `#[AllowDynamicProperties]`, and PHP 9 will
+ * turn it into a fatal error.
  *
  * Register transformers in a service provider's `boot()` method or in `AppServiceProvider::boot()`.
  * All registered transformers survive for the lifetime of the process (Octane-safe, because
