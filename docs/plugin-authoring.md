@@ -38,11 +38,12 @@ instances are resolved from the container when the pipeline runs.
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
 | `addRule(string $class)` | A lint rule | `Core\Lint\Rules\Rule` + one or more visitor interfaces |
+| `addStage(string $class)` | A document-level pipeline stage, run after all core stages and before the terminal transformer stage | `Core\Generator\Pipeline\SpecStage` |
 
 Getters (`requestSchemaResolvers()`, `refSchemaResolvers()`,
 `queryParameterResolvers()`, `primaryResponseResolvers()`,
-`errorResponseResolvers()`, `payloadClasses()`, `rules()`) are consumed by
-the generator and linter; plugin authors don't call them.
+`errorResponseResolvers()`, `payloadClasses()`, `rules()`, `stages()`) are
+consumed by the generator and linter; plugin authors don't call them.
 
 ### Resolver interfaces
 
@@ -69,6 +70,27 @@ The resolver interfaces live in `src/Core/Registry/`:
   `resolveErrorResponse()` is invoked **per status × per operation**, so any
   schema registrations on `ComponentSchemaRegistry` must be idempotent (guard
   with `hasKey()` / `isRegisteredOrReserved()`).
+- **`SpecStage`** (`src/Core/Generator/Pipeline/`): one step in the OpenAPI
+  document assembly pipeline. The core ships five stages — `RootStage`,
+  `PathsStage`, `ComponentsStage`, `SecurityStage`, then a terminal
+  `TransformersStage`. Plugin-registered stages run between the core stages
+  and the terminal one, in registration order. A stage receives the shared
+  `OA\OpenApi` document and a `GenerationContext` and mutates the document in
+  place. **Merge, don't replace** any field that earlier stages may have
+  written: in particular, `$doc->components` is shared between
+  `ComponentsStage`, `SecurityStage`, and any plugin stage that wants to add
+  schemas. Always read-modify-write:
+  ```php
+  $components = $doc->components instanceof OA\Components
+      ? $doc->components
+      : new OA\Components([]);
+  $existing = is_array($components->schemas) ? $components->schemas : [];
+  $components->schemas = array_merge($existing, $mySchemas);
+  $doc->components = $components;
+  ```
+  Assigning a fresh `new OA\Components([...])` discards `securitySchemes`
+  that `SecurityStage` already wrote. The same caution applies to any field
+  another stage touches.
 
 Each resolver pairs a "can I handle this?" predicate with a "produce the
 result" method. The pipeline iterates registered resolvers in registration

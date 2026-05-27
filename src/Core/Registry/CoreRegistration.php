@@ -14,23 +14,27 @@ namespace Radiergummi\OpenApi\Core\Registry;
 use Radiergummi\OpenApi\Core\Extractors\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Generator\CoreQueryParameterResolver;
+use Radiergummi\OpenApi\Core\Generator\Pipeline\ComponentsStage;
+use Radiergummi\OpenApi\Core\Generator\Pipeline\PathsStage;
+use Radiergummi\OpenApi\Core\Generator\Pipeline\RootStage;
+use Radiergummi\OpenApi\Core\Generator\Pipeline\SecurityStage;
+use Radiergummi\OpenApi\Core\Generator\Pipeline\SpecStage;
 use Radiergummi\OpenApi\Core\Lint\Rules;
+use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
 
 /**
- * Registers the framework-agnostic built-ins — the core request-schema resolver and every core
- * lint rule — into the registry. Runs first, before plugins and config extras.
+ * Registers the framework-agnostic built-ins (the core request-schema resolver and every core lint
+ * rule) into the registry. Runs first, before plugins and config extras.
  */
 final class CoreRegistration
 {
     /**
-     * Every core lint rule. Moved here verbatim from the former
-     * `OpenApiServiceProvider::RULES` constant.
+     * Core Linter rules
      *
-     * Rules are listed here for registration only. The authoritative severity
-     * of each rule is its own `level()` method and is visible via
-     * `php artisan openapi:lint --list`.
+     * Rules are listed here for registration only. The authoritative severity of each rule is its
+     * own `level()` method and is visible via `php artisan openapi:lint --list`.
      *
-     * @var list<class-string>
+     * @var list<class-string<Rule>>
      */
     public const array RULES = [
         Rules\SpecInvalid::class,
@@ -142,11 +146,27 @@ final class CoreRegistration
         Rules\SpecConfigOrphaned::class,
     ];
 
+    /**
+     * Core Specification generation Stages
+     *
+     * @var list<class-string<SpecStage>>
+     */
+    public const array STAGES = [
+        RootStage::class,
+        PathsStage::class,
+        ComponentsStage::class,
+        SecurityStage::class,
+    ];
+
     public static function register(OpenApiRegistry $registry): void
     {
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
+
+        foreach (self::STAGES as $stage) {
+            $registry->addStage($stage);
+        }
 
         foreach (self::RULES as $rule) {
             $registry->addRule($rule);

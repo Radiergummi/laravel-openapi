@@ -5,6 +5,11 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- `SpecStage` plugin extension point. Plugins can now contribute document-level
+  transformations via `OpenApiRegistry::addStage()`, alongside the existing
+  resolver and rule registration surfaces. The pipeline runs core stages
+  (root, paths, components, security), then any plugin-registered stages, then
+  the terminal transformer stage.
 - New `openapi:diff:config` artisan command reports drift between the published `config/openapi.php` and the package default — flags added keys, removed keys, and changed default values.
 - Auto-synthesised examples for fields without an authored example, using a targeted Faker map keyed by format (`email`, `uuid`, `uri`, etc.) and field-name suffix (`*_email`, `*_url`, etc.). Strict lowest-priority fallback — authored sources always win. Disabled per spec via `config('openapi.examples.synthesise') = false`. Deterministic via `config('openapi.examples.faker_seed')`. `fakerphp/faker` is an optional `require-dev` dependency that degrades to "no example" when absent.
 - Field-attribute descriptions now recognise three inline directives — `@example <value>`, `@no-example`, `@enum a, b, c` — letting authors declare examples and enum domains without a separate attribute. `@enum` tokens are coerced by lexical shape (so `@enum 200, 404, 500` yields ints, not strings). An explicit `example:` / `enum:` argument on the attribute always wins over the directive — including when the explicit value is `null`, which suppresses the directive's value.
@@ -193,6 +198,11 @@ All notable changes to this project are documented here.
   unaffected — `SpecTreeWalker` still calls `Rule::reset()` before each walk. Callers
   that need a fresh pipeline mid-scope should call `$app->forgetScopedInstances()`
   (one existing test was migrated to demonstrate the pattern).
+- Internal refactor of `OpenApiGenerator`: document assembly now runs through a
+  `SpecPipeline` composed of typed stages (`RootStage`, `PathsStage`,
+  `ComponentsStage`, `SecurityStage`, `TransformersStage`). No behaviour
+  change. `OpenApiExtensions` (static-callable transformer surface) is
+  unchanged.
 
 ### Documentation
 - Document exception → response resolution precedence in `docs/config.md` (new

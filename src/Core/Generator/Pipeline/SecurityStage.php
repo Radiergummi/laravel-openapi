@@ -1,0 +1,40 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license       MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Core\Generator\Pipeline;
+
+use Illuminate\Container\Attributes\Scoped;
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
+
+/**
+ * Writes `components.securitySchemes` from {@see OperationBuilder::buildSecuritySchemes()}.
+ *
+ * Always runs (even if no schemes are emitted) because the existing generator always sets the
+ * `securitySchemes` key — preserving that means downstream consumers' fixture diffs stay clean.
+ */
+#[Scoped]
+final readonly class SecurityStage implements SpecStage
+{
+    public function __construct(
+        private OperationBuilder $operationBuilder,
+    ) {}
+
+    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    {
+        $components = $doc->components instanceof OA\Components
+            ? $doc->components
+            : new OA\Components([]);
+
+        $components->securitySchemes = $this->operationBuilder->buildSecuritySchemes();
+        $doc->components = $components;
+    }
+}
