@@ -71,7 +71,7 @@
         "test-coverage": "@pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage",
         "format": "pint --parallel --max-processes=auto --cache-file=.cache/pint.json",
         "fmt": "@format",
-        "lint": "phpstan analyse",
+        "lint": "phpstan analyse --memory-limit=4G",
         "analyse": "@lint",
         "examples:vanilla": "@php examples/generate.php vanilla",
         "examples:form-requests": "@php examples/generate.php form-requests",
