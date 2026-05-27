@@ -26,8 +26,11 @@ use InvalidArgumentException;
 abstract readonly class BaseExample
 {
     /**
-     * @param mixed       $value Inline example payload (PHP array / scalar). Mutually exclusive with `$file`.
-     * @param null|string $file  Path to a JSON file relative to the project root. Mutually exclusive with `$value`.
+     * @param non-empty-string      $name
+     * @param mixed                 $value       Inline example payload (PHP array / scalar). Mutually exclusive with `$file`.
+     * @param null|non-empty-string $summary
+     * @param null|non-empty-string $description
+     * @param null|non-empty-string $file        Path to a JSON file relative to the project root. Mutually exclusive with `$value`.
      *
      * @throws InvalidArgumentException When both or neither of `$value` / `$file` are provided.
      */

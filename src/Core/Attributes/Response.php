@@ -31,6 +31,7 @@ use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
 final readonly class Response
 {
     /**
+     * @param non-empty-string          $description
      * @param null|class-string         $ref
      * @param null|array<string, mixed> $schema
      */

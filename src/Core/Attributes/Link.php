@@ -33,16 +33,16 @@ use Attribute;
 final readonly class Link
 {
     /**
-     * @param string                $name         Short name for the link — used as the map key
-     *                                            in `responses.{status}.links`. Must match the
-     *                                            naming constraints of component object names
-     *                                            (alphanumeric, `.`, `-`, `_`).
-     * @param null|string           $operationId  The `operationId` of the target operation.
-     *                                            Mutually exclusive with `$operationRef`.
-     * @param null|string           $operationRef A relative or absolute reference to the target
-     *                                            operation. Mutually exclusive with `$operationId`.
-     * @param array<string, string> $parameters   Map of parameter name → runtime expression.
-     * @param null|string           $description  Optional human-readable description of the link.
+     * @param non-empty-string                          $name         Short name for the link — used as the map
+     *                                                                key in `responses.{status}.links`. Must
+     *                                                                match the naming constraints of component
+     *                                                                object names (alphanumeric, `.`, `-`, `_`).
+     * @param null|non-empty-string                     $operationId  The `operationId` of the target operation.
+     *                                                                Mutually exclusive with `$operationRef`.
+     * @param null|non-empty-string                     $operationRef A relative or absolute reference to the target
+     *                                                                operation. Mutually exclusive with `$operationId`.
+     * @param array<non-empty-string, non-empty-string> $parameters   Map of parameter name → runtime expression.
+     * @param null|non-empty-string                     $description  Optional human-readable description of the link.
      */
     public function __construct(
         public string $name,

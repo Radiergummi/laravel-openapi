@@ -70,9 +70,14 @@ it('resolves a non-resource field type via an injected RefSchemaResolver', funct
     $registry = new ComponentSchemaRegistry();
 
     $stub = new class () implements RefSchemaResolver {
+        public function canResolve(string $class): bool
+        {
+            return $class === SchemaNonResourceModel::class;
+        }
+
         public function resolveRef(string $class): ?string
         {
-            return $class === SchemaNonResourceModel::class
+            return $this->canResolve($class)
                 ? '#/components/schemas/SchemaNonResourceModel'
                 : null;
         }

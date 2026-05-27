@@ -21,6 +21,12 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Header
 {
+    /**
+     * @param non-empty-string      $name
+     * @param null|non-empty-string $description
+     * @param OpenApiPrimitiveType  $type
+     * @param null|non-empty-string $format
+     */
     public function __construct(
         public string $name,
         public ?string $description = null,

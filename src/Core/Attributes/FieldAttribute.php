@@ -34,7 +34,16 @@ use function array_values;
 abstract readonly class FieldAttribute
 {
     /**
+     * @param null|non-empty-string                               $title
+     * @param null|non-empty-string                               $description
+     * @param null|class-string|OpenApiPrimitiveType              $type
+     * @param null|non-empty-string                               $format
      * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum
+     * @param null|int<0, max>                                    $minLength
+     * @param null|int<0, max>                                    $maxLength
+     * @param null|non-empty-string                               $pattern
+     * @param null|int<0, max>                                    $minItems
+     * @param null|int<0, max>                                    $maxItems
      * @param bool                                                $conditional When true, the field is kept in
      *                                                                         `properties` but removed from `required`
      *                                                                         — used by response fields emitted via

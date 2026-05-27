@@ -37,7 +37,8 @@ use RuntimeException;
 final readonly class Discriminator
 {
     /**
-     * @param array<string, class-string> $mapping
+     * @param non-empty-string                      $propertyName
+     * @param array<non-empty-string, class-string> $mapping
      */
     public function __construct(
         public string $propertyName,

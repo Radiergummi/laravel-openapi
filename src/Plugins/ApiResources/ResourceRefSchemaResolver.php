@@ -28,9 +28,14 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
         private SchemaFromResource $schemaFromResource,
     ) {}
 
+    public function canResolve(string $class): bool
+    {
+        return is_a($class, JsonResource::class, allow_string: true);
+    }
+
     public function resolveRef(string $class): ?string
     {
-        if (!is_a($class, JsonResource::class, allow_string: true)) {
+        if (!$this->canResolve($class)) {
             return null;
         }
 

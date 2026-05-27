@@ -33,11 +33,11 @@ use function is_string;
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
 final readonly class Spec
 {
-    /** @var list<string> */
+    /** @var list<non-empty-string> */
     public array $names;
 
     /**
-     * @param null|list<string>|string $name
+     * @param null|list<non-empty-string>|non-empty-string $name
      */
     public function __construct(array|string|null $name = null)
     {

@@ -24,7 +24,10 @@ use Attribute;
 final readonly class Operation
 {
     /**
-     * @param null|list<string> $tags
+     * @param null|non-empty-string       $summary
+     * @param null|non-empty-string       $description
+     * @param null|non-empty-string       $operationId
+     * @param null|list<non-empty-string> $tags
      */
     public function __construct(
         public ?string $summary = null,

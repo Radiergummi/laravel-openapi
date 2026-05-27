@@ -21,5 +21,8 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class Description
 {
+    /**
+     * @param non-empty-string $value
+     */
     public function __construct(public string $value) {}
 }

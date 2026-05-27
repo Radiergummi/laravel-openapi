@@ -26,8 +26,8 @@ use LogicException;
 final readonly class Hide
 {
     /**
-     * @param null|list<string> $only
-     * @param null|list<string> $except
+     * @param null|list<non-empty-string> $only
+     * @param null|list<non-empty-string> $except
      *
      * @throws LogicException
      */

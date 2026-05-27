@@ -144,6 +144,7 @@ plugin-registered rules.
 | `ref.broken` | 0 | A $ref points to a component that doesn't exist in the spec. |
 | `response.description-missing` | 0 | Response has no description. OAS 3.1 requires description on every Response Object. |
 | `response.duplicate-status` | 0 | Two responses on the same operation share the same status code. |
+| `response.ref-unresolvable` | 0 | #[Response(ref:)] points to a class no registered schema resolver can resolve; the response is emitted without a body schema. |
 | `schema.enum-type-mismatch` | 0 | Schema enum contains values that don't match the declared type. |
 | `schema.required-without-property` | 0 | required names a field not in properties. |
 | `security.scheme-undefined` | 0 | Operation references a security scheme not declared at the document level. |

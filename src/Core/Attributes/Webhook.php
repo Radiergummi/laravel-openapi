@@ -29,9 +29,9 @@ use Attribute;
 final readonly class Webhook
 {
     /**
-     * @param string $name Logical webhook name used as the map key under `webhooks` in the
-     *                     generated spec. Use the provider's event name convention, e.g.
-     *                     `stripe.payment_intent.succeeded` or `mailgun.delivered`.
+     * @param non-empty-string $name Logical webhook name used as the map key under `webhooks` in
+     *                               the generated spec. Use the provider's event name convention,
+     *                               e.g. `stripe.payment_intent.succeeded` or `mailgun.delivered`.
      */
     public function __construct(
         public string $name,

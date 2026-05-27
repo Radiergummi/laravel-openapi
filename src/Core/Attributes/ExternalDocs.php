@@ -20,6 +20,10 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class ExternalDocs
 {
+    /**
+     * @param non-empty-string      $url
+     * @param null|non-empty-string $description
+     */
     public function __construct(
         public string $url,
         public ?string $description = null,

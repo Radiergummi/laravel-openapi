@@ -31,6 +31,11 @@ use Radiergummi\OpenApi\Core\Attributes\Support\FieldDefault;
 #[Attribute(Attribute::TARGET_PARAMETER)]
 final readonly class PathParam extends FieldAttribute
 {
+    /**
+     * @param null|non-empty-string $description
+     * @param null|non-empty-string $format
+     * @param null|non-empty-string $pattern
+     */
     public function __construct(
         ?string $description = null,
         mixed $example = FieldDefault::Unset,

@@ -92,13 +92,16 @@ it('exposes buildRef returning a qualified components ref', function (): void {
 it('resolves non-transformer class refs via injected RefSchemaResolver', function (): void {
     $registry = new ComponentSchemaRegistry();
     $customResolver = new class () implements RefSchemaResolver {
+        public function canResolve(string $class): bool
+        {
+            return $class === NotAFractalTransformer::class;
+        }
+
         public function resolveRef(string $class): ?string
         {
-            if ($class === NotAFractalTransformer::class) {
-                return '#/components/schemas/CustomRef';
-            }
-
-            return null;
+            return $this->canResolve($class)
+                ? '#/components/schemas/CustomRef'
+                : null;
         }
     };
 

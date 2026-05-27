@@ -31,7 +31,8 @@ use Radiergummi\OpenApi\Core\Extractors\SecurityExtractor;
 final readonly class Security
 {
     /**
-     * @param list<string> $scopes AND-logic — all listed scopes required.
+     * @param list<non-empty-string> $scopes AND-logic — all listed scopes required.
+     * @param null|non-empty-string  $scheme
      */
     public function __construct(
         public array $scopes,

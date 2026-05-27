@@ -27,6 +27,9 @@ use Attribute;
 )]
 final readonly class Deprecated
 {
+    /**
+     * @param null|non-empty-string $reason
+     */
     public function __construct(
         public ?string $reason = null,
     ) {}

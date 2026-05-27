@@ -25,6 +25,9 @@ use Attribute;
 #[Attribute(Attribute::TARGET_CLASS)]
 final readonly class ExceptionResponse
 {
+    /**
+     * @param non-empty-string $description
+     */
     public function __construct(
         public int $status,
         public string $description,

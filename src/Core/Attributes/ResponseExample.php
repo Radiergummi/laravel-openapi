@@ -21,6 +21,12 @@ use Attribute;
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class ResponseExample extends BaseExample
 {
+    /**
+     * @param non-empty-string      $name
+     * @param null|non-empty-string $summary
+     * @param null|non-empty-string $description
+     * @param null|non-empty-string $file
+     */
     public function __construct(
         public int $status,
         string $name,

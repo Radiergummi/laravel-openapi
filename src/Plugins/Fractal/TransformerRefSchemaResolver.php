@@ -31,16 +31,21 @@ final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
         private SchemaFromTransformer $schemaFromTransformer,
     ) {}
 
+    public function canResolve(string $class): bool
+    {
+        if (!class_exists($class)) {
+            return false;
+        }
+
+        return new ReflectionClass($class)->getAttributes(TransformerField::class) !== [];
+    }
+
     /**
      * @throws ReflectionException
      */
     public function resolveRef(string $class): ?string
     {
-        if (!class_exists($class)) {
-            return null;
-        }
-
-        if (new ReflectionClass($class)->getAttributes(TransformerField::class) === []) {
+        if (!$this->canResolve($class)) {
             return null;
         }
 

@@ -33,6 +33,10 @@ use Attribute;
 )]
 final readonly class IgnoreLint
 {
+    /**
+     * @param non-empty-string      $rule
+     * @param null|non-empty-string $reason
+     */
     public function __construct(
         public string $rule,
         public ?string $reason = null,

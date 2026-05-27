@@ -39,6 +39,7 @@ use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Core\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
+use Radiergummi\OpenApi\Core\Lint\Rules\ResponseRefUnresolvable;
 use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
 use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
@@ -176,6 +177,22 @@ class OpenApiServiceProvider extends ServiceProvider
                         $registry->rules(),
                     ),
                     severityOverrides: (array) config('openapi.lint.severity_overrides', []),
+                );
+            },
+        );
+
+        // The rule needs the registered ref-schema resolver chain to answer "would this ref
+        // resolve?" — the container can't autowire the resolver list, so build it explicitly.
+        $this->app->scoped(
+            ResponseRefUnresolvable::class,
+            static function (Container $app): ResponseRefUnresolvable {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                return new ResponseRefUnresolvable(
+                    refSchemaResolvers: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->refSchemaResolvers(),
+                    ),
                 );
             },
         );

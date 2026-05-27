@@ -33,6 +33,11 @@ final readonly class DataRefSchemaResolver implements RefSchemaResolver
         private ComponentSchemaRegistry $schemaRegistry,
     ) {}
 
+    public function canResolve(string $class): bool
+    {
+        return is_a($class, Data::class, allow_string: true);
+    }
+
     /**
      * @throws ReflectionException
      * @throws RuntimeException
@@ -40,7 +45,7 @@ final readonly class DataRefSchemaResolver implements RefSchemaResolver
      */
     public function resolveRef(string $class): ?string
     {
-        if (!is_a($class, Data::class, allow_string: true)) {
+        if (!$this->canResolve($class)) {
             return null;
         }
 

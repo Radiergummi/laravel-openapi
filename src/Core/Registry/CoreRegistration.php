@@ -144,6 +144,8 @@ final class CoreRegistration
         Rules\SpecUnknownReference::class,
         Rules\SpecRouteOrphaned::class,
         Rules\SpecConfigOrphaned::class,
+
+        Rules\ResponseRefUnresolvable::class,
     ];
 
     /**

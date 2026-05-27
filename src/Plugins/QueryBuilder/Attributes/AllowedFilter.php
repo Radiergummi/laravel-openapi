@@ -35,8 +35,17 @@ use Radiergummi\OpenApi\Core\Attributes\QueryParam;
 final readonly class AllowedFilter extends FieldAttribute
 {
     /**
-     * @param string                           $name The filter key — becomes `filter[name]`.
-     * @param null|list<BackedEnum|int|string> $enum Allowed values; renders as a dropdown.
+     * @param non-empty-string                 $name        The filter key — becomes `filter[name]`.
+     * @param null|non-empty-string            $title
+     * @param null|non-empty-string            $description
+     * @param null|OpenApiPrimitiveType        $type
+     * @param null|non-empty-string            $format
+     * @param null|list<BackedEnum|int|string> $enum        Allowed values; renders as a dropdown.
+     * @param null|int<0, max>                 $minLength
+     * @param null|int<0, max>                 $maxLength
+     * @param null|non-empty-string            $pattern
+     * @param null|int<0, max>                 $minItems
+     * @param null|int<0, max>                 $maxItems
      */
     public function __construct(
         public string $name,

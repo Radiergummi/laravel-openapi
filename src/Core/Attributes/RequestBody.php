@@ -22,6 +22,9 @@ use Radiergummi\OpenApi\Core\Enums\MediaType;
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class RequestBody
 {
+    /**
+     * @param null|non-empty-string $description
+     */
     public function __construct(
         public ?string $description = null,
         public ?bool $required = null,

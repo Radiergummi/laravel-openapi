@@ -8,6 +8,8 @@ parameters:
     reportIgnoresWithoutComments: true
     checkUninitializedProperties: true
     checkDynamicProperties: true
+    typeAliases:
+        OpenApiPrimitiveType: "'array'|'boolean'|'integer'|'null'|'number'|'object'|'string'"
     exceptions:
         check:
             missingCheckedExceptionInThrows: true
@@ -44,6 +46,15 @@ parameters:
             identifier: missingType.iterableValue
             paths:
                 - tests/
+        # Lint-rule fixtures intentionally pass empty strings to attribute slots typed
+        # `non-empty-string` (e.g. `#[Header('')]`, `#[ExternalDocs(url: '')]`) so the runtime
+        # lint rules that flag empty values have something to catch. The static rejection is the
+        # point everywhere else; here the empty literal is the test input.
+        -
+            message: "#expects non-empty-string, '' given\\.$#"
+            identifier: argument.type
+            paths:
+                - tests/Fixtures/Lint/
         # Tests and fixtures don't document checked exceptions via @throws — they are not part
         # of the public API surface and the throws.* lint rules don't apply to them.
         -
