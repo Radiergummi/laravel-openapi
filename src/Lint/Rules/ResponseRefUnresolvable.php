@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use;
 use Override;
 use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
