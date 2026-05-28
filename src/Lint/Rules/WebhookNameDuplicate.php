@@ -32,7 +32,7 @@ use function sprintf;
 final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizable, Resettable
 {
     /**
-     * @var WebhookNode
+     * @var array<string, list<WebhookNode>>
      */
     private array $seen = [];
 

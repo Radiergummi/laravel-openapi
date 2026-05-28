@@ -39,7 +39,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
 {
     private readonly string $attributeNamespace;
 
-    /** @var ReflectionClass */
+    /** @var array<class-string, ReflectionClass<object>> */
     private array $reflectionCache = [];
 
     public function __construct(?string $attributeNamespace = null)
