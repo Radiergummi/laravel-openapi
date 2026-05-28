@@ -27,7 +27,7 @@ final class HideOnlyExceptRuleTest extends RuleTestCase
 
     public function testFlagsBothOnlyAndExcept(): void
     {
-        $this->analyse([__DIR__ . '/data/hide-only-except.php'], [
+        $this->analyse([__DIR__ . '/Data/hide-only-except.php'], [
             [
                 '#[Hide] cannot use both only and except — they are mutually exclusive.',
                 20,

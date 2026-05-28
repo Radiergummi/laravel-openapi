@@ -27,7 +27,7 @@ final class ExampleValueOrFileRuleTest extends RuleTestCase
 
     public function testFlagsMissingOrBothValueAndFile(): void
     {
-        $this->analyse([__DIR__ . '/data/example-value-or-file.php'], [
+        $this->analyse([__DIR__ . '/Data/example-value-or-file.php'], [
             [
                 '#[Example] requires exactly one of value or file.',
                 24,

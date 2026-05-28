@@ -27,7 +27,7 @@ final class ExposeOnlyExceptRuleTest extends RuleTestCase
 
     public function testFlagsBothOnlyAndExcept(): void
     {
-        $this->analyse([__DIR__ . '/data/expose-only-except.php'], [
+        $this->analyse([__DIR__ . '/Data/expose-only-except.php'], [
             [
                 '#[Expose] cannot use both only and except — they are mutually exclusive.',
                 20,

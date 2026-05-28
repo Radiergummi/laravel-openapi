@@ -1,3 +1,8 @@
+# This file contains the Laravel OpenAPI PHPStan extension. It registers rules for validating
+# OpenAPI attribute usage as part of static analysis, complementing the included linting rules
+# that run at runtime. See the README for details.
+# Using this extension is optional, but recommended for best results. It requires PHPStan 1.10+.
+
 parameters:
     # Shipped with the extension so the type aliases referenced by this package's attribute
     # PHPDocs (e.g. #[Response(status:)], #[Header(type:)]) resolve in consumer PHPStan runs,
@@ -21,7 +26,19 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Radiergummi\OpenApi\PhpStan\Rules\ResponseRefAndSchemaRule
+        tags:
+            - phpstan.rules.rule
+    -
         class: Radiergummi\OpenApi\PhpStan\Rules\HideOnlyExceptRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\FieldRangeOrderingRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\QueryParamRequiredWithDefaultRule
         tags:
             - phpstan.rules.rule
 
@@ -69,5 +86,12 @@ services:
         class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseHeaderRule
         arguments:
             nodeType: PhpParser\Node\Stmt\ClassLike
+        tags:
+            - phpstan.rules.rule
+
+    # Class-level rules — fire per Stmt\Class_ and need a ReflectionProvider to walk the class
+    # hierarchy. Interfaces / traits / enums are not visited.
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\ExceptionResponseOnNonThrowableRule
         tags:
             - phpstan.rules.rule

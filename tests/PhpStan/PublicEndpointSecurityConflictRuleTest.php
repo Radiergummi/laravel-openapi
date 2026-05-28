@@ -28,7 +28,7 @@ final class PublicEndpointSecurityConflictRuleTest extends RuleTestCase
 
     public function testFlagsMethodLevelConflicts(): void
     {
-        $this->analyse([__DIR__ . '/data/public-endpoint-security-conflict.php'], [
+        $this->analyse([__DIR__ . '/Data/public-endpoint-security-conflict.php'], [
             [
                 '#[PublicEndpoint] and #[Security] cannot coexist on the same target — they contradict each other.',
                 18,

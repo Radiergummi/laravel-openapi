@@ -27,7 +27,7 @@ final class LinkOperationTargetRuleTest extends RuleTestCase
 
     public function testFlagsMissingOrBothOperationTargets(): void
     {
-        $this->analyse([__DIR__ . '/data/link-operation-target.php'], [
+        $this->analyse([__DIR__ . '/Data/link-operation-target.php'], [
             [
                 '#[Link] requires exactly one of operationId or operationRef.',
                 23,

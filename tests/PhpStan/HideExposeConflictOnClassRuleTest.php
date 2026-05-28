@@ -28,7 +28,7 @@ final class HideExposeConflictOnClassRuleTest extends RuleTestCase
 
     public function testFlagsClassLevelConflicts(): void
     {
-        $this->analyse([__DIR__ . '/data/hide-expose-conflict-class.php'], [
+        $this->analyse([__DIR__ . '/Data/hide-expose-conflict-class.php'], [
             [
                 'Unconditional #[Hide] and #[Expose] cannot coexist on the same target — they contradict each other in every environment.',
                 10,

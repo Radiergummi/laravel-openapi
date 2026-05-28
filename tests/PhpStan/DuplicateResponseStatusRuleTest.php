@@ -28,7 +28,7 @@ final class DuplicateResponseStatusRuleTest extends RuleTestCase
 
     public function testFlagsRepeatedStatusCodes(): void
     {
-        $this->analyse([__DIR__ . '/data/duplicate-response-status.php'], [
+        $this->analyse([__DIR__ . '/Data/duplicate-response-status.php'], [
             [
                 '#[Response] with status 404 is declared more than once on this target — duplicate status codes are silently dropped.',
                 16,

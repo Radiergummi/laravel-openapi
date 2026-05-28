@@ -71,7 +71,7 @@ Use the `#[OpenApi\IgnoreLint]` attribute. Each instance suppresses exactly
 one rule; stack the attribute for several. Always pass a `reason`:
 
 ```php
-use Radiergummi\OpenApi\Core\Attributes as OpenApi;
+use Radiergummi\OpenApi\Attributes as OpenApi;
 
 #[OpenApi\IgnoreLint('response.no-error', reason: 'Internal-only endpoint, errors are handled by the framework')]
 public function internal(): JsonResponse { … }
@@ -111,9 +111,53 @@ Naming rules read their expected case convention from `config/openapi.lint.style
 Supported case values: `dot`, `kebab`, `snake`, `camel`, `pascal`, `train`,
 `screaming_snake`.
 
+## Static checks (PHPStan)
+
+A bundled PHPStan extension catches a subset of attribute misuses at edit time —
+the cases that are decidable from the AST alone, before the spec is generated.
+Anything that needs a booted rule registry, route information, or generated
+spec state stays in `openapi:lint`.
+
+The extension auto-registers when `phpstan/extension-installer` is present.
+Otherwise add it manually:
+
+```neon
+# phpstan.neon
+includes:
+    - vendor/radiergummi/laravel-openapi/extension.neon
+```
+
+PHPStan identifiers cannot contain dashes, so the static identifiers use
+camelCase. Where a static rule has a runtime counterpart, that counterpart's
+ID is listed below — the static one fires first, the runtime one is the
+backstop for cases the static analysis can't see (e.g. environment-scoped
+visibility).
+
+| Static identifier | Catches | Runtime counterpart |
+|---|---|---|
+| `openapi.link.bothOperationTargets` | `#[Link]` sets both `operationId` and `operationRef`. | `link.both-operation-id-and-ref` |
+| `openapi.link.missingOperationTarget` | `#[Link]` sets neither `operationId` nor `operationRef`. | `link.neither-operation-id-nor-ref` |
+| `openapi.example.bothValueAndFile` | `#[Example]` / `#[ResponseExample]` sets both `value` and `file`. | — (constructor throws at reflection time) |
+| `openapi.example.missingValueOrFile` | `#[Example]` / `#[ResponseExample]` sets neither `value` nor `file`. | — |
+| `openapi.expose.onlyAndExcept` | `#[Expose]` sets both `only` and `except`. | — |
+| `openapi.hide.onlyAndExcept` | `#[Hide]` sets both `only` and `except`. | — |
+| `openapi.visibility.hideExposeConflict` | Unconditional `#[Hide]` and `#[Expose]` on the same target. | `visibility.hide-expose-conflict` (env-aware) |
+| `openapi.security.publicAndSecuredConflict` | `#[PublicEndpoint]` with `#[Security]` on the same target. | `publicendpoint.contradicts-middleware` (middleware-aware) |
+| `openapi.response.duplicateStatus` | Two `#[Response]` attributes with the same status on one operation. | `response.duplicate-status` |
+| `openapi.responseHeader.duplicate` | Two `#[ResponseHeader]` attributes with the same name/status. | — |
+| `openapi.response.refAndSchema` | `#[Response]` sets both `ref` and `schema` (schema wins; `ref` is silently dropped). | — |
+| `openapi.field.rangeOrdering` | Field attribute has `min* > max*` for `minimum`/`maximum`, `minLength`/`maxLength`, or `minItems`/`maxItems` (literal numerics only). | — |
+| `openapi.queryParam.requiredWithDefault` | `#[QueryParam(required: true, default: …)]` — a default makes the parameter implicitly optional, contradicting `required: true`. | — |
+| `openapi.exceptionResponse.nonThrowable` | `#[ExceptionResponse]` is attached to a class that doesn't implement `Throwable` — the standard-responses extractor only consults the attribute when resolving `@throws` FQCNs, so it is silently ignored elsewhere. | — |
+
+The extension also ships two PHPStan type aliases — `OpenApiPrimitiveType`
+and `HttpStatusCode` — used by the attribute PHPDocs so consumer PHPStan
+runs flag misspelled `type:` literals (`'int'` vs `'integer'`) and
+out-of-range status codes at the call site.
+
 ## Adding a custom rule
 
-1. Implement `Radiergummi\OpenApi\Core\Lint\Rules\Rule` and one or more
+1. Implement `Radiergummi\OpenApi\Lint\Rules\Rule` and one or more
    visitor interfaces from `Core/Lint/Rules/Visitors/`.
 2. Add the class to `config/openapi.lint.rules`, or register it from a plugin
    via `$registry->addRule(YourRule::class)`. See

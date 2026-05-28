@@ -19,7 +19,7 @@ parameters:
     excludePaths:
         # RuleTestCase data fixtures carry intentional attribute misuse for the PHPStan rules to
         # catch; they are analysed by the rule tests in isolation, not the main pass.
-        - tests/PhpStan/data/*
+        - tests/PhpStan/Data/*
     tmpDir: .cache/phpstan
 
     editorUrl: 'phpstorm://open?file=%%file%%&line=%%line%%'

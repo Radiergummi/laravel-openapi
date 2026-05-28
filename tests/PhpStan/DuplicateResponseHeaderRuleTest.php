@@ -28,7 +28,7 @@ final class DuplicateResponseHeaderRuleTest extends RuleTestCase
 
     public function testFlagsRepeatedStatusNamePairs(): void
     {
-        $this->analyse([__DIR__ . '/data/duplicate-response-header.php'], [
+        $this->analyse([__DIR__ . '/Data/duplicate-response-header.php'], [
             [
                 "#[ResponseHeader] 'X-Request-Id' for status 200 is declared more than once on this target — the duplicate is silently dropped.",
                 20,
