@@ -13,8 +13,10 @@ namespace Radiergummi\OpenApi\Tests\Unit\Registry;
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 uses()->group('openapi');
 
@@ -56,17 +58,23 @@ it('registers and returns error response contributors', function (): void {
         ->toBe([FakeContributorA::class, FakeContributorB::class]);
 });
 
-final class FakeContributorA implements \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor
+it('returns an empty array when no contributors have been registered', function (): void {
+    $registry = new OpenApiRegistry();
+
+    expect($registry->errorResponseContributors())->toBe([]);
+});
+
+class FakeContributorA implements ErrorResponseContributor
 {
-    public function contribute(\Radiergummi\OpenApi\Routing\ActionDescriptor $descriptor): array
+    public function contribute(ActionDescriptor $descriptor): array
     {
         return [];
     }
 }
 
-final class FakeContributorB implements \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor
+class FakeContributorB implements ErrorResponseContributor
 {
-    public function contribute(\Radiergummi\OpenApi\Routing\ActionDescriptor $descriptor): array
+    public function contribute(ActionDescriptor $descriptor): array
     {
         return [];
     }

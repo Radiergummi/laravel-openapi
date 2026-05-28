@@ -246,6 +246,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Returns the list of all registered error response contributors.
+     *
      * @return list<class-string<ErrorResponseContributor>>
      */
     public function errorResponseContributors(): array
