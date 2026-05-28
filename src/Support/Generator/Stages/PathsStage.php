@@ -95,14 +95,14 @@ final readonly class PathsStage implements SpecStage
             if ($webhookAttr !== null) {
                 $name = $webhookAttr->name;
                 $webhookItems[$name] ??= new OA\Webhook(['webhook' => $name]);
-                $this->attachOperation($webhookItems[$name], $descriptor);
+                $this->attachOperation($webhookItems[$name], $descriptor, $ctx);
 
                 continue;
             }
 
             $path = $this->normalisePath($descriptor->route->uri());
             $pathItems[$path] ??= new OA\PathItem(['path' => $path]);
-            $this->attachOperation($pathItems[$path], $descriptor);
+            $this->attachOperation($pathItems[$path], $descriptor, $ctx);
         }
 
         $doc->paths = array_values($pathItems);
@@ -131,7 +131,7 @@ final readonly class PathsStage implements SpecStage
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    private function attachOperation(OA\PathItem $pathItem, ActionDescriptor $action): void
+    private function attachOperation(OA\PathItem $pathItem, ActionDescriptor $action, GenerationContext $context): void
     {
         $operation = $this->operationBuilder->build($action, [$this->deriveTag($action)]);
 
@@ -151,6 +151,8 @@ final readonly class PathsStage implements SpecStage
             if ($operationSchema === null) {
                 continue;
             }
+
+            $context->bindAction($operationSchema, $action);
 
             OpenApiExtensions::applyOperationTransformers(
                 $operationSchema,
