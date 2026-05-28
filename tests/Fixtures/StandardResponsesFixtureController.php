@@ -1,6 +1,6 @@
 <?php
 
-// Fixture controller for StandardResponsesExtractorTest.
+// Fixture controller for error-response and form-request extraction tests.
 
 declare(strict_types=1);
 

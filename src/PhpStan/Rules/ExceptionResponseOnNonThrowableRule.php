@@ -27,9 +27,9 @@ use function assert;
 
 /**
  * Flags `#[ExceptionResponse]` on a class that doesn't implement {@see Throwable}. The
- * `StandardResponsesExtractor` only consults the attribute when resolving `@throws` FQCNs to
- * response shapes, so an attribute on a non-throwable class is dead documentation that the
- * generator silently skips.
+ * {@see \Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor} only consults the attribute
+ * when resolving `@throws` FQCNs to response shapes, so an attribute on a non-throwable class
+ * is dead documentation that the generator silently skips.
  *
  * Only `Stmt\Class_` nodes are visited. Anonymous classes (no `namespacedName`) and unresolvable
  * names are skipped — PHPStan's own checks catch missing classes, and the per-class hierarchy

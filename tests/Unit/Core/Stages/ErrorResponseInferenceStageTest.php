@@ -255,7 +255,100 @@ it('includes content from the resolver in the produced response', function (): v
 
 // endregion
 
-// region Case 6: Multiple statuses sorted ascending
+// region Case 6: Empty-string description does not clobber default
+
+it('does not override the descriptor default description when a resolver returns an empty string', function (): void {
+    $mediaType = new OA\MediaType(['mediaType' => 'application/json']);
+
+    $resolver = new readonly class ($mediaType) implements ErrorResponseResolver {
+        public function __construct(private OA\MediaType $mediaType) {}
+
+        public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
+        {
+            return new ErrorResponse(
+                content: [$this->mediaType],
+                description: '',
+            );
+        }
+    };
+
+    $contributor = new class () implements ErrorResponseContributor {
+        public function contribute(ActionDescriptor $descriptor): array
+        {
+            return [new ErrorDescriptor(status: 500, exceptionClass: null, description: 'Server error')];
+        }
+    };
+
+    $stage = new ErrorResponseInferenceStage(
+        contributors: [$contributor],
+        errorResponseResolvers: [$resolver],
+        registry: new ComponentSchemaRegistry(),
+        findings: new ArrayFindingsCollector(),
+    );
+
+    $operation = new OA\Get([]);
+    $doc = docWithGetOperation($operation);
+    $ctx = new GenerationContext(inferenceStageSpec(), 'testing');
+    $ctx->bindAction($operation, inferenceStageDescriptor());
+
+    $stage->apply($doc, $ctx);
+
+    expect($operation->responses)
+        ->toBeArray()
+        ->toHaveCount(1)
+        ->and($operation->responses[0]->description)->toBe('Server error');
+});
+
+// endregion
+
+// region Case 7: Resolver chain robustness — throwing resolver emits finding and chain continues
+
+it('emits a finding and continues the chain when a resolver throws', function (): void {
+    $throwing = new class () implements ErrorResponseResolver {
+        public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
+        {
+            throw new RuntimeException('resolver exploded');
+        }
+    };
+
+    $fallback = new class () implements ErrorResponseResolver {
+        public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
+        {
+            return ErrorResponse::bodyless();
+        }
+    };
+
+    $contributor = new class () implements ErrorResponseContributor {
+        public function contribute(ActionDescriptor $descriptor): array
+        {
+            return [new ErrorDescriptor(status: 500, exceptionClass: null, description: 'Server error')];
+        }
+    };
+
+    $collector = new ArrayFindingsCollector();
+    $stage = new ErrorResponseInferenceStage(
+        contributors: [$contributor],
+        errorResponseResolvers: [$throwing, $fallback],
+        registry: new ComponentSchemaRegistry(),
+        findings: $collector,
+    );
+
+    $operation = new OA\Get([]);
+    $doc = docWithGetOperation($operation);
+    $ctx = new GenerationContext(inferenceStageSpec(), 'testing');
+    $ctx->bindAction($operation, inferenceStageDescriptor());
+
+    $stage->apply($doc, $ctx);
+
+    expect($operation->responses)->toBeArray()->toHaveCount(1);
+    expect($collector->all())->toHaveCount(1);
+    expect($collector->all()[0]->ruleId)->toBe('errors.resolver-failed');
+    expect($collector->all()[0]->message)->toContain('resolver exploded');
+});
+
+// endregion
+
+// region Case 8: Multiple statuses sorted ascending
 
 it('appends inferred responses in ascending status order', function (): void {
     $contributor = new class () implements ErrorResponseContributor {

@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Contracts\Registry;
 
-use Radiergummi\OpenApi\Core\Extraction\StandardResponsesExtractor;
+use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
 
@@ -23,7 +23,7 @@ use Radiergummi\OpenApi\Errors\ErrorResponse;
  * Return {@see ErrorResponse::bodyless()} to claim the response while emitting no body.
  *
  * The response key (`response`), named-component registration (`Unauthorized`, `Forbidden`,
- * ...), and default description are owned by {@see StandardResponsesExtractor}. The returned
+ * ...), and default description are owned by {@see ErrorResponseInferenceStage}. The returned
  * {@see ErrorResponse} carries only the body slice — content, headers, links, and an
  * optional description override — that's why the type intentionally lacks a response-key
  * field.

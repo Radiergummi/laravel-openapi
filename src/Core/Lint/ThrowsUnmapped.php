@@ -13,16 +13,16 @@ namespace Radiergummi\OpenApi\Core\Lint;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Core\Extraction\StandardResponsesExtractor;
+use Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 
 /**
  * Registration stub for the `throws.unmapped` finding.
  *
- * The actual detection runs during spec generation in {@see StandardResponsesExtractor}: when a
+ * The actual detection runs during spec generation in {@see ThrowsErrorContributor}: when a
  * `@throws` FQCN has no matching entry in the exception map or `#[ExceptionResponse]` attribute,
- * that extractor emits this rule ID directly into the {@see FindingsCollector}.
+ * that contributor emits this rule ID directly into the {@see FindingsCollector}.
  *
  * This class exists solely to register the rule ID with the {@see RuleRegistry} so that:
  * - `#[IgnoreLint('throws.unmapped')]` is not flagged by `meta.unknown-rule`
@@ -32,7 +32,7 @@ use Radiergummi\OpenApi\Lint\RuleRegistry;
 final class ThrowsUnmapped implements Rule
 {
     /**
-     * fixHint: emitted by {@see StandardResponsesExtractor} alongside every `throws.unmapped`
+     * fixHint: emitted by {@see ThrowsErrorContributor} alongside every `throws.unmapped`
      * finding. The actual hint text is context-aware (app vs vendor exception) and built at emit
      * time.
      */

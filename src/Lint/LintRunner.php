@@ -205,8 +205,8 @@ final readonly class LintRunner
         $suppressions = $this->suppressionCollector->collect($descriptors);
 
         foreach ($targets as $spec) {
-            // Bind a spec-local collector BEFORE generateOne so extractor-emitted findings
-            // (e.g. ValidationRulesToSchema, StandardResponsesExtractor) land alongside the
+            // Bind a spec-local collector BEFORE generateOne so stage-emitted findings
+            // (e.g. ValidationRulesToSchema, ErrorResponseInferenceStage) land alongside the
             // tree-walk findings. The orchestrator's forgetScopedInstances() preserves the
             // current FindingsCollector binding, so this instance survives generation.
             // Spec-local stays un-decorated; the drain below goes through $emit so each
