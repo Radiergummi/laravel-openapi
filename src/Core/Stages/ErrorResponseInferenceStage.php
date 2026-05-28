@@ -69,9 +69,6 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     private const array HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'trace'];
 
     /**
-     * Field name `$errorResponseResolvers` matches the original `StandardResponsesExtractor` field;
-     * the lifted `resolveBody()` references it under that name, so keep it.
-     *
      * @param list<ErrorResponseContributor> $contributors
      * @param list<ErrorResponseResolver>    $errorResponseResolvers
      */
@@ -152,14 +149,14 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         $operation->responses = [...$existing, ...$additions];
     }
 
-    // region Lifted helpers — verbatim from StandardResponsesExtractor (lines 350–463)
+    // region Body resolution helpers
 
     /**
      * Walks the resolver chain for one descriptor. First non-null wins. Returns null when
-     * every resolver passes — the extractor then emits a bodyless response.
+     * every resolver passes — the stage then emits a bodyless response.
      *
      * The {@see ErrorResponseResolver} contract requires implementations to catch internally
-     * and return null on failure, but the extractor defends against misbehaving resolvers
+     * and return null on failure, but the stage defends against misbehaving resolvers
      * anyway: a throwing resolver emits a `errors.resolver-failed` finding and the chain
      * continues, matching the spec's promise that a single bad resolver does not abort the
      * full generation run.
@@ -199,7 +196,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     }
 
     /**
-     * Composes the resolver's body slice with the extractor-owned fields: response key,
+     * Composes the resolver's body slice with the stage-owned fields: response key,
      * default description, named-component registration.
      *
      * A named component is only used when the body is empty (description-only). When a
