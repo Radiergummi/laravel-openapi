@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Registry;
 
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
@@ -62,6 +63,11 @@ final class OpenApiRegistry
      * @var list<class-string<ErrorResponseResolver>>
      */
     private array $errorResponseResolvers = [];
+
+    /**
+     * @var list<class-string<ErrorResponseContributor>>
+     */
+    private array $errorResponseContributors = [];
 
     /**
      * @var list<class-string>
@@ -130,6 +136,16 @@ final class OpenApiRegistry
     {
         if (!in_array($class, $this->errorResponseResolvers, strict: true)) {
             $this->errorResponseResolvers[] = $class;
+        }
+    }
+
+    /**
+     * @param class-string<ErrorResponseContributor> $class
+     */
+    public function addErrorResponseContributor(string $class): void
+    {
+        if (!in_array($class, $this->errorResponseContributors, strict: true)) {
+            $this->errorResponseContributors[] = $class;
         }
     }
 
@@ -227,6 +243,14 @@ final class OpenApiRegistry
     public function errorResponseResolvers(): array
     {
         return $this->errorResponseResolvers;
+    }
+
+    /**
+     * @return list<class-string<ErrorResponseContributor>>
+     */
+    public function errorResponseContributors(): array
+    {
+        return $this->errorResponseContributors;
     }
 
     /**

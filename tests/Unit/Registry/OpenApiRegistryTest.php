@@ -43,3 +43,31 @@ class SecondRegistryStage implements SpecStage
 {
     public function apply(OA\OpenApi $doc, GenerationContext $ctx): void {}
 }
+
+it('registers and returns error response contributors', function (): void {
+    $registry = new OpenApiRegistry();
+
+    $registry->addErrorResponseContributor(FakeContributorA::class);
+    $registry->addErrorResponseContributor(FakeContributorB::class);
+    // Duplicate is ignored, matching the resolver behaviour:
+    $registry->addErrorResponseContributor(FakeContributorA::class);
+
+    expect($registry->errorResponseContributors())
+        ->toBe([FakeContributorA::class, FakeContributorB::class]);
+});
+
+final class FakeContributorA implements \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor
+{
+    public function contribute(\Radiergummi\OpenApi\Routing\ActionDescriptor $descriptor): array
+    {
+        return [];
+    }
+}
+
+final class FakeContributorB implements \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor
+{
+    public function contribute(\Radiergummi\OpenApi\Routing\ActionDescriptor $descriptor): array
+    {
+        return [];
+    }
+}
