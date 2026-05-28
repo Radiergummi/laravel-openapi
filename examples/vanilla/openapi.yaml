@@ -214,10 +214,10 @@ paths:
       security: []
 components:
   responses:
-    NotFound:
-      description: 'Resource not found'
     ValidationFailed:
       description: 'Validation failed'
+    NotFound:
+      description: 'Resource not found'
     Conflict:
       description: 'Flight is fully booked'
   securitySchemes:

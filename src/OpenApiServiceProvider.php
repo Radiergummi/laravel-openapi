@@ -33,7 +33,6 @@ use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;
 use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Extraction;
 use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Registration;
@@ -261,24 +260,6 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
-            Extraction\StandardResponsesExtractor::class,
-            static function (Container $app): Extraction\StandardResponsesExtractor {
-                $registry = $app->make(OpenApiRegistry::class);
-
-                return new Extraction\StandardResponsesExtractor(
-                    registry: $app->make(ComponentSchemaRegistry::class),
-                    findings: $app->make(FindingsCollector::class),
-                    errorResponseResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->errorResponseResolvers(),
-                    ),
-                    exceptionMap: (array) config('openapi.exception_responses', []),
-                    middlewareMap: (array) config('openapi.middleware_responses', []),
-                );
-            },
-        );
-
-        $this->app->scoped(
             ErrorResponseInferenceStage::class,
             static function (Container $app): ErrorResponseInferenceStage {
                 $registry = $app->make(OpenApiRegistry::class);
@@ -436,7 +417,6 @@ class OpenApiServiceProvider extends ServiceProvider
                     uriExtractor: $app->make(Support\Extraction\UriParametersExtractor::class),
                     bodyExtractor: $app->make(Support\Extraction\RequestBodyExtractor::class),
                     securityExtractor: $app->make(Support\Extraction\SecurityExtractor::class),
-                    standardResponsesExtractor: $app->make(Extraction\StandardResponsesExtractor::class),
                     fileLoader: $app->make(ExampleFileLoader::class),
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),

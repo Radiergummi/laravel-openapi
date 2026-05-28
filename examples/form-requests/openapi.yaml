@@ -82,6 +82,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FlightResource'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security: []
   '/api/flights/{flight}':
     get:
@@ -180,6 +182,8 @@ paths:
                 type: object
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security: []
   '/api/flights/{flight}/bookings':
     get:
@@ -240,6 +244,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security: []
   '/api/bookings/{booking}':
     delete:
@@ -421,6 +427,8 @@ components:
           pattern: '^\d{1,3}[A-Z]$'
       type: object
   responses:
+    ValidationFailed:
+      description: 'Validation failed'
     NotFound:
       description: 'Resource not found'
     Conflict:

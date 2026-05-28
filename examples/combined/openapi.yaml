@@ -120,6 +120,8 @@ paths:
               parameters:
                 flight: '$response.body#/id'
               description: 'Fetch the just-created flight by its returned id.'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security:
         -
           bearer:
@@ -259,6 +261,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security:
         -
           bearer:
@@ -316,6 +320,8 @@ paths:
                 type: object
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security:
         -
           bearer:
@@ -454,6 +460,8 @@ components:
           maxLength: 5120
       type: object
   responses:
+    ValidationFailed:
+      description: 'Validation failed'
     NotFound:
       description: 'Resource not found'
     Conflict:

@@ -11,15 +11,18 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core;
 
-use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Core\Extraction\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Core\Inference\MiddlewareErrorContributor;
+use Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor;
+use Radiergummi\OpenApi\Core\Inference\ValidationErrorContributor;
 use Radiergummi\OpenApi\Core\Lint\RequestBodySchemaDegraded;
 use Radiergummi\OpenApi\Core\Lint\RuleInvalidEnumValue;
 use Radiergummi\OpenApi\Core\Lint\RuleUnknown;
 use Radiergummi\OpenApi\Core\Lint\ThrowsUnmapped;
 use Radiergummi\OpenApi\Core\Resolvers\CoreQueryParameterResolver;
+use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
 use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
@@ -245,27 +248,28 @@ final class Registration
         ResponseRefUnresolvable::class,
     ];
 
-    /**
-     * Core Specification generation Stages
-     *
-     * @var list<class-string<SpecStage>>
-     */
-    public const array STAGES = [
-        RootStage::class,
-        PathsStage::class,
-        ComponentsStage::class,
-        SecurityStage::class,
-    ];
-
     public static function register(OpenApiRegistry $registry): void
     {
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
 
-        foreach (self::STAGES as $stage) {
-            $registry->addStage($stage);
-        }
+        // Register stages individually so ErrorResponseInferenceStage can be inserted between
+        // PathsStage and ComponentsStage. The inference stage must run after paths are built
+        // (it reads operation responses) but before ComponentsStage flushes named response
+        // components into the document.
+        $registry->addStage(RootStage::class);
+        $registry->addStage(PathsStage::class);
+
+        // Error-response inference contributors — registration order is load-bearing:
+        // Throws first (most specific), Middleware second, Validation last (most implicit).
+        $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
+        $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
+        $registry->addErrorResponseContributor(ValidationErrorContributor::class);
+        $registry->addStage(ErrorResponseInferenceStage::class);
+
+        $registry->addStage(ComponentsStage::class);
+        $registry->addStage(SecurityStage::class);
 
         foreach (self::RULES as $rule) {
             $registry->addRule($rule);

@@ -33,7 +33,6 @@ use Radiergummi\OpenApi\Attributes\Tag as TagAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Core\Extraction\StandardResponsesExtractor;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
@@ -65,7 +64,6 @@ final readonly class OperationBuilder
         private UriParametersExtractor $uriExtractor,
         private RequestBodyExtractor $bodyExtractor,
         private SecurityExtractor $securityExtractor,
-        private StandardResponsesExtractor $standardResponsesExtractor,
         private ExampleFileLoader $fileLoader,
         /**
          * @var list<RefSchemaResolver>
@@ -140,7 +138,6 @@ final readonly class OperationBuilder
         $operationOverride = $this->readOperationAttribute($action);
         $additionalTags = $this->readTagAttributes($action);
         $additionalResponses = $this->readResponseAttributes($action);
-        $standardResponses = $this->standardResponsesExtractor->extract($action);
         $deprecation = $this->readDeprecation($action);
         $externalDocs = $this->readExternalDocsAttribute($action);
 
@@ -166,9 +163,9 @@ final readonly class OperationBuilder
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
 
-        // Order matters: standard responses first, explicit Response attributes last.
-        // swagger-php's last-write-wins serialization lets #[Response] override generated 401/404.
-        $responses = [$primaryResponse, ...$standardResponses, ...$additionalResponses];
+        // Order matters: primary response first, explicit #[Response] attributes last.
+        // swagger-php's last-write-wins serialization lets #[Response] override inferred responses.
+        $responses = [$primaryResponse, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
         $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
