@@ -13,11 +13,12 @@ namespace Radiergummi\OpenApi\Core\Extractors;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\RequestSchemaResolver;
-use Radiergummi\OpenApi\Core\Registry\ResolvedSchema;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
+use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
 
 /**
  * Core request-schema resolver

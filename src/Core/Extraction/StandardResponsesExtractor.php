@@ -12,16 +12,17 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Core\Extractors;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
-use Radiergummi\OpenApi\Core\Enums\ComponentType;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingLocation;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Attributes\ExceptionResponse;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Enums\ComponentType;
+use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Errors\ErrorResponse;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingLocation;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Extraction\DetectsAuthMiddleware;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -204,9 +205,9 @@ final readonly class StandardResponsesExtractor
             return null;
         }
 
-        $attr = $attrs[0]->newInstance();
+        $attribute = $attrs[0]->newInstance();
 
-        return ['status' => $attr->status, 'description' => $attr->description];
+        return ['status' => $attribute->status, 'description' => $attribute->description];
     }
 
     /**
