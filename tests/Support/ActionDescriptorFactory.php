@@ -56,4 +56,23 @@ final class ActionDescriptorFactory
             description: null,
         );
     }
+
+    /**
+     * Builds a minimal descriptor whose route carries the given middleware list.
+     *
+     * @param list<string> $middleware
+     */
+    public static function withMiddleware(array $middleware): ActionDescriptor
+    {
+        $route = new Route(['GET'], '/x', []);
+        $route->middleware($middleware);
+
+        return new ActionDescriptor(
+            route: $route,
+            controller: null,
+            method: null,
+            summary: null,
+            description: null,
+        );
+    }
 }
