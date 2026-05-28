@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Support;
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionClass;
 use ReflectionMethod;
 

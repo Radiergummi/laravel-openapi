@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\ResponseNoSuccess;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Lint\Rules\ResponseNoSuccess;
+use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

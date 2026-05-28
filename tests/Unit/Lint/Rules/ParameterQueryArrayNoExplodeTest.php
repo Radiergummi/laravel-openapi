@@ -3,14 +3,14 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\ParameterQueryArrayNoExplode;
-use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
+use Radiergummi\OpenApi\Lint\Rules\ParameterQueryArrayNoExplode;
+use Radiergummi\OpenApi\Lint\Tree\QueryParameterNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
@@ -21,7 +21,7 @@ function makeQueryParamForArrayTest(
     ?string $style = null,
     ?bool $explode = null,
 ): QueryParameterNode {
-    $qp = OperationNodeFactory::makeQueryParameter(
+    $queryParameter = OperationNodeFactory::makeQueryParameter(
         name: $name,
         type: $type,
         style: $style,
@@ -30,16 +30,17 @@ function makeQueryParamForArrayTest(
 
     OperationNodeFactory::makeOperation(
         pathUri: '/items',
-        queryParameters: [$qp],
+        queryParameters: [$queryParameter],
     );
 
-    return $qp;
+    return $queryParameter;
 }
 
 it('reports its id and level', function (): void {
     $rule = new ParameterQueryArrayNoExplode();
 
-    expect($rule->id())->toBe('parameter.query-array-no-explode')
+    expect($rule->id())
+        ->toBe('parameter.query-array-no-explode')
         ->and($rule->level())->toBe(1);
 });
 
@@ -49,9 +50,13 @@ it('emits no finding when an array query parameter declares serialization or is 
     ?bool $explode,
 ): void {
     $rule = new ParameterQueryArrayNoExplode();
-    $qp = makeQueryParamForArrayTest('ids', type: $type, style: $style, explode: $explode);
-
-    $findings = iterator_to_array($rule->checkQueryParameter($qp, OperationNodeFactory::emptyContext()));
+    $queryParameter = makeQueryParamForArrayTest('ids', type: $type, style: $style, explode: $explode);
+    $findings = iterator_to_array(
+        $rule->checkQueryParameter(
+            $queryParameter,
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)->toBe([]);
 })->with([
@@ -63,9 +68,13 @@ it('emits no finding when an array query parameter declares serialization or is 
 
 it('emits a finding when a query array parameter lacks both style and explode', function (): void {
     $rule = new ParameterQueryArrayNoExplode();
-    $qp = makeQueryParamForArrayTest('ids', type: 'array');
-
-    $findings = iterator_to_array($rule->checkQueryParameter($qp, OperationNodeFactory::emptyContext()));
+    $queryParameter = makeQueryParamForArrayTest('ids', type: 'array');
+    $findings = iterator_to_array(
+        $rule->checkQueryParameter(
+            $queryParameter,
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)
         ->toHaveCount(1)

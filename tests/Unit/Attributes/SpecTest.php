@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Attributes;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec;
+use Radiergummi\OpenApi\Attributes\Spec;
 
 it('normalises null / no arg to ["default"]', function (): void {
     expect(new Spec()->names)->toBe(['default'])

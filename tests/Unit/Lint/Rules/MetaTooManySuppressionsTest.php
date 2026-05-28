@@ -10,12 +10,12 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\MetaTooManySuppressions;
-use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
-use Radiergummi\OpenApi\Core\Lint\SuppressionScope;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Rules\MetaTooManySuppressions;
+use Radiergummi\OpenApi\Lint\SuppressionDirective;
+use Radiergummi\OpenApi\Lint\SuppressionScope;
+use Radiergummi\OpenApi\Lint\Tree\ApiNode;
+use Radiergummi\OpenApi\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 

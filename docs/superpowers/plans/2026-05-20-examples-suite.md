@@ -668,15 +668,7 @@ declare(strict_types=1);
 
 namespace Examples\Vanilla\Http;
 
-use Examples\Shared\Models\Flight;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
-use Radiergummi\OpenApi\Core\Attributes\Operation;
-use Radiergummi\OpenApi\Core\Attributes\QueryParam;
-use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Examples\Shared\Models\Flight;use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Http\JsonResponse;use Illuminate\Http\Request;use Radiergummi\OpenApi\Attributes\IgnoreLint;use Radiergummi\OpenApi\Attributes\Operation;use Radiergummi\OpenApi\Attributes\QueryParam;use Radiergummi\OpenApi\Attributes\Response;use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Flights')]
 final class FlightController
@@ -780,13 +772,7 @@ declare(strict_types=1);
 
 namespace Examples\Vanilla\Http;
 
-use Examples\Shared\Models\Booking;
-use Examples\Shared\Models\Flight;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Examples\Shared\Models\Booking;use Examples\Shared\Models\Flight;use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Http\JsonResponse;use Illuminate\Http\Request;use Radiergummi\OpenApi\Attributes\Response;use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Bookings')]
 final class BookingController
@@ -951,8 +937,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Illuminate\Foundation\Http\FormRequest;use Radiergummi\OpenApi\Attributes\RequestField;
 
 final class StoreFlightRequest extends FormRequest
 {
@@ -1083,10 +1068,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Resources;
 
-use Examples\Shared\Models\Flight;
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Radiergummi\OpenApi\Core\Attributes\ResponseField;
+use Examples\Shared\Models\Flight;use Illuminate\Http\Request;use Illuminate\Http\Resources\Json\JsonResource;use Radiergummi\OpenApi\Attributes\ResponseField;
 
 /**
  * @mixin Flight
@@ -1138,10 +1120,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Resources;
 
-use Examples\Shared\Models\Booking;
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Radiergummi\OpenApi\Core\Attributes\ResponseField;
+use Examples\Shared\Models\Booking;use Illuminate\Http\Request;use Illuminate\Http\Resources\Json\JsonResource;use Radiergummi\OpenApi\Attributes\ResponseField;
 
 /**
  * @mixin Booking
@@ -1185,15 +1164,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Http;
 
-use Examples\FormRequests\Requests\StoreFlightRequest;
-use Examples\FormRequests\Requests\UpdateFlightRequest;
-use Examples\FormRequests\Resources\FlightResource;
-use Examples\Shared\Models\Flight;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Radiergummi\OpenApi\Core\Attributes\Header;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Examples\FormRequests\Requests\StoreFlightRequest;use Examples\FormRequests\Requests\UpdateFlightRequest;use Examples\FormRequests\Resources\FlightResource;use Examples\Shared\Models\Flight;use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Http\Resources\Json\AnonymousResourceCollection;use Radiergummi\OpenApi\Attributes\Header;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Flights')]
 final class FlightController
@@ -1272,16 +1243,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Http;
 
-use Examples\FormRequests\Requests\StoreBookingRequest;
-use Examples\FormRequests\Resources\BookingResource;
-use Examples\Shared\Exceptions\FlightOverbookedException;
-use Examples\Shared\Models\Booking;
-use Examples\Shared\Models\Flight;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Examples\FormRequests\Requests\StoreBookingRequest;use Examples\FormRequests\Resources\BookingResource;use Examples\Shared\Exceptions\FlightOverbookedException;use Examples\Shared\Models\Booking;use Examples\Shared\Models\Flight;use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Http\Resources\Json\AnonymousResourceCollection;use Radiergummi\OpenApi\Attributes\ExceptionResponse;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Bookings')]
 final class BookingController
@@ -1406,7 +1368,7 @@ declare(strict_types=1);
 
 namespace Examples\SpatieData\Data\Examples;
 
-use Radiergummi\OpenApi\Core\Attributes\BaseExample;
+use Radiergummi\OpenApi\Attributes\BaseExample;
 
 final class FlightDataExample extends BaseExample
 {
@@ -1444,12 +1406,7 @@ declare(strict_types=1);
 
 namespace Examples\SpatieData\Data;
 
-use DateTimeInterface;
-use Examples\SpatieData\Data\Examples\FlightDataExample;
-use Radiergummi\OpenApi\Core\Attributes\Example;
-use Spatie\LaravelData\Attributes\WithCast;
-use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
-use Spatie\LaravelData\Data;
+use DateTimeInterface;use Examples\SpatieData\Data\Examples\FlightDataExample;use Radiergummi\OpenApi\Attributes\Example;use Spatie\LaravelData\Attributes\WithCast;use Spatie\LaravelData\Casts\DateTimeInterfaceCast;use Spatie\LaravelData\Data;
 
 #[Example(FlightDataExample::class)]
 final class FlightData extends Data
@@ -1595,14 +1552,7 @@ declare(strict_types=1);
 
 namespace Examples\SpatieData\Http;
 
-use Examples\Shared\Models\Flight;
-use Examples\SpatieData\Data\CreateFlightData;
-use Examples\SpatieData\Data\FlightData;
-use Examples\SpatieData\Data\UpdateFlightData;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Radiergummi\OpenApi\Core\Attributes\ExternalDocs;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
-use Spatie\LaravelData\DataCollection;
+use Examples\Shared\Models\Flight;use Examples\SpatieData\Data\CreateFlightData;use Examples\SpatieData\Data\FlightData;use Examples\SpatieData\Data\UpdateFlightData;use Illuminate\Database\Eloquent\ModelNotFoundException;use Radiergummi\OpenApi\Attributes\ExternalDocs;use Radiergummi\OpenApi\Attributes\Tag;use Spatie\LaravelData\DataCollection;
 
 #[Tag('Flights')]
 #[ExternalDocs(url: 'https://example.com/docs/flights', description: 'Public API reference')]
@@ -1761,16 +1711,7 @@ declare(strict_types=1);
 
 namespace Examples\QueryBuilder\Http;
 
-use Examples\Shared\Models\Flight;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use Spatie\QueryBuilder\AllowedFilter as RuntimeFilter;
-use Spatie\QueryBuilder\QueryBuilder;
+use Examples\Shared\Models\Flight;use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Http\JsonResponse;use Illuminate\Http\Request;use Radiergummi\OpenApi\Attributes\Tag;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;use Spatie\QueryBuilder\AllowedFilter as RuntimeFilter;use Spatie\QueryBuilder\QueryBuilder;
 
 #[Tag('Flights')]
 final class FlightController
@@ -1983,8 +1924,7 @@ declare(strict_types=1);
 
 namespace Examples\Combined\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-use Radiergummi\OpenApi\Core\Attributes\RequestBody;
+use Illuminate\Foundation\Http\FormRequest;use Radiergummi\OpenApi\Attributes\RequestBody;
 
 #[RequestBody(contentType: 'multipart/form-data', description: 'Boarding pass image upload')]
 final class UploadBoardingPassRequest extends FormRequest
@@ -2051,22 +1991,7 @@ declare(strict_types=1);
 
 namespace Examples\Combined\Http;
 
-use Examples\Combined\Data\FlightData;
-use Examples\Combined\Data\FlightStatus;
-use Examples\Combined\Requests\StoreFlightRequest;
-use Examples\Shared\Models\Flight;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
-use Radiergummi\OpenApi\Core\Attributes\Link;
-use Radiergummi\OpenApi\Core\Attributes\PublicEndpoint;
-use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
-use Radiergummi\OpenApi\Core\Attributes\Security;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use Spatie\LaravelData\DataCollection;
-use Spatie\QueryBuilder\QueryBuilder;
+use Examples\Combined\Data\FlightData;use Examples\Combined\Requests\StoreFlightRequest;use Examples\Shared\Models\Flight;use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Http\Request;use Radiergummi\OpenApi\Attributes\Link;use Radiergummi\OpenApi\Attributes\PublicEndpoint;use Radiergummi\OpenApi\Attributes\ResponseExample;use Radiergummi\OpenApi\Attributes\Security;use Radiergummi\OpenApi\Attributes\Tag;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;use Spatie\LaravelData\DataCollection;use Spatie\QueryBuilder\QueryBuilder;
 
 #[Tag('Flights')]
 final class FlightController
@@ -2168,8 +2093,7 @@ declare(strict_types=1);
 
 namespace Examples\Combined\Http;
 
-use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Illuminate\Http\JsonResponse;use Radiergummi\OpenApi\Attributes\Hide;
 
 final class InternalController
 {

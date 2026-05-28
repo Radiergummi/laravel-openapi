@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\PathParam;
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Radiergummi\OpenApi\Attributes\PathParam;
+use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 
 /**

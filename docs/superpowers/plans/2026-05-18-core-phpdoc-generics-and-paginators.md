@@ -26,10 +26,10 @@
 | `src/Core/Enums/PaginatorKind.php` (create) | Enum of the three paginator shapes + `fromClass()` detection. |
 | `src/Core/Routing/ReturnTypeExtractor.php` (create) | Extracts the single generic argument of a `@return` PHPDoc tag as an FQCN. |
 | `src/Core/Generator/PaginatorSchemaFactory.php` (create) | Builds the flat `OA\Schema` envelope for a given `PaginatorKind` and item schema. |
-| `src/Core/Extractors/PaginatorResponseResolver.php` (create) | `PrimaryResponseResolver` tying detection + item resolution + envelope together. |
+| `src/Core/Extraction/PaginatorResponseResolver.php` (create) | `PrimaryResponseResolver` tying detection + item resolution + envelope together. |
 | `src/Core/Registry/CoreRegistration.php` (modify) | Register `PaginatorResponseResolver` as a primary-response resolver. |
 | `src/OpenApiServiceProvider.php` (modify) | Bind `PaginatorResponseResolver` as a `scoped` singleton (it needs the ref-resolver list). |
-| `tests/Unit/Core/Enums/PaginatorKindTest.php` (create) | Unit tests for `PaginatorKind`. |
+| `../../../tests/Unit/Enums/PaginatorKindTest.php` (create) | Unit tests for `PaginatorKind`. |
 | `tests/Unit/Core/Routing/ReturnTypeExtractorTest.php` (create) | Unit tests for `ReturnTypeExtractor`. |
 | `tests/Unit/Core/Generator/PaginatorSchemaFactoryTest.php` (create) | Unit tests for `PaginatorSchemaFactory`. |
 | `tests/Feature/PaginatorResponseTest.php` (create) | End-to-end: generate a document from paginator-returning fixture controllers. |
@@ -42,7 +42,7 @@
 
 **Files:**
 - Create: `src/Core/Enums/PaginatorKind.php`
-- Test: `tests/Unit/Core/Enums/PaginatorKindTest.php`
+- Test: `../../../tests/Unit/Enums/PaginatorKindTest.php`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -53,10 +53,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Core\Enums;
 
-use Illuminate\Pagination\CursorPaginator;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
-use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
+use Illuminate\Pagination\CursorPaginator;use Illuminate\Pagination\LengthAwarePaginator;use Illuminate\Pagination\Paginator;use Radiergummi\OpenApi\Enums\PaginatorKind;
 
 it('detects a length-aware paginator', function (): void {
     expect(PaginatorKind::fromClass(LengthAwarePaginator::class))
@@ -166,7 +163,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Core\Routing;
 use Illuminate\Pagination\LengthAwarePaginator;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\Types\ContextFactory;
-use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
+use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionMethod;
 
 /**
@@ -227,7 +224,7 @@ it('returns null when the method has no docblock', function (): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Core/Routing/ReturnTypeExtractorTest.php`
-Expected: FAIL—`Class "Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor" not found`.
+Expected: FAIL—`Class "Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor" not found`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -347,9 +344,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Core\Generator;
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
-use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;use Radiergummi\OpenApi\Enums\PaginatorKind;
 
 /**
  * @return list<string>
@@ -425,7 +420,7 @@ it('wires the supplied items into the data array', function (): void {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `vendor/bin/pest tests/Unit/Core/Generator/PaginatorSchemaFactoryTest.php`
-Expected: FAIL—`Class "Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory" not found`.
+Expected: FAIL—`Class "Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory" not found`.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -438,8 +433,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Enums\PaginatorKind;
 
 /**
  * Builds the flat OpenAPI schema Laravel serializes a bare paginator to via its
@@ -519,7 +513,7 @@ git commit -m "feat: add PaginatorSchemaFactory for paginator response schemas"
 The `PrimaryResponseResolver` itself. It: (a) reads the action's native return type; (b) maps it to a `PaginatorKind`, deferring (`null`) if it is not a paginator; (c) resolves the item class—`#[ResponseResource]` attribute wins, else the `@return` PHPDoc generic; (d) turns the item class into an `OA\Items` `$ref` via the registered `RefSchemaResolver`s, or a generic `OA\Items` when no resolver claims it; (e) builds the envelope and an `OA\Response`. When no item type can be found it logs a generation warning and returns `null`.
 
 **Files:**
-- Create: `src/Core/Extractors/PaginatorResponseResolver.php`
+- Create: `src/Core/Extraction/PaginatorResponseResolver.php`
 - Test: covered by the Task 6 feature test (the resolver's collaborators are all integration-shaped; a feature test exercises it end-to-end more meaningfully than a mock-heavy unit test).
 
 - [ ] **Step 1: Write the implementation**
@@ -533,21 +527,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
-use OpenApi\Annotations as OA;
-use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Enums\PaginatorKind;
-use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
-use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
-use ReflectionNamedType;
-use Throwable;
-
-use function class_exists;
-use function sprintf;
+use OpenApi\Annotations as OA;use Psr\Log\LoggerInterface;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;use Radiergummi\OpenApi\Enums\MediaType;use Radiergummi\OpenApi\Enums\PaginatorKind;use Radiergummi\OpenApi\Routing\ActionDescriptor;use ReflectionNamedType;use Throwable;use function class_exists;use function sprintf;
 
 /**
  * Resolves a paginator return type (`LengthAwarePaginator`, `Paginator`,
@@ -692,7 +672,7 @@ git commit -m "feat: add PaginatorResponseResolver primary-response resolver"
 
 ## Task 5: Register and wire the resolver
 
-`PaginatorResponseResolver` needs the `list<RefSchemaResolver>` built from the registry, so—like `OperationBuilder` and `DataRefSchemaResolver`—it cannot be plain autowired; it needs an explicit `scoped` binding. `CoreRegistration` adds it to the registry's primary-response-resolver list; `OperationBuilder`'s existing constructor wiring (`src/OpenApiServiceProvider.php` `registerGenerator()`, the `primaryResponseResolvers:` argument) then picks it up via `$app->make()`.
+`PaginatorResponseResolver` needs the `list<RefSchemaResolver>` built from the registry, so—like `OperationBuilder` and `DataRefSchemaResolver`—it cannot be plain autowired; it needs an explicit `scoped` binding. `Registration` adds it to the registry's primary-response-resolver list; `OperationBuilder`'s existing constructor wiring (`src/OpenApiServiceProvider.php` `registerGenerator()`, the `primaryResponseResolvers:` argument) then picks it up via `$app->make()`.
 
 **Files:**
 - Modify: `src/Core/Registry/CoreRegistration.php`
@@ -703,7 +683,7 @@ git commit -m "feat: add PaginatorResponseResolver primary-response resolver"
 In `src/Core/Registry/CoreRegistration.php`, add the import near the existing `use` block:
 
 ```php
-use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
 ```
 
 Then change the `register()` method body from:
@@ -759,11 +739,8 @@ In `src/OpenApiServiceProvider.php`, locate the method that binds `DataRefSchema
 Add any missing imports to the top of `src/OpenApiServiceProvider.php`—check which are already present before adding:
 
 ```php
-use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
-use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
+
+
 ```
 
 `ReturnTypeExtractor` is autowireable only if `DocBlockFactoryInterface` and `ContextFactory` are container-resolvable. `ThrowsExtractor` already depends on both—confirm they resolve (search `src/OpenApiServiceProvider.php` for `DocBlockFactory` / `ContextFactory`). If `ThrowsExtractor` is autowired without an explicit binding, `ReturnTypeExtractor` will autowire too. If `ThrowsExtractor` has an explicit `scoped`/`singleton` binding, add a matching one for `ReturnTypeExtractor` right beside it:
@@ -810,14 +787,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Illuminate\Contracts\Pagination\CursorPaginator as CursorPaginatorContract;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Symfony\Component\Yaml\Yaml;
+use Illuminate\Contracts\Pagination\CursorPaginator as CursorPaginatorContract;use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;use Illuminate\Pagination\LengthAwarePaginator;use Illuminate\Routing\Controller;use Illuminate\Support\Facades\Route;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi');
 

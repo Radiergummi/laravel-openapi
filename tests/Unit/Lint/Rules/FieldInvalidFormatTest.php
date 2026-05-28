@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldInvalidFormat;
+use Radiergummi\OpenApi\Lint\Rules\FieldInvalidFormat;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithInvalidFormatData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithInvalidFormatDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidFormatFixtureController;

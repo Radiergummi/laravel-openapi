@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedAttribute;
+use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DeprecatedAttrClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DeprecatedAttrController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;

@@ -11,11 +11,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
  * Teaches the OpenAPI core to document Eloquent API Resources

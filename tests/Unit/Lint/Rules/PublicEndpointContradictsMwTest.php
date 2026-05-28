@@ -10,7 +10,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\Rules\PublicEndpointContradictsMw;
+use Radiergummi\OpenApi\Lint\Rules\PublicEndpointContradictsMw;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\PublicEndpointMwClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\PublicEndpointMwController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;

@@ -105,10 +105,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Attributes;
 
-use Attribute;
-use BackedEnum;
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-
 /**
  * Declares one output key of an Eloquent API Resource.
  *
@@ -303,14 +299,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Http\Resources\Json\ResourceCollection;
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use ReflectionClass;
-use ReflectionMethod;
+use Illuminate\Http\Resources\Json\JsonResource;use Illuminate\Http\Resources\Json\ResourceCollection;use Illuminate\Routing\Route;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use Radiergummi\OpenApi\Routing\ActionDescriptor;use ReflectionClass;use ReflectionMethod;
 
 class LocatorFixtureResource extends JsonResource {}
 class LocatorFixtureCollection extends ResourceCollection {}
@@ -381,15 +370,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Http\Resources\Json\ResourceCollection;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use ReflectionFunctionAbstract;
-use ReflectionNamedType;
-
-use function class_exists;
-use function is_a;
+use Illuminate\Http\Resources\Json\JsonResource;use Illuminate\Http\Resources\Json\ResourceCollection;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Routing\ActionDescriptor;use ReflectionFunctionAbstract;use ReflectionNamedType;use function class_exists;use function is_a;
 
 /**
  * Resolves the API Resource an action returns. Used by both
@@ -652,7 +633,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\SchemaFromResource;
 
@@ -723,16 +704,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\NullableSchema;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use ReflectionClass;
-
-use function class_exists;
-use function is_a;
+use Illuminate\Http\Resources\Json\JsonResource;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Support\Generator\NullableSchema;use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;use ReflectionClass;use function class_exists;use function is_a;
 
 /**
  * Builds the `OA\Schema` (type: object) for an Eloquent API Resource from its
@@ -904,7 +876,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceRefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\SchemaFromResource;
@@ -945,10 +917,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-
-use function is_a;
+use Illuminate\Http\Resources\Json\JsonResource;use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use function is_a;
 
 /**
  * Resolves an Eloquent API Resource class to a `#/components/schemas/…` ref,
@@ -1008,14 +977,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
-use OpenApi\Annotations as OA;
-use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Throwable;
-
-use function sprintf;
+use OpenApi\Annotations as OA;use Psr\Log\LoggerInterface;use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Enums\MediaType;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Throwable;use function sprintf;
 
 /**
  * Resolves an Eloquent API Resource return type into its `200 OK` response.
@@ -1102,8 +1064,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
  * Teaches the OpenAPI core to document Eloquent API Resources
@@ -1240,14 +1201,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Http\Resources\Json\ResourceCollection;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Symfony\Component\Yaml\Yaml;
+use Illuminate\Http\Resources\Json\JsonResource;use Illuminate\Http\Resources\Json\ResourceCollection;use Illuminate\Routing\Controller;use Illuminate\Support\Facades\Route;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -1357,12 +1311,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Http\Resources\Json\JsonResource;use Illuminate\Routing\Route;use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -1411,13 +1360,7 @@ it('flags a resource response whose class declares no #[ResourceField]', functio
 >
 > namespace Radiergummi\OpenApi\Tests\Support;
 >
-> use OpenApi\Annotations as OA;
-> use OpenApi\Context;
-> use Radiergummi\OpenApi\Core\Lint\LintContext;
-> use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-> use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-> use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-> use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use OpenApi\Annotations as OA;use OpenApi\Context;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\ApiNode;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\TreeIndex;
 >
 > /**
 >  * Builds minimal lint-tree fixtures for exercising `OperationRule` lint rules
@@ -1493,17 +1436,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use ReflectionClass;
-
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use ReflectionClass;use function sprintf;
 
 /**
  * Flags an operation whose resource response class declares no
@@ -1603,13 +1536,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Http\Resources\Json\JsonResource;use Illuminate\Routing\Route;use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -1659,17 +1586,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use ReflectionClass;
-
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use ReflectionClass;use function sprintf;
 
 /**
  * Flags a `#[ResourceField]` declared with no `type`—its schema cannot be
@@ -1772,12 +1689,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
-use Illuminate\Http\Resources\Json\ResourceCollection;
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Http\Resources\Json\ResourceCollection;use Illuminate\Routing\Route;use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -1824,15 +1736,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
-
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;use function sprintf;
 
 /**
  * Flags an operation that returns a resource collection type without a

@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\ResponseDuplicateStatus;
+use Radiergummi\OpenApi\Lint\Rules\ResponseDuplicateStatus;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

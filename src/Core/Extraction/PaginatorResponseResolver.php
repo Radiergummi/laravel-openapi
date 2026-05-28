@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Extractors;
+namespace Radiergummi\OpenApi\Core\Extraction;
 
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;

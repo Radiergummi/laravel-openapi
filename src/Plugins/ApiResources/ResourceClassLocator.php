@@ -13,8 +13,8 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionType;

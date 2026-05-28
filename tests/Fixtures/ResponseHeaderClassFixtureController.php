@@ -12,8 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Routing\Controller;
-use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Attributes\ResponseHeader;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\ResponseHeader;
 
 /**
  * Test fixture — exercises class-level vs method-level `#[ResponseHeader]`.

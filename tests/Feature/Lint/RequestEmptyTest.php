@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 uses()->group('openapi', 'lint');
 
@@ -23,7 +23,7 @@ it('emits request.empty for POST/PUT/PATCH with no resolvable request body', fun
     $this->app->forgetScopedInstances();
     $this->app->instance(FindingsCollector::class, $collector);
 
-    $this->app->make(Radiergummi\OpenApi\Core\Generator\OpenApiGenerator::class)
+    $this->app->make(Radiergummi\OpenApi\Support\Generator\OpenApiGenerator::class)
         ->generate($this->app->make(SpecRegistry::class)->default(), 'testing');
 
     $findings = collect($collector->all())

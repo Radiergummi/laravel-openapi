@@ -10,10 +10,10 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Lint\LintOptions;
-use Radiergummi\OpenApi\Core\Lint\LintResult;
-use Radiergummi\OpenApi\Core\Lint\LintRunner;
-use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintResult;
+use Radiergummi\OpenApi\Lint\LintRunner;
+use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ResponseEmptyController;

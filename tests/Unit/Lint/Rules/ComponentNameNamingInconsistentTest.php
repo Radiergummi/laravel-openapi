@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
-use Radiergummi\OpenApi\Core\Lint\Rules\ComponentNameNamingInconsistent;
+use Radiergummi\OpenApi\Lint\IdentifierCase;
+use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

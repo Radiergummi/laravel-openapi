@@ -11,7 +11,9 @@ Bundled plugins: [Plugins](plugins.md). Architectural context:
 ## The `Plugin` interface
 
 ```php
-namespace Radiergummi\OpenApi\Core\Registry;
+namespace Radiergummi\OpenApi\Contracts\Registry;
+
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 interface Plugin
 {
@@ -37,8 +39,8 @@ instances are resolved from the container when the pipeline runs.
 | `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
-| `addRule(string $class)` | A lint rule | `Core\Lint\Rules\Rule` + one or more visitor interfaces |
-| `addStage(string $class)` | A document-level pipeline stage, run after all core stages and before the terminal transformer stage | `Core\Generator\Pipeline\SpecStage` |
+| `addRule(string $class)` | A lint rule | `Lint\Rules\Rule` + one or more visitor interfaces |
+| `addStage(string $class)` | A document-level pipeline stage, run after all core stages and before the terminal transformer stage | `Contracts\Generator\SpecStage` |
 
 Getters (`requestSchemaResolvers()`, `refSchemaResolvers()`,
 `queryParameterResolvers()`, `primaryResponseResolvers()`,
@@ -47,7 +49,7 @@ consumed by the generator and linter; plugin authors don't call them.
 
 ### Resolver interfaces
 
-The resolver interfaces live in `src/Core/Registry/`:
+The resolver interfaces live in `src/Contracts/Registry/`:
 
 - **`RequestSchemaResolver`**: given an `ActionDescriptor`, decide whether
   it handles the request body and produce the schema. Bundled:
@@ -70,7 +72,7 @@ The resolver interfaces live in `src/Core/Registry/`:
   `resolveErrorResponse()` is invoked **per status × per operation**, so any
   schema registrations on `ComponentSchemaRegistry` must be idempotent (guard
   with `hasKey()` / `isRegisteredOrReserved()`).
-- **`SpecStage`** (`src/Core/Generator/Pipeline/`): one step in the OpenAPI
+- **`SpecStage`** (`src/Contracts/Generator/`): one step in the OpenAPI
   document assembly pipeline. The core ships five stages — `RootStage`,
   `PathsStage`, `ComponentsStage`, `SecurityStage`, then a terminal
   `TransformersStage`. Plugin-registered stages run between the core stages
@@ -108,11 +110,7 @@ reference implementation. It registers support for Spatie Data classes:
 ```php
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
-use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
-use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\MultipartFileWithoutMultipart;
-use Spatie\LaravelData\Data;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\MultipartFileWithoutMultipart;use Radiergummi\OpenApi\Registry\OpenApiRegistry;use Spatie\LaravelData\Data;
 
 final class SpatieDataPlugin implements Plugin
 {
@@ -144,11 +142,11 @@ Line by line:
 ## Building your own plugin
 
 1. Write resolver classes implementing the relevant interfaces from
-   `src/Core/Registry/`. Use `src/Plugins/SpatieData/` as a template (e.g.
+   `src/Contracts/Registry/`. Use `src/Plugins/SpatieData/` as a template (e.g.
    mirror `DataClassRequestSchemaResolver` for a `RequestSchemaResolver`, or
    `DataRefSchemaResolver` for a `RefSchemaResolver`).
 2. Optionally write lint rules under `Lint/Rules/`, implementing
-   `Core\Lint\Rules\Rule` plus the visitor interfaces they need.
+   `Lint\Rules\Rule` plus the visitor interfaces they need.
 3. Write a `Plugin` class whose `register()` calls the matching
    `OpenApiRegistry` `add*` methods.
 4. Bind any services your resolvers need in a service provider (the bundled

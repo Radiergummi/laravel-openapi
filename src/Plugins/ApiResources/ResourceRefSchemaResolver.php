@@ -13,7 +13,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 
 use function is_a;
 

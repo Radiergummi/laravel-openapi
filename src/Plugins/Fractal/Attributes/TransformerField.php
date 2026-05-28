@@ -13,8 +13,8 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 
 use Attribute;
 use BackedEnum;
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-use Radiergummi\OpenApi\Core\Attributes\Support\FieldDefault;
+use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 
 /**
  * Declares one output key of a Fractal transformer.

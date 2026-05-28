@@ -12,7 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedAttribute;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
 
 /**
  * Fixture controller for testing the {@see DeprecatedAttribute} rule.
@@ -25,7 +26,7 @@ final class DeprecatedAttrController
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 200, description: 'OK')]
+    #[Response(status: 200, description: 'OK')]
     public function withNonDeprecatedAttribute(): JsonResponse
     {
         return response()->json();

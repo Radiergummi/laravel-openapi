@@ -12,10 +12,10 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceRefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\SchemaFromResource;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use stdClass;
 
 #[ResourceField('id', type: 'integer')]

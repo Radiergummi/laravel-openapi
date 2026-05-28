@@ -3,7 +3,7 @@
 Snippets for cases convention doesn't cover. Each recipe assumes:
 
 ```php
-use Radiergummi\OpenApi\Core\Attributes as OpenApi;
+use Radiergummi\OpenApi\Attributes as OpenApi;
 ```
 
 Full attribute reference: [Attributes](attributes.md).
@@ -150,7 +150,7 @@ To document a per-event payload schema, override the 200 response and set the
 media type explicitly:
 
 ```php
-use Radiergummi\OpenApi\Core\Enums\MediaType;
+use Radiergummi\OpenApi\Enums\MediaType;
 
 #[OpenApi\Operation(streaming: true)]
 #[OpenApi\Response(
@@ -318,9 +318,7 @@ There is no dedicated attribute. Register an operation transformer at boot:
 
 ```php
 // AppServiceProvider::boot()
-use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
-use Radiergummi\OpenApi\Core\Extensions\OperationContext;
-use OpenApi\Annotations as OA;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Extensions\OpenApiExtensions;use Radiergummi\OpenApi\Extensions\OperationContext;
 
 OpenApiExtensions::transformOperation(
     static function (OA\Operation $operation, OperationContext $context): void {
@@ -377,8 +375,7 @@ The body-bearing presets register short component-schema names: `Error`, `Valida
 Implement `ErrorResponseResolver` and point `error_envelope` at your class:
 
 ```php
-use Radiergummi\OpenApi\Core\Errors\{ErrorDescriptor, ErrorResponse};
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Support\Errors\{ErrorResponse};use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 final class MyEnvelope implements ErrorResponseResolver
 {

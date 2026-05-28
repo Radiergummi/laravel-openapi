@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Resources;
 
+use Examples\Shared\Models\Flight;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
@@ -22,7 +23,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
  * `toArray()` entries rather than typed properties, so each key declares its
  * schema with its own attribute.
  *
- * @mixin \Examples\Shared\Models\Flight
+ * @mixin Flight
  */
 #[ResourceField('id', description: 'Server-assigned flight identifier.', type: 'string', format: 'uuid')]
 #[ResourceField('number', description: 'IATA-style flight number.', example: 'LH123', type: 'string')]

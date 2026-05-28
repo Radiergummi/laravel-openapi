@@ -10,8 +10,8 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\Rules\ThrowsTransitiveMissing;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Lint\Rules\ThrowsTransitiveMissing;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\TransitiveThrowsController;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 

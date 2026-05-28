@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedNoSunsetDate;
+use Radiergummi\OpenApi\Lint\Rules\DeprecatedNoSunsetDate;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

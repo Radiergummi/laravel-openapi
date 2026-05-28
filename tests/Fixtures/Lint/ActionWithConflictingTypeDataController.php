@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
+use Radiergummi\OpenApi\Lint\Rules\FieldConflictingType;
 
 /**
  * Fixture controller whose method accepts an Action (not a Data class directly).

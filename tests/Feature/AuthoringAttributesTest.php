@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Tests\Fixtures\Auth\AuthFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
 
@@ -229,7 +230,7 @@ it('omits a webhooks key when no routes carry #[Webhook]', function (): void {
     // Re-generate while filtering out the inbound webhook route via config filter.
     $target = AuthoringFixtureController::class . '@inboundWebhookAction';
     config(['openapi.filters' => [
-        new class ($target) implements \Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter {
+        new class ($target) implements RouteFilter {
             public function __construct(private readonly string $target) {}
 
             public function shouldSkip(\Illuminate\Routing\Route $route): bool

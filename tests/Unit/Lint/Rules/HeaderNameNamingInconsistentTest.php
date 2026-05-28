@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
-use Radiergummi\OpenApi\Core\Lint\Rules\HeaderNameNamingInconsistent;
-use Radiergummi\OpenApi\Core\Lint\Tree\HeaderNode;
+use Radiergummi\OpenApi\Lint\IdentifierCase;
+use Radiergummi\OpenApi\Lint\Rules\HeaderNameNamingInconsistent;
+use Radiergummi\OpenApi\Lint\Tree\HeaderNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

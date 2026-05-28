@@ -14,16 +14,17 @@ namespace Examples\Shared\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
- * @property string                     $aircraft_type
- * @property \Illuminate\Support\Carbon $arrives_at
- * @property \Illuminate\Support\Carbon $departs_at
- * @property string                     $destination
- * @property string                     $id
- * @property string                     $number
- * @property string                     $origin
- * @property string                     $status
+ * @property string $aircraft_type
+ * @property Carbon $arrives_at
+ * @property Carbon $departs_at
+ * @property string $destination
+ * @property string $id
+ * @property string $number
+ * @property string $origin
+ * @property string $status
  */
 final class Flight extends Model
 {

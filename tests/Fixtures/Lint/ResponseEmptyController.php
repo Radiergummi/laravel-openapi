@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
+use Radiergummi\OpenApi\Attributes\IgnoreLint;
 
 /**
  * Fixture controller that triggers {@code response.success-empty-body} at level 2 and nothing

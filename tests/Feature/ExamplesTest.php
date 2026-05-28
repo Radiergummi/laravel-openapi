@@ -14,8 +14,8 @@ use Examples\Shared\TestbenchBoot;
 use Illuminate\Contracts\Console\Kernel;
 use OpenApi\Analysis;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /*
  * Per-flavor verification:

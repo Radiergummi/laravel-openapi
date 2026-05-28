@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Routing\Controller;
-use Radiergummi\OpenApi\Core\Attributes\QueryParam;
+use Radiergummi\OpenApi\Attributes\QueryParam;
 
 /**
  * Test fixture — exercises class-level vs method-level `#[QueryParam]`.

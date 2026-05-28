@@ -3,14 +3,14 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\ParameterQueryNoSchema;
-use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
+use Radiergummi\OpenApi\Lint\Rules\ParameterQueryNoSchema;
+use Radiergummi\OpenApi\Lint\Tree\QueryParameterNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
@@ -25,7 +25,7 @@ function makeQueryParamForSchemaTest(
     ?array $enum = null,
     string $pathUri = '/users',
 ): QueryParameterNode {
-    $qp = OperationNodeFactory::makeQueryParameter(
+    $queryParameter = OperationNodeFactory::makeQueryParameter(
         name: $name,
         type: $type,
         hasSchema: $hasSchema,
@@ -34,24 +34,39 @@ function makeQueryParamForSchemaTest(
 
     OperationNodeFactory::makeOperation(
         pathUri: $pathUri,
-        queryParameters: [$qp],
+        queryParameters: [$queryParameter],
     );
 
-    return $qp;
+    return $queryParameter;
 }
 
 it('reports its id and level', function (): void {
     $rule = new ParameterQueryNoSchema();
 
-    expect($rule->id())->toBe('parameter.query-no-schema')
+    expect($rule->id())
+        ->toBe('parameter.query-no-schema')
         ->and($rule->level())->toBe(0);
 });
 
-it('emits no finding when a query parameter has a schema', function (?string $type, bool $hasSchema, ?array $enum): void {
+it('emits no finding when a query parameter has a schema', function (
+    ?string $type,
+    bool $hasSchema,
+    ?array $enum,
+): void {
     $rule = new ParameterQueryNoSchema();
-    $qp = makeQueryParamForSchemaTest(name: 'filter', type: $type, hasSchema: $hasSchema, enum: $enum);
+    $queryParameter = makeQueryParamForSchemaTest(
+        name: 'filter',
+        type: $type,
+        hasSchema: $hasSchema,
+        enum: $enum,
+    );
 
-    $findings = iterator_to_array($rule->checkQueryParameter($qp, OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array(
+        $rule->checkQueryParameter(
+            $queryParameter,
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)->toBe([]);
 })->with([
@@ -64,9 +79,14 @@ it('emits no finding when a query parameter has a schema', function (?string $ty
 
 it('emits a finding when a query parameter has no schema', function (): void {
     $rule = new ParameterQueryNoSchema();
-    $qp = makeQueryParamForSchemaTest(name: 'filter', type: null, hasSchema: false);
+    $queryParameter = makeQueryParamForSchemaTest(name: 'filter', type: null, hasSchema: false);
 
-    $findings = iterator_to_array($rule->checkQueryParameter($qp, OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array(
+        $rule->checkQueryParameter(
+            $queryParameter,
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)
         ->toHaveCount(1)
@@ -82,12 +102,12 @@ it('emits a finding per query parameter without schema', function (): void {
     $rule = new ParameterQueryNoSchema();
     $context = OperationNodeFactory::emptyContext();
 
-    $qpA = makeQueryParamForSchemaTest(name: 'filter', type: null, hasSchema: false);
-    $qpB = makeQueryParamForSchemaTest(name: 'sort', type: null, hasSchema: false);
+    $queryParameterA = makeQueryParamForSchemaTest(name: 'filter', type: null, hasSchema: false);
+    $queryParameterB = makeQueryParamForSchemaTest(name: 'sort', type: null, hasSchema: false);
 
     $findings = [
-        ...iterator_to_array($rule->checkQueryParameter($qpA, $context)),
-        ...iterator_to_array($rule->checkQueryParameter($qpB, $context)),
+        ...iterator_to_array($rule->checkQueryParameter($queryParameterA, $context)),
+        ...iterator_to_array($rule->checkQueryParameter($queryParameterB, $context)),
     ];
 
     expect($findings)

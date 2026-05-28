@@ -57,7 +57,7 @@ final readonly class ErrorResponse
 ```php
 namespace Radiergummi\OpenApi\Core\Registry;
 
-use Radiergummi\OpenApi\Core\Errors\{ErrorDescriptor, ErrorResponse};
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Support\Errors\{ErrorResponse};use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 interface ErrorResponseResolver
 {
@@ -239,9 +239,7 @@ return [
 Implement the interface; register the FQCN in config:
 
 ```php
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Errors\{ErrorDescriptor, ErrorResponse};
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Support\Errors\{ErrorResponse};use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 final class MyEnvelope implements ErrorResponseResolver
 {
@@ -276,7 +274,7 @@ Chaining a custom resolver in front of a built-in preset is best done via a plug
 **Modified (production):**
 - `src/Core/Registry/ErrorResponseFactory.php` → renamed to `ErrorResponseResolver.php`; method renamed and re-typed.
 - `src/Core/Registry/OpenApiRegistry.php` — `addErrorResponseFactory()` → `addErrorResponseResolver()`; field rename to match.
-- `src/Core/Extractors/StandardResponsesExtractor.php` — per-status loop calling the chain with `ErrorDescriptor`; consume `?ErrorResponse`; new private `buildResponse()` helper composes the resolver's body slice with the extractor-owned fields (response key, default description, named-component registration).
+- `src/Core/Extraction/StandardResponsesExtractor.php` — per-status loop calling the chain with `ErrorDescriptor`; consume `?ErrorResponse`; new private `buildResponse()` helper composes the resolver's body slice with the extractor-owned fields (response key, default description, named-component registration).
 - `src/OpenApiServiceProvider.php` — resolve config key, register resolver class.
 - `config/openapi.php` — add `'error_envelope' => 'none'`; extend `standard_responses.middleware` entries with optional `exception` key.
 

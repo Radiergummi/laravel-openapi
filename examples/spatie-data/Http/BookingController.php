@@ -18,8 +18,8 @@ use Examples\SpatieData\Data\BookingData;
 use Examples\SpatieData\Data\CreateBookingData;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
-use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
+use Radiergummi\OpenApi\Attributes\Tag;
 use Spatie\LaravelData\DataCollection;
 
 #[Tag('Bookings')]

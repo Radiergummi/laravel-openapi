@@ -54,7 +54,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
+use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;
 
 it('maps the "public" config string to VisibilityMode::Public', function (): void {
     expect(VisibilityMode::fromConfig('public'))->toBe(VisibilityMode::Public);
@@ -143,7 +143,7 @@ Create `tests/Unit/Attributes/HideTest.php`:
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Radiergummi\OpenApi\Attributes\Hide;
 
 it('accepts no arguments and stores null for both scopes', function (): void {
     $hide = new Hide();
@@ -187,7 +187,7 @@ Expected: FAIL—`only`/`except` are not constructor parameters of `Hide`.
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Attributes;
+namespace Radiergummi\OpenApi\Attributes;
 
 use Attribute;
 use LogicException;
@@ -285,7 +285,7 @@ git commit -m "feat!: rename Hide::\$environments to \$only; add \$except (BC br
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
+use Radiergummi\OpenApi\Attributes\Expose;
 
 it('accepts no arguments', function (): void {
     $expose = new Expose();
@@ -325,10 +325,9 @@ Expected: FAIL—class not found.
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Attributes;
+namespace Radiergummi\OpenApi\Attributes;
 
-use Attribute;
-use LogicException;
+use Attribute;use LogicException;use Radiergummi\OpenApi\Attributes\Hide;
 
 /**
  * Includes the annotated route(s) in the generated OpenAPI document when the
@@ -397,10 +396,7 @@ The resolver is pure: in → bool out. No reflection inside.
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
+use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 
 $resolver = fn(VisibilityMode $mode = VisibilityMode::Public): VisibilityResolver => new VisibilityResolver($mode);
 
@@ -467,10 +463,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Visibility;
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-
-use function in_array;
+use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;use function in_array;
 
 /**
  * Decides whether a route should appear in the generated OpenAPI document.
@@ -587,15 +580,15 @@ $this->app->scoped(VisibilityResolver::class, static fn(): VisibilityResolver =>
 Add the imports:
 
 ```php
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
+
+
 ```
 
 - [ ] **Step 3: Refactor the generator**
 
 In `src/Core/Generator/OpenApiGenerator.php`:
 
-a) Add import: `use Radiergummi\OpenApi\Core\Attributes\Expose;` and `use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;`.
+a) Add import: `use Radiergummi\OpenApi\Attributes\Expose;` and `use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;`.
 
 b) Inject `VisibilityResolver` into the constructor (matching the existing constructor-injection style—likely already a Laravel-managed singleton/scoped class). Find the constructor and add `private readonly VisibilityResolver $visibilityResolver` to the parameter list.
 
@@ -682,7 +675,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
+use Radiergummi\OpenApi\Attributes\Expose;
 
 final class VisibilityFixtureController
 {
@@ -713,7 +706,7 @@ final class VisibilityFixtureController
 declare(strict_types=1);
 
 use Illuminate\Routing\Router;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Tests\Feature\VisibilityFixtureController;
 
 beforeEach(function (): void {
@@ -796,9 +789,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules\Visitors;
 
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 /**
  * A lint rule that inspects raw {@see ActionDescriptor} instances rather
@@ -881,9 +872,7 @@ git commit -m "feat: add RouteRule visitor for descriptor-level lint rules"
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Router;
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Illuminate\Routing\Router;use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;
 
 final class ConflictFixtureController
 {
@@ -965,15 +954,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\RouteRule;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-
-use function in_array;
-use function sprintf;
+use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Visitors\RouteRule;use Radiergummi\OpenApi\Routing\ActionDescriptor;use function in_array;use function sprintf;
 
 final readonly class HideExposeConflict implements Rule, RouteRule
 {
@@ -1032,14 +1013,14 @@ final readonly class HideExposeConflict implements Rule, RouteRule
         $out = [];
 
         if ($descriptor->actionReflector !== null) {
-            foreach ($descriptor->actionReflector->getAttributes($class) as $attr) {
-                $out[] = $attr->newInstance();
+            foreach ($descriptor->actionReflector->getAttributes($class) as $attribute) {
+                $out[] = $attribute->newInstance();
             }
         }
 
         if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes($class) as $attr) {
-                $out[] = $attr->newInstance();
+            foreach ($descriptor->controller->getAttributes($class) as $attribute) {
+                $out[] = $attribute->newInstance();
             }
         }
 
@@ -1103,9 +1084,7 @@ git commit -m "feat: add visibility.hide-expose-conflict lint rule"
 
 declare(strict_types=1);
 
-use Illuminate\Routing\Router;
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Illuminate\Routing\Router;use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;
 
 final class NoOpFixtureController
 {
@@ -1189,15 +1168,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\RouteRule;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
-
-use function config;
+use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Visitors\RouteRule;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;use function config;
 
 final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
 {
@@ -1275,14 +1246,14 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
         $out = [];
 
         if ($descriptor->actionReflector !== null) {
-            foreach ($descriptor->actionReflector->getAttributes($class) as $attr) {
-                $out[] = $attr->newInstance();
+            foreach ($descriptor->actionReflector->getAttributes($class) as $attribute) {
+                $out[] = $attribute->newInstance();
             }
         }
 
         if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes($class) as $attr) {
-                $out[] = $attr->newInstance();
+            foreach ($descriptor->controller->getAttributes($class) as $attribute) {
+                $out[] = $attribute->newInstance();
             }
         }
 

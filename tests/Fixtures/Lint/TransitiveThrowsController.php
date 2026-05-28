@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Lint\Rules\ThrowsTransitiveMissing;
+use Radiergummi\OpenApi\Lint\Rules\ThrowsTransitiveMissing;
 use RuntimeException;
 
 /**

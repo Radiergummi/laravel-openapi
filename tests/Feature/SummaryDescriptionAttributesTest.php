@@ -14,9 +14,9 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route as RouteFacade;
-use Radiergummi\OpenApi\Core\Attributes\Description;
-use Radiergummi\OpenApi\Core\Attributes\Operation;
-use Radiergummi\OpenApi\Core\Attributes\Summary;
+use Radiergummi\OpenApi\Attributes\Description;
+use Radiergummi\OpenApi\Attributes\Operation;
+use Radiergummi\OpenApi\Attributes\Summary;
 
 uses()->group('openapi');
 

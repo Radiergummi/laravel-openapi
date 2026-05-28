@@ -12,7 +12,7 @@ declare(strict_types=1);
 use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\Rules\StreamingNoContentType;
+use Radiergummi\OpenApi\Lint\Rules\StreamingNoContentType;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\StreamingFixtureController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;

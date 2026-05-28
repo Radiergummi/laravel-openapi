@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Examples\SpatieData\Data\Examples;
 
 use Examples\SpatieData\Data\FlightData;
-use Radiergummi\OpenApi\Core\Attributes\BaseExample;
+use Radiergummi\OpenApi\Attributes\BaseExample;
 
 /**
  * Curated example payload for {@see FlightData}.

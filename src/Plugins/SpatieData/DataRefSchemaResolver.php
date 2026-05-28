@@ -12,8 +12,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
 use Illuminate\Container\Attributes\Scoped;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionException;
 use RuntimeException;
 use Spatie\LaravelData\Data;

@@ -92,10 +92,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes;
 
-use Attribute;
-use BackedEnum;
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-
 /**
  * Declares one `spatie/laravel-query-builder` allowed filter—emitted as a
  * `filter[name]` query-string parameter. Repeatable and method-level.
@@ -307,15 +303,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder;
 
-use Illuminate\Routing\Route;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderParameterResolver;
-use ReflectionClass;
-use ReflectionMethod;
+use Illuminate\Routing\Route;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderParameterResolver;use Radiergummi\OpenApi\Routing\ActionDescriptor;use ReflectionClass;use ReflectionMethod;
 
 class QbResolverController
 {
@@ -396,14 +384,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Registry\QueryParameterResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-
-use function sprintf;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;use Radiergummi\OpenApi\Routing\ActionDescriptor;use function sprintf;
 
 /**
  * Turns the QueryBuilder plugin's `#[AllowedFilter]`, `#[AllowedSort]`, and
@@ -528,10 +509,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderFilterTypeMissing;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderFilterTypeMissing;use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
  * Teaches the OpenAPI core to document `spatie/laravel-query-builder`
@@ -597,7 +575,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\QueryBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
@@ -678,12 +656,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderFilterTypeMissing;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Routing\Route;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderFilterTypeMissing;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:query-builder');
 
@@ -733,15 +706,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use function sprintf;
 
 /**
  * Flags an `#[AllowedFilter]` declared with no `type`—the filter parameter
@@ -836,12 +801,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\QueryBuilder\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Routing\Route;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:query-builder');
 
@@ -911,19 +871,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use ReflectionMethod;
-use ReflectionNamedType;
-
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;use ReflectionMethod;use ReflectionNamedType;use function sprintf;
 
 /**
  * Flags a controller method that injects a `spatie/laravel-query-builder`

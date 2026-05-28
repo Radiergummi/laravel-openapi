@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\StatusFixtureEnum;
 use Symfony\Component\TypeInfo\Type;
 

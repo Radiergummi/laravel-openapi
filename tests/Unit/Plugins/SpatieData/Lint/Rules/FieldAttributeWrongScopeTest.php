@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithWrongScopeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithWrongScopeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\WrongScopeFixtureController;

@@ -30,11 +30,13 @@
         "pestphp/pest": "^3.8.0 || ^4.7.0",
         "pestphp/pest-plugin-arch": "^3.0 || ^4.0",
         "pestphp/pest-plugin-laravel": "^3.2.0 || ^4.1.0",
+        "phpstan/phpstan": "^2.1",
         "spatie/laravel-data": "^4.23.0",
         "spatie/laravel-fractal": "^6.4.0",
         "spatie/laravel-query-builder": "^7.3.0"
     },
     "suggest": {
+        "phpstan/extension-installer": "Auto-registers the bundled PHPStan rules that validate this package's attributes at edit time. Without it, include `vendor/radiergummi/laravel-openapi/extension.neon` in your phpstan.neon manually.",
         "fakerphp/faker": "Enables auto-generated examples for fields without an authored example. Already installed in any project shipping model factories.",
         "laravel/passport": "Enables OAuth scope-coverage validation in `openapi:lint` (^13.0).",
         "league/fractal": "Enables the FractalPlugin — documents league/fractal transformer responses.",
@@ -63,6 +65,9 @@
     "extra": {
         "laravel": {
             "providers": [ "Radiergummi\\OpenApi\\OpenApiServiceProvider" ]
+        },
+        "phpstan": {
+            "includes": [ "extension.neon" ]
         }
     },
     "scripts": {

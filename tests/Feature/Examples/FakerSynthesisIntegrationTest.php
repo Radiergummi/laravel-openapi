@@ -13,12 +13,12 @@ use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
-use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Attributes\RequestField;
+use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Extraction\SchemaFromFormRequest;
+use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 uses()->group('openapi', 'examples');
 

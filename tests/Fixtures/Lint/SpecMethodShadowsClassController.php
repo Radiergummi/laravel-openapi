@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec;
+use Radiergummi\OpenApi\Attributes\Spec;
 
 /**
  * Controller where the method-level #[Spec] shadows the class-level one.

@@ -10,7 +10,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Str;
-use Radiergummi\OpenApi\Core\Lint\LintRouteFilter;
+use Radiergummi\OpenApi\Lint\LintRouteFilter;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;

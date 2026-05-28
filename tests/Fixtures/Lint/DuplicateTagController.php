@@ -12,24 +12,25 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Lint\Rules\TagDuplicate;
+use Radiergummi\OpenApi\Attributes\Tag;
+use Radiergummi\OpenApi\Lint\Rules\TagDuplicate;
 
 /**
  * Fixture controller for testing the {@see TagDuplicate} rule.
  */
 final class DuplicateTagController
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\Tag('Search')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Tag('Search')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Tag('Beta')]
+    #[Tag('Search')]
+    #[Tag('Search')]
+    #[Tag('Beta')]
     public function withDuplicateTags(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\Tag('Search')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Tag('Beta')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Tag('Experimental')]
+    #[Tag('Search')]
+    #[Tag('Beta')]
+    #[Tag('Experimental')]
     public function withUniqueTags(): JsonResponse
     {
         return response()->json();

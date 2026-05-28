@@ -12,9 +12,9 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
-use Radiergummi\OpenApi\Core\Lint\Rules\ParameterExampleMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\ExampleNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
+use Radiergummi\OpenApi\Lint\Rules\ParameterExampleMissing;
+use Radiergummi\OpenApi\Lint\Tree\ExampleNode;
+use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Examples\Combined\Http;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Radiergummi\OpenApi\Attributes\Hide;
 
 /**
  * Demonstrates `#[Hide]` — the route below is registered with Laravel at

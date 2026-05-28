@@ -13,21 +13,21 @@ namespace Radiergummi\OpenApi\Tests\Support;
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ComponentSchemaNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ExampleNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\HeaderNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\LinkNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\QueryParameterNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\RequestBodyNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
-use Radiergummi\OpenApi\Core\Lint\Tree\WebhookNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Tree\ApiNode;
+use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
+use Radiergummi\OpenApi\Lint\Tree\ExampleNode;
+use Radiergummi\OpenApi\Lint\Tree\FieldNode;
+use Radiergummi\OpenApi\Lint\Tree\HeaderNode;
+use Radiergummi\OpenApi\Lint\Tree\LinkNode;
+use Radiergummi\OpenApi\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
+use Radiergummi\OpenApi\Lint\Tree\QueryParameterNode;
+use Radiergummi\OpenApi\Lint\Tree\RequestBodyNode;
+use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
+use Radiergummi\OpenApi\Lint\Tree\WebhookNode;
+use Radiergummi\OpenApi\Lint\TreeIndex;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 /**
  * Builds minimal lint-tree fixtures for lint-rule tests.

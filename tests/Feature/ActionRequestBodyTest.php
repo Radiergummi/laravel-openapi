@@ -13,6 +13,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Attributes as OpenApi;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\ActionFixture;
@@ -39,7 +40,7 @@ class ActionPatternController extends Controller
  */
 class InlineSchemaController extends Controller
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(
+    #[OpenApi\Response(
         status: 200,
         description: 'Search result',
         schema: ['type' => 'object', 'properties' => ['uuid' => ['type' => 'string'], 'status' => ['type' => 'string']]],
@@ -55,7 +56,7 @@ class InlineSchemaController extends Controller
  */
 class InlineSchemaRefController extends Controller
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 404, description: 'Not found', ref: ActionFixtureData::class)]
+    #[OpenApi\Response(status: 404, description: 'Not found', ref: ActionFixtureData::class)]
     public function show(): JsonResponse
     {
         return new JsonResponse();
@@ -69,7 +70,7 @@ class InlineSchemaRefController extends Controller
 it('OAPI-010: extracts request body from Action constructor Data parameter', function (): void {
     config()->set('openapi.request_payload_indirection', [Action::class]);
 
-    \Illuminate\Support\Facades\Route::post(
+    Route::post(
         '/oa-p1b2/action-pattern',
         [ActionPatternController::class, 'store'],
     );
@@ -88,7 +89,7 @@ it('OAPI-010: extracts request body from Action constructor Data parameter', fun
 });
 
 it('OAPI-011: inline schema array on Response attribute produces inline 200 schema', function (): void {
-    \Illuminate\Support\Facades\Route::get(
+    Route::get(
         '/oa-p1b2/inline-schema',
         [InlineSchemaController::class, 'show'],
     );
@@ -107,7 +108,7 @@ it('OAPI-011: inline schema array on Response attribute produces inline 200 sche
 it('OAPI-011: inline schema wins over ref when both provided', function (): void {
     // Verified by the attribute constructor: schema takes precedence in buildResponseFromAttribute().
     // This test checks the ref-only path still works (backwards compat).
-    \Illuminate\Support\Facades\Route::get(
+    Route::get(
         '/oa-p1b2/inline-schema-ref',
         [InlineSchemaRefController::class, 'show'],
     );

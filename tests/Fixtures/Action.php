@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 
 /**
  * Package-local stand-in for a "Domain Action" base class.

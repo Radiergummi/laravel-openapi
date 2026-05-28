@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\PathParameterUndeclared;
-use Radiergummi\OpenApi\Core\Lint\Tree\ParameterNode;
+use Radiergummi\OpenApi\Lint\Rules\PathParameterUndeclared;
+use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

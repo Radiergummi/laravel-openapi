@@ -88,8 +88,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Spec;
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 
 it('holds the spec name, info, servers, tags, match config, paths', function (): void {
     $info = new OA\Info(['title' => 'V1', 'version' => '1.0']);
@@ -158,14 +157,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
-use OpenApi\Annotations as OA;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /**
  * Immutable description of one OpenAPI specification produced by the generator.
  *
  * Built by {@see SpecRegistry} from `config('openapi.specs')` + root config keys.
- * Consumed by {@see \Radiergummi\OpenApi\Core\Generator\OpenApiGenerator},
- * {@see \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator}, and the HTTP /
+ * Consumed by {@see \Radiergummi\OpenApi\Support\Generator\OpenApiGenerator},
+ * {@see \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator}, and the HTTP /
  * CLI surfaces.
  *
  * `routeUri` / `playgroundUri` may be `null` to opt out of HTTP serving entirely
@@ -230,7 +229,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Spec;
 
-use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
+use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
 
 beforeEach(function (): void {
     $this->matcher = new SpecMatcher();
@@ -318,12 +317,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
-use function array_any;
-use function explode;
-use function fnmatch;
-use function is_array;
-use function str_contains;
-use function str_starts_with;
+use Radiergummi\OpenApi\Support\Spec\SpecDefinition;use function array_any;use function fnmatch;use function is_array;use function str_contains;use function str_starts_with;
 
 /**
  * Evaluates a {@see SpecDefinition::$match} config block against a single route.
@@ -450,8 +444,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Spec;
 
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 function makeRegistry(array $rootConfig = [], ?array $specs = null): SpecRegistry
 {
@@ -591,15 +584,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
-use InvalidArgumentException;
-use OpenApi\Annotations as OA;
-
-use function array_key_exists;
-use function array_merge;
-use function array_map;
-use function array_values;
-use function is_array;
-use function sprintf;
+use InvalidArgumentException;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Support\Spec\SpecDefinition;use function array_key_exists;use function array_map;use function array_merge;use function array_values;use function is_array;use function sprintf;
 
 /**
  * Materialises {@see SpecDefinition} value objects from the application's
@@ -797,7 +782,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Attributes;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec;
+use Radiergummi\OpenApi\Attributes\Spec;
 
 it('normalises null / no arg to ["default"]', function (): void {
     expect(new Spec()->names)->toBe(['default'])
@@ -835,7 +820,7 @@ Expected: class-not-found.
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Attributes;
+namespace Radiergummi\OpenApi\Attributes;
 
 use Attribute;
 
@@ -909,10 +894,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Spec;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec;
-use Radiergummi\OpenApi\Core\Spec\SpecResolver;
-use ReflectionClass;
-use ReflectionMethod;
+use Radiergummi\OpenApi\Attributes\Spec;use Radiergummi\OpenApi\Support\Spec\SpecResolver;use ReflectionClass;use ReflectionMethod;
 
 beforeEach(function (): void {
     $this->resolver = new SpecResolver();
@@ -1027,13 +1009,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Spec;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec;
-use ReflectionClass;
-use ReflectionMethod;
-
-use function array_merge;
-use function array_unique;
-use function array_values;
+use Radiergummi\OpenApi\Attributes\Spec;use ReflectionClass;use ReflectionMethod;use function array_merge;use function array_unique;use function array_values;
 
 /**
  * Resolves the effective list of spec names declared by `#[Spec]` attributes on a route.
@@ -1078,9 +1054,9 @@ final readonly class SpecResolver
         }
 
         $names = [];
-        foreach ($attributes as $attr) {
+        foreach ($attributes as $attribute) {
             /** @var Spec $instance */
-            $instance = $attr->newInstance();
+            $instance = $attribute->newInstance();
             $names = array_merge($names, $instance->names);
         }
 
@@ -1201,8 +1177,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Inclusion;
 
-use Radiergummi\OpenApi\Core\Inclusion\InclusionDecision;
-use Radiergummi\OpenApi\Core\Inclusion\TraceEntry;
+use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
+use Radiergummi\OpenApi\Support\Inclusion\TraceEntry;
 
 it('TraceEntry holds stage, name, passed, reason', function (): void {
     $entry = new TraceEntry('global-filter', 'SkipNovaRoutes', true, 'not a Nova route');
@@ -1252,18 +1228,7 @@ The single decision engine. Implements the four-rule algorithm. Used by the gene
 Append to `tests/Unit/Inclusion/InclusionEvaluatorTest.php`:
 
 ```php
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
-use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
-use Radiergummi\OpenApi\Core\Spec\SpecResolver;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
-use OpenApi\Annotations as OA;
+use Illuminate\Routing\Route;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Attributes\Hide;use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;use Radiergummi\OpenApi\Support\Spec\SpecDefinition;use Radiergummi\OpenApi\Support\Spec\SpecMatcher;use Radiergummi\OpenApi\Support\Spec\SpecResolver;use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 
 /**
  * Builds a minimal ActionDescriptor for testing. The evaluator only reads route + reflectors;
@@ -1430,16 +1395,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Inclusion;
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
-use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
-use Radiergummi\OpenApi\Core\Spec\SpecResolver;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
-
-use function in_array;
+use Radiergummi\OpenApi\Attributes\Expose;use Radiergummi\OpenApi\Attributes\Hide;use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Support\Spec\SpecDefinition;use Radiergummi\OpenApi\Support\Spec\SpecMatcher;use Radiergummi\OpenApi\Support\Spec\SpecResolver;use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;use function in_array;
 
 /**
  * Single source of truth for the four-rule decision "does route R belong in spec X?".
@@ -1571,14 +1527,14 @@ final readonly class InclusionEvaluator
         $instances = [];
 
         if ($descriptor->actionReflector !== null) {
-            foreach ($descriptor->actionReflector->getAttributes($class) as $attr) {
-                $instances[] = $attr->newInstance();
+            foreach ($descriptor->actionReflector->getAttributes($class) as $attribute) {
+                $instances[] = $attribute->newInstance();
             }
         }
 
         if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes($class) as $attr) {
-                $instances[] = $attr->newInstance();
+            foreach ($descriptor->controller->getAttributes($class) as $attribute) {
+                $instances[] = $attribute->newInstance();
             }
         }
 
@@ -1633,7 +1589,7 @@ public function __construct(
     private RouteIntrospector $introspector,
     private OperationBuilder $operationBuilder,
     private ComponentSchemaRegistry $schemaRegistry,
-    private \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator $evaluator,
+    private \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator $evaluator,
 ) {}
 ```
 
@@ -1732,7 +1688,7 @@ Remove the now-unused `buildInfo`, `buildServers`, `buildTags`, `shouldSkip`, `i
 Replace the existing `generateSpec()` helper:
 
 ```php
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /**
  * Runs the generator against the default spec and returns the YAML parsed to array.
@@ -1775,7 +1731,7 @@ $this->app->scoped(
         introspector: $app->make(RouteIntrospector::class),
         operationBuilder: $app->make(OperationBuilder::class),
         schemaRegistry: $app->make(ComponentSchemaRegistry::class),
-        evaluator: $app->make(\Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator::class),
+        evaluator: $app->make(\Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator::class),
     ),
 );
 ```
@@ -1826,8 +1782,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Core\Generator;
 
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 
 it('generateAll returns one document per defined spec, keyed by name', function (): void {
     config([
@@ -1902,10 +1857,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Generator;
 
-use Illuminate\Container\Container;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Illuminate\Container\Container;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Support\Spec\SpecDefinition;use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /**
  * Drives multi-spec generation in a single process.
@@ -1913,7 +1865,7 @@ use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
  * Per-run state in {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} is reset
  * between specs by calling {@see Container::forgetScopedInstances()} and re-resolving
  * {@see OpenApiGenerator} fresh. This is the same scoped-rebinding pattern
- * {@see \Radiergummi\OpenApi\Core\Lint\LintRunner} uses for its findings collector.
+ * {@see \Radiergummi\OpenApi\Lint\LintRunner} uses for its findings collector.
  *
  * Used by {@see \Radiergummi\OpenApi\Console\GenerateCommand} and
  * {@see \Radiergummi\OpenApi\Http\DocsController}.
@@ -1965,7 +1917,7 @@ $this->app->scoped(
     OpenApiGenerationOrchestrator::class,
     static fn(Container $app) => new OpenApiGenerationOrchestrator(
         container: $app,
-        registry: $app->make(\Radiergummi\OpenApi\Core\Spec\SpecRegistry::class),
+        registry: $app->make(\Radiergummi\OpenApi\Support\Spec\SpecRegistry::class),
     ),
 );
 ```
@@ -2012,18 +1964,18 @@ Then add the method:
 private function registerSpec(): void
 {
     $this->app->scoped(
-        \Radiergummi\OpenApi\Core\Spec\SpecMatcher::class,
-        static fn() => new \Radiergummi\OpenApi\Core\Spec\SpecMatcher(),
+        \Radiergummi\OpenApi\Support\Spec\SpecMatcher::class,
+        static fn() => new \Radiergummi\OpenApi\Support\Spec\SpecMatcher(),
     );
 
     $this->app->scoped(
-        \Radiergummi\OpenApi\Core\Spec\SpecResolver::class,
-        static fn() => new \Radiergummi\OpenApi\Core\Spec\SpecResolver(),
+        \Radiergummi\OpenApi\Support\Spec\SpecResolver::class,
+        static fn() => new \Radiergummi\OpenApi\Support\Spec\SpecResolver(),
     );
 
     $this->app->scoped(
-        \Radiergummi\OpenApi\Core\Spec\SpecRegistry::class,
-        static fn(Container $app) => new \Radiergummi\OpenApi\Core\Spec\SpecRegistry(
+        \Radiergummi\OpenApi\Support\Spec\SpecRegistry::class,
+        static fn(Container $app) => new \Radiergummi\OpenApi\Support\Spec\SpecRegistry(
             rootInfo:          (array) config('openapi.info', []),
             rootServers:       (array) config('openapi.servers', []),
             rootTags:          (array) config('openapi.tags', []),
@@ -2036,21 +1988,21 @@ private function registerSpec(): void
     );
 
     $this->app->scoped(
-        \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator::class,
-        static function (Container $app): \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator {
+        \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator::class,
+        static function (Container $app): \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator {
             $filterClasses = (array) config('openapi.filters', []);
             $filters = array_values(array_map(
-                static function (mixed $entry) use ($app): \Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter {
+                static function (mixed $entry) use ($app): \Radiergummi\OpenApi\Contracts\Routing\RouteFilter {
                     return is_string($entry) ? $app->make($entry) : $entry;
                 },
                 $filterClasses,
             ));
 
-            return new \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator(
+            return new \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator(
                 globalFilters: $filters,
-                matcher:       $app->make(\Radiergummi\OpenApi\Core\Spec\SpecMatcher::class),
-                specResolver:  $app->make(\Radiergummi\OpenApi\Core\Spec\SpecResolver::class),
-                visibility:    $app->make(\Radiergummi\OpenApi\Core\Visibility\VisibilityResolver::class),
+                matcher:       $app->make(\Radiergummi\OpenApi\Support\Spec\SpecMatcher::class),
+                specResolver:  $app->make(\Radiergummi\OpenApi\Support\Spec\SpecResolver::class),
+                visibility:    $app->make(\Radiergummi\OpenApi\Support\Visibility\VisibilityResolver::class),
             );
         },
     );
@@ -2150,7 +2102,7 @@ private function registerRoutes(): void
     // Resolve eagerly here because routes must be declared during boot, not lazily.
     // SpecRegistry is scoped, but its sole job is config parsing—no heavy work happens
     // on construction and the result is memoised inside the registry.
-    $registry = $this->app->make(\Radiergummi\OpenApi\Core\Spec\SpecRegistry::class);
+    $registry = $this->app->make(\Radiergummi\OpenApi\Support\Spec\SpecRegistry::class);
 
     \Illuminate\Support\Facades\Route::group([
         'prefix'     => $config['prefix'] ?? 'api',
@@ -2222,7 +2174,7 @@ final class DocsController extends Controller
 }
 ```
 
-(Top-of-file `use` additions: `Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator`, `Radiergummi\OpenApi\Core\Spec\SpecRegistry`. Remove the old `OpenApiGenerator` import.)
+(Top-of-file `use` additions: `Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator`, `Radiergummi\OpenApi\Core\Spec\SpecRegistry`. Remove the old `OpenApiGenerator` import.)
 
 - [ ] **Step 5: Read the playground view; verify it consumes `$specUrl`**
 
@@ -2346,8 +2298,8 @@ Expected: most fail.
 public function handle(
     OpenApiGenerationOrchestrator $orchestrator,
     SpecRegistry $registry,
-    \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator $evaluator,
-    \Radiergummi\OpenApi\Core\Routing\RouteIntrospector $introspector,
+    \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator $evaluator,
+    \Radiergummi\OpenApi\Routing\RouteIntrospector $introspector,
 ): int {
     $specName = $this->argument(self::ARGUMENT_SPEC);
     $outputOverride = $this->option(self::OPTION_OUTPUT);
@@ -2407,8 +2359,8 @@ private function writeOutput(string $path, string $content): void
 }
 
 private function emitExplain(
-    \Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator $evaluator,
-    \Radiergummi\OpenApi\Core\Routing\RouteIntrospector $introspector,
+    \Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator $evaluator,
+    \Radiergummi\OpenApi\Routing\RouteIntrospector $introspector,
     array $specs,
 ): void {
     foreach ($introspector->discover() as $descriptor) {
@@ -2650,16 +2602,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
-use Illuminate\Console\Command;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
-
-use function array_values;
-use function str_contains;
+use Illuminate\Console\Command;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Routing\RouteIntrospector;use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;use Radiergummi\OpenApi\Support\Spec\SpecRegistry;use Symfony\Component\Console\Input\InputArgument;use Symfony\Component\Console\Input\InputOption;use function array_values;use function str_contains;
 
 class WhyCommand extends Command
 {
@@ -2750,7 +2693,7 @@ class WhyCommand extends Command
         $this->line('');
     }
 
-    private function printSpecDecision(string $specName, \Radiergummi\OpenApi\Core\Inclusion\InclusionDecision $decision): void
+    private function printSpecDecision(string $specName, \Radiergummi\OpenApi\Support\Inclusion\InclusionDecision $decision): void
     {
         $this->line("{$specName}:");
         foreach ($decision->trace as $entry) {
@@ -2883,9 +2826,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules\Visitors;
 
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Lint\FindingsCollector;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /**
  * Marker interface for lint rules that inspect the application configuration and the
@@ -2962,7 +2903,7 @@ Pseudocode for the new outer flow inside `runWithCollector()`:
 
 ```php
 $descriptors = $this->collectDescriptors($options);
-$specRegistry = $this->container->make(\Radiergummi\OpenApi\Core\Spec\SpecRegistry::class);
+$specRegistry = $this->container->make(\Radiergummi\OpenApi\Support\Spec\SpecRegistry::class);
 
 // 1. Pre-build rules
 foreach ($this->registry->preBuildRules() as $rule) {
@@ -2971,7 +2912,7 @@ foreach ($this->registry->preBuildRules() as $rule) {
 
 // 2. Per-spec rules
 $targets = $options->spec !== null ? [$specRegistry->get($options->spec)] : $specRegistry->all();
-$orchestrator = $this->container->make(\Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator::class);
+$orchestrator = $this->container->make(\Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator::class);
 
 foreach ($targets as $spec) {
     $document = $orchestrator->generateOne($spec->name, app()->environment());
@@ -3024,8 +2965,8 @@ it('tags per-spec findings with the spec name', function (): void {
         ],
     ]);
 
-    $result = app(\Radiergummi\OpenApi\Core\Lint\LintRunner::class)
-        ->run(new \Radiergummi\OpenApi\Core\Lint\LintOptions());
+    $result = app(\Radiergummi\OpenApi\Lint\LintRunner::class)
+        ->run(new \Radiergummi\OpenApi\Lint\LintOptions());
 
     $specs = array_unique(array_map(fn($f) => $f->spec, $result->findings));
     expect($specs)->toContain('default')->toContain('v1');
@@ -3084,13 +3025,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Lint\Rules;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec as SpecAttribute;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingLocation;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\PreBuildRule;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Attributes\Spec as SpecAttribute;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\FindingLocation;use Radiergummi\OpenApi\Lint\FindingsCollector;use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 final readonly class SpecUnknownReference implements Rule, PreBuildRule
 {
@@ -3128,10 +3063,10 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
     private function collectSpecAttributes(ActionDescriptor $descriptor): iterable
     {
         foreach ([$descriptor->actionReflector, $descriptor->controller] as $reflector) {
-            if ($reflector === null) continue;
-            foreach ($reflector->getAttributes(SpecAttribute::class) as $attr) {
+            if ($reflector === null) {continue;}
+            foreach ($reflector->getAttributes(SpecAttribute::class) as $attribute) {
                 /** @var SpecAttribute $instance */
-                $instance = $attr->newInstance();
+                $instance = $attribute->newInstance();
                 yield $instance->names;
             }
         }
@@ -3199,7 +3134,7 @@ Inject the evaluator via constructor.
 
 For each rule, write `tests/Unit/Lint/Rules/Spec{Name}Test.php` covering: (a) clean case → no findings, (b) violating case → one finding with the correct `ruleId`. Mirror the existing rule tests' shape.
 
-- [ ] **Step 6: Register the rules in `CoreRegistration`**
+- [ ] **Step 6: Register the rules in `Registration`**
 
 Open `src/Core/Registry/CoreRegistration.php`, find where other lint rules are registered, and add:
 
@@ -3313,11 +3248,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerationOrchestrator;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Illuminate\Support\Facades\Route;use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 it('does not resolve any OpenAPI service when handling an unrelated request', function (): void {
     Route::get('/ping', fn() => 'pong');

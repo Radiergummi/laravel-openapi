@@ -102,10 +102,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 
-use Attribute;
-use BackedEnum;
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-
 /**
  * Declares one output key of a Fractal transformer.
  *
@@ -388,7 +384,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
@@ -490,14 +486,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use ReflectionClass;
-
-use function class_exists;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;use ReflectionClass;use function class_exists;
 
 /**
  * Builds the `OA\Schema` (type: object) for a Fractal transformer from its
@@ -671,7 +660,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
 use Radiergummi\OpenApi\Plugins\Fractal\TransformerRefSchemaResolver;
@@ -714,11 +703,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use ReflectionClass;
-
-use function class_exists;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use ReflectionClass;use function class_exists;
 
 /**
  * Resolves a Fractal transformer class to a `#/components/schemas/…` ref. A
@@ -959,16 +944,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
-use OpenApi\Annotations as OA;
-use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Throwable;
-
-use function class_exists;
-use function sprintf;
+use OpenApi\Annotations as OA;use Psr\Log\LoggerInterface;use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Enums\MediaType;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Throwable;use function class_exists;use function sprintf;
 
 /**
  * Resolves a `#[FractalResponse]`-bound endpoint into its `200 OK` response.
@@ -1077,12 +1053,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalDuplicateKey;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMissing;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalDuplicateKey;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMissing;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
  * Teaches the OpenAPI core to document `league/fractal` transformer responses.
@@ -1222,7 +1193,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\Fractal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
@@ -1341,12 +1312,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Routing\Route;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:fractal');
 
@@ -1396,18 +1362,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use ReflectionClass;
-
-use function class_exists;
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use ReflectionClass;use function class_exists;use function sprintf;
 
 /**
  * Flags an operation bound via `#[FractalResponse]` whose transformer declares
@@ -1508,14 +1463,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMissing;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Routing\Route;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMissing;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:fractal');
 
@@ -1566,18 +1514,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use ReflectionClass;
-
-use function class_exists;
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;use ReflectionClass;use function class_exists;use function sprintf;
 
 /**
  * Flags a `#[TransformerInclude]` declared with no `transformer` class—the
@@ -1683,12 +1620,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Routing\Route;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:fractal');
 
@@ -1755,17 +1687,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use ReflectionMethod;
-use ReflectionNamedType;
-
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use ReflectionMethod;use ReflectionNamedType;use function sprintf;
 
 /**
  * Flags a controller method that injects a `league/fractal` `Manager` but
@@ -1884,14 +1806,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Lint;
 
-use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalDuplicateKey;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Illuminate\Routing\Route;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalDuplicateKey;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'plugin:fractal');
 
@@ -1946,19 +1861,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
-use Override;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
-use Radiergummi\OpenApi\Core\Lint\Rules\Visitors\OperationRule;
-use Radiergummi\OpenApi\Core\Lint\Tree\OperationNode;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use ReflectionClass;
-
-use function class_exists;
-use function sprintf;
+use Override;use Radiergummi\OpenApi\Contracts\Lint\Rule;use Radiergummi\OpenApi\Lint\Finding;use Radiergummi\OpenApi\Lint\LintContext;use Radiergummi\OpenApi\Lint\Tree\OperationNode;use Radiergummi\OpenApi\Lint\Visitors\OperationRule;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;use ReflectionClass;use function class_exists;use function sprintf;
 
 /**
  * Flags a transformer that declares the same output key more than once across

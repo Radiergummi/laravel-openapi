@@ -15,8 +15,8 @@ use Examples\ApiResources\Http\Resources\FlightResource;
 use Examples\Shared\Models\Flight;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Flights')]
 final class FlightController

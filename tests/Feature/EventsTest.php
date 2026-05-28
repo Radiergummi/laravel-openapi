@@ -14,15 +14,18 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Events\LintFindingEmitted;
-use Radiergummi\OpenApi\Core\Events\RouteSkipped;
-use Radiergummi\OpenApi\Core\Events\SpecGenerationCompleted;
-use Radiergummi\OpenApi\Core\Events\SpecGenerationStarted;
-use Radiergummi\OpenApi\Core\Inclusion\SkipReason;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
+use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
+use Radiergummi\OpenApi\Events\LintFindingEmitted;
+use Radiergummi\OpenApi\Events\RouteSkipped;
+use Radiergummi\OpenApi\Events\SkipReason;
+use Radiergummi\OpenApi\Events\SpecGenerationCompleted;
+use Radiergummi\OpenApi\Events\SpecGenerationStarted;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 
 uses()->group('openapi', 'events');
 
@@ -171,12 +174,12 @@ it('dispatches LintFindingEmitted whenever a finding is collected', function ():
 });
 
 it('dispatches LintFindingEmitted for findings emitted during a lint run', function (): void {
-    Route::get('lint-runner/broken', [\Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController::class, 'stream'])
+    Route::get('lint-runner/broken', [BrokenController::class, 'stream'])
         ->name('runner.broken');
 
     /** @var list<LintFindingEmitted> $captured */
     $captured = captureEvents(LintFindingEmitted::class, static function (): void {
-        app(\Radiergummi\OpenApi\Core\Lint\LintRunner::class)->run(new \Radiergummi\OpenApi\Core\Lint\LintOptions(
+        app(LintRunner::class)->run(new LintOptions(
             level: 2,
             path: 'lint-runner/broken*',
         ));

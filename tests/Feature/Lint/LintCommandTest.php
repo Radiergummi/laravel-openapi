@@ -9,8 +9,10 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\SuppressionCollector;
-use Radiergummi\OpenApi\Core\Lint\SuppressionDirective;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
+use Radiergummi\OpenApi\Lint\SuppressionCollector;
+use Radiergummi\OpenApi\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithSuppressedDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
@@ -169,8 +171,8 @@ it('tags per-spec findings with the spec name', function (): void {
     // Rebuild scoped bindings so SpecRegistry picks up the new config.
     $this->app->forgetScopedInstances();
 
-    $result = app(Radiergummi\OpenApi\Core\Lint\LintRunner::class)
-        ->run(new Radiergummi\OpenApi\Core\Lint\LintOptions(
+    $result = app(LintRunner::class)
+        ->run(new LintOptions(
             level: 2,
             path: 'lint-fixtures/broken*',
         ));
@@ -209,8 +211,8 @@ it('pre-build rules run regardless of --spec= narrowing', function (): void {
 
     $this->app->forgetScopedInstances();
 
-    $result = app(Radiergummi\OpenApi\Core\Lint\LintRunner::class)
-        ->run(new Radiergummi\OpenApi\Core\Lint\LintOptions(
+    $result = app(LintRunner::class)
+        ->run(new LintOptions(
             level: 3,
             path: 'lint-fixtures/clean*',
             spec: 'default',

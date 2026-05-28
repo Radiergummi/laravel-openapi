@@ -10,12 +10,12 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\Rules\ResponseRefUnresolvable;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\UnresolvableResponseRefController;
 
 uses()->group('openapi', 'lint');

@@ -13,8 +13,8 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes;
 
 use Attribute;
 use BackedEnum;
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-use Radiergummi\OpenApi\Core\Attributes\QueryParam;
+use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Attributes\QueryParam;
 
 /**
  * Declares one `spatie/laravel-query-builder` allowed filter — emitted as a `filter[name]`

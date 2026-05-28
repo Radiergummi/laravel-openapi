@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\LinterOutputFormat;
-use Radiergummi\OpenApi\Core\Lint\RuleCatalogRenderer;
-use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
+use Radiergummi\OpenApi\Lint\LinterOutputFormat;
+use Radiergummi\OpenApi\Lint\RuleCatalogRenderer;
+use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 

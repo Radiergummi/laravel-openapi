@@ -15,11 +15,11 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionDecision;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Routing\RouteIntrospector;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
+use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use ReflectionException;
 use UnexpectedValueException;
 

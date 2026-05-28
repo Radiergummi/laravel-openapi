@@ -3,15 +3,17 @@
 /**
  * This file is part of radiergummi/laravel-openapi.
  *
- * @license MIT
+ * @license       MIT
  * @copyright (c) 2026 Moritz Friedrich
  */
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\LinkParameterRequiredMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\LinkNode;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Rules\LinkParameterRequiredMissing;
+use Radiergummi\OpenApi\Lint\Tree\LinkNode;
+use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
+use Radiergummi\OpenApi\Lint\Tree\QueryParameterNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
@@ -47,16 +49,17 @@ function makeLinkRequiredMissingContext(
         pathUri: '/target',
         operationId: $targetOperationId,
         parameters: array_map(
-            static fn(string $name) => OperationNodeFactory::makeParameter(name: $name, schema: null),
+            static fn(string $name): ParameterNode => OperationNodeFactory::makeParameter(name: $name, schema: null),
             $pathParams,
         ),
         queryParameters: array_map(
-            static fn(array $qp) => OperationNodeFactory::makeQueryParameter(
-                name: $qp['name'],
-                required: $qp['required'],
-                type: null,
-                hasSchema: false,
-            ),
+            static fn(array $data): QueryParameterNode
+                => OperationNodeFactory::makeQueryParameter(
+                    name: $data['name'],
+                    required: $data['required'],
+                    type: null,
+                    hasSchema: false,
+                ),
             $queryParams,
         ),
     );
@@ -69,7 +72,8 @@ function makeLinkRequiredMissingContext(
 it('reports its id and level', function (): void {
     $rule = new LinkParameterRequiredMissing();
 
-    expect($rule->id())->toBe('link.parameter-required-missing')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('link.parameter-required-missing')
+        ->and($rule->level())->toBe(0);
 });
 
 it('emits no finding when all required parameters are supplied', function (): void {
@@ -104,7 +108,7 @@ it('flags missing required path parameters', function (string $pathParam): void 
         ->and($findings[0]->level)->toBe(0)
         ->and($findings[0]->message)->toContain($pathParam);
 })->with([
-    'id'   => ['id'],
+    'id' => ['id'],
     'slug' => ['slug'],
 ]);
 

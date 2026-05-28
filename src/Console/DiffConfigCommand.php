@@ -15,7 +15,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
-use Radiergummi\OpenApi\Core\Generator\ConfigDiffer;
+use Radiergummi\OpenApi\Support\Config\ConfigDiffer;
 
 use function sprintf;
 use function var_export;

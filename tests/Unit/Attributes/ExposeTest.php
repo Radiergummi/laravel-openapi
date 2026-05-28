@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
+use Radiergummi\OpenApi\Attributes\Expose;
 
 it('accepts no arguments', function (): void {
     $expose = new Expose();

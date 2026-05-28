@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\ServerInvalidUrl;
-use Radiergummi\OpenApi\Core\Lint\Tree\ApiNode;
-use Radiergummi\OpenApi\Core\Lint\TreeIndex;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Rules\ServerInvalidUrl;
+use Radiergummi\OpenApi\Lint\Tree\ApiNode;
+use Radiergummi\OpenApi\Lint\TreeIndex;
 
 uses()->group('openapi', 'lint');
 

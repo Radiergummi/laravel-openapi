@@ -1,0 +1,74 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license       MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Lint\Rules;
+
+use Override;
+use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
+use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+
+use function sprintf;
+
+/**
+ * Reports when an operation has responses defined but none of them is a 2xx success response.
+ */
+final class ResponseNoSuccess implements Rule, OperationRuleVisitor
+{
+    /**
+     * @return iterable<Finding>
+     */
+    #[Override]
+    public function checkOperation(OperationNode $operation, LintContext $context): iterable
+    {
+        if ($operation->responses === []) {
+            return;
+        }
+
+        if (array_any($operation->responses, fn(ResponseNode $response): bool => $response->isDefault())) {
+            return;
+        }
+
+        if ($operation->successResponses() === []) {
+            yield new Finding(
+                ruleId: $this->id(),
+                level: $this->level(),
+                message: sprintf(
+                    'Operation %s %s has no 2xx success response',
+                    $operation->method,
+                    $operation->pathUri,
+                ),
+                fixHint: 'Add at least one success response (e.g. 200, 201, 204) to the operation.',
+            );
+        }
+    }
+
+    #[Override]
+    public function id(): string
+    {
+        return 'response.no-success';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 2;
+    }
+
+    #[Override]
+    public function description(): string
+    {
+        return 'Operation has no 2xx response.';
+    }
+}

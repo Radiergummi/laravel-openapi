@@ -10,7 +10,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Lint\Rules\SchemaEnumEmpty;
+use Radiergummi\OpenApi\Lint\Rules\SchemaEnumEmpty;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\Rules\WebhookDescriptionMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\WebhookNode;
+use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
+use Radiergummi\OpenApi\Lint\Tree\WebhookNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

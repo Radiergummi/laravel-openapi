@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
-use Radiergummi\OpenApi\Core\Lint\Rules\SchemaNullableViaDeprecatedKeyword;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
+use Radiergummi\OpenApi\Lint\Rules\SchemaNullableViaDeprecatedKeyword;
+use Radiergummi\OpenApi\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

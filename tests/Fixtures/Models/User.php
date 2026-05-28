@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 
 /**
  * Minimal Eloquent model fixture.

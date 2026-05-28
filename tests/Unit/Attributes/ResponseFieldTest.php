@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\FieldAttribute;
-use Radiergummi\OpenApi\Core\Attributes\ResponseField;
+use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Attributes\ResponseField;
 
 uses()->group('openapi');
 

@@ -9,10 +9,10 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\UnmappedException;
 
 uses()->group('openapi', 'lint');

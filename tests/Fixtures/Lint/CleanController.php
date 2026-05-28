@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**

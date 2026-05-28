@@ -14,6 +14,8 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Enums\MediaType;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 uses()->group('openapi');
@@ -30,7 +32,7 @@ class StreamingWithSchemaOrderedController extends Controller
     /**
      * Stream supplier match events — schema declared in constructor order.
      */
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(
+    #[Response(
         status: 200,
         description: 'Server-Sent Events — one JSON object per line',
         schema: [
@@ -40,7 +42,7 @@ class StreamingWithSchemaOrderedController extends Controller
                 'payload' => ['type' => 'object'],
             ],
         ],
-        mediaType: \Radiergummi\OpenApi\Core\Enums\MediaType::EventStream,
+        mediaType: MediaType::EventStream,
     )]
     public function stream(): StreamedResponse
     {

@@ -12,26 +12,27 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Lint\Rules\ExternaldocsInvalidUrl;
+use Radiergummi\OpenApi\Attributes\ExternalDocs;
+use Radiergummi\OpenApi\Lint\Rules\ExternaldocsInvalidUrl;
 
 /**
  * Fixture controller for testing the {@see ExternaldocsInvalidUrl} rule.
  */
 final class InvalidExternalDocsController
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\ExternalDocs(url: 'https://docs.matchory.com/search')]
+    #[ExternalDocs(url: 'https://docs.matchory.com/search')]
     public function withValidUrl(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\ExternalDocs(url: 'not-a-url')]
+    #[ExternalDocs(url: 'not-a-url')]
     public function withInvalidUrl(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\ExternalDocs(url: '')]
+    #[ExternalDocs(url: '')]
     public function withEmptyUrl(): JsonResponse
     {
         return response()->json();

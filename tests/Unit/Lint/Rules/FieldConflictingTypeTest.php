@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
+use Radiergummi\OpenApi\Lint\Rules\FieldConflictingType;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithConflictingTypeDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ConflictingTypeFixtureController;

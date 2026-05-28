@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\Expose;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Radiergummi\OpenApi\Attributes\Expose;
+use Radiergummi\OpenApi\Attributes\Hide;
 
 final class VisibilityNoOpController
 {

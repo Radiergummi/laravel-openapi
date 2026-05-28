@@ -15,9 +15,9 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
+use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionException;
 
 use function sprintf;

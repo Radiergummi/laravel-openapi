@@ -13,12 +13,12 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Core\Generator\Pipeline\GenerationContext;
-use Radiergummi\OpenApi\Core\Generator\Pipeline\SpecStage;
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Generator\GenerationContext;
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 uses()->group('openapi');
 

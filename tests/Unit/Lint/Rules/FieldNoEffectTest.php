@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldNoEffect;
+use Radiergummi\OpenApi\Lint\Rules\FieldNoEffect;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\NoEffectFixtureController;

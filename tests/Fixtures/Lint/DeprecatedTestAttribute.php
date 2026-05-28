@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Attribute;
-use Radiergummi\OpenApi\Core\Lint\Rules\DeprecatedAttribute;
+use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
 
 /**
  * Fixture attribute for testing the {@see DeprecatedAttribute} rule.

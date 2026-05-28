@@ -14,7 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route as RouteFacade;
-use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
+use Radiergummi\OpenApi\Attributes\ExceptionResponse;
 use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 use RuntimeException;
 
@@ -110,7 +110,7 @@ it('OAPI-018: each additional operation reuses the same component ref (deduplica
     $unauthorizedCount = count(
         array_filter(
             array_keys($allResponses),
-            static fn(string $k): bool => $k === 'Unauthorized',
+            static fn(string $key): bool => $key === 'Unauthorized',
         ),
     );
     expect($unauthorizedCount)->toBe(1);

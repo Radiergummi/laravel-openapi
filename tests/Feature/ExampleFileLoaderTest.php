@@ -14,7 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route as RouteFacade;
-use Radiergummi\OpenApi\Core\Attributes\Example;
+use Radiergummi\OpenApi\Attributes\Example;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 
 uses()->group('openapi');

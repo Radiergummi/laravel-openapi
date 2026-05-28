@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingLocation;
-use Radiergummi\OpenApi\Core\Lint\Formatters\JsonFormatter;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingLocation;
+use Radiergummi\OpenApi\Lint\Formatters\JsonFormatter;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 uses()->group('openapi', 'lint');

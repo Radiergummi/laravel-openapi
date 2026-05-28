@@ -39,7 +39,7 @@ The package default is `'public'` so existing projects need no action.
 Both live in `src/Core/Attributes/`. Both target class, method, and function.
 
 ```php
-use Radiergummi\OpenApi\Core\Attributes\{Hide, Expose};
+
 
 #[Hide]                            // hide unconditionally
 #[Hide(only: ['production'])]      // hide only when APP_ENV ∈ {production}

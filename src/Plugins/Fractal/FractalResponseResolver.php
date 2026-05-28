@@ -14,10 +14,10 @@ namespace Radiergummi\OpenApi\Plugins\Fractal;
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
-use Radiergummi\OpenApi\Core\Registry\PrimaryResponseResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
+use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionException;
 
 use function class_exists;

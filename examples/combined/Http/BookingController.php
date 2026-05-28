@@ -20,10 +20,10 @@ use Examples\Shared\Models\Flight;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
-use Radiergummi\OpenApi\Core\Attributes\PublicEndpoint;
-use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
-use Radiergummi\OpenApi\Core\Attributes\Security;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Radiergummi\OpenApi\Attributes\PublicEndpoint;
+use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
+use Radiergummi\OpenApi\Attributes\Security;
+use Radiergummi\OpenApi\Attributes\Tag;
 use Spatie\LaravelData\DataCollection;
 
 /**

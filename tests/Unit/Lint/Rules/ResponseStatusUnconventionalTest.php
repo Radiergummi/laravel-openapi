@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\ResponseStatusUnconventional;
-use Radiergummi\OpenApi\Core\Lint\Tree\ResponseNode;
+use Radiergummi\OpenApi\Lint\Rules\ResponseStatusUnconventional;
+use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

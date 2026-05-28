@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldEnumMismatch;
+use Radiergummi\OpenApi\Lint\Rules\FieldEnumMismatch;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithEnumMismatchData;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithEnumMismatchDataController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\EnumMismatchFixtureController;

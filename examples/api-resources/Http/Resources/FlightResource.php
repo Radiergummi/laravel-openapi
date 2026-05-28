@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Examples\ApiResources\Http\Resources;
 
+use Examples\Shared\Models\Flight;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
@@ -21,7 +22,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
  * A JsonResource's keys come from `toArray()`, not from typed properties, so
  * `#[ResourceField]` is declared at class level — one entry per key.
  *
- * @mixin \Examples\Shared\Models\Flight
+ * @mixin Flight
  */
 #[ResourceField('id', description: 'Server-assigned flight identifier.', type: 'string', format: 'uuid')]
 #[ResourceField('number', description: 'IATA-style flight number.', example: 'LH123', type: 'string')]

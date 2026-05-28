@@ -12,36 +12,37 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Lint\Rules\HeaderInvalidName;
+use Radiergummi\OpenApi\Attributes\Header;
+use Radiergummi\OpenApi\Lint\Rules\HeaderInvalidName;
 
 /**
  * Fixture controller for testing the {@see HeaderInvalidName} rule.
  */
-#[\Radiergummi\OpenApi\Core\Attributes\Header('X-Class-Valid')]
+#[Header('X-Class-Valid')]
 final class InvalidHeaderNameController
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('X-Request-Id', description: 'Valid header')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('Content-Type')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('2FA-Token', description: 'Digit-leading tokens are valid per RFC 7230')]
+    #[Header('X-Request-Id', description: 'Valid header')]
+    #[Header('Content-Type')]
+    #[Header('2FA-Token', description: 'Digit-leading tokens are valid per RFC 7230')]
     public function withValidHeaders(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('Invalid Header Name', description: 'Spaces are not allowed')]
+    #[Header('Invalid Header Name', description: 'Spaces are not allowed')]
     public function withInvalidHeaderSpace(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('', description: 'Empty name')]
+    #[Header('', description: 'Empty name')]
     public function withEmptyHeaderName(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('Valid-Name')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Header('also/invalid', description: 'Slash is not a token char')]
+    #[Header('Valid-Name')]
+    #[Header('also/invalid', description: 'Slash is not a token char')]
     public function withMixedHeaders(): JsonResponse
     {
         return response()->json();

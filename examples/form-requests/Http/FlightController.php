@@ -18,11 +18,11 @@ use Examples\Shared\Models\Flight;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
-use Radiergummi\OpenApi\Core\Attributes\Header;
-use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
-use Radiergummi\OpenApi\Core\Attributes\ResponseHeader;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Radiergummi\OpenApi\Attributes\Header;
+use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
+use Radiergummi\OpenApi\Attributes\ResponseHeader;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Flights')]
 #[Header(name: 'X-Request-Id', description: 'Optional client-supplied correlation id echoed back on every response.')]

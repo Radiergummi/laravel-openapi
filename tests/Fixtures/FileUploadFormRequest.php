@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Radiergummi\OpenApi\Core\Extractors\SchemaFromFormRequest;
+use Radiergummi\OpenApi\Core\Extraction\SchemaFromFormRequest;
 
 /**
  * Fixture FormRequest with a file rule — used to verify multipart detection in

@@ -67,7 +67,7 @@ attributes are required here.
 
 ## What if convention isn't enough?
 
-Authoring attributes live in `Radiergummi\OpenApi\Core\Attributes`. Pick the
+Authoring attributes live in `Radiergummi\OpenApi\Attributes`. Pick the
 one matching the override you need:
 
 | Goal | Attribute |

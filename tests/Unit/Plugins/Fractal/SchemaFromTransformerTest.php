@@ -12,11 +12,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 use function array_find;
 

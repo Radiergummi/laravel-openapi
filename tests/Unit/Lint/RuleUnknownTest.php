@@ -10,8 +10,8 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Validation\ValidationRule;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 
 uses()->group('openapi', 'lint');
 

@@ -13,12 +13,12 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Extractors\ValidationRulesToSchema;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedAttributeFieldFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedFieldFixtureData;
 use Spatie\LaravelData\Support\DataConfig;

@@ -12,24 +12,25 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Lint\Rules\ResponseDuplicateStatus;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Lint\Rules\ResponseDuplicateStatus;
 
 /**
  * Fixture controller for testing the {@see ResponseDuplicateStatus} rule.
  */
 final class DuplicateResponseStatusController
 {
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 200, description: 'First 200')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 200, description: 'Second 200')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 404, description: 'Not found')]
+    #[Response(status: 200, description: 'First 200')]
+    #[Response(status: 200, description: 'Second 200')]
+    #[Response(status: 404, description: 'Not found')]
     public function withDuplicates(): JsonResponse
     {
         return response()->json();
     }
 
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 200, description: 'OK')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 404, description: 'Not found')]
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 422, description: 'Validation failed')]
+    #[Response(status: 200, description: 'OK')]
+    #[Response(status: 404, description: 'Not found')]
+    #[Response(status: 422, description: 'Validation failed')]
     public function withoutDuplicates(): JsonResponse
     {
         return response()->json();

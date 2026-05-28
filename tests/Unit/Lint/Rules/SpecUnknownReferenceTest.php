@@ -10,12 +10,12 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\Rules\SpecUnknownReference;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use Radiergummi\OpenApi\Core\Spec\SpecResolver;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\Rules\SpecUnknownReference;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Spec\SpecResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecMethodShadowsClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SpecUnknownRefController;
 

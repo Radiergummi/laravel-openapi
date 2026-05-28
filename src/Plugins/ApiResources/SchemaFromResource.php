@@ -14,11 +14,11 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 use Closure;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Attributes\Description as DescriptionAttribute;
-use Radiergummi\OpenApi\Core\Attributes\Summary as SummaryAttribute;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
+use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionClass;
 use ReflectionException;
 

@@ -10,7 +10,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
+use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 uses()->group('openapi');
 

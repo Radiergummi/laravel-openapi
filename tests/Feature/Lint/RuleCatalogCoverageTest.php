@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
-use Radiergummi\OpenApi\Core\Lint\Rules\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Lint\RuleRegistry;
 
 it('gives every registered rule a non-empty description and a valid level', function (): void {
     /** @var RuleRegistry $registry */

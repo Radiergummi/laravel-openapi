@@ -18,10 +18,10 @@ use Examples\SpatieData\Data\FlightData;
 use Examples\SpatieData\Data\UpdateFlightData;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
-use Radiergummi\OpenApi\Core\Attributes\ExternalDocs;
-use Radiergummi\OpenApi\Core\Attributes\Response as ResponseAttribute;
-use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Radiergummi\OpenApi\Attributes\ExternalDocs;
+use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
+use Radiergummi\OpenApi\Attributes\ResponseExample;
+use Radiergummi\OpenApi\Attributes\Tag;
 use Spatie\LaravelData\DataCollection;
 
 #[Tag('Flights')]

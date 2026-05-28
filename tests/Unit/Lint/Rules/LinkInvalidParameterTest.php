@@ -9,9 +9,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\LintContext;
-use Radiergummi\OpenApi\Core\Lint\Rules\LinkInvalidParameter;
-use Radiergummi\OpenApi\Core\Lint\Tree\LinkNode;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Rules\LinkInvalidParameter;
+use Radiergummi\OpenApi\Lint\Tree\LinkNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

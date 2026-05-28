@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Radiergummi\OpenApi\Attributes\RequestField;
 use Spatie\LaravelData\Data;
 
 /**

@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
+use Radiergummi\OpenApi\Attributes\RequestField;
+use Radiergummi\OpenApi\Lint\Rules\FieldConflictingType;
 use Spatie\LaravelData\Data;
 
 /**

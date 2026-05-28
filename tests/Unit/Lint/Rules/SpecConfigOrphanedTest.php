@@ -10,16 +10,16 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Lint\Finding;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\Rules\SpecConfigOrphaned;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use Radiergummi\OpenApi\Core\Spec\SpecResolver;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityMode;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\Rules\SpecConfigOrphaned;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Spec\SpecResolver;
+use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;
+use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 
 uses()->group('openapi', 'lint');
 

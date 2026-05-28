@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\SchemaEnumTypeMismatch;
+use Radiergummi\OpenApi\Lint\Rules\SchemaEnumTypeMismatch;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

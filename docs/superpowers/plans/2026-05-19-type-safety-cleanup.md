@@ -279,7 +279,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - `src/Core/Registry/OpenApiRegistry.php:67, 74, 81, 88, 95, 102, 109` (7 sites)
-- `src/Core/Extractors/ValidationRulesToSchema.php:718` (1 site)
+- `src/Core/Extraction/ValidationRulesToSchema.php:718` (1 site)
 - `src/Core/Lint/Tree/SpecTreeWalker.php:76` (1 site)
 
 - [ ] **Step 1: Fix `OpenApiRegistry`**
@@ -332,7 +332,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 **Recipe:** `ignore.unmatchedIdentifier` / `ignore.unmatchedLine` mean an `@phpstan-ignore` comment no longer matches any error (the flag flip and earlier fixes resolved the underlying issue). Delete the now-stale ignore comment.
 
 **Files:**
-- `src/Core/Extractors/FieldDescriptor.php:225`—stale `assign.propertyType` ignore
+- `src/Core/Extraction/FieldDescriptor.php:225`—stale `assign.propertyType` ignore
 - `src/Core/Generator/NullableSchema.php:138`—stale `assign.propertyType` ignore
 - `src/Core/Lint/Tree/SpecTreeBuilder.php:935`—stale ignore (no error on line)
 - `src/Core/Lint/Tree/SpecTreeBuilder.php:939`—stale `nullCoalesce.property` ignore

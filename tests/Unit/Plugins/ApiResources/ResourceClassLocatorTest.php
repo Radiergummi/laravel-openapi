@@ -14,9 +14,9 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use LogicException;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use stdClass;
 

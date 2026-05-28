@@ -13,11 +13,11 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Registry\QueryParameterResolver;
-use Radiergummi\OpenApi\Core\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 use function sprintf;
 

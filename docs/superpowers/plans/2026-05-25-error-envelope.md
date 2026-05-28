@@ -38,7 +38,7 @@
 **Modified (production):**
 - `src/Core/Registry/ErrorResponseFactory.php` → renamed to `ErrorResponseResolver.php`; method renamed; new signature.
 - `src/Core/Registry/OpenApiRegistry.php` — rename `addErrorResponseFactory()` → `addErrorResponseResolver()`; rename field; update accessor.
-- `src/Core/Extractors/StandardResponsesExtractor.php` — accept resolvers under new name; per-status loop calling chain with `ErrorDescriptor`; new private `buildResponse()` helper.
+- `src/Core/Extraction/StandardResponsesExtractor.php` — accept resolvers under new name; per-status loop calling chain with `ErrorDescriptor`; new private `buildResponse()` helper.
 - `src/OpenApiServiceProvider.php` — extractor binding uses new accessor; new method `resolveErrorEnvelopeClass()`; register the resolved class in the registry.
 - `config/openapi.php` — add `'error_envelope' => 'none'` at the root; add optional `exception` key to each `middleware_responses` entry.
 
@@ -71,8 +71,7 @@ Create `tests/Unit/Errors/ErrorDescriptorTest.php`:
 
 declare(strict_types=1);
 
-use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
+use Illuminate\Validation\ValidationException;use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 uses()->group('openapi');
 
@@ -103,7 +102,7 @@ it('accepts a null exception class', function (): void {
 
 Run: `vendor/bin/pest tests/Unit/Errors/ErrorDescriptorTest.php`
 
-Expected: `Class "Radiergummi\OpenApi\Core\Errors\ErrorDescriptor" not found`.
+Expected: `Class "Radiergummi\OpenApi\Core\Envelopes\ErrorDescriptor" not found`.
 
 - [ ] **Step 3: Create the class**
 
@@ -189,8 +188,7 @@ Create `tests/Unit/Errors/ErrorResponseTest.php`:
 
 declare(strict_types=1);
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 uses()->group('openapi');
 
@@ -228,7 +226,7 @@ it('accepts named-argument construction', function (): void {
 
 Run: `vendor/bin/pest tests/Unit/Errors/ErrorResponseTest.php`
 
-Expected: `Class "Radiergummi\OpenApi\Core\Errors\ErrorResponse" not found`.
+Expected: `Class "Radiergummi\OpenApi\Core\Envelopes\ErrorResponse" not found`.
 
 - [ ] **Step 3: Create the class**
 
@@ -248,7 +246,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Errors;
 
-use OpenApi\Annotations as OA;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 
 /**
  * The body slice of an error response, produced by an {@see ErrorResponseResolver}.
@@ -256,7 +254,7 @@ use OpenApi\Annotations as OA;
  * Carries only what a resolver can produce: media-type contents, response headers, links, and
  * an optional description that overrides the extractor's default. The response key, named-
  * component registration, and default description are owned by
- * {@see \Radiergummi\OpenApi\Core\Extractors\StandardResponsesExtractor} — there is
+ * {@see \Radiergummi\OpenApi\Core\Extraction\StandardResponsesExtractor} — there is
  * intentionally no slot for them on this type.
  */
 final readonly class ErrorResponse
@@ -305,7 +303,7 @@ This task changes the existing extension point and its sole in-package consumer 
 **Files:**
 - Rename: `src/Core/Registry/ErrorResponseFactory.php` → `src/Core/Registry/ErrorResponseResolver.php`
 - Modify: `src/Core/Registry/OpenApiRegistry.php`
-- Modify: `src/Core/Extractors/StandardResponsesExtractor.php`
+- Modify: `src/Core/Extraction/StandardResponsesExtractor.php`
 - Modify: `src/OpenApiServiceProvider.php` (only the call site of `errorResponseFactories()` in the extractor binding)
 
 - [ ] **Step 1: Write the new interface**
@@ -326,9 +324,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Registry;
 
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
-use Radiergummi\OpenApi\Core\Extractors\StandardResponsesExtractor;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Core\Extraction\StandardResponsesExtractor;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 /**
  * Resolves the body of a standard error response — the 4xx/5xx responses derived from
@@ -367,8 +363,9 @@ Replace the `use` line:
 use Radiergummi\OpenApi\Core\Registry\ErrorResponseFactory;
 ```
 with:
+
 ```php
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+
 ```
 
 Rename the property (around line 55):
@@ -407,13 +404,13 @@ Delete the old `addErrorResponseFactory()` and `errorResponseFactories()` method
 
 - [ ] **Step 3: Update `StandardResponsesExtractor`**
 
-In `src/Core/Extractors/StandardResponsesExtractor.php`:
+In `src/Core/Extraction/StandardResponsesExtractor.php`:
 
 Update imports:
+
 ```php
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+
+
 ```
 (Remove the `ErrorResponseFactory` import.)
 
@@ -694,11 +691,7 @@ Create `tests/Unit/Errors/NoneEnvelopeTest.php`:
 
 declare(strict_types=1);
 
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
-use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
+use Illuminate\Auth\AuthenticationException;use Illuminate\Validation\ValidationException;use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 uses()->group('openapi');
 
@@ -727,7 +720,7 @@ it('returns a bodyless ErrorResponse for every descriptor', function (): void {
 
 Run: `vendor/bin/pest tests/Unit/Errors/NoneEnvelopeTest.php`
 
-Expected: `Class "Radiergummi\OpenApi\Core\Errors\NoneEnvelope" not found`.
+Expected: `Class "Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope" not found`.
 
 - [ ] **Step 3: Create the class**
 
@@ -747,7 +740,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Errors;
 
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 /**
  * The explicit "no body" preset — claims every standard error response without emitting
@@ -802,13 +795,7 @@ Create `tests/Unit/Errors/LaravelEnvelopeTest.php`:
 
 declare(strict_types=1);
 
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Validation\ValidationException;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Enums\ComponentType;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Illuminate\Auth\AuthenticationException;use Illuminate\Validation\ValidationException;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 uses()->group('openapi');
 
@@ -872,7 +859,7 @@ it('registers both Error and ValidationError component schemas idempotently', fu
 
 Run: `vendor/bin/pest tests/Unit/Errors/LaravelEnvelopeTest.php`
 
-Expected: `Class "Radiergummi\OpenApi\Core\Errors\LaravelEnvelope" not found`.
+Expected: `Class "Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope" not found`.
 
 - [ ] **Step 3: Create the class**
 
@@ -892,10 +879,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Errors;
 
-use Illuminate\Validation\ValidationException;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use Illuminate\Validation\ValidationException;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 /**
  * Laravel's default JSON error envelope:
@@ -1012,12 +996,7 @@ Create `tests/Unit/Errors/Rfc7807EnvelopeTest.php`:
 
 declare(strict_types=1);
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Validation\ValidationException;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Illuminate\Database\Eloquent\ModelNotFoundException;use Illuminate\Validation\ValidationException;use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 uses()->group('openapi');
 
@@ -1066,7 +1045,7 @@ it('registers both Problem and ValidationProblem component schemas', function ()
 
 Run: `vendor/bin/pest tests/Unit/Errors/Rfc7807EnvelopeTest.php`
 
-Expected: `Class "Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope" not found`.
+Expected: `Class "Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope" not found`.
 
 - [ ] **Step 3: Create the class**
 
@@ -1086,10 +1065,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Errors;
 
-use Illuminate\Validation\ValidationException;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use Illuminate\Validation\ValidationException;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 /**
  * RFC 7807 problem-details envelope. Media type `application/problem+json`.
@@ -1203,11 +1179,7 @@ Create `tests/Unit/Errors/JsonApiEnvelopeTest.php`:
 
 declare(strict_types=1);
 
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Illuminate\Auth\AuthenticationException;use Illuminate\Validation\ValidationException;use Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 uses()->group('openapi');
 
@@ -1243,7 +1215,7 @@ it('registers the ErrorDocument schema', function (): void {
 
 Run: `vendor/bin/pest tests/Unit/Errors/JsonApiEnvelopeTest.php`
 
-Expected: `Class "Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope" not found`.
+Expected: `Class "Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope" not found`.
 
 - [ ] **Step 3: Create the class**
 
@@ -1263,9 +1235,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Errors;
 
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 /**
  * JSON:API errors document. Media type `application/vnd.api+json`. The shape is uniform
@@ -1370,21 +1340,21 @@ Add this private method to `OpenApiServiceProvider`:
  * fully-qualified class name of a custom {@see ErrorResponseResolver}. Throws on a
  * typoed preset name so failures surface at boot, not later as an autoload error.
  *
- * @return class-string<\Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver>
+ * @return class-string<\Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver>
  */
-private function resolveErrorEnvelopeClass(string $envelope): string
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;private function resolveErrorEnvelopeClass(string $envelope): string
 {
     return match ($envelope) {
-        'none'     => \Radiergummi\OpenApi\Core\Errors\NoneEnvelope::class,
-        'laravel'  => \Radiergummi\OpenApi\Core\Errors\LaravelEnvelope::class,
-        'rfc7807'  => \Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope::class,
-        'json-api' => \Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope::class,
+        'none'     => \Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope::class,
+        'laravel'  => \Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope::class,
+        'rfc7807'  => \Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope::class,
+        'json-api' => \Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope::class,
         default    => $this->validateCustomEnvelopeClass($envelope),
     };
 }
 
 /**
- * @return class-string<\Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver>
+ * @return class-string<\Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver>
  */
 private function validateCustomEnvelopeClass(string $envelope): string
 {
@@ -1393,19 +1363,19 @@ private function validateCustomEnvelopeClass(string $envelope): string
             'Unknown error_envelope "%s". Known presets: none, laravel, rfc7807, json-api. '
             . 'Or supply a fully-qualified class name implementing %s.',
             $envelope,
-            \Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver::class,
+            \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver::class,
         ));
     }
 
-    if (!is_a($envelope, \Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver::class, true)) {
+    if (!is_a($envelope, \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver::class, true)) {
         throw new \InvalidArgumentException(sprintf(
             'Class %s does not implement %s.',
             $envelope,
-            \Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver::class,
+            \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver::class,
         ));
     }
 
-    /** @var class-string<\Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver> $envelope */
+    /** @var class-string<\Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver> $envelope */
     return $envelope;
 }
 ```
@@ -1428,9 +1398,7 @@ $registry->addErrorResponseResolver($envelopeClass);
 Add to `tests/Unit/OpenApiServiceProviderTest.php` (or create if not present):
 
 ```php
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 it('registers the configured envelope resolver', function (): void {
     config()->set('openapi.error_envelope', 'laravel');
@@ -1553,13 +1521,7 @@ git commit -m "feat(config): expose error_envelope key with 'none' default"
 
 declare(strict_types=1);
 
-use Illuminate\Validation\ValidationException;
-use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\ErrorResponse;
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
+use Illuminate\Validation\ValidationException;use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 uses()->group('openapi');
 
@@ -1583,7 +1545,7 @@ it('falls through to the next resolver when one returns null', function (): void
             exceptionClass: ValidationException::class,
             description: 'Validation failed',
         ));
-        if ($body !== null) break;
+        if ($body !== null) {break;}
     }
 
     expect($body)->not->toBeNull();
@@ -1607,7 +1569,7 @@ it('short-circuits on the first non-null result', function (): void {
     $body = null;
     foreach ($resolvers as $resolver) {
         $body = $resolver->resolveErrorResponse(new ErrorDescriptor(401, null, 'Unauthenticated'));
-        if ($body !== null) break;
+        if ($body !== null) {break;}
     }
 
     expect($body->content[0]->mediaType)->toBe('application/custom');
@@ -1664,11 +1626,7 @@ Verifies the `is_a($cls, X::class, true)` convention works for user-defined exce
 
 declare(strict_types=1);
 
-use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
+use Illuminate\Validation\ValidationException;use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 uses()->group('openapi');
 
@@ -1778,7 +1736,7 @@ Create `tests/Feature/Errors/EnvelopePresetSnapshotTest.php`:
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Errors\ErrorEnvelopeFixtureController;
 
 uses()->group('openapi');
@@ -1857,7 +1815,7 @@ Locks in the no-behavior-change-on-upgrade promise: shipping with `'error_envelo
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Tests\Fixtures\Errors\ErrorEnvelopeFixtureController;
 
 uses()->group('openapi');
@@ -1944,7 +1902,7 @@ Standard error responses (4xx/5xx derived from `@throws` and auth/scope/throttle
 Implement `ErrorResponseResolver` and point `error_envelope` at your class:
 
 ```php
-use Radiergummi\OpenApi\Core\Errors\{ErrorDescriptor, ErrorResponse};
+use Radiergummi\OpenApi\Core\Envelopes\{ErrorDescriptor, ErrorResponse};
 use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
 
 final class MyEnvelope implements ErrorResponseResolver
@@ -1976,7 +1934,7 @@ Under the `[Unreleased]` section, add:
 ```markdown
 ### Added
 - `config('openapi.error_envelope')` config key with four presets (`none`, `laravel`, `rfc7807`, `json-api`) selecting the body shape of standard error responses.
-- `ErrorDescriptor` and `ErrorResponse` value objects in `Radiergummi\OpenApi\Core\Errors\`.
+- `ErrorDescriptor` and `ErrorResponse` value objects in `Radiergummi\OpenApi\Core\Envelopes\`.
 - Optional `exception` key on `middleware_responses` entries, carrying the canonical thrown exception per middleware so resolvers can branch on exception class.
 
 ### Changed

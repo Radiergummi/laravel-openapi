@@ -11,11 +11,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
+use OpenApi\Annotations\Property;
+use OpenApi\Annotations\Schema;
 use Radiergummi\OpenApi\Plugins\Fractal\FractalEnvelopeFactory;
 use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
 
-/** @return array<string, \OpenApi\Annotations\Property> */
-function envelopeProperties(\OpenApi\Annotations\Schema $schema): array
+/** @return array<string, Property> */
+function envelopeProperties(Schema $schema): array
 {
     $byName = [];
 

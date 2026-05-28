@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldNoEffect;
+use Radiergummi\OpenApi\Attributes\RequestField;
+use Radiergummi\OpenApi\Lint\Rules\FieldNoEffect;
 use Spatie\LaravelData\Data;
 
 /**

@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\IdentifierCase;
+use Radiergummi\OpenApi\Lint\IdentifierCase;
 
 uses()->group('openapi', 'lint');
 

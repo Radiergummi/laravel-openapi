@@ -9,7 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\TagUndeclaredAtRoot;
+use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Rules\TagUndeclaredAtRoot;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
@@ -18,7 +19,7 @@ uses()->group('openapi', 'lint');
  * @param list<list<string>> $operationTags
  * @param list<string>       $rootTags
  */
-function tagUndeclaredAtRootContext(array $operationTags, array $rootTags = []): Radiergummi\OpenApi\Core\Lint\LintContext
+function tagUndeclaredAtRootContext(array $operationTags, array $rootTags = []): LintContext
 {
     $operations = [];
 

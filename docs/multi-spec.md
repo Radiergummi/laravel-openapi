@@ -120,7 +120,7 @@ The global `filters` key applies to every spec. There is no per-spec filter.
 Pin a route to specific specs regardless of `match` config:
 
 ```php
-use Radiergummi\OpenApi\Core\Attributes\Spec;
+use Radiergummi\OpenApi\Attributes\Spec;
 
 #[Spec('v1')]               // always in v1, never in v2 or others
 class FlightController { … }
@@ -311,7 +311,7 @@ class ProductController
 
 namespace App\Http\Controllers\Shared;
 
-use Radiergummi\OpenApi\Core\Attributes\Spec;
+use Radiergummi\OpenApi\Attributes\Spec;
 
 #[Spec(['storefront', 'admin'])]
 class SearchController

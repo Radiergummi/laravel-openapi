@@ -166,7 +166,7 @@ it('disambiguates same-basename Data classes across namespaces (OAPI-008)', func
 
     $disambiguated = array_values(array_filter(
         $keys,
-        static fn(string $k): bool => $k !== 'SelfRefData' && str_contains($k, 'SelfRefData'),
+        static fn(string $key): bool => $key !== 'SelfRefData' && str_contains($key, 'SelfRefData'),
     ));
 
     expect($disambiguated)->toHaveCount(1);

@@ -1,10 +1,10 @@
 # Attribute catalog
 
-Authoring attributes live in `Radiergummi\OpenApi\Core\Attributes`. Import
+Authoring attributes live in `Radiergummi\OpenApi\Attributes`. Import
 once and reference via the namespace alias:
 
 ```php
-use Radiergummi\OpenApi\Core\Attributes as OpenApi;
+use Radiergummi\OpenApi\Attributes as OpenApi;
 
 #[OpenApi\Operation(summary: 'Create a flight.')]
 public function store(FlightData $data): FlightData { … }

@@ -28,10 +28,22 @@ passes. PHPStan runs at level 8 with `treatPhpDocTypesAsCertain: false` and is *
 
 ## Architecture
 
-The codebase splits into a convention-agnostic **Core** (`src/Core/`) and **Plugins**
-(`src/Plugins/`) that teach Core about specific packages. Four plugins ship: **SpatieData**
-and **ApiResources** are enabled by default in `config/openapi.plugins`; **QueryBuilder** and
-**Fractal** are present but commented out (each requires opting into a third-party package).
+The codebase splits into four namespaces:
+
+- `Contracts\` — public extension surface (interfaces like `Plugin`,
+  `RequestSchemaResolver`, `RefSchemaResolver`, `QueryParameterResolver`,
+  `PrimaryResponseResolver`, `ErrorResponseResolver`, `SpecStage`, `RouteFilter`).
+- `Core\` — the **Core Plugin**: bundled extraction/processing strategies
+  (FormRequest extractor, error-envelope strategies, paginator response resolver,
+  standard-response extractor, default query-parameter resolver, Faker example
+  synthesiser, route introspection). Registers itself via `Core\Registration`.
+- `Support\` — internal infrastructure (generator pipeline, registry, spec
+  resolution, inclusion evaluator, visibility resolver, extraction primitives).
+  Treat as `@internal`; not a stable extension point.
+- `Plugins\` — bundled third-party convention plugins. Four ship: **SpatieData**
+  and **ApiResources** are enabled by default in `config/openapi.plugins`;
+  **QueryBuilder** and **Fractal** are present but commented out (each requires
+  opting into a third-party package).
 
 ### Generation pipeline
 
@@ -47,14 +59,15 @@ and **ApiResources** are enabled by default in `config/openapi.plugins`; **Query
 
 ### Registry and plugins
 
-`OpenApiRegistry` is the extension point. `CoreRegistration::register()` runs first (registers
-`FormRequestRequestSchemaResolver` and all core lint rules), then each plugin in
-`config/openapi.plugins` order, then any `config/openapi.lint.rules` extras. A plugin implements
-`Core\Registry\Plugin` and registers resolvers, extractors, error-response factories, payload
-class markers, and lint rules. `FormRequest` request bodies are handled by Core directly;
-Spatie Data classes are handled by the SpatieData plugin.
+`OpenApiRegistry` (in `Support\Registry\`) is the extension point.
+`CoreRegistration::register()` runs first (registers `FormRequestRequestSchemaResolver`
+and all core lint rules), then each plugin in `config/openapi.plugins` order, then
+any `config/openapi.lint.rules` extras. A plugin implements `Contracts\Registry\Plugin`
+and registers resolvers, extractors, error-response factories, payload class markers,
+and lint rules. `FormRequest` request bodies are handled by Core directly; Spatie Data
+classes are handled by the SpatieData plugin.
 
-### Lint subsystem (`src/Core/Lint/`)
+### Lint subsystem (`src/Lint/`)
 
 `SpecTreeBuilder` converts the generated document into a domain tree (`Tree/*Node`).
 `SpecTreeWalker` walks it; each `Rules/*` rule implements one or more visitor interfaces
@@ -72,12 +85,17 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 ## Conventions
 
 - Every PHP file has a strict-types declaration and the MIT/copyright docblock header.
-- `src/Core/` must not depend on any plugin or third-party convention package — plugin-specific
-  code belongs in `src/Plugins/`.
+- `src/Core/`, `src/Support/`, and `src/Contracts/` must not depend on any plugin or
+  third-party convention package — plugin-specific code belongs in `src/Plugins/`.
+- `src/Core/` holds **only concrete strategies** that participate in the Core Plugin
+  (extractors, envelope strategies, the default query-parameter resolver, route
+  introspection, etc.). Infrastructure shared across plugins goes in `src/Support/`.
+- Classes intended only for internal use (not part of the documented extension
+  surface) should carry an `@internal` PHPDoc tag.
 - Behaviour changes need test updates, an update to the relevant page under `docs/`
   if observable (see `docs/README.md` for the page index), and a `CHANGELOG.md`
   entry under `[Unreleased]`.
-- Authoring attributes live in `src/Core/Attributes/`; they are the escape hatch for cases
+- Authoring attributes live in `src/Attributes/`; they are the escape hatch for cases
   convention cannot derive.
 
 ## Known gaps

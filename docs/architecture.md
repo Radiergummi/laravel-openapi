@@ -2,10 +2,26 @@
 
 For plugin authors and contributors. Library users don't need this page.
 
-The codebase splits into a convention-agnostic **Core** (`src/Core/`) and
-**Plugins** (`src/Plugins/`) that register support for specific third-party
-packages. Four plugins ship; see [Plugins](plugins.md). The `Plugin`
-interface is public; see [Plugin authoring](plugin-authoring.md).
+The codebase splits into four namespaces with distinct roles:
+
+- **`Contracts\`** — the public extension surface (interfaces like `Plugin`,
+  `RequestSchemaResolver`, `RefSchemaResolver`, `QueryParameterResolver`,
+  `PrimaryResponseResolver`, `ErrorResponseResolver`, `SpecStage`,
+  `RouteFilter`). Implement these to extend the library.
+- **`Core\`** — the bundled **Core Plugin**: concrete extraction and
+  processing strategies that ship by default (FormRequest extractor,
+  error-envelope strategies, paginator response resolver, standard-response
+  extractor, the default query-parameter resolver, the Faker example
+  synthesiser, route introspection). It registers itself via
+  `Core\Registration` before any third-party plugin.
+- **`Support\`** — internal infrastructure used by Core and every plugin
+  (the generator pipeline, registry, spec resolution, inclusion evaluator,
+  visibility resolver, extraction primitives). Treat as `@internal`; not a
+  stable extension point.
+- **`Plugins\`** — third-party convention packages bundled with the library
+  (Spatie Data, API Resources, Fractal, QueryBuilder); see [Plugins](plugins.md).
+
+The `Plugin` interface is public; see [Plugin authoring](plugin-authoring.md).
 
 ## Generation pipeline
 
@@ -56,12 +72,14 @@ Laravel routes                      │
 ## Plugin system
 
 Plugins implement the `Plugin` interface
-(`src/Core/Registry/Plugin.php`) and register resolvers, extractors,
+(`src/Contracts/Registry/Plugin.php`) and register resolvers, extractors,
 error-response factories, payload class markers, and lint rules into an
 `OpenApiRegistry`.
 
 ```php
-namespace Radiergummi\OpenApi\Core\Registry;
+namespace Radiergummi\OpenApi\Contracts\Registry;
+
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 interface Plugin
 {

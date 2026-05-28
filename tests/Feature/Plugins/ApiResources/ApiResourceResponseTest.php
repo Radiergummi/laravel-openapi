@@ -16,9 +16,9 @@ use Illuminate\Http\Resources\Json\ResourceCollection;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
-use Radiergummi\OpenApi\Core\Attributes\Description;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Attributes\Summary;
+use Radiergummi\OpenApi\Attributes\Description;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Attributes\Summary;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 
 uses()->group('openapi', 'plugin:api-resources');

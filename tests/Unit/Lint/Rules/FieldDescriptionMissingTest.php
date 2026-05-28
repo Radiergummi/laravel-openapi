@@ -9,8 +9,8 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldDescriptionMissing;
-use Radiergummi\OpenApi\Core\Lint\Tree\FieldNode;
+use Radiergummi\OpenApi\Lint\Rules\FieldDescriptionMissing;
+use Radiergummi\OpenApi\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');

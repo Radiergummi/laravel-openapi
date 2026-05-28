@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Examples\FormRequests\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Radiergummi\OpenApi\Core\Attributes\RequestField;
+use Radiergummi\OpenApi\Attributes\RequestField;
 
 /**
  * Validation contract for `POST /flights`.

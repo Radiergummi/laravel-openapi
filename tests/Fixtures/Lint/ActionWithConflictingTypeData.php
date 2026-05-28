@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
-use Radiergummi\OpenApi\Core\Lint\Rules\FieldConflictingType;
+use Radiergummi\OpenApi\Lint\Rules\FieldConflictingType;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\User;
 

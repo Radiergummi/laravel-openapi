@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Examples\SpatieData\Data;
 
 use DateTimeInterface;
-use Radiergummi\OpenApi\Core\Attributes\Deprecated;
+use Radiergummi\OpenApi\Attributes\Deprecated;
 use Spatie\LaravelData\Attributes\WithCast;
 use Spatie\LaravelData\Casts\DateTimeInterfaceCast;
 use Spatie\LaravelData\Data;

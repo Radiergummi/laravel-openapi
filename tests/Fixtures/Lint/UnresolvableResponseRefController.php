@@ -13,11 +13,11 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\Lint;
 
 use ArrayObject;
 use Illuminate\Http\JsonResponse;
-use Radiergummi\OpenApi\Core\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\Response;
 use stdClass;
 
 /**
- * Fixture controller for testing the {@see \Radiergummi\OpenApi\Core\Lint\Rules\ResponseRefUnresolvable}
+ * Fixture controller for testing the {@see \Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable}
  * rule. The ref targets are arbitrary existing classes — the test's fake resolver decides which
  * ones resolve.
  */

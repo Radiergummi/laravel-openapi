@@ -12,9 +12,9 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Attributes\Operation;
-use Radiergummi\OpenApi\Core\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\Hide;
+use Radiergummi\OpenApi\Attributes\Operation;
+use Radiergummi\OpenApi\Attributes\Response;
 
 uses()->group('openapi');
 

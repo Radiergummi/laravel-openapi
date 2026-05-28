@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
 use Illuminate\Container\Attributes\Scoped;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use ReflectionClass;
 use ReflectionException;

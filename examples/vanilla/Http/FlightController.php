@@ -15,11 +15,12 @@ use Examples\Shared\Models\Flight;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Radiergummi\OpenApi\Core\Attributes\IgnoreLint;
-use Radiergummi\OpenApi\Core\Attributes\Operation;
-use Radiergummi\OpenApi\Core\Attributes\QueryParam;
-use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Illuminate\Validation\ValidationException;
+use Radiergummi\OpenApi\Attributes\IgnoreLint;
+use Radiergummi\OpenApi\Attributes\Operation;
+use Radiergummi\OpenApi\Attributes\QueryParam;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\Tag;
 
 #[Tag('Flights')]
 final class FlightController
@@ -69,7 +70,7 @@ final class FlightController
      * Persists a new flight record with the supplied schedule and status.
      * Returns the created resource with its server-assigned UUID.
      *
-     * @throws \Illuminate\Validation\ValidationException When the request payload is invalid.
+     * @throws ValidationException When the request payload is invalid.
      */
     #[Response(status: 201, description: 'The created flight', schema: ['type' => 'object'])]
     public function store(Request $request): JsonResponse
@@ -92,8 +93,8 @@ final class FlightController
     /**
      * Update an existing flight.
      *
-     * @throws \Illuminate\Validation\ValidationException When the request payload is invalid.
-     * @throws ModelNotFoundException                     When the flight does not exist.
+     * @throws ModelNotFoundException When the flight does not exist.
+     * @throws ValidationException    When the request payload is invalid.
      */
     #[Response(status: 200, description: 'The updated flight', schema: ['type' => 'object'])]
     public function update(Request $request, string $flight): JsonResponse

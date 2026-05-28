@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use Radiergummi\OpenApi\Core\Attributes\Description;
-use Radiergummi\OpenApi\Core\Attributes\Summary;
+use Radiergummi\OpenApi\Attributes\Description;
+use Radiergummi\OpenApi\Attributes\Summary;
 use Spatie\LaravelData\Data;
 
 #[Summary('Fixture Title')]

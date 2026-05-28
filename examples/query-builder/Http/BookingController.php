@@ -17,8 +17,9 @@ use Examples\Shared\Models\Flight;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Illuminate\Validation\ValidationException;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\Tag;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
@@ -55,9 +56,9 @@ final class BookingController
     /**
      * Create a new booking on a flight.
      *
-     * @throws \Illuminate\Validation\ValidationException When the request payload is invalid.
-     * @throws FlightOverbookedException                  When the flight has no remaining seats.
-     * @throws ModelNotFoundException                     When the flight does not exist.
+     * @throws FlightOverbookedException When the flight has no remaining seats.
+     * @throws ModelNotFoundException    When the flight does not exist.
+     * @throws ValidationException       When the request payload is invalid.
      */
     #[Response(status: 201, description: 'The created booking', schema: ['type' => 'object'])]
     public function store(Request $request, string $flight): JsonResponse

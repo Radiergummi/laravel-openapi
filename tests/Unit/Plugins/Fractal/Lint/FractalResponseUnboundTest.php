@@ -11,9 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Lint;
 
-use Radiergummi\OpenApi\Core\Extractors\PayloadParameterScanner;
+use League\Fractal\Manager;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 use stdClass;
@@ -33,10 +34,10 @@ class UnboundFractalTransformer {}
 
 class FractalUnboundController
 {
-    public function unbound(\League\Fractal\Manager $fractal): void {}
+    public function unbound(Manager $fractal): void {}
 
     #[FractalResponse(transformer: UnboundFractalTransformer::class)]
-    public function bound(\League\Fractal\Manager $fractal): void {}
+    public function bound(Manager $fractal): void {}
 
     public function plain(): void {}
 }

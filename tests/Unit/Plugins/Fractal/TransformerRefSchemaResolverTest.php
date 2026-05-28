@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
 use Radiergummi\OpenApi\Plugins\Fractal\TransformerRefSchemaResolver;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 #[TransformerField('id', type: 'integer')]
 class RefFixtureTransformer {}

@@ -12,8 +12,9 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Routing\Controller;
-use Radiergummi\OpenApi\Core\Attributes\Example;
-use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
+use Radiergummi\OpenApi\Attributes\Example;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\ResponseExample;
 
 /**
  * Fixture controller exercising the {@see Example} and {@see ResponseExample} attributes
@@ -31,7 +32,7 @@ final class ExampleFixtureController extends Controller
         name: 'full',
         value: ['name' => 'Aerospace Q1', 'callbackUrl' => 'https://hooks.example.com'],
     )]
-    #[\Radiergummi\OpenApi\Core\Attributes\Response(status: 422, description: 'Validation failed')]
+    #[Response(status: 422, description: 'Validation failed')]
     #[ResponseExample(
         status: 200,
         name: 'happy-path',

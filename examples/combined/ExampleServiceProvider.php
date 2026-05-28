@@ -15,8 +15,8 @@ use Examples\Shared\OpenApiConfig;
 use Illuminate\Contracts\Routing\Registrar;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
-use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin;
+use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use RuntimeException;
 
 use function assert;

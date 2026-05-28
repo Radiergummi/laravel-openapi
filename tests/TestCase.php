@@ -7,8 +7,8 @@ namespace Radiergummi\OpenApi\Tests;
 use Illuminate\Foundation\Application;
 use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
+use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use RuntimeException;
 use Spatie\LaravelData\LaravelDataServiceProvider;
 

@@ -13,10 +13,11 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Contracts\Pagination\CursorPaginator as CursorPaginatorContract;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;
+use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
 
 uses()->group('openapi');
 
@@ -68,7 +69,7 @@ class CursorPaginatorController extends Controller
      */
     public function index(): CursorPaginatorContract
     {
-        return new \Illuminate\Pagination\CursorPaginator([], 15);
+        return new CursorPaginator([], 15);
     }
 }
 

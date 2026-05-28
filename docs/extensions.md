@@ -4,7 +4,7 @@
 attributes can't express. Register them from a service provider's `boot()`:
 
 ```php
-use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
+
 ```
 
 > [!TIP]
@@ -16,8 +16,7 @@ use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
 Runs once per assembled operation, after all attributes and extractors:
 
 ```php
-use Radiergummi\OpenApi\Core\Extensions\OperationContext;
-use OpenApi\Annotations as OA;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Extensions\OperationContext;
 
 OpenApiExtensions::transformOperation(
     static function (OA\Operation $operation, OperationContext $context): void {
@@ -40,7 +39,7 @@ Runs once per component schema. The primary escape hatch for custom `Rule`
 objects the validation-rule mapper doesn't recognise.
 
 ```php
-use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
+use Radiergummi\OpenApi\Extensions\SchemaContext;
 
 OpenApiExtensions::transformSchema(
     static function (OA\Schema $schema, SchemaContext $context): void {
@@ -92,16 +91,15 @@ log, export, or notify. Four events ship:
 
 | Event | When | Carries |
 |---|---|---|
-| [`SpecGenerationStarted`](../src/Core/Events/SpecGenerationStarted.php) | Before a spec is assembled. | `spec`, `environment` |
-| [`SpecGenerationCompleted`](../src/Core/Events/SpecGenerationCompleted.php) | After document transformers finish. | `spec`, `environment`, `document`, `durationMs` |
-| [`RouteSkipped`](../src/Core/Events/RouteSkipped.php) | Once per (route × spec) pair excluded. | `route`, `spec`, `reason` (`SkipReason` enum), `summary` |
-| [`LintFindingEmitted`](../src/Core/Events/LintFindingEmitted.php) | Whenever a finding is accepted (during generation or lint runs). | `finding` |
+| [`SpecGenerationStarted`](../src/Events/SpecGenerationStarted.php) | Before a spec is assembled. | `spec`, `environment` |
+| [`SpecGenerationCompleted`](../src/Events/SpecGenerationCompleted.php) | After document transformers finish. | `spec`, `environment`, `document`, `durationMs` |
+| [`RouteSkipped`](../src/Events/RouteSkipped.php) | Once per (route × spec) pair excluded. | `route`, `spec`, `reason` (`SkipReason` enum), `summary` |
+| [`LintFindingEmitted`](../src/Events/LintFindingEmitted.php) | Whenever a finding is accepted (during generation or lint runs). | `finding` |
 
 Register listeners the usual way:
 
 ```php
-use Illuminate\Support\Facades\Event;
-use Radiergummi\OpenApi\Core\Events\SpecGenerationCompleted;
+use Illuminate\Support\Facades\Event;use Radiergummi\OpenApi\Events\SpecGenerationCompleted;
 
 Event::listen(static function (SpecGenerationCompleted $event): void {
     Storage::disk('s3')->put(

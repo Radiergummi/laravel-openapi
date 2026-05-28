@@ -14,14 +14,14 @@ use Illuminate\Support\ServiceProvider;
 use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
-use Radiergummi\OpenApi\Core\Extractors\SecurityExtractor;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
+use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
+use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 
 uses()->group('openapi');
 

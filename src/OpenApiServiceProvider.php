@@ -24,36 +24,36 @@ use Radiergummi\OpenApi\Console\DiffConfigCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Console\WhyCommand;
-use Radiergummi\OpenApi\Core\Errors\JsonApiEnvelope;
-use Radiergummi\OpenApi\Core\Errors\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Errors\NoneEnvelope;
-use Radiergummi\OpenApi\Core\Errors\Rfc7807Envelope;
-use Radiergummi\OpenApi\Core\Extractors;
-use Radiergummi\OpenApi\Core\Extractors\PaginatorResponseResolver;
-use Radiergummi\OpenApi\Core\Generator\ComponentSchemaRegistry;
-use Radiergummi\OpenApi\Core\Generator\ExampleFileLoader;
-use Radiergummi\OpenApi\Core\Generator\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Generator\OperationBuilder;
-use Radiergummi\OpenApi\Core\Generator\PaginatorSchemaFactory;
-use Radiergummi\OpenApi\Core\Inclusion\InclusionEvaluator;
-use Radiergummi\OpenApi\Core\Lint\EventDispatchingFindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Core\Lint\RuleRegistry;
-use Radiergummi\OpenApi\Core\Lint\Rules\ResponseRefUnresolvable;
-use Radiergummi\OpenApi\Core\Registry\CoreRegistration;
-use Radiergummi\OpenApi\Core\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Core\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Core\Registry\Plugin;
-use Radiergummi\OpenApi\Core\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Core\Routing\Filters\RouteFilter;
-use Radiergummi\OpenApi\Core\Routing\ReturnTypeExtractor;
-use Radiergummi\OpenApi\Core\Routing\UriParameterResolver;
-use Radiergummi\OpenApi\Core\Spec\SpecDefinition;
-use Radiergummi\OpenApi\Core\Spec\SpecMatcher;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
-use Radiergummi\OpenApi\Core\Spec\SpecResolver;
-use Radiergummi\OpenApi\Core\Visibility\VisibilityResolver;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
+use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
+use Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope;
+use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
+use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
+use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;
+use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Extraction;
+use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;
+use Radiergummi\OpenApi\Core\Registration;
 use Radiergummi\OpenApi\Http\DocsController;
+use Radiergummi\OpenApi\Lint\EventDispatchingFindingsCollector;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\RuleRegistry;
+use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
+use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
+use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
+use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
+use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Support\Spec\SpecResolver;
+use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 use RuntimeException;
 use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
@@ -144,7 +144,7 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): OpenApiRegistry {
                 $registry = new OpenApiRegistry();
 
-                CoreRegistration::register($registry);
+                Registration::register($registry);
 
                 foreach (config('openapi.plugins', []) as $pluginClass) {
                     $plugin = $app->make($pluginClass);
@@ -245,11 +245,11 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
-            Extractors\RequestBodyExtractor::class,
-            static function (Container $app): Extractors\RequestBodyExtractor {
+            Support\Extraction\RequestBodyExtractor::class,
+            static function (Container $app): Support\Extraction\RequestBodyExtractor {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                return new Extractors\RequestBodyExtractor(
+                return new Support\Extraction\RequestBodyExtractor(
                     resolvers: array_map(
                         static fn(string $class) => $app->make($class),
                         $registry->requestSchemaResolvers(),
@@ -260,11 +260,11 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
-            Extractors\StandardResponsesExtractor::class,
-            static function (Container $app): Extractors\StandardResponsesExtractor {
+            Extraction\StandardResponsesExtractor::class,
+            static function (Container $app): Extraction\StandardResponsesExtractor {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                return new Extractors\StandardResponsesExtractor(
+                return new Extraction\StandardResponsesExtractor(
                     registry: $app->make(ComponentSchemaRegistry::class),
                     findings: $app->make(FindingsCollector::class),
                     errorResponseResolvers: array_map(
@@ -412,10 +412,10 @@ class OpenApiServiceProvider extends ServiceProvider
 
                 return new OperationBuilder(
                     uriResolver: $app->make(UriParameterResolver::class),
-                    uriExtractor: $app->make(Extractors\UriParametersExtractor::class),
-                    bodyExtractor: $app->make(Extractors\RequestBodyExtractor::class),
-                    securityExtractor: $app->make(Extractors\SecurityExtractor::class),
-                    standardResponsesExtractor: $app->make(Extractors\StandardResponsesExtractor::class),
+                    uriExtractor: $app->make(Support\Extraction\UriParametersExtractor::class),
+                    bodyExtractor: $app->make(Support\Extraction\RequestBodyExtractor::class),
+                    securityExtractor: $app->make(Support\Extraction\SecurityExtractor::class),
+                    standardResponsesExtractor: $app->make(Extraction\StandardResponsesExtractor::class),
                     fileLoader: $app->make(ExampleFileLoader::class),
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),

@@ -18,7 +18,7 @@ use Illuminate\Http\JsonResponse;
 use League\Fractal\Manager;
 use League\Fractal\Resource\Collection;
 use League\Fractal\Resource\Item;
-use Radiergummi\OpenApi\Core\Attributes\Tag;
+use Radiergummi\OpenApi\Attributes\Tag;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 
 #[Tag('Flights')]

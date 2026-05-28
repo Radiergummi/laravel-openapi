@@ -173,24 +173,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins;
 
-use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Core\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
-use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
-use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
-use Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin;
-use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
-use Symfony\Component\Yaml\Yaml;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator as LengthAwarePaginatorContract;use Illuminate\Http\JsonResponse;use Illuminate\Http\Resources\Json\JsonResource;use Illuminate\Pagination\LengthAwarePaginator;use Illuminate\Routing\Controller;use Illuminate\Support\Facades\Route;use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;use Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin;use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;use Symfony\Component\Yaml\Yaml;
 
 uses()->group('openapi', 'plugin:suite');
 

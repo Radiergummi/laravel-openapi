@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\Rules\ExternaldocsInvalidUrl;
+use Radiergummi\OpenApi\Lint\Rules\ExternaldocsInvalidUrl;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidExternalDocsController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;

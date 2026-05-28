@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use Radiergummi\OpenApi\Core\Attributes\ExceptionResponse;
+use Radiergummi\OpenApi\Attributes\ExceptionResponse;
 use RuntimeException;
 
 #[ExceptionResponse(status: 418, description: "I'm a teapot")]

@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Examples\FormRequests\Resources;
 
+use Examples\Shared\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
@@ -18,7 +19,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 /**
  * Output contract for Booking responses.
  *
- * @mixin \Examples\Shared\Models\Booking
+ * @mixin Booking
  */
 #[ResourceField('id', description: 'Server-assigned booking identifier.', type: 'string', format: 'uuid')]
 #[ResourceField('flight_id', description: 'Identifier of the flight this booking belongs to.', type: 'string', format: 'uuid')]

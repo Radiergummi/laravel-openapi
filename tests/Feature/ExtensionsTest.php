@@ -13,11 +13,11 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Extensions\OpenApiExtensions;
-use Radiergummi\OpenApi\Core\Extensions\OperationContext;
-use Radiergummi\OpenApi\Core\Extensions\SchemaContext;
-use Radiergummi\OpenApi\Core\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Core\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
+use Radiergummi\OpenApi\Extensions\OperationContext;
+use Radiergummi\OpenApi\Extensions\SchemaContext;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Spatie\LaravelData\Data;
 
 uses()->group('openapi');

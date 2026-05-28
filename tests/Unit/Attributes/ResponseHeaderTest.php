@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\ResponseHeader;
+use Radiergummi\OpenApi\Attributes\ResponseHeader;
 
 uses()->group('openapi');
 

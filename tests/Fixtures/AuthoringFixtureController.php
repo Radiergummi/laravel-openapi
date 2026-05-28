@@ -15,18 +15,18 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Attributes\Example;
-use Radiergummi\OpenApi\Core\Attributes\ExternalDocs;
-use Radiergummi\OpenApi\Core\Attributes\Header;
-use Radiergummi\OpenApi\Core\Attributes\Hide;
-use Radiergummi\OpenApi\Core\Attributes\Link;
-use Radiergummi\OpenApi\Core\Attributes\PublicEndpoint;
-use Radiergummi\OpenApi\Core\Attributes\RequestBody;
-use Radiergummi\OpenApi\Core\Attributes\Response;
-use Radiergummi\OpenApi\Core\Attributes\ResponseExample;
-use Radiergummi\OpenApi\Core\Attributes\Security;
-use Radiergummi\OpenApi\Core\Attributes\Webhook;
-use Radiergummi\OpenApi\Core\Enums\MediaType;
+use Radiergummi\OpenApi\Attributes\Example;
+use Radiergummi\OpenApi\Attributes\ExternalDocs;
+use Radiergummi\OpenApi\Attributes\Header;
+use Radiergummi\OpenApi\Attributes\Hide;
+use Radiergummi\OpenApi\Attributes\Link;
+use Radiergummi\OpenApi\Attributes\PublicEndpoint;
+use Radiergummi\OpenApi\Attributes\RequestBody;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\Attributes\ResponseExample;
+use Radiergummi\OpenApi\Attributes\Security;
+use Radiergummi\OpenApi\Attributes\Webhook;
+use Radiergummi\OpenApi\Enums\MediaType;
 
 /**
  * Test fixture — exercises the medium-leverage authoring attributes.

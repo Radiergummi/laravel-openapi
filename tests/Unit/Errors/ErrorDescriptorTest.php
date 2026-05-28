@@ -10,7 +10,7 @@
 declare(strict_types=1);
 
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 uses()->group('openapi');
 

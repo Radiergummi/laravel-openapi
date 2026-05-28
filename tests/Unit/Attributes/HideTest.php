@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Attributes\Hide;
+use Radiergummi\OpenApi\Attributes\Hide;
 
 it('accepts no arguments and stores null for both scopes', function (): void {
     $hide = new Hide();
