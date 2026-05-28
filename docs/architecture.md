@@ -38,9 +38,15 @@ Laravel routes                      │
                                     ├── RequestSchemaResolver(s)      ← SpatieDataPlugin: DataClassRequestSchemaResolver
                                     │                                 ← Core: FormRequestRequestSchemaResolver
                                     ├── PrimaryResponseResolver(s)
-                                    ├── SecurityExtractor (auth + scope middleware)
-                                    └── StandardResponsesExtractor    (@throws + middleware → error responses)
+                                    └── SecurityExtractor (auth + scope middleware)
                                                                     │
+                                                                    ▼  PathsStage (binds Operation → ActionDescriptor)
+                                                                    │
+                                                                    ▼  ErrorResponseInferenceStage
+                                    ┌── ErrorResponseContributor(s)   ← Core: ThrowsErrorContributor
+                                    │                                 ← Core: MiddlewareErrorContributor
+                                    └──                               ← Core: ValidationErrorContributor
+                                                                    │  (dedupes by status; explicit #[Response] wins)
                                                                     ▼
                                                           ComponentSchemaRegistry
                                                   (shared $ref pool for Data schemas)
@@ -60,11 +66,20 @@ Laravel routes                      │
 2. **`OperationBuilder`** builds each operation by running every
    resolver/extractor registered in the `OpenApiRegistry`:
    query-parameter resolvers, request-schema resolvers, primary-response
-   resolvers, `SecurityExtractor`, `StandardResponsesExtractor`, and
-   `UriParametersExtractor`.
-3. **`ComponentSchemaRegistry`** is the shared `$ref` pool for reusable
+   resolvers, `SecurityExtractor`, and `UriParametersExtractor`.
+3. **`PathsStage`** populates `GenerationContext` with a per-operation
+   `ActionDescriptor` lookup so later stages can find the action that
+   produced each `OA\Operation`.
+4. **`ErrorResponseInferenceStage`** runs the registered
+   `ErrorResponseContributor` chain per operation, collects
+   `ErrorDescriptor`s from each contributor (`ThrowsErrorContributor`,
+   `MiddlewareErrorContributor`, `ValidationErrorContributor`), dedupes by
+   status (first contributor wins), and appends inferred error responses.
+   Explicit `#[Response(status: X)]` attributes on the action always
+   override inferred responses for that status.
+5. **`ComponentSchemaRegistry`** is the shared `$ref` pool for reusable
    Data-class schemas.
-4. **`OpenApiGenerator`** assembles the final OpenAPI 3.1 document (YAML or
+6. **`OpenApiGenerator`** assembles the final OpenAPI 3.1 document (YAML or
    JSON).
 
 `OpenApiServiceProvider` wires everything.

@@ -33,24 +33,33 @@ instances are resolved from the container when the pipeline runs.
 
 | Method | Contributes | Interface the class must implement |
 |---|---|---|
-| `addRequestSchemaResolver(string $class)` | A request-body schema builder | `RequestSchemaResolver` |
-| `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g. a DTO or resource) | `RefSchemaResolver` |
-| `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
-| `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
+| `addErrorResponseContributor(string $class)` | An inference source for error responses; called per operation, returns `ErrorDescriptor`s | `ErrorResponseContributor` |
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
+| `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
+| `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
+| `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g. a DTO or resource) | `RefSchemaResolver` |
+| `addRequestSchemaResolver(string $class)` | A request-body schema builder | `RequestSchemaResolver` |
 | `addRule(string $class)` | A lint rule | `Lint\Rules\Rule` + one or more visitor interfaces |
 | `addStage(string $class)` | A document-level pipeline stage, run after all core stages and before the terminal transformer stage | `Contracts\Generator\SpecStage` |
 
-Getters (`requestSchemaResolvers()`, `refSchemaResolvers()`,
-`queryParameterResolvers()`, `primaryResponseResolvers()`,
-`errorResponseResolvers()`, `payloadClasses()`, `rules()`, `stages()`) are
+Getters (`errorResponseContributors()`, `errorResponseResolvers()`,
+`payloadClasses()`, `primaryResponseResolvers()`, `queryParameterResolvers()`,
+`refSchemaResolvers()`, `requestSchemaResolvers()`, `rules()`, `stages()`) are
 consumed by the generator and linter; plugin authors don't call them.
 
 ### Resolver interfaces
 
 The resolver interfaces live in `src/Contracts/Registry/`:
 
+- **`ErrorResponseContributor`**: given an `ActionDescriptor`, return any
+  error responses implied by it (`@throws` annotations, middleware, payload
+  type, etc.). Bundled by Core: `ThrowsErrorContributor`,
+  `MiddlewareErrorContributor`, `ValidationErrorContributor`. The
+  `ErrorResponseInferenceStage` runs the chain in registration order and
+  dedupes by status (first wins). Explicit `#[Response(status: X)]`
+  attributes on the action always override inferred responses for that
+  status.
 - **`RequestSchemaResolver`**: given an `ActionDescriptor`, decide whether
   it handles the request body and produce the schema. Bundled:
   `DataClassRequestSchemaResolver` (Spatie Data),

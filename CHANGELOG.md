@@ -81,8 +81,32 @@ All notable changes to this project are documented here.
 - Unit tests for `LintRunner` (`tests/Unit/Lint/LintRunnerTest.php`) covering happy
   path, --no-suppress, config-driven level fallback, --only allowlist filtering,
   config-driven --skip merging, and `--level=max` resolution.
+- New plugin extension point: `ErrorResponseContributor`. Plugins can now
+  contribute inferred error responses (e.g. a validation-driven 422 from
+  their payload type) via `OpenApiRegistry::addErrorResponseContributor()`.
+  Core ships three contributors covering `@throws` annotations, route
+  middleware, and FormRequest validation; the
+  `Core\Stages\ErrorResponseInferenceStage` runs the chain after
+  `PathsStage` and dedupes by status (first contributor wins; explicit
+  `#[Response]` attributes always override inferred responses).
+- Per-operation `ActionDescriptor` lookup on `GenerationContext`
+  (`bindAction()` / `actionFor()`) so stages can find the action that
+  produced an `OA\Operation`. Populated by `PathsStage`.
 
 ### Changed
+- Error-response inference moved out of `Support\Generator\OperationBuilder`
+  into `Core\Stages\ErrorResponseInferenceStage`. Closes the
+  `Support → Core` layering violation; `OperationBuilder` no longer imports
+  from `Core\`. FormRequest-using routes now automatically gain a `422`
+  response even without an explicit `@throws ValidationException` (via the
+  new `ValidationErrorContributor`); bundled example snapshots updated.
+- `Core\Extraction\StandardResponsesExtractor` removed. Its logic is split
+  across `Core\Inference\ThrowsErrorContributor`,
+  `Core\Inference\MiddlewareErrorContributor`,
+  `Core\Inference\ValidationErrorContributor`, and the new
+  `ErrorResponseInferenceStage`. Pre-1.0; no migration shim. Third-party
+  code depending directly on the class must migrate to the contributor
+  chain or to subclassing the stage.
 - Restructured namespaces to clarify the public extension surface vs. internal infrastructure: extension-point interfaces moved to `Contracts\` (`Plugin`, `RequestSchemaResolver`, `RefSchemaResolver`, `QueryParameterResolver`, `PrimaryResponseResolver`, `ErrorResponseResolver`, `SpecStage`, `RouteFilter`, `SelfDocumentingRule`); internal infrastructure moved to `Support\` (`OpenApiRegistry`, generator pipeline + stages, spec resolution, inclusion evaluator, visibility resolver, extraction primitives, `ConfigDiffer`); the lint subsystem moved out of `Core\Lint\` to top-level `Lint\`. `Core\` now exclusively holds the **Core Plugin's** concrete strategies: error envelopes (`Core\Errors\`), extractors (`Core\Extractors\`), the default query-parameter resolver (`Core\Resolvers\`), the paginator schema factory (`Core\Pagination\`), the Faker example synthesiser (`Core\Examples\`), route introspection (`Core\Routing\`), and `Registration`. No behaviour change; pre-1.0 namespace cleanup.
 - The `type:` argument on field and header attributes (`#[QueryParam]`, `#[RequestField]`, `#[ResponseField]`, `#[Header]`, `#[ResponseHeader]`, plus the plugin attributes `#[ResourceField]`, `#[TransformerField]`, `#[AllowedFilter]`) is now typed as the OpenAPI primitive-type literal union (`'array'`, `'boolean'`, `'integer'`, `'null'`, `'number'`, `'object'`, `'string'`) via the `OpenApiPrimitiveType` PHPStan alias. `#[ResourceField]` / `#[TransformerField]` additionally accept a `class-string` for nested `$ref`s. PHPStan now flags a misspelled scalar type (e.g. `type: 'int'`) at the call site. No runtime behaviour change.
 - Tightened PHPDoc types across authoring attributes (`#[Summary]`, `#[Description]`, `#[Operation]`, `#[Tag]`, `#[Webhook]`, `#[Response]`, `#[ExceptionResponse]`, `#[Header]`, `#[ResponseHeader]`, `#[Link]`, `#[Security]`, `#[Hide]`, `#[Expose]`, `#[Spec]`, `#[IgnoreLint]`, `#[Deprecated]`, `#[ExternalDocs]`, `#[Discriminator]`, `#[RequestBody]`, `#[BaseExample]` / `#[Example]` / `#[ResponseExample]`, the `FieldAttribute` family, and the plugin attributes `#[ResourceField]`, `#[TransformerField]`, `#[AllowedFilter]`). Names, descriptions, identifiers, formats, schemes, scope strings, tag entries, environment filter entries, and similar slots are now typed `non-empty-string`; length/item constraints (`minLength`, `maxLength`, `minItems`, `maxItems`) are typed `int<0, max>`. PHPStan now flags empty strings and negative lengths passed to these attributes at the call site. No runtime behaviour change.
