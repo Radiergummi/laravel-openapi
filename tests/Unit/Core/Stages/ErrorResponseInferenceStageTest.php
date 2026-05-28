@@ -142,10 +142,12 @@ it('uses the first contributor\'s descriptor when two contributors both return t
         }
     };
 
+    $registry = new ComponentSchemaRegistry();
+
     $stage = new ErrorResponseInferenceStage(
         contributors: [$first, $second],
         errorResponseResolvers: [],
-        registry: new ComponentSchemaRegistry(),
+        registry: $registry,
         findings: new ArrayFindingsCollector(),
     );
 
@@ -156,12 +158,19 @@ it('uses the first contributor\'s descriptor when two contributors both return t
 
     $stage->apply($doc, $ctx);
 
-    // Only one response for status 422; body-less path routes to a component $ref,
-    // so we assert count and status only — description lives in the named component.
+    // One inlined $ref response for status 422; the description lives in the named
+    // component registered under "ValidationFailed". Assert that it is the *first*
+    // contributor's description — proving the ??= first-wins guard is effective.
     expect($operation->responses)
         ->toBeArray()
         ->toHaveCount(1)
         ->and((int) $operation->responses[0]->response)->toBe(422);
+
+    $namedResponses = $registry->allResponses();
+
+    expect($namedResponses)
+        ->toHaveCount(1)
+        ->and($namedResponses[0]->description)->toBe('First description');
 });
 
 // endregion
