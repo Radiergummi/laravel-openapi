@@ -37,6 +37,7 @@ use Radiergummi\OpenApi\Core\Extraction;
 use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Core\Registration;
+use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -273,6 +274,26 @@ class OpenApiServiceProvider extends ServiceProvider
                     ),
                     exceptionMap: (array) config('openapi.exception_responses', []),
                     middlewareMap: (array) config('openapi.middleware_responses', []),
+                );
+            },
+        );
+
+        $this->app->scoped(
+            ErrorResponseInferenceStage::class,
+            static function (Container $app): ErrorResponseInferenceStage {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                return new ErrorResponseInferenceStage(
+                    contributors: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->errorResponseContributors(),
+                    ),
+                    errorResponseResolvers: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->errorResponseResolvers(),
+                    ),
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    findings: $app->make(FindingsCollector::class),
                 );
             },
         );
