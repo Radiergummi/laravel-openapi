@@ -1,0 +1,73 @@
+parameters:
+    # Shipped with the extension so the type aliases referenced by this package's attribute
+    # PHPDocs (e.g. #[Response(status:)], #[Header(type:)]) resolve in consumer PHPStan runs,
+    # not just the package's own analysis.
+    typeAliases:
+        OpenApiPrimitiveType: "'array'|'boolean'|'integer'|'null'|'number'|'object'|'string'"
+        HttpStatusCode: 'int<100, 599>'
+
+services:
+    # Attribute-local rules — fire per Node\Attribute, no per-declaration variants needed.
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\LinkOperationTargetRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\ExampleValueOrFileRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\ExposeOnlyExceptRule
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\HideOnlyExceptRule
+        tags:
+            - phpstan.rules.rule
+
+    # Cross-attribute rules — fire per declaration node. Registered against PhpParser's FunctionLike
+    # interface (covers ClassMethod, Function_, Closure, ArrowFunction) and Stmt\ClassLike abstract
+    # (covers Class_, Trait_, Interface_, Enum_). One service per interface the rule should visit;
+    # Response targets METHOD/FUNCTION only, so duplicate-status skips ClassLike.
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\HideExposeConflictRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\HideExposeConflictRule
+        arguments:
+            nodeType: PhpParser\Node\Stmt\ClassLike
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\PublicEndpointSecurityConflictRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\PublicEndpointSecurityConflictRule
+        arguments:
+            nodeType: PhpParser\Node\Stmt\ClassLike
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseStatusRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseHeaderRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
+        tags:
+            - phpstan.rules.rule
+    -
+        class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseHeaderRule
+        arguments:
+            nodeType: PhpParser\Node\Stmt\ClassLike
+        tags:
+            - phpstan.rules.rule

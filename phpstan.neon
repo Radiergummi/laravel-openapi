@@ -1,5 +1,6 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - extension.neon
 
 parameters:
     level: 8
@@ -8,8 +9,6 @@ parameters:
     reportIgnoresWithoutComments: true
     checkUninitializedProperties: true
     checkDynamicProperties: true
-    typeAliases:
-        OpenApiPrimitiveType: "'array'|'boolean'|'integer'|'null'|'number'|'object'|'string'"
     exceptions:
         check:
             missingCheckedExceptionInThrows: true
@@ -17,6 +16,10 @@ parameters:
     paths:
         - src
         - tests
+    excludePaths:
+        # RuleTestCase data fixtures carry intentional attribute misuse for the PHPStan rules to
+        # catch; they are analysed by the rule tests in isolation, not the main pass.
+        - tests/PhpStan/data/*
     tmpDir: .cache/phpstan
 
     editorUrl: 'phpstorm://open?file=%%file%%&line=%%line%%'
@@ -55,6 +58,29 @@ parameters:
             identifier: argument.type
             paths:
                 - tests/Fixtures/Lint/
+        # Attribute-misuse fixtures intentionally trip the bundled PHPStan rules so the linter
+        # / generator tests have something to consume. The static rules report the misuse for
+        # everyone else; here the misuse is the test input. Identifiers use camelCase because
+        # PHPStan's identifier grammar forbids dashes — the runtime lint rules use kebab-case;
+        # each PHPStan rule's docblock names its runtime counterpart. Only list identifiers that
+        # a fixture currently trips: PHPStan's reportUnmatchedIgnoredErrors rejects forward-looking
+        # entries. When you add a new misuse fixture, add the matching entry here.
+        -
+            identifier: openapi.example.missingValueOrFile
+            paths:
+                - tests/Fixtures/
+        -
+            identifier: openapi.example.bothValueAndFile
+            paths:
+                - tests/Fixtures/
+        -
+            identifier: openapi.response.duplicateStatus
+            paths:
+                - tests/Fixtures/
+        -
+            identifier: openapi.visibility.hideExposeConflict
+            paths:
+                - tests/Fixtures/
         # Tests and fixtures don't document checked exceptions via @throws — they are not part
         # of the public API surface and the throws.* lint rules don't apply to them.
         -

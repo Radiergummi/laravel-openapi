@@ -1,0 +1,104 @@
+<?php
+
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license       MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\PhpStan\Rules;
+
+use PhpParser\Node;
+use PHPStan\Analyser\Scope;
+use PHPStan\Rules\Rule;
+use PHPStan\Rules\RuleError;
+use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\ShouldNotHappenException;
+use Radiergummi\OpenApi\Attributes\Response;
+use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
+
+use function count;
+use function is_int;
+
+/**
+ * Flags methods (or functions) that carry two or more `#[Response]` attributes with the same
+ * status code. Each status code can only appear once in an OpenAPI operation's `responses` map;
+ * the second declaration is silently lost. Statuses that don't resolve to a constant integer
+ * (e.g. a non-literal class constant) are skipped — we only flag pairs we can compare statically.
+ *
+ * One service is registered per declaration node kind (FunctionLike); Response targets neither
+ * classes nor properties so we don't need a ClassLike variant.
+ *
+ * @implements Rule<Node>
+ */
+final class DuplicateResponseStatusRule implements Rule
+{
+    /**
+     * @param class-string<Node> $nodeType
+     */
+    public function __construct(private readonly string $nodeType) {}
+
+    public function getNodeType(): string
+    {
+        return $this->nodeType;
+    }
+
+    /**
+     * @return list<RuleError>
+     *
+     * @throws ShouldNotHappenException
+     */
+    public function processNode(Node $node, Scope $scope): array
+    {
+        $responses = AttributeHelpers::attributesNamed(
+            AttributeHelpers::getAttributeGroups($node),
+            Response::class,
+        );
+
+        if (count($responses) < 2) {
+            return [];
+        }
+
+        /** @var array<int, true> $seen */
+        $seen = [];
+        $errors = [];
+
+        foreach ($responses as $attribute) {
+            $statusArg = AttributeHelpers::getArgument($attribute, 'status');
+
+            if ($statusArg === null) {
+                continue;
+            }
+
+            $constants = $scope->getType($statusArg->value)->getConstantScalarValues();
+
+            if (count($constants) !== 1) {
+                continue;
+            }
+
+            $status = $constants[0];
+
+            if (!is_int($status)) {
+                continue;
+            }
+
+            if (isset($seen[$status])) {
+                $errors[] = RuleErrorBuilder::message(
+                    "#[Response] with status {$status} is declared more than once on this target — duplicate status codes are silently dropped.",
+                )
+                    ->identifier('openapi.response.duplicateStatus')
+                    ->line($attribute->getStartLine())
+                    ->build();
+
+                continue;
+            }
+
+            $seen[$status] = true;
+        }
+
+        return $errors;
+    }
+}
