@@ -14,3 +14,7 @@ declare(strict_types=1);
 arch('Core must not depend on any plugin')
     ->expect('Radiergummi\OpenApi\Core')
     ->not->toUse('Radiergummi\OpenApi\Plugins');
+
+arch('Support must not depend on Core')
+    ->expect('Radiergummi\OpenApi\Support')
+    ->not->toUse('Radiergummi\OpenApi\Core');
