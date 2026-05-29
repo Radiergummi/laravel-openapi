@@ -283,3 +283,46 @@ it('attaches a fallback OA\Items to a nullable array property (Bug 1: OAS 3.1 on
 });
 
 // endregion
+
+// region Wildcard rule keys (dogfooding 2026-05-29 p1-wildcard-rule-key-emits-asterisk-property)
+
+it('translates a bare "*" rule key into additionalProperties, not a literal "*" property', function (): void {
+    $this->builder->build(Radiergummi\OpenApi\Tests\Fixtures\WildcardFormRequest::class);
+
+    $schema = $this->registry->all()[0];
+    $props  = formRequestPropertiesByName($schema);
+
+    expect($props)->not->toHaveKey('*');
+
+    // `required` must not contain the literal '*' either — that would be an invalid
+    // reference to a non-existent property.
+    if (is_array($schema->required)) {
+        expect($schema->required)->not->toContain('*');
+    }
+
+    expect($schema->additionalProperties)->toBeInstanceOf(OA\AdditionalProperties::class);
+    assert($schema->additionalProperties instanceof OA\AdditionalProperties);
+
+    expect($schema->additionalProperties->type)->toBe('string')
+        ->and($schema->additionalProperties->format)->toBe('uuid');
+});
+
+it('synthesises a type:array parent property for "foo.*" rules without a separately declared "foo"', function (): void {
+    $this->builder->build(Radiergummi\OpenApi\Tests\Fixtures\BareWildcardArrayFormRequest::class);
+
+    $schema = $this->registry->all()[0];
+    $props  = formRequestPropertiesByName($schema);
+
+    expect($props)->toHaveKey('attachments');
+
+    $attachments = $props['attachments'];
+
+    expect($attachments->type)->toBe('array')
+        ->and($attachments->items)->toBeInstanceOf(OA\Items::class);
+    assert($attachments->items instanceof OA\Items);
+
+    expect($attachments->items->type)->toBe('string')
+        ->and($attachments->items->maxLength)->toBe(2048);
+});
+
+// endregion

@@ -132,6 +132,7 @@ final readonly class SchemaFromFormRequest
         $result = $this->rulesMapper->process($rules, sourceClass: $formRequestClass);
         $fieldMap = $result['fields'];
         $itemsMap = $result['itemsFields'];
+        $additionalPropertiesField = $result['additionalPropertiesField'];
         $hasDotted = $result['hasDottedKeys'];
 
         $this->registry->setHasFileFields(
@@ -190,7 +191,12 @@ final readonly class SchemaFromFormRequest
             $prop = $propertiesByName[$fieldName] ?? null;
 
             if ($prop === null) {
-                continue;
+                // Bare-wildcard rule like `attachments.* => 'file'` without a separately-declared
+                // `attachments` rule. Laravel does not require the parent to be declared; synthesise
+                // a `type: array` parent so the items schema isn't silently lost.
+                $prop = new OA\Property(['property' => $fieldName, 'type' => 'array']);
+                $properties[] = $prop;
+                $propertiesByName[$fieldName] = $prop;
             }
 
             $items = new OA\Items([]);
@@ -219,6 +225,12 @@ final readonly class SchemaFromFormRequest
 
         if ($required !== []) {
             $schemaProps['required'] = $required;
+        }
+
+        if ($additionalPropertiesField !== null) {
+            $additionalProperties = new OA\AdditionalProperties([]);
+            $additionalPropertiesField->applyTo($additionalProperties);
+            $schemaProps['additionalProperties'] = $additionalProperties;
         }
 
         if ($hasDotted) {

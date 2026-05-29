@@ -826,3 +826,29 @@ it('maps a NotIn rule object to a description listing the disallowed values', fu
 });
 
 // endregion
+
+// region Wildcard rule keys (dogfooding 2026-05-29 p1-wildcard-rule-key-emits-asterisk-property)
+
+it('treats a bare "*" rule key as additionalProperties, not as a property named "*"', function (): void {
+    $result = $this->mapper->process(['*' => ['required', 'uuid']]);
+
+    expect($result['fields'])->not->toHaveKey('*')
+        ->and($result['additionalPropertiesField'])->not->toBeNull()
+        ->and($result['additionalPropertiesField']->type)->toBe('string')
+        ->and($result['additionalPropertiesField']->format)->toBe('uuid');
+});
+
+it('does not set additionalPropertiesField when no bare "*" key is present', function (): void {
+    $result = $this->mapper->process(['name' => ['required', 'string']]);
+
+    expect($result['additionalPropertiesField'])->toBeNull();
+});
+
+it('populates itemsFields for foo.* even when the parent foo is not separately declared', function (): void {
+    $result = $this->mapper->process(['attachments.*' => 'file']);
+
+    expect($result['itemsFields'])->toHaveKey('attachments')
+        ->and($result['itemsFields']['attachments']->isFile)->toBeTrue();
+});
+
+// endregion

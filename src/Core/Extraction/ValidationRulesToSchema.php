@@ -115,15 +115,26 @@ final readonly class ValidationRulesToSchema
      * @param array<string, array<int, mixed>|string> $rules
      *
      * @return array{fields: array<string, FieldDescriptor>, itemsFields: array<string, FieldDescriptor>,
-     *                       hasDottedKeys: bool}
+     *                       additionalPropertiesField: ?FieldDescriptor, hasDottedKeys: bool}
      */
     public function process(array $rules, ?string $sourceClass = null): array
     {
         $fields = [];
         $itemsFields = [];
+        $additionalPropertiesField = null;
         $hasDottedKeys = false;
 
         foreach ($rules as $field => $fieldRules) {
+            // A bare `*` rule key applies to every value in the request body — model this as
+            // JSON Schema's `additionalProperties` rather than emitting a property literally
+            // named `*` (which is OAS-meaningless and trips downstream lint rules).
+            if ($field === '*') {
+                $normalized = $this->normalizeRules($fieldRules);
+                $additionalPropertiesField = $this->mapRules($normalized, $field, $sourceClass);
+
+                continue;
+            }
+
             if (!str_contains($field, '.')) {
                 $normalized = $this->normalizeRules($fieldRules);
                 $fields[$field] = $this->mapRules($normalized, $field, $sourceClass);
@@ -150,6 +161,7 @@ final readonly class ValidationRulesToSchema
         return [
             'fields' => $fields,
             'itemsFields' => $itemsFields,
+            'additionalPropertiesField' => $additionalPropertiesField,
             'hasDottedKeys' => $hasDottedKeys,
         ];
     }
