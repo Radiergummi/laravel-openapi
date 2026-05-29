@@ -103,6 +103,23 @@ final class DuplicateResponseHeaderRule implements Rule
         return $errors;
     }
 
+    private static function resolveName(Node\Attribute $attribute, Scope $scope): ?string
+    {
+        $argument = AttributeHelpers::getArgument($attribute, 'name');
+
+        if ($argument === null) {
+            return null;
+        }
+
+        $constants = $scope->getType($argument->value)->getConstantScalarValues();
+
+        if (count($constants) !== 1 || !is_string($constants[0])) {
+            return null;
+        }
+
+        return $constants[0];
+    }
+
     /**
      * Resolves the `status` argument to a constant integer. Returns the default 200 when the
      * argument is absent, but null when it is present yet not statically resolvable — that case
@@ -120,23 +137,6 @@ final class DuplicateResponseHeaderRule implements Rule
         $constants = $scope->getType($statusArg->value)->getConstantScalarValues();
 
         if (count($constants) !== 1 || !is_int($constants[0])) {
-            return null;
-        }
-
-        return $constants[0];
-    }
-
-    private static function resolveName(Node\Attribute $attribute, Scope $scope): ?string
-    {
-        $argument = AttributeHelpers::getArgument($attribute, 'name');
-
-        if ($argument === null) {
-            return null;
-        }
-
-        $constants = $scope->getType($argument->value)->getConstantScalarValues();
-
-        if (count($constants) !== 1 || !is_string($constants[0])) {
             return null;
         }
 

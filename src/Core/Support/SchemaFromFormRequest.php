@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Extraction;
+namespace Radiergummi\OpenApi\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,7 +17,6 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
-use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Core\Lint\RequestBodySchemaDegraded;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -244,6 +243,38 @@ final readonly class SchemaFromFormRequest
     }
 
     /**
+     * @param class-string<FormRequest> $formRequestClass
+     */
+    private function emitDegradedFinding(string $formRequestClass, Throwable $exception): void
+    {
+        $file = null;
+        $line = null;
+
+        try {
+            $reflection = new ReflectionClass($formRequestClass);
+            $file = $reflection->getFileName() ?: null;
+            $line = $reflection->getStartLine() ?: null;
+        } catch (ReflectionException) {
+            // Reflection failure here is non-fatal — the finding is still useful without
+            // file/line, and we are already in a degraded path.
+        }
+
+        $this->findings->emit(
+            new Finding(
+                ruleId: 'request-body.schema-degraded',
+                level: 1,
+                message: sprintf(
+                    'Schema introspection failed for %s: %s',
+                    $formRequestClass,
+                    $exception->getMessage(),
+                ),
+                location: new FindingLocation(file: $file, line: $line),
+                fixHint: RequestBodySchemaDegraded::FIX_HINT,
+            ),
+        );
+    }
+
+    /**
      * Reads `#[RequestField]` attributes from `PARAM_*` class constants on the FormRequest.
      * Allows authors to annotate constants:
      * ```php
@@ -290,37 +321,5 @@ final readonly class SchemaFromFormRequest
         $d->applyTo($property);
 
         return $property;
-    }
-
-    /**
-     * @param class-string<FormRequest> $formRequestClass
-     */
-    private function emitDegradedFinding(string $formRequestClass, Throwable $exception): void
-    {
-        $file = null;
-        $line = null;
-
-        try {
-            $reflection = new ReflectionClass($formRequestClass);
-            $file = $reflection->getFileName() ?: null;
-            $line = $reflection->getStartLine() ?: null;
-        } catch (ReflectionException) {
-            // Reflection failure here is non-fatal — the finding is still useful without
-            // file/line, and we are already in a degraded path.
-        }
-
-        $this->findings->emit(
-            new Finding(
-                ruleId: 'request-body.schema-degraded',
-                level: 1,
-                message: sprintf(
-                    'Schema introspection failed for %s: %s',
-                    $formRequestClass,
-                    $exception->getMessage(),
-                ),
-                location: new FindingLocation(file: $file, line: $line),
-                fixHint: RequestBodySchemaDegraded::FIX_HINT,
-            ),
-        );
     }
 }

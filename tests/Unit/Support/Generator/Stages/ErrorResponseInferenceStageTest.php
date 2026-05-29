@@ -13,13 +13,13 @@ use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 
 uses()->group('openapi');

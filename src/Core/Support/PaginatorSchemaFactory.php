@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Pagination;
+namespace Radiergummi\OpenApi\Core\Support;
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Enums\PaginatorKind;

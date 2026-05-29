@@ -43,58 +43,6 @@ use function substr;
 final class ComponentSchemaRegistry
 {
     /**
-     * @var array<string, OA\Schema>
-     */
-    private array $schemas = [];
-
-    /**
-     * @var array<string, OA\Response>
-     */
-    private array $responses = [];
-
-    /**
-     * @var array<string, string>
-     */
-    private array $classToKey = [];
-
-    /**
-     * Inverse index for {@see isKeyTaken()} fast-path. Populated alongside
-     * {@see $classToKey} so collision probes are O(1) instead of O(N).
-     *
-     * @var array<string, string>
-     */
-    private array $keyToClass = [];
-
-    /**
-     * @var array<class-string, true>
-     */
-    private array $inProgress = [];
-
-    /**
-     * Empty array means "extraction was attempted and yielded nothing" — distinct from
-     * `null` ("not yet attempted") as returned by {@see compiledFields()}.
-     *
-     * @var array<class-string, array<string, FieldDescriptor>>
-     */
-    private array $compiledFields = [];
-
-    /**
-     * Per-class map of field-name → items FieldDescriptor, derived from `foo.*` validation rules.
-     * Null means "not yet computed"; an empty array means "computed, no wildcard rules found".
-     *
-     * @var array<class-string, array<string, FieldDescriptor>>
-     */
-    private array $compiledItemsFields = [];
-
-    /**
-     * Whether the FormRequest class has any file fields, computed once during schema building.
-     * Null means "not yet computed".
-     *
-     * @var array<class-string, bool>
-     */
-    private array $hasFileFields = [];
-
-    /**
      * Sentinel owner stored in {@see $keyToClass} for keys claimed by {@see registerNamed()}.
      *
      * Real PHP class strings cannot start with a NUL byte, so this value never collides with a
@@ -102,6 +50,50 @@ final class ComponentSchemaRegistry
      * for any user class probing the same basename.
      */
     private const string NAMED_KEY_OWNER = "\0named";
+    /**
+     * @var array<string, OA\Schema>
+     */
+    private array $schemas = [];
+    /**
+     * @var array<string, OA\Response>
+     */
+    private array $responses = [];
+    /**
+     * @var array<string, string>
+     */
+    private array $classToKey = [];
+    /**
+     * Inverse index for {@see isKeyTaken()} fast-path. Populated alongside
+     * {@see $classToKey} so collision probes are O(1) instead of O(N).
+     *
+     * @var array<string, string>
+     */
+    private array $keyToClass = [];
+    /**
+     * @var array<class-string, true>
+     */
+    private array $inProgress = [];
+    /**
+     * Empty array means "extraction was attempted and yielded nothing" — distinct from
+     * `null` ("not yet attempted") as returned by {@see compiledFields()}.
+     *
+     * @var array<class-string, array<string, FieldDescriptor>>
+     */
+    private array $compiledFields = [];
+    /**
+     * Per-class map of field-name → items FieldDescriptor, derived from `foo.*` validation rules.
+     * Null means "not yet computed"; an empty array means "computed, no wildcard rules found".
+     *
+     * @var array<class-string, array<string, FieldDescriptor>>
+     */
+    private array $compiledItemsFields = [];
+    /**
+     * Whether the FormRequest class has any file fields, computed once during schema building.
+     * Null means "not yet computed".
+     *
+     * @var array<class-string, bool>
+     */
+    private array $hasFileFields = [];
 
     /**
      * Used for shared envelopes such as the JSON:API error response schema.

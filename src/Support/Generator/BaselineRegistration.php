@@ -9,21 +9,9 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core;
+namespace Radiergummi\OpenApi\Support\Generator;
 
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Core\Extraction\FormRequestRequestSchemaResolver;
-use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
-use Radiergummi\OpenApi\Core\Inference\MiddlewareErrorContributor;
-use Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor;
-use Radiergummi\OpenApi\Core\Inference\ValidationErrorContributor;
-use Radiergummi\OpenApi\Core\Lint\ErrorsResolverFailed;
-use Radiergummi\OpenApi\Core\Lint\RequestBodySchemaDegraded;
-use Radiergummi\OpenApi\Core\Lint\RuleInvalidEnumValue;
-use Radiergummi\OpenApi\Core\Lint\RuleUnknown;
-use Radiergummi\OpenApi\Core\Lint\ThrowsUnmapped;
-use Radiergummi\OpenApi\Core\Resolvers\CoreQueryParameterResolver;
-use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
 use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
@@ -31,6 +19,7 @@ use Radiergummi\OpenApi\Lint\Rules\DeprecatedNoReplacement;
 use Radiergummi\OpenApi\Lint\Rules\DeprecatedNoSunsetDate;
 use Radiergummi\OpenApi\Lint\Rules\DiscriminatorInvalidMapping;
 use Radiergummi\OpenApi\Lint\Rules\EnumValuesUndocumented;
+use Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Lint\Rules\ExternaldocsInvalidUrl;
 use Radiergummi\OpenApi\Lint\Rules\FieldConflictingType;
 use Radiergummi\OpenApi\Lint\Rules\FieldDescriptionMissing;
@@ -119,18 +108,42 @@ use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\WebhookNameDuplicate;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\PathsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\RootStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
 
 /**
- * Registers the framework-agnostic built-ins (the core request-schema resolver and every core lint
- * rule) into the registry. Runs first, before plugins and config extras.
+ * Registers the library's baseline pipeline stages — the generator infrastructure that runs
+ * regardless of which plugins (Core or otherwise) are enabled.
+ *
+ * Runs first, before {@see \Radiergummi\OpenApi\Core\CorePlugin} and any user-configured
+ * plugins. Stage order is load-bearing:
+ *
+ * 1. `RootStage` — populate document root (info, servers, tags, security schemes).
+ * 2. `PathsStage` — assemble operation objects per route.
+ * 3. `ErrorResponseInferenceStage` — drive registered `ErrorResponseContributor`s + the
+ *    `ErrorResponseResolver` chain, writing inferred 4xx/5xx responses into operations.
+ *    Must run after paths exist (it reads them) but before `ComponentsStage` flushes named
+ *    response components into the document.
+ * 4. `ComponentsStage` — flush component schemas/responses into the assembled document.
+ * 5. `SecurityStage` — finalise top-level security requirements.
+ *
+ * Plugins that only contribute `ErrorResponseContributor`s (the most common case for new
+ * envelope shapes) can therefore work without re-registering or re-implementing this
+ * pipeline.
+ *
+ * Also registers the lint rules whose findings are emitted by baseline stages — currently
+ * `errors.resolver-failed`, emitted by `ErrorResponseInferenceStage` when an
+ * `ErrorResponseResolver` throws. Tying these rule registrations to the baseline avoids the
+ * "Core was disabled and now my suppression annotation trips meta.unknown-rule" failure mode.
+ *
+ * @internal
  */
-final class Registration
+final class BaselineRegistration
 {
     /**
-     * Core Linter rules
+     * Baseline Linter rules
      *
      * Rules are listed here for registration only. The authoritative severity of each rule is its
      * own `level()` method and is visible via `php artisan openapi:lint --list`.
@@ -178,11 +191,7 @@ final class Registration
         ResponseDescriptionMissing::class,
 
         RequestEmpty::class,
-        RequestBodySchemaDegraded::class,
-        ThrowsUnmapped::class,
         ErrorsResolverFailed::class,
-        RuleUnknown::class,
-        RuleInvalidEnumValue::class,
 
         OperationSecurityMissing::class,
 
@@ -252,24 +261,9 @@ final class Registration
 
     public static function register(OpenApiRegistry $registry): void
     {
-        $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
-        $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
-        $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
-
-        // Register stages individually so ErrorResponseInferenceStage can be inserted between
-        // PathsStage and ComponentsStage. The inference stage must run after paths are built
-        // (it reads operation responses) but before ComponentsStage flushes named response
-        // components into the document.
         $registry->addStage(RootStage::class);
         $registry->addStage(PathsStage::class);
-
-        // Error-response inference contributors — registration order is load-bearing:
-        // Throws first (most specific), Middleware second, Validation last (most implicit).
-        $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
-        $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
-        $registry->addErrorResponseContributor(ValidationErrorContributor::class);
         $registry->addStage(ErrorResponseInferenceStage::class);
-
         $registry->addStage(ComponentsStage::class);
         $registry->addStage(SecurityStage::class);
 

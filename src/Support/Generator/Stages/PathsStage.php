@@ -79,12 +79,14 @@ final readonly class PathsStage implements SpecStage
             if (!$decision->included) {
                 if ($this->events->hasListeners(RouteSkipped::class)) {
                     assert($decision->reason !== null);
-                    $this->events->dispatch(new RouteSkipped(
-                        route: $descriptor->route,
-                        spec: $ctx->spec->name,
-                        reason: $decision->reason,
-                        summary: $decision->summary,
-                    ));
+                    $this->events->dispatch(
+                        new RouteSkipped(
+                            route: $descriptor->route,
+                            spec: $ctx->spec->name,
+                            reason: $decision->reason,
+                            summary: $decision->summary,
+                        ),
+                    );
                 }
 
                 continue;

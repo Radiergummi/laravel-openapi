@@ -13,7 +13,7 @@ namespace Radiergummi\OpenApi\Core\Lint;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor;
+use Radiergummi\OpenApi\Core\ErrorContributors\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 

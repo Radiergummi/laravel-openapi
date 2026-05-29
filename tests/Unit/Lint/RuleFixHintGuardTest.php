@@ -9,12 +9,12 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Registration;
+use Radiergummi\OpenApi\Core\CorePlugin;
 
 uses()->group('openapi', 'lint');
 
 it('every lint rule class references a fixHint argument', function (): void {
-    $ruleClasses = Registration::RULES;
+    $ruleClasses = CorePlugin::RULES;
 
     expect($ruleClasses)->not->toBeEmpty();
 

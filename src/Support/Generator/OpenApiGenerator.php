@@ -53,12 +53,14 @@ final readonly class OpenApiGenerator
 
         $document = $this->pipeline->run($spec, $environment);
 
-        $this->events->dispatch(new SpecGenerationCompleted(
-            spec: $spec->name,
-            environment: $environment,
-            document: $document,
-            durationMs: (hrtime(true) - $startedAtNs) / 1_000_000,
-        ));
+        $this->events->dispatch(
+            new SpecGenerationCompleted(
+                spec: $spec->name,
+                environment: $environment,
+                document: $document,
+                durationMs: (hrtime(true) - $startedAtNs) / 1_000_000,
+            ),
+        );
 
         return $document;
     }

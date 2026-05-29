@@ -40,7 +40,7 @@ final readonly class Rfc7807Envelope implements ErrorResponseResolver
 
         $media = new OA\MediaType([
             'mediaType' => 'application/problem+json',
-            'schema'    => new OA\Schema(['ref' => $this->registry->qualifyKey($schemaKey)]),
+            'schema' => new OA\Schema(['ref' => $this->registry->qualifyKey($schemaKey)]),
         ]);
 
         return new ErrorResponse(content: [$media]);
@@ -61,10 +61,10 @@ final readonly class Rfc7807Envelope implements ErrorResponseResolver
     {
         if (!$this->registry->hasKey('Problem')) {
             $this->registry->registerNamed('Problem', new OA\Schema([
-                'schema'      => 'Problem',
-                'type'        => 'object',
+                'schema' => 'Problem',
+                'type' => 'object',
                 'description' => 'RFC 7807 problem details object.',
-                'properties'  => [
+                'properties' => [
                     new OA\Property(['property' => 'type', 'type' => 'string', 'format' => 'uri']),
                     new OA\Property(['property' => 'title', 'type' => 'string']),
                     new OA\Property(['property' => 'status', 'type' => 'integer']),
@@ -76,20 +76,20 @@ final readonly class Rfc7807Envelope implements ErrorResponseResolver
 
         if (!$this->registry->hasKey('ValidationProblem')) {
             $this->registry->registerNamed('ValidationProblem', new OA\Schema([
-                'schema'      => 'ValidationProblem',
-                'type'        => 'object',
+                'schema' => 'ValidationProblem',
+                'type' => 'object',
                 'description' => 'RFC 7807 problem details with a per-field errors extension.',
-                'properties'  => [
+                'properties' => [
                     new OA\Property(['property' => 'type', 'type' => 'string', 'format' => 'uri']),
                     new OA\Property(['property' => 'title', 'type' => 'string']),
                     new OA\Property(['property' => 'status', 'type' => 'integer']),
                     new OA\Property(['property' => 'detail', 'type' => 'string']),
                     new OA\Property(['property' => 'instance', 'type' => 'string', 'format' => 'uri']),
                     new OA\Property([
-                        'property'             => 'errors',
-                        'type'                 => 'object',
+                        'property' => 'errors',
+                        'type' => 'object',
                         'additionalProperties' => new OA\AdditionalProperties([
-                            'type'  => 'array',
+                            'type' => 'array',
                             'items' => new OA\Items(['type' => 'string']),
                         ]),
                     ]),

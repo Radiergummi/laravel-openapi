@@ -33,7 +33,7 @@ use function assert;
  * Assembles the OpenAPI document by running ordered stages against a shared {@see OpenApi}.
  *
  * Stages are resolved from {@see OpenApiRegistry::stages()} in registration order — core stages
- * (registered by {@see \Radiergummi\OpenApi\Core\Registration::register()}) come
+ * (registered by {@see \Radiergummi\OpenApi\Core\CorePlugin::register()}) come
  * first, plugin stages follow. {@see TransformersStage} runs last as a fixed terminal step so
  * user-registered document transformers see the fully assembled spec.
  *

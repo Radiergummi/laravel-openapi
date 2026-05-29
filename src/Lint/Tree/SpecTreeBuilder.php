@@ -16,6 +16,7 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
+use function array_filter;
 use function array_map;
 use function array_unique;
 use function array_values;
@@ -402,7 +403,7 @@ final class SpecTreeBuilder
                 hasSchema: $schema !== null && $schema !== Generator::UNDEFINED,
                 style: SchemaAccessor::undefinedToNull($param->style),
                 explode: $param->explode !== Generator::UNDEFINED
-                    ? (bool) $param->explode
+                    ? (bool)$param->explode
                     : null,
                 description: SchemaAccessor::undefinedToNull($param->description),
                 enum: SchemaAccessor::extractSchemaEnum($schema),
@@ -844,7 +845,8 @@ final class SpecTreeBuilder
             name: $header->header !== Generator::UNDEFINED
                 ? $header->header
                 : '(unknown)',
-            schema: SchemaAccessor::extractSchemaType($header->schema ?? null), // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            schema: SchemaAccessor::extractSchemaType($header->schema ?? null),
             description: SchemaAccessor::undefinedToNull($header->description),
             required: $header->required !== Generator::UNDEFINED
             && $header->required === true,
@@ -905,7 +907,7 @@ final class SpecTreeBuilder
             } elseif (is_array($requirement)) {
                 foreach ($requirement as $scheme => $scopes) {
                     $result[] = [
-                        'scheme' => (string) $scheme,
+                        'scheme' => (string)$scheme,
                         'scopes' => is_array($scopes)
                             ? array_values(array_map('strval', $scopes))
                             : [],
@@ -931,7 +933,8 @@ final class SpecTreeBuilder
         return array_values(
             array_filter(
                 $tags,
-                static fn($tag): bool => is_string($tag), // @phpstan-ignore function.alreadyNarrowedType (defensive; OA\Operation::$tags may contain non-strings at runtime)
+                // @phpstan-ignore function.alreadyNarrowedType (defensive; OA\Operation::$tags may contain non-strings at runtime)
+                static fn($tag): bool => is_string($tag),
             ),
         );
     }

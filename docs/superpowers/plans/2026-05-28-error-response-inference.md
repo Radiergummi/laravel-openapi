@@ -54,7 +54,7 @@ The repo recently went through a major restructure. The layout you'll work in is
   - `tests/Support/ActionDescriptorFactory.php` — builds `ActionDescriptor` fixtures with a placeholder route. Use this in contributor tests instead of hand-rolling reflection setup.
   - `tests/Support/OperationNodeFactory.php` — builds `OperationNode` fixtures for lint tests.
   - `tests/Pest.php` — has `reflectFunctionParameter()`, `renderSpec()`, and other global helpers. Skim it before writing fixtures from scratch.
-- Test directory structure mirrors `src/`. A test for `src/Core/Inference/ThrowsErrorContributor.php` goes at `tests/Unit/Core/Inference/ThrowsErrorContributorTest.php` (no namespace declaration in the test file — Pest collects them via `tests/Pest.php`'s `uses(TestCase::class)->in('Unit', 'Feature')`).
+- Test directory structure mirrors `src/`. A test for `src/Core/ErrorContributors/ThrowsErrorContributor.php` goes at `tests/Unit/Core/Inference/ThrowsErrorContributorTest.php` (no namespace declaration in the test file — Pest collects them via `tests/Pest.php`'s `uses(TestCase::class)->in('Unit', 'Feature')`).
 
 ### Finding existing patterns
 
@@ -128,9 +128,9 @@ These compare generated YAML against checked-in fixtures. Zero fixture edits per
 **Create:**
 
 - `src/Contracts/Registry/ErrorResponseContributor.php` — single-method interface.
-- `src/Core/Inference/ThrowsErrorContributor.php` — lifts `@throws` walking + `throws.unmapped` emission from `StandardResponsesExtractor`.
-- `src/Core/Inference/MiddlewareErrorContributor.php` — lifts middleware walking (uses `DetectsAuthMiddleware` trait).
-- `src/Core/Inference/ValidationErrorContributor.php` — NEW logic: detect FormRequest subclass in action params.
+- `src/Core/ErrorContributors/ThrowsErrorContributor.php` — lifts `@throws` walking + `throws.unmapped` emission from `StandardResponsesExtractor`.
+- `src/Core/ErrorContributors/MiddlewareErrorContributor.php` — lifts middleware walking (uses `DetectsAuthMiddleware` trait).
+- `src/Core/ErrorContributors/ValidationErrorContributor.php` — NEW logic: detect FormRequest subclass in action params.
 - `src/Core/Stages/ErrorResponseInferenceStage.php` — orchestrates contributor chain + envelope resolution + dedupe.
 - `tests/Unit/Core/Inference/ThrowsErrorContributorTest.php`
 - `tests/Unit/Core/Inference/MiddlewareErrorContributorTest.php`
@@ -447,7 +447,7 @@ git commit -m "feat(generator): PathsStage binds OA\Operation -> ActionDescripto
 ## Task 4: `ThrowsErrorContributor`
 
 **Files:**
-- Create: `src/Core/Inference/ThrowsErrorContributor.php`
+- Create: `src/Core/ErrorContributors/ThrowsErrorContributor.php`
 - Create: `tests/Unit/Core/Inference/ThrowsErrorContributorTest.php`
 
 **Why a new `Core\Inference\` directory rather than putting these in `Core\Extraction\` alongside `FormRequestRequestSchemaResolver` etc.:** the existing `Core\Extraction\` classes *resolve known shapes* (FormRequest → schema, paginator → response). Contributors *infer implied responses* from indirect signals (`@throws` annotations, middleware presence, payload type). Different semantic — own namespace.
@@ -578,7 +578,7 @@ git commit -m "feat(core): add ThrowsErrorContributor"
 ## Task 5: `MiddlewareErrorContributor`
 
 **Files:**
-- Create: `src/Core/Inference/MiddlewareErrorContributor.php`
+- Create: `src/Core/ErrorContributors/MiddlewareErrorContributor.php`
 - Create: `tests/Unit/Core/Inference/MiddlewareErrorContributorTest.php`
 
 Lift the middleware walking logic from `StandardResponsesExtractor::extract()` — the block that reads `$descriptor->route->gatherMiddleware()` and checks `auth` / `scope` / `throttle`.
@@ -686,7 +686,7 @@ git commit -m "feat(core): add MiddlewareErrorContributor"
 ## Task 6: `ValidationErrorContributor`
 
 **Files:**
-- Create: `src/Core/Inference/ValidationErrorContributor.php`
+- Create: `src/Core/ErrorContributors/ValidationErrorContributor.php`
 - Create: `tests/Unit/Core/Inference/ValidationErrorContributorTest.php`
 
 NEW logic. Walk the action's method parameters; if any is a subclass of `Illuminate\Foundation\Http\FormRequest`, emit a 422 descriptor from `config('openapi.exception_responses')[ValidationException::class]`.

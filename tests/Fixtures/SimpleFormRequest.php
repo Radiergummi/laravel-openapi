@@ -13,7 +13,7 @@ namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Attributes\RequestField;
-use Radiergummi\OpenApi\Core\Extraction\SchemaFromFormRequest;
+use Radiergummi\OpenApi\Core\Support\SchemaFromFormRequest;
 
 /**
  * Fixture FormRequest with a mix of rules for unit-test coverage of {@see SchemaFromFormRequest}.

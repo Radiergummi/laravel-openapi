@@ -27,7 +27,7 @@ use function assert;
 
 /**
  * Flags `#[ExceptionResponse]` on a class that doesn't implement {@see Throwable}. The
- * {@see \Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor} only consults the attribute
+ * {@see \Radiergummi\OpenApi\Core\ErrorContributors\ThrowsErrorContributor} only consults the attribute
  * when resolving `@throws` FQCNs to response shapes, so an attribute on a non-throwable class
  * is dead documentation that the generator silently skips.
  *

@@ -35,7 +35,7 @@ final readonly class JsonApiEnvelope implements ErrorResponseResolver
 
         $media = new OA\MediaType([
             'mediaType' => 'application/vnd.api+json',
-            'schema'    => new OA\Schema(['ref' => $this->registry->qualifyKey('ErrorDocument')]),
+            'schema' => new OA\Schema(['ref' => $this->registry->qualifyKey('ErrorDocument')]),
         ]);
 
         return new ErrorResponse(content: [$media]);
@@ -48,14 +48,14 @@ final readonly class JsonApiEnvelope implements ErrorResponseResolver
         }
 
         $errorItem = new OA\Items([
-            'type'       => 'object',
+            'type' => 'object',
             'properties' => [
                 new OA\Property(['property' => 'status', 'type' => 'string']),
                 new OA\Property(['property' => 'title', 'type' => 'string']),
                 new OA\Property(['property' => 'detail', 'type' => 'string']),
                 new OA\Property([
-                    'property'   => 'source',
-                    'type'       => 'object',
+                    'property' => 'source',
+                    'type' => 'object',
                     'properties' => [
                         new OA\Property(['property' => 'pointer', 'type' => 'string']),
                         new OA\Property(['property' => 'parameter', 'type' => 'string']),
@@ -65,15 +65,15 @@ final readonly class JsonApiEnvelope implements ErrorResponseResolver
         ]);
 
         $this->registry->registerNamed('ErrorDocument', new OA\Schema([
-            'schema'      => 'ErrorDocument',
-            'type'        => 'object',
+            'schema' => 'ErrorDocument',
+            'type' => 'object',
             'description' => 'JSON:API errors document.',
-            'required'    => ['errors'],
-            'properties'  => [
+            'required' => ['errors'],
+            'properties' => [
                 new OA\Property([
                     'property' => 'errors',
-                    'type'     => 'array',
-                    'items'    => $errorItem,
+                    'type' => 'array',
+                    'items' => $errorItem,
                 ]),
             ],
         ]));

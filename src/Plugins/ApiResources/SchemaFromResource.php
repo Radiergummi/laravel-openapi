@@ -115,24 +115,6 @@ final readonly class SchemaFromResource
         return new OA\Schema($props);
     }
 
-    /**
-     * @param ReflectionClass<JsonResource>                       $reflection
-     * @param class-string<DescriptionAttribute|SummaryAttribute> $attribute
-     */
-    private function readClassAttributeValue(ReflectionClass $reflection, string $attribute): ?string
-    {
-        $attrs = $reflection->getAttributes($attribute);
-
-        if ($attrs === []) {
-            return null;
-        }
-
-        $instance = $attrs[0]->newInstance();
-        assert($instance instanceof SummaryAttribute || $instance instanceof DescriptionAttribute);
-
-        return $instance->value;
-    }
-
     private function buildProperty(ResourceField $field): OA\Property
     {
         $type = $field->type;
@@ -181,5 +163,23 @@ final readonly class SchemaFromResource
         }
 
         return null;
+    }
+
+    /**
+     * @param ReflectionClass<JsonResource>                       $reflection
+     * @param class-string<DescriptionAttribute|SummaryAttribute> $attribute
+     */
+    private function readClassAttributeValue(ReflectionClass $reflection, string $attribute): ?string
+    {
+        $attrs = $reflection->getAttributes($attribute);
+
+        if ($attrs === []) {
+            return null;
+        }
+
+        $instance = $attrs[0]->newInstance();
+        assert($instance instanceof SummaryAttribute || $instance instanceof DescriptionAttribute);
+
+        return $instance->value;
     }
 }

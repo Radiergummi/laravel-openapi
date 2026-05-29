@@ -31,9 +31,9 @@ final class ComponentSchemaNode implements Node
     ) {}
 
     /**
-     * @internal Called exactly once by SpecTreeBuilder.
-     *
      * @throws LogicException if called more than once.
+     *
+     * @internal Called exactly once by SpecTreeBuilder.
      */
     public function linkParent(Node $parent): void
     {

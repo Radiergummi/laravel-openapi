@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Inference;
+namespace Radiergummi\OpenApi\Core\ErrorContributors;
 
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
@@ -58,8 +58,8 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
             }
 
             $detected = match ($kind) {
-                'auth'     => $this->hasAuthMiddleware($middleware),
-                'scope'    => $this->hasScopeMiddleware($middleware),
+                'auth' => $this->hasAuthMiddleware($middleware),
+                'scope' => $this->hasScopeMiddleware($middleware),
                 'throttle' => $this->hasThrottleMiddleware($middleware),
             };
 
@@ -72,6 +72,7 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
                 status: (int) $entry['status'],
                 exceptionClass: $entry['exception'] ?? null,
                 description: (string) $entry['description'],
+                action: $descriptor,
             );
         }
 

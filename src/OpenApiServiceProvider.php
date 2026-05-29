@@ -28,24 +28,25 @@ use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
+use Radiergummi\OpenApi\Core\CorePlugin;
 use Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope;
 use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;
-use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
-use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;
-use Radiergummi\OpenApi\Core\Registration;
-use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
+use Radiergummi\OpenApi\Core\Resolvers\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Support\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
@@ -59,6 +60,7 @@ use Spatie\LaravelData\Data;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function class_exists;
+use function config;
 use function is_a;
 use function sprintf;
 
@@ -104,6 +106,77 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerRoutes();
     }
 
+    /**
+     * Conditionally mounts one spec + playground route per defined spec.
+     *
+     * Reads route URIs directly from config rather than resolving {@see SpecRegistry}. The registry
+     * would force eager materialisation of `info`/`servers`/`tags` at boot, which is too early —
+     * later-booting providers (e.g. example flavors) are still entitled to override those keys
+     * before generation runs. Only the URI fields are needed here, and URI resolution is replicated
+     * inline to keep `default`'s name correct even when an explicit `'specs.default'` entry exists.
+     *
+     * Route names follow the convention:
+     *   - default spec: `openapi.spec` / `openapi.playground`
+     *   - named specs:  `openapi.spec.{name}` / `openapi.playground.{name}`
+     *
+     * @throws RuntimeException
+     */
+    private function registerRoutes(): void
+    {
+        $config = (array) config('openapi.routes', []);
+
+        if (($config['enabled'] ?? false) !== true) {
+            return;
+        }
+
+        /** @var array<string, array<string, mixed>> $specs */
+        $specs = is_array(config('openapi.specs')) ? config('openapi.specs') : [];
+
+        $rootRouteUri = is_string($config['spec']['uri'] ?? null)
+            ? $config['spec']['uri']
+            : 'openapi.yaml';
+        $rootPlaygroundUri = is_string($config['playground']['uri'] ?? null)
+            ? $config['playground']['uri']
+            : 'docs';
+
+        /** @var array<string, array{route_uri: false|string, playground_uri: false|string}> $entries */
+        $entries = [];
+
+        foreach (['default' => [], ...$specs] as $name => $overrides) {
+            $name = (string) $name;
+            $isDefault = $name === 'default';
+
+            $rawRoute = $overrides['route_uri']
+                ?? ($isDefault ? $rootRouteUri : sprintf('openapi-%s.yaml', $name));
+            $rawPlayground = $overrides['playground_uri']
+                ?? ($isDefault ? $rootPlaygroundUri : sprintf('docs/%s', $name));
+
+            $entries[$name] = [
+                'route_uri' => $rawRoute === false ? false : (string) $rawRoute,
+                'playground_uri' => $rawPlayground === false ? false : (string) $rawPlayground,
+            ];
+        }
+
+        Route::group([
+            'prefix' => $config['prefix'] ?? 'api',
+            'middleware' => $config['middleware'] ?? ['web'],
+        ], static function () use ($config, $entries): void {
+            foreach ($entries as $name => $entry) {
+                if (is_string($entry['route_uri']) && ($config['spec']['enabled'] ?? true)) {
+                    Route::get($entry['route_uri'], [DocsController::class, 'spec'])
+                        ->defaults('spec', $name)
+                        ->name(SpecDefinition::specRouteNameFor($name));
+                }
+
+                if (is_string($entry['playground_uri']) && ($config['playground']['enabled'] ?? false)) {
+                    Route::get($entry['playground_uri'], [DocsController::class, 'playground'])
+                        ->defaults('spec', $name)
+                        ->name(SpecDefinition::playgroundRouteNameFor($name));
+                }
+            }
+        });
+    }
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/openapi.php', 'openapi');
@@ -117,6 +190,34 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerApiResourcesPlugin();
         $this->registerFractalPlugin();
         $this->registerGenerator();
+    }
+
+    /**
+     * Binds the spec-related services: SpecMatcher, SpecResolver, SpecRegistry, InclusionEvaluator.
+     */
+    private function registerSpec(): void
+    {
+        $this->app->scoped(
+            InclusionEvaluator::class,
+            static function (Container $app): InclusionEvaluator {
+                $filterClasses = (array) config('openapi.filters', []);
+                $filters = array_values(
+                    array_map(
+                        static function (mixed $entry) use ($app): RouteFilter {
+                            return is_string($entry) ? $app->make($entry) : $entry;
+                        },
+                        $filterClasses,
+                    ),
+                );
+
+                return new InclusionEvaluator(
+                    globalFilters: $filters,
+                    matcher: $app->make(SpecMatcher::class),
+                    specResolver: $app->make(SpecResolver::class),
+                    visibility: $app->make(VisibilityResolver::class),
+                );
+            },
+        );
     }
 
     /**
@@ -144,9 +245,10 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): OpenApiRegistry {
                 $registry = new OpenApiRegistry();
 
-                Registration::register($registry);
+                BaselineRegistration::register($registry);
+                $plugins = [CorePlugin::class, ...config('openapi.plugins', [])];
 
-                foreach (config('openapi.plugins', []) as $pluginClass) {
+                foreach ($plugins as $pluginClass) {
                     $plugin = $app->make($pluginClass);
                     assert($plugin instanceof Plugin);
                     $plugin->register($registry);
@@ -196,6 +298,60 @@ class OpenApiServiceProvider extends ServiceProvider
                 );
             },
         );
+    }
+
+    /**
+     * Resolve the configured error envelope to its resolver class.
+     *
+     * Accepts the four preset names (`'none'`, `'laravel'`, `'rfc7807'`, `'json-api'`) or a
+     * fully-qualified class name of a custom {@see ErrorResponseResolver}. Throws on an
+     * unknown preset name so failures surface at boot, not later as an autoload error.
+     *
+     * @return class-string<ErrorResponseResolver>
+     *
+     * @throws InvalidArgumentException
+     */
+    private static function resolveErrorEnvelopeClass(string $envelope): string
+    {
+        return match ($envelope) {
+            'none' => NoneEnvelope::class,
+            'laravel' => LaravelEnvelope::class,
+            'rfc7807' => Rfc7807Envelope::class,
+            'json-api' => JsonApiEnvelope::class,
+            default => self::validateCustomEnvelopeClass($envelope),
+        };
+    }
+
+    /**
+     * @return class-string<ErrorResponseResolver>
+     *
+     * @throws InvalidArgumentException
+     */
+    private static function validateCustomEnvelopeClass(string $envelope): string
+    {
+        if (!class_exists($envelope)) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Unknown error_envelope "%s". Known presets: none, laravel, rfc7807, json-api.'
+                    . ' Or supply a fully-qualified class name implementing %s.',
+                    $envelope,
+                    ErrorResponseResolver::class,
+                ),
+            );
+        }
+
+        if (!is_a($envelope, ErrorResponseResolver::class, true)) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Class %s does not implement %s.',
+                    $envelope,
+                    ErrorResponseResolver::class,
+                ),
+            );
+        }
+
+        /** @var class-string<ErrorResponseResolver> $envelope */
+        return $envelope;
     }
 
     /**
@@ -433,154 +589,5 @@ class OpenApiServiceProvider extends ServiceProvider
                 );
             },
         );
-    }
-
-    /**
-     * Binds the spec-related services: SpecMatcher, SpecResolver, SpecRegistry, InclusionEvaluator.
-     */
-    private function registerSpec(): void
-    {
-        $this->app->scoped(
-            InclusionEvaluator::class,
-            static function (Container $app): InclusionEvaluator {
-                $filterClasses = (array) config('openapi.filters', []);
-                $filters = array_values(
-                    array_map(
-                        static function (mixed $entry) use ($app): RouteFilter {
-                            return is_string($entry) ? $app->make($entry) : $entry;
-                        },
-                        $filterClasses,
-                    ),
-                );
-
-                return new InclusionEvaluator(
-                    globalFilters: $filters,
-                    matcher: $app->make(SpecMatcher::class),
-                    specResolver: $app->make(SpecResolver::class),
-                    visibility: $app->make(VisibilityResolver::class),
-                );
-            },
-        );
-    }
-
-    /**
-     * Resolve the configured error envelope to its resolver class.
-     *
-     * Accepts the four preset names (`'none'`, `'laravel'`, `'rfc7807'`, `'json-api'`) or a
-     * fully-qualified class name of a custom {@see ErrorResponseResolver}. Throws on an
-     * unknown preset name so failures surface at boot, not later as an autoload error.
-     *
-     * @return class-string<ErrorResponseResolver>
-     *
-     * @throws InvalidArgumentException
-     */
-    private static function resolveErrorEnvelopeClass(string $envelope): string
-    {
-        return match ($envelope) {
-            'none'     => NoneEnvelope::class,
-            'laravel'  => LaravelEnvelope::class,
-            'rfc7807'  => Rfc7807Envelope::class,
-            'json-api' => JsonApiEnvelope::class,
-            default    => self::validateCustomEnvelopeClass($envelope),
-        };
-    }
-
-    /**
-     * @return class-string<ErrorResponseResolver>
-     *
-     * @throws InvalidArgumentException
-     */
-    private static function validateCustomEnvelopeClass(string $envelope): string
-    {
-        if (!class_exists($envelope)) {
-            throw new InvalidArgumentException(sprintf(
-                'Unknown error_envelope "%s". Known presets: none, laravel, rfc7807, json-api.'
-                . ' Or supply a fully-qualified class name implementing %s.',
-                $envelope,
-                ErrorResponseResolver::class,
-            ));
-        }
-
-        if (!is_a($envelope, ErrorResponseResolver::class, true)) {
-            throw new InvalidArgumentException(sprintf(
-                'Class %s does not implement %s.',
-                $envelope,
-                ErrorResponseResolver::class,
-            ));
-        }
-
-        /** @var class-string<ErrorResponseResolver> $envelope */
-        return $envelope;
-    }
-
-    /**
-     * Conditionally mounts one spec + playground route per defined spec.
-     *
-     * Reads route URIs directly from config rather than resolving {@see SpecRegistry}. The registry
-     * would force eager materialisation of `info`/`servers`/`tags` at boot, which is too early —
-     * later-booting providers (e.g. example flavors) are still entitled to override those keys
-     * before generation runs. Only the URI fields are needed here, and URI resolution is replicated
-     * inline to keep `default`'s name correct even when an explicit `'specs.default'` entry exists.
-     *
-     * Route names follow the convention:
-     *   - default spec: `openapi.spec` / `openapi.playground`
-     *   - named specs:  `openapi.spec.{name}` / `openapi.playground.{name}`
-     *
-     * @throws RuntimeException
-     */
-    private function registerRoutes(): void
-    {
-        $config = (array) config('openapi.routes', []);
-
-        if (($config['enabled'] ?? false) !== true) {
-            return;
-        }
-
-        /** @var array<string, array<string, mixed>> $specs */
-        $specs = is_array(config('openapi.specs')) ? config('openapi.specs') : [];
-
-        $rootRouteUri = is_string($config['spec']['uri'] ?? null)
-            ? $config['spec']['uri']
-            : 'openapi.yaml';
-        $rootPlaygroundUri = is_string($config['playground']['uri'] ?? null)
-            ? $config['playground']['uri']
-            : 'docs';
-
-        /** @var array<string, array{route_uri: false|string, playground_uri: false|string}> $entries */
-        $entries = [];
-
-        foreach (['default' => [], ...$specs] as $name => $overrides) {
-            $name = (string) $name;
-            $isDefault = $name === 'default';
-
-            $rawRoute = $overrides['route_uri']
-                ?? ($isDefault ? $rootRouteUri : sprintf('openapi-%s.yaml', $name));
-            $rawPlayground = $overrides['playground_uri']
-                ?? ($isDefault ? $rootPlaygroundUri : sprintf('docs/%s', $name));
-
-            $entries[$name] = [
-                'route_uri' => $rawRoute === false ? false : (string) $rawRoute,
-                'playground_uri' => $rawPlayground === false ? false : (string) $rawPlayground,
-            ];
-        }
-
-        Route::group([
-            'prefix' => $config['prefix'] ?? 'api',
-            'middleware' => $config['middleware'] ?? ['web'],
-        ], static function () use ($config, $entries): void {
-            foreach ($entries as $name => $entry) {
-                if (is_string($entry['route_uri']) && ($config['spec']['enabled'] ?? true)) {
-                    Route::get($entry['route_uri'], [DocsController::class, 'spec'])
-                        ->defaults('spec', $name)
-                        ->name(SpecDefinition::specRouteNameFor($name));
-                }
-
-                if (is_string($entry['playground_uri']) && ($config['playground']['enabled'] ?? false)) {
-                    Route::get($entry['playground_uri'], [DocsController::class, 'playground'])
-                        ->defaults('spec', $name)
-                        ->name(SpecDefinition::playgroundRouteNameFor($name));
-                }
-            }
-        });
     }
 }

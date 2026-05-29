@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Examples;
+namespace Radiergummi\OpenApi\Core\Support;
 
 use Faker\Factory as FakerFactory;
 use Faker\Generator as Faker;

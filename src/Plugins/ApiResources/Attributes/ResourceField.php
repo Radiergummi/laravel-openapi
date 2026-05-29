@@ -40,8 +40,8 @@ final readonly class ResourceField extends FieldAttribute
      * @param non-empty-string                                    $name        The output key.
      * @param null|non-empty-string                               $title
      * @param null|non-empty-string                               $description
-     * @param null|class-string|OpenApiPrimitiveType              $type        A JSON-Schema scalar type, or a class-string for a
-     *                                                                         nested `$ref`.
+     * @param null|class-string|OpenApiPrimitiveType              $type        A JSON-Schema scalar type, or a
+     *                                                                         class-string for a nested `$ref`.
      * @param null|non-empty-string                               $format
      * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum
      * @param null|int<0, max>                                    $minLength
@@ -49,8 +49,9 @@ final readonly class ResourceField extends FieldAttribute
      * @param null|non-empty-string                               $pattern
      * @param null|int<0, max>                                    $minItems
      * @param null|int<0, max>                                    $maxItems
-     * @param bool                                                $conditional When true, the key is kept in `properties` but omitted
-     *                                                                         from `required` — for `$this->when()` /
+     * @param bool                                                $conditional When true, the key is kept in
+     *                                                                         `properties` but omitted from `required`
+     *                                                                         — for `$this->when()` /
      *                                                                         `$this->whenLoaded()` fields.
      */
     public function __construct(

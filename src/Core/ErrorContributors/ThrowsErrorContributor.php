@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Inference;
+namespace Radiergummi\OpenApi\Core\ErrorContributors;
 
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
@@ -75,14 +75,15 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
             }
 
             $exceptionClass = (class_exists($throw) || interface_exists($throw))
-                && is_a($throw, Throwable::class, true)
-                    ? $throw
-                    : null;
+            && is_a($throw, Throwable::class, true)
+                ? $throw
+                : null;
 
             $descriptors[] = new ErrorDescriptor(
                 status: (int) $entry['status'],
                 exceptionClass: $exceptionClass,
                 description: (string) $entry['description'],
+                action: $descriptor,
             );
         }
 

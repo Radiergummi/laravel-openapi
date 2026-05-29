@@ -115,12 +115,14 @@ final readonly class DescriptionDirectives
      */
     private static function splitList(string $raw): array
     {
-        return array_values(array_map(
-            self::coerceScalar(...),
-            array_filter(
-                array_map('trim', explode(',', $raw)),
-                static fn(string $v): bool => $v !== '',
+        return array_values(
+            array_map(
+                self::coerceScalar(...),
+                array_filter(
+                    array_map('trim', explode(',', $raw)),
+                    static fn(string $v): bool => $v !== '',
+                ),
             ),
-        ));
+        );
     }
 }

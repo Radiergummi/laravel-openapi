@@ -42,7 +42,7 @@ final readonly class LaravelEnvelope implements ErrorResponseResolver
 
         $media = new OA\MediaType([
             'mediaType' => 'application/json',
-            'schema'    => new OA\Schema(['ref' => $this->registry->qualifyKey($schemaKey)]),
+            'schema' => new OA\Schema(['ref' => $this->registry->qualifyKey($schemaKey)]),
         ]);
 
         return new ErrorResponse(content: [$media]);
@@ -63,9 +63,9 @@ final readonly class LaravelEnvelope implements ErrorResponseResolver
     {
         if (!$this->registry->hasKey('Error')) {
             $this->registry->registerNamed('Error', new OA\Schema([
-                'schema'     => 'Error',
-                'type'       => 'object',
-                'required'   => ['message'],
+                'schema' => 'Error',
+                'type' => 'object',
+                'required' => ['message'],
                 'properties' => [
                     new OA\Property(['property' => 'message', 'type' => 'string']),
                 ],
@@ -74,16 +74,16 @@ final readonly class LaravelEnvelope implements ErrorResponseResolver
 
         if (!$this->registry->hasKey('ValidationError')) {
             $this->registry->registerNamed('ValidationError', new OA\Schema([
-                'schema'     => 'ValidationError',
-                'type'       => 'object',
-                'required'   => ['message', 'errors'],
+                'schema' => 'ValidationError',
+                'type' => 'object',
+                'required' => ['message', 'errors'],
                 'properties' => [
                     new OA\Property(['property' => 'message', 'type' => 'string']),
                     new OA\Property([
-                        'property'             => 'errors',
-                        'type'                 => 'object',
+                        'property' => 'errors',
+                        'type' => 'object',
                         'additionalProperties' => new OA\AdditionalProperties([
-                            'type'  => 'array',
+                            'type' => 'array',
                             'items' => new OA\Items(['type' => 'string']),
                         ]),
                     ]),

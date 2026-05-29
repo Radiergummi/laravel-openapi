@@ -44,22 +44,28 @@ class DiffConfigCommand extends Command
             $path = $diff['path'];
 
             match ($diff['kind']) {
-                'added' => $this->line(sprintf(
-                    '  + %s — new in default (default: %s)',
-                    $path,
-                    var_export($diff['default'] ?? null, true),
-                )),
-                'removed' => $this->line(sprintf(
-                    '  - %s — present in your config but not in default (your value: %s)',
-                    $path,
-                    var_export($diff['user'] ?? null, true),
-                )),
-                'changed' => $this->line(sprintf(
-                    '  ~ %s — default %s, yours %s',
-                    $path,
-                    var_export($diff['default'] ?? null, true),
-                    var_export($diff['user'] ?? null, true),
-                )),
+                'added' => $this->line(
+                    sprintf(
+                        '  + %s — new in default (default: %s)',
+                        $path,
+                        var_export($diff['default'] ?? null, true),
+                    ),
+                ),
+                'removed' => $this->line(
+                    sprintf(
+                        '  - %s — present in your config but not in default (your value: %s)',
+                        $path,
+                        var_export($diff['user'] ?? null, true),
+                    ),
+                ),
+                'changed' => $this->line(
+                    sprintf(
+                        '  ~ %s — default %s, yours %s',
+                        $path,
+                        var_export($diff['default'] ?? null, true),
+                        var_export($diff['user'] ?? null, true),
+                    ),
+                ),
                 default => null,
             };
         }

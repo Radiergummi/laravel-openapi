@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Extraction;
+namespace Radiergummi\OpenApi\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Validation\Rules\Dimensions;
@@ -332,81 +332,6 @@ final readonly class ValidationRulesToSchema
         );
     }
 
-    private function applySelfDocumentingRule(SelfDocumentingRule $rule, FieldDescriptor $field): void
-    {
-        $doc = $rule->documentation();
-
-        if ($doc->type !== null && $field->type === null) {
-            $field->type = $doc->type;
-        }
-
-        if ($doc->format !== null && $field->format === null) {
-            $field->format = $doc->format;
-        }
-
-        if ($doc->pattern !== null && $field->pattern === null) {
-            $field->pattern = $doc->pattern;
-        }
-
-        if ($doc->enum !== null && $field->enum === null) {
-            // PHPStan-types `RuleDocumentation::$enum` as `list<float|int|string>|null`, but
-            // user code can ignore PHPStan. Filter at runtime so non-scalars don't propagate to
-            // swagger-php's YAML emitter (where they fail with an opaque serialisation error far
-            // from the source).
-            $sanitised = [];
-            $rejected = false;
-
-            foreach ($doc->enum as $value) {
-                if (is_int($value) || is_float($value) || is_string($value)) {
-                    $sanitised[] = $value;
-                } else {
-                    $rejected = true;
-                }
-            }
-
-            if ($rejected) {
-                $this->findings->emit(
-                    new Finding(
-                        ruleId: 'rule.invalid-enum-value',
-                        level: 2,
-                        message: sprintf(
-                            'SelfDocumentingRule %s returned a non-scalar enum value — only int/float/string are allowed.',
-                            $rule::class,
-                        ),
-                        fixHint: 'Return enum values as int|float|string from RuleDocumentation::$enum.',
-                        context: ['rule_class' => $rule::class],
-                    ),
-                );
-            }
-
-            if ($sanitised !== []) {
-                $field->enum = $sanitised;
-            }
-        }
-
-        if ($doc->minLength !== null && $field->minLength === null) {
-            $field->minLength = $doc->minLength;
-        }
-
-        if ($doc->maxLength !== null && $field->maxLength === null) {
-            $field->maxLength = $doc->maxLength;
-        }
-
-        if ($doc->minimum !== null && $field->minimum === null) {
-            $field->minimum = $doc->minimum;
-        }
-
-        if ($doc->maximum !== null && $field->maximum === null) {
-            $field->maximum = $doc->maximum;
-        }
-
-        if ($doc->description !== null) {
-            $field->description = $field->description === null
-                ? $doc->description
-                : $field->description . "\n\n" . $doc->description;
-        }
-    }
-
     private function applyStringRule(
         string $name,
         string $arg,
@@ -469,92 +394,6 @@ final readonly class ValidationRulesToSchema
         $field->type = 'string';
         $field->format = 'binary';
         $field->isFile = true;
-    }
-
-    private function applyEmailRule(Email $rule, FieldDescriptor $field): void
-    {
-        $field->type = 'string';
-        $field->format = 'email';
-
-        if ($rule->validateMxRecord) {
-            $field->description = $this->appendDescription(
-                $field->description,
-                'MX record will be validated.',
-            );
-        }
-    }
-
-    private function applyExistsRule(Exists $rule, FieldDescriptor $field): void
-    {
-        [$table, $column] = $this->parseDatabaseRule((string) $rule);
-
-        $field->description = $this->appendDescription(
-            $field->description,
-            $column === ''
-                ? "Must reference an existing row in `{$table}`."
-                : "Must reference an existing row in `{$table}.{$column}`.",
-        );
-    }
-
-    private function applyUniqueRule(Unique $rule, FieldDescriptor $field): void
-    {
-        [$table, $column] = $this->parseDatabaseRule((string) $rule);
-
-        $field->description = $this->appendDescription(
-            $field->description,
-            $column === ''
-                ? "Must be unique in `{$table}`."
-                : "Must be unique in `{$table}.{$column}`.",
-        );
-    }
-
-    private function applyNotInRule(NotIn $rule, FieldDescriptor $field): void
-    {
-        $serialised = (string) $rule;
-        $values = $this->ruleArg($serialised);
-
-        // Strip the wrapping double-quotes that NotIn emits around each value (and any
-        // doubled-quote escapes) so the description reads naturally. The empty $escape is
-        // required on PHP 8.4+ where the backslash default was deprecated.
-        $parsed = array_map(
-            static fn(?string $value): string => $value === null
-                ? ''
-                : str_replace('""', '"', trim($value, '"')),
-            str_getcsv($values, ',', '"', ''),
-        );
-
-        $field->description = $this->appendDescription(
-            $field->description,
-            'Must not be one of: ' . implode(', ', $parsed) . '.',
-        );
-    }
-
-    /**
-     * Parses the leading `<rule>:<table>,<column>` segment of a DatabaseRule's `__toString()`
-     * output. Returns `[$table, $column]`; `$column` may be empty when no column was specified.
-     *
-     * @return array{0: string, 1: string}
-     */
-    private function parseDatabaseRule(string $serialised): array
-    {
-        $arg = $this->ruleArg($serialised);
-        $parts = explode(',', $arg, 3);
-        $table = $parts[0] ?? '';
-        $column = $parts[1] ?? '';
-
-        // Laravel emits `NULL` as a placeholder when no column was supplied.
-        if ($column === 'NULL') {
-            $column = '';
-        }
-
-        return [$table, $column];
-    }
-
-    private function appendDescription(?string $existing, string $addition): string
-    {
-        return $existing === null || $existing === ''
-            ? $addition
-            : $existing . ' ' . $addition;
     }
 
     private function applyEmail(FieldDescriptor $field): void
@@ -926,6 +765,168 @@ final readonly class ValidationRulesToSchema
 
         if ($requirements !== []) {
             $field->description = 'Must contain: ' . implode(', ', $requirements) . '.';
+        }
+    }
+
+    private function applyEmailRule(Email $rule, FieldDescriptor $field): void
+    {
+        $field->type = 'string';
+        $field->format = 'email';
+
+        if ($rule->validateMxRecord) {
+            $field->description = $this->appendDescription(
+                $field->description,
+                'MX record will be validated.',
+            );
+        }
+    }
+
+    private function appendDescription(?string $existing, string $addition): string
+    {
+        return $existing === null || $existing === ''
+            ? $addition
+            : $existing . ' ' . $addition;
+    }
+
+    private function applyExistsRule(Exists $rule, FieldDescriptor $field): void
+    {
+        [$table, $column] = $this->parseDatabaseRule((string) $rule);
+
+        $field->description = $this->appendDescription(
+            $field->description,
+            $column === ''
+                ? "Must reference an existing row in `{$table}`."
+                : "Must reference an existing row in `{$table}.{$column}`.",
+        );
+    }
+
+    /**
+     * Parses the leading `<rule>:<table>,<column>` segment of a DatabaseRule's `__toString()`
+     * output. Returns `[$table, $column]`; `$column` may be empty when no column was specified.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function parseDatabaseRule(string $serialised): array
+    {
+        $arg = $this->ruleArg($serialised);
+        $parts = explode(',', $arg, 3);
+        $table = $parts[0] ?? '';
+        $column = $parts[1] ?? '';
+
+        // Laravel emits `NULL` as a placeholder when no column was supplied.
+        if ($column === 'NULL') {
+            $column = '';
+        }
+
+        return [$table, $column];
+    }
+
+    private function applyUniqueRule(Unique $rule, FieldDescriptor $field): void
+    {
+        [$table, $column] = $this->parseDatabaseRule((string) $rule);
+
+        $field->description = $this->appendDescription(
+            $field->description,
+            $column === ''
+                ? "Must be unique in `{$table}`."
+                : "Must be unique in `{$table}.{$column}`.",
+        );
+    }
+
+    private function applyNotInRule(NotIn $rule, FieldDescriptor $field): void
+    {
+        $serialised = (string) $rule;
+        $values = $this->ruleArg($serialised);
+
+        // Strip the wrapping double-quotes that NotIn emits around each value (and any
+        // doubled-quote escapes) so the description reads naturally. The empty $escape is
+        // required on PHP 8.4+ where the backslash default was deprecated.
+        $parsed = array_map(
+            static fn(?string $value): string
+                => $value === null
+                ? ''
+                : str_replace('""', '"', trim($value, '"')),
+            str_getcsv($values, ',', '"', ''),
+        );
+
+        $field->description = $this->appendDescription(
+            $field->description,
+            'Must not be one of: ' . implode(', ', $parsed) . '.',
+        );
+    }
+
+    private function applySelfDocumentingRule(SelfDocumentingRule $rule, FieldDescriptor $field): void
+    {
+        $doc = $rule->documentation();
+
+        if ($doc->type !== null && $field->type === null) {
+            $field->type = $doc->type;
+        }
+
+        if ($doc->format !== null && $field->format === null) {
+            $field->format = $doc->format;
+        }
+
+        if ($doc->pattern !== null && $field->pattern === null) {
+            $field->pattern = $doc->pattern;
+        }
+
+        if ($doc->enum !== null && $field->enum === null) {
+            // PHPStan-types `RuleDocumentation::$enum` as `list<float|int|string>|null`, but
+            // user code can ignore PHPStan. Filter at runtime so non-scalars don't propagate to
+            // swagger-php's YAML emitter (where they fail with an opaque serialisation error far
+            // from the source).
+            $sanitised = [];
+            $rejected = false;
+
+            foreach ($doc->enum as $value) {
+                if (is_int($value) || is_float($value) || is_string($value)) {
+                    $sanitised[] = $value;
+                } else {
+                    $rejected = true;
+                }
+            }
+
+            if ($rejected) {
+                $this->findings->emit(
+                    new Finding(
+                        ruleId: 'rule.invalid-enum-value',
+                        level: 2,
+                        message: sprintf(
+                            'SelfDocumentingRule %s returned a non-scalar enum value — only int/float/string are allowed.',
+                            $rule::class,
+                        ),
+                        fixHint: 'Return enum values as int|float|string from RuleDocumentation::$enum.',
+                        context: ['rule_class' => $rule::class],
+                    ),
+                );
+            }
+
+            if ($sanitised !== []) {
+                $field->enum = $sanitised;
+            }
+        }
+
+        if ($doc->minLength !== null && $field->minLength === null) {
+            $field->minLength = $doc->minLength;
+        }
+
+        if ($doc->maxLength !== null && $field->maxLength === null) {
+            $field->maxLength = $doc->maxLength;
+        }
+
+        if ($doc->minimum !== null && $field->minimum === null) {
+            $field->minimum = $doc->minimum;
+        }
+
+        if ($doc->maximum !== null && $field->maximum === null) {
+            $field->maximum = $doc->maximum;
+        }
+
+        if ($doc->description !== null) {
+            $field->description = $field->description === null
+                ? $doc->description
+                : $field->description . "\n\n" . $doc->description;
         }
     }
 

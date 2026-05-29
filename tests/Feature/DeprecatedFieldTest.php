@@ -13,8 +13,8 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;

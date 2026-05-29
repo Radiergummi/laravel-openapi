@@ -9,14 +9,14 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Extraction;
+namespace Radiergummi\OpenApi\Core\Resolvers;
 
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
-use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;
+use Radiergummi\OpenApi\Core\Support\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -34,7 +34,7 @@ use function sprintf;
  *
  * The paginated item type is resolved with this precedence (attribute wins):
  *   1. A `#[ResponseResource]` attribute on the action.
- *   2. The `@return Paginator<Item>` PHPDoc generic argument.
+ *   2. The `return Paginator<Item>` PHPDoc generic argument.
  * When neither is present the resolver logs a generation warning and returns null, deferring to
  * the next resolver (and ultimately the bare-200 fallback).
  */

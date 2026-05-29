@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Inference;
+namespace Radiergummi\OpenApi\Core\ErrorContributors;
 
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
@@ -61,6 +61,7 @@ final readonly class ValidationErrorContributor implements ErrorResponseContribu
                 status: (int) $entry['status'],
                 exceptionClass: ValidationException::class,
                 description: (string) $entry['description'],
+                action: $descriptor,
             ),
         ];
     }

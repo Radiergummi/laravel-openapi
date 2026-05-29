@@ -13,7 +13,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Core\Registration;
+use Radiergummi\OpenApi\Core\CorePlugin;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -29,7 +29,7 @@ use function sprintf;
  *
  * Implements {@see PostWalkRule} because it needs the complete set of findings from all other
  * rules before it can determine which suppressions are stale. Intentionally excluded from the
- * RULES array in {@see Registration}.
+ * RULES array in {@see CorePlugin}.
  */
 final class MetaSuppressionStale implements Rule, PostWalkRule
 {

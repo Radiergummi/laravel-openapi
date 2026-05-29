@@ -14,9 +14,9 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Attributes\RequestField;
-use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Extraction\SchemaFromFormRequest;
-use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Support\SchemaFromFormRequest;
+use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Core\Pagination;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;
+use Radiergummi\OpenApi\Core\Support\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
 
 /**

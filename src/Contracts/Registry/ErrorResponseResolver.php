@@ -35,6 +35,12 @@ use Radiergummi\OpenApi\Errors\ErrorResponse;
  * Branching on `$descriptor->exceptionClass` must use `is_a($cls, X::class, true)`, not
  * strict equality — user code routinely subclasses framework exceptions.
  *
+ * Branching on `$descriptor->action` (the route's
+ * {@see \Radiergummi\OpenApi\Routing\ActionDescriptor}) lets a resolver scope its envelope
+ * per-route — for example, returning null on non-JSON:API routes so the next resolver in the
+ * chain (typically the configured `error_envelope`) wins. `$descriptor->action` is nullable;
+ * resolvers must handle the null case (treat it as "no per-route constraints apply").
+ *
  * Implementations that register shared component schemas via `ComponentSchemaRegistry` must
  * do so idempotently — typically by guarding with `$registry->hasKey()`. This method is
  * invoked once per status code per operation, so non-idempotent registration silently bakes

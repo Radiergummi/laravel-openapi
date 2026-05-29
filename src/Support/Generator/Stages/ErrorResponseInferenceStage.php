@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Stages;
+namespace Radiergummi\OpenApi\Support\Generator\Stages;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
@@ -18,7 +18,6 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Core\Lint\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
@@ -47,6 +46,13 @@ use function sprintf;
 #[Scoped]
 final readonly class ErrorResponseInferenceStage implements SpecStage
 {
+    /**
+     * Fix hint emitted with every `errors.resolver-failed` finding. Public so the lint rule
+     * stub ({@see \Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed}) can reference it
+     * without forcing a Support → Lint import.
+     */
+    public const string RESOLVER_FAILED_FIX_HINT = 'Fix the throwing ErrorResponseResolver — implementations must catch internally and return null on failure.';
+
     /**
      * Maps HTTP status codes to stable `components.responses` component names.
      *
@@ -174,23 +180,25 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
             try {
                 $body = $resolver->resolveErrorResponse($descriptor);
             } catch (Throwable $e) {
-                $this->findings->emit(new Finding(
-                    ruleId: 'errors.resolver-failed',
-                    level: 2,
-                    message: sprintf(
-                        'Error-response resolver %s threw %s while resolving status %d: %s',
-                        $resolver::class,
-                        $e::class,
-                        $descriptor->status,
-                        $e->getMessage(),
+                $this->findings->emit(
+                    new Finding(
+                        ruleId: 'errors.resolver-failed',
+                        level: 2,
+                        message: sprintf(
+                            'Error-response resolver %s threw %s while resolving status %d: %s',
+                            $resolver::class,
+                            $e::class,
+                            $descriptor->status,
+                            $e->getMessage(),
+                        ),
+                        fixHint: self::RESOLVER_FAILED_FIX_HINT,
+                        context: [
+                            'resolver' => $resolver::class,
+                            'status' => $descriptor->status,
+                            'exception' => $descriptor->exceptionClass,
+                        ],
                     ),
-                    fixHint: ErrorsResolverFailed::FIX_HINT,
-                    context: [
-                        'resolver'  => $resolver::class,
-                        'status'    => $descriptor->status,
-                        'exception' => $descriptor->exceptionClass,
-                    ],
-                ));
+                );
 
                 continue;
             }
@@ -253,19 +261,19 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
             $this->registry->registerNamedResponse(
                 $componentName,
                 new OA\Response([
-                    'response'    => $componentName,
+                    'response' => $componentName,
                     'description' => $description,
                 ]),
             );
 
             return new OA\Response([
                 'response' => (string) $descriptor->status,
-                'ref'      => $this->registry->qualifyKey($componentName, ComponentType::Responses),
+                'ref' => $this->registry->qualifyKey($componentName, ComponentType::Responses),
             ]);
         }
 
         $properties = [
-            'response'    => (string) $descriptor->status,
+            'response' => (string) $descriptor->status,
             'description' => $description,
         ];
 

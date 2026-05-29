@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 use Illuminate\Routing\Route;
 use Psr\Log\NullLogger;
-use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Extraction\FormRequestRequestSchemaResolver;
-use Radiergummi\OpenApi\Core\Extraction\SchemaFromFormRequest;
-use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Core\Resolvers\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Support\SchemaFromFormRequest;
+use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;

@@ -9,13 +9,13 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Lint;
+namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
+use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 
 /**
  * Registration stub for the `errors.resolver-failed` finding.
@@ -30,11 +30,20 @@ use Radiergummi\OpenApi\Lint\RuleRegistry;
  * - `#[IgnoreLint('errors.resolver-failed')]` is not flagged by `meta.unknown-rule`
  * - severity overrides in `config/openapi.lint.severity_overrides` apply
  * - the ID appears in the lint catalog
+ *
+ * Lives in `Lint\Rules` (not `Core\Lint`) because the finding is emitted by the baseline
+ * inference stage — plugins that only contribute `ErrorResponseContributor`s and rely on the
+ * stage to drive them transitively rely on this rule being registered.
  */
 final class ErrorsResolverFailed implements Rule
 {
-    /** fixHint: emitted by {@see ErrorResponseInferenceStage} alongside every errors.resolver-failed finding. */
-    public const string FIX_HINT = 'Fix the throwing ErrorResponseResolver — implementations must catch internally and return null on failure.';
+    /**
+     * fixHint: alias for {@see ErrorResponseInferenceStage::RESOLVER_FAILED_FIX_HINT}. The
+     * stage emits this hint with every `errors.resolver-failed` finding; the alias here lets
+     * external callers reference it via the rule class without crossing the Lint → Support
+     * namespace.
+     */
+    public const string FIX_HINT = ErrorResponseInferenceStage::RESOLVER_FAILED_FIX_HINT;
 
     #[Override]
     public function id(): string

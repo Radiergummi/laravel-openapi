@@ -21,8 +21,8 @@ use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Attributes\Discriminator as DiscriminatorAttribute;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
-use Radiergummi\OpenApi\Core\Examples\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -828,10 +828,12 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
         if (is_array($property->enum)) {
             /** @var list<float|int|string> $enum */
-            $enum = array_values(array_filter(
-                $property->enum,
-                static fn(mixed $value): bool => is_int($value) || is_float($value) || is_string($value),
-            ));
+            $enum = array_values(
+                array_filter(
+                    $property->enum,
+                    static fn(mixed $value): bool => is_int($value) || is_float($value) || is_string($value),
+                ),
+            );
             $descriptor->enum = $enum;
         }
 

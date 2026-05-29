@@ -3134,7 +3134,7 @@ Inject the evaluator via constructor.
 
 For each rule, write `tests/Unit/Lint/Rules/Spec{Name}Test.php` covering: (a) clean case → no findings, (b) violating case → one finding with the correct `ruleId`. Mirror the existing rule tests' shape.
 
-- [ ] **Step 6: Register the rules in `Registration`**
+- [ ] **Step 6: Register the rules in `CorePlugin`**
 
 Open `src/Core/Registry/CoreRegistration.php`, find where other lint rules are registered, and add:
 

@@ -28,11 +28,6 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
         private SchemaFromResource $schemaFromResource,
     ) {}
 
-    public function canResolve(string $class): bool
-    {
-        return is_a($class, JsonResource::class, allow_string: true);
-    }
-
     public function resolveRef(string $class): ?string
     {
         if (!$this->canResolve($class)) {
@@ -41,5 +36,10 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
 
         /** @var class-string<JsonResource> $class */
         return $this->schemaFromResource->buildRef($class);
+    }
+
+    public function canResolve(string $class): bool
+    {
+        return is_a($class, JsonResource::class, allow_string: true);
     }
 }

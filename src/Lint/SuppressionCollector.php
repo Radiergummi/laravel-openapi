@@ -82,7 +82,7 @@ final readonly class SuppressionCollector
      * Collect class-level directives — and, when requested, property-level
      * directives — from a class.
      *
-     * @param ReflectionClass<*> $class
+     * @param ReflectionClass<*>         $class
      * @param list<SuppressionDirective> $directives
      * @param array<string, true>        $seen
      */

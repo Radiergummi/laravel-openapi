@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
-use Radiergummi\OpenApi\Core\Inference\MiddlewareErrorContributor;
+use Radiergummi\OpenApi\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi');

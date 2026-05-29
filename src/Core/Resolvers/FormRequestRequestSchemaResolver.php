@@ -9,11 +9,12 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Core\Extraction;
+namespace Radiergummi\OpenApi\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
+use Radiergummi\OpenApi\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;

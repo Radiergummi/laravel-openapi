@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
-use Radiergummi\OpenApi\Core\Extraction\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\DataClassRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;

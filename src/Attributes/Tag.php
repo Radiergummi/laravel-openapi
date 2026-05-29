@@ -48,10 +48,12 @@ final readonly class Tag
     public function __construct(public string|BackedEnum $name)
     {
         if ($name instanceof BackedEnum && !is_string($name->value)) {
-            throw new InvalidArgumentException(sprintf(
-                '#[Tag] requires a string-backed enum; %s is backed by int. Numeric tag names are surprising for consumers.',
-                $name::class,
-            ));
+            throw new InvalidArgumentException(
+                sprintf(
+                    '#[Tag] requires a string-backed enum; %s is backed by int. Numeric tag names are surprising for consumers.',
+                    $name::class,
+                ),
+            );
         }
     }
 

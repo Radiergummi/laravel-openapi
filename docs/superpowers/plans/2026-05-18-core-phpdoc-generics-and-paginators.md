@@ -344,7 +344,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Core\Generator;
 
-use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;use Radiergummi\OpenApi\Enums\PaginatorKind;
+use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Core\Support\PaginatorSchemaFactory;use Radiergummi\OpenApi\Enums\PaginatorKind;
 
 /**
  * @return list<string>
@@ -527,7 +527,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core\Extractors;
 
-use OpenApi\Annotations as OA;use Psr\Log\LoggerInterface;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use Radiergummi\OpenApi\Core\Pagination\PaginatorSchemaFactory;use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;use Radiergummi\OpenApi\Enums\MediaType;use Radiergummi\OpenApi\Enums\PaginatorKind;use Radiergummi\OpenApi\Routing\ActionDescriptor;use ReflectionNamedType;use Throwable;use function class_exists;use function sprintf;
+use OpenApi\Annotations as OA;use Psr\Log\LoggerInterface;use Radiergummi\OpenApi\Attributes\ResponseResource;use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;use Radiergummi\OpenApi\Core\Support\PaginatorSchemaFactory;use Radiergummi\OpenApi\Enums\MediaType;use Radiergummi\OpenApi\Enums\PaginatorKind;use Radiergummi\OpenApi\Routing\ActionDescriptor;use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;use ReflectionNamedType;use Throwable;use function class_exists;use function sprintf;
 
 /**
  * Resolves a paginator return type (`LengthAwarePaginator`, `Paginator`,
@@ -672,7 +672,7 @@ git commit -m "feat: add PaginatorResponseResolver primary-response resolver"
 
 ## Task 5: Register and wire the resolver
 
-`PaginatorResponseResolver` needs the `list<RefSchemaResolver>` built from the registry, so—like `OperationBuilder` and `DataRefSchemaResolver`—it cannot be plain autowired; it needs an explicit `scoped` binding. `Registration` adds it to the registry's primary-response-resolver list; `OperationBuilder`'s existing constructor wiring (`src/OpenApiServiceProvider.php` `registerGenerator()`, the `primaryResponseResolvers:` argument) then picks it up via `$app->make()`.
+`PaginatorResponseResolver` needs the `list<RefSchemaResolver>` built from the registry, so—like `OperationBuilder` and `DataRefSchemaResolver`—it cannot be plain autowired; it needs an explicit `scoped` binding. `CorePlugin` adds it to the registry's primary-response-resolver list; `OperationBuilder`'s existing constructor wiring (`src/OpenApiServiceProvider.php` `registerGenerator()`, the `primaryResponseResolvers:` argument) then picks it up via `$app->make()`.
 
 **Files:**
 - Modify: `src/Core/Registry/CoreRegistration.php`
@@ -683,7 +683,7 @@ git commit -m "feat: add PaginatorResponseResolver primary-response resolver"
 In `src/Core/Registry/CoreRegistration.php`, add the import near the existing `use` block:
 
 ```php
-use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
+
 ```
 
 Then change the `register()` method body from:

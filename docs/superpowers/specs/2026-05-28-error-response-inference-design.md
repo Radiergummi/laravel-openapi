@@ -432,9 +432,9 @@ New:
 
 - `src/Contracts/Registry/ErrorResponseContributor.php`
 - `src/Core/Stages/ErrorResponseInferenceStage.php`
-- `src/Core/Inference/ThrowsErrorContributor.php`
-- `src/Core/Inference/MiddlewareErrorContributor.php`
-- `src/Core/Inference/ValidationErrorContributor.php`
+- `src/Core/ErrorContributors/ThrowsErrorContributor.php`
+- `src/Core/ErrorContributors/MiddlewareErrorContributor.php`
+- `src/Core/ErrorContributors/ValidationErrorContributor.php`
 - `tests/Unit/Core/Inference/ThrowsErrorContributorTest.php`
 - `tests/Unit/Core/Inference/MiddlewareErrorContributorTest.php`
 - `tests/Unit/Core/Inference/ValidationErrorContributorTest.php`

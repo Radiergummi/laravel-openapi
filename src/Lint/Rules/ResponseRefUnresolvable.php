@@ -87,12 +87,6 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
         }
     }
 
-    #[Override]
-    public function level(): int
-    {
-        return 0;
-    }
-
     /**
      * @param class-string $class
      */
@@ -105,5 +99,11 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
         }
 
         return false;
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 0;
     }
 }

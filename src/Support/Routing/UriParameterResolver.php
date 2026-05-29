@@ -161,7 +161,7 @@ final readonly class UriParameterResolver
             fn(string $alternative): bool
                 => (
                     $alternative !== ''
-                    && preg_match('/[\[\](){}\\\\+*?.^$]/', $alternative) !== 1
+                && preg_match('/[\[\](){}\\\\+*?.^$]/', $alternative) !== 1
                 ),
         );
     }

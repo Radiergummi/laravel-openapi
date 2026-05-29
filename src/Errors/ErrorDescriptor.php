@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Errors;
 
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Throwable;
 
 /**
@@ -24,6 +25,14 @@ use Throwable;
  * their canonical thrown exception via the extended middleware-responses config, but
  * third-party middleware mappings users add without an exception class still work.
  *
+ * `$action` is the {@see ActionDescriptor} of the route that produced this error, when
+ * available. Resolvers use it to scope their envelope per-route — e.g. a JSON:API plugin
+ * that only wants to apply `application/vnd.api+json` error bodies on JSON:API routes, while
+ * non-JSON:API routes keep the configured `error_envelope` default. The property is nullable
+ * because future contributors may produce error descriptors without a route context (e.g.
+ * webhook-only or top-level component-default errors); resolvers that branch on it must
+ * handle the `null` case (typically by treating it as "no per-route constraints apply").
+ *
  * Resolvers branching on `$exceptionClass` must use `is_a($cls, X::class, true)`, not strict
  * equality — user code routinely subclasses framework exceptions.
  */
@@ -36,5 +45,6 @@ final readonly class ErrorDescriptor
         public int $status,
         public ?string $exceptionClass,
         public string $description,
+        public ?ActionDescriptor $action = null,
     ) {}
 }
