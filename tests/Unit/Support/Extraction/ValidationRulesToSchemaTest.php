@@ -11,10 +11,15 @@ declare(strict_types=1);
 
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Dimensions;
+use Illuminate\Validation\Rules\Email;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Rules\File;
+use Illuminate\Validation\Rules\ImageFile;
 use Illuminate\Validation\Rules\In;
+use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rules\Unique;
 use Radiergummi\OpenApi\Core\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 
@@ -777,6 +782,47 @@ it('maps Dimensions::ratio() to a description mentioning aspect ratio', function
     $d = field($this->mapper, [new Dimensions()->ratio(1.777)]);
 
     expect($d->description)->toContain('aspect ratio');
+});
+
+// endregion
+
+// region Stock Laravel Rule\* factory objects (dogfooding 2026-05-29 p1-stock-laravel-rule-classes-unhandled)
+
+it('maps a bare Email rule object to type=string, format=email', function (): void {
+    $d = field($this->mapper, [new Email()]);
+
+    expect($d->type)->toBe('string')
+        ->and($d->format)->toBe('email');
+});
+
+it('notes Email::validateMxRecord() in the description', function (): void {
+    $d = field($this->mapper, [new Email()->validateMxRecord()]);
+
+    expect($d->format)->toBe('email')
+        ->and($d->description)->toContain('MX');
+});
+
+it('maps an Exists rule object to a description referencing the constrained table.column', function (): void {
+    $d = field($this->mapper, [new Exists('users', 'id')]);
+
+    expect($d->description)->toContain('exist')
+        ->and($d->description)->toContain('users')
+        ->and($d->description)->toContain('id');
+});
+
+it('maps a Unique rule object to a description referencing the constrained table.column', function (): void {
+    $d = field($this->mapper, [new Unique('users', 'email')]);
+
+    expect($d->description)->toContain('unique')
+        ->and($d->description)->toContain('users')
+        ->and($d->description)->toContain('email');
+});
+
+it('maps a NotIn rule object to a description listing the disallowed values', function (): void {
+    $d = field($this->mapper, [new NotIn(['admin', 'root'])]);
+
+    expect($d->description)->toContain('admin')
+        ->and($d->description)->toContain('root');
 });
 
 // endregion

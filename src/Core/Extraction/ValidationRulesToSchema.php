@@ -13,10 +13,14 @@ namespace Radiergummi\OpenApi\Core\Extraction;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Validation\Rules\Dimensions;
+use Illuminate\Validation\Rules\Email;
 use Illuminate\Validation\Rules\Enum;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\Rules\In;
+use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rules\Unique;
 use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -261,6 +265,30 @@ final readonly class ValidationRulesToSchema
             return;
         }
 
+        if ($rule instanceof Email) {
+            $this->applyEmailRule($rule, $field);
+
+            return;
+        }
+
+        if ($rule instanceof Exists) {
+            $this->applyExistsRule($rule, $field);
+
+            return;
+        }
+
+        if ($rule instanceof Unique) {
+            $this->applyUniqueRule($rule, $field);
+
+            return;
+        }
+
+        if ($rule instanceof NotIn) {
+            $this->applyNotInRule($rule, $field);
+
+            return;
+        }
+
         if ($rule instanceof File) {
             $this->applyFile($field);
 
@@ -429,6 +457,92 @@ final readonly class ValidationRulesToSchema
         $field->type = 'string';
         $field->format = 'binary';
         $field->isFile = true;
+    }
+
+    private function applyEmailRule(Email $rule, FieldDescriptor $field): void
+    {
+        $field->type = 'string';
+        $field->format = 'email';
+
+        if ($rule->validateMxRecord) {
+            $field->description = $this->appendDescription(
+                $field->description,
+                'MX record will be validated.',
+            );
+        }
+    }
+
+    private function applyExistsRule(Exists $rule, FieldDescriptor $field): void
+    {
+        [$table, $column] = $this->parseDatabaseRule((string) $rule);
+
+        $field->description = $this->appendDescription(
+            $field->description,
+            $column === ''
+                ? "Must reference an existing row in `{$table}`."
+                : "Must reference an existing row in `{$table}.{$column}`.",
+        );
+    }
+
+    private function applyUniqueRule(Unique $rule, FieldDescriptor $field): void
+    {
+        [$table, $column] = $this->parseDatabaseRule((string) $rule);
+
+        $field->description = $this->appendDescription(
+            $field->description,
+            $column === ''
+                ? "Must be unique in `{$table}`."
+                : "Must be unique in `{$table}.{$column}`.",
+        );
+    }
+
+    private function applyNotInRule(NotIn $rule, FieldDescriptor $field): void
+    {
+        $serialised = (string) $rule;
+        $values = $this->ruleArg($serialised);
+
+        // Strip the wrapping double-quotes that NotIn emits around each value (and any
+        // doubled-quote escapes) so the description reads naturally. The empty $escape is
+        // required on PHP 8.4+ where the backslash default was deprecated.
+        $parsed = array_map(
+            static fn(?string $value): string => $value === null
+                ? ''
+                : str_replace('""', '"', trim($value, '"')),
+            str_getcsv($values, ',', '"', ''),
+        );
+
+        $field->description = $this->appendDescription(
+            $field->description,
+            'Must not be one of: ' . implode(', ', $parsed) . '.',
+        );
+    }
+
+    /**
+     * Parses the leading `<rule>:<table>,<column>` segment of a DatabaseRule's `__toString()`
+     * output. Returns `[$table, $column]`; `$column` may be empty when no column was specified.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function parseDatabaseRule(string $serialised): array
+    {
+        $arg = $this->ruleArg($serialised);
+        $parts = explode(',', $arg, 3);
+        $table = $parts[0] ?? '';
+        $column = $parts[1] ?? '';
+
+        // Laravel emits `NULL` as a placeholder when no column was supplied.
+        if ($column === 'NULL') {
+            $column = '';
+        }
+
+        return [$table, $column];
+    }
+
+    private function appendDescription(?string $existing, string $addition): string
+    {
+        return $existing === null || $existing === ''
+            ? $addition
+            : $existing . ' ' . $addition;
     }
 
     private function applyEmail(FieldDescriptor $field): void
