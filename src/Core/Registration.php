@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Core\Extraction\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Core\Inference\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Core\Inference\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Core\Inference\ValidationErrorContributor;
+use Radiergummi\OpenApi\Core\Lint\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Core\Lint\RequestBodySchemaDegraded;
 use Radiergummi\OpenApi\Core\Lint\RuleInvalidEnumValue;
 use Radiergummi\OpenApi\Core\Lint\RuleUnknown;
@@ -179,6 +180,7 @@ final class Registration
         RequestEmpty::class,
         RequestBodySchemaDegraded::class,
         ThrowsUnmapped::class,
+        ErrorsResolverFailed::class,
         RuleUnknown::class,
         RuleInvalidEnumValue::class,
 

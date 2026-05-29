@@ -92,6 +92,16 @@ All notable changes to this project are documented here.
 - Per-operation `ActionDescriptor` lookup on `GenerationContext`
   (`bindAction()` / `actionFor()`) so stages can find the action that
   produced an `OA\Operation`. Populated by `PathsStage`.
+- `ErrorResponseInferenceStage` now also decorates operations attached to
+  `$doc->webhooks`, matching the pre-refactor behaviour of
+  `OperationBuilder` which produced standard responses for both paths and
+  webhooks. Webhook routes with `@throws` annotations or middleware regain
+  their inferred error responses.
+- Stub Rule class `ErrorsResolverFailed` for the `errors.resolver-failed`
+  finding emitted by `ErrorResponseInferenceStage` when a resolver throws.
+  Registering the ID lets `#[IgnoreLint('errors.resolver-failed')]` pass
+  `meta.unknown-rule`, allows severity overrides, and surfaces the rule in
+  the lint catalog. The finding now also carries a `fixHint`.
 
 ### Changed
 - Error-response inference moved out of `Support\Generator\OperationBuilder`

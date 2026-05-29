@@ -348,7 +348,42 @@ it('emits a finding and continues the chain when a resolver throws', function ()
 
 // endregion
 
-// region Case 8: Multiple statuses sorted ascending
+// region Case 8: Webhook operations are decorated like path operations
+
+it('decorates operations attached to webhooks, not just paths', function (): void {
+    $contributor = new class () implements ErrorResponseContributor {
+        public function contribute(ActionDescriptor $descriptor): array
+        {
+            return [new ErrorDescriptor(status: 500, exceptionClass: null, description: 'Server error')];
+        }
+    };
+
+    $stage = new ErrorResponseInferenceStage(
+        contributors: [$contributor],
+        errorResponseResolvers: [],
+        registry: new ComponentSchemaRegistry(),
+        findings: new ArrayFindingsCollector(),
+    );
+
+    $operation = new OA\Post([]);
+    $webhook = new OA\Webhook(['webhook' => 'event.fired']);
+    $webhook->post = $operation;
+    $doc = new OA\OpenApi([]);
+    $doc->webhooks = [$webhook];
+    $ctx = new GenerationContext(inferenceStageSpec(), 'testing');
+    $ctx->bindAction($operation, inferenceStageDescriptor());
+
+    $stage->apply($doc, $ctx);
+
+    expect($operation->responses)
+        ->toBeArray()
+        ->toHaveCount(1)
+        ->and((int) $operation->responses[0]->response)->toBe(500);
+});
+
+// endregion
+
+// region Case 9: Multiple statuses sorted ascending
 
 it('appends inferred responses in ascending status order', function (): void {
     $contributor = new class () implements ErrorResponseContributor {

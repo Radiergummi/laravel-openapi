@@ -18,6 +18,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Core\Lint\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
@@ -28,9 +29,7 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Throwable;
 
 use function is_array;
-use function is_object;
 use function ksort;
-use function property_exists;
 use function sprintf;
 
 /**
@@ -66,7 +65,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         500 => 'InternalServerError',
     ];
 
-    private const array HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'trace'];
+    private const array HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options'];
 
     /**
      * @param list<ErrorResponseContributor> $contributors
@@ -82,13 +81,23 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     #[Override]
     public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
     {
-        if (!is_array($doc->paths)) {
-            return;
+        if (is_array($doc->paths)) {
+            $this->decorateContainers($doc->paths, $ctx);
         }
 
-        foreach ($doc->paths as $pathItem) {
+        if (is_array($doc->webhooks)) {
+            $this->decorateContainers($doc->webhooks, $ctx);
+        }
+    }
+
+    /**
+     * @param array<OA\PathItem|OA\Webhook> $containers
+     */
+    private function decorateContainers(array $containers, GenerationContext $ctx): void
+    {
+        foreach ($containers as $container) {
             foreach (self::HTTP_METHODS as $verb) {
-                $operation = $pathItem->{$verb} ?? Generator::UNDEFINED;
+                $operation = $container->{$verb} ?? Generator::UNDEFINED;
 
                 if (!$operation instanceof OA\Operation) {
                     continue;
@@ -125,9 +134,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         $existing = is_array($operation->responses) ? $operation->responses : [];
 
         foreach ($existing as $resp) {
-            if (is_object($resp) && property_exists($resp, 'response')) {
-                unset($byStatus[(int) $resp->response]);
-            }
+            unset($byStatus[(int) $resp->response]);
         }
 
         // endregion
@@ -177,6 +184,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
                         $descriptor->status,
                         $e->getMessage(),
                     ),
+                    fixHint: ErrorsResolverFailed::FIX_HINT,
                     context: [
                         'resolver'  => $resolver::class,
                         'status'    => $descriptor->status,

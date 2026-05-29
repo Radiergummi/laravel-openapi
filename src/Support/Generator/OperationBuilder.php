@@ -163,8 +163,9 @@ final readonly class OperationBuilder
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
 
-        // Order matters: primary response first, explicit #[Response] attributes last.
-        // swagger-php's last-write-wins serialization lets #[Response] override inferred responses.
+        // Primary 2xx first, then explicit non-2xx #[Response] attributes. Inferred error
+        // responses are appended later by ErrorResponseInferenceStage, which itself skips any
+        // status already declared here.
         $responses = [$primaryResponse, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
         $this->applyResponseHeaders($action, $responses);
