@@ -20,6 +20,8 @@ use phpDocumentor\Reflection\Types\Compound;
 use phpDocumentor\Reflection\Types\Context;
 use phpDocumentor\Reflection\Types\ContextFactory;
 use phpDocumentor\Reflection\Types\Object_;
+use ReflectionClass;
+use ReflectionMethod;
 use Reflector;
 use UnexpectedValueException;
 
@@ -87,14 +89,20 @@ final class ThrowsExtractor
 
     private function contextFor(Reflector $reflector): Context
     {
-        $fileName = $this->fileNameFor($reflector);
+        // For trait-composed methods PHP's reflection reports the using class as the declaring
+        // class, which would make phpDocumentor read the using class's `use` statements instead
+        // of the trait's. Substitute the trait's ReflectionClass so the trait's file context
+        // (its namespace and imports) is what resolves bare `@throws` names.
+        $source = $this->definingTraitFor($reflector) ?? $reflector;
+
+        $fileName = $this->fileNameFor($source);
 
         if ($fileName !== null && isset($this->contextCache[$fileName])) {
             return $this->contextCache[$fileName];
         }
 
         try {
-            $context = $this->contextFactory->createFromReflector($reflector);
+            $context = $this->contextFactory->createFromReflector($source);
         } catch (UnexpectedValueException) {
             // phpDocumentor's ContextFactory does not support all Reflector types (e.g.,
             // ReflectionFunction for closures). Fall back to a context-free default so @throws
@@ -108,6 +116,47 @@ final class ThrowsExtractor
         }
 
         return $context;
+    }
+
+    /**
+     * Returns the trait that lexically defines the method, when the reflector is a method
+     * composed via `use TraitName`. Returns `null` for direct methods, inherited methods,
+     * or non-method reflectors.
+     *
+     * @return null|ReflectionClass<object>
+     */
+    private function definingTraitFor(Reflector $reflector): ?ReflectionClass
+    {
+        if (!$reflector instanceof ReflectionMethod) {
+            return null;
+        }
+
+        return $this->findDefiningTrait($reflector->getDeclaringClass(), $reflector->getName());
+    }
+
+    /**
+     * Walks the trait hierarchy depth-first and returns the deepest trait that declares
+     * a method with the given name. Returns `null` if no trait declares it.
+     *
+     * @param ReflectionClass<object> $class
+     *
+     * @return null|ReflectionClass<object>
+     */
+    private function findDefiningTrait(ReflectionClass $class, string $methodName): ?ReflectionClass
+    {
+        foreach ($class->getTraits() as $trait) {
+            $deeper = $this->findDefiningTrait($trait, $methodName);
+
+            if ($deeper !== null) {
+                return $deeper;
+            }
+
+            if ($trait->hasMethod($methodName)) {
+                return $trait;
+            }
+        }
+
+        return null;
     }
 
     private function fileNameFor(Reflector $reflector): ?string

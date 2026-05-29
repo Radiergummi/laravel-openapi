@@ -10,6 +10,7 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Support\Routing\ThrowsExtractor;
+use Radiergummi\OpenApi\Tests\Unit\Support\Routing\Fixtures\ControllerUsingThrowingTrait;
 use Radiergummi\OpenApi\Tests\Unit\Support\Routing\Fixtures\ThrowingController;
 
 uses()->group('routing', 'openapi');
@@ -51,4 +52,11 @@ it('resolves @throws FQCNs in closure docblocks via a context-free fallback', fu
     $reflector = new ReflectionFunction($closure);
 
     expect($this->extractor->extract($reflector))->toBe(['RuntimeException']);
+});
+
+it('resolves @throws on a trait-composed method against the trait file context', function (): void {
+    $method = new ReflectionMethod(ControllerUsingThrowingTrait::class, 'methodFromTrait');
+
+    expect($this->extractor->extract($method))
+        ->toBe(['Radiergummi\OpenApi\Tests\Unit\Support\Routing\Fixtures\ThrowingTrait\TraitOnlyException']);
 });
