@@ -74,16 +74,27 @@ final readonly class UriParametersExtractor
             $schema->example = $fieldDescriptor->example;
         }
 
+        // OpenAPI 3.x §4.8.12.1: path parameters MUST have `required: true`. Laravel's `{param?}`
+        // optional-segment signal is not expressible in OAS on a single operation; we preserve it
+        // as a description suffix instead. A future release may expand `{param?}` into two
+        // operations (long form with the segment, short form without) to describe both surfaces.
         $props = [
             'name' => $descriptor->name,
             'in' => 'path',
-            'required' => !$descriptor->optional,
+            'required' => true,
             'schema' => $schema,
         ];
 
         $description = $fieldDescriptor !== null
             ? ($fieldDescriptor->description ?? $this->buildDescription($descriptor))
             : $this->buildDescription($descriptor);
+
+        if ($descriptor->optional) {
+            $note = 'Optional in URL — the segment may be omitted when calling this route.';
+            $description = $description !== ''
+                ? $description . ' ' . $note
+                : $note;
+        }
 
         if ($description !== '') {
             $props['description'] = $description;
