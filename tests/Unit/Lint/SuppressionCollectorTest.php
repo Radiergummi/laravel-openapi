@@ -51,3 +51,24 @@ it('registers JsonResource as a payload class when ApiResourcesPlugin is enabled
 
     expect($payloadClasses)->toContain(JsonResource::class);
 });
+
+it('collects class-level IgnoreLint from a JsonResource registered in the component schema map', function (): void {
+    $registry = app(Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry::class);
+    $registry->register(
+        Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint\SnakeCasedJsonResource::class,
+        new OpenApi\Annotations\Schema(['schema' => 'SnakeCasedJsonResource']),
+    );
+
+    $directives = app(SuppressionCollector::class)->collectFromComponentSchemas(
+        $registry->componentClassMap(),
+    );
+
+    $matching = array_values(array_filter(
+        $directives,
+        static fn($d) => $d->scope === SuppressionScope::ClassScope
+            && $d->targetClass === Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint\SnakeCasedJsonResource::class,
+    ));
+
+    expect($matching)->toHaveCount(1)
+        ->and($matching[0]->ruleId)->toBe('field.name-naming-inconsistent');
+});

@@ -204,7 +204,8 @@ final readonly class LintRunner
             ? [$this->specRegistry->get($options->spec)]
             : $this->specRegistry->all();
 
-        $suppressions = $this->suppressionCollector->collect($descriptors);
+        $descriptorDirectives = $this->suppressionCollector->collect($descriptors);
+        $suppressionsAll = $descriptorDirectives;
 
         foreach ($targets as $spec) {
             // Bind a spec-local collector BEFORE generateOne so stage-emitted findings
@@ -219,11 +220,17 @@ final readonly class LintRunner
 
             $document = $this->orchestrator->generateOne($spec->name);
 
+            $componentDirectives = $this->suppressionCollector->collectFromComponentSchemas(
+                $this->componentSchemaRegistry->componentClassMap(),
+            );
+            $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
+            $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
+
             $this->walkSpec(
                 $document,
                 $descriptors,
                 $rules,
-                $suppressions,
+                $specSuppressions,
                 $specLocal,
                 $level,
                 $only,
@@ -258,7 +265,7 @@ final readonly class LintRunner
         }
 
         if ($options->applySuppressions) {
-            $findings = $this->applySuppressions(array_values($findings), $suppressions);
+            $findings = $this->applySuppressions(array_values($findings), $suppressionsAll);
         }
 
         $findings = array_values(
