@@ -311,8 +311,11 @@ return [
             // URL path segment casing: 'kebab' | 'snake'
             'path_segment_case' => 'kebab',
 
-            // Parameter name casing (path + query): 'snake' | 'camel' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
-            'parameter_name_case' => 'snake',
+            // Path parameter name casing (e.g. `{deviceId}`): 'camel' | 'snake' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
+            'path_parameter_case' => 'camel',
+
+            // Query parameter name casing (e.g. `per_page`): 'snake' | 'camel' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
+            'query_parameter_case' => 'snake',
 
             // Tag name casing: 'pascal' | 'camel' | 'kebab' | 'snake' | 'dot' | 'train' | 'screaming_snake'
             'tag_case'    => 'pascal',

@@ -23,13 +23,18 @@ use Radiergummi\OpenApi\Lint\Visitors\ParameterRule as ParameterRuleVisitor;
 use Radiergummi\OpenApi\Lint\Visitors\QueryParameterRule as QueryParameterRuleVisitor;
 
 use function in_array;
+use function preg_match;
 use function sprintf;
 use function str_contains;
 
 /**
  * Reports path and query parameter names that do not follow the configured naming convention.
  *
- * Default: {@see IdentifierCase::Snake} (e.g. `project_id`).
+ * Two independent cases apply, reflecting Laravel + JSON:API convention:
+ * - Path parameters default to {@see IdentifierCase::Camel} (e.g. `deviceId`), matching
+ *   controller-method variable names like `$deviceId`.
+ * - Query parameters default to {@see IdentifierCase::Snake} (e.g. `per_page`), matching the
+ *   conventional JSON:API / Spatie QueryBuilder shape.
  *
  * Query parameter exclusions (framework-generated, not author-controlled):
  * - Names containing `[` — JSON:API bracket notation such as `filter[id]` or `page[number]`.
@@ -44,11 +49,22 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
     /** @var list<string> */
     private const array FRAMEWORK_QUERY_PARAMS = ['page', 'per_page', 'sort', 'include'];
 
+    private IdentifierCase $pathCase;
+
+    private IdentifierCase $queryCase;
+
     public function __construct(
-        #[Config('openapi.lint.style.parameter_name_case', 'snake')]
-        IdentifierCase|string $case = IdentifierCase::Snake,
+        #[Config('openapi.lint.style.path_parameter_case', 'camel')]
+        IdentifierCase|string $pathCase = IdentifierCase::Camel,
+        #[Config('openapi.lint.style.query_parameter_case', 'snake')]
+        IdentifierCase|string $queryCase = IdentifierCase::Snake,
     ) {
-        parent::__construct($case);
+        $this->pathCase = IdentifierCase::fromConfig($pathCase);
+        $this->queryCase = IdentifierCase::fromConfig($queryCase);
+
+        // Pass the path case to the parent as the "primary" case — drives label()/fixHint()
+        // defaults inherited from AbstractNamingRule.
+        parent::__construct($this->pathCase);
     }
 
     /**
@@ -57,14 +73,14 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
     #[Override]
     public function checkParameter(ParameterNode $parameter, LintContext $context): iterable
     {
-        if ($this->conforms($parameter->name)) {
+        if (preg_match($this->pathCase->pattern(), $parameter->name) === 1) {
             return;
         }
 
-        yield $this->finding($parameter->name);
+        yield $this->finding($parameter->name, $this->pathCase);
     }
 
-    private function finding(string $name): Finding
+    private function finding(string $name, IdentifierCase $case): Finding
     {
         return new Finding(
             ruleId: $this->id(),
@@ -72,9 +88,13 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
             message: sprintf(
                 'Parameter name "%s" does not follow the %s naming convention',
                 $name,
-                $this->case->label(),
+                $case->label(),
             ),
-            fixHint: $this->fixHint('parameter names'),
+            fixHint: sprintf(
+                'Use %s for parameter names (e.g. %s).',
+                $case->label(),
+                $case->example(),
+            ),
         );
     }
 
@@ -94,11 +114,11 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
             return;
         }
 
-        if ($this->conforms($queryParameter->name)) {
+        if (preg_match($this->queryCase->pattern(), $queryParameter->name) === 1) {
             return;
         }
 
-        yield $this->finding($queryParameter->name);
+        yield $this->finding($queryParameter->name, $this->queryCase);
     }
 
     private function isExcludedQueryParam(string $name): bool
@@ -113,6 +133,6 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
     #[Override]
     public function description(): string
     {
-        return "Parameter name doesn't follow the project's parameter_name_case convention.";
+        return "Parameter name doesn't follow the project's path_parameter_case / query_parameter_case convention.";
     }
 }

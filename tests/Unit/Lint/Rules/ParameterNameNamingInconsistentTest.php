@@ -55,48 +55,74 @@ it('reports its id and level', function (): void {
 
 // region Path parameters
 
-it('default (snake): passes a valid snake_case path parameter', function (string $name): void {
+it('default (camel for path): accepts camelCase path parameters', function (string $name): void {
     $rule = new ParameterNameNamingInconsistent();
 
-    $findings = iterator_to_array($rule->checkParameter(makePathParamNamingNode($name), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkParameter(
+        makePathParamNamingNode($name),
+        OperationNodeFactory::emptyContext(),
+    ));
 
     expect($findings)->toBe([]);
 })->with([
-    'multi-word snake_case' => ['project_id'],
-    'single-word'           => ['project'],
+    'simple' => 'deviceId',
+    'longer' => 'externalSearchQuery',
+    'short'  => 'threadId',
 ]);
 
-it('default (snake): flags a camelCase path parameter', function (): void {
+it('default (camel for path): flags snake_case path parameters', function (): void {
     $rule = new ParameterNameNamingInconsistent();
 
-    $findings = iterator_to_array($rule->checkParameter(makePathParamNamingNode('projectId'), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkParameter(
+        makePathParamNamingNode('device_id'),
+        OperationNodeFactory::emptyContext(),
+    ));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.name-naming-inconsistent')
         ->and($findings[0]->level)->toBe(3)
-        ->and($findings[0]->message)->toContain('projectId')
-        ->and($findings[0]->message)->toContain('snake_case');
+        ->and($findings[0]->message)->toContain('device_id')
+        ->and($findings[0]->message)->toContain('camelCase');
 });
 
 // endregion
 
 // region Query parameters
 
-it('default (snake): passes a valid snake_case query parameter', function (): void {
+it('default (snake for query): accepts snake_case query parameters', function (): void {
     $rule = new ParameterNameNamingInconsistent();
 
-    $findings = iterator_to_array($rule->checkQueryParameter(makeQueryParamNamingNode('created_after'), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkQueryParameter(
+        makeQueryParamNamingNode('per_page'),
+        OperationNodeFactory::emptyContext(),
+    ));
 
     expect($findings)->toBe([]);
 });
 
-it('default (snake): flags a camelCase query parameter', function (): void {
+it('default (snake for query): also accepts non-reserved snake_case query parameters', function (): void {
     $rule = new ParameterNameNamingInconsistent();
 
-    $findings = iterator_to_array($rule->checkQueryParameter(makeQueryParamNamingNode('createdAfter'), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkQueryParameter(
+        makeQueryParamNamingNode('created_after'),
+        OperationNodeFactory::emptyContext(),
+    ));
+
+    expect($findings)->toBe([]);
+});
+
+it('default (snake for query): flags camelCase query parameters', function (): void {
+    $rule = new ParameterNameNamingInconsistent();
+
+    $findings = iterator_to_array($rule->checkQueryParameter(
+        makeQueryParamNamingNode('perPage'),
+        OperationNodeFactory::emptyContext(),
+    ));
 
     expect($findings)->toHaveCount(1)
-        ->and($findings[0]->message)->toContain('createdAfter');
+        ->and($findings[0]->ruleId)->toBe('parameter.name-naming-inconsistent')
+        ->and($findings[0]->message)->toContain('perPage')
+        ->and($findings[0]->message)->toContain('snake_case');
 });
 
 it('skips reserved or bracket-notation query parameter names', function (string $name): void {
@@ -127,18 +153,40 @@ it('does not skip a non-reserved name that happens to contain "page" as a substr
 
 // region Configurable case
 
-it('camel case: passes a valid camelCase parameter name', function (): void {
-    $rule = new ParameterNameNamingInconsistent(IdentifierCase::Camel);
+it('respects independent overrides for path and query case', function (): void {
+    // Both forced to Snake — camelCase path param now flags.
+    $rule = new ParameterNameNamingInconsistent(
+        pathCase: IdentifierCase::Snake,
+        queryCase: IdentifierCase::Snake,
+    );
 
-    $findings = iterator_to_array($rule->checkParameter(makePathParamNamingNode('projectId'), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkParameter(
+        makePathParamNamingNode('deviceId'),
+        OperationNodeFactory::emptyContext(),
+    ));
 
-    expect($findings)->toBe([]);
+    expect($findings)->toHaveCount(1);
 });
 
-it('camel case: flags a snake_case parameter name', function (): void {
-    $rule = new ParameterNameNamingInconsistent(IdentifierCase::Camel);
+it('path case override: flags camelCase path parameters when set to Snake', function (): void {
+    $rule = new ParameterNameNamingInconsistent(pathCase: IdentifierCase::Snake);
 
-    $findings = iterator_to_array($rule->checkParameter(makePathParamNamingNode('project_id'), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkParameter(
+        makePathParamNamingNode('projectId'),
+        OperationNodeFactory::emptyContext(),
+    ));
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->message)->toContain('snake_case');
+});
+
+it('query case override: flags snake_case query parameters when set to Camel', function (): void {
+    $rule = new ParameterNameNamingInconsistent(queryCase: IdentifierCase::Camel);
+
+    $findings = iterator_to_array($rule->checkQueryParameter(
+        makeQueryParamNamingNode('created_after'),
+        OperationNodeFactory::emptyContext(),
+    ));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('camelCase');
@@ -147,11 +195,14 @@ it('camel case: flags a snake_case parameter name', function (): void {
 it('provides a fix hint with the expected case example', function (): void {
     $rule = new ParameterNameNamingInconsistent();
 
-    $findings = iterator_to_array($rule->checkParameter(makePathParamNamingNode('projectId'), OperationNodeFactory::emptyContext()));
+    $findings = iterator_to_array($rule->checkParameter(
+        makePathParamNamingNode('device_id'),
+        OperationNodeFactory::emptyContext(),
+    ));
 
     expect($findings[0]->fixHint)
-        ->toContain('snake_case')
-        ->toContain(IdentifierCase::Snake->example());
+        ->toContain('camelCase')
+        ->toContain(IdentifierCase::Camel->example());
 });
 
 // endregion
