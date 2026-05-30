@@ -119,6 +119,49 @@ final class CreateFlightAction extends DomainAction
 
 `FlightData` is picked up as the request body for `store`.
 
+## Runtime state in `rules()`
+
+`rules()` bodies that read request state — `$this->route('foo')->bar`,
+`$this->user()->customer_id`, deep chains through Eloquent relations — work at
+spec-time. The generator instantiates the FormRequest with a permissive route
+and user context: `$this->route(...)` returns a stub for every binding name,
+and `$this->user()` returns the same stub. Property accesses, method calls,
+and array iteration on the stub all terminate without throwing, so the rules
+array's *structure* (keys, types, required-ness) is preserved.
+
+The stub values inside `Rule::in([...])`, `Rule::unique(...)->ignore(...)`, and
+similar are opaque placeholders. That's fine — the schema generator only reads
+each rule's *type and shape*, not its arguments, so `Rule::in([$stub])` becomes
+the same schema fragment as `Rule::in(['active', 'paused'])`: an enum
+constraint whose values are absent from the spec. Author `#[RequestField(enum: [...])]`
+or `#[RequestField(example: ...)]` on the FormRequest's `PARAM_*` constant to
+supply concrete values where they matter.
+
+### Limitation: branching on runtime state
+
+If `rules()` switches on runtime state — e.g. `if ($this->user()->isAdmin()) { … }`
+returning different rule sets — the stub takes the truthy branch (PHP's bool
+cast of any non-null object). The spec reflects the truthy branch's rules; the
+falsy branch is not introspected.
+
+When this is the wrong default:
+
+- Refactor the FormRequest so `rules()` returns the union of all branches'
+  keys (with `sometimes` where appropriate).
+- Or split the FormRequest into two: one per route/role.
+- Or suppress the lint rule on the FormRequest class:
+
+  ```php
+  #[IgnoreLint(
+      'request-body.schema-degraded',
+      reason: 'rules() branches on $this->user()->role; documented elsewhere',
+  )]
+  final class MyRequest extends FormRequest { … }
+  ```
+
+The same suppression applies when `rules()` does `instanceof` checks or calls
+into services that are not bound at spec-time.
+
 ## Validation rules → schema constraints
 
 Validation rules are compiled from either convention (Spatie's resolver for
