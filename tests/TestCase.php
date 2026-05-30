@@ -29,6 +29,19 @@ abstract class TestCase extends Orchestra
     }
 
     /**
+     * Testbench-core 10 (paired with Laravel 12) defaults `filesystems.disks.local.serve` to true,
+     * which makes Laravel's FilesystemServiceProvider register two extra `storage/{path}` routes
+     * that are absent under testbench 11 (Laravel 13). Force the setting off so generation
+     * snapshots and lint expectations are stable across both cells of the CI matrix.
+     *
+     * @param Application $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        $app['config']->set('filesystems.disks.local.serve', false);
+    }
+
+    /**
      * Mirror the package's example-payload fixtures into the Testbench skeleton app so that
      * `base_path()`-relative resources resolve.
      *

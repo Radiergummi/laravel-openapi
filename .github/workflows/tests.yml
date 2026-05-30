@@ -13,6 +13,15 @@ jobs:
       matrix:
         php: ['8.4', '8.5']
         laravel: ['12.*', '13.*']
+        include:
+          # Pin testbench per matrix cell — testbench 11 requires Laravel 13,
+          # so a plain `composer update` would silently float the L12 cell up to L13.
+          - laravel: '12.*'
+            laravel-major: '12'
+            testbench: '^10.0'
+          - laravel: '13.*'
+            laravel-major: '13'
+            testbench: '^11.0'
     name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
     steps:
       - uses: actions/checkout@v4
@@ -20,9 +29,19 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-      - name: Constrain Laravel version
-        run: composer require "laravel/framework:${{ matrix.laravel }}" --no-update --no-interaction
+      - name: Constrain Laravel + Testbench versions
+        run: |
+          composer require --no-update --no-interaction \
+            "laravel/framework:${{ matrix.laravel }}" \
+            "orchestra/testbench:${{ matrix.testbench }}"
       - name: Install dependencies
         run: composer update --prefer-dist --no-interaction --no-progress
+      - name: Verify resolved Laravel major
+        run: |
+          resolved=$(composer show laravel/framework | awk '/^versions / { print $4 }' | sed 's/^v//' | cut -d. -f1)
+          if [ "$resolved" != "${{ matrix.laravel-major }}" ]; then
+            echo "::error::Expected Laravel ${{ matrix.laravel-major }}.x but composer resolved $resolved.x"
+            exit 1
+          fi
       - name: Run tests
         run: vendor/bin/pest --no-coverage --log-junit build/junit.xml
