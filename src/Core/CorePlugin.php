@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Core;
 
+use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Core\ErrorContributors\MiddlewareErrorContributor;
@@ -59,6 +60,10 @@ final class CorePlugin implements Plugin
         $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
+
+        // Register FormRequest so SuppressionCollector descends into its #[IgnoreLint] attributes
+        // via the param-walk path (fromDataParameter checks against registered payload classes).
+        $registry->addPayloadClass(FormRequest::class);
 
         foreach (self::RULES as $rule) {
             $registry->addRule($rule);
