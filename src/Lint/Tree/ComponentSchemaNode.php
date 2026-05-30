@@ -22,12 +22,15 @@ final class ComponentSchemaNode implements Node
 
     /**
      * @param list<FieldNode> $fields
+     * @param ?string         $sourceClass The PHP class that produced this component schema, or
+     *                                     null for named-envelope schemas with no source class.
      */
     public function __construct(
         public readonly string $name,
         public readonly ?string $description,
         public readonly array $fields,
         public readonly ?OA\Schema $raw,
+        public readonly ?string $sourceClass = null,
     ) {}
 
     /**

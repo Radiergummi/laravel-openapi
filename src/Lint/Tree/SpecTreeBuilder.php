@@ -55,6 +55,17 @@ final class SpecTreeBuilder
     private array $componentSchemaIndex = [];
 
     /**
+     * @param array<string, string> $componentClassMap Component key → originating PHP class,
+     *                                                 as returned by
+     *                                                 {@see ComponentSchemaRegistry::componentClassMap()}.
+     *                                                 Used to populate
+     *                                                 {@see ComponentSchemaNode::$sourceClass}.
+     */
+    public function __construct(
+        private readonly array $componentClassMap = [],
+    ) {}
+
+    /**
      * Build the domain tree from an OpenAPI spec and action descriptors.
      *
      * @param list<ActionDescriptor> $actionDescriptors
@@ -403,7 +414,7 @@ final class SpecTreeBuilder
                 hasSchema: $schema !== null && $schema !== Generator::UNDEFINED,
                 style: SchemaAccessor::undefinedToNull($param->style),
                 explode: $param->explode !== Generator::UNDEFINED
-                    ? (bool)$param->explode
+                    ? (bool) $param->explode
                     : null,
                 description: SchemaAccessor::undefinedToNull($param->description),
                 enum: SchemaAccessor::extractSchemaEnum($schema),
@@ -907,7 +918,7 @@ final class SpecTreeBuilder
             } elseif (is_array($requirement)) {
                 foreach ($requirement as $scheme => $scopes) {
                     $result[] = [
-                        'scheme' => (string)$scheme,
+                        'scheme' => (string) $scheme,
                         'scopes' => is_array($scopes)
                             ? array_values(array_map('strval', $scopes))
                             : [],
@@ -978,6 +989,7 @@ final class SpecTreeBuilder
                 description: $description,
                 fields: $fields,
                 raw: $schema,
+                sourceClass: $this->componentClassMap[$name] ?? null,
             );
 
             foreach ($fields as $field) {

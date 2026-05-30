@@ -28,6 +28,7 @@ use Radiergummi\OpenApi\Lint\Tree\SpecTreeWalker;
 use Radiergummi\OpenApi\Lint\Visitors\RouteRule;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
@@ -93,6 +94,7 @@ final readonly class LintRunner
         private OpenApiGenerationOrchestrator $orchestrator,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
+        private ComponentSchemaRegistry $componentSchemaRegistry,
         #[Config('openapi.lint.enabled_rules')]
         private ?array $enabledRules = null,
         #[Config('openapi.lint.disabled_rules', [])]
@@ -387,7 +389,9 @@ final readonly class LintRunner
             );
         }
 
-        $treeBuilder = new SpecTreeBuilder();
+        $treeBuilder = new SpecTreeBuilder(
+            componentClassMap: $this->componentSchemaRegistry->componentClassMap(),
+        );
         $api = $treeBuilder->build($document, $descriptors);
 
         $registeredScopes = class_exists(Passport::class)

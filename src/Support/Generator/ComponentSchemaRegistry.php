@@ -353,6 +353,32 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * Returns the `componentKey → class-string` map for keys whose schema was registered for a
+     * real class. Keys reserved via {@see registerNamed()} are excluded (their owner is the
+     * `NAMED_KEY_OWNER` sentinel, which is not a real class).
+     *
+     * Used by the lint suppression collector to walk every class that produced a component schema
+     * for class-level `#[IgnoreLint]` attributes — needed because some payload classes (return-
+     * typed `JsonResource`s) are never observed as method parameters.
+     *
+     * @return array<string, string>
+     */
+    public function componentClassMap(): array
+    {
+        $map = [];
+
+        foreach ($this->keyToClass as $key => $owner) {
+            if ($owner === self::NAMED_KEY_OWNER) {
+                continue;
+            }
+
+            $map[$key] = $owner;
+        }
+
+        return $map;
+    }
+
+    /**
      * @return list<OA\Schema>
      */
     public function all(): array
