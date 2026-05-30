@@ -106,11 +106,14 @@ final readonly class SchemaFromFormRequest
         }
 
         try {
-            // SpecTimeRequest wires a permissive route + user resolver so rules() bodies that
-            // read $this->route('foo')->bar or $this->user()->bar resolve to AnyValue rather
-            // than throwing on null. The catch below still fires for the residual cases
-            // (rules() branching on type checks, calls into unbound container services).
-            $instance = new $formRequestClass();
+            // SpecTimeRequest::resolveConstructorDeps() resolves any typed constructor args
+            // through the container so FormRequests with constructor DI build correctly; then
+            // SpecTimeRequest::configure() wires a permissive route + user resolver so rules()
+            // bodies that read $this->route('foo')->bar or $this->user()->bar resolve to
+            // AnyValue rather than throwing on null. The catch below still fires for the
+            // residual cases (rules() branching on type checks, calls into unbound services).
+            $args = SpecTimeRequest::resolveConstructorDeps($formRequestClass);
+            $instance = new $formRequestClass(...$args);
             SpecTimeRequest::configure($instance);
             $rules = $instance->rules();
         } catch (Throwable $exception) {

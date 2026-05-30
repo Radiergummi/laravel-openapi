@@ -54,6 +54,35 @@ it('lets rules() run to completion when it reads the auth user', function (): vo
         ->and($rules)->toHaveKey('customer_id');
 });
 
+it('resolves FormRequests with constructor dependencies through the container', function (): void {
+    // Bagisto-style: a FormRequest with typed constructor args is valid Laravel — the framework
+    // resolves it through the container at request time. `new $class()` (zero-arg) would raise
+    // ArgumentCountError; SpecTimeRequest::wire() must do the same container resolution.
+    $request = SpecTimeRequest::wire(ConstructorInjectedFormRequest::class);
+
+    expect($request)->toBeInstanceOf(ConstructorInjectedFormRequest::class)
+        ->and($request->rules())->toBe(['sku' => 'required|string']);
+});
+
+final class ConstructorInjectedFormRequestDependency
+{
+    public string $marker = 'resolved';
+}
+
+final class ConstructorInjectedFormRequest extends FormRequest
+{
+    public function __construct(
+        public readonly ConstructorInjectedFormRequestDependency $dependency,
+    ) {
+        parent::__construct();
+    }
+
+    public function rules(): array
+    {
+        return ['sku' => 'required|string'];
+    }
+}
+
 final class EmptyRulesFormRequest extends FormRequest
 {
     public function rules(): array
