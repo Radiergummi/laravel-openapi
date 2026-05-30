@@ -9,9 +9,11 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Lint\SuppressionCollector;
 use Radiergummi\OpenApi\Lint\SuppressionScope;
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint\IgnoreLintFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint\SnakeCasedFormRequest;
@@ -42,4 +44,10 @@ it('collects a class-level IgnoreLint directive from a FormRequest method parame
 
     expect($classDirectives)->toHaveCount(1)
         ->and($classDirectives[0]->ruleId)->toBe('field.name-naming-inconsistent');
+});
+
+it('registers JsonResource as a payload class when ApiResourcesPlugin is enabled', function (): void {
+    $payloadClasses = app(OpenApiRegistry::class)->payloadClasses();
+
+    expect($payloadClasses)->toContain(JsonResource::class);
 });

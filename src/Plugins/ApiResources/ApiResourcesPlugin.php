@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
+use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
@@ -30,5 +31,8 @@ final class ApiResourcesPlugin implements Plugin
         $registry->addRule(ResourceFieldsUndeclared::class);
         $registry->addRule(ResourceFieldTypeMissing::class);
         $registry->addRule(ResourceResponseAmbiguous::class);
+
+        // Register JsonResource as a payload class so SuppressionCollector recognizes subclasses
+        $registry->addPayloadClass(JsonResource::class);
     }
 }
