@@ -124,12 +124,38 @@ Naming rules read their expected case convention from `config/openapi.lint.style
 | `operation_id_case` | `dot` | `operation.id-naming-inconsistent` |
 | `property_name_case` | `camel` | `field.name-naming-inconsistent` |
 | `path_segment_case` | `kebab` | `path.segment-naming-inconsistent` |
-| `parameter_name_case` | `snake` | `parameter.name-naming-inconsistent` |
+| `path_parameter_case` | `camel` | `parameter.name-naming-inconsistent` (path parameters) |
+| `query_parameter_case` | `snake` | `parameter.name-naming-inconsistent` (query parameters) |
 | `tag_case` | `pascal` | `tag.name-naming-inconsistent` |
 | `header_case` | `train` | `header.name-naming-inconsistent` |
 
 Supported case values: `dot`, `kebab`, `snake`, `camel`, `pascal`, `train`,
 `screaming_snake`.
+
+### Notes on the defaults
+
+- **`operation_id_case = dot`** accepts kebab-case segments inside the
+  dot-separated identifier, so `auth.resolve-account` and
+  `api.v0.projects.list-active` pass alongside strict lowercase-dot
+  identifiers like `api.v0.projects.index`. Names like `get_mcp` or
+  `apiV0ProjectsIndex` still fail.
+- **`path_parameter_case = camel`** matches Laravel's route-binding idiom —
+  the parameter name comes from the controller method's variable
+  (`$deviceId` → `{deviceId}`).
+- **`query_parameter_case = snake`** matches the JSON:API convention
+  (`per_page`, `sort_by`).
+- **`path_segment_case = kebab`** accepts a short file-extension tail on a
+  segment: a tail of `.<ext>` where `<ext>` matches `^[a-z0-9]{1,8}$` and
+  the head conforms to the configured case. Examples that pass:
+  `/api/openapi.yaml`, `/feed.atom`, `/sitemap.xml`,
+  `/reports/quarterly.pdf`. Examples that still fail: `/api/Some.yaml`
+  (uppercase head), `/api/file.YAML` (uppercase tail),
+  `/api/name.somelongextension` (tail longer than 8 chars).
+- **`component_name_case = pascal`** (the default for component schema
+  names) covers the basename-collision disambiguator's output: when two
+  payload classes share a basename, the registry produces a PascalCase
+  concatenation such as `UsersContactInfoRequest`, which the default rule
+  passes without further configuration.
 
 ## Static checks (PHPStan)
 
@@ -203,7 +229,7 @@ plugin-registered rules.
 | `parameter.path-must-be-required` | 0 | Path parameter is not marked required: true. |
 | `parameter.query-no-schema` | 0 | Query parameter has no schema. |
 | `path.parameter-undeclared` | 0 | Path template uses a variable not declared as a parameter. |
-| `path.parameter-undefined` | 0 | A declared path parameter doesn't appear in the path template. |
+| `path.parameter-undefined` | 0 | A declared path parameter doesn't appear in the path template. Both `{name}` and `{name?}` placeholders satisfy the rule regardless of the OAS `required` flag (Laravel's optional-segment URI syntax is the source of truth for placeholders). |
 | `queryparam.duplicate` | 0 | Two #[QueryParam] attributes on the same controller/method share the same name. |
 | `ref.broken` | 0 | A $ref points to a component that doesn't exist in the spec. |
 | `response.description-missing` | 0 | Response has no description. OAS 3.1 requires description on every Response Object. |
@@ -234,7 +260,7 @@ plugin-registered rules.
 | `publicendpoint.contradicts-middleware` | 1 | #[PublicEndpoint] is present but the route has auth/scope middleware. |
 | `request-body.no-content` | 1 | A requestBody object has no media-type entries. |
 | `request-body.on-get-or-delete` | 1 | GET or DELETE operation has a request body. |
-| `resource.fields-undeclared` | 1 | An API Resource used as a response declares no #[ResourceField] attributes. |
+| `resource.fields-undeclared` | 1 | An API Resource used as a response declares no #[ResourceField] attributes. Skipped when the resolved resource class is the abstract `Illuminate\Http\Resources\Json\JsonResource` base or any abstract subclass — anonymous `Model::toResource()` returns are passed silently, with `resource.response-ambiguous` handling the "no concrete resource class" signal. |
 | `resource.response-ambiguous` | 1 | A resource collection response has no #[ResponseResource] naming its item class. |
 | `response.no-error` | 1 | Operation has no error responses (4xx/5xx). |
 | `schema.allof-type-conflict` | 1 | allOf members declare conflicting type values. |
@@ -277,7 +303,7 @@ plugin-registered rules.
 | `meta.unknown-rule` | 3 | #[IgnoreLint] references a rule ID not in the registry. |
 | `operation.id-naming-inconsistent` | 3 | operationId doesn't follow the configured operation_id_case convention. |
 | `operation.summary-equals-description` | 3 | Operation summary and description are identical (redundant). |
-| `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured parameter_name_case convention. |
+| `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured `path_parameter_case` (path parameters) or `query_parameter_case` (query parameters) convention. |
 | `path.segment-naming-inconsistent` | 3 | URL path segment doesn't follow the configured path_segment_case convention. |
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
