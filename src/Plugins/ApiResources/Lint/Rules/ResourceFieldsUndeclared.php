@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
+use Illuminate\Http\Resources\Json\JsonResource;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
@@ -19,6 +20,7 @@ use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+use ReflectionClass;
 
 use function sprintf;
 
@@ -50,6 +52,13 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
 
         /** @var class-string $resourceClass */
         $resourceClass = $target->resourceClass;
+
+        if (
+            $resourceClass === JsonResource::class
+            || new ReflectionClass($resourceClass)->isAbstract()
+        ) {
+            return;
+        }
 
         if ($context->reflectionCache->classAttributes($resourceClass, ResourceField::class) !== []) {
             return;
