@@ -185,9 +185,14 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * Whether {@see buildOnce()} is currently building a schema for `$className` higher up the
+     * call stack. Public so plugin code that recurses into the registry from a `buildOnce`
+     * factory can detect the re-entrance and choose a `$ref`-shaped placeholder rather than
+     * triggering a nested rebuild.
+     *
      * @param class-string $className
      */
-    private function isInProgress(string $className): bool
+    public function isInProgress(string $className): bool
     {
         return array_key_exists($className, $this->inProgress);
     }

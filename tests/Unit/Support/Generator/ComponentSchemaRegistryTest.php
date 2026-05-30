@@ -191,3 +191,22 @@ it('produces a valid (no leading dot) key when all namespace segments are generi
 });
 
 // endregion
+
+// region isInProgress — public re-entrance detection
+
+it('exposes isInProgress() so plugin code can detect re-entrant builds', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $observed = null;
+
+    $registry->buildOnce(stdClass::class, static function () use ($registry, &$observed): OA\Schema {
+        // Inside the factory, the registry knows this class is currently being built.
+        $observed = $registry->isInProgress(stdClass::class);
+
+        return new OA\Schema(['type' => 'object']);
+    });
+
+    expect($observed)->toBeTrue()
+        ->and($registry->isInProgress(stdClass::class))->toBeFalse();
+});
+
+// endregion
