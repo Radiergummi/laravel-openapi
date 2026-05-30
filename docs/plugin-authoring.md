@@ -179,3 +179,120 @@ same class-string registration pattern.
 > [severity convention](linting.md#severity-levels): level 0 for broken-spec
 > contributions, level 1 for "lies about the API", level 2 for missing
 > documentation, level 3+ for style.
+
+## Public contracts and helpers
+
+The library exposes three surfaces plugin authors can rely on. All ship under
+the regular package autoload — they're not test-only.
+
+### `Contracts\Routing\ResourceTargetLocator`
+
+Resolves the resource class an action returns and whether the response is a
+collection. Inject it into a `PrimaryResponseResolver` for any resource
+convention (JSON:API, HAL, Fractal, …) and detection stays aligned with the
+bundled `JsonResource` rules (`#[Collects]`, `$collects`, `#[ResponseResource]`).
+
+```php
+use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Routing\ResourceTarget;
+
+final readonly class JsonApiPrimaryResponseResolver
+{
+    public function __construct(
+        private ResourceTargetLocator $locator,
+    ) {}
+
+    public function resolveResponse(ActionDescriptor $descriptor): mixed
+    {
+        $target = $this->locator->locate($descriptor);
+
+        if ($target === null || $target->isAmbiguous()) {
+            return null;
+        }
+
+        // $target->resourceClass is the JsonResource subclass; $target->isCollection
+        // tells you whether to wrap in a list response.
+        // …
+    }
+}
+```
+
+The container resolves it to `Plugins\ApiResources\ResourceClassLocator` — the
+binding lives in `OpenApiServiceProvider::register()` and is always-on,
+regardless of which plugins are enabled.
+
+### `Testing\ActionDescriptorFactory`
+
+Builds `ActionDescriptor` instances for plugin tests with a one-line call.
+Use it instead of hand-wiring `Route` + `ReflectionMethod` + the constructor.
+
+```php
+use Radiergummi\OpenApi\Testing\ActionDescriptorFactory;
+
+$descriptor = ActionDescriptorFactory::make(
+    controller: MyController::class,
+    method: 'index',
+    uri: '/items',
+    httpMethods: ['GET'],
+);
+```
+
+Named arguments override defaults; the only required ones are `controller`
+and `method`.
+
+### `Testing\SchemaContextScope`
+
+Pins swagger-php's global context to OAS 3.1.0 while a callable runs. Required
+when constructing `OA\Schema` instances outside the generator pipeline (e.g.
+in unit tests that exercise a resolver's schema output directly), because
+swagger-php's default context is 3.0.0, which silently rewrites 3.1-only
+keywords (`const`, `examples`) on `jsonSerialize()`.
+
+```php
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Testing\SchemaContextScope;
+
+$json = SchemaContextScope::with(function (): string {
+    $schema = new OA\Schema(['const' => 'value']);
+
+    return json_encode($schema, JSON_THROW_ON_ERROR);
+});
+
+// $json contains "const":"value", not "enum":["value"]
+```
+
+During real spec generation the library already pins this context; the helper
+is only needed for standalone schema construction in tests.
+
+### Extending `ComponentSchemaRegistry`
+
+The canonical entry point is `buildOnce($className, fn(): OA\Schema => …)`.
+It reserves a component key for the class, calls the factory if no schema is
+registered yet, stores the result, and returns the qualified component key
+(e.g. `#/components/schemas/MyDto`) suitable for use as a `$ref`. Two related
+public methods:
+
+- `keyFor(string $className): ?string` — look up the component key for an
+  already-registered class.
+- `isInProgress(string $className): bool` — true when `buildOnce` is currently
+  building this class higher up the stack. Use it from a factory that
+  recurses into the registry for a *nested* type, so you can emit a `$ref`
+  placeholder instead of triggering a nested rebuild.
+
+```php
+$ref = $registry->buildOnce(MyDto::class, function () use ($registry): OA\Schema {
+    // Building a nested DTO that may cycle back to MyDto:
+    $nestedRef = $registry->isInProgress(NestedDto::class)
+        ? $registry->keyFor(NestedDto::class)
+        : $registry->buildOnce(NestedDto::class, fn () => buildNestedSchema());
+
+    return new OA\Schema([
+        'properties' => [
+            new OA\Property(property: 'nested', ref: $nestedRef),
+        ],
+    ]);
+});
+
+// $ref === '#/components/schemas/MyDto'
+```
