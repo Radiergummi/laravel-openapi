@@ -38,9 +38,19 @@ final class SpecTimeRequest
     public static function wire(string $formRequestClass): FormRequest
     {
         $instance = new $formRequestClass();
-        $instance->setRouteResolver(static fn(): SpecTimeRoute => new SpecTimeRoute());
-        $instance->setUserResolver(static fn(): AnyValue => AnyValue::instance());
+        self::configure($instance);
 
         return $instance;
+    }
+
+    /**
+     * Configures the given FormRequest instance with permissive route + user resolvers in place.
+     * Use when the caller already holds a class-string-narrowed instance and {@see wire()}'s
+     * generic return would erase that narrowing.
+     */
+    public static function configure(FormRequest $instance): void
+    {
+        $instance->setRouteResolver(static fn(): SpecTimeRoute => new SpecTimeRoute());
+        $instance->setUserResolver(static fn(): AnyValue => AnyValue::instance());
     }
 }

@@ -18,6 +18,7 @@ use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Core\Lint\RequestBodySchemaDegraded;
+use Radiergummi\OpenApi\Core\Support\SpecTime\SpecTimeRequest;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -105,7 +106,12 @@ final readonly class SchemaFromFormRequest
         }
 
         try {
+            // SpecTimeRequest wires a permissive route + user resolver so rules() bodies that
+            // read $this->route('foo')->bar or $this->user()->bar resolve to AnyValue rather
+            // than throwing on null. The catch below still fires for the residual cases
+            // (rules() branching on type checks, calls into unbound container services).
             $instance = new $formRequestClass();
+            SpecTimeRequest::configure($instance);
             $rules = $instance->rules();
         } catch (Throwable $exception) {
             $this->logger->warning(

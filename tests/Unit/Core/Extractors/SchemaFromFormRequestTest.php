@@ -18,8 +18,11 @@ use Radiergummi\OpenApi\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Tests\Fixtures\DeeplyChainedFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
+use Radiergummi\OpenApi\Tests\Fixtures\RouteBoundFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
+use Radiergummi\OpenApi\Tests\Fixtures\UserBoundFormRequest;
 
 uses()->group('openapi');
 
@@ -194,6 +197,57 @@ it('registers a placeholder schema, logs a warning, and emits a finding when rul
         ->and($emitted[0]->level)->toBe(1)
         ->and($emitted[0]->message)->toContain('DB not available')
         ->and($emitted[0]->message)->toContain($brokenClassName);
+});
+
+// endregion
+
+// region Runtime-state stubbing
+
+it('builds a schema for a FormRequest whose rules() reads a route binding', function (): void {
+    $schema = $this->builder->build(RouteBoundFormRequest::class);
+
+    expect($schema)->toBeInstanceOf(OA\Schema::class);
+
+    $schemas = $this->registry->all();
+
+    expect($schemas)->toHaveCount(1);
+
+    $properties = formRequestPropertiesByName($schemas[0]);
+
+    expect($properties)->toHaveKeys(['status', 'request_uuid', 'group_uuid', 'error'])
+        ->and($properties['request_uuid']->type)->toBe('string')
+        ->and($properties['request_uuid']->format)->toBe('uuid');
+
+    expect($this->findings->all())->toBe([]);
+});
+
+it('builds a schema for a FormRequest whose rules() reads $this->user()', function (): void {
+    $schema = $this->builder->build(UserBoundFormRequest::class);
+
+    expect($schema)->toBeInstanceOf(OA\Schema::class);
+
+    $schemas = $this->registry->all();
+    $properties = formRequestPropertiesByName($schemas[0]);
+
+    expect($properties)->toHaveKeys(['email', 'customer_id'])
+        ->and($properties['email']->type)->toBe('string')
+        ->and($properties['customer_id']->type)->toBe('integer');
+
+    expect($this->findings->all())->toBe([]);
+});
+
+it('builds a schema for a FormRequest whose rules() chains deeply through $this->user()', function (): void {
+    $schema = $this->builder->build(DeeplyChainedFormRequest::class);
+
+    expect($schema)->toBeInstanceOf(OA\Schema::class);
+
+    $schemas = $this->registry->all();
+    $properties = formRequestPropertiesByName($schemas[0]);
+
+    expect($properties)->toHaveKeys(['assigned_to', 'note'])
+        ->and($properties['assigned_to']->type)->toBe('integer');
+
+    expect($this->findings->all())->toBe([]);
 });
 
 // endregion
