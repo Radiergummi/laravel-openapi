@@ -223,10 +223,9 @@ final readonly class LintRunner
             // ComponentSchemaRegistry scoped instance. Re-resolve so componentClassMap() reflects
             // the schemas registered during generation, not the stale pre-generation instance.
             $liveRegistry = $this->container->make(ComponentSchemaRegistry::class);
+            $classMap = $liveRegistry->componentClassMap();
 
-            $componentDirectives = $this->suppressionCollector->collectFromComponentSchemas(
-                $liveRegistry->componentClassMap(),
-            );
+            $componentDirectives = $this->suppressionCollector->collectFromComponentSchemas($classMap);
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
 
@@ -239,7 +238,7 @@ final readonly class LintRunner
                 $level,
                 $only,
                 $skip,
-                componentClassMap: $liveRegistry->componentClassMap(),
+                componentClassMap: $classMap,
             );
 
             foreach ($specLocal->all() as $finding) {
