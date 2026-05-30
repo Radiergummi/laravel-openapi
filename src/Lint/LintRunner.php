@@ -94,7 +94,6 @@ final readonly class LintRunner
         private OpenApiGenerationOrchestrator $orchestrator,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
-        private ComponentSchemaRegistry $componentSchemaRegistry,
         #[Config('openapi.lint.enabled_rules')]
         private ?array $enabledRules = null,
         #[Config('openapi.lint.disabled_rules', [])]
@@ -220,8 +219,13 @@ final readonly class LintRunner
 
             $document = $this->orchestrator->generateOne($spec->name);
 
+            // generateOne() calls forgetScopedInstances() internally, which replaces the
+            // ComponentSchemaRegistry scoped instance. Re-resolve so componentClassMap() reflects
+            // the schemas registered during generation, not the stale pre-generation instance.
+            $liveRegistry = $this->container->make(ComponentSchemaRegistry::class);
+
             $componentDirectives = $this->suppressionCollector->collectFromComponentSchemas(
-                $this->componentSchemaRegistry->componentClassMap(),
+                $liveRegistry->componentClassMap(),
             );
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
@@ -235,6 +239,7 @@ final readonly class LintRunner
                 $level,
                 $only,
                 $skip,
+                componentClassMap: $liveRegistry->componentClassMap(),
             );
 
             foreach ($specLocal->all() as $finding) {
@@ -353,6 +358,7 @@ final readonly class LintRunner
      * @param list<SuppressionDirective> $suppressions
      * @param list<string>               $only
      * @param list<string>               $skip
+     * @param array<string, class-string> $componentClassMap
      *
      * @throws \LogicException
      */
@@ -365,6 +371,7 @@ final readonly class LintRunner
         int $level,
         array $only,
         array $skip,
+        array $componentClassMap = [],
     ): void {
         // region Tree walk
 
@@ -397,7 +404,7 @@ final readonly class LintRunner
         }
 
         $treeBuilder = new SpecTreeBuilder(
-            componentClassMap: $this->componentSchemaRegistry->componentClassMap(),
+            componentClassMap: $componentClassMap,
         );
         $api = $treeBuilder->build($document, $descriptors);
 

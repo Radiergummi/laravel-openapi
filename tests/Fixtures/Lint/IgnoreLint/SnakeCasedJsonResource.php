@@ -13,8 +13,11 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Attributes\IgnoreLint;
+use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 
 #[IgnoreLint('field.name-naming-inconsistent', reason: 'mirrors snake_case wire format')]
+#[ResourceField('error_description', type: 'string')]
+#[ResourceField('error_uri', type: 'string', conditional: true)]
 final class SnakeCasedJsonResource extends JsonResource
 {
     /** @return array<string, mixed> */
