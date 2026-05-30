@@ -18,7 +18,7 @@ uses()->group('openapi', 'lint');
 it('populates ComponentSchemaNode::sourceClass from the supplied component class map', function (): void {
     $context = new Context();
     $schema = new OA\Schema([
-        'schema' => 'Some',
+        'schema' => 'stdClass',
         'properties' => [new OA\Property(['property' => 'name', 'type' => 'string', '_context' => $context])],
         '_context' => $context,
     ]);
@@ -29,11 +29,11 @@ it('populates ComponentSchemaNode::sourceClass from the supplied component class
         '_context' => $context,
     ]);
 
-    $builder = new SpecTreeBuilder(componentClassMap: ['Some' => 'App\\Some']);
+    $builder = new SpecTreeBuilder(componentClassMap: ['stdClass' => stdClass::class]);
     $api = $builder->build($document, []);
 
     expect($api->components)->toHaveCount(1)
-        ->and($api->components[0]->sourceClass)->toBe('App\\Some');
+        ->and($api->components[0]->sourceClass)->toBe(stdClass::class);
 });
 
 it('leaves ComponentSchemaNode::sourceClass null when no class is mapped for the key', function (): void {

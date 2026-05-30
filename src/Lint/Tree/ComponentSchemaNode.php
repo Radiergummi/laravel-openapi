@@ -21,9 +21,9 @@ final class ComponentSchemaNode implements Node
     private ?Node $parent = null;
 
     /**
-     * @param list<FieldNode> $fields
-     * @param ?string         $sourceClass The PHP class that produced this component schema, or
-     *                                     null for named-envelope schemas with no source class.
+     * @param list<FieldNode>   $fields
+     * @param null|class-string $sourceClass The PHP class that produced this component schema, or
+     *                                       null for named-envelope schemas with no source class.
      */
     public function __construct(
         public readonly string $name,

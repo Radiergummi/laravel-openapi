@@ -361,7 +361,7 @@ final class ComponentSchemaRegistry
      * for class-level `#[IgnoreLint]` attributes — needed because some payload classes (return-
      * typed `JsonResource`s) are never observed as method parameters.
      *
-     * @return array<string, string>
+     * @return array<string, class-string>
      */
     public function componentClassMap(): array
     {
@@ -372,7 +372,9 @@ final class ComponentSchemaRegistry
                 continue;
             }
 
-            $map[$key] = $owner;
+            /** @var class-string $classString */
+            $classString = $owner;
+            $map[$key] = $classString;
         }
 
         return $map;

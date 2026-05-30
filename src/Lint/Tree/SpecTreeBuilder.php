@@ -55,11 +55,11 @@ final class SpecTreeBuilder
     private array $componentSchemaIndex = [];
 
     /**
-     * @param array<string, string> $componentClassMap Component key → originating PHP class,
-     *                                                 as returned by
-     *                                                 {@see ComponentSchemaRegistry::componentClassMap()}.
-     *                                                 Used to populate
-     *                                                 {@see ComponentSchemaNode::$sourceClass}.
+     * @param array<string, class-string> $componentClassMap Component key → originating PHP class,
+     *                                                       as returned by
+     *                                                       {@see ComponentSchemaRegistry::componentClassMap()}.
+     *                                                       Used to populate
+     *                                                       {@see ComponentSchemaNode::$sourceClass}.
      */
     public function __construct(
         private readonly array $componentClassMap = [],
