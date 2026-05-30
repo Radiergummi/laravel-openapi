@@ -29,4 +29,11 @@
             <html outputDirectory=".cache/coverage"/>
         </report>
     </coverage>
+    <php>
+        <!-- DocsController routes default to the `web` middleware stack, which loads
+             EncryptCookies / StartSession. Both require APP_KEY. Setting a fixed test
+             key here keeps Testbench-driven HTTP request tests working without each
+             test having to wire its own encryption key into defineEnvironment(). -->
+        <env name="APP_KEY" value="base64:RmI4VHpsM3hVcjVxZUtBNlBZRGN3aFB4WGZJNVlOcEU="/>
+    </php>
 </phpunit>
