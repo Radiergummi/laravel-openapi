@@ -130,12 +130,12 @@ and array iteration on the stub all terminate without throwing, so the rules
 array's *structure* (keys, types, required-ness) is preserved.
 
 The stub values inside `Rule::in([...])`, `Rule::unique(...)->ignore(...)`, and
-similar are opaque placeholders. That's fine — the schema generator only reads
-each rule's *type and shape*, not its arguments, so `Rule::in([$stub])` becomes
-the same schema fragment as `Rule::in(['active', 'paused'])`: an enum
-constraint whose values are absent from the spec. Author `#[RequestField(enum: [...])]`
-or `#[RequestField(example: ...)]` on the FormRequest's `PARAM_*` constant to
-supply concrete values where they matter.
+similar are opaque placeholders, so the constraint is dropped from the schema —
+the stub stringifies to an empty value and the `enum` key is omitted entirely.
+That's expected: the rule's *values* aren't part of the schema shape, only the
+rule's *presence* (validation requires this field to be one of an enumeration)
+is. To supply enum values for documentation, author `#[RequestField(enum: [...])]`
+or `#[RequestField(example: ...)]` on the FormRequest's `PARAM_*` constant.
 
 ### Limitation: branching on runtime state
 
@@ -152,7 +152,7 @@ When this is the wrong default:
 - Or suppress the lint rule on the FormRequest class:
 
   ```php
-  #[IgnoreLint(
+  #[OpenApi\IgnoreLint(
       'request-body.schema-degraded',
       reason: 'rules() branches on $this->user()->role; documented elsewhere',
   )]
