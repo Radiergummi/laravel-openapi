@@ -352,11 +352,11 @@ final readonly class LintRunner
      * bucket as the tree-walk findings; this method only emits into the bucket and leaves draining
      * to the caller.
      *
-     * @param list<Rule>                 $rules
-     * @param list<ActionDescriptor>     $descriptors
-     * @param list<SuppressionDirective> $suppressions
-     * @param list<string>               $only
-     * @param list<string>               $skip
+     * @param list<Rule>                  $rules
+     * @param list<ActionDescriptor>      $descriptors
+     * @param list<SuppressionDirective>  $suppressions
+     * @param list<string>                $only
+     * @param list<string>                $skip
      * @param array<string, class-string> $componentClassMap
      *
      * @throws \LogicException
