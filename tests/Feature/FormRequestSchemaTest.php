@@ -105,3 +105,30 @@ it('emits file field as type=string format=binary in multipart schema', function
 });
 
 // endregion
+
+// region Runtime-state stubbing
+
+it('emits a complete schema for a FormRequest whose rules() reads $this->route()', function (): void {
+    Route::post(
+        '/oa-fixture/route-bound/{contactInfoRequest}',
+        [\Radiergummi\OpenApi\Tests\Fixtures\RouteBoundFixtureController::class, 'callback'],
+    );
+
+    $spec = generateSpec();
+
+    $body = $spec['paths']['/oa-fixture/route-bound/{contactInfoRequest}']['post']['requestBody'] ?? null;
+    expect($body)->not->toBeNull();
+
+    $schemaName = schemaNameFromRef($body['content']['application/json']['schema']['$ref']);
+    $schema = $spec['components']['schemas'][$schemaName];
+
+    // The placeholder schema only has type+description and no `properties` key; a complete one
+    // has the rules-derived properties.
+    expect($schema)->toHaveKey('properties')
+        ->and($schema['description'] ?? '')->not->toContain('Schema introspection failed');
+
+    expect($schema['properties'])->toHaveKeys(['status', 'request_uuid', 'group_uuid', 'error'])
+        ->and($schema['required'])->toContain('status', 'request_uuid', 'group_uuid');
+});
+
+// endregion
