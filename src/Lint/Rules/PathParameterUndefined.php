@@ -38,8 +38,8 @@ final class PathParameterUndefined implements Rule, OperationRuleVisitor
     {
         foreach ($operation->parameters as $parameter) {
             if (
-                ($parameter->required && str_contains($operation->pathUri, "{{$parameter->name}}"))
-                || (!$parameter->required && str_contains($operation->pathUri, "{{$parameter->name}?}"))
+                str_contains($operation->pathUri, "{{$parameter->name}}")
+                || str_contains($operation->pathUri, "{{$parameter->name}?}")
             ) {
                 continue;
             }

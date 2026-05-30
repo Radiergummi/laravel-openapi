@@ -87,3 +87,20 @@ it('emits findings for multiple undefined path parameters', function (): void {
         ->and($findings[0]->message)->toContain('alpha')
         ->and($findings[1]->message)->toContain('beta');
 });
+
+it('accepts a parameter paired with a Laravel optional-segment placeholder', function (string $pathUri): void {
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: $pathUri,
+        parameters: [OperationNodeFactory::makeParameter(name: 'path')],
+        responses: [],
+    );
+
+    $findings = iterator_to_array(
+        new PathParameterUndefined()->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toBe([]);
+})->with([
+    'optional only'     => '/foo/{path?}',
+    'static + optional' => '/.well-known/oauth-protected-resource/{path?}',
+]);
