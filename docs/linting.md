@@ -95,6 +95,26 @@ Meta-rules enforce directive hygiene:
 - `meta.too-many-suppressions`: a symbol carries an excessive number of
   directives.
 
+### Where can `#[IgnoreLint]` go?
+
+The attribute can target controllers, controller methods, and the payload classes a plugin
+teaches Core about. For class-level placements, the directive suppresses findings on every
+property of the component schema that class produces.
+
+| Scope    | Controller | Controller method | FormRequest | Spatie `Data` | `JsonResource` |
+|----------|------------|-------------------|-------------|---------------|----------------|
+| Class    | ✓          | —                 | ✓           | ✓             | ✓              |
+| Method   | —          | ✓                 | —           | —             | —              |
+| Property | —          | —                 | ✓ (1)       | ✓             | —              |
+
+(1) FormRequest properties: place `#[IgnoreLint]` on a typed property if the request DTO is
+declared with promoted constructor properties or class fields. For the rules-array idiom,
+property-level suppressions are not available — use class-level scope instead.
+
+`JsonResource` reaches the collector through the component-schema registry post-generation,
+so `#[IgnoreLint]` on a `JsonResource` subclass works without the class appearing as a
+constructor parameter.
+
 ## Style conventions (naming rules)
 
 Naming rules read their expected case convention from `config/openapi.lint.style`:
