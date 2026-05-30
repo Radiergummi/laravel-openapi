@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
+use Illuminate\Http\Resources\Attributes\Collects;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use LogicException;
@@ -22,6 +23,19 @@ use stdClass;
 
 class LocatorFixtureResource extends JsonResource {}
 class LocatorFixtureCollection extends ResourceCollection {}
+
+class W4CollectsItemResource extends JsonResource {}
+
+#[Collects(W4CollectsItemResource::class)]
+class W4CollectsAttributeCollection extends ResourceCollection {}
+
+class W4CollectsPropertyCollection extends ResourceCollection
+{
+    /** @var class-string<JsonResource> */
+    public $collects = W4CollectsItemResource::class;
+}
+
+class W4CollectsAmbiguousCollection extends ResourceCollection {}
 
 class LocatorFixtureController
 {
@@ -50,6 +64,21 @@ class LocatorFixtureController
     public function attributedNonResource(): string
     {
         return '';
+    }
+
+    public function attributeReturn(): W4CollectsAttributeCollection
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function propertyReturn(): W4CollectsPropertyCollection
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function ambiguousReturn(): W4CollectsAmbiguousCollection
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
     }
 }
 
@@ -86,4 +115,31 @@ it('returns null when the action does not return a resource', function (): void 
 
 it('returns null when #[ResponseResource] names a non-JsonResource class', function (): void {
     expect(new ResourceClassLocator()->locate(locatorDescriptor('attributedNonResource')))->toBeNull();
+});
+
+it('resolves the item class from Laravels Collects attribute', function (): void {
+    $target = new ResourceClassLocator()->locate(locatorDescriptor('attributeReturn'));
+
+    expect($target)
+        ->not->toBeNull()
+        ->and($target?->resourceClass)->toBe(W4CollectsItemResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('resolves the item class from a $collects property on the collection subclass', function (): void {
+    $target = new ResourceClassLocator()->locate(locatorDescriptor('propertyReturn'));
+
+    expect($target)
+        ->not->toBeNull()
+        ->and($target?->resourceClass)->toBe(W4CollectsItemResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('still reports ambiguous when neither #[Collects] nor $collects is present', function (): void {
+    $target = new ResourceClassLocator()->locate(locatorDescriptor('ambiguousReturn'));
+
+    expect($target)
+        ->not->toBeNull()
+        ->and($target?->resourceClass)->toBeNull()
+        ->and($target?->isCollection)->toBeTrue();
 });

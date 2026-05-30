@@ -11,18 +11,21 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
+use Illuminate\Http\Resources\Attributes\Collects;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
+use ReflectionClass;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionType;
 
 use function class_exists;
 use function is_a;
+use function is_string;
 
 /**
  * Resolves the API Resource an action returns. Used by both
@@ -67,8 +70,18 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         }
 
         if ($returnsCollection) {
-            // Collection return type with no #[ResponseResource]: the item
-            // class is not recoverable from the signature — ambiguous.
+            /** @var class-string<ResourceCollection> $name */
+            $itemClass = $this->readCollectsAttribute($name) ?? $this->readCollectsProperty($name);
+
+            if ($itemClass !== null) {
+                return new ResourceTarget(
+                    resourceClass: $itemClass,
+                    isCollection: true,
+                );
+            }
+
+            // Collection return type with no #[ResponseResource], #[Collects], or
+            // $collects: the item class is not recoverable from the signature — ambiguous.
             return new ResourceTarget(resourceClass: null, isCollection: true);
         }
 
@@ -94,5 +107,58 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         }
 
         return $source?->newInstance();
+    }
+
+    /**
+     * @param class-string<ResourceCollection> $collectionClass
+     *
+     * @return null|class-string<JsonResource>
+     */
+    private function readCollectsAttribute(string $collectionClass): ?string
+    {
+        if (!class_exists(Collects::class)) {
+            return null;
+        }
+
+        $reflection = new ReflectionClass($collectionClass);
+        $attribute = $reflection->getAttributes(Collects::class)[0] ?? null;
+
+        if ($attribute === null) {
+            return null;
+        }
+
+        /** @var Collects $instance */
+        $instance = $attribute->newInstance();
+        $candidate = $instance->class;
+
+        if (!class_exists($candidate) || !is_a($candidate, JsonResource::class, allow_string: true)) {
+            return null;
+        }
+
+        /** @var class-string<JsonResource> $candidate */
+        return $candidate;
+    }
+
+    /**
+     * @param class-string<ResourceCollection> $collectionClass
+     *
+     * @return null|class-string<JsonResource>
+     */
+    private function readCollectsProperty(string $collectionClass): ?string
+    {
+        $reflection = new ReflectionClass($collectionClass);
+        $defaults = $reflection->getDefaultProperties();
+        $candidate = $defaults['collects'] ?? null;
+
+        if (!is_string($candidate) || !class_exists($candidate)) {
+            return null;
+        }
+
+        if (!is_a($candidate, JsonResource::class, allow_string: true)) {
+            return null;
+        }
+
+        /** @var class-string<JsonResource> $candidate */
+        return $candidate;
     }
 }
