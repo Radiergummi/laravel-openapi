@@ -9,7 +9,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Plugins\ApiResources;
+namespace Radiergummi\OpenApi\Routing;
 
 /**
  * The resource an action returns: the resource class and the response cardinality. A null

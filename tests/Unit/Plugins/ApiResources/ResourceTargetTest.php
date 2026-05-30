@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceTarget;
+use Radiergummi\OpenApi\Routing\ResourceTarget;
 use stdClass;
 
 it('reports a resolved single-resource target', function (): void {

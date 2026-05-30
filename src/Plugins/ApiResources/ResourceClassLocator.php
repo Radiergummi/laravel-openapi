@@ -14,7 +14,9 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Routing\ResourceTarget;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionType;
@@ -28,7 +30,7 @@ use function is_a;
  * lint rules (to flag undeclared/ambiguous resources) so resolution is defined
  * exactly once.
  */
-final readonly class ResourceClassLocator
+final readonly class ResourceClassLocator implements ResourceTargetLocator
 {
     public function locate(ActionDescriptor $descriptor): ?ResourceTarget
     {
