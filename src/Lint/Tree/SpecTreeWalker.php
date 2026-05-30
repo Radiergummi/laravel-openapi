@@ -104,7 +104,11 @@ final class SpecTreeWalker
         // Step 3: Component schemas
         foreach ($api->components as $component) {
             yield from $this->dispatchComponentSchema($component, $context);
-            yield from $this->walkFields($component->fields, $context);
+            yield from $this->walkFields(
+                $component->fields,
+                $context,
+                sourceClass: $component->sourceClass,
+            );
         }
 
         // Step 4: Webhooks
@@ -346,11 +350,14 @@ final class SpecTreeWalker
     }
 
     /**
-     * Recursively walk fields. Skips the entire subtree if no FieldRule or ExampleRule
-     * is registered.
+     * Walk a list of FieldNode subtrees and dispatch each registered FieldRule / ExampleRule.
      *
      * @param list<FieldNode>      $fields           Fields to walk
      * @param null|FindingLocation $locationDefaults Contextual defaults to merge into findings
+     * @param null|class-string    $sourceClass      When set, findings are stamped with
+     *                                               CONTEXT_SOURCE_CLASS so a class-scope
+     *                                               #[IgnoreLint] directive can match
+     *                                               structurally.
      *
      * @return iterable<Finding>
      */
@@ -358,6 +365,7 @@ final class SpecTreeWalker
         array $fields,
         LintContext $context,
         ?FindingLocation $locationDefaults = null,
+        ?string $sourceClass = null,
     ): iterable {
         // Lazy skip: no field or example rules registered → skip entire subtree
         if (
@@ -375,22 +383,32 @@ final class SpecTreeWalker
                 ? new FindingLocation(jsonPointer: $field->pointer())->withDefaults($locationDefaults)
                 : new FindingLocation(jsonPointer: $field->pointer());
 
-            yield from $this->enrichAll(
-                $this->dispatchField($field, $context),
-                $fieldDefaults,
-            );
+            $contextStamp = $sourceClass !== null
+                ? [
+                    Finding::CONTEXT_SOURCE_CLASS => $sourceClass,
+                    Finding::CONTEXT_SOURCE_MEMBER => $field->name,
+                ]
+                : [];
 
-            foreach ($field->examples as $example) {
-                yield from $this->enrichAll(
-                    $this->dispatchExample($example, $context),
-                    $fieldDefaults,
-                );
+            foreach ($this->enrichAll($this->dispatchField($field, $context), $fieldDefaults) as $finding) {
+                yield $contextStamp === [] ? $finding : $finding->withMergedContext($contextStamp);
             }
 
-            // Recurse into nested object fields, carrying the current field's defaults (including
-            // its JSON pointer), so nested findings reference the correct parent path rather than
-            // the operation-level defaults.
-            yield from $this->walkFields($field->children, $context, $fieldDefaults);
+            foreach ($field->examples as $example) {
+                foreach ($this->enrichAll($this->dispatchExample($example, $context), $fieldDefaults) as $finding) {
+                    yield $contextStamp === [] ? $finding : $finding->withMergedContext($contextStamp);
+                }
+            }
+
+            // Recurse into nested object fields, carrying the same sourceClass — nested fields
+            // belong to the same component schema. The MEMBER part is overwritten at each level
+            // by the next iteration's $contextStamp.
+            yield from $this->walkFields(
+                $field->children,
+                $context,
+                $fieldDefaults,
+                sourceClass: $sourceClass,
+            );
         }
     }
 
