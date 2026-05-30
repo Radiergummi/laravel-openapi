@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Core\RouteFilters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Core\RouteFilters\SkipNovaRoutes;
 use Radiergummi\OpenApi\Core\RouteFilters\SkipPassportRoutes;
+use Radiergummi\OpenApi\Core\RouteFilters\SkipSelfRoutes;
 use Radiergummi\OpenApi\Core\RouteFilters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
@@ -463,13 +464,17 @@ return [
     | contract; returning true from `shouldSkip()` omits the route from the
     | generated document.
     |
-    | The four shipped filters exclude routes from common dev/admin/auth
-    | packages (Nova, Telescope, Ignition, Passport). Each one tolerates its
-    | package being absent: with no config present it simply matches nothing.
+    | The five shipped filters exclude (1) the library's own spec/playground
+    | routes and (2) routes from common dev/admin/auth packages (Nova,
+    | Telescope, Ignition, Passport). Each one tolerates its package being
+    | absent: with no config present it simply matches nothing.
     |
     */
 
     'filters' => [
+        // Default-on: the library's own spec/playground routes never appear in
+        // a consumer's generated document. Remove this entry to document them.
+        SkipSelfRoutes::class,
         SkipNovaRoutes::class,
         SkipTelescopeRoutes::class,
         SkipIgnitionRoutes::class,
