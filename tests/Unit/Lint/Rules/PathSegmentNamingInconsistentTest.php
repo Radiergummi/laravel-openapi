@@ -81,3 +81,45 @@ it('snake case: flags a kebab-case segment', function (): void {
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->message)->toContain('snake_case');
 });
+
+it('default (kebab): accepts path segments with short lowercase file-extension tails', function (string $pathUri): void {
+    $rule = new PathSegmentNamingInconsistent();
+    $operation = OperationNodeFactory::makeOperation(pathUri: $pathUri);
+
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
+
+    expect($findings)->toBe([]);
+})->with([
+    'yaml spec'    => '/api/openapi.yaml',
+    'atom feed'    => '/feed.atom',
+    'sitemap'      => '/sitemap.xml',
+    'pdf download' => '/reports/quarterly.pdf',
+]);
+
+it('default (kebab): still flags a dotted segment whose head violates the case', function (): void {
+    $rule = new PathSegmentNamingInconsistent();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/Some.yaml');
+
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->message)->toContain('Some.yaml');
+});
+
+it('default (kebab): still flags an extension-like tail longer than 8 chars', function (): void {
+    $rule = new PathSegmentNamingInconsistent();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/name.somelongextension');
+
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
+
+    expect($findings)->toHaveCount(1);
+});
+
+it('default (kebab): still flags an uppercase extension tail', function (): void {
+    $rule = new PathSegmentNamingInconsistent();
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/file.YAML');
+
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
+
+    expect($findings)->toHaveCount(1);
+});

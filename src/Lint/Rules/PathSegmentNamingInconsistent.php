@@ -22,6 +22,7 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 
 use function explode;
 use function implode;
+use function preg_match;
 use function sprintf;
 use function str_starts_with;
 
@@ -62,7 +63,16 @@ final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule im
                 continue;
             }
 
-            if (!$this->conforms($segment)) {
+            // File-extension carve-out: peel a short alphanumeric-lowercase tail (e.g. `openapi.yaml`,
+            // `feed.atom`) and validate only the head against the configured case. The 8-char cap keeps
+            // genuinely-misnamed segments like `foo.SomeMisuse` failing.
+            $head = $segment;
+
+            if (preg_match('/^(.+)\.([a-z0-9]{1,8})$/', $segment, $matches) === 1) {
+                $head = $matches[1];
+            }
+
+            if (!$this->conforms($head)) {
                 $offending[] = $segment;
             }
         }
