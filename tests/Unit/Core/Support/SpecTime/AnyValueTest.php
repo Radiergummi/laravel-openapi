@@ -62,6 +62,13 @@ it('responds to array-access reads by returning itself; writes/unsets are no-ops
     expect($stub['x'])->toBe($stub);
 });
 
+it('reports isset() as true for any property access', function (): void {
+    $stub = AnyValue::instance();
+
+    expect(isset($stub->anything))->toBeTrue()
+        ->and(isset($stub->nested->deeper))->toBeTrue();
+});
+
 it('returns the same singleton from instance()', function (): void {
     expect(AnyValue::instance())->toBe(AnyValue::instance());
 });

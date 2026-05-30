@@ -37,13 +37,6 @@ use Traversable;
  *
  * @implements ArrayAccess<mixed, mixed>
  * @implements IteratorAggregate<mixed, mixed>
- *
- * @method self whatever()
- * @method self withArgs(mixed ...$args)
- * @method self chained()
- * @method self calls()
- * @method self terminate()
- * @method self somewhere()
  */
 final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonSerializable, Stringable
 {
@@ -67,6 +60,11 @@ final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonS
     public function __call(string $name, array $arguments): self
     {
         return $this;
+    }
+
+    public function __isset(string $name): bool
+    {
+        return true;
     }
 
     public function __toString(): string
