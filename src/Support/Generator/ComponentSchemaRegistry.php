@@ -372,6 +372,9 @@ final class ComponentSchemaRegistry
                 continue;
             }
 
+            // Assign to a typed local: Pint's phpdoc_to_comment fixer demotes /** @var */
+            // on a foreach variable to a line comment, which PHPStan ignores. Routing
+            // through a fresh local keeps the docblock form Pint accepts.
             /** @var class-string $classString */
             $classString = $owner;
             $map[$key] = $classString;
