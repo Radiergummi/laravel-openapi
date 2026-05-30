@@ -49,7 +49,7 @@ enum IdentifierCase: string
     public function pattern(): string
     {
         return match ($this) {
-            self::Dot => '/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/',
+            self::Dot => '/^[a-z][a-z0-9]*(-[a-z0-9]+)*(\.[a-z][a-z0-9]*(-[a-z0-9]+)*)*$/',
             self::Kebab => '/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/',
             self::Snake => '/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/',
             self::Camel => '/^[a-z][a-zA-Z0-9]*$/',
@@ -81,7 +81,7 @@ enum IdentifierCase: string
     public function example(): string
     {
         return match ($this) {
-            self::Dot => 'api.v0.projects.index',
+            self::Dot => 'api.v0.projects.list-active',
             self::Kebab => 'api-v0-projects-index',
             self::Snake => 'api_v0_projects_index',
             self::Camel => 'apiV0ProjectsIndex',

@@ -51,7 +51,7 @@ it('emits a finding for an inconsistent operationId under the default (dot) case
         ->and($findings[0]->message)->toContain($operationId);
 })->with([
     'camelCase'                  => ['getUsers'],
-    'dash-separated'             => ['get-users'],
+    'snake_case'                 => ['get_users'],
     'starts with uppercase'      => ['Users.index'],
 ]);
 
@@ -91,9 +91,9 @@ it('kebab case: flags a dot-separated operationId as inconsistent', function ():
         ->and($findings[0]->message)->toContain('kebab-case');
 });
 
-it('default (dot) case flags a kebab operationId with the expected hint', function (): void {
+it('default (dot) case flags a snake_case operationId with the expected hint', function (): void {
     $rule = new OperationIdNamingInconsistent();
-    $operation = OperationNodeFactory::makeOperation(pathUri: '/projects', operationId: 'api-v0-projects');
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/projects', operationId: 'api_v0_projects');
 
     $findings = iterator_to_array(
         $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),

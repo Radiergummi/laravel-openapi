@@ -13,6 +13,56 @@ use Radiergummi\OpenApi\Lint\IdentifierCase;
 
 uses()->group('openapi', 'lint');
 
+// --- Dot ---
+
+it('Dot: matches a simple lowercase dot-separated identifier', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'api.v0.projects.index'))->toBe(1);
+});
+
+it('Dot: matches kebab within the last segment', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'api.v0.projects.list-active'))->toBe(1);
+});
+
+it('Dot: matches kebab in multiple segments', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'api.v0.user-accounts.list-active'))->toBe(1);
+});
+
+it('Dot: matches a kebab-only identifier with no dots', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'auth-callback'))->toBe(1);
+});
+
+it('Dot: matches the matchory auth.resolve-account pattern', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'auth.resolve-account'))->toBe(1);
+});
+
+it('Dot: rejects a snake_case identifier', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'get_mcp'))->toBe(0);
+});
+
+it('Dot: rejects a CamelCase identifier', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'apiV0ProjectsIndex'))->toBe(0);
+});
+
+it('Dot: rejects a leading hyphen', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), '-leading'))->toBe(0);
+});
+
+it('Dot: rejects a trailing dot', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'api.v0.'))->toBe(0);
+});
+
+it('Dot: rejects consecutive hyphens', function (): void {
+    expect(preg_match(IdentifierCase::Dot->pattern(), 'foo--bar'))->toBe(0);
+});
+
+it('Dot: has the expected label', function (): void {
+    expect(IdentifierCase::Dot->label())->toBe('dot-separated lowercase');
+});
+
+it('Dot: has the expected example', function (): void {
+    expect(IdentifierCase::Dot->example())->toBe('api.v0.projects.list-active');
+});
+
 // --- Pascal ---
 
 it('Pascal: matches a single-word PascalCase identifier', function (): void {
