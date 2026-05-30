@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\DocCommentParser;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Support\Routing\ThrowsExtractor;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 
 uses()->group('routing', 'openapi');
 
@@ -43,5 +44,26 @@ it('emits an ActionDescriptor with null controller/method when the route points 
 
     expect($match)->not->toBeNull()
         ->and($match->controller)->toBeNull()
+        ->and($match->method)->toBeNull();
+});
+
+it('emits an ActionDescriptor with null method when the route points at a non-existent method on an existing class', function (): void {
+    RouteFacade::get('/missing-method', [CleanController::class, 'doesNotExist']);
+
+    $introspector = new RouteIntrospector(
+        router: app(Router::class),
+        container: app(),
+        parser: new DocCommentParser(),
+        throwsExtractor: ThrowsExtractor::create(),
+    );
+
+    /** @var list<ActionDescriptor> $descriptors */
+    $descriptors = iterator_to_array($introspector->discover(), false);
+
+    $match = collect($descriptors)->first(
+        static fn(ActionDescriptor $d): bool => $d->route->uri() === 'missing-method',
+    );
+
+    expect($match)->not->toBeNull()
         ->and($match->method)->toBeNull();
 });

@@ -11,7 +11,9 @@ declare(strict_types=1);
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Core\ErrorContributors\MiddlewareErrorContributor;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi');
@@ -111,6 +113,35 @@ it('emits no descriptor for a middleware kind absent from the config map', funct
     ]);
 
     $result = $contributor->contribute(ActionDescriptorFactory::withMiddleware(['auth', 'throttle:60,1']));
+
+    expect($result)->toHaveCount(1);
+    expect($result[0]->status)->toBe(401);
+});
+
+// endregion
+
+// region closure middleware
+
+it('ignores closure middleware without crashing', function (): void {
+    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+        'auth' => ['status' => 401, 'description' => 'Unauthenticated', 'exception' => AuthenticationException::class],
+    ]);
+
+    // A route may carry inline closure middleware (via controller middleware);
+    // the string-typed detectors must skip it rather than throwing a TypeError.
+    // Inject through the action array — Route::middleware() would cast it to
+    // string, which is not how closure middleware actually reaches the route.
+    $route = new Route(['GET'], '/closure-mw', ['uses' => static fn() => null]);
+    $route->action['middleware'] = [static fn($request, $next) => $next($request), 'auth'];
+    $descriptor = new ActionDescriptor(
+        route: $route,
+        controller: null,
+        method: null,
+        summary: null,
+        description: null,
+    );
+
+    $result = $contributor->contribute($descriptor);
 
     expect($result)->toHaveCount(1);
     expect($result[0]->status)->toBe(401);

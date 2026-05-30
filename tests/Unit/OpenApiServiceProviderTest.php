@@ -12,8 +12,10 @@ declare(strict_types=1);
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\ServiceProvider;
 use Radiergummi\OpenApi\Console\ClearCommand;
+use Radiergummi\OpenApi\Console\DiffConfigCommand;
 use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
+use Radiergummi\OpenApi\Console\WhyCommand;
 use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
@@ -56,9 +58,13 @@ it('registers the openapi Artisan commands', function (): void {
         ->toHaveKey('openapi:generate')
         ->toHaveKey('openapi:lint')
         ->toHaveKey('openapi:clear')
+        ->toHaveKey('openapi:why')
+        ->toHaveKey('openapi:diff:config')
         ->and($all['openapi:generate'])->toBeInstanceOf(GenerateCommand::class)
         ->and($all['openapi:lint'])->toBeInstanceOf(LintCommand::class)
-        ->and($all['openapi:clear'])->toBeInstanceOf(ClearCommand::class);
+        ->and($all['openapi:clear'])->toBeInstanceOf(ClearCommand::class)
+        ->and($all['openapi:why'])->toBeInstanceOf(WhyCommand::class)
+        ->and($all['openapi:diff:config'])->toBeInstanceOf(DiffConfigCommand::class);
 });
 
 it('declares the config file as publishable under the openapi-config tag', function (): void {

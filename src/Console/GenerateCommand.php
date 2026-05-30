@@ -11,8 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use OpenApi\Analysis;
@@ -44,14 +42,19 @@ use function realpath;
  *
  * @bundle Radiergummi\OpenApi\Console
  */
-#[Signature('openapi:generate
+class GenerateCommand extends Command
+{
+    // Name/description use the version-portable string-property form rather than
+    // the #[Signature]/#[Description] attributes, which are Laravel 13+ only
+    // (Illuminate\Console\Attributes does not exist on Laravel 12).
+    protected $signature = 'openapi:generate
         {spec? : Name of the spec to generate. Omit to generate every defined spec.}
         {--output= : Override output path. Requires a single spec target. Use "-" for stdout.}
         {--format=yaml : Output format: yaml or json.}
-        {--explain : Print one (route × spec) decision line per route on stderr.}')]
-#[Description('Generate an OpenAPI 3.1 document from the application\'s route definitions')]
-class GenerateCommand extends Command
-{
+        {--explain : Print one (route × spec) decision line per route on stderr.}';
+
+    protected $description = 'Generate an OpenAPI 3.1 document from the application\'s route definitions';
+
     /**
      * @var list<string>
      */

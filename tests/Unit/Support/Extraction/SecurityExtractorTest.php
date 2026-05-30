@@ -9,6 +9,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 
@@ -127,4 +128,18 @@ it('preserves the Passport oauth2 pair as the default when default is unset and 
             ['oauth2' => ['read']],
             ['oauth2ClientCredentials' => ['read']],
         ]);
+});
+
+it('does not crash on a route carrying closure middleware', function (): void {
+    // Closure middleware reaches gatherMiddleware() via controller middleware
+    // (and is not cast to string the way Route::middleware() casts its args), so
+    // inject it through the action array to reproduce the real shape.
+    $route = new Route(['GET'], '/closure-mw', ['uses' => static fn() => null]);
+    $route->action['middleware'] = [static fn($request, $next) => $next($request), 'auth:api'];
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    // The closure middleware must be skipped; the string middleware still drives
+    // the requirement. Previously this threw a TypeError on the closure key.
+    expect($extractor->forRoute($route))->toBeArray();
 });

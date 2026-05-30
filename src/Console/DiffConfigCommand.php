@@ -11,8 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Radiergummi\OpenApi\Support\Config\ConfigDiffer;
@@ -20,10 +18,14 @@ use Radiergummi\OpenApi\Support\Config\ConfigDiffer;
 use function sprintf;
 use function var_export;
 
-#[Signature('openapi:diff:config')]
-#[Description('Show drift between the published config/openapi.php and the package default')]
 class DiffConfigCommand extends Command
 {
+    // Name/description use the version-portable string-property form rather than
+    // the #[Signature]/#[Description] attributes, which are Laravel 13+ only
+    // (Illuminate\Console\Attributes does not exist on Laravel 12).
+    protected $signature = 'openapi:diff:config';
+
+    protected $description = 'Show drift between the published config/openapi.php and the package default';
     public function handle(ConfigRepository $config): int
     {
         $default = require __DIR__ . '/../../config/openapi.php';

@@ -121,6 +121,18 @@ final readonly class RouteIntrospector
         if ($controllerClass === $actionMethod) {
             $reflector = $classReflection;
             $methodReflection = null;
+        } elseif (!$classReflection->hasMethod($actionMethod)) {
+            // The route points at a method that does not exist on the class
+            // (stale route definition, a method handled via __call, etc.).
+            // Degrade like the non-existent-class case rather than aborting the
+            // whole run with a ReflectionException.
+            return new ActionDescriptor(
+                route: $route,
+                controller: null,
+                method: null,
+                summary: null,
+                description: null,
+            );
         } else {
             $methodReflection = $classReflection->getMethod($actionMethod);
             $reflector = $methodReflection;

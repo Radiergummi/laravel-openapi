@@ -11,8 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
@@ -20,11 +18,15 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use function file_exists;
 use function unlink;
 
-#[Signature('openapi:clear
-        {spec? : Name of the spec to clear. Omit to clear every defined spec.}')]
-#[Description('Remove the generated OpenAPI specification file(s)')]
 class ClearCommand extends Command
 {
+    // Name/description use the version-portable string-property form rather than
+    // the #[Signature]/#[Description] attributes, which are Laravel 13+ only
+    // (Illuminate\Console\Attributes does not exist on Laravel 12).
+    protected $signature = 'openapi:clear
+        {spec? : Name of the spec to clear. Omit to clear every defined spec.}';
+
+    protected $description = 'Remove the generated OpenAPI specification file(s)';
     /**
      * @throws InvalidArgumentException
      */

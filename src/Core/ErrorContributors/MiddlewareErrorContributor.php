@@ -21,7 +21,9 @@ use Radiergummi\OpenApi\Support\Extraction\DetectsAuthMiddleware;
 use Throwable;
 
 use function array_any;
+use function array_filter;
 use function array_values;
+use function is_string;
 use function str_starts_with;
 
 /**
@@ -50,7 +52,12 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
     public function contribute(ActionDescriptor $descriptor): array
     {
         $descriptors = [];
-        $middleware = array_values($descriptor->route->gatherMiddleware());
+        // gatherMiddleware() may include closure middleware; the string-typed
+        // detectors below only understand named middleware, so drop the rest.
+        $middleware = array_values(array_filter(
+            $descriptor->route->gatherMiddleware(),
+            is_string(...),
+        ));
 
         foreach (['auth', 'scope', 'throttle'] as $kind) {
             if (!isset($this->middlewareMap[$kind])) {

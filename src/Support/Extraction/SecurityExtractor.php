@@ -242,6 +242,13 @@ final class SecurityExtractor
         $result = [];
 
         foreach ($middleware as $entry) {
+            // Routes may carry closure (or other non-string) middleware, which
+            // can neither name a group nor map to a security scheme. Skip it
+            // rather than crashing on the non-string array key.
+            if (!is_string($entry)) {
+                continue;
+            }
+
             if (isset($groups[$entry])) {
                 foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
                     $result[] = $expanded;

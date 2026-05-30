@@ -11,8 +11,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Console;
 
-use Illuminate\Console\Attributes\Description;
-use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
@@ -53,7 +51,12 @@ use function sprintf;
  * Thin adapter over {@see LintRunner}: parses CLI options into a {@see LintOptions}, hands off
  * to the runner, and renders the resulting {@see LintResult} through the chosen formatter.
  */
-#[Signature('openapi:lint
+class LintCommand extends Command
+{
+    // Name/description use the version-portable string-property form rather than
+    // the #[Signature]/#[Description] attributes, which are Laravel 13+ only
+    // (Illuminate\Console\Attributes does not exist on Laravel 12).
+    protected $signature = 'openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
         {--format= : Output format (cli|json|github|markdown; auto-detected by default)}
         {--only= : Restrict to listed rule IDs (comma-separated)}
@@ -62,10 +65,9 @@ use function sprintf;
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the repository default branch)}
         {--no-suppress : Ignore #[IgnoreLint] attributes}
         {--list : Print the rule catalog instead of linting}
-        {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}')]
-#[Description('Lint OpenAPI documentation gaps across the API surface')]
-class LintCommand extends Command
-{
+        {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}';
+
+    protected $description = 'Lint OpenAPI documentation gaps across the API surface';
     /**
      * @throws \LogicException
      * @throws BindingResolutionException
