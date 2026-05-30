@@ -26,8 +26,17 @@ parameters:
     editorUrlTitle: '%%relFile%%:%%line%%'
 
     ignoreErrors:
+        # Test fixtures intentionally read attributes off the typed returns of $this->user() /
+        # $this->route(...) to mirror real-world consumer patterns (e.g. $this->user()->customer_id).
+        # The lib stubs these accesses at runtime via AnyValue + SpecTimeRequest; PHPStan cannot
+        # model that statically. property.notFound fires when the typed return is an interface
+        # without the accessed property; property.nonObject fires when the typed return is nullable.
         -
             identifier: property.notFound
+            paths:
+                - tests/
+        -
+            identifier: property.nonObject
             paths:
                 - tests/
         -
@@ -211,13 +220,6 @@ parameters:
         -
             message: '#should return list<T of object> but returns list<object>\.$#'
             identifier: return.type
-            paths:
-                - tests/
-        # Tests dereference resolver / introspector return values that they have just primed.
-        # PHPStan can't narrow `T|null` through Pest's `expect()->not->toBeNull()` chains.
-        -
-            message: '#^Cannot access property \$\w+ on (Radiergummi\\OpenApi\\|OpenApi\\Annotations\\)[^ ]+\|null\.$#'
-            identifier: property.nonObject
             paths:
                 - tests/
         # DocsController serves the package's own runtime routes. Documenting its checked

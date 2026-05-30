@@ -78,11 +78,8 @@ final class UserReadingFormRequest extends FormRequest
 {
     public function rules(): array
     {
-        $user = $this->user();
-        $customerId = $user?->getAuthIdentifier();
-
         return [
-            'customer_id' => ['required', 'integer', Illuminate\Validation\Rule::in([$customerId])],
+            'customer_id' => ['required', 'integer', Illuminate\Validation\Rule::in([$this->user()->customer_id])],
         ];
     }
 }
