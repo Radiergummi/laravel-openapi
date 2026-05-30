@@ -115,6 +115,23 @@ property-level suppressions are not available — use class-level scope instead.
 so `#[IgnoreLint]` on a `JsonResource` subclass works without the class appearing as a
 constructor parameter.
 
+#### Limitation — nested-Data composition without `$ref`
+
+Property-scope suppressions resolve through the **component schema's owning class**. When a
+Data class composes another Data class as a typed property, the nested type is normally
+emitted as a `$ref` to its own component schema — that schema's `sourceClass` points at the
+nested class, and a property-scope `#[IgnoreLint]` on the nested class's property suppresses
+findings as expected.
+
+The exception is when the nested type is **inlined** into the parent's schema (no `$ref` is
+generated). In that case findings on the inlined branch are stamped with the **parent's**
+source class, not the nested class's. A property-scope directive on the nested class's field
+will not match.
+
+Workaround: place the directive at class scope on the parent (or the nested class — both
+suppress every property of their component schema). For the inlined-composition case the
+parent-class-scope form is the form that takes effect.
+
 ## Style conventions (naming rules)
 
 Naming rules read their expected case convention from `config/openapi.lint.style`:

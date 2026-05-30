@@ -172,6 +172,20 @@ final readonly class LintRunner
             diffRef: $options->diffRef,
         );
 
+        // When --path or --diff narrows the route set, build the allowed-URI set up front so
+        // post-processing can drop findings emitted by generation stages (e.g. RequestBodyExtractor,
+        // ValidationRulesToSchema) that target routes outside the filter. The tree-walk path
+        // restricts $document->paths before walking, but stage-emitted findings bypass that gate.
+        $allowedRouteUris = null;
+
+        if ($options->path !== null || $options->diffEnabled) {
+            $allowedRouteUris = [];
+
+            foreach ($descriptors as $descriptor) {
+                $allowedRouteUris[ltrim($descriptor->route->uri(), '/')] = true;
+            }
+        }
+
         // endregion
 
         // region Option resolution
@@ -251,6 +265,19 @@ final readonly class LintRunner
         // region Post-processing: overrides, --only/--skip, suppressions, level filter
 
         $findings = $this->registry->applyOverrides($inner->all());
+
+        if ($allowedRouteUris !== null) {
+            $findings = array_filter(
+                $findings,
+                static function (Finding $finding) use ($allowedRouteUris): bool {
+                    $uri = $finding->location->routeUri;
+
+                    // Non-route-scoped findings (pre-build, spec-level) are always kept.
+                    return $uri === null
+                        || isset($allowedRouteUris[ltrim($uri, '/')]);
+                },
+            );
+        }
 
         if ($only !== []) {
             $findings = array_filter(

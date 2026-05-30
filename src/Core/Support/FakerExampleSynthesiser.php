@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Throwable;
 
 use function class_exists;
+use function crc32;
 use function preg_match;
 use function strtolower;
 
@@ -36,8 +37,11 @@ use function strtolower;
  * lorem-ipsum leakage pattern. Unknown types/formats return `null` (no example) rather than
  * falling back to `Faker::sentence()` / `paragraph()`.
  *
- * Determinism — Faker is reseeded from a fixed config value (`openapi.examples.faker_seed`)
- * so output is stable across generation runs.
+ * Determinism — Faker is reseeded per-call from `(openapi.examples.faker_seed, fieldName)`.
+ * Faker delegates `seed()` to PHP's global `mt_srand()`, so any code that consumes `mt_rand`
+ * between construction and use (other Faker instances, tests, framework boot code) drifts the
+ * RNG state. Reseeding from a deterministic per-call value makes each synthesised example
+ * stable regardless of call order or surrounding RNG consumers.
  *
  * Degrades when Faker is absent — `fakerphp/faker` is declared in `require-dev`. If it is not
  * installed at runtime, every call returns `null` and no error is raised.
@@ -46,10 +50,14 @@ final readonly class FakerExampleSynthesiser
 {
     private ?Faker $faker;
 
+    private ?int $seed;
+
     public function __construct(
         bool $enabled = true,
         ?int $seed = 1234,
     ) {
+        $this->seed = $seed;
+
         if (!$enabled || !class_exists(FakerFactory::class)) {
             $this->faker = null;
 
@@ -57,13 +65,7 @@ final readonly class FakerExampleSynthesiser
         }
 
         try {
-            $faker = FakerFactory::create();
-
-            if ($seed !== null) {
-                $faker->seed($seed);
-            }
-
-            $this->faker = $faker;
+            $this->faker = FakerFactory::create();
         } catch (Throwable) {
             $this->faker = null;
         }
@@ -73,6 +75,10 @@ final readonly class FakerExampleSynthesiser
     {
         if ($this->faker === null) {
             return null;
+        }
+
+        if ($this->seed !== null) {
+            $this->faker->seed($this->seed ^ (int) crc32($fieldName));
         }
 
         if ($descriptor->enum !== null && $descriptor->enum !== []) {

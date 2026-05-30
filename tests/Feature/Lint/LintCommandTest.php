@@ -228,6 +228,28 @@ it('pre-build rules run regardless of --spec= narrowing', function (): void {
         ->and(array_values($orphans)[0]->spec)->toBeNull(); // pre-build findings carry no spec tag
 })->group('openapi', 'lint');
 
+it('--path filter scopes extractor-emitted findings, not just tree-walk findings', function (): void {
+    // CleanController::list as POST triggers request.empty (no body schema). The lint-fixtures/clean
+    // GET route registered in beforeEach is untouched. Without filtering both POSTs would emit
+    // request.empty; with --path='lint-fixtures/clean*' the leak route's finding must drop.
+    Route::post('leak-fixtures/excluded', [CleanController::class, 'list'])->name('leak.excluded');
+
+    $unfiltered = app(LintRunner::class)->run(new LintOptions(level: 2));
+    $leakFindings = array_filter(
+        $unfiltered->findings,
+        static fn($f) => $f->ruleId === 'request.empty'
+            && $f->location->routeUri === 'leak-fixtures/excluded',
+    );
+    expect($leakFindings)->not->toBeEmpty();
+
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, path: 'lint-fixtures/clean*'));
+    $leakedAfterFilter = array_filter(
+        $filtered->findings,
+        static fn($f) => $f->location->routeUri === 'leak-fixtures/excluded',
+    );
+    expect($leakedAfterFilter)->toBeEmpty();
+});
+
 it('cannot disable spec.invalid via config disabled_rules', function (): void {
     config(['openapi.lint.disabled_rules' => ['spec.invalid']]);
 

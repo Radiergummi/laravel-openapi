@@ -289,12 +289,12 @@ components:
           description: 'Unmapped object type: DateTimeInterface'
           type: string
           format: date
-          example: '2022-01-26'
+          example: '2023-05-02'
         arrives_at:
           description: 'Unmapped object type: DateTimeInterface'
           type: string
           format: date
-          example: '2021-09-29'
+          example: '2025-09-08'
         status:
           type: string
           example: scheduled
