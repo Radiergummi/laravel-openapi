@@ -37,7 +37,7 @@ use function substr;
  *
  * **Key generation:** the component key is the class basename (e.g. `CreateProjectData`). If two
  * Data classes in different namespaces share a basename, the second one is disambiguated with its
- * parent directory segment (e.g. `Projects.CreateProjectData`).
+ * parent directory segment concatenated in PascalCase (e.g. `ProjectsCreateProjectData`).
  */
 #[Scoped]
 final class ComponentSchemaRegistry
@@ -240,12 +240,12 @@ final class ComponentSchemaRegistry
      * 1. Try the bare basename (e.g. `CreateData`).
      * 2. On collision, prepend successive ancestor namespace segments, skipping generic container
      *    segments (`Data`, `Domain`), until the key is unique. E.g. `App\Domain\Foo\Bar\CreateData`
-     *    → `Bar.CreateData`, then if still taken → `Foo.Bar.CreateData`, and so on.
+     *    → `CreateData`, then on collision → `BarCreateData`, then → `FooBarCreateData`, and so on.
      * 3. If the full namespace is exhausted and the key is still taken (extremely unlikely — would
      *    require two classes with identical FQCNs), append a short hash suffix as a last resort.
      *
-     * OpenAPI component keys are restricted to `[A-Za-z0-9._-]`, so backslashes are replaced
-     * with dots.
+     * Namespace segments are concatenated directly (PascalCase): backslashes are stripped, not
+     * replaced with dots, so the resulting key remains a single PascalCase identifier.
      */
     private function deriveKey(string $className): string
     {
@@ -276,8 +276,8 @@ final class ComponentSchemaRegistry
         $prefix = '';
 
         foreach ($ancestors as $segment) {
-            $prefix = $prefix === '' ? $segment : "{$segment}.{$prefix}";
-            $qualified = "{$prefix}.{$basename}";
+            $prefix = "{$segment}{$prefix}";
+            $qualified = "{$prefix}{$basename}";
 
             if (!$this->isKeyTaken($qualified, $className)) {
                 return $qualified;
@@ -288,9 +288,7 @@ final class ComponentSchemaRegistry
         // guarantee uniqueness.
         $hash = substr(md5($className), 0, 6);
 
-        return $prefix === ''
-            ? "{$basename}.{$hash}"
-            : "{$prefix}.{$basename}.{$hash}";
+        return "{$prefix}{$basename}{$hash}";
     }
 
     private function isKeyTaken(string $key, string $forClass): bool

@@ -52,7 +52,7 @@ it('disambiguates two classes with the same basename using the nearest non-gener
     $keyB = $registry->reserveKey(BarCreateData::class);
 
     expect($keyA)->toBe('CreateData')
-        ->and($keyB)->toBe('Bar.CreateData')
+        ->and($keyB)->toBe('BarCreateData')
         ->and($keyA)->not->toBe($keyB);
 });
 
@@ -65,7 +65,7 @@ it('skips generic namespace segments (Data, Domain) when disambiguating', functi
     $keyB = $registry->reserveKey(BetaCreateData::class);
 
     expect($keyA)->toBe('CreateData')
-        ->and($keyB)->toBe('Beta.CreateData')
+        ->and($keyB)->toBe('BetaCreateData')
         ->and($keyA)->not->toBe($keyB);
 });
 
@@ -75,7 +75,7 @@ it('skips generic namespace segments (Data, Domain) when disambiguating', functi
 
 it('produces distinct keys for three classes sharing a basename and immediate ancestor', function (): void {
     // All three share basename 'CreateData' and immediate ancestor 'Bar',
-    // so the first disambiguation level ('Bar.CreateData') is shared too.
+    // so the first disambiguation level ('BarCreateData') is shared too.
     // The algorithm must walk further up for the third class.
     $registry = new ComponentSchemaRegistry();
 
@@ -98,8 +98,23 @@ it('uses readable namespace prefixes for the three-class collision', function ()
     // First class gets the bare basename; second gets one ancestor prefix;
     // third must walk two levels up to be unique.
     expect($keyFoo)->toBe('CreateData')
-        ->and($keyBaz)->toBe('Bar.CreateData')
-        ->and($keyQux)->toBe('Qux.Bar.CreateData');
+        ->and($keyBaz)->toBe('BarCreateData')
+        ->and($keyQux)->toBe('QuxBarCreateData');
+});
+
+it('disambiguates basename collisions with PascalCase prefix concatenation (no dots)', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $keyA = $registry->reserveKey(FooBarCreateData::class);
+    $keyB = $registry->reserveKey(BazBarCreateData::class);
+    $keyC = $registry->reserveKey(QuxBarCreateData::class);
+
+    expect($keyA)->not->toContain('.')
+        ->and($keyB)->not->toContain('.')
+        ->and($keyC)->not->toContain('.')
+        ->and($keyA)->not->toBe($keyB)
+        ->and($keyB)->not->toBe($keyC)
+        ->and($keyA)->not->toBe($keyC);
 });
 
 // endregion
