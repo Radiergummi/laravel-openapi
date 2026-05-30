@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- New `SkipSelfRoutes` route filter that excludes the library's own spec/playground routes (matched on the `openapi.` Laravel-route-name prefix) from the generated document. Surfaced by P1 dogfooding (`docs/internal/dogfooding/2026-05-29-p1-bundled-docs-controller-self-findings.md`) and BookStack survey (`docs/internal/dogfooding/2026-05-30-bookstack-self-route-pollutes-api-namespace-and-spec.md`).
+
+### Changed
+
+- Default `config('openapi.filters')` now includes `SkipSelfRoutes` as the first entry. A stock install no longer documents the library's own `/api/openapi.yaml` and `/api/docs` endpoints in the generated spec. Remove the entry from your published config to opt back in.
+
 ### Fixed
 - `SchemaFromFormRequest` / `ValidationRulesToSchema::process()` no longer crashes when a FormRequest field's ruleset is a **bare Rule object** (`'name' => new ValidCompanyQuantity()`) rather than a pipe-string or array. Laravel permits a single Rule instance as a field's value; the unguarded `normalizeRules(string|array)` call raised `TypeError: Argument #1 ($rules) must be of type array|string, … given`, aborting generation for the whole app. A bare object is now wrapped into a single-element list so it flows through the same path as an in-array Rule object (an unintrospectable rule yields a bare field plus the existing `rule.unknown` finding). The dotted-key branch keeps its own guard, so closures/objects on dotted keys remain skipped as before. Surfaced by OSS-survey dogfooding against Invoice Ninja (`docs/internal/dogfooding/2026-05-30-invoiceninja-formrequest-bare-rule-object-crash.md`).
 - `IdentifierCase::Dot` regex widened to allow kebab-case within dot-separated segments. The Laravel-idiomatic operation ID style (`api.v0.projects.list-active`, `auth.resolve-account`) now passes `operation.id-naming-inconsistent` under the default config; strict-lowercase identifiers continue to match. Surfaced by P1 dogfooding (`docs/internal/dogfooding/2026-05-29-p1-operation-id-style-rejects-laravel-idiom.md`).
