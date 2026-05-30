@@ -45,6 +45,13 @@ from controller signatures and PHPDoc, and writes an OpenAPI 3.1 YAML file to
 Configure both routes in `config/openapi.routes`. See
 [Configuration → Routes](config.md#routes).
 
+## Common first-run friction
+
+The library's own spec (`/api/openapi.yaml`) and playground (`/api/docs`)
+routes are **excluded from your generated spec by default** — a stock
+`openapi:generate` won't document the endpoints serving the document itself.
+To include them, remove `SkipSelfRoutes::class` from `config('openapi.filters')`.
+
 ## A worked example
 
 ```php

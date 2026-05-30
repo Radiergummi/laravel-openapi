@@ -25,7 +25,7 @@ this page is the at-a-glance summary.
 | `request_payload_indirection` | Base classes whose constructors are also scanned for Data-class parameters. See [Request bodies → Indirect request payloads](request-bodies.md#indirect-request-payloads). |
 | `visibility` | `default` accepts `'public'` (every route documented unless `#[Hide]`) or `'hidden'` (every route excluded unless `#[Expose]`). See [Recipes → Switch between public-default and hidden-default visibility](recipes.md#switch-between-public-default-and-hidden-default-visibility). |
 | `routes` | Spec/playground route registration. See below. |
-| `filters` | Route-exclusion filters. Ships with filters that exclude Nova, Telescope, Ignition, and (when installed) Passport routes. |
+| `filters` | Route-exclusion filters. Ships with filters that exclude the library's own spec/playground routes plus routes from Nova, Telescope, Ignition, and (when installed) Passport. Remove `SkipSelfRoutes` to document the library's `/api/openapi.yaml` and `/api/docs` endpoints in your spec. |
 
 ## Exception-response precedence
 
