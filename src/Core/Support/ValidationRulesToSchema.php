@@ -125,6 +125,14 @@ final readonly class ValidationRulesToSchema
         $hasDottedKeys = false;
 
         foreach ($rules as $field => $fieldRules) {
+            // A field's ruleset may be a bare Rule object (`'x' => new SomeRule`) rather than a
+            // pipe-string or array — Laravel permits this. Wrap it so it flows through the same
+            // path as an in-array rule object; an unintrospectable object then yields a bare
+            // descriptor (and a `rule.unknown` finding) instead of a TypeError.
+            if (!is_string($fieldRules) && !is_array($fieldRules)) {
+                $fieldRules = [$fieldRules];
+            }
+
             // A bare `*` rule key applies to every value in the request body — model this as
             // JSON Schema's `additionalProperties` rather than emitting a property literally
             // named `*` (which is OAS-meaningless and trips downstream lint rules).
@@ -146,12 +154,7 @@ final readonly class ValidationRulesToSchema
 
             // One level of nesting: `foo.*` rules populate the parent field's items.
             // Deeper paths (foo.*.bar) are not yet supported and are silently dropped.
-            // Closures cannot be introspected and are skipped.
-            if (
-                (is_string($fieldRules) || is_array($fieldRules))
-                && substr_count($field, '.') === 1
-                && str_ends_with($field, '.*')
-            ) {
+            if (substr_count($field, '.') === 1 && str_ends_with($field, '.*')) {
                 $parent = substr($field, 0, -2);
                 $normalized = $this->normalizeRules($fieldRules);
                 $itemsFields[$parent] = $this->mapRules($normalized, $parent, $sourceClass);

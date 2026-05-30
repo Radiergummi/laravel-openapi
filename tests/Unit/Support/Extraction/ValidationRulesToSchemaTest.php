@@ -48,6 +48,15 @@ enum UnitFixtureEnum
     case Beta;
 }
 
+/**
+ * A custom, non-introspectable rule object — stands in for app rules like Invoice Ninja's
+ * `ValidCompanyQuantity`, used as a bare field value (`'field' => new BareFixtureRule()`).
+ */
+final class BareFixtureRule implements Illuminate\Contracts\Validation\ValidationRule
+{
+    public function validate(string $attribute, mixed $value, Closure $fail): void {}
+}
+
 beforeEach(function (): void {
     $this->mapper = new ValidationRulesToSchema();
 });
@@ -428,6 +437,35 @@ it('preserves comma- and quote-containing values from a Rule::in() object', func
     $d = field($this->mapper, [new In(['a,b', 'say "hi"', 'c'])]);
 
     expect($d->enum)->toBe(['a,b', 'say "hi"', 'c']);
+});
+
+// endregion
+
+// region bare rule object as a field value (not wrapped in an array)
+
+it('treats a bare Rule object field value identically to a single-element array', function (): void {
+    // Laravel allows `'field' => new SomeRule`, not only `'field' => [new SomeRule]`.
+    // Regression: process() type-erred on the bare object (InvoiceNinja StoreCompanyRequest).
+    $bare    = $this->mapper->process(['field' => new In(['foo', 'bar'])]);
+    $wrapped = $this->mapper->process(['field' => [new In(['foo', 'bar'])]]);
+
+    expect($bare['fields']['field']->enum)
+        ->toBe(['foo', 'bar'])
+        ->and($bare['fields']['field']->enum)->toBe($wrapped['fields']['field']->enum);
+});
+
+it('does not throw on a bare custom ValidationRule object field value', function (): void {
+    // The InvoiceNinja crash: `$rules['name'] = new ValidCompanyQuantity()`.
+    $result = $this->mapper->process(['name' => new BareFixtureRule()]);
+
+    expect($result['fields'])->toHaveKey('name');
+});
+
+it('handles a bare Rule object on a dotted foo.* key (no throw, populates items)', function (): void {
+    $result = $this->mapper->process(['tags.*' => new BareFixtureRule()]);
+
+    expect($result['itemsFields'])->toHaveKey('tags')
+        ->and($result['hasDottedKeys'])->toBeTrue();
 });
 
 // endregion
