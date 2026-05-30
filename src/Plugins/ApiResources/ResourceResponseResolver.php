@@ -16,6 +16,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
+use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionException;
@@ -33,7 +34,7 @@ use function sprintf;
 final readonly class ResourceResponseResolver implements PrimaryResponseResolver
 {
     public function __construct(
-        private ResourceClassLocator $locator,
+        private ResourceTargetLocator $locator,
         private SchemaFromResource $schemaFromResource,
         private ResourceEnvelopeFactory $envelopeFactory,
         private LoggerInterface $logger,

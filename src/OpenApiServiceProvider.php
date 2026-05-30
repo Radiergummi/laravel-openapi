@@ -474,6 +474,11 @@ class OpenApiServiceProvider extends ServiceProvider
     private function registerApiResourcesPlugin(): void
     {
         $this->app->scoped(
+            Contracts\Routing\ResourceTargetLocator::class,
+            Plugins\ApiResources\ResourceClassLocator::class,
+        );
+
+        $this->app->scoped(
             Plugins\ApiResources\SchemaFromResource::class,
             static function (Container $app): Plugins\ApiResources\SchemaFromResource {
                 $registry = $app->make(OpenApiRegistry::class);

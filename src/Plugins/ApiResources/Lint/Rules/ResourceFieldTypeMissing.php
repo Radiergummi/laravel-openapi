@@ -13,12 +13,12 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
 
 use function sprintf;
 
@@ -29,7 +29,7 @@ use function sprintf;
 final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisitor
 {
     public function __construct(
-        private ResourceClassLocator $locator,
+        private ResourceTargetLocator $locator,
     ) {}
 
     /**
