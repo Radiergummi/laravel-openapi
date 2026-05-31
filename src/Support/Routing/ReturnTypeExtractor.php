@@ -12,19 +12,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Routing;
 
 use Illuminate\Container\Attributes\Scoped;
-use phpDocumentor\Reflection\DocBlock\Tags\Return_;
-use phpDocumentor\Reflection\DocBlockFactory;
-use phpDocumentor\Reflection\DocBlockFactoryInterface;
-use phpDocumentor\Reflection\PseudoTypes\Generic;
-use phpDocumentor\Reflection\Types\Context;
-use phpDocumentor\Reflection\Types\ContextFactory;
-use phpDocumentor\Reflection\Types\Object_;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionFunctionAbstract;
-use UnexpectedValueException;
 
 use function array_key_exists;
-use function end;
-use function ltrim;
 use function spl_object_id;
 
 /**
@@ -44,16 +36,15 @@ final class ReturnTypeExtractor
      * extractor is bound as a scoped singleton, so the cache resets between generation runs under
      * Octane. Keyed by `spl_object_id($reflector)`; a stored `null` is a meaningful result
      * (reflector has no `@return` generic) and is distinguished from "uncached" by
-     * `array_key_exists`. Saves the heavy `DocBlockFactory::create()` parse + `ContextFactory`
-     * walk every time multiple primary-response resolvers consult the same method.
+     * `array_key_exists`.
      *
      * @var array<int, ?string>
      */
     private array $genericArgumentCache = [];
 
     public function __construct(
-        private readonly DocBlockFactoryInterface $docBlockFactory,
-        private readonly ContextFactory $contextFactory,
+        private readonly DocBlockParser $docBlockParser,
+        private readonly TypeNodeResolver $typeNodeResolver,
     ) {}
 
     /**
@@ -75,46 +66,23 @@ final class ReturnTypeExtractor
             return $this->genericArgumentCache[$key] = null;
         }
 
-        try {
-            $context = $this->contextFactory->createFromReflector($reflector);
-        } catch (UnexpectedValueException) {
-            // ContextFactory does not support every Reflector (e.g. closures).
-            // Without context, short class names will not resolve — acceptable.
-            $context = new Context('');
+        $returnType = $this->docBlockParser->parse($comment)->returnType();
+
+        if ($returnType === null) {
+            return $this->genericArgumentCache[$key] = null;
         }
 
-        $docBlock = $this->docBlockFactory->create($comment, $context);
-
-        foreach ($docBlock->getTagsByName('return') as $tag) {
-            if (!$tag instanceof Return_) {
-                continue;
-            }
-
-            $type = $tag->getType();
-
-            if (!$type instanceof Generic) {
-                continue;
-            }
-
-            // `Foo<Bar>` yields one type argument, `Foo<Key, Value>` two — the
-            // value type is always the last, so a keyed collection resolves to
-            // its element type rather than its key type.
-            $arguments = $type->getTypes();
-            $valueType = end($arguments);
-
-            if ($valueType instanceof Object_ && $valueType->getFqsen() !== null) {
-                return $this->genericArgumentCache[$key] = ltrim((string) $valueType->getFqsen(), '\\');
-            }
-        }
-
-        return $this->genericArgumentCache[$key] = null;
+        return $this->genericArgumentCache[$key] = $this->typeNodeResolver->genericValueClass(
+            $returnType,
+            $reflector,
+        );
     }
 
     public static function create(): self
     {
         return new self(
-            docBlockFactory: DocBlockFactory::createInstance(),
-            contextFactory: new ContextFactory(),
+            docBlockParser: DocBlockParser::create(),
+            typeNodeResolver: TypeNodeResolver::create(),
         );
     }
 }
