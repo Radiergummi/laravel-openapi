@@ -137,37 +137,18 @@ it('sets required=true but NOT nullable for present rule (OAPI-007)', function (
 
 // region Type mapping
 
-it('maps string rule to type=string', function (): void {
-    expect(field($this->mapper, 'string')->type)->toBe('string');
-});
-
-it('maps integer rule to type=integer', function (): void {
-    expect(field($this->mapper, 'integer')->type)->toBe('integer');
-});
-
-it('maps int rule to type=integer', function (): void {
-    expect(field($this->mapper, 'int')->type)->toBe('integer');
-});
-
-it('maps numeric rule to type=number', function (): void {
-    expect(field($this->mapper, 'numeric')->type)->toBe('number');
-});
-
-it('maps decimal rule to type=number', function (): void {
-    expect(field($this->mapper, 'decimal:2')->type)->toBe('number');
-});
-
-it('maps boolean rule to type=boolean', function (): void {
-    expect(field($this->mapper, 'boolean')->type)->toBe('boolean');
-});
-
-it('maps bool rule to type=boolean', function (): void {
-    expect(field($this->mapper, 'bool')->type)->toBe('boolean');
-});
-
-it('maps array rule to type=array', function (): void {
-    expect(field($this->mapper, 'array')->type)->toBe('array');
-});
+it('maps the rule to the expected type', function (string $rule, string $type): void {
+    expect(field($this->mapper, $rule)->type)->toBe($type);
+})->with([
+    'string'    => ['string', 'string'],
+    'integer'   => ['integer', 'integer'],
+    'int'       => ['int', 'integer'],
+    'numeric'   => ['numeric', 'number'],
+    'decimal'   => ['decimal:2', 'number'],
+    'boolean'   => ['boolean', 'boolean'],
+    'bool'      => ['bool', 'boolean'],
+    'array'     => ['array', 'array'],
+]);
 
 // endregion
 
