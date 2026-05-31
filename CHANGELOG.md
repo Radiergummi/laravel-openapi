@@ -10,7 +10,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 
-- Widened `zircote/swagger-php` support to `^5.8 || ^6`, so apps pinning swagger-php 5.x
+- Widened `zircote/swagger-php` support to `^5.8 || ^6.1.2`, so apps pinning swagger-php 5.x
   (e.g. those that self-generate OpenAPI from `#[OA\*]` attributes) can install the package.
   A dedicated CI job runs the suite against swagger-php 5.8; the byte-exact example snapshots
   stay pinned to 6.x key ordering (5.x emits semantically-identical YAML in a different order),
