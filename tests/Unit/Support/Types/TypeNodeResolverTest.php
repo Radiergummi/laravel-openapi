@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Support\Types;
 
+use Illuminate\Support\Collection;
 use LogicException;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
@@ -23,11 +24,17 @@ use stdClass;
  */
 class TypeNodeResolverFixture
 {
-    /** @return \Illuminate\Support\Collection<int, stdClass> */
-    public function generic(): void {}
+    /** @return Collection<int, stdClass> */
+    public function generic(): Collection
+    {
+        return new Collection();
+    }
 
-    /** @return stdClass */
-    public function plain(): void {}
+    /** @return stdClass Non-generic return for resolver test. */
+    public function plain(): stdClass
+    {
+        return new stdClass();
+    }
 
     /** @throws LogicException|RuntimeException */
     public function throwsUnion(): void {}
@@ -51,6 +58,7 @@ it('returns null when the return type is not a generic', function (): void {
     $method = new ReflectionMethod(TypeNodeResolverFixture::class, 'plain');
     $type = $parser->parse((string) $method->getDocComment())->returnType();
 
+    expect($type)->not->toBeNull();
     expect($resolver->genericValueClass($type, $method))->toBeNull();
 });
 

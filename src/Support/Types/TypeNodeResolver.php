@@ -27,7 +27,7 @@ use Symfony\Component\TypeInfo\TypeResolver\StringTypeResolver;
 use Throwable;
 
 use function array_key_exists;
-use function end;
+use function array_key_last;
 use function ltrim;
 
 /**
@@ -63,7 +63,7 @@ final class TypeNodeResolver
             return null;
         }
 
-        $value = end($node->genericTypes);
+        $value = $node->genericTypes[array_key_last($node->genericTypes)];
 
         return $value instanceof IdentifierTypeNode
             ? $this->resolveClass($value, $context)
