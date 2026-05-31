@@ -117,10 +117,24 @@ final class TypeNodeResolver
 
     private function resolveClass(IdentifierTypeNode $node, Reflector $context): ?string
     {
+        $typeContext = $this->contextFor($context);
+
         try {
-            $type = $this->stringResolver->resolve($node->name, $this->contextFor($context));
+            $type = $this->stringResolver->resolve($node->name, $typeContext);
         } catch (Throwable) {
-            return null;
+            // The identifier could not be resolved in the derived context (e.g. a bare class name
+            // inside a closure whose scope was inherited from an unrelated class, as Pest does with
+            // test closures). Retry with a null context so the resolver treats the identifier as a
+            // global class name — the only meaningful fallback for context-free annotations.
+            if ($typeContext === null) {
+                return null;
+            }
+
+            try {
+                $type = $this->stringResolver->resolve($node->name);
+            } catch (Throwable) {
+                return null;
+            }
         }
 
         return $type instanceof ObjectType
