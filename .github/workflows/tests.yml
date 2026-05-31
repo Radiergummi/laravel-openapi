@@ -45,3 +45,34 @@ jobs:
           fi
       - name: Run tests
         run: vendor/bin/pest --no-coverage --log-junit build/junit.xml
+
+  test-swagger-low:
+    runs-on: ubuntu-latest
+    name: PHP 8.4 · Laravel 12 · swagger-php 5.8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Pin lowest swagger-php + Laravel 12 / Testbench 10
+        run: |
+          composer require --no-update --no-interaction \
+            "zircote/swagger-php:^5.8" \
+            "laravel/framework:12.*" \
+            "orchestra/testbench:^10.0"
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+      - name: Verify resolved swagger-php major
+        run: |
+          resolved=$(composer show zircote/swagger-php | awk '/^versions / { print $4 }' | sed 's/^v//' | cut -d. -f1)
+          if [ "$resolved" != "5" ]; then
+            echo "::error::Expected swagger-php 5.x but composer resolved $resolved.x"
+            exit 1
+          fi
+      # The byte-exact example snapshots are pinned to swagger-php 6.x key ordering;
+      # swagger-php 5.x emits semantically-identical YAML with a different key order,
+      # so the `snapshot` group is excluded here. Everything else (generation,
+      # OpenAPI 3.1 validity, lint-clean, all unit/feature tests) runs against 5.8.
+      - name: Run tests (excluding 6.x-pinned serialization snapshots)
+        run: vendor/bin/pest --no-coverage --exclude-group=snapshot

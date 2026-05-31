@@ -67,7 +67,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
     /**
      * Shared logic used by both checkField and checkComponentSchema.
      *
-     * @param null|list<mixed> $enum
+     * @param null|array<mixed> $enum
      *
      * @return iterable<Finding>
      */

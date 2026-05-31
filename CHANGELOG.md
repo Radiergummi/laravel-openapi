@@ -10,6 +10,11 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Widened `zircote/swagger-php` support to `^5.8 || ^6`, so apps pinning swagger-php 5.x
+  (e.g. those that self-generate OpenAPI from `#[OA\*]` attributes) can install the package.
+  A dedicated CI job runs the suite against swagger-php 5.8; the byte-exact example snapshots
+  stay pinned to 6.x key ordering (5.x emits semantically-identical YAML in a different order),
+  so the `snapshot` group is excluded from that job only.
 - Widened the `symfony/type-info` constraint from `^8.0.9` to `^7.3 || ^8.0`. The component is used only for type→schema mapping and the APIs we rely on are stable across the 7.3 and 8.x lines; pinning `^8` needlessly forced a Symfony 8 component into otherwise Symfony-7 Laravel 12 installs. Verified against both the 7.3 floor and the 8.x line (full suite + PHPStan L8). Surfaced by OSS-survey dogfooding (`docs/internal/dogfooding/2026-05-31-pelican-spatie-data-pre-4.23-blocks-install.md`).
 - Default `config('openapi.filters')` now includes `SkipSelfRoutes` as the first entry. A stock install no longer documents the library's own `/api/openapi.yaml` and `/api/docs` endpoints in the generated spec. Remove the entry from your published config to opt back in.
 - CI matrix pins `orchestra/testbench` per Laravel cell (`^10.0` for `laravel: 12.*`, `^11.0` for `laravel: 13.*`) and asserts the resolved `laravel/framework` major matches the matrix variable after `composer update`. Previously the `12.*` cell silently floated to Laravel 13 via testbench 11, letting a Laravel-13-only API ship and break the package on the entire L12 range. `tests/TestCase::defineEnvironment()` also forces `filesystems.disks.local.serve` to false so the testbench-10 default (which registers two extra `storage/{path}` routes that aren't in the testbench-11 baseline) doesn't drift snapshots between cells. Surfaced by OSS-survey dogfooding (`docs/internal/dogfooding/2026-05-30-survey-ci-laravel12-cell-illusory.md`).

@@ -49,7 +49,7 @@ it('produces a snapshot that matches the committed yaml', function (string $serv
     } finally {
         @unlink($temp);
     }
-})->with('flavors');
+})->with('flavors')->group('snapshot');
 
 it('produces a valid OpenAPI 3.1 document', function (string $serviceProvider, string $flavor): void {
     $app = TestbenchBoot::boot($serviceProvider);
