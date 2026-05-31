@@ -81,11 +81,14 @@ final class TypeNodeResolver
         $classes = [];
 
         foreach ($this->flatten($node) as $identifier) {
-            $fqcn = $this->resolveClass($identifier, $context);
-
-            if ($fqcn !== null) {
-                $classes[] = $fqcn;
-            }
+            // Fall back to the written name when the class cannot be resolved to an existing
+            // class — `@throws` feeds error-response mapping and the throws.unmapped lint rule
+            // (both of which `class_exists()`-guard), so an unresolvable name must still surface
+            // rather than vanish. This preserves the prior phpDocumentor behaviour. Return-type
+            // generics intentionally do NOT do this (see genericValueClass): a broken $ref is
+            // worse than omission.
+            $classes[] = $this->resolveClass($identifier, $context)
+                ?? ltrim($identifier->name, '\\');
         }
 
         return $classes;

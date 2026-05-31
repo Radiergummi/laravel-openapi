@@ -19,7 +19,7 @@ uses()->group('openapi', 'lint');
 
 it('emits throws.unmapped when @throws references an unmapped exception', function (): void {
     /**
-     * @throws \Radiergummi\OpenApi\Tests\Fixtures\Lint\UnmappedException
+     * @throws UnmappedException
      */
     $handler = static function (): array {
         throw new UnmappedException('boom');

@@ -38,6 +38,11 @@ class TypeNodeResolverFixture
 
     /** @throws LogicException|RuntimeException */
     public function throwsUnion(): void {}
+
+    /**
+     * @throws NotARealClassXyz @phpstan-ignore throws.notThrowable (fixture: intentionally unresolvable class to test written-name fallback in throwsClasses())
+     */
+    public function throwsUnresolved(): void {}
 }
 
 function makeResolverPair(): array
@@ -69,4 +74,12 @@ it('flattens a union @throws node into FQCNs in order', function (): void {
 
     expect($resolver->throwsClasses($types[0], $method))
         ->toBe(['LogicException', 'RuntimeException']);
+});
+
+it('falls back to the written name when a @throws class cannot be resolved', function (): void {
+    [$parser, $resolver] = makeResolverPair();
+    $method = new ReflectionMethod(TypeNodeResolverFixture::class, 'throwsUnresolved');
+    $types = $parser->parse((string) $method->getDocComment())->throwsTypes();
+
+    expect($resolver->throwsClasses($types[0], $method))->toBe(['NotARealClassXyz']);
 });
