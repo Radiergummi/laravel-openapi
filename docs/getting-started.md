@@ -4,12 +4,35 @@
 
 - PHP 8.4+
 - Laravel 12 or 13
+- If you use [Spatie Laravel Data](plugins.md): `spatie/laravel-data` **≥ 4.23.0**
+  (see [Compatibility notes](#compatibility-notes)).
 
 ## Install
 
 ```bash
 composer require radiergummi/laravel-openapi
 ```
+
+### Compatibility notes
+
+The package floors a few spec-tooling dependencies at their current majors
+because they are load-bearing, not incidental:
+
+- **`spatie/laravel-data ≥ 4.23.0`** — only relevant if your app uses Spatie
+  Data. Versions `< 4.23` transitively require `phpdocumentor/reflection ^6`,
+  which pins `phpdocumentor/reflection-docblock` to `^5`; this package needs
+  `^6` (its `@return` generics parsing relies on `phpdocumentor/type-resolver
+  2.x`). If `composer require` fails with a `phpdocumentor/reflection-docblock`
+  conflict, run `composer update spatie/laravel-data` — 4.23 dropped the
+  transitive pin and resolves the conflict. The `^4.x` API is otherwise
+  unchanged.
+- **`zircote/swagger-php ^6`** — the linter walks swagger-php's 6.x annotation
+  object model directly. Apps that themselves embed `zircote/swagger-php ^5`
+  (e.g. to self-generate a spec from `#[OA\*]` attributes) cannot currently
+  install alongside this package; the two majors are mutually exclusive.
+- **`symfony/type-info ^7.3 || ^8.0`** — works on Laravel 12 (Symfony 7) and
+  Laravel 13 without dragging in a newer Symfony major than your app already
+  uses.
 
 The service provider is auto-discovered. To customise the configuration:
 

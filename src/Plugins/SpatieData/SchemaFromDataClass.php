@@ -47,6 +47,8 @@ use Symfony\Component\TypeInfo\Type\CollectionType;
 use Symfony\Component\TypeInfo\Type\NullableType;
 use Symfony\Component\TypeInfo\Type\ObjectType;
 use Symfony\Component\TypeInfo\Type\UnionType;
+use Symfony\Component\TypeInfo\TypeContext\TypeContext;
+use Symfony\Component\TypeInfo\TypeContext\TypeContextFactory;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Throwable;
@@ -109,6 +111,16 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
+     * Builds the type-resolution context for a reflected property. Without it, symfony/type-info
+     * (7.3+) throws when a property is typed `self`/`static`/`parent`, since those identifiers can
+     * only be resolved relative to their declaring class.
+     */
+    private function typeContextFor(ReflectionProperty $property): ?TypeContext
+    {
+        return new TypeContextFactory()->createFromReflection($property);
+    }
+
+    /**
      * @param class-string<Data> $dataClass
      *
      * @throws ReflectionException
@@ -161,7 +173,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
 
             try {
-                $type = $this->typeResolver->resolve($rawType);
+                $type = $this->typeResolver->resolve($rawType, $this->typeContextFor($context->reflection));
             } catch (UnsupportedException) {
                 $properties[] = new OA\Property([
                     'property' => $context->wireName,
@@ -893,7 +905,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
 
             try {
-                $type = $this->typeResolver->resolve($rawType);
+                $type = $this->typeResolver->resolve($rawType, $this->typeContextFor($prop));
             } catch (UnsupportedException) {
                 continue;
             }
