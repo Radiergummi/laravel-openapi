@@ -13,18 +13,20 @@ Laravel 12 or 13.
 
 ```bash
 composer test                    # Pest suite (no coverage), via Orchestra Testbench
-composer lint                    # Laravel Pint — reports style violations
-vendor/bin/pint                  # Pint — apply style fixes
-composer analyse                 # PHPStan / Larastan, level 8
+composer lint                    # PHPStan / Larastan, level 8 (alias: composer analyse)
+composer format                  # Laravel Pint — apply style fixes (alias: composer fmt)
+vendor/bin/pint --test           # Pint — report style violations without fixing
 
-vendor/bin/pest tests/Feature/Oapi024Test.php          # single test file
+vendor/bin/pest tests/Feature/ExamplesTest.php         # single test file
 vendor/bin/pest --filter "substring of test name"      # single test by name
 ```
 
 The suite runs on Testbench — no host Laravel app is needed. CI matrix is PHP 8.4/8.5 ×
-Laravel 12/13; a PR is mergeable when `tests` is green, Pint reports no violations, and PHPStan
-passes. PHPStan runs at level 8 with `treatPhpDocTypesAsCertain: false` and is **CI-blocking** —
-`composer analyse` must report no errors.
+Laravel 12/13, plus a dedicated job running the suite against `zircote/swagger-php` 5.8 (the
+supported range is `^5.8 || ^6.1.2`; the byte-exact `snapshot` group is excluded from the 5.x
+job). A PR is mergeable when `tests` is green, Pint reports no violations (`vendor/bin/pint
+--test`), and PHPStan passes. PHPStan runs at level 8 with `treatPhpDocTypesAsCertain: false`
+and is **CI-blocking** — `composer lint` must report no errors.
 
 ## Architecture
 
@@ -36,9 +38,12 @@ The codebase splits into four namespaces:
 - `Core\` — the **Core Plugin**: bundled extraction/processing strategies
   (FormRequest extractor, error-envelope strategies, paginator response resolver,
   standard-response extractor, default query-parameter resolver, Faker example
-  synthesiser, route introspection). Registers itself via `Core\Registration`.
-- `Support\` — internal infrastructure (generator pipeline, registry, spec
+  synthesiser, route introspection). Registers itself as `Core\CorePlugin`.
+- `Support\` — internal infrastructure (generator pipeline + stages, spec
   resolution, inclusion evaluator, visibility resolver, extraction primitives).
+  PHPDoc/type parsing lives here: `Support\PhpDoc\DocBlockParser` +
+  `Support\Types\TypeNodeResolver`, built on `phpstan/phpdoc-parser` +
+  `symfony/type-info` — the `phpdocumentor`/`reflection-docblock` stack was dropped.
   Treat as `@internal`; not a stable extension point.
 - `Plugins\` — bundled third-party convention plugins. Four ship: **SpatieData**
   and **ApiResources** are enabled by default in `config/openapi.plugins`;
@@ -47,7 +52,8 @@ The codebase splits into four namespaces:
 
 ### Generation pipeline
 
-`OpenApiServiceProvider` wires everything. The flow:
+`OpenApiServiceProvider` wires everything. The flow (realized as the ordered `SpecStage`
+pipeline registered by `BaselineRegistration` — see Registry and plugins):
 
 1. `RouteIntrospector` walks Laravel routes (after applying `RouteFilter`s), producing an
    `ActionDescriptor` per route. `DocCommentParser` extracts summary/description/`@throws`.
@@ -59,12 +65,15 @@ The codebase splits into four namespaces:
 
 ### Registry and plugins
 
-`OpenApiRegistry` (in `Support\Registry\`) is the extension point.
-`CoreRegistration::register()` runs first (registers `FormRequestRequestSchemaResolver`
-and all core lint rules), then each plugin in `config/openapi.plugins` order, then
-any `config/openapi.lint.rules` extras. A plugin implements `Contracts\Registry\Plugin`
-and registers resolvers, extractors, error-response factories, payload class markers,
-and lint rules. `FormRequest` request bodies are handled by Core directly; Spatie Data
+`OpenApiRegistry` (in `Registry\`) is the extension point.
+`Support\Generator\BaselineRegistration::register()` runs first — it adds the load-bearing
+stage pipeline (`RootStage` → `PathsStage` → `ErrorResponseInferenceStage` → `ComponentsStage`
+→ `SecurityStage`) and the library-wide lint rules. Then each plugin in `config/openapi.plugins`
+order runs, starting with `Core\CorePlugin` (registers `FormRequestRequestSchemaResolver`,
+`CoreQueryParameterResolver`, `PaginatorResponseResolver`, and the core lint rules); finally any
+`config/openapi.lint.rules` extras. A plugin implements `Contracts\Registry\Plugin` and registers
+resolvers, extractors, error-response factories, payload class markers, lint rules, and
+additional `SpecStage`s. `FormRequest` request bodies are handled by Core directly; Spatie Data
 classes are handled by the SpatieData plugin.
 
 ### Lint subsystem (`src/Lint/`)
@@ -100,6 +109,10 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 
 ## Known gaps
 
-See `docs/internal/known-gaps.md`. Notably: no controller method-body inference (OAPI-017) — the
-generator reads signatures only — and lint rules miss `allOf`-composed schema properties
-(OAPI-038).
+See `docs/internal/known-gaps.md` (the gap registry, by `OAPI-###` ID) and
+`docs/internal/inference-roadmap.md` (the forward plan to close the planned ones). Notably:
+no controller method-body inference (OAPI-017) — the generator reads signatures only;
+no Eloquent-model or `@OA`-annotation response-schema inference (OAPI-063 / OAPI-064);
+no Sanctum security-scheme auto-derivation, only Passport (OAPI-065); and untyped path
+parameters (OAPI-066). (`allOf`-composed schema lint, formerly OAPI-038, is resolved — see
+`CHANGELOG.md`.)
