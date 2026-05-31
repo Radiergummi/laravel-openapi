@@ -12,16 +12,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
-use phpDocumentor\Reflection\DocBlock\Tags\Throws;
-use phpDocumentor\Reflection\DocBlockFactory;
-use phpDocumentor\Reflection\DocBlockFactoryInterface;
-use phpDocumentor\Reflection\Types\ContextFactory;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\ThrowsExtractor;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -45,16 +42,11 @@ use function str_ends_with;
  */
 final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
 {
-    private DocBlockFactoryInterface $docBlockFactory;
+    private ThrowsExtractor $throwsExtractor;
 
-    private ContextFactory $contextFactory;
-
-    public function __construct(
-        ?DocBlockFactoryInterface $docBlockFactory = null,
-        ?ContextFactory $contextFactory = null,
-    ) {
-        $this->docBlockFactory = $docBlockFactory ?? DocBlockFactory::createInstance();
-        $this->contextFactory = $contextFactory ?? new ContextFactory();
+    public function __construct(?ThrowsExtractor $throwsExtractor = null)
+    {
+        $this->throwsExtractor = $throwsExtractor ?? ThrowsExtractor::create();
     }
 
     /**
@@ -143,20 +135,9 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
             return;
         }
 
-        $docComment = $handleMethod->getDocComment();
+        $exceptionTypes = $this->throwsExtractor->extract($handleMethod);
 
-        if ($docComment === false) {
-            return;
-        }
-
-        // Resolve the docblock against the Action's namespace and use-statements so short
-        // `@throws` names (e.g. `NotFoundException`) become FQCNs and can be compared against
-        // the controller's resolved throws.
-        $context = $this->contextFactory->createFromReflector($handleMethod);
-        $docBlock = $this->docBlockFactory->create($docComment, $context);
-        $throwsTags = $docBlock->getTagsByName('throws');
-
-        if ($throwsTags === []) {
+        if ($exceptionTypes === []) {
             return;
         }
 
@@ -170,13 +151,7 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
         $controllerShortName = $descriptor->controller?->getShortName() ?? '(unknown)';
         $methodName = $method->getName();
 
-        foreach ($throwsTags as $tag) {
-            if (!$tag instanceof Throws) {
-                continue;
-            }
-
-            $exceptionType = ltrim((string) $tag->getType(), '\\');
-
+        foreach ($exceptionTypes as $exceptionType) {
             if ($exceptionType === '' || in_array($exceptionType, $controllerThrows, true)) {
                 continue;
             }
