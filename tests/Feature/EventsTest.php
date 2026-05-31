@@ -14,6 +14,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Events\LintFindingEmitted;
 use Radiergummi\OpenApi\Events\RouteSkipped;
@@ -81,8 +82,14 @@ it('dispatches SpecGenerationStarted and SpecGenerationCompleted around generati
 
     expect($completed)->toHaveCount(1)
         ->and($completed[0]->spec)->toBe('default')
-        ->and($completed[0]->durationMs)->toBeGreaterThanOrEqual(0.0)
-        ->and($completed[0]->document->paths)->toBeArray()->not->toBeEmpty();
+        ->and($completed[0]->durationMs)->toBeGreaterThanOrEqual(0.0);
+
+    // Pin the document the event carries: the visible route is present, the
+    // #[Hide]-marked one is absent. A bare ->toBeArray()->not->toBeEmpty()
+    // would silently accept an event firing with the wrong document.
+    $uris = array_map(static fn(OA\PathItem $p): string => $p->path, $completed[0]->document->paths);
+    expect($uris)->toContain('/oa-events/public')
+        ->not->toContain('/oa-events/hidden');
 });
 
 it('dispatches RouteSkipped with Visibility reason for #[Hide]', function (): void {

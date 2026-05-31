@@ -141,5 +141,11 @@ it('does not crash on a route carrying closure middleware', function (): void {
 
     // The closure middleware must be skipped; the string middleware still drives
     // the requirement. Previously this threw a TypeError on the closure key.
-    expect($extractor->forRoute($route))->toBeArray();
+    // With Passport installed in Testbench and no scopes, `auth:api` yields the
+    // default Passport oauth2 pair.
+    expect($extractor->forRoute($route))
+        ->toBe([
+            ['oauth2' => []],
+            ['oauth2ClientCredentials' => []],
+        ]);
 });

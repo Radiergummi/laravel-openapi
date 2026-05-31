@@ -37,10 +37,9 @@ it('emits null for each scalar property', function (): void {
 it('recurses into nested Data objects one level deep', function (): void {
     $payload = makeBuilder()->build(NestedParentData::class);
 
-    expect($payload)->toHaveKey('child')
-        ->and($payload['child'])->toBeArray()
-        ->and($payload['child'])->toHaveKey('name', null)
-        ->and($payload['child'])->toHaveKey('count', null);
+    expect($payload)->toBe([
+        'child' => ['name' => null, 'count' => null, 'score' => null],
+    ]);
 });
 
 it('emits a single-item array for plain array properties', function (): void {
@@ -62,18 +61,20 @@ it('emits correct keys for ValidationRulesFixtureData', function (): void {
         ->toHaveKey('status')
         ->toHaveKey('address');
 
-    // Nested Data → sub-array with address properties.
-    expect($payload['address'])->toBeArray()
-        ->and($payload['address'])->toHaveKey('street')
-        ->and($payload['address'])->toHaveKey('city');
+    // Nested Data → sub-array with address properties (all scalars synthesised as null).
+    expect($payload['address'])->toBe([
+        'street' => null,
+        'city'   => null,
+        'zip'    => null,
+    ]);
 });
 
-it('respects the cycle guard — a self-referencing class does not loop infinitely', function (): void {
-    // AddressFixtureData references itself transitively through NestedParentData;
-    // building it must terminate and return a non-empty payload.
-    $result = makeBuilder()->build(AddressFixtureData::class);
-
-    expect($result)->toBeArray();
+it('emits null for each scalar property of a flat nested Data class', function (): void {
+    expect(makeBuilder()->build(AddressFixtureData::class))->toBe([
+        'street' => null,
+        'city'   => null,
+        'zip'    => null,
+    ]);
 });
 
 it('handles indirect cycles (A → B → A) without infinite recursion', function (): void {
