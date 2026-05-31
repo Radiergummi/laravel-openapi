@@ -16,8 +16,6 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
-use phpDocumentor\Reflection\DocBlockFactory;
-use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\DiffConfigCommand;
@@ -48,12 +46,14 @@ use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Support\Spec\SpecResolver;
+use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 use RuntimeException;
 use Spatie\LaravelData\Data;
@@ -225,12 +225,10 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerRouting(): void
     {
-        // phpDocumentor's only factory call; ThrowsExtractor and ReturnTypeExtractor autowire
-        // off this binding plus a container-resolved ContextFactory via `#[Scoped]`.
-        $this->app->scoped(
-            DocBlockFactoryInterface::class,
-            static fn() => DocBlockFactory::createInstance(),
-        );
+        // PHPDoc parsing + type resolution. ThrowsExtractor and ReturnTypeExtractor autowire
+        // these via #[Scoped]; both carry per-run caches, so they are scoped (Octane-reset).
+        $this->app->scoped(DocBlockParser::class, static fn(): DocBlockParser => DocBlockParser::create());
+        $this->app->scoped(TypeNodeResolver::class, static fn(): TypeNodeResolver => TypeNodeResolver::create());
 
         $this->app->scoped(TypeResolver::class, static fn() => TypeResolver::create());
     }
