@@ -37,10 +37,11 @@ public function show(Project $project): ProjectResource { … }
 Both win over the docblock. Use `#[Operation(summary: …, description: …)]`
 instead when overriding several operation fields at once.
 
-Precedence: method attribute → method `#[Operation(...)]` → method docblock →
-class attribute → class `#[Operation(...)]`. Class-level placement is
-intended for `__invoke` (single-action) controllers, where it outranks the
-class docblock.
+Precedence: action attribute → action `#[Operation(...)]` → action docblock →
+class attribute → class `#[Operation(...)]`. For a `__invoke` (single-action)
+controller the "action" is its `__invoke` method, so the method's docblock and
+attributes take precedence as usual; class-level placement is a convenient
+fallback when `__invoke` carries none.
 
 ## Document an ad-hoc query parameter
 

@@ -117,10 +117,14 @@ final readonly class RouteIntrospector
 
         $classReflection = new ReflectionClass($controllerClass);
 
-        // Invocable controller: getActionMethod() returns the class name itself
+        // Invocable controller: getActionMethod() returns the class name itself. The action is
+        // its __invoke() method — reflect that so its docblock, return type, parameters and
+        // attributes describe the endpoint (the class docblock describes the class, not the action).
         if ($controllerClass === $actionMethod) {
-            $reflector = $classReflection;
-            $methodReflection = null;
+            $methodReflection = $classReflection->hasMethod('__invoke')
+                ? $classReflection->getMethod('__invoke')
+                : null;
+            $reflector = $methodReflection ?? $classReflection;
         } elseif (!$classReflection->hasMethod($actionMethod)) {
             // The route points at a method that does not exist on the class
             // (stale route definition, a method handled via __call, etc.).

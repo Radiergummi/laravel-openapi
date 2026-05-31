@@ -736,15 +736,15 @@ final readonly class OperationBuilder
     /**
      * Resolves the operation summary across attribute scopes and the docblock.
      *
-     * Precedence (multi-method controllers):
-     *   1. method-level `#[Summary]`
-     *   2. method-level `#[Operation(summary: …)]`
-     *   3. method docblock
+     * Precedence:
+     *   1. action-level `#[Summary]`
+     *   2. action-level `#[Operation(summary: …)]`
+     *   3. action docblock
      *   4. class-level `#[Summary]`
      *   5. class-level `#[Operation(summary: …)]`
      *
-     * For `__invoke` (single-action) controllers the class IS the action, so class-level
-     * attributes win over the class docblock — the docblock is the final fallback.
+     * The "action" is the controller method, the `__invoke` method of a single-action controller,
+     * or a route closure — all reached uniformly via {@see ActionDescriptor::$actionReflector}.
      */
     private function resolveSummary(ActionDescriptor $descriptor): ?string
     {
@@ -756,13 +756,6 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(SummaryAttribute::class),
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
-
-        // For `__invoke` controllers the action reflector IS the class, so $descriptor->summary
-        // is the class docblock — class-level attributes must beat it. Closure routes have no
-        // class, so $classAttr is null and the result is just docblock or nothing.
-        if ($descriptor->actionReflector === null) {
-            return $classAttr ?? $descriptor->summary;
-        }
 
         return $methodAttr ?? $descriptor->summary ?? $classAttr;
     }
@@ -795,10 +788,6 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(DescriptionAttribute::class),
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
-
-        if ($descriptor->actionReflector === null) {
-            return $classAttr ?? $descriptor->description;
-        }
 
         return $methodAttr ?? $descriptor->description ?? $classAttr;
     }

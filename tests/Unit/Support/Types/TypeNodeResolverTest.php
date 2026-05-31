@@ -37,6 +37,18 @@ class TypeNodeResolverFixture
         return new stdClass();
     }
 
+    /** @return ?Collection<int, stdClass> */
+    public function nullableGeneric(): ?Collection
+    {
+        return null;
+    }
+
+    /** @return null|Collection<int, stdClass> */
+    public function unionNullableGeneric(): ?Collection
+    {
+        return null;
+    }
+
     /** @throws LogicException|RuntimeException */
     public function throwsUnion(): void {}
 
@@ -54,6 +66,22 @@ function makeResolverPair(): array
 it('resolves the value class of a generic to an FQCN', function (): void {
     [$parser, $resolver] = makeResolverPair();
     $method = new ReflectionMethod(TypeNodeResolverFixture::class, 'generic');
+    $type = $parser->parse((string) $method->getDocComment())->returnType();
+
+    expect($resolver->genericValueClass($type, $method))->toBe('stdClass');
+});
+
+it('resolves the value class of a nullable generic', function (): void {
+    [$parser, $resolver] = makeResolverPair();
+    $method = new ReflectionMethod(TypeNodeResolverFixture::class, 'nullableGeneric');
+    $type = $parser->parse((string) $method->getDocComment())->returnType();
+
+    expect($resolver->genericValueClass($type, $method))->toBe('stdClass');
+});
+
+it('resolves the value class of a generic in a union with null', function (): void {
+    [$parser, $resolver] = makeResolverPair();
+    $method = new ReflectionMethod(TypeNodeResolverFixture::class, 'unionNullableGeneric');
     $type = $parser->parse((string) $method->getDocComment())->returnType();
 
     expect($resolver->genericValueClass($type, $method))->toBe('stdClass');

@@ -54,20 +54,50 @@ final class TypeNodeResolver
 
     /**
      * FQCN (no leading backslash) of the *value* argument of a generic type —
-     * `Foo<Key, Value>` resolves to `Value` (the last argument). Returns null
-     * when the node is not a generic, or its value argument is not a plain class.
+     * `Foo<Key, Value>` resolves to `Value` (the last argument). A leading `?` or a
+     * `|null` union is unwrapped first, so `?Foo<Bar>` and `Foo<Bar>|null` resolve too.
+     * Returns null when there is no generic, or its value argument is not a plain class.
      */
     public function genericValueClass(TypeNode $node, Reflector $context): ?string
     {
-        if (!$node instanceof GenericTypeNode || $node->genericTypes === []) {
+        $generic = $this->unwrapGeneric($node);
+
+        if ($generic === null || $generic->genericTypes === []) {
             return null;
         }
 
-        $value = $node->genericTypes[array_key_last($node->genericTypes)];
+        $value = $generic->genericTypes[array_key_last($generic->genericTypes)];
 
         return $value instanceof IdentifierTypeNode
             ? $this->resolveClass($value, $context)
             : null;
+    }
+
+    /**
+     * Locates the {@see GenericTypeNode} within a type node, descending through a nullable
+     * wrapper (`?Foo<Bar>`) or a union (`Foo<Bar>|null`). Returns null when there is none.
+     */
+    private function unwrapGeneric(TypeNode $node): ?GenericTypeNode
+    {
+        if ($node instanceof GenericTypeNode) {
+            return $node;
+        }
+
+        if ($node instanceof NullableTypeNode) {
+            return $this->unwrapGeneric($node->type);
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            foreach ($node->types as $inner) {
+                $generic = $this->unwrapGeneric($inner);
+
+                if ($generic !== null) {
+                    return $generic;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -82,11 +112,11 @@ final class TypeNodeResolver
 
         foreach ($this->flatten($node) as $identifier) {
             // Fall back to the written name when the class cannot be resolved to an existing
-            // class — `@throws` feeds error-response mapping and the throws.unmapped lint rule
-            // (both of which `class_exists()`-guard), so an unresolvable name must still surface
-            // rather than vanish. This preserves the prior phpDocumentor behaviour. Return-type
-            // generics intentionally do NOT do this (see genericValueClass): a broken $ref is
-            // worse than omission.
+            // class. `@throws` feeds error-response mapping and the throws.unmapped lint rule
+            // (both `class_exists()`-guard), so a documented-but-unresolvable exception name must
+            // still surface rather than vanish silently. Return-type generics intentionally do
+            // NOT do this (see genericValueClass): emitting an unresolvable class as a $ref target
+            // would produce a broken document, so omission is the safer choice there.
             $classes[] = $this->resolveClass($identifier, $context)
                 ?? ltrim($identifier->name, '\\');
         }

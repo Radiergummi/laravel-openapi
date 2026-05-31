@@ -175,7 +175,7 @@ it('lets a method docblock outrank class-level standalone attributes', function 
         ->and($operation['description'])->toBe('Method docblock description.');
 });
 
-it('lets class-level attributes outrank the class docblock on __invoke controllers', function (): void {
+it('reads the __invoke docblock as the action docblock, outranking class-level attributes', function (): void {
     RouteFacade::get(
         '/oa-sd/invocable',
         InvocableSummaryDescriptionController::class,
@@ -183,6 +183,8 @@ it('lets class-level attributes outrank the class docblock on __invoke controlle
 
     $operation = generateSpec()['paths']['/oa-sd/invocable']['get'];
 
-    expect($operation['summary'])->toBe('Invocable class summary')
-        ->and($operation['description'])->toBe('Invocable class description.');
+    // A single-action controller's action is its __invoke() method, so its docblock describes the
+    // operation — same precedence as any method docblock over class-level attributes.
+    expect($operation['summary'])->toBe('Invocable docblock summary.')
+        ->and($operation['description'])->toBe('Invocable docblock description.');
 });
