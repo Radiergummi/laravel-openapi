@@ -21,6 +21,8 @@ use PHPStan\PhpDocParser\Ast\Type\TypeNode;
  * Wraps a phpstan/phpdoc-parser {@see PhpDocNode}. Typed accessors cover the tags
  * read today; {@see tagValues()} exposes raw value nodes so future complex-shape
  * tag readers build on the same parse rather than re-tokenising.
+ *
+ * @internal
  */
 final readonly class ParsedDocBlock
 {

@@ -27,6 +27,8 @@ use function array_key_exists;
  *
  * Bound as a scoped singleton; the per-run parse cache resets between generation
  * runs under Octane.
+ *
+ * @internal
  */
 #[Scoped]
 final class DocBlockParser

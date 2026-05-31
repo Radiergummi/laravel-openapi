@@ -1,10 +1,19 @@
 <?php
 
+/**
+ * This file is part of radiergummi/laravel-openapi.
+ *
+ * @license MIT
+ * @copyright (c) 2026 Moritz Friedrich
+ */
+
 declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Support\PhpDoc;
 
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 
 function makeDocBlockParser(): DocBlockParser
@@ -31,7 +40,9 @@ it('exposes every @throws type node in order', function (): void {
 
     $types = makeDocBlockParser()->parse($comment)->throwsTypes();
 
-    expect($types)->toHaveCount(2);
+    expect($types)->toHaveCount(2)
+        ->and($types[0])->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($types[1])->toBeInstanceOf(UnionTypeNode::class);
 });
 
 it('exposes raw value nodes for arbitrary tags', function (): void {
