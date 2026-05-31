@@ -16,18 +16,26 @@ use Radiergummi\OpenApi\Tests\Fixtures\EdgeCaseFixtureController;
 
 uses()->group('openapi');
 
-it('falls back to a bare 200 response when the action return type is a union of Data classes', function (): void {
+it('emits a oneOf of $refs when the action return type is a union of Data classes', function (): void {
     Route::get('/edge/union-return', [EdgeCaseFixtureController::class, 'unionReturnAction']);
 
     $spec = generateSpec();
 
-    // Current behavior, pinned to surface regressions: union return types reach neither
-    // DataResponseResolver (rejects non-ReflectionNamedType) nor ReturnTypeExtractor's
-    // generic-argument path, so the operation degrades to a description-only 200. If the
-    // generator grows oneOf support for unions, update this assertion (the bug to watch
-    // out for is the *silent* degradation, not the shape itself).
-    $response = $spec['paths']['/edge/union-return']['get']['responses']['200'];
+    $schema = $spec['paths']['/edge/union-return']['get']['responses']['200']['content']['application/json']['schema'];
 
-    expect($response)->not->toHaveKey('content')
-        ->and($response['description'])->toBe('OK');
+    expect($schema)->toHaveKey('oneOf')
+        ->and($schema['oneOf'])->toBe([
+            ['$ref' => '#/components/schemas/ScalarOnlyData'],
+            ['$ref' => '#/components/schemas/AddressFixtureData'],
+        ]);
+});
+
+it('ignores non-Data members of a mixed union and emits the Data member as a $ref', function (): void {
+    Route::get('/edge/mixed-union', [EdgeCaseFixtureController::class, 'mixedUnionReturnAction']);
+
+    $spec = generateSpec();
+
+    $schema = $spec['paths']['/edge/mixed-union']['get']['responses']['200']['content']['application/json']['schema'];
+
+    expect($schema)->toBe(['$ref' => '#/components/schemas/ScalarOnlyData']);
 });

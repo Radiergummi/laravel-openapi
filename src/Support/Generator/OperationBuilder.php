@@ -215,7 +215,10 @@ final readonly class OperationBuilder
      *
      * Precedence (first match wins):
      * 1. {@see PublicEndpoint} on method or class → `[]` (truly public)
-     * 2. {@see SecurityAttribute} on method or class → declared scopes as OR alternatives.
+     * 2. {@see SecurityAttribute} on method or class → each instance contributes one
+     *    OR-alternative to the operation's `security` list. Method-level attributes win
+     *    over class-level ones on the same target; if the method has any `#[Security]`
+     *    the class-level instances are ignored.
      * 3. Middleware-derived security via {@see SecurityExtractor}.
      *
      * @return list<array<string, list<string>>>
@@ -226,13 +229,24 @@ final readonly class OperationBuilder
             return [];
         }
 
-        $security = $this->readAttribute($descriptor, SecurityAttribute::class);
+        $reflectionAttributes = $descriptor->actionAttributes(SecurityAttribute::class)
+            ?: $descriptor->controllerAttributes(SecurityAttribute::class);
 
-        if ($security instanceof SecurityAttribute) {
-            return $this->securityExtractor->requirementForScopes($security->scopes, $security->scheme);
+        if ($reflectionAttributes === []) {
+            return $this->securityExtractor->forRoute($descriptor->route);
         }
 
-        return $this->securityExtractor->forRoute($descriptor->route);
+        $requirements = [];
+
+        foreach ($reflectionAttributes as $reflectionAttribute) {
+            $security = $reflectionAttribute->newInstance();
+
+            foreach ($this->securityExtractor->requirementForScopes($security->scopes, $security->scheme) as $entry) {
+                $requirements[] = $entry;
+            }
+        }
+
+        return $requirements;
     }
 
     /**

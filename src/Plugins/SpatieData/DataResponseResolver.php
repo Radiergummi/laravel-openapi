@@ -22,22 +22,28 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionException;
 use ReflectionNamedType;
+use ReflectionUnionType;
 use RuntimeException;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
+use function array_map;
 use function class_exists;
+use function count;
 use function is_a;
 use function sprintf;
 
 /**
  * Resolves a Spatie Data return type into its `200 OK` response.
  *
- * Handles two cases:
+ * Handles three cases:
  * - `FlightData` (a {@see Data} subclass) → `$ref` to the Data component schema.
  * - `DataCollection<int, FlightData>` → array of `$ref`s, item class read from
  *   the `@return DataCollection<T, Item>` PHPDoc generic.
+ * - `FlightData|OtherData` (union) → `oneOf` of `$ref`s for the Data-class
+ *   members; non-Data members are ignored. Collapses to a bare `$ref` when only
+ *   one union member is a Data class.
  *
  * Paginated Spatie collections (`PaginatedDataCollection<…>` /
  * `CursorPaginatedDataCollection<…>`) are recognised by {@see PaginatorKind} and handled by
@@ -98,6 +104,13 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
         }
 
         $returnType = $reflector->getReturnType();
+
+        // Union return types: emit oneOf of $refs for the Data-class members
+        // (non-Data members are ignored). A single Data member collapses to
+        // a bare $ref; zero Data members defer to the next resolver.
+        if ($returnType instanceof ReflectionUnionType) {
+            return $this->resolveUnion($returnType);
+        }
 
         if (!$returnType instanceof ReflectionNamedType || $returnType->isBuiltin()) {
             return null;
@@ -167,5 +180,46 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             'description' => 'OK',
             'content' => [MediaType::Json->schema($schema)],
         ]);
+    }
+
+    /**
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function resolveUnion(ReflectionUnionType $union): ?OA\Response
+    {
+        $refs = [];
+
+        foreach ($union->getTypes() as $member) {
+            if (!$member instanceof ReflectionNamedType || $member->isBuiltin()) {
+                continue;
+            }
+
+            $class = $member->getName();
+
+            if (!is_a($class, Data::class, allow_string: true)) {
+                continue;
+            }
+
+            /** @var class-string<Data> $class */
+            $ref = $this->refResolver->resolveRef($class);
+
+            if ($ref !== null) {
+                $refs[] = $ref;
+            }
+        }
+
+        if ($refs === []) {
+            return null;
+        }
+
+        if (count($refs) === 1) {
+            return $this->response(new OA\Schema(['ref' => $refs[0]]));
+        }
+
+        return $this->response(new OA\Schema([
+            'oneOf' => array_map(static fn(string $ref): OA\Schema => new OA\Schema(['ref' => $ref]), $refs),
+        ]));
     }
 }

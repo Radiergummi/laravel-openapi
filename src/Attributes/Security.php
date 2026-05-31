@@ -27,7 +27,7 @@ use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
  * #[OpenApi\Security(['flights:write'], scheme: 'bearer')]
  * ```
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Security
 {
     /**
