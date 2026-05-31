@@ -20,6 +20,9 @@ parameters:
         # RuleTestCase data fixtures carry intentional attribute misuse for the PHPStan rules to
         # catch; they are analysed by the rule tests in isolation, not the main pass.
         - tests/PhpStan/Data/*
+        # Fixtures carrying intentionally-malformed PHPDoc (e.g. a broken @phpstan-import-type)
+        # to exercise resolver error paths — the broken annotation is the point of the fixture.
+        - tests/Fixtures/Types/*
     tmpDir: .cache/phpstan
 
     editorUrl: 'phpstorm://open?file=%%file%%&line=%%line%%'

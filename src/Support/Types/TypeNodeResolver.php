@@ -153,7 +153,16 @@ final class TypeNodeResolver
             return $this->contextCache[$key];
         }
 
-        $resolved = $this->contextFactory->createFromReflection($context);
+        try {
+            $resolved = $this->contextFactory->createFromReflection($context);
+        } catch (Throwable) {
+            // Building the context tokenises the declaring file and resolves every
+            // `@psalm-import-type`/`@phpstan-import-type` alias on the class — annotations this
+            // resolver never consumes. A malformed alias or an unreadable file must not abort the
+            // whole generation/lint run, so degrade to a context-free resolution (bare names
+            // simply won't resolve).
+            $resolved = null;
+        }
 
         if ($key !== null) {
             $this->contextCache[$key] = $resolved;

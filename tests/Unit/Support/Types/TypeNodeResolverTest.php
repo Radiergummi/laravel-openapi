@@ -15,6 +15,7 @@ use Illuminate\Support\Collection;
 use LogicException;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
+use Radiergummi\OpenApi\Tests\Fixtures\Types\BrokenTypeContext;
 use ReflectionMethod;
 use RuntimeException;
 use stdClass;
@@ -82,4 +83,14 @@ it('falls back to the written name when a @throws class cannot be resolved', fun
     $types = $parser->parse((string) $method->getDocComment())->throwsTypes();
 
     expect($resolver->throwsClasses($types[0], $method))->toBe(['NotARealClassXyz']);
+});
+
+it('does not crash when the declaring class has annotations type-info cannot parse', function (): void {
+    [$parser, $resolver] = makeResolverPair();
+    $method = new ReflectionMethod(BrokenTypeContext::class, 'boom');
+    $types = $parser->parse((string) $method->getDocComment())->throwsTypes();
+
+    // The class carries a malformed @phpstan-import-type that makes TypeContextFactory throw;
+    // resolution must degrade to a context-free lookup rather than aborting the run.
+    expect($resolver->throwsClasses($types[0], $method))->toBe(['RuntimeException']);
 });
