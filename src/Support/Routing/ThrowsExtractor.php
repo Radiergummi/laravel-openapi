@@ -26,6 +26,14 @@ final class ThrowsExtractor
         private readonly TypeNodeResolver $typeNodeResolver,
     ) {}
 
+    public static function create(): self
+    {
+        return new self(
+            docBlockParser: DocBlockParser::create(),
+            typeNodeResolver: TypeNodeResolver::create(),
+        );
+    }
+
     /**
      * @return list<string>
      */
@@ -96,13 +104,5 @@ final class ThrowsExtractor
         }
 
         return null;
-    }
-
-    public static function create(): self
-    {
-        return new self(
-            docBlockParser: DocBlockParser::create(),
-            typeNodeResolver: TypeNodeResolver::create(),
-        );
     }
 }

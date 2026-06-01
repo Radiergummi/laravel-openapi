@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Support\SpecTime\AnyValue;
+use Radiergummi\OpenApi\Plugins\Core\Support\SpecTime\AnyValue;
 
 uses()->group('openapi');
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Lint\RuleUnknown;
-use Radiergummi\OpenApi\Core\Lint\ThrowsUnmapped;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Lint\Rules\RequestEmpty;
+use Radiergummi\OpenApi\Plugins\Core\Lint\RuleUnknown;
+use Radiergummi\OpenApi\Plugins\Core\Lint\ThrowsUnmapped;
 
 uses()->group('openapi', 'lint');
 

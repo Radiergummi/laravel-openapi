@@ -7,17 +7,21 @@ namespace Radiergummi\OpenApi\Tests\Fixtures;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
 use Radiergummi\OpenApi\Attributes\Security;
+use Radiergummi\OpenApi\Tests\Unit\Support\Routing\ReturnTypeExtractorFixture;
+use Random\RandomException;
 
 /**
- * Fixture controller for edge-case feature tests — one action per scenario,
- * each consumed by exactly one test file.
+ * Fixture controller for edge-case feature tests — one action per scenario, each consumed by
+ * exactly one test file.
  */
 final class EdgeCaseFixtureController extends Controller
 {
     /**
      * Union of two Data subclasses — emitted as a `oneOf` of `$ref`s.
      *
-     * @see \Radiergummi\OpenApi\Tests\Feature\UnionReturnTypeTest
+     * @throws RandomException
+     *
+     * @see ReturnTypeExtractorFixture
      */
     public function unionReturnAction(): ScalarOnlyData|AddressFixtureData
     {
@@ -27,10 +31,10 @@ final class EdgeCaseFixtureController extends Controller
     }
 
     /**
-     * Mixed union — a Data class alongside a non-Data return type. Only the
-     * Data members contribute to the response schema; the rest are ignored.
+     * Mixed union — a Data class alongside a non-Data return type. Only the Data members contribute
+     * to the response schema; the rest are ignored.
      *
-     * @see \Radiergummi\OpenApi\Tests\Feature\UnionReturnTypeTest
+     * @throws RandomException
      */
     public function mixedUnionReturnAction(): ScalarOnlyData|RedirectResponse
     {
@@ -41,8 +45,6 @@ final class EdgeCaseFixtureController extends Controller
 
     /**
      * Explicit per-operation scheme override via `#[Security(scheme: ...)]`.
-     *
-     * @see \Radiergummi\OpenApi\Tests\Feature\MultiSchemeSecurityTest
      */
     #[Security([], scheme: 'bearer')]
     public function bearerOnlyAction(): array
@@ -51,10 +53,8 @@ final class EdgeCaseFixtureController extends Controller
     }
 
     /**
-     * Stacked `#[Security]` attributes — each instance contributes one
-     * OR-alternative to the operation's `security` list.
-     *
-     * @see \Radiergummi\OpenApi\Tests\Feature\StackedSecurityTest
+     * Stacked `#[Security]` attributes — each instance contributes one OR-alternative to the
+     * operation's `security` list.
      */
     #[Security(['admin'], scheme: 'bearer')]
     #[Security(['admin'], scheme: 'apiKey')]

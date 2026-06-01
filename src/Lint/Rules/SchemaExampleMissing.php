@@ -40,15 +40,15 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
             return;
         }
 
-        $hasExample = $schema->example !== Generator::UNDEFINED && $schema->example !== null;
+        $hasExample = !Generator::isDefault($schema->example) && $schema->example !== null;
 
         $hasExamples
-            = $schema->examples !== Generator::UNDEFINED
+            = !Generator::isDefault($schema->examples)
             && is_array($schema->examples)
             && $schema->examples !== [];
 
         $hasEnum
-            = $schema->enum !== Generator::UNDEFINED
+            = !Generator::isDefault($schema->enum)
             && is_array($schema->enum)
             && $schema->enum !== [];
 

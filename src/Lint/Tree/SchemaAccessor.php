@@ -25,14 +25,14 @@ final class SchemaAccessor
      */
     public static function extractRef(OA\Schema|array|string|null $schema): ?string
     {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
+        if ($schema === null || Generator::isDefault($schema)) {
             return null;
         }
 
         $ref = $schema->ref ?? Generator::UNDEFINED;
 
         if (
-            $ref === Generator::UNDEFINED
+            Generator::isDefault($ref)
             || $ref === null // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may emit null at runtime)
             || !is_string($ref)
         ) {
@@ -48,7 +48,7 @@ final class SchemaAccessor
 
     public static function extractSchemaType(mixed $schema): ?string
     {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
+        if ($schema === null || Generator::isDefault($schema)) {
             return null;
         }
 
@@ -58,7 +58,7 @@ final class SchemaAccessor
 
         $type = $schema->type;
 
-        if ($type === Generator::UNDEFINED || $type === null) {
+        if (Generator::isDefault($type) || $type === null) {
             return null;
         }
 
@@ -80,7 +80,7 @@ final class SchemaAccessor
 
     public static function extractSchemaPattern(mixed $schema): ?string
     {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
+        if ($schema === null || Generator::isDefault($schema)) {
             return null;
         }
 
@@ -92,7 +92,7 @@ final class SchemaAccessor
         $pattern = $schema->pattern ?? Generator::UNDEFINED;
 
         if (
-            $pattern === Generator::UNDEFINED
+            Generator::isDefault($pattern)
             || $pattern === null // @phpstan-ignore identical.alwaysFalse (defensive; pattern may be null at runtime)
         ) {
             return null;
@@ -106,7 +106,7 @@ final class SchemaAccessor
      */
     public static function extractSchemaEnum(mixed $schema): ?array
     {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
+        if ($schema === null || Generator::isDefault($schema)) {
             return null;
         }
 
@@ -116,7 +116,7 @@ final class SchemaAccessor
 
         $enum = $schema->enum;
 
-        if ($enum === Generator::UNDEFINED || !is_array($enum)) {
+        if (Generator::isDefault($enum) || !is_array($enum)) {
             return null;
         }
 
@@ -127,7 +127,7 @@ final class SchemaAccessor
     {
         // OAS 3.0 style
         if (
-            $schema->nullable !== Generator::UNDEFINED
+            !Generator::isDefault($schema->nullable)
             && $schema->nullable === true
         ) {
             return true;
@@ -141,7 +141,7 @@ final class SchemaAccessor
 
     public static function undefinedToNull(mixed $value): ?string
     {
-        if ($value === Generator::UNDEFINED || $value === null) {
+        if (Generator::isDefault($value) || $value === null) {
             return null;
         }
 

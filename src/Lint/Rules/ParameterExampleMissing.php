@@ -33,10 +33,10 @@ final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
             return;
         }
 
-        $hasExample = $parameter->raw->example !== Generator::UNDEFINED
+        $hasExample = !Generator::isDefault($parameter->raw->example)
             && $parameter->raw->example !== null;
 
-        $hasExamples = $parameter->raw->examples !== Generator::UNDEFINED
+        $hasExamples = !Generator::isDefault($parameter->raw->examples)
             && is_array($parameter->raw->examples)
             && $parameter->raw->examples !== [];
 

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Http\FormRequest;
-use Radiergummi\OpenApi\Core\Support\SpecTime\AnyValue;
-use Radiergummi\OpenApi\Core\Support\SpecTime\SpecTimeRequest;
+use Radiergummi\OpenApi\Plugins\Core\Support\SpecTime\AnyValue;
+use Radiergummi\OpenApi\Plugins\Core\Support\SpecTime\SpecTimeRequest;
 
 uses()->group('openapi');
 

@@ -45,6 +45,16 @@ final class TypeNodeResolver
         private readonly TypeContextFactory $contextFactory,
     ) {}
 
+    public static function create(): self
+    {
+        $stringResolver = new StringTypeResolver();
+
+        return new self(
+            stringResolver: $stringResolver,
+            contextFactory: new TypeContextFactory($stringResolver),
+        );
+    }
+
     /**
      * FQCN (no leading backslash) of the *value* argument of a generic type —
      * `Foo<Key, Value>` resolves to `Value` (the last argument). A leading `?` or a
@@ -91,54 +101,6 @@ final class TypeNodeResolver
         }
 
         return null;
-    }
-
-    /**
-     * FQCNs (no leading backslash) of every class in a (possibly union) `@throws`
-     * node, in source order.
-     *
-     * @return list<string>
-     */
-    public function throwsClasses(TypeNode $node, Reflector $context): array
-    {
-        $classes = [];
-
-        foreach ($this->flatten($node) as $identifier) {
-            // Fall back to the written name when the class cannot be resolved to an existing
-            // class. `@throws` feeds error-response mapping and the throws.unmapped lint rule
-            // (both `class_exists()`-guard), so a documented-but-unresolvable exception name must
-            // still surface rather than vanish silently. Return-type generics intentionally do
-            // NOT do this (see genericValueClass): emitting an unresolvable class as a $ref target
-            // would produce a broken document, so omission is the safer choice there.
-            $classes[] = $this->resolveClass($identifier, $context)
-                ?? ltrim($identifier->name, '\\');
-        }
-
-        return $classes;
-    }
-
-    /**
-     * @return iterable<IdentifierTypeNode>
-     */
-    private function flatten(TypeNode $node): iterable
-    {
-        if ($node instanceof UnionTypeNode) {
-            foreach ($node->types as $inner) {
-                yield from $this->flatten($inner);
-            }
-
-            return;
-        }
-
-        if ($node instanceof NullableTypeNode) {
-            yield from $this->flatten($node->type);
-
-            return;
-        }
-
-        if ($node instanceof IdentifierTypeNode) {
-            yield $node;
-        }
     }
 
     private function resolveClass(IdentifierTypeNode $node, Reflector $context): ?string
@@ -198,18 +160,57 @@ final class TypeNodeResolver
     {
         return match (true) {
             $context instanceof ReflectionClass => $context->getName(),
-            $context instanceof ReflectionMethod => $context->getDeclaringClass()->getName() . '::' . $context->getName(),
+            $context instanceof ReflectionMethod => $context->getDeclaringClass()->getName() . '::' . $context->getName(
+            ),
             default => null,
         };
     }
 
-    public static function create(): self
+    /**
+     * FQCNs (no leading backslash) of every class in a (possibly union) `@throws`
+     * node, in source order.
+     *
+     * @return list<string>
+     */
+    public function throwsClasses(TypeNode $node, Reflector $context): array
     {
-        $stringResolver = new StringTypeResolver();
+        $classes = [];
 
-        return new self(
-            stringResolver: $stringResolver,
-            contextFactory: new TypeContextFactory($stringResolver),
-        );
+        foreach ($this->flatten($node) as $identifier) {
+            // Fall back to the written name when the class cannot be resolved to an existing
+            // class. `@throws` feeds error-response mapping and the throws.unmapped lint rule
+            // (both `class_exists()`-guard), so a documented-but-unresolvable exception name must
+            // still surface rather than vanish silently. Return-type generics intentionally do
+            // NOT do this (see genericValueClass): emitting an unresolvable class as a $ref target
+            // would produce a broken document, so omission is the safer choice there.
+            $classes[] = $this->resolveClass($identifier, $context)
+                ?? ltrim($identifier->name, '\\');
+        }
+
+        return $classes;
+    }
+
+    /**
+     * @return iterable<IdentifierTypeNode>
+     */
+    private function flatten(TypeNode $node): iterable
+    {
+        if ($node instanceof UnionTypeNode) {
+            foreach ($node->types as $inner) {
+                yield from $this->flatten($inner);
+            }
+
+            return;
+        }
+
+        if ($node instanceof NullableTypeNode) {
+            yield from $this->flatten($node->type);
+
+            return;
+        }
+
+        if ($node instanceof IdentifierTypeNode) {
+            yield $node;
+        }
     }
 }

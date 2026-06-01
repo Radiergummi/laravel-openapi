@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use LogicException;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 

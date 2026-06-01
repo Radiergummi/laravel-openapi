@@ -19,19 +19,22 @@ use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
-use Radiergummi\OpenApi\Core\CorePlugin;
-use Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope;
-use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
-use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;
-use Radiergummi\OpenApi\Core\Resolvers\PaginatorResponseResolver;
-use Radiergummi\OpenApi\Core\Support\FakerExampleSynthesiser;
-use Radiergummi\OpenApi\Core\Support\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
+use Radiergummi\OpenApi\Plugins\Core\CorePlugin;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\JsonApiEnvelope;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\LaravelEnvelope;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\NoneEnvelope;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\Rfc7807Envelope;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Plugins\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorSchemaFactory;
+use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\TransformerRefSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\SchemaFromTransformer;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -455,8 +458,8 @@ class OpenApiServiceProvider extends ServiceProvider
         // same scoped instance instead of constructing a second one. The concrete classes
         // self-register via `#[Scoped]`.
         $this->app->scoped(
-            Plugins\SpatieData\FilePropertyChecker::class,
-            static fn(Container $app) => $app->make(Plugins\SpatieData\SchemaFromDataClass::class),
+            Plugins\SpatieData\Support\FilePropertyChecker::class,
+            static fn(Container $app) => $app->make(Plugins\SpatieData\Support\SchemaFromDataClass::class),
         );
     }
 
@@ -476,12 +479,12 @@ class OpenApiServiceProvider extends ServiceProvider
     {
         $this->app->scoped(
             Contracts\Routing\ResourceTargetLocator::class,
-            Plugins\ApiResources\ResourceClassLocator::class,
+            Plugins\ApiResources\Support\ResourceClassLocator::class,
         );
 
         $this->app->scoped(
-            Plugins\ApiResources\SchemaFromResource::class,
-            static function (Container $app): Plugins\ApiResources\SchemaFromResource {
+            SchemaFromResource::class,
+            static function (Container $app): SchemaFromResource {
                 $registry = $app->make(OpenApiRegistry::class);
 
                 /** @throws BindingResolutionException */
@@ -497,7 +500,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     $resolvers = [];
 
                     foreach ($registry->refSchemaResolvers as $class) {
-                        if ($class === Plugins\ApiResources\ResourceRefSchemaResolver::class) {
+                        if ($class === Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver::class) {
                             continue;
                         }
 
@@ -507,7 +510,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     return $cache = $resolvers;
                 };
 
-                return new Plugins\ApiResources\SchemaFromResource(
+                return new SchemaFromResource(
                     registry: $app->make(ComponentSchemaRegistry::class),
                     refSchemaResolvers: $resolversFactory,
                 );
@@ -529,8 +532,8 @@ class OpenApiServiceProvider extends ServiceProvider
     private function registerFractalPlugin(): void
     {
         $this->app->scoped(
-            Plugins\Fractal\SchemaFromTransformer::class,
-            static function (Container $app): Plugins\Fractal\SchemaFromTransformer {
+            SchemaFromTransformer::class,
+            static function (Container $app): SchemaFromTransformer {
                 $registry = $app->make(OpenApiRegistry::class);
 
                 /** @throws BindingResolutionException */
@@ -546,7 +549,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     $resolvers = [];
 
                     foreach ($registry->refSchemaResolvers as $class) {
-                        if ($class === Plugins\Fractal\TransformerRefSchemaResolver::class) {
+                        if ($class === TransformerRefSchemaResolver::class) {
                             continue;
                         }
 
@@ -556,7 +559,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     return $cache = $resolvers;
                 };
 
-                return new Plugins\Fractal\SchemaFromTransformer(
+                return new SchemaFromTransformer(
                     registry: $app->make(ComponentSchemaRegistry::class),
                     refSchemaResolvers: $resolversFactory,
                 );

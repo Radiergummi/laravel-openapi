@@ -50,7 +50,7 @@ final class RefBroken implements Rule, ApiRuleVisitor
 
             $ref = $annotation->ref;
 
-            if ($ref === Generator::UNDEFINED || !is_string($ref)) {
+            if (Generator::isDefault($ref) || !is_string($ref)) {
                 return;
             }
 

@@ -178,7 +178,7 @@ The default envelope models `DataArraySerializer` plus
 the action calls `Manager::setSerializer(…)`:
 
 ```php
-use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
 
 #[FractalResponse(transformer: BookTransformer::class, serializer: Serializer::ArraySerializer)]
 public function arraySingle(): JsonResponse { … }      // bare $ref, no envelope

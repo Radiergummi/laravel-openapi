@@ -110,48 +110,9 @@ final readonly class OverrideMatcher
         return [...$merged, ...$nameFields];
     }
 
-    /**
-     * Config keys that matched no route name and no URI across the given set.
-     *
-     * @param list<array{name: ?string, uri: string}> $routes
-     *
-     * @return list<string>
-     */
-    public function unusedKeys(array $routes): array
+    private function normalise(string $uri): string
     {
-        $unused = [];
-
-        foreach ($this->overrides as $key => $_block) {
-            if (!$this->matchesAnyRoute((string) $key, $routes)) {
-                $unused[] = (string) $key;
-            }
-        }
-
-        return $unused;
-    }
-
-    public static function isAllowedField(string $field): bool
-    {
-        return in_array($field, self::ALLOWED_FIELDS, strict: true)
-            || str_starts_with($field, 'x-');
-    }
-
-    /**
-     * @param list<array{name: ?string, uri: string}> $routes
-     */
-    private function matchesAnyRoute(string $key, array $routes): bool
-    {
-        foreach ($routes as $route) {
-            if ($route['name'] !== null && $route['name'] === $key) {
-                return true;
-            }
-
-            if ($this->matchesGlob($key, $this->normalise($route['uri']))) {
-                return true;
-            }
-        }
-
-        return false;
+        return ltrim($uri, '/');
     }
 
     /**
@@ -172,6 +133,12 @@ final readonly class OverrideMatcher
         return $filtered;
     }
 
+    public static function isAllowedField(string $field): bool
+    {
+        return in_array($field, self::ALLOWED_FIELDS, strict: true)
+            || str_starts_with($field, 'x-');
+    }
+
     private function matchesGlob(string $pattern, string $normalisedUri): bool
     {
         // Str::is treats `*` as `.*`, matching any run of characters including `/`.
@@ -183,8 +150,41 @@ final readonly class OverrideMatcher
         return strlen(str_replace('*', '', $this->normalise($pattern)));
     }
 
-    private function normalise(string $uri): string
+    /**
+     * Config keys that matched no route name and no URI across the given set.
+     *
+     * @param list<array{name: ?string, uri: string}> $routes
+     *
+     * @return list<string>
+     */
+    public function unusedKeys(array $routes): array
     {
-        return ltrim($uri, '/');
+        $unused = [];
+
+        foreach ($this->overrides as $key => $_block) {
+            if (!$this->matchesAnyRoute((string) $key, $routes)) {
+                $unused[] = (string) $key;
+            }
+        }
+
+        return $unused;
+    }
+
+    /**
+     * @param list<array{name: ?string, uri: string}> $routes
+     */
+    private function matchesAnyRoute(string $key, array $routes): bool
+    {
+        foreach ($routes as $route) {
+            if ($route['name'] !== null && $route['name'] === $key) {
+                return true;
+            }
+
+            if ($this->matchesGlob($key, $this->normalise($route['uri']))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -61,6 +61,7 @@ class LintCommand extends Command
         {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}';
 
     protected $description = 'Lint OpenAPI documentation gaps across the API surface';
+
     /**
      * @throws \LogicException
      * @throws BindingResolutionException

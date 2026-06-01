@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Validation\ValidationException;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 uses()->group('openapi');

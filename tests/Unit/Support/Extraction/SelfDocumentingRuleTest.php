@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
-use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Plugins\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Extraction\RuleDocumentation;
 
 uses()->group('extractors', 'openapi');

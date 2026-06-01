@@ -12,7 +12,7 @@ use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rules\Unique;
-use Radiergummi\OpenApi\Core\Support\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Plugins\Core\Support\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 
 uses()->group('openapi');

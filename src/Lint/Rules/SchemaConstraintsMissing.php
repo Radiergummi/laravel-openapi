@@ -84,7 +84,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
                 return;
             }
 
-            if ($raw->maxLength !== Generator::UNDEFINED) {
+            if (!Generator::isDefault($raw->maxLength)) {
                 return;
             }
 
@@ -100,7 +100,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         }
 
         if ($type === 'array') {
-            if ($raw->maxItems !== Generator::UNDEFINED) {
+            if (!Generator::isDefault($raw->maxItems)) {
                 return;
             }
 
@@ -117,8 +117,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
 
         if ($type === 'integer' || $type === 'number') {
             if (
-                $raw->minimum !== Generator::UNDEFINED
-                || $raw->maximum !== Generator::UNDEFINED
+                !Generator::isDefault($raw->minimum)
+                || !Generator::isDefault($raw->maximum)
             ) {
                 return;
             }
@@ -159,7 +159,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             return;
         }
 
-        $rawType = $schema->type !== Generator::UNDEFINED ? $schema->type : null;
+        $rawType = !Generator::isDefault($schema->type) ? $schema->type : null;
 
         if (is_array($rawType)) {
             $type = array_find($rawType, static fn(string $t): bool => $t !== 'null');
@@ -168,8 +168,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         } else {
             $type = null;
         }
-        $format = $schema->format !== Generator::UNDEFINED ? $schema->format : null;
-        $enum = $schema->enum !== Generator::UNDEFINED && is_array($schema->enum)
+        $format = !Generator::isDefault($schema->format) ? $schema->format : null;
+        $enum = !Generator::isDefault($schema->enum) && is_array($schema->enum)
             ? $schema->enum
             : null;
 

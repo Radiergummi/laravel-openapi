@@ -416,7 +416,7 @@ final readonly class LintRunner
                 array_filter(
                     $document->paths,
                     static fn(OA\PathItem $p): bool
-                        => $p->path !== Generator::UNDEFINED
+                        => !Generator::isDefault($p->path)
                         && isset($allowedUris[$p->path]),
                 ),
             );

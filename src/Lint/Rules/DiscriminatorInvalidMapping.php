@@ -64,15 +64,15 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         }
 
         // Index this schema for use in finalize()
-        if ($schema->schema !== Generator::UNDEFINED && $schema->schema !== null) {
+        if (!Generator::isDefault($schema->schema) && $schema->schema !== null) {
             $this->schemaMap[$schema->schema] = $schema;
         }
 
         // Queue schemas with discriminators for the finalize pass
         if (
-            $schema->discriminator !== Generator::UNDEFINED
+            !Generator::isDefault($schema->discriminator)
             && $schema->discriminator !== null
-            && $schema->discriminator->propertyName !== Generator::UNDEFINED
+            && !Generator::isDefault($schema->discriminator->propertyName)
             && is_array($schema->discriminator->mapping)
         ) {
             $this->pending[] = $schema;
@@ -99,7 +99,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
     {
         $discriminator = $schema->discriminator;
         $propertyName = $discriminator->propertyName;
-        $baseSchemaName = $schema->schema !== Generator::UNDEFINED ? $schema->schema : '(unknown)';
+        $baseSchemaName = !Generator::isDefault($schema->schema) ? $schema->schema : '(unknown)';
 
         foreach ($discriminator->mapping as $discriminatorValue => $ref) {
             if (!is_string($ref)) {
@@ -211,12 +211,12 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
     ): bool {
         if (is_array($schema->properties)) {
             foreach ($schema->properties as $property) {
-                if ($property === Generator::UNDEFINED) {
+                if (Generator::isDefault($property)) {
                     continue;
                 }
 
                 if (
-                    $property->property !== Generator::UNDEFINED
+                    !Generator::isDefault($property->property)
                     && $property->property === $propertyName
                 ) {
                     return true;
@@ -229,14 +229,14 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         }
 
         foreach ($schema->allOf as $sub) {
-            if ($sub === Generator::UNDEFINED) {
+            if (Generator::isDefault($sub)) {
                 continue;
             }
 
             // If this allOf entry is a $ref, resolve it to the actual schema first
             $ref = $sub->ref;
 
-            if ($ref !== Generator::UNDEFINED && is_string($ref)) {
+            if (!Generator::isDefault($ref) && is_string($ref)) {
                 $refName = $this->resolveRefToSchemaName($ref);
 
                 if ($refName !== null) {
@@ -261,7 +261,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             }
 
             // Inline allOf sub-schema (no $ref) — recurse directly
-            $subName = $sub->schema !== Generator::UNDEFINED ? $sub->schema : null;
+            $subName = !Generator::isDefault($sub->schema) ? $sub->schema : null;
 
             if ($subName !== null) {
                 if (isset($visited[$subName])) {

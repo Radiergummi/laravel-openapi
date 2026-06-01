@@ -46,7 +46,7 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
         foreach ($descriptors as $descriptor) {
             $routes[] = [
                 'name' => $descriptor->route->getName(),
-                'uri'  => $descriptor->route->uri(),
+                'uri' => $descriptor->route->uri(),
             ];
         }
 

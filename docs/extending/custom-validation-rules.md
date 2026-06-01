@@ -8,7 +8,9 @@ Implement the `SelfDocumentingRule` interface to declare the schema constraint t
 represents:
 
 ```php
-use Illuminate\Contracts\Validation\ValidationRule;use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;use Radiergummi\OpenApi\Support\Extraction\RuleDocumentation;
+use Illuminate\Contracts\Validation\ValidationRule;
+use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
+use Radiergummi\OpenApi\Support\Extraction\RuleDocumentation;
 
 final class IsbnRule implements ValidationRule, SelfDocumentingRule
 {

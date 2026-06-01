@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\ErrorContributors\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 

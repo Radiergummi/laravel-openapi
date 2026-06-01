@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
 use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
@@ -101,6 +103,7 @@ use Radiergummi\OpenApi\Lint\Rules\ThrowsTransitiveMissing;
 use Radiergummi\OpenApi\Lint\Rules\VisibilityAttributeNoOp;
 use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\WebhookNameDuplicate;
+use Radiergummi\OpenApi\Plugins\Core\CorePlugin;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
@@ -112,25 +115,23 @@ use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
  * Registers the library's baseline pipeline stages — the generator infrastructure that runs
  * regardless of which plugins (Core or otherwise) are enabled.
  *
- * Runs first, before {@see \Radiergummi\OpenApi\Core\CorePlugin} and any user-configured
- * plugins. Stage order is load-bearing:
+ * Runs first, before {@see CorePlugin} and any user-configured plugins. Stage order is important:
  *
- * 1. `RootStage` — populate document root (info, servers, tags, security schemes).
- * 2. `PathsStage` — assemble operation objects per route.
- * 3. `ErrorResponseInferenceStage` — drive registered `ErrorResponseContributor`s + the
- *    `ErrorResponseResolver` chain, writing inferred 4xx/5xx responses into operations.
- *    Must run after paths exist (it reads them) but before `ComponentsStage` flushes named
+ * 1. {@see RootStage} — populate document root (info, servers, tags, security schemes).
+ * 2. {@see PathsStage} — assemble operation objects per route.
+ * 3. {@see ErrorResponseInferenceStage} — drive registered {@see ErrorResponseContributor}s + the
+ *    {@see ErrorResponseResolver} chain, writing inferred 4xx/5xx responses into operations.
+ *    Must run after paths exist (it reads them) but before {@see ComponentsStage} flushes named
  *    response components into the document.
- * 4. `ComponentsStage` — flush component schemas/responses into the assembled document.
- * 5. `SecurityStage` — finalise top-level security requirements.
+ * 4. {@see ComponentsStage} — flush component schemas/responses into the assembled document.
+ * 5. {@see SecurityStage} — finalise top-level security requirements.
  *
- * Plugins that only contribute `ErrorResponseContributor`s (the most common case for new
- * envelope shapes) can therefore work without re-registering or re-implementing this
- * pipeline.
+ * Plugins that only contribute {@see ErrorResponseContributor}s (the most common case for new
+ * envelope shapes) can therefore work without re-registering or re-implementing this pipeline.
  *
  * Also registers the lint rules whose findings are emitted by baseline stages — currently
- * `errors.resolver-failed`, emitted by `ErrorResponseInferenceStage` when an
- * `ErrorResponseResolver` throws. Tying these rule registrations to the baseline avoids the
+ * `errors.resolver-failed`, emitted by {@see ErrorResponseInferenceStage} when an
+ * {@see ErrorResponseResolver} throws. Tying these rule registrations to the baseline avoids the
  * "Core was disabled and now my suppression annotation trips meta.unknown-rule" failure mode.
  *
  * @internal
