@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of radiergummi/laravel-openapi.
- *
- * @license MIT
- * @copyright (c) 2026 Moritz Friedrich
- */
-
 // Fixture: exception carrying a #[Throws] attribute for extractor tests.
 
 declare(strict_types=1);
