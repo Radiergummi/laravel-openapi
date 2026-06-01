@@ -11,10 +11,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Generator;
 
+use Illuminate\Support\Str;
+
 use function in_array;
 use function ltrim;
-use function preg_match;
-use function preg_quote;
 use function str_replace;
 use function str_starts_with;
 use function strlen;
@@ -94,8 +94,8 @@ final readonly class OverrideMatcher
             } elseif ($this->matchesGlob((string) $key, $uri)) {
                 $globMatches[] = [
                     'specificity' => $this->specificity((string) $key),
-                    'order'       => $order,
-                    'fields'      => $fields,
+                    'order' => $order,
+                    'fields' => $fields,
                 ];
             }
 
@@ -103,7 +103,8 @@ final readonly class OverrideMatcher
         }
 
         // Ascending precedence: least specific first, ties by declaration order (later last).
-        usort($globMatches, static fn(array $a, array $b): int => $a['specificity'] <=> $b['specificity']
+        usort($globMatches, static fn(array $a, array $b): int
+            => $a['specificity'] <=> $b['specificity']
             ?: $a['order'] <=> $b['order']);
 
         $merged = [];
@@ -180,9 +181,8 @@ final readonly class OverrideMatcher
 
     private function matchesGlob(string $pattern, string $normalisedUri): bool
     {
-        $regex = '#^' . str_replace('\*', '.*', preg_quote($this->normalise($pattern), '#')) . '$#';
-
-        return preg_match($regex, $normalisedUri) === 1;
+        // Str::is treats `*` as `.*`, matching any run of characters including `/`.
+        return Str::is($this->normalise($pattern), $normalisedUri);
     }
 
     private function specificity(string $pattern): int
