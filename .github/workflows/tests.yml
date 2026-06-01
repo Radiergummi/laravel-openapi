@@ -1,78 +1,156 @@
-name: tests
+name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
+    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.4', '8.5']
-        laravel: ['12.*', '13.*']
+        php: [ '8.4', '8.5' ]
+        laravel: [ '12.*', '13.*' ]
         include:
-          # Pin testbench per matrix cell — testbench 11 requires Laravel 13,
-          # so a plain `composer update` would silently float the L12 cell up to L13.
+          # Pin testbench per matrix cell: Testbench 11 requires Laravel 13, so a plain `composer update` would silently
+          # float the L12 cell up to L13.
           - laravel: '12.*'
             laravel-major: '12'
             testbench: '^10.0'
           - laravel: '13.*'
             laravel-major: '13'
             testbench: '^11.0'
-    name: PHP ${{ matrix.php }} · Laravel ${{ matrix.laravel }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Setup PHP
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-      - name: Constrain Laravel + Testbench versions
+      - name: Constrain Laravel and Testbench versions
+        shell: bash
+        # language=bash
         run: |
-          composer require --no-update --no-interaction \
+          composer require \
+              --no-update \
+              --no-interaction \
             "laravel/framework:${{ matrix.laravel }}" \
             "orchestra/testbench:${{ matrix.testbench }}"
       - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
+        shell: bash
+        # language=bash
+        run: |
+          composer update \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress
       - name: Verify resolved Laravel major
+        shell: bash
+        # language=bash
         run: |
           resolved=$(composer show laravel/framework | awk '/^versions / { print $4 }' | sed 's/^v//' | cut -d. -f1)
-          if [ "$resolved" != "${{ matrix.laravel-major }}" ]; then
-            echo "::error::Expected Laravel ${{ matrix.laravel-major }}.x but composer resolved $resolved.x"
+
+          if [ "${resolved}" != "${{ matrix.laravel-major }}" ]; then
+            echo "::error::Expected Laravel ${{ matrix.laravel-major }}.x but composer resolved ${resolved}.x"
             exit 1
           fi
       - name: Run tests
-        run: vendor/bin/pest --no-coverage --log-junit build/junit.xml
+        shell: bash
+        # language=bash
+        run: |
+          vendor/bin/pest \
+            --log-junit .cache/junit.xml \
+            --no-coverage
 
   test-swagger-low:
     runs-on: ubuntu-latest
     name: PHP 8.4 · Laravel 12 · swagger-php 5.8
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Setup PHP
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: '8.4'
           coverage: none
-      - name: Pin lowest swagger-php + Laravel 12 / Testbench 10
+      - name: Pin lowest swagger-php and Laravel 12 / Testbench 10
+        shell: bash
+        # language=bash
         run: |
-          composer require --no-update --no-interaction \
+          composer require \
+              --no-update \
+              --no-interaction \
             "zircote/swagger-php:^5.8" \
             "laravel/framework:12.*" \
             "orchestra/testbench:^10.0"
       - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
+        shell: bash
+        # language=bash
+        run: |
+          composer update \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress
       - name: Verify resolved swagger-php major
+        shell: bash
+        # language=bash
         run: |
           resolved=$(composer show zircote/swagger-php | awk '/^versions / { print $4 }' | sed 's/^v//' | cut -d. -f1)
           if [ "$resolved" != "5" ]; then
-            echo "::error::Expected swagger-php 5.x but composer resolved $resolved.x"
+            echo "::error::Expected swagger-php 5.x but composer resolved ${resolved}.x"
             exit 1
           fi
-      # The byte-exact example snapshots are pinned to swagger-php 6.x key ordering;
-      # swagger-php 5.x emits semantically-identical YAML with a different key order,
-      # so the `snapshot` group is excluded here. Everything else (generation,
+      # The byte-exact example snapshots are pinned to swagger-php 6.x key ordering; swagger-php 5.x emits semantically
+      # identical YAML with a different key order, so the snapshot group is excluded here. Everything else (generation,
       # OpenAPI 3.1 validity, lint-clean, all unit/feature tests) runs against 5.8.
       - name: Run tests (excluding 6.x-pinned serialization snapshots)
-        run: vendor/bin/pest --no-coverage --exclude-group=snapshot
+        shell: bash
+        # language=bash
+        run: |
+          vendor/bin/pest \
+            --exclude-group=snapshot \
+            --no-coverage
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Setup PHP
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
+        with:
+          php-version: '8.4'
+          coverage: pcov
+      - name: Install dependencies
+        shell: bash
+        # language=bash
+        run: |
+          composer update \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress
+      - name: Run tests with coverage
+        shell: bash
+        # language=bash
+        run: |
+          composer run test:coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354
+        with:
+          files: .cache/clover.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Coverage reporting must never gate the build; a flaky upload should not fail CI.
+          fail_ci_if_error: false

@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/Radiergummi/laravel-openapi/actions/workflows/tests.yml/badge.svg)](https://github.com/Radiergummi/laravel-openapi/actions/workflows/tests.yml)
 [![Quality](https://github.com/Radiergummi/laravel-openapi/actions/workflows/quality.yml/badge.svg)](https://github.com/Radiergummi/laravel-openapi/actions/workflows/quality.yml)
+[![Coverage](https://codecov.io/gh/Radiergummi/laravel-openapi/branch/main/graph/badge.svg)](https://codecov.io/gh/Radiergummi/laravel-openapi)
 
 Generate an OpenAPI 3.1 document from your existing Laravel routes. Schemas are read from typed request DTOs (Spatie
 Data or `FormRequest`), typed return values, PHPDoc summaries, and auth/scope middleware. A bundled linter
