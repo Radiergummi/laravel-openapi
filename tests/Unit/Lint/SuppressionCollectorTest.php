@@ -47,7 +47,7 @@ it('collects a class-level IgnoreLint directive from a FormRequest method parame
 });
 
 it('registers JsonResource as a payload class when ApiResourcesPlugin is enabled', function (): void {
-    $payloadClasses = app(OpenApiRegistry::class)->payloadClasses();
+    $payloadClasses = app(OpenApiRegistry::class)->payloadClasses;
 
     expect($payloadClasses)->toContain(JsonResource::class);
 });

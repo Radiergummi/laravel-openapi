@@ -66,7 +66,7 @@ final readonly class PathsStage implements SpecStage
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         /** @var array<string, OA\PathItem> $pathItems */
         $pathItems = [];
@@ -74,7 +74,7 @@ final readonly class PathsStage implements SpecStage
         $webhookItems = [];
 
         foreach ($this->introspector->discover() as $descriptor) {
-            $decision = $this->evaluator->decide($descriptor, $ctx->spec, $ctx->environment);
+            $decision = $this->evaluator->decide($descriptor, $context->spec, $context->environment);
 
             if (!$decision->included) {
                 if ($this->events->hasListeners(RouteSkipped::class)) {
@@ -82,7 +82,7 @@ final readonly class PathsStage implements SpecStage
                     $this->events->dispatch(
                         new RouteSkipped(
                             route: $descriptor->route,
-                            spec: $ctx->spec->name,
+                            spec: $context->spec->name,
                             reason: $decision->reason,
                             summary: $decision->summary,
                         ),
@@ -97,20 +97,20 @@ final readonly class PathsStage implements SpecStage
             if ($webhookAttr !== null) {
                 $name = $webhookAttr->name;
                 $webhookItems[$name] ??= new OA\Webhook(['webhook' => $name]);
-                $this->attachOperation($webhookItems[$name], $descriptor, $ctx);
+                $this->attachOperation($webhookItems[$name], $descriptor, $context);
 
                 continue;
             }
 
             $path = $this->normalisePath($descriptor->route->uri());
             $pathItems[$path] ??= new OA\PathItem(['path' => $path]);
-            $this->attachOperation($pathItems[$path], $descriptor, $ctx);
+            $this->attachOperation($pathItems[$path], $descriptor, $context);
         }
 
-        $doc->paths = array_values($pathItems);
+        $document->paths = array_values($pathItems);
 
         if ($webhookItems !== []) {
-            $doc->webhooks = array_values($webhookItems);
+            $document->webhooks = array_values($webhookItems);
         }
     }
 

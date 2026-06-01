@@ -30,7 +30,7 @@ final readonly class ComponentsStage implements SpecStage
         private ComponentSchemaRegistry $schemaRegistry,
     ) {}
 
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         $schemas = $this->schemaRegistry->all();
         $responses = $this->schemaRegistry->allResponses();
@@ -39,8 +39,8 @@ final readonly class ComponentsStage implements SpecStage
             return;
         }
 
-        $components = $doc->components instanceof OA\Components
-            ? $doc->components
+        $components = $document->components instanceof OA\Components
+            ? $document->components
             : new OA\Components([]);
 
         if ($schemas !== []) {
@@ -51,6 +51,6 @@ final readonly class ComponentsStage implements SpecStage
             $components->responses = $responses;
         }
 
-        $doc->components = $components;
+        $document->components = $components;
     }
 }

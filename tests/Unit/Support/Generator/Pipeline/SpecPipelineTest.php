@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\SpecPipeline;
+use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use stdClass;
@@ -34,7 +35,7 @@ it('runs registry stages in registration order, then the terminal stage', functi
     $make = static fn(string $name): SpecStage => new class ($log, $name) implements SpecStage {
         public function __construct(private stdClass $log, private string $name) {}
 
-        public function apply(OpenApi $doc, GenerationContext $ctx): void
+        public function apply(OpenApi $document, GenerationContext $context): void
         {
             $this->log->entries[] = $this->name;
         }
@@ -56,7 +57,8 @@ it('runs registry stages in registration order, then the terminal stage', functi
     $pipeline = new SpecPipeline(
         registry: $registry,
         container: app(),
-        terminalStage: app(TransformersStage::class),
+        overridesStage: app(OverridesStage::class),
+        transformersStage: app(TransformersStage::class),
     );
 
     $spec = app(SpecRegistry::class)->default();
@@ -67,15 +69,15 @@ it('runs registry stages in registration order, then the terminal stage', functi
 
 class StageA implements SpecStage
 {
-    public function apply(OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OpenApi $document, GenerationContext $context): void {}
 }
 
 class StageB implements SpecStage
 {
-    public function apply(OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OpenApi $document, GenerationContext $context): void {}
 }
 
 class StageC implements SpecStage
 {
-    public function apply(OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OpenApi $document, GenerationContext $context): void {}
 }

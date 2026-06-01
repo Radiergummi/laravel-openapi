@@ -50,6 +50,8 @@ use Radiergummi\OpenApi\Lint\Rules\OperationIdNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\OperationSecurityMissing;
 use Radiergummi\OpenApi\Lint\Rules\OperationSummaryEqualsDescription;
 use Radiergummi\OpenApi\Lint\Rules\OperationTagMissing;
+use Radiergummi\OpenApi\Lint\Rules\OverridesUnknownField;
+use Radiergummi\OpenApi\Lint\Rules\OverridesUnused;
 use Radiergummi\OpenApi\Lint\Rules\ParameterDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\ParameterDuplicateName;
 use Radiergummi\OpenApi\Lint\Rules\ParameterExampleConflict;
@@ -257,6 +259,9 @@ final class BaselineRegistration
         SpecConfigOrphaned::class,
 
         ResponseRefUnresolvable::class,
+
+        OverridesUnknownField::class,
+        OverridesUnused::class,
     ];
 
     public static function register(OpenApiRegistry $registry): void

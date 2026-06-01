@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Registry;
 
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
@@ -31,55 +32,80 @@ use function in_array;
 final class OpenApiRegistry
 {
     /**
+     * All registered request schema resolvers.
+     *
      * @var list<class-string<RequestSchemaResolver>>
      */
-    private array $requestSchemaResolvers = [];
+    public private(set) array $requestSchemaResolvers = [];
 
     /**
+     * All registered ref schema resolvers.
+     *
      * @var list<class-string<RefSchemaResolver>>
      */
-    private array $refSchemaResolvers = [];
+    public private(set) array $refSchemaResolvers = [];
 
     /**
+     * All registered query parameter resolvers.
+     *
      * @var list<class-string<QueryParameterResolver>>
      */
-    private array $queryParameterResolvers = [];
+    public private(set) array $queryParameterResolvers = [];
 
     /**
+     * All registered primary response resolvers.
+     *
+     * Primary response resolvers are used to extract OpenAPI response schemas from controller
+     * methods and injected Actions, i.e., the "main" response for an endpoint.
+     *
      * @var list<class-string<PrimaryResponseResolver>>
      */
-    private array $primaryResponseResolvers = [];
+    public private(set) array $primaryResponseResolvers = [];
 
     /**
-     * Base classes/interfaces whose subtypes Core treats as request-payload DTOs — the class
-     * type-hinted on a controller method or injected Action, whose public properties model request
-     * fields. Plugins register their payload base types here.
+     * All registered payload classes.
+     *
+     * Payload classes are base classes or interfaces whose subtypes are treated as request-payload
+     * DTOs by the OpenAPI core. When a controller method or injected Action is type-hinted with
+     * one of these, Core introspects its public properties to generate OpenAPI request schemas.
      *
      * @var list<class-string>
      */
-    private array $payloadClasses = [];
+    public private(set) array $payloadClasses = [];
 
     /**
+     * All registered error response resolvers.
+     *
+     * These are used to generate OpenAPI responses for exceptions thrown by the application.
+     *
      * @var list<class-string<ErrorResponseResolver>>
      */
-    private array $errorResponseResolvers = [];
+    public private(set) array $errorResponseResolvers = [];
 
     /**
+     * All registered error response contributors.
+     *
      * @var list<class-string<ErrorResponseContributor>>
      */
-    private array $errorResponseContributors = [];
+    public private(set) array $errorResponseContributors = [];
 
     /**
-     * @var list<class-string>
+     * All registered lint rules.
+     *
+     * @var list<class-string<Rule>>
      */
-    private array $rules = [];
+    public private(set) array $rules = [];
 
     /**
+     * All registered spec stages.
+     *
      * @var list<class-string<SpecStage>>
      */
-    private array $stages = [];
+    public private(set) array $stages = [];
 
     /**
+     * Add a request schema resolver to the registry.
+     *
      * @param class-string<RequestSchemaResolver> $class
      */
     public function addRequestSchemaResolver(string $class): void
@@ -90,6 +116,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add a ref schema resolver to the registry.
+     *
      * @param class-string<RefSchemaResolver> $class
      */
     public function addRefSchemaResolver(string $class): void
@@ -100,6 +128,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add a query parameter resolver to the registry.
+     *
      * @param class-string<QueryParameterResolver> $class
      */
     public function addQueryParameterResolver(string $class): void
@@ -110,6 +140,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add a primary response resolver to the registry.
+     *
      * @param class-string<PrimaryResponseResolver> $class
      */
     public function addPrimaryResponseResolver(string $class): void
@@ -120,6 +152,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add a payload class to the registry.
+     *
      * @param class-string $class
      */
     public function addPayloadClass(string $class): void
@@ -130,6 +164,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add an error response resolver to the registry.
+     *
      * @param class-string<ErrorResponseResolver> $class
      */
     public function addErrorResponseResolver(string $class): void
@@ -140,6 +176,8 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add an error response contributor to the registry.
+     *
      * @param class-string<ErrorResponseContributor> $class
      */
     public function addErrorResponseContributor(string $class): void
@@ -150,7 +188,9 @@ final class OpenApiRegistry
     }
 
     /**
-     * @param class-string $class
+     * Add a lint rule to the registry.
+     *
+     * @param class-string<Rule> $class
      */
     public function addRule(string $class): void
     {
@@ -160,6 +200,10 @@ final class OpenApiRegistry
     }
 
     /**
+     * Add a stage to the registry.
+     *
+     * Stages are applied in registration order, so the order of calls to this method matters.
+     *
      * @param class-string<SpecStage> $class
      */
     public function addStage(string $class): void
@@ -167,101 +211,5 @@ final class OpenApiRegistry
         if (!in_array($class, $this->stages, strict: true)) {
             $this->stages[] = $class;
         }
-    }
-
-    /**
-     * @return list<class-string<SpecStage>>
-     */
-    public function stages(): array
-    {
-        return $this->stages;
-    }
-
-    /**
-     * Returns the list of all registered request schema resolvers.
-     *
-     * @return list<class-string<RequestSchemaResolver>>
-     */
-    public function requestSchemaResolvers(): array
-    {
-        return $this->requestSchemaResolvers;
-    }
-
-    /**
-     * Returns the list of all registered ref schema resolvers.
-     *
-     * @return list<class-string<RefSchemaResolver>>
-     */
-    public function refSchemaResolvers(): array
-    {
-        return $this->refSchemaResolvers;
-    }
-
-    /**
-     * Returns the list of all registered query parameter resolvers.
-     *
-     * @return list<class-string<QueryParameterResolver>>
-     */
-    public function queryParameterResolvers(): array
-    {
-        return $this->queryParameterResolvers;
-    }
-
-    /**
-     * Returns the list of all registered primary response resolvers.
-     * Primary response resolvers are used to extract OpenAPI response schemas from controller
-     * methods and injected Actions, i.e., the "main" response for an endpoint.
-     *
-     * @return list<class-string<PrimaryResponseResolver>>
-     */
-    public function primaryResponseResolvers(): array
-    {
-        return $this->primaryResponseResolvers;
-    }
-
-    /**
-     * Returns the list of all registered payload classes.
-     *
-     * Payload classes are base classes or interfaces whose subtypes are treated as request-payload
-     * DTOs by the OpenAPI core. When a controller method or injected Action is type-hinted with
-     * one of these, Core introspects its public properties to generate OpenAPI request schemas.
-     *
-     * @return list<class-string>
-     */
-    public function payloadClasses(): array
-    {
-        return $this->payloadClasses;
-    }
-
-    /**
-     * Returns the list of all registered error response resolvers.
-     *
-     * These are used to generate OpenAPI responses for exceptions thrown by the application.
-     *
-     * @return list<class-string<ErrorResponseResolver>>
-     */
-    public function errorResponseResolvers(): array
-    {
-        return $this->errorResponseResolvers;
-    }
-
-    /**
-     * Returns the list of all registered error response contributors.
-     *
-     * @return list<class-string<ErrorResponseContributor>>
-     */
-    public function errorResponseContributors(): array
-    {
-        return $this->errorResponseContributors;
-    }
-
-    /**
-     * Returns the list of all registered lint rules.
-     *
-     * @return list<class-string>
-     */
-    public function rules(): array
-    {
-        return $this->rules;
     }
 }

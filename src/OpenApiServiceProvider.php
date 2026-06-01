@@ -44,6 +44,7 @@ use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
@@ -238,6 +239,15 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerRegistries(): void
     {
+        // OverrideMatcher needs the raw config array, so it cannot autowire from an empty
+        // constructor. Scoped to match the rest of the pipeline (Octane-reset per run).
+        $this->app->scoped(
+            OverrideMatcher::class,
+            static fn(): OverrideMatcher => new OverrideMatcher(
+                (array) config('openapi.overrides', []),
+            ),
+        );
+
         $this->app->scoped(
             OpenApiRegistry::class,
             static function (Container $app): OpenApiRegistry {
@@ -274,7 +284,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 return new RuleRegistry(
                     array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->rules(),
+                        $registry->rules,
                     ),
                     severityOverrides: (array) config('openapi.lint.severity_overrides', []),
                 );
@@ -291,7 +301,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 return new ResponseRefUnresolvable(
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers(),
+                        $registry->refSchemaResolvers,
                     ),
                 );
             },
@@ -373,7 +383,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     logger: $app->make(LoggerInterface::class),
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers(),
+                        $registry->refSchemaResolvers,
                     ),
                 );
             },
@@ -406,7 +416,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 return new Support\Extraction\RequestBodyExtractor(
                     resolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->requestSchemaResolvers(),
+                        $registry->requestSchemaResolvers,
                     ),
                     findings: $app->make(FindingsCollector::class),
                 );
@@ -421,11 +431,11 @@ class OpenApiServiceProvider extends ServiceProvider
                 return new ErrorResponseInferenceStage(
                     contributors: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->errorResponseContributors(),
+                        $registry->errorResponseContributors,
                     ),
                     errorResponseResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->errorResponseResolvers(),
+                        $registry->errorResponseResolvers,
                     ),
                     registry: $app->make(ComponentSchemaRegistry::class),
                     findings: $app->make(FindingsCollector::class),
@@ -493,7 +503,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     /** @var list<RefSchemaResolver> $resolvers */
                     $resolvers = [];
 
-                    foreach ($registry->refSchemaResolvers() as $class) {
+                    foreach ($registry->refSchemaResolvers as $class) {
                         if ($class === Plugins\ApiResources\ResourceRefSchemaResolver::class) {
                             continue;
                         }
@@ -542,7 +552,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     /** @var list<RefSchemaResolver> $resolvers */
                     $resolvers = [];
 
-                    foreach ($registry->refSchemaResolvers() as $class) {
+                    foreach ($registry->refSchemaResolvers as $class) {
                         if ($class === Plugins\Fractal\TransformerRefSchemaResolver::class) {
                             continue;
                         }
@@ -579,15 +589,15 @@ class OpenApiServiceProvider extends ServiceProvider
                     fileLoader: $app->make(ExampleFileLoader::class),
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers(),
+                        $registry->refSchemaResolvers,
                     ),
                     queryParameterResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->queryParameterResolvers(),
+                        $registry->queryParameterResolvers,
                     ),
                     primaryResponseResolvers: array_map(
                         static fn(string $class) => $app->make($class),
-                        $registry->primaryResponseResolvers(),
+                        $registry->primaryResponseResolvers,
                     ),
                 );
             },

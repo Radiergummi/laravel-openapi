@@ -49,8 +49,8 @@ class MarkerStagePlugin implements Plugin
 
 class MarkerStage implements SpecStage
 {
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        $doc->x = ['plugin-touched' => 'yes'];
+        $document->x = ['plugin-touched' => 'yes'];
     }
 }

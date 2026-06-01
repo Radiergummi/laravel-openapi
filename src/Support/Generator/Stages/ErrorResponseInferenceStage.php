@@ -85,14 +85,14 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     ) {}
 
     #[Override]
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        if (is_array($doc->paths)) {
-            $this->decorateContainers($doc->paths, $ctx);
+        if (is_array($document->paths)) {
+            $this->decorateContainers($document->paths, $context);
         }
 
-        if (is_array($doc->webhooks)) {
-            $this->decorateContainers($doc->webhooks, $ctx);
+        if (is_array($document->webhooks)) {
+            $this->decorateContainers($document->webhooks, $context);
         }
     }
 

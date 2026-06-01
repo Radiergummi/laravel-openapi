@@ -30,7 +30,7 @@ it('lists the default plugins in config', function (): void {
 it('resolves a registry with core and plugin resolvers when the plugins are enabled', function (): void {
     $registry = app(OpenApiRegistry::class);
 
-    expect($registry->requestSchemaResolvers())
+    expect($registry->requestSchemaResolvers)
         ->toContain(FormRequestRequestSchemaResolver::class)
         ->toContain(DataClassRequestSchemaResolver::class);
 });
@@ -44,7 +44,7 @@ it('omits plugin resolvers when the plugins list is cleared', function (): void 
 
     $registry = app(OpenApiRegistry::class);
 
-    expect($registry->requestSchemaResolvers())
+    expect($registry->requestSchemaResolvers)
         ->toContain(FormRequestRequestSchemaResolver::class)
         ->not->toContain(DataClassRequestSchemaResolver::class);
 });

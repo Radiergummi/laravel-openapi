@@ -451,7 +451,7 @@ final readonly class LintRunner
             rawSpec: $document,
             actionDescriptors: $descriptors,
             suppressions: $suppressions,
-            payloadClasses: $this->openApiRegistry->payloadClasses(),
+            payloadClasses: $this->openApiRegistry->payloadClasses,
         );
 
         $walker = new SpecTreeWalker($rules);
