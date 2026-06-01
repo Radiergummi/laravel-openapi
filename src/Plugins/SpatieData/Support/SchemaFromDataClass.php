@@ -57,6 +57,7 @@ use function is_float;
 use function is_int;
 use function is_string;
 use function preg_match;
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -628,7 +629,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         foreach ($allowlist as $field) {
             $value = $schema->{$field};
 
-            if (!Generator::isDefault($value)) {
+            if (is_defined($value)) {
                 $props[$field] = $value;
             }
         }
@@ -798,16 +799,16 @@ final class SchemaFromDataClass implements FilePropertyChecker
      */
     private function synthesiseExample(string $wireName, OA\Property $property): void
     {
-        if (!Generator::isDefault($property->example)) {
+        if (is_defined($property->example)) {
             return;
         }
 
         // Composed or referenced schemas — Faker has nothing useful to contribute.
         if (
-            !Generator::isDefault($property->ref)
-            || !Generator::isDefault($property->oneOf)
-            || !Generator::isDefault($property->allOf)
-            || !Generator::isDefault($property->anyOf)
+            is_defined($property->ref)
+            || is_defined($property->oneOf)
+            || is_defined($property->allOf)
+            || is_defined($property->anyOf)
         ) {
             return;
         }
@@ -816,7 +817,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         // `Generator::UNDEFINED` is itself a string sentinel, so `is_string()` is not enough —
         // we must reject the sentinel explicitly or it leaks into the descriptor as a literal
         // value (and silently bypasses the byFieldName guard which only fires for `null`/'string').
-        $type = (is_string($property->type) && !Generator::isDefault($property->type))
+        $type = (is_string($property->type) && is_defined($property->type))
             ? $property->type
             : null;
 
@@ -826,7 +827,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
         $descriptor = new FieldDescriptor();
         $descriptor->type = $type;
-        $descriptor->format = (is_string($property->format) && !Generator::isDefault($property->format))
+        $descriptor->format = (is_string($property->format) && is_defined($property->format))
             ? $property->format
             : null;
 

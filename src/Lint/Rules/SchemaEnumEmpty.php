@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -16,6 +15,7 @@ use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRule
 use Radiergummi\OpenApi\Lint\Visitors\FieldRule as FieldRuleVisitor;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Reports schemas that declare an empty `enum` array, which makes the schema unsatisfiable — no
@@ -80,7 +80,7 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
 
         $enum = $raw->enum;
 
-        if (Generator::isDefault($enum) || !is_array($enum)) {
+        if (is_undefined($enum) || !is_array($enum)) {
             return;
         }
 

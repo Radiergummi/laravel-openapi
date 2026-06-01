@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -12,6 +11,7 @@ use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Lint\Visitors\ParameterRule as ParameterRuleVisitor;
 
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -33,8 +33,8 @@ final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
             return;
         }
 
-        $hasSingular = !Generator::isDefault($parameter->raw->example);
-        $hasPlural = !Generator::isDefault($parameter->raw->examples);
+        $hasSingular = is_defined($parameter->raw->example);
+        $hasPlural = is_defined($parameter->raw->examples);
 
         if (!$hasSingular || !$hasPlural) {
             return;

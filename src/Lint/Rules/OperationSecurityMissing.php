@@ -13,6 +13,7 @@ use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -78,7 +79,7 @@ final class OperationSecurityMissing implements Rule, OperationRuleVisitor
     {
         $security = $operation->raw->security;
 
-        if (Generator::isDefault($security)) {
+        if (is_undefined($security)) {
             return false;
         }
 

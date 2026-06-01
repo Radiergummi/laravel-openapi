@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -14,6 +13,7 @@ use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Visitors\ApiRule as ApiRuleVisitor;
 
 use function is_string;
+use function Radiergummi\OpenApi\is_undefined;
 use function trim;
 
 /**
@@ -33,7 +33,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         $info = $context->rawSpec->info;
 
         // info itself may be UNDEFINED if the spec is incomplete
-        if (Generator::isDefault($info) || $info === null) {
+        if (is_undefined($info) || $info === null) {
             yield new Finding(
                 ruleId: $this->id(),
                 level: $this->level(),
@@ -48,7 +48,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         $description = $info->description;
 
         if (
-            Generator::isDefault($description)
+            is_undefined($description)
             || !is_string($description)
             || trim($description) === ''
         ) {

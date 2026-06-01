@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -19,6 +18,7 @@ use Radiergummi\OpenApi\Lint\Visitors\FieldRule as FieldRuleVisitor;
 use function array_find;
 use function is_array;
 use function is_string;
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -84,7 +84,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
                 return;
             }
 
-            if (!Generator::isDefault($raw->maxLength)) {
+            if (is_defined($raw->maxLength)) {
                 return;
             }
 
@@ -100,7 +100,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         }
 
         if ($type === 'array') {
-            if (!Generator::isDefault($raw->maxItems)) {
+            if (is_defined($raw->maxItems)) {
                 return;
             }
 
@@ -117,8 +117,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
 
         if ($type === 'integer' || $type === 'number') {
             if (
-                !Generator::isDefault($raw->minimum)
-                || !Generator::isDefault($raw->maximum)
+                is_defined($raw->minimum)
+                || is_defined($raw->maximum)
             ) {
                 return;
             }
@@ -159,7 +159,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             return;
         }
 
-        $rawType = !Generator::isDefault($schema->type) ? $schema->type : null;
+        $rawType = is_defined($schema->type) ? $schema->type : null;
 
         if (is_array($rawType)) {
             $type = array_find($rawType, static fn(string $t): bool => $t !== 'null');
@@ -168,8 +168,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         } else {
             $type = null;
         }
-        $format = !Generator::isDefault($schema->format) ? $schema->format : null;
-        $enum = !Generator::isDefault($schema->enum) && is_array($schema->enum)
+        $format = is_defined($schema->format) ? $schema->format : null;
+        $enum = is_defined($schema->enum) && is_array($schema->enum)
             ? $schema->enum
             : null;
 

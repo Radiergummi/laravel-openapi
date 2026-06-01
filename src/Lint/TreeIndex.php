@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -13,6 +12,7 @@ use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use function is_string;
 use function preg_match;
 use function property_exists;
+use function Radiergummi\OpenApi\is_undefined;
 use function strtoupper;
 
 /**
@@ -119,7 +119,7 @@ final readonly class TreeIndex
 
             $ref = $annotation->ref;
 
-            if (Generator::isDefault($ref) || $ref === null || !is_string($ref)) {
+            if (is_undefined($ref) || $ref === null || !is_string($ref)) {
                 return;
             }
 

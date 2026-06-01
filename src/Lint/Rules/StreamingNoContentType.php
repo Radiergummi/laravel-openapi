@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Attributes\Operation;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
@@ -16,6 +15,8 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use ReflectionAttribute;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -79,29 +80,29 @@ final class StreamingNoContentType implements Rule, OperationRuleVisitor
     {
         $responses = $operation->responses;
 
-        if (Generator::isDefault($responses) || !is_array($responses)) {
+        if (is_undefined($responses) || !is_array($responses)) {
             return false;
         }
 
         foreach ($responses as $response) {
-            if (Generator::isDefault($response)) {
+            if (is_undefined($response)) {
                 continue;
             }
 
             $content = $response->content;
 
-            if (Generator::isDefault($content) || !is_array($content)) {
+            if (is_undefined($content) || !is_array($content)) {
                 continue;
             }
 
             foreach ($content as $mediaType) {
-                if (Generator::isDefault($mediaType)) {
+                if (is_undefined($mediaType)) {
                     continue;
                 }
 
                 if (
                     $mediaType instanceof OA\MediaType
-                    && !Generator::isDefault($mediaType->mediaType)
+                    && is_defined($mediaType->mediaType)
                     && $mediaType->mediaType === 'text/event-stream'
                 ) {
                     return true;
