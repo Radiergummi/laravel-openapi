@@ -33,8 +33,8 @@ final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
             return;
         }
 
-        $hasSingular = $parameter->raw->example !== Generator::UNDEFINED;
-        $hasPlural = $parameter->raw->examples !== Generator::UNDEFINED;
+        $hasSingular = !Generator::isDefault($parameter->raw->example);
+        $hasPlural = !Generator::isDefault($parameter->raw->examples);
 
         if (!$hasSingular || !$hasPlural) {
             return;

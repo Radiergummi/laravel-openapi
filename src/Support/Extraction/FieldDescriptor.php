@@ -115,7 +115,6 @@ final class FieldDescriptor
      */
     public function applyTo(OA\Schema $target, bool $overwrite = true): void
     {
-        $undefined = Generator::UNDEFINED;
 
         // When merging (overwrite: false), skip type and nullable if the target already expresses
         // its type via oneOf/allOf/anyOf — those compositions were laid down by the type-resolution
@@ -126,7 +125,7 @@ final class FieldDescriptor
                 || !Generator::isDefault($target->allOf)
                 || !Generator::isDefault($target->anyOf));
 
-        if (!$alreadyComposed && $this->type !== null && ($overwrite || $target->type === $undefined)) {
+        if (!$alreadyComposed && $this->type !== null && ($overwrite || Generator::isDefault($target->type))) {
             $target->type = $this->type;
 
             // swagger-php requires every `type: array` schema to carry an `items` annotation.
@@ -137,19 +136,19 @@ final class FieldDescriptor
             }
         }
 
-        if ($this->format !== null && ($overwrite || $target->format === $undefined)) {
+        if ($this->format !== null && ($overwrite || Generator::isDefault($target->format))) {
             $target->format = $this->format;
         }
 
-        if ($this->enum !== null && ($overwrite || $target->enum === $undefined)) {
+        if ($this->enum !== null && ($overwrite || Generator::isDefault($target->enum))) {
             $target->enum = $this->enum;
         }
 
-        if ($this->pattern !== null && ($overwrite || $target->pattern === $undefined)) {
+        if ($this->pattern !== null && ($overwrite || Generator::isDefault($target->pattern))) {
             $target->pattern = $this->pattern;
         }
 
-        if ($this->description !== null && ($overwrite || $target->description === $undefined)) {
+        if ($this->description !== null && ($overwrite || Generator::isDefault($target->description))) {
             $target->description = $this->description;
         }
 
@@ -189,7 +188,7 @@ final class FieldDescriptor
         // - Already composed (oneOf/allOf/anyOf already set by the type-resolution pass): skip —
         //   the nullable wrapping was already applied upstream (e.g. via NullableSchema::wrap).
         if ($this->nullable && !$alreadyComposed) {
-            if (is_string($target->type) && $target->type !== $undefined) {
+            if (is_string($target->type) && !Generator::isDefault($target->type)) {
                 if (in_array($target->type, ['array', 'object'], strict: true)) {
                     // Structured type: pull type (and structured keywords if present) into a oneOf
                     // inner schema so the outer schema carries oneOf and the inner keeps the type.
@@ -226,7 +225,7 @@ final class FieldDescriptor
                 }
             } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {
                 $target->type = [...$target->type, 'null'];
-            } elseif ($target->type === $undefined) {
+            } elseif (Generator::isDefault($target->type)) {
                 $target->type = ['null'];
             }
         }

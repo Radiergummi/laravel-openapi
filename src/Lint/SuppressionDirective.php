@@ -67,6 +67,19 @@ final readonly class SuppressionDirective
     }
 
     /**
+     * Class scope can match a finding emitted from the spec tree (no source file on the finding's
+     * location) by comparing the directive's target class to the finding's recorded source class.
+     * The walker stamps this context on findings that descend from a component schema whose owning
+     * class is known.
+     */
+    private function classMatches(Finding $finding): bool
+    {
+        $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
+
+        return $sourceClass !== null && $sourceClass === $this->targetClass;
+    }
+
+    /**
      * Whether the given source line falls inside the targeted method's body.
      */
     private function coversLine(?int $line): bool
@@ -78,19 +91,6 @@ final readonly class SuppressionDirective
         return $line !== null
             && $line >= $this->methodStartLine
             && $line <= $this->methodEndLine;
-    }
-
-    /**
-     * Class scope can match a finding emitted from the spec tree (no source file on the finding's
-     * location) by comparing the directive's target class to the finding's recorded source class.
-     * The walker stamps this context on findings that descend from a component schema whose owning
-     * class is known.
-     */
-    private function classMatches(Finding $finding): bool
-    {
-        $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
-
-        return $sourceClass !== null && $sourceClass === $this->targetClass;
     }
 
     /**

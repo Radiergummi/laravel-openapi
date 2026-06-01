@@ -32,7 +32,7 @@ final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
             return;
         }
 
-        if ($raw->nullable === Generator::UNDEFINED || $raw->nullable !== true) {
+        if (Generator::isDefault($raw->nullable) || $raw->nullable !== true) {
             return;
         }
 

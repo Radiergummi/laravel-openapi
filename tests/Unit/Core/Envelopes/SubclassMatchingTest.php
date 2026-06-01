@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
-use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\LaravelEnvelope;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\Rfc7807Envelope;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\Errors\CustomValidationException;
 

@@ -6,8 +6,8 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
 use OpenApi\Annotations\Property;
 use OpenApi\Annotations\Schema;
-use Radiergummi\OpenApi\Plugins\Fractal\FractalEnvelopeFactory;
-use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\FractalEnvelopeFactory;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
 
 /** @return array<string, Property> */
 function envelopeProperties(Schema $schema): array

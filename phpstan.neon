@@ -50,7 +50,7 @@ parameters:
         # AnyValue routes any method call through __call to return itself; PHPStan can't see
         # the magic methods from test-file invocations like $stub->whatever() / ->chained()->calls().
         -
-            message: '#Call to an undefined method Radiergummi\\OpenApi\\Core\\Support\\SpecTime\\AnyValue::.+\(\)#'
+            message: '#Call to an undefined method Radiergummi\\OpenApi\\Plugins\\Core\\Support\\SpecTime\\AnyValue::.+\(\)#'
             identifier: method.notFound
             paths:
                 - tests/

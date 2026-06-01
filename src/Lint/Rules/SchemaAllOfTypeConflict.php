@@ -65,13 +65,13 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
         $types = [];
 
         foreach ($allOf as $subSchema) {
-            if ($subSchema === Generator::UNDEFINED) {
+            if (Generator::isDefault($subSchema)) {
                 continue;
             }
 
             $type = $subSchema->type;
 
-            if ($type === Generator::UNDEFINED || $type === null) {
+            if (Generator::isDefault($type) || $type === null) {
                 continue;
             }
 

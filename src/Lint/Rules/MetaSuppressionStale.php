@@ -6,13 +6,13 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Core\CorePlugin;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\SuppressionDirective;
 use Radiergummi\OpenApi\Lint\TreeIndex;
 use Radiergummi\OpenApi\Lint\Visitors\PostWalkRule;
+use Radiergummi\OpenApi\Plugins\Core\CorePlugin;
 
 use function sprintf;
 

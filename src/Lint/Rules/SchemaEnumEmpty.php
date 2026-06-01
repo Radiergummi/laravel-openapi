@@ -80,7 +80,7 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
 
         $enum = $raw->enum;
 
-        if ($enum === Generator::UNDEFINED || !is_array($enum)) {
+        if (Generator::isDefault($enum) || !is_array($enum)) {
             return;
         }
 

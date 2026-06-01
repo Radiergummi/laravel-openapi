@@ -9,6 +9,8 @@ use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
+use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver;
+use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
@@ -21,6 +23,7 @@ final class ApiResourcesPlugin implements Plugin
     {
         $registry->addRefSchemaResolver(ResourceRefSchemaResolver::class);
         $registry->addPrimaryResponseResolver(ResourceResponseResolver::class);
+
         $registry->addRule(ResourceFieldsUndeclared::class);
         $registry->addRule(ResourceFieldTypeMissing::class);
         $registry->addRule(ResourceResponseAmbiguous::class);

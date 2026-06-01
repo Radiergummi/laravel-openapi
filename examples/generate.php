@@ -1,14 +1,5 @@
 <?php
 
-/**
- * This file is part of radiergummi/laravel-openapi.
- *
- * @license MIT
- * @copyright (c) 2026 Moritz Friedrich
- *
- * Usage: php examples/generate.php <flavor>
- */
-
 declare(strict_types=1);
 
 use Examples\Shared\Flavors;

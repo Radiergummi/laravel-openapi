@@ -1,12 +1,5 @@
 <?php
 
-/**
- * This file is part of radiergummi/laravel-openapi.
- *
- * @license MIT
- * @copyright (c) 2026 Moritz Friedrich
- */
-
 declare(strict_types=1);
 
 use Illuminate\Auth\Access\AuthorizationException;
@@ -15,12 +8,12 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\MultipleRecordsFoundException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\RouteFilters\SkipIgnitionRoutes;
-use Radiergummi\OpenApi\Core\RouteFilters\SkipNovaRoutes;
-use Radiergummi\OpenApi\Core\RouteFilters\SkipPassportRoutes;
-use Radiergummi\OpenApi\Core\RouteFilters\SkipSelfRoutes;
-use Radiergummi\OpenApi\Core\RouteFilters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipIgnitionRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipNovaRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipPassportRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipSelfRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;

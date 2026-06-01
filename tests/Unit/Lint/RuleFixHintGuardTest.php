@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Core\CorePlugin;
+use Radiergummi\OpenApi\Plugins\Core\CorePlugin;
 
 uses()->group('openapi', 'lint');
 

@@ -7,7 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use LogicException;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 

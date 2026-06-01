@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
@@ -20,7 +21,7 @@ it('emits request.empty for POST/PUT/PATCH with no resolvable request body', fun
         ->generate($this->app->make(SpecRegistry::class)->default(), 'testing');
 
     $findings = collect($collector->all())
-        ->filter(static fn($f) => $f->ruleId === 'request.empty' && $f->location->routeName === 'lint-test.empty-request');
+        ->filter(static fn(Finding $finding) => $finding->ruleId === 'request.empty' && $finding->location->routeName === 'lint-test.empty-request');
 
     expect($findings)->toHaveCount(1);
 });

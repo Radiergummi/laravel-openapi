@@ -319,7 +319,9 @@ There is no dedicated attribute. Register an operation transformer at boot:
 
 ```php
 // AppServiceProvider::boot()
-use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Extensions\OpenApiExtensions;use Radiergummi\OpenApi\Extensions\OperationContext;
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
+use Radiergummi\OpenApi\Extensions\OperationContext;
 
 OpenApiExtensions::transformOperation(
     static function (OA\Operation $operation, OperationContext $context): void {
@@ -376,7 +378,9 @@ The body-bearing presets register short component-schema names: `Error`, `Valida
 Implement `ErrorResponseResolver` and point `error_envelope` at your class:
 
 ```php
-use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;use Radiergummi\OpenApi\Support\Errors\{ErrorResponse};use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Support\Errors\{ErrorResponse};
+use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 
 final class MyEnvelope implements ErrorResponseResolver
 {

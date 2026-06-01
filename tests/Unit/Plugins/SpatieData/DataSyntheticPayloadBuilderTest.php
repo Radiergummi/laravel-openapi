@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Plugins\SpatieData\DataSyntheticPayloadBuilder;
+use Radiergummi\OpenApi\Plugins\SpatieData\Support\DataSyntheticPayloadBuilder;
 use Radiergummi\OpenApi\Tests\Fixtures\AddressFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\CycleAFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\NestedParentData;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Envelopes\Rfc7807Envelope;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\Rfc7807Envelope;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 uses()->group('openapi');

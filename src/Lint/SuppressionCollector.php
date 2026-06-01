@@ -72,52 +72,6 @@ final readonly class SuppressionCollector
     }
 
     /**
-     * Collect class- and property-level `#[IgnoreLint]` directives from every class that produced
-     * a registered component schema in the current generation run. Catches payload classes that
-     * are never observed as a controller-method parameter — typically Eloquent `JsonResource`
-     * subclasses, which are usually return-typed.
-     *
-     * Only classes whose type matches a registered payload class contribute directives. Other
-     * registered classes (e.g. an arbitrary DTO a plugin chose to register) are skipped because
-     * their `#[IgnoreLint]` attributes — if any — are not part of the documented contract.
-     *
-     * @param array<string, class-string> $classToKey Pass {@see ComponentSchemaRegistry::componentClassMap()}.
-     *
-     * @return list<SuppressionDirective>
-     *
-     * @throws ReflectionException
-     */
-    public function collectFromComponentSchemas(array $classToKey): array
-    {
-        $directives = [];
-        $seen = [];
-
-        foreach ($classToKey as $className) {
-            if (!class_exists($className)) {
-                continue;
-            }
-
-            $isPayload = array_any(
-                $this->payloadClasses,
-                static fn(string $base): bool => is_a($className, $base, allow_string: true),
-            );
-
-            if (!$isPayload) {
-                continue;
-            }
-
-            $this->fromClass(
-                new ReflectionClass($className),
-                withProperties: true,
-                directives: $directives,
-                seen: $seen,
-            );
-        }
-
-        return $directives;
-    }
-
-    /**
      * Collect class-level directives — and, when requested, property-level
      * directives — from a class.
      *
@@ -297,5 +251,51 @@ final readonly class SuppressionCollector
         foreach ($constructor->getParameters() as $ctorParam) {
             $this->fromDataParameter($ctorParam, directives: $directives, seen: $seen);
         }
+    }
+
+    /**
+     * Collect class- and property-level `#[IgnoreLint]` directives from every class that produced
+     * a registered component schema in the current generation run. Catches payload classes that
+     * are never observed as a controller-method parameter — typically Eloquent `JsonResource`
+     * subclasses, which are usually return-typed.
+     *
+     * Only classes whose type matches a registered payload class contribute directives. Other
+     * registered classes (e.g. an arbitrary DTO a plugin chose to register) are skipped because
+     * their `#[IgnoreLint]` attributes — if any — are not part of the documented contract.
+     *
+     * @param array<string, class-string> $classToKey Pass {@see ComponentSchemaRegistry::componentClassMap()}.
+     *
+     * @return list<SuppressionDirective>
+     *
+     * @throws ReflectionException
+     */
+    public function collectFromComponentSchemas(array $classToKey): array
+    {
+        $directives = [];
+        $seen = [];
+
+        foreach ($classToKey as $className) {
+            if (!class_exists($className)) {
+                continue;
+            }
+
+            $isPayload = array_any(
+                $this->payloadClasses,
+                static fn(string $base): bool => is_a($className, $base, allow_string: true),
+            );
+
+            if (!$isPayload) {
+                continue;
+            }
+
+            $this->fromClass(
+                new ReflectionClass($className),
+                withProperties: true,
+                directives: $directives,
+                seen: $seen,
+            );
+        }
+
+        return $directives;
     }
 }

@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use LogicException;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceClassLocator;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use stdClass;

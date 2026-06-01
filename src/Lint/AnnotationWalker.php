@@ -59,7 +59,7 @@ final class AnnotationWalker
 
             $value = $annotation->{$propertyName} ?? Generator::UNDEFINED;
 
-            if ($value === Generator::UNDEFINED) {
+            if (Generator::isDefault($value)) {
                 continue;
             }
 
@@ -87,7 +87,7 @@ final class AnnotationWalker
     {
         $components = $spec->components;
 
-        if ($components === Generator::UNDEFINED || $components === null) {
+        if (Generator::isDefault($components) || $components === null) {
             return [];
         }
 
@@ -105,7 +105,7 @@ final class AnnotationWalker
             }
 
             foreach ($items as $item) {
-                if ($item === Generator::UNDEFINED) {
+                if (Generator::isDefault($item)) {
                     continue;
                 }
 
@@ -126,31 +126,31 @@ final class AnnotationWalker
     public static function extractComponentName(object $item, ComponentType $type): ?string
     {
         return match ($type) {
-            ComponentType::Schemas => $item instanceof OA\Schema && $item->schema !== Generator::UNDEFINED
+            ComponentType::Schemas => $item instanceof OA\Schema && !Generator::isDefault($item->schema)
                 ? $item->schema
                 : null,
-            ComponentType::Responses => $item instanceof OA\Response && $item->response !== Generator::UNDEFINED
+            ComponentType::Responses => $item instanceof OA\Response && !Generator::isDefault($item->response)
                 ? (string) $item->response
                 : null,
-            ComponentType::Parameters => $item instanceof OA\Parameter && $item->parameter !== Generator::UNDEFINED
+            ComponentType::Parameters => $item instanceof OA\Parameter && !Generator::isDefault($item->parameter)
                 ? $item->parameter
                 : null,
-            ComponentType::Examples => $item instanceof OA\Examples && $item->example !== Generator::UNDEFINED
+            ComponentType::Examples => $item instanceof OA\Examples && !Generator::isDefault($item->example)
                 ? $item->example
                 : null,
-            ComponentType::RequestBodies => $item instanceof OA\RequestBody && $item->request !== Generator::UNDEFINED
+            ComponentType::RequestBodies => $item instanceof OA\RequestBody && !Generator::isDefault($item->request)
                 ? $item->request
                 : null,
-            ComponentType::Headers => $item instanceof OA\Header && $item->header !== Generator::UNDEFINED
+            ComponentType::Headers => $item instanceof OA\Header && !Generator::isDefault($item->header)
                 ? $item->header
                 : null,
-            ComponentType::SecuritySchemes => $item instanceof OA\SecurityScheme && $item->securityScheme !== Generator::UNDEFINED
+            ComponentType::SecuritySchemes => $item instanceof OA\SecurityScheme && !Generator::isDefault($item->securityScheme)
                 ? $item->securityScheme
                 : null,
-            ComponentType::Links => $item instanceof OA\Link && $item->link !== Generator::UNDEFINED
+            ComponentType::Links => $item instanceof OA\Link && !Generator::isDefault($item->link)
                 ? $item->link
                 : null,
-            ComponentType::Callbacks => $item instanceof OA\PathItem && $item->path !== Generator::UNDEFINED
+            ComponentType::Callbacks => $item instanceof OA\PathItem && !Generator::isDefault($item->path)
                 ? $item->path
                 : null,
             // PathItems is not a named component type; it represents inline callback constructs

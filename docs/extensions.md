@@ -16,7 +16,8 @@ attributes can't express. Register them from a service provider's `boot()`:
 Runs once per assembled operation, after all attributes and extractors:
 
 ```php
-use OpenApi\Annotations as OA;use Radiergummi\OpenApi\Extensions\OperationContext;
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Extensions\OperationContext;
 
 OpenApiExtensions::transformOperation(
     static function (OA\Operation $operation, OperationContext $context): void {
@@ -99,7 +100,8 @@ log, export, or notify. Four events ship:
 Register listeners the usual way:
 
 ```php
-use Illuminate\Support\Facades\Event;use Radiergummi\OpenApi\Events\SpecGenerationCompleted;
+use Illuminate\Support\Facades\Event;
+use Radiergummi\OpenApi\Events\SpecGenerationCompleted;
 
 Event::listen(static function (SpecGenerationCompleted $event): void {
     Storage::disk('s3')->put(

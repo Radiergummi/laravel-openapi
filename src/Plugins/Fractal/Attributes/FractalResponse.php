@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 
 use Attribute;
-use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
 
 /**
  * Binds an endpoint to the Fractal transformer that shapes its response.

@@ -78,7 +78,7 @@ final class OperationSecurityMissing implements Rule, OperationRuleVisitor
     {
         $security = $operation->raw->security;
 
-        if ($security === Generator::UNDEFINED) {
+        if (Generator::isDefault($security)) {
             return false;
         }
 

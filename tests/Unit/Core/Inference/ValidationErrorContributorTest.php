@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\ErrorContributors\ValidationErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ValidationErrorContributor;
 use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
