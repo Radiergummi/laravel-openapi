@@ -124,7 +124,10 @@ it('resolves the item class from Laravels Collects attribute', function (): void
         ->not->toBeNull()
         ->and($target?->resourceClass)->toBe(W4CollectsItemResource::class)
         ->and($target?->isCollection)->toBeTrue();
-});
+})->skip(
+    fn(): bool => !class_exists(Collects::class),
+    'Requires Laravel\'s #[Collects] attribute (Laravel 13+).',
+);
 
 it('resolves the item class from a $collects property on the collection subclass', function (): void {
     $target = new ResourceClassLocator()->locate(locatorDescriptor('propertyReturn'));

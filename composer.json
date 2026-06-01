@@ -73,8 +73,9 @@
     "scripts": {
         "pest": "pest --parallel --cache-directory .cache/pest --cache-result",
         "test": "@pest --no-coverage",
-        "test-coverage": "@pest --coverage --coverage-clover build/logs/clover.xml --coverage-html build/coverage",
+        "test:coverage": "@pest --coverage --coverage-clover .cache/clover.xml --coverage-html .cache/coverage",
         "format": "pint --parallel --max-processes=auto --cache-file=.cache/pint.json",
+        "format:check": "@format --test",
         "fmt": "@format",
         "lint": "phpstan analyse --memory-limit=4G",
         "analyse": "@lint",

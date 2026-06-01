@@ -1,22 +1,43 @@
-name: quality
+name: Quality Checks
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Setup PHP
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: '8.4'
           coverage: none
       - name: Install dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress
-      - name: Pint (lint)
-        run: vendor/bin/pint --test
+        shell: bash
+        # language=bash
+        run: |
+          composer install \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress
+      - name: Pint
+        shell: bash
+        # language=bash
+        run: |
+          composer run format:check
       - name: PHPStan
-        run: vendor/bin/phpstan analyse --no-progress
+        shell: bash
+        # language=bash
+        run: |
+          composer run lint

@@ -430,14 +430,14 @@ components:
           authorizationUrl: 'http://localhost/oauth/authorize'
           tokenUrl: 'http://localhost/oauth/token'
           refreshUrl: 'http://localhost/oauth/token/refresh'
-          scopes: {  }
+          scopes: {}
     oauth2ClientCredentials:
       type: oauth2
       description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
       flows:
         clientCredentials:
           tokenUrl: 'http://localhost/oauth/token'
-          scopes: {  }
+          scopes: {}
 tags:
   -
     name: FormRequests
