@@ -6,8 +6,12 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Attributes\Link;
-use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\FixableRule;
+use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\Fix\MemberKind;
+use Radiergummi\OpenApi\Lint\Fix\RemoveAttributeFixer;
+use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
@@ -21,7 +25,7 @@ use function sprintf;
  * Reports when a controller method has multiple `#[Link]` attributes with the same name. Each
  * link name must be unique within the same operation.
  */
-final class LinkDuplicateName implements Rule, OperationRuleVisitor
+final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
 {
     /**
      * @return iterable<Finding>
@@ -62,8 +66,22 @@ final class LinkDuplicateName implements Rule, OperationRuleVisitor
                     $operation->descriptor->method->getName(),
                 ),
                 fixHint: 'Remove the duplicate #[Link] attribute or use a different name.',
+                context: RemoveAttributeFixer::contextForOperation($operation->descriptor, (string) $name),
             );
         }
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: Link::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: static fn(object $attr): ?string => $attr instanceof Link
+                ? $attr->name
+                : null,
+        );
     }
 
     #[Override]

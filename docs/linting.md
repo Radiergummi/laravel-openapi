@@ -65,6 +65,35 @@ php artisan openapi:lint --format=github
 php artisan openapi:lint --list
 ```
 
+## Auto-fixing findings
+
+Some findings have one correct, mechanical fix — a duplicate attribute, an
+attribute that does nothing. `--fix` applies those directly to the PHP source
+that triggered them, then reports whatever is left for you to resolve by hand:
+
+```bash
+# Apply every fixable finding, then report the rest
+php artisan openapi:lint --fix
+
+# CI-safe dry run: write nothing, exit 1 if any fix is pending (like `pint --test`)
+php artisan openapi:lint --check
+```
+
+`--fix` and `--check` compose with `--only`, `--skip`, `--level`, `--path`, and
+`--spec`, so you can scope a fix run to one rule or one slice of routes. Exit
+codes follow the usual convention: `0` when nothing remains (or nothing was
+pending, for `--check`), `1` when unfixed findings remain or a fix is pending.
+
+It edits PHP source only — never the generated JSON/YAML, and never method
+bodies or business logic. After a `--fix` run it prints the files it touched;
+run your formatter over them (e.g. `vendor/bin/pint --dirty`) to match your
+project style. A finding is only auto-fixable when its owning rule opts in
+(by implementing `Lint\Fix\FixableRule`); everything else is reported as before.
+
+Currently fixable (all removals of a redundant or no-op attribute):
+`tag.duplicate`, `queryparam.duplicate`, `response.duplicate-status`,
+`link.duplicate-name`, and `field.no-effect`.
+
 ## Suppress a finding
 
 Use the `#[OpenApi\IgnoreLint]` attribute. Each instance suppresses exactly

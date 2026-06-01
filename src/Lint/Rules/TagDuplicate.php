@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
+use BackedEnum;
 use Override;
-use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Attributes\Tag;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\FixableRule;
+use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\Fix\MemberKind;
+use Radiergummi\OpenApi\Lint\Fix\RemoveAttributeFixer;
+use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
@@ -14,7 +20,7 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use function array_count_values;
 use function sprintf;
 
-final class TagDuplicate implements Rule, OperationRuleVisitor
+final class TagDuplicate implements FixableRule, OperationRuleVisitor
 {
     /**
      * @return iterable<Finding>
@@ -44,8 +50,33 @@ final class TagDuplicate implements Rule, OperationRuleVisitor
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate #[Tag] attribute.',
+                context: RemoveAttributeFixer::contextForOperation($operation->descriptor, (string) $tag),
             );
         }
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: Tag::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: self::tagName(...),
+        );
+    }
+
+    private static function tagName(object $attr): ?string
+    {
+        if (!$attr instanceof Tag) {
+            return null;
+        }
+
+        if ($attr->name instanceof BackedEnum) {
+            return (string) $attr->name->value;
+        }
+
+        return $attr->name;
     }
 
     #[Override]

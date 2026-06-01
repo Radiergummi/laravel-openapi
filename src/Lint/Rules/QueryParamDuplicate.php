@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
-use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\FixableRule;
+use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\Fix\MemberKind;
+use Radiergummi\OpenApi\Lint\Fix\RemoveAttributeFixer;
+use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
@@ -20,7 +25,7 @@ use function sprintf;
  *
  * Query parameter names must be unique per operation.
  */
-final class QueryParamDuplicate implements Rule, OperationRuleVisitor
+final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
 {
     /**
      * @return iterable<Finding>
@@ -48,8 +53,22 @@ final class QueryParamDuplicate implements Rule, OperationRuleVisitor
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate query parameter declaration; names must be unique per operation.',
+                context: RemoveAttributeFixer::contextForOperation($operation->descriptor, (string) $name),
             );
         }
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: QueryParam::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: static fn(object $attr): ?string => $attr instanceof QueryParam
+                ? $attr->name
+                : null,
+        );
     }
 
     #[Override]
