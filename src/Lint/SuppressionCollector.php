@@ -44,7 +44,7 @@ final readonly class SuppressionCollector
         #[Config('openapi.request_payload_indirection', [])]
         private array $indirectionClasses = [],
     ) {
-        $this->payloadClasses = $registry->payloadClasses();
+        $this->payloadClasses = $registry->payloadClasses;
     }
 
     /**

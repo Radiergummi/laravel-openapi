@@ -27,23 +27,23 @@ it('stores and returns stage class-strings in registration order', function (): 
     $registry->addStage(SecondRegistryStage::class);
     $registry->addStage(FirstRegistryStage::class); // duplicate registration is a no-op
 
-    expect($registry->stages())->toBe([FirstRegistryStage::class, SecondRegistryStage::class]);
+    expect($registry->stages)->toBe([FirstRegistryStage::class, SecondRegistryStage::class]);
 });
 
 it('returns an empty array when no stages have been registered', function (): void {
     $registry = new OpenApiRegistry();
 
-    expect($registry->stages())->toBe([]);
+    expect($registry->stages)->toBe([]);
 });
 
 class FirstRegistryStage implements SpecStage
 {
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OA\OpenApi $document, GenerationContext $context): void {}
 }
 
 class SecondRegistryStage implements SpecStage
 {
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OA\OpenApi $document, GenerationContext $context): void {}
 }
 
 it('registers and returns error response contributors', function (): void {
@@ -54,14 +54,14 @@ it('registers and returns error response contributors', function (): void {
     // Duplicate is ignored, matching the resolver behaviour:
     $registry->addErrorResponseContributor(FakeContributorA::class);
 
-    expect($registry->errorResponseContributors())
+    expect($registry->errorResponseContributors)
         ->toBe([FakeContributorA::class, FakeContributorB::class]);
 });
 
 it('returns an empty array when no contributors have been registered', function (): void {
     $registry = new OpenApiRegistry();
 
-    expect($registry->errorResponseContributors())->toBe([]);
+    expect($registry->errorResponseContributors)->toBe([]);
 });
 
 class FakeContributorA implements ErrorResponseContributor

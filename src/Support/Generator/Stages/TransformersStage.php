@@ -28,8 +28,8 @@ use Radiergummi\OpenApi\Generator\GenerationContext;
 #[Scoped]
 final readonly class TransformersStage implements SpecStage
 {
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        OpenApiExtensions::applyDocumentTransformers($doc);
+        OpenApiExtensions::applyDocumentTransformers($document);
     }
 }

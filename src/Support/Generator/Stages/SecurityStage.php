@@ -30,13 +30,13 @@ final readonly class SecurityStage implements SpecStage
         private OperationBuilder $operationBuilder,
     ) {}
 
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        $components = $doc->components instanceof OA\Components
-            ? $doc->components
+        $components = $document->components instanceof OA\Components
+            ? $document->components
             : new OA\Components([]);
 
         $components->securitySchemes = $this->operationBuilder->buildSecuritySchemes();
-        $doc->components = $components;
+        $document->components = $components;
     }
 }

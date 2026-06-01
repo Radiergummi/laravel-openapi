@@ -35,7 +35,7 @@ it('runs registry stages in registration order, then the terminal stage', functi
     $make = static fn(string $name): SpecStage => new class ($log, $name) implements SpecStage {
         public function __construct(private stdClass $log, private string $name) {}
 
-        public function apply(OpenApi $doc, GenerationContext $ctx): void
+        public function apply(OpenApi $document, GenerationContext $context): void
         {
             $this->log->entries[] = $this->name;
         }
@@ -58,7 +58,7 @@ it('runs registry stages in registration order, then the terminal stage', functi
         registry: $registry,
         container: app(),
         overridesStage: app(OverridesStage::class),
-        terminalStage: app(TransformersStage::class),
+        transformersStage: app(TransformersStage::class),
     );
 
     $spec = app(SpecRegistry::class)->default();
@@ -69,15 +69,15 @@ it('runs registry stages in registration order, then the terminal stage', functi
 
 class StageA implements SpecStage
 {
-    public function apply(OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OpenApi $document, GenerationContext $context): void {}
 }
 
 class StageB implements SpecStage
 {
-    public function apply(OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OpenApi $document, GenerationContext $context): void {}
 }
 
 class StageC implements SpecStage
 {
-    public function apply(OpenApi $doc, GenerationContext $ctx): void {}
+    public function apply(OpenApi $document, GenerationContext $context): void {}
 }

@@ -24,16 +24,16 @@ use function config;
 #[Scoped]
 final readonly class RootStage implements SpecStage
 {
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        $spec = $ctx->spec;
+        $spec = $context->spec;
 
-        $doc->openapi = '3.1.0';
-        $doc->info = $spec->info;
-        $doc->servers = $spec->servers !== [] ? $spec->servers : $this->fallbackServers();
+        $document->openapi = '3.1.0';
+        $document->info = $spec->info;
+        $document->servers = $spec->servers !== [] ? $spec->servers : $this->fallbackServers();
 
         if ($spec->tags !== []) {
-            $doc->tags = $spec->tags;
+            $document->tags = $spec->tags;
         }
     }
 

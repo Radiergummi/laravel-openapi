@@ -55,13 +55,13 @@ final readonly class OverridesStage implements SpecStage
         private OverrideMatcher $matcher,
     ) {}
 
-    public function apply(OA\OpenApi $doc, GenerationContext $ctx): void
+    public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        if (!is_array($doc->paths)) {
+        if (!is_array($document->paths)) {
             return;
         }
 
-        foreach ($doc->paths as $pathItem) {
+        foreach ($document->paths as $pathItem) {
             if (!$pathItem instanceof OA\PathItem || $pathItem->path === Generator::UNDEFINED) {
                 continue;
             }

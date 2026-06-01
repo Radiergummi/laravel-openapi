@@ -90,7 +90,7 @@ it('registers the configured envelope resolver', function (): void {
 
     $registry = app(OpenApiRegistry::class);
 
-    expect($registry->errorResponseResolvers())->toContain(LaravelEnvelope::class);
+    expect($registry->errorResponseResolvers)->toContain(LaravelEnvelope::class);
 });
 
 it('defaults to NoneEnvelope when no envelope is configured', function (): void {
@@ -98,7 +98,7 @@ it('defaults to NoneEnvelope when no envelope is configured', function (): void 
 
     $registry = app(OpenApiRegistry::class);
 
-    expect($registry->errorResponseResolvers())->toContain(NoneEnvelope::class);
+    expect($registry->errorResponseResolvers)->toContain(NoneEnvelope::class);
 });
 
 it('throws InvalidArgumentException on a typoed preset name', function (): void {
