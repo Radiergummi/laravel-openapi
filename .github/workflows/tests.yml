@@ -78,6 +78,12 @@ jobs:
             --log-junit .cache/junit.xml \
             --exclude-group=snapshot \
             --no-coverage
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3
+        with:
+          files: .cache/junit.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-swagger-low:
     runs-on: ubuntu-latest
@@ -155,6 +161,7 @@ jobs:
         run: |
           vendor/bin/pest \
             --exclude-group=snapshot \
+            --log-junit .cache/junit.xml \
             --coverage \
             --coverage-clover .cache/clover.xml
       - name: Upload coverage to Codecov
@@ -164,6 +171,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           # Coverage reporting must never gate the build; a flaky upload should not fail CI.
           fail_ci_if_error: false
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3
+        with:
+          files: .cache/junit.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   snapshot:
     name: Snapshot (locked toolchain)
