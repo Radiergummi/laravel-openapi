@@ -1,5 +1,10 @@
 name: Quality Checks
 
+# Same skip-when-unchanged scheme as tests.yml: a result marker keyed on the content hash of the
+# analysable inputs lets a docs-only change skip install + Pint + PHPStan while the job still runs
+# and reports success (safe as a required check). On a real change (marker miss) the run is kept
+# incremental by restoring PHPStan's and Pint's own result caches rather than starting cold.
+
 on:
   push:
     branches: [ main ]
@@ -21,12 +26,55 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Probe result marker
+        id: marker
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: quality-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
+          lookup-only: true
       - name: Setup PHP
+        if: steps.marker.outputs.cache-hit != 'true'
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: '8.4'
           coverage: none
+      - name: Resolve Composer cache directory
+        if: steps.marker.outputs.cache-hit != 'true'
+        id: composer-cache
+        shell: bash
+        # language=bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-quality-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-quality-
+            composer-${{ runner.os }}-
+      # PHPStan and Pint maintain their own per-file result caches. A rolling key (always a miss on
+      # the exact key, so the freshest cache is re-saved each run) with a prefix restore-key keeps the
+      # analysis incremental across runs.
+      - name: Cache PHPStan result cache
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .cache/phpstan
+          key: phpstan-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            phpstan-${{ runner.os }}-
+      - name: Cache Pint result cache
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .cache/pint.json
+          key: pint-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            pint-${{ runner.os }}-
       - name: Install dependencies
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -35,12 +83,25 @@ jobs:
             --prefer-dist \
             --no-progress
       - name: Pint
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
           composer run format:check
       - name: PHPStan
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
           composer run lint
+      - name: Record result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        shell: bash
+        # language=bash
+        run: echo "${GITHUB_SHA}" > .ci-marker
+      - name: Persist result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: ${{ steps.marker.outputs.cache-primary-key }}
