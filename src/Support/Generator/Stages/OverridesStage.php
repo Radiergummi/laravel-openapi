@@ -17,11 +17,9 @@ use OpenApi\Generator;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
-use Radiergummi\OpenApi\Support\Generator\RouteIndex;
 
 use function is_array;
 use function str_starts_with;
-use function strtoupper;
 use function substr;
 
 /**
@@ -51,13 +49,13 @@ final readonly class OverridesStage implements SpecStage
     ];
 
     public function __construct(
-        private RouteIndex $routeIndex,
         private OverrideMatcher $matcher,
     ) {}
 
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        if (!is_array($document->paths)) {
+        // The default install configures no overrides — skip the whole document walk.
+        if (!$this->matcher->hasOverrides() || !is_array($document->paths)) {
             return;
         }
 
@@ -73,7 +71,9 @@ final readonly class OverridesStage implements SpecStage
                     continue;
                 }
 
-                $routeName = $this->routeIndex->routeNameFor($pathItem->path, strtoupper($method));
+                // The operation is bound to its source route by PathsStage; reuse that binding
+                // rather than maintaining a parallel route-name index.
+                $routeName = $context->actionFor($operation)?->route->getName();
                 $fields = $this->matcher->fieldsFor($routeName, $pathItem->path);
 
                 if ($fields === []) {

@@ -58,6 +58,15 @@ final readonly class OverrideMatcher
     public function __construct(private array $overrides) {}
 
     /**
+     * Whether any override is configured at all. Lets callers skip work entirely on the default
+     * install, where `openapi.overrides` is empty.
+     */
+    public function hasOverrides(): bool
+    {
+        return $this->overrides !== [];
+    }
+
+    /**
      * The merged, allowlist-filtered field-set for one operation.
      *
      * @return array<string, mixed>

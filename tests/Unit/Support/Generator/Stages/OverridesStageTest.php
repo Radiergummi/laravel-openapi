@@ -9,20 +9,24 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Generator\GenerationContext;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
-use Radiergummi\OpenApi\Support\Generator\RouteIndex;
 use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 uses()->group('openapi');
 
 /**
- * Builds a one-operation document: GET /api/users with a named route.
+ * Builds a one-operation document (GET /api/users) and a context that binds the operation to a
+ * route descriptor named `$routeName` — mirroring how PathsStage binds actions at generation time.
+ *
+ * @return array{0: OA\OpenApi, 1: GenerationContext}
  */
-function overridesStageDoc(): OA\OpenApi
+function overridesStageFixture(?string $routeName): array
 {
     $operation = new OA\Get([
         'path' => '/api/users',
@@ -35,18 +39,25 @@ function overridesStageDoc(): OA\OpenApi
     $doc = new OA\OpenApi(['openapi' => '3.1.0']);
     $doc->paths = [$pathItem];
 
-    return $doc;
-}
+    $route = new Route(['GET'], '/api/users', static fn() => null);
 
-function overridesStageCtx(): GenerationContext
-{
-    return new GenerationContext(app(SpecRegistry::class)->default(), 'testing');
+    if ($routeName !== null) {
+        $route->name($routeName);
+    }
+
+    $ctx = new GenerationContext(app(SpecRegistry::class)->default(), 'testing');
+    $ctx->bindAction($operation, new ActionDescriptor(
+        route: $route,
+        controller: null,
+        method: null,
+        summary: null,
+        description: null,
+    ));
+
+    return [$doc, $ctx];
 }
 
 it('assigns allowlisted scalar fields onto the matching operation', function (): void {
-    $index = new RouteIndex();
-    $index->record('api/users', 'GET', 'users.index');
-
     $matcher = new OverrideMatcher([
         'users.index' => [
             'operationId' => 'listUsers',
@@ -56,8 +67,8 @@ it('assigns allowlisted scalar fields onto the matching operation', function ():
         ],
     ]);
 
-    $doc = overridesStageDoc();
-    new OverridesStage($index, $matcher)->apply($doc, overridesStageCtx());
+    [$doc, $ctx] = overridesStageFixture('users.index');
+    new OverridesStage($matcher)->apply($doc, $ctx);
 
     $op = $doc->paths[0]->get;
     expect($op->operationId)->toBe('listUsers')
@@ -67,44 +78,34 @@ it('assigns allowlisted scalar fields onto the matching operation', function ():
 });
 
 it('maps x-* keys onto the operation x array with the prefix stripped', function (): void {
-    $index = new RouteIndex();
-    $index->record('api/users', 'GET', 'users.index');
-
     $matcher = new OverrideMatcher([
         'users.index' => ['x-internal' => true, 'x-rate-limit' => ['max' => 100]],
     ]);
 
-    $doc = overridesStageDoc();
-    new OverridesStage($index, $matcher)->apply($doc, overridesStageCtx());
+    [$doc, $ctx] = overridesStageFixture('users.index');
+    new OverridesStage($matcher)->apply($doc, $ctx);
 
-    $op = $doc->paths[0]->get;
-    expect($op->x)->toBe(['internal' => true, 'rate-limit' => ['max' => 100]]);
+    expect($doc->paths[0]->get->x)->toBe(['internal' => true, 'rate-limit' => ['max' => 100]]);
 });
 
 it('matches an operation with no route name by uri glob', function (): void {
-    $index = new RouteIndex();
-    $index->record('api/users', 'GET', null);
-
     $matcher = new OverrideMatcher([
         'api/*' => ['deprecated' => true],
     ]);
 
-    $doc = overridesStageDoc();
-    new OverridesStage($index, $matcher)->apply($doc, overridesStageCtx());
+    [$doc, $ctx] = overridesStageFixture(null);
+    new OverridesStage($matcher)->apply($doc, $ctx);
 
     expect($doc->paths[0]->get->deprecated)->toBeTrue();
 });
 
 it('leaves operations untouched when nothing matches', function (): void {
-    $index = new RouteIndex();
-    $index->record('api/users', 'GET', 'users.index');
-
     $matcher = new OverrideMatcher([
         'posts.index' => ['deprecated' => true],
     ]);
 
-    $doc = overridesStageDoc();
-    new OverridesStage($index, $matcher)->apply($doc, overridesStageCtx());
+    [$doc, $ctx] = overridesStageFixture('users.index');
+    new OverridesStage($matcher)->apply($doc, $ctx);
 
     $op = $doc->paths[0]->get;
     expect($op->operationId)->toBe(Generator::UNDEFINED)
