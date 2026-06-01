@@ -28,6 +28,29 @@ job). A PR is mergeable when `tests` is green, Pint reports no violations (`vend
 --test`), and PHPStan passes. PHPStan runs at level 8 with `treatPhpDocTypesAsCertain: false`
 and is **CI-blocking** — `composer lint` must report no errors.
 
+## Development workflow
+
+Feature and bug work is tracked in **GitHub Issues**, not in `docs/` spec/plan files.
+Specs live in issue descriptions; implementation plans live in **draft-PR descriptions**.
+Planning issues carry the `spec` label and sit on the **Roadmap** project, bucketed into the
+`v1.0` / `v1.1` / `v1.2` milestones; the economic-sensibility tier and affected area are labels
+(`tier-0/1/2`, `area:*`).
+
+Start each work session by opening a **draft PR**:
+
+1. Branch from `main` (`feat/…`, `fix/…`, or `chore/…`).
+2. `git commit --allow-empty` so the branch has a diff, then push.
+3. `gh pr create --draft` with a proper title, the implementation plan as the body, the relevant
+   labels, `Closes #<issue>`, and Moritz as reviewer.
+
+The issue stays the durable record of *what* and *why*; the PR body is *how*. If the
+implementation deviates from the plan, record the decision and its reasoning as a **PR comment**
+(and edit the issue if the spec itself changed). Mirror progress on the Roadmap project's Status
+field (Todo → In progress → In review → Done).
+
+Merge policy: **squash-merge into `main`**, gated on green CI (`tests`, `vendor/bin/pint --test`,
+PHPStan) and Moritz's review; keep history linear. (No merge queue.)
+
 ## Architecture
 
 The codebase splits into four namespaces:
@@ -107,12 +130,33 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 - Authoring attributes live in `src/Attributes/`; they are the escape hatch for cases
   convention cannot derive.
 
-## Known gaps
+## Inference philosophy & boundaries
 
-See `docs/internal/known-gaps.md` (the gap registry, by `OAPI-###` ID) and
-`docs/internal/inference-roadmap.md` (the forward plan to close the planned ones). Notably:
-no controller method-body inference (OAPI-017) — the generator reads signatures only;
-no Eloquent-model or `@OA`-annotation response-schema inference (OAPI-063 / OAPI-064);
-no Sanctum security-scheme auto-derivation, only Passport (OAPI-065); and untyped path
-parameters (OAPI-066). (`allOf`-composed schema lint, formerly OAPI-038, is resolved — see
-`CHANGELOG.md`.)
+The generator infers as much of the OpenAPI document as it can from **conventional Laravel
+usage**; authoring attributes (`src/Attributes/`) are the escape hatch, used only where the code
+genuinely cannot express the information. Every proposed inference is judged on an
+**economic-sensibility ladder**, and built at the *lowest* tier that captures the idiom:
+
+- **Tier 0 — reflection & signatures.** Class/method signatures, PHPDoc tags, attributes, model
+  metadata (`$casts`, `$hidden`, `$visible`, `$appends`, `$fillable`, migration columns), backed
+  enums, route-model-binding types, middleware names. Deterministic, cheap, no body parsing —
+  the library's whole current basis. Always prefer it.
+- **Tier 1 — bounded AST whitelist.** Parse a method body but match only a small whitelist of
+  well-known call shapes in the first N statements, with no variable tracking across calls (e.g.
+  inline `validate()`, `abort()`, `response()->json([…])`). Economical for broadly-used idioms;
+  adopt selectively, and always degrade gracefully + log when the shape isn't matched.
+- **Tier 2 — full type-flow / dataflow.** Tracking values across calls, into services, through
+  conditionals. **Refused** — fragile, expensive, never complete. Where only Tier 2 would close a
+  case, that case is by definition the authoring attribute's job.
+
+Consequences worth knowing:
+
+- **Responses are return-type-shaped.** Where an app *types* its returns (or annotates them),
+  response-schema fidelity is strong; where the shape exists only at runtime, the generator emits
+  little. "Type your returns or annotate them to get response schemas" is the honest framing.
+- An attribute is **healthy** when it supplies something the code cannot express (a runtime shape,
+  a human description, an intentional override) and a **smell** when it merely re-states something
+  a Tier 0/1 read could have inferred.
+
+The live worklist of inference measures, current gaps, and fixes is the repository's GitHub Issues
+(label `spec`) and the **Roadmap** project — not a doc in this tree.

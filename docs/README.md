@@ -34,7 +34,6 @@ New to the package? Read [Getting started](getting-started.md), then
 
 | Page | Covers |
 |---|---|
-| [Known gaps](internal/known-gaps.md) | Documented limitations and workarounds. |
 | [Changelog](../CHANGELOG.md) | Release notes. |
 | [Contributing](../CONTRIBUTING.md) | Local dev, test suite, CI gates. |
 

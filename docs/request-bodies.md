@@ -20,7 +20,7 @@ validation.
 | Nested objects | No, flat key→rule map only | Yes. Nested `Data` classes become nested component schemas via `$ref`. |
 | Enums | `Rule::in([...])` / `enum:` validation rule → `enum` | Native PHP enum property → `enum`; validation `Rule::in([...])` still works |
 | Field-level enrichment | `#[RequestField]` on a `PARAM_*` class-constant whose value matches the field name | `#[RequestField]` on the promoted constructor parameter or property |
-| Transformations / computed properties | No. The generator reads signatures only (see [OAPI-017](internal/known-gaps.md#oapi-017--no-method-body-inference)). | The `Data` class can carry `Optional`-typed and computed properties. PATCH semantics are inferred from `Optional\|…\|null`. |
+| Transformations / computed properties | No. The generator reads signatures only — method bodies are not read. | The `Data` class can carry `Optional`-typed and computed properties. PATCH semantics are inferred from `Optional\|…\|null`. |
 | File / multipart | Detected from `file` / `image` / `File::…` validation rules | Same, plus a typed `UploadedFile` property is auto-detected |
 | Runtime dependency | None (ships with Laravel) | `spatie/laravel-data` |
 | Brownfield fit | Direct. Existing `FormRequest`s document themselves with no changes. | Requires migrating request DTOs (or introducing them). |

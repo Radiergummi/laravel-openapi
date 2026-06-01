@@ -50,8 +50,7 @@ The action does not type-hint a request DTO the generator recognises. Either:
 
 ## Why doesn't my inline `$request->validate(...)` produce a request body?
 
-This is the [OAPI-017](internal/known-gaps.md#oapi-017--no-method-body-inference)
-method-body inference gap. The generator reads signatures only. Inline
+This is the **method-body inference** limitation. The generator reads signatures only. Inline
 `validate()`, `request()->validate()`, and ad-hoc `response()->json([…])`
 calls are invisible. Fix it by doing one of:
 
