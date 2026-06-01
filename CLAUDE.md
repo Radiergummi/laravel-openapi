@@ -48,6 +48,17 @@ implementation deviates from the plan, record the decision and its reasoning as 
 (and edit the issue if the spec itself changed). Mirror progress on the Roadmap project's Status
 field (Todo → In progress → In review → Done).
 
+**File an issue for anything incidental.** When you hit something outside the current task's
+scope worth not forgetting — a pre-existing bug, a flaky or missing test, tech debt, a doc gap, a
+surprising behaviour — do **not** fix it inline (stay surgical); open a GitHub issue so it can't be
+lost. Give it a clear title and a body with what/where (`file:line`, and the PR or issue you were
+on), why it matters, and a repro or acceptance hint if you have one. Label it by type
+(`bug` / `enhancement` / `test` / `chore`) + `area:*`; leave it unmilestoned for Moritz to triage;
+do **not** add `spec` (that label is for curated planning issues, not incidental reports). Run
+`gh issue list --search "<keywords>"` first to avoid duplicates, link the new issue from the PR you
+were working on, and call it out in your session summary. If the finding *blocks* the current task,
+say so on the issue and surface it to Moritz rather than silently widening scope.
+
 Merge policy: **squash-merge into `main`**, gated on green CI (`tests`, `vendor/bin/pint --test`,
 PHPStan) and Moritz's review; keep history linear. (No merge queue.)
 
