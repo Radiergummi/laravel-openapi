@@ -66,12 +66,17 @@ jobs:
             echo "::error::Expected Laravel ${{ matrix.laravel-major }}.x but composer resolved ${resolved}.x"
             exit 1
           fi
-      - name: Run tests
+      # The byte-exact example snapshots are toolchain-specific: symfony/yaml 7.x (Laravel 12) dumps empty maps as
+      # `{  }` while 8.x (Laravel 13) dumps `{}`, so a single committed snapshot cannot match across the matrix.
+      # They are validated once against the locked toolchain in the `snapshot` job below and excluded here; the
+      # semantic ExamplesTest cases (valid 3.1 document, lint-clean) still run on every cell.
+      - name: Run tests (excluding toolchain-specific serialization snapshots)
         shell: bash
         # language=bash
         run: |
           vendor/bin/pest \
             --log-junit .cache/junit.xml \
+            --exclude-group=snapshot \
             --no-coverage
 
   test-swagger-low:
@@ -142,11 +147,16 @@ jobs:
             --no-interaction \
             --prefer-dist \
             --no-progress
+      # Run serially (not the parallel `pest` script): parallel workers race on the shared fixture destination
+      # under coverage. Snapshots are excluded here too — they are the `snapshot` job's responsibility.
       - name: Run tests with coverage
         shell: bash
         # language=bash
         run: |
-          composer run test:coverage
+          vendor/bin/pest \
+            --exclude-group=snapshot \
+            --coverage \
+            --coverage-clover .cache/clover.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354
         with:
@@ -154,3 +164,33 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           # Coverage reporting must never gate the build; a flaky upload should not fail CI.
           fail_ci_if_error: false
+
+  snapshot:
+    name: Snapshot (locked toolchain)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Setup PHP
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
+        with:
+          php-version: '8.4'
+          coverage: none
+      # `composer install` (not update) so the byte-exact snapshots are checked against exactly the toolchain
+      # they were generated with — the same versions a developer gets locally. This is the one job allowed to
+      # run the `snapshot` group.
+      - name: Install locked dependencies
+        shell: bash
+        # language=bash
+        run: |
+          composer install \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress
+      - name: Verify byte-exact snapshots
+        shell: bash
+        # language=bash
+        run: |
+          vendor/bin/pest \
+            --group=snapshot \
+            --no-coverage
