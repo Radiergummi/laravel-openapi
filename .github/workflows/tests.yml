@@ -54,7 +54,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .ci-marker
-          key: tests-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          key: tests-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
           lookup-only: true
       - name: Setup PHP
         if: steps.marker.outputs.cache-hit != 'true'
@@ -152,7 +152,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .ci-marker
-          key: swaglow-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          key: swaglow-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
           lookup-only: true
       - name: Setup PHP
         if: steps.marker.outputs.cache-hit != 'true'
@@ -242,7 +242,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .ci-marker
-          key: coverage-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          key: coverage-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
           lookup-only: true
       - name: Setup PHP
         if: steps.marker.outputs.cache-hit != 'true'
@@ -326,7 +326,7 @@ jobs:
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .ci-marker
-          key: snapshot-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          key: snapshot-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
           lookup-only: true
       - name: Setup PHP
         if: steps.marker.outputs.cache-hit != 'true'
