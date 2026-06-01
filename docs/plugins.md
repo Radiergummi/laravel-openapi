@@ -207,6 +207,4 @@ Lint rules:
 > [!NOTE]
 > `fractal.response-unbound` is opt-in. The `fractal()` helper and
 > `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies, and
-> the generator does not read method bodies. See
-> [OAPI-017](internal/known-gaps.md#oapi-017--no-method-body-inference) and
-> [OAPI-053](internal/known-gaps.md).
+> the generator does not read method bodies.

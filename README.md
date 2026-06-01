@@ -111,7 +111,6 @@ Index: [`docs/README.md`](docs/README.md).
 - [Troubleshooting](docs/troubleshooting.md): symptom index.
 - [Plugin authoring](docs/plugin-authoring.md): write a plugin.
 - [Architecture](docs/architecture.md): generation pipeline internals.
-- [Known gaps](docs/internal/known-gaps.md): limitations.
 
 ## License
 
