@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\ResponseSuccessEmptyBody;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -16,7 +17,7 @@ it('reports its id and level', function (): void {
 
 it('emits a finding for a 200 response with no body schema', function (): void {
     $response = OperationNodeFactory::makeResponse(statusCode: 200, fields: [], schemaRef: null);
-    OperationNodeFactory::makeOperation(pathUri: '/users', method: 'GET', responses: [$response]);
+    OperationNodeFactory::makeOperation(pathUri: '/users', method: HttpMethod::Get, responses: [$response]);
 
     $findings = iterator_to_array(
         new ResponseSuccessEmptyBody()->checkResponse($response, OperationNodeFactory::emptyContext()),
@@ -31,7 +32,7 @@ it('emits a finding for a 200 response with no body schema', function (): void {
 it('does not flag a 200 response that has an inline schema', function (): void {
     $field = OperationNodeFactory::makeField(name: 'id', type: 'integer');
     $response = OperationNodeFactory::makeResponse(statusCode: 200, fields: [$field]);
-    OperationNodeFactory::makeOperation(pathUri: '/users/1', method: 'GET', responses: [$response]);
+    OperationNodeFactory::makeOperation(pathUri: '/users/1', method: HttpMethod::Get, responses: [$response]);
 
     $findings = iterator_to_array(
         new ResponseSuccessEmptyBody()->checkResponse($response, OperationNodeFactory::emptyContext()),
@@ -42,7 +43,7 @@ it('does not flag a 200 response that has an inline schema', function (): void {
 
 it('does not flag a 200 response that references a component schema', function (): void {
     $response = OperationNodeFactory::makeResponse(statusCode: 200, schemaRef: 'User');
-    OperationNodeFactory::makeOperation(pathUri: '/users/1', method: 'GET', responses: [$response]);
+    OperationNodeFactory::makeOperation(pathUri: '/users/1', method: HttpMethod::Get, responses: [$response]);
 
     $findings = iterator_to_array(
         new ResponseSuccessEmptyBody()->checkResponse($response, OperationNodeFactory::emptyContext()),
@@ -53,7 +54,7 @@ it('does not flag a 200 response that references a component schema', function (
 
 it('skips bodiless success codes', function (int $statusCode): void {
     $response = OperationNodeFactory::makeResponse(statusCode: $statusCode);
-    OperationNodeFactory::makeOperation(pathUri: '/things', method: 'DELETE', responses: [$response]);
+    OperationNodeFactory::makeOperation(pathUri: '/things', method: HttpMethod::Delete, responses: [$response]);
 
     $findings = iterator_to_array(
         new ResponseSuccessEmptyBody()->checkResponse($response, OperationNodeFactory::emptyContext()),
@@ -68,7 +69,7 @@ it('skips bodiless success codes', function (int $statusCode): void {
 
 it('skips non-2xx responses', function (int $statusCode): void {
     $response = OperationNodeFactory::makeResponse(statusCode: $statusCode);
-    OperationNodeFactory::makeOperation(pathUri: '/x', method: 'GET', responses: [$response]);
+    OperationNodeFactory::makeOperation(pathUri: '/x', method: HttpMethod::Get, responses: [$response]);
 
     $findings = iterator_to_array(
         new ResponseSuccessEmptyBody()->checkResponse($response, OperationNodeFactory::emptyContext()),
@@ -82,7 +83,7 @@ it('skips non-2xx responses', function (int $statusCode): void {
 
 it('skips HEAD responses (HEAD bodies are intentionally suppressed)', function (): void {
     $response = OperationNodeFactory::makeResponse(statusCode: 200);
-    OperationNodeFactory::makeOperation(pathUri: '/users', method: 'HEAD', responses: [$response]);
+    OperationNodeFactory::makeOperation(pathUri: '/users', method: HttpMethod::Head, responses: [$response]);
 
     $findings = iterator_to_array(
         new ResponseSuccessEmptyBody()->checkResponse($response, OperationNodeFactory::emptyContext()),

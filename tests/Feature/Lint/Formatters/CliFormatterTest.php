@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
@@ -20,7 +21,7 @@ it('renders findings grouped by file', function (): void {
                 new FindingLocation(
                     file: 'F.php',
                     line: 10,
-                    routeMethod: 'GET',
+                    routeMethod: HttpMethod::Get,
                     routeUri: '/foo',
                 ),
             ),
@@ -31,7 +32,7 @@ it('renders findings grouped by file', function (): void {
                 new FindingLocation(
                     file: 'F.php',
                     line: 5,
-                    routeMethod: 'POST',
+                    routeMethod: HttpMethod::Post,
                     routeUri: '/bar',
                 ),
             ),
@@ -42,7 +43,7 @@ it('renders findings grouped by file', function (): void {
                 new FindingLocation(
                     file: 'G.php',
                     line: 3,
-                    routeMethod: 'GET',
+                    routeMethod: HttpMethod::Get,
                     routeUri: '/baz',
                 ),
             ),
@@ -76,7 +77,7 @@ it('renders findings without a source location first', function (): void {
                 new FindingLocation(
                     file: 'Z.php',
                     line: 10,
-                    routeMethod: 'GET',
+                    routeMethod: HttpMethod::Get,
                     routeUri: '/foo',
                 ),
             ),
@@ -115,7 +116,7 @@ it('renders file groups as trees with connector characters', function (): void {
                 new FindingLocation(
                     file: 'F.php',
                     line: 10,
-                    routeMethod: 'GET',
+                    routeMethod: HttpMethod::Get,
                     routeUri: '/foo',
                 ),
             ),
@@ -126,7 +127,7 @@ it('renders file groups as trees with connector characters', function (): void {
                 new FindingLocation(
                     file: 'F.php',
                     line: 5,
-                    routeMethod: 'POST',
+                    routeMethod: HttpMethod::Post,
                     routeUri: '/bar',
                 ),
                 fixHint: 'Add a response schema',

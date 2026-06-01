@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\LinkInvalidOperation;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -12,7 +13,7 @@ function makeLinkInvalidOperationNode(?string $operationId): LinkNode
 {
     $link = OperationNodeFactory::makeLink(operationId: $operationId);
     OperationNodeFactory::makeOperation(
-        method: 'POST',
+        method: HttpMethod::Post,
         responses: [OperationNodeFactory::makeResponse(statusCode: 201, description: null, links: [$link])],
     );
 

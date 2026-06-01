@@ -47,7 +47,7 @@ final class ResponseDuplicateStatus implements Rule, OperationRuleVisitor
                     'HTTP status %s is declared %d times on %s %s',
                     $statusCode,
                     $count,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate #[Response] attribute or change the status code.',

@@ -32,14 +32,12 @@ use function str_contains;
  */
 class WhyCommand extends Command
 {
-    // Name/description use the version-portable string-property form rather than
-    // the #[Signature]/#[Description] attributes, which are Laravel 13+ only
-    // (Illuminate\Console\Attributes does not exist on Laravel 12).
     protected $signature = 'openapi:why
         {route : Route name (exact match) or URI substring.}
         {--for-env= : Override the environment for Hide/Expose evaluation.}';
 
     protected $description = 'Explain inclusion of a route across all defined specs';
+
     /**
      * @throws InvalidArgumentException
      * @throws ReflectionException
@@ -128,7 +126,7 @@ class WhyCommand extends Command
 
     private function printHeader(ActionDescriptor $descriptor, string $env): void
     {
-        $method = $descriptor->route->methods()[0] ?? 'GET';
+        $method = $descriptor->httpMethod?->forDisplay() ?? '?';
         $middleware = array_values(
             array_map(
                 static fn(mixed $entry): string => (string) $entry,

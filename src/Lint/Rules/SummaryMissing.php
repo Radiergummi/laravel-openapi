@@ -31,7 +31,7 @@ final class SummaryMissing implements Rule, OperationRuleVisitor
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has no summary',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add a PHPDoc summary line to the controller method.',

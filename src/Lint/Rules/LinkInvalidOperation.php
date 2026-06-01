@@ -35,7 +35,7 @@ final class LinkInvalidOperation implements Rule, LinkRuleVisitor
         $message = sprintf(
             'Link "%s" on %s %s references unknown operationId "%s"',
             $link->name,
-            $routeMethod ?? '?',
+            $routeMethod?->forDisplay() ?? '?',
             $routeUri ?? '?',
             $link->operationId,
         );

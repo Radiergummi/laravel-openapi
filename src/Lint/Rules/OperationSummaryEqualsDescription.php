@@ -41,7 +41,7 @@ final class OperationSummaryEqualsDescription implements Rule, OperationRuleVisi
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has a description identical to its summary',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Give the description more detail than the summary, or remove the redundant description.',

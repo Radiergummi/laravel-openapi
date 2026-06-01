@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 use LogicException;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 use function array_filter;
@@ -26,18 +27,6 @@ use function strtoupper;
  */
 final class SpecTreeBuilder
 {
-    /** @var list<string> */
-    private const HTTP_METHODS = [
-        'get',
-        'post',
-        'put',
-        'patch',
-        'delete',
-        'options',
-        'head',
-        'trace',
-    ];
-
     /**
      * Component schemas indexed by name — populated at the start of {@see build()} so
      * {@see buildFields()} can resolve `allOf: [{$ref: …}]` branches to the underlying
@@ -107,13 +96,13 @@ final class SpecTreeBuilder
     {
         $components = $spec->components;
 
-        if ($components === Generator::UNDEFINED || $components === null) {
+        if ($components === null || Generator::isDefault($components)) {
             return [];
         }
 
         $schemas = $components->schemas;
 
-        if ($schemas === Generator::UNDEFINED || !is_array($schemas)) {
+        if (!is_array($schemas) || Generator::isDefault($schemas)) {
             return [];
         }
 
@@ -122,12 +111,12 @@ final class SpecTreeBuilder
         foreach ($schemas as $schema) {
             if (
                 !$schema instanceof OA\Schema
-                || $schema === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+                || Generator::isDefault($schema)
             ) {
                 continue;
             }
 
-            if ($schema->schema === Generator::UNDEFINED) {
+            if (Generator::isDefault($schema->schema)) {
                 continue;
             }
 
@@ -180,33 +169,30 @@ final class SpecTreeBuilder
         }
 
         foreach ($paths as $path) {
-            if ($path === Generator::UNDEFINED) {
+            if (Generator::isDefault($path)) {
                 continue;
             }
 
             $pathUri
-                = $path->path !== Generator::UNDEFINED
+                = !Generator::isDefault($path->path)
                 ? $path->path
                 : '(unknown)';
 
-            foreach (self::HTTP_METHODS as $method) {
-                $oaOperation = $path->{$method} ?? null;
+            foreach (HttpMethod::cases() as $method) {
+                $oaOperation = $path->{$method->value} ?? null;
 
-                if (
-                    $oaOperation === Generator::UNDEFINED
-                    || $oaOperation === null
-                ) {
+                if ($oaOperation === null || Generator::isDefault($oaOperation)) {
                     continue;
                 }
 
-                $upperMethod = strtoupper($method);
-                $descriptorKey = $upperMethod . ' ' . $pathUri;
+                $upperMethod = strtoupper($method->value);
+                $descriptorKey = "{$upperMethod} {$pathUri}";
                 $descriptor = $descriptorIndex[$descriptorKey] ?? null;
 
                 $operations[] = $this->buildOperation(
                     $oaOperation,
                     $pathUri,
-                    $upperMethod,
+                    $method,
                     $descriptor,
                     webhook: false,
                 );
@@ -222,7 +208,7 @@ final class SpecTreeBuilder
     private function buildOperation(
         OA\Operation $oaOperation,
         string $pathUri,
-        string $method,
+        HttpMethod $method,
         ?ActionDescriptor $descriptor,
         bool $webhook,
     ): OperationNode {
@@ -239,7 +225,7 @@ final class SpecTreeBuilder
             operationId: SchemaAccessor::undefinedToNull($oaOperation->operationId),
             summary: SchemaAccessor::undefinedToNull($oaOperation->summary),
             description: SchemaAccessor::undefinedToNull($oaOperation->description),
-            deprecated: $oaOperation->deprecated !== Generator::UNDEFINED
+            deprecated: !Generator::isDefault($oaOperation->deprecated)
             && $oaOperation->deprecated === true,
             parameters: $parameters,
             queryParameters: $queryParameters,
@@ -281,18 +267,18 @@ final class SpecTreeBuilder
     {
         $params = $operation->parameters;
 
-        if ($params === Generator::UNDEFINED || !is_array($params)) {
+        if (!is_array($params) || Generator::isDefault($params)) {
             return [];
         }
 
         $result = [];
 
         foreach ($params as $param) {
-            if ($param === Generator::UNDEFINED) {
+            if (Generator::isDefault($param)) {
                 continue;
             }
 
-            $in = $param->in !== Generator::UNDEFINED ? $param->in : null;
+            $in = !Generator::isDefault($param->in) ? $param->in : null;
 
             if ($in !== 'path') {
                 continue;
@@ -300,10 +286,10 @@ final class SpecTreeBuilder
 
             $examples = $this->buildExamplesFromParameter($param);
             $node = new ParameterNode(
-                name: $param->name !== Generator::UNDEFINED
+                name: !Generator::isDefault($param->name)
                     ? $param->name
                     : '(unknown)',
-                required: $param->required !== Generator::UNDEFINED
+                required: !Generator::isDefault($param->required)
                 && $param->required === true,
                 // @phpstan-ignore nullCoalesce.property (defensive; $schema may be unset at runtime)
                 schema: SchemaAccessor::extractSchemaType($param->schema ?? null),
@@ -331,16 +317,17 @@ final class SpecTreeBuilder
      */
     private function buildExamplesFromParameter(OA\Parameter $param): array
     {
-        $examples = $param->examples ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+        // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+        $examples = $param->examples ?? Generator::UNDEFINED;
 
-        if ($examples === Generator::UNDEFINED || !is_array($examples)) {
+        if (!is_array($examples) || Generator::isDefault($examples)) {
             return [];
         }
 
         $result = [];
 
         foreach ($examples as $example) {
-            if ($example === Generator::UNDEFINED) {
+            if (Generator::isDefault($example)) {
                 continue;
             }
 
@@ -355,10 +342,10 @@ final class SpecTreeBuilder
     private function buildExampleNode(OA\Examples $example): ExampleNode
     {
         return new ExampleNode(
-            name: $example->example !== Generator::UNDEFINED
+            name: !Generator::isDefault($example->example)
                 ? $example->example
                 : null,
-            value: $example->value !== Generator::UNDEFINED
+            value: !Generator::isDefault($example->value)
                 ? $example->value
                 : null,
             summary: SchemaAccessor::undefinedToNull($example->summary),
@@ -378,18 +365,18 @@ final class SpecTreeBuilder
     {
         $params = $operation->parameters;
 
-        if ($params === Generator::UNDEFINED || !is_array($params)) {
+        if (!is_array($params) || Generator::isDefault($params)) {
             return [];
         }
 
         $result = [];
 
         foreach ($params as $param) {
-            if ($param === Generator::UNDEFINED) {
+            if (Generator::isDefault($param)) {
                 continue;
             }
 
-            $in = $param->in !== Generator::UNDEFINED ? $param->in : null;
+            $in = !Generator::isDefault($param->in) ? $param->in : null;
 
             if ($in !== 'query') {
                 continue;
@@ -398,15 +385,15 @@ final class SpecTreeBuilder
             $examples = $this->buildExamplesFromParameter($param);
             $schema = $param->schema ?? null; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
             $node = new QueryParameterNode(
-                name: $param->name !== Generator::UNDEFINED
+                name: !Generator::isDefault($param->name)
                     ? $param->name
                     : '(unknown)',
-                required: $param->required !== Generator::UNDEFINED
+                required: !Generator::isDefault($param->required)
                 && $param->required === true,
                 type: SchemaAccessor::extractSchemaType($schema),
-                hasSchema: $schema !== null && $schema !== Generator::UNDEFINED,
+                hasSchema: $schema !== null && !Generator::isDefault($schema),
                 style: SchemaAccessor::undefinedToNull($param->style),
-                explode: $param->explode !== Generator::UNDEFINED
+                explode: !Generator::isDefault($param->explode)
                     ? (bool) $param->explode
                     : null,
                 description: SchemaAccessor::undefinedToNull($param->description),
@@ -430,9 +417,9 @@ final class SpecTreeBuilder
      */
     private function buildRequestBody(OA\Operation $operation): ?RequestBodyNode
     {
-        $rb = $operation->requestBody;
+        $requestBody = $operation->requestBody;
 
-        if ($rb === Generator::UNDEFINED || $rb === null) {
+        if ($requestBody === null || Generator::isDefault($requestBody)) {
             return null;
         }
 
@@ -440,26 +427,26 @@ final class SpecTreeBuilder
         $fields = [];
         $examples = [];
         $schemaRef = null;
-        $description = SchemaAccessor::undefinedToNull($rb->description);
+        $description = SchemaAccessor::undefinedToNull($requestBody->description);
         $required
-            = $rb->required !== Generator::UNDEFINED && $rb->required === true;
+            = !Generator::isDefault($requestBody->required) && $requestBody->required === true;
 
-        $content = $rb->content;
+        $content = $requestBody->content;
 
-        if ($content !== Generator::UNDEFINED && is_array($content)) {
+        if (is_array($content) && !Generator::isDefault($content)) {
             foreach ($content as $mediaType) {
-                if ($mediaType === Generator::UNDEFINED) {
+                if (Generator::isDefault($mediaType)) {
                     continue;
                 }
 
-                if ($mediaType instanceof OA\MediaType && $mediaType->mediaType !== Generator::UNDEFINED) {
+                if ($mediaType instanceof OA\MediaType && !Generator::isDefault($mediaType->mediaType)) {
                     $contentTypes[] = $mediaType->mediaType;
                 }
 
                 if ($fields === [] && $schemaRef === null) {
                     $schema = $mediaType->schema ?? null;
 
-                    if ($schema !== null && !is_array($schema) && $schema !== Generator::UNDEFINED) {
+                    if ($schema !== null && !is_array($schema) && !Generator::isDefault($schema)) {
                         $ref = SchemaAccessor::extractRef($schema);
 
                         if ($ref !== null) {
@@ -470,18 +457,15 @@ final class SpecTreeBuilder
                     }
                 }
 
-                $mtExamples = $mediaType->examples ?? Generator::UNDEFINED;
+                $mediaTypeExamples = $mediaType->examples ?? Generator::UNDEFINED;
 
-                if (
-                    $mtExamples !== Generator::UNDEFINED
-                    && is_array($mtExamples)
-                ) {
-                    foreach ($mtExamples as $ex) {
-                        if ($ex === Generator::UNDEFINED) {
+                if (is_array($mediaTypeExamples) && !Generator::isDefault($mediaTypeExamples)) {
+                    foreach ($mediaTypeExamples as $mediaTypeExample) {
+                        if (Generator::isDefault($mediaTypeExample)) {
                             continue;
                         }
 
-                        $examples[] = $this->buildExampleNode($ex);
+                        $examples[] = $this->buildExampleNode($mediaTypeExample);
                     }
                 }
             }
@@ -494,7 +478,7 @@ final class SpecTreeBuilder
             examples: $examples,
             schemaRef: $schemaRef,
             description: $description,
-            raw: $rb,
+            raw: $requestBody,
         );
 
         // Link field and example parents
@@ -534,7 +518,7 @@ final class SpecTreeBuilder
     {
         if (
             $schema === null
-            || $schema === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+            || Generator::isDefault($schema)
         ) {
             return [];
         }
@@ -558,7 +542,7 @@ final class SpecTreeBuilder
                 nullable: SchemaAccessor::isNullable($property),
                 description: SchemaAccessor::undefinedToNull($property->description),
                 format: SchemaAccessor::undefinedToNull($property->format),
-                example: $property->example !== Generator::UNDEFINED
+                example: !Generator::isDefault($property->example)
                     ? $property->example
                     : null,
                 enum: SchemaAccessor::extractSchemaEnum($property),
@@ -608,7 +592,7 @@ final class SpecTreeBuilder
             foreach ($allOf as $branch) {
                 if (
                     !$branch instanceof OA\Schema
-                    || $branch === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+                    || Generator::isDefault($branch)
                 ) {
                     continue;
                 }
@@ -660,12 +644,12 @@ final class SpecTreeBuilder
             foreach ($localProperties as $property) {
                 if (
                     !$property instanceof OA\Property
-                    || $property === Generator::UNDEFINED // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may leave the sentinel in place at runtime)
+                    || Generator::isDefault($property)
                 ) {
                     continue;
                 }
 
-                $name = $property->property !== Generator::UNDEFINED
+                $name = !Generator::isDefault($property->property)
                     ? $property->property
                     : '(unknown)';
 
@@ -673,7 +657,7 @@ final class SpecTreeBuilder
             }
         }
 
-        if ($schema->required !== Generator::UNDEFINED && is_array($schema->required)) {
+        if (is_array($schema->required) && !Generator::isDefault($schema->required)) {
             foreach ($schema->required as $name) {
                 $required[] = $name;
             }
@@ -691,14 +675,14 @@ final class SpecTreeBuilder
     {
         $examples = $schema->examples ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
-        if ($examples === Generator::UNDEFINED || !is_array($examples)) {
+        if (!is_array($examples) || Generator::isDefault($examples)) {
             return [];
         }
 
         $result = [];
 
         foreach ($examples as $example) {
-            if ($example === Generator::UNDEFINED) {
+            if (Generator::isDefault($example)) {
                 continue;
             }
 
@@ -719,19 +703,19 @@ final class SpecTreeBuilder
     {
         $responses = $operation->responses;
 
-        if ($responses === Generator::UNDEFINED || !is_array($responses)) {
+        if (!is_array($responses) || Generator::isDefault($responses)) {
             return [];
         }
 
         $result = [];
 
         foreach ($responses as $response) {
-            if ($response === Generator::UNDEFINED) {
+            if (Generator::isDefault($response)) {
                 continue;
             }
 
             $statusCode
-                = $response->response !== Generator::UNDEFINED
+                = !Generator::isDefault($response->response)
                 ? $response->response
                 : 'default';
 
@@ -744,9 +728,9 @@ final class SpecTreeBuilder
 
             $content = $response->content ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
 
-            if ($content !== Generator::UNDEFINED && is_array($content)) {
+            if (is_array($content) && !Generator::isDefault($content)) {
                 foreach ($content as $mediaType) {
-                    if ($mediaType === Generator::UNDEFINED) {
+                    if (Generator::isDefault($mediaType)) {
                         continue;
                     }
 
@@ -756,7 +740,7 @@ final class SpecTreeBuilder
                         if (
                             $schema !== null
                             && !is_array($schema)
-                            && $schema !== Generator::UNDEFINED
+                            && !Generator::isDefault($schema)
                         ) {
                             $ref = SchemaAccessor::extractRef($schema);
 
@@ -768,28 +752,29 @@ final class SpecTreeBuilder
                         }
                     }
 
-                    $mtExamples = $mediaType->examples ?? Generator::UNDEFINED;
+                    $mediaTypeExamples = $mediaType->examples ?? Generator::UNDEFINED;
 
                     if (
-                        $mtExamples !== Generator::UNDEFINED
-                        && is_array($mtExamples)
+                        is_array($mediaTypeExamples)
+                        && !Generator::isDefault($mediaTypeExamples)
                     ) {
-                        foreach ($mtExamples as $ex) {
-                            if ($ex === Generator::UNDEFINED) {
+                        foreach ($mediaTypeExamples as $mediaTypeExample) {
+                            if (Generator::isDefault($mediaTypeExample)) {
                                 continue;
                             }
 
-                            $examples[] = $this->buildExampleNode($ex);
+                            $examples[] = $this->buildExampleNode($mediaTypeExample);
                         }
                     }
                 }
             }
 
-            $oaHeaders = $response->headers ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            $oaHeaders = $response->headers ?? Generator::UNDEFINED;
 
-            if ($oaHeaders !== Generator::UNDEFINED && is_array($oaHeaders)) {
+            if (is_array($oaHeaders) && !Generator::isDefault($oaHeaders)) {
                 foreach ($oaHeaders as $header) {
-                    if ($header === Generator::UNDEFINED) {
+                    if (Generator::isDefault($header)) {
                         continue;
                     }
 
@@ -797,11 +782,12 @@ final class SpecTreeBuilder
                 }
             }
 
-            $oaLinks = $response->links ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+            $oaLinks = $response->links ?? Generator::UNDEFINED;
 
-            if ($oaLinks !== Generator::UNDEFINED && is_array($oaLinks)) {
+            if (is_array($oaLinks) && !Generator::isDefault($oaLinks)) {
                 foreach ($oaLinks as $link) {
-                    if ($link === Generator::UNDEFINED) {
+                    if (Generator::isDefault($link)) {
                         continue;
                     }
 
@@ -846,13 +832,13 @@ final class SpecTreeBuilder
     private function buildHeader(OA\Header $header): HeaderNode
     {
         return new HeaderNode(
-            name: $header->header !== Generator::UNDEFINED
+            name: !Generator::isDefault($header->header)
                 ? $header->header
                 : '(unknown)',
             // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
             schema: SchemaAccessor::extractSchemaType($header->schema ?? null),
             description: SchemaAccessor::undefinedToNull($header->description),
-            required: $header->required !== Generator::UNDEFINED
+            required: !Generator::isDefault($header->required)
             && $header->required === true,
             raw: $header,
         );
@@ -863,7 +849,7 @@ final class SpecTreeBuilder
         $parameters = [];
         $oaParams = $link->parameters;
 
-        if ($oaParams !== Generator::UNDEFINED && is_array($oaParams)) {
+        if (is_array($oaParams) && !Generator::isDefault($oaParams)) {
             foreach ($oaParams as $key => $value) {
                 if (is_string($key) && is_string($value)) {
                     $parameters[$key] = $value;
@@ -872,7 +858,7 @@ final class SpecTreeBuilder
         }
 
         return new LinkNode(
-            name: $link->link !== Generator::UNDEFINED
+            name: !Generator::isDefault($link->link)
                 ? $link->link
                 : '(unnamed)',
             operationId: SchemaAccessor::undefinedToNull($link->operationId),
@@ -890,21 +876,21 @@ final class SpecTreeBuilder
     {
         $security = $operation->security;
 
-        if ($security === Generator::UNDEFINED || !is_array($security)) {
+        if (!is_array($security) || Generator::isDefault($security)) {
             return [];
         }
 
         $result = [];
 
         foreach ($security as $requirement) {
-            if ($requirement === Generator::UNDEFINED) {
+            if (Generator::isDefault($requirement)) {
                 continue;
             }
 
             // OA\SecurityScheme annotation — varies by swagger-php version
             if ($requirement instanceof OA\SecurityScheme) {
                 $scheme
-                    = $requirement->securityScheme !== Generator::UNDEFINED
+                    = !Generator::isDefault($requirement->securityScheme)
                     ? $requirement->securityScheme
                     : '(unknown)';
                 $result[] = ['scheme' => $scheme, 'scopes' => []];
@@ -930,7 +916,7 @@ final class SpecTreeBuilder
     {
         $tags = $operation->tags;
 
-        if ($tags === Generator::UNDEFINED || !is_array($tags)) {
+        if (!is_array($tags) || Generator::isDefault($tags)) {
             return [];
         }
 
@@ -952,25 +938,25 @@ final class SpecTreeBuilder
     {
         $components = $spec->components;
 
-        if ($components === Generator::UNDEFINED || $components === null) {
+        if ($components === null || Generator::isDefault($components)) {
             return [];
         }
 
         $schemas = $components->schemas;
 
-        if ($schemas === Generator::UNDEFINED || !is_array($schemas)) {
+        if (!is_array($schemas) || Generator::isDefault($schemas)) {
             return [];
         }
 
         $result = [];
 
         foreach ($schemas as $schema) {
-            if ($schema === Generator::UNDEFINED) {
+            if (Generator::isDefault($schema)) {
                 continue;
             }
 
             $name
-                = $schema->schema !== Generator::UNDEFINED
+                = !Generator::isDefault($schema->schema)
                 ? $schema->schema
                 : '(unknown)';
 
@@ -1002,39 +988,38 @@ final class SpecTreeBuilder
      */
     private function buildWebhooks(OA\OpenApi $spec): array
     {
-        $webhooks = $spec->webhooks ?? Generator::UNDEFINED; // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+        // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+        $webhooks = $spec->webhooks ?? Generator::UNDEFINED;
 
-        if ($webhooks === Generator::UNDEFINED || !is_array($webhooks)) {
+        if (!is_array($webhooks) || Generator::isDefault($webhooks)) {
             return [];
         }
 
         $result = [];
 
         foreach ($webhooks as $name => $pathItem) {
-            if ($pathItem === Generator::UNDEFINED) {
+            if (Generator::isDefault($pathItem)) {
                 continue;
             }
 
             $webhookName = is_string($name) ? $name : '(unknown)';
 
             $description = SchemaAccessor::undefinedToNull(
-                $pathItem->description ?? Generator::UNDEFINED, // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+                // @phpstan-ignore nullCoalesce.property (defensive; swagger-php may leave property unset at runtime)
+                $pathItem->description ?? Generator::UNDEFINED,
             );
 
-            foreach (self::HTTP_METHODS as $method) {
-                $oaOperation = $pathItem->{$method} ?? null;
+            foreach (HttpMethod::cases() as $method) {
+                $oaOperation = $pathItem->{$method->value} ?? null;
 
-                if (
-                    $oaOperation === Generator::UNDEFINED
-                    || $oaOperation === null
-                ) {
+                if ($oaOperation === null || Generator::isDefault($oaOperation)) {
                     continue;
                 }
 
                 $operation = $this->buildOperation(
                     $oaOperation,
                     $webhookName,
-                    strtoupper($method),
+                    $method,
                     null,
                     webhook: true,
                 );
@@ -1061,7 +1046,7 @@ final class SpecTreeBuilder
     {
         $tags = $spec->tags;
 
-        if ($tags === Generator::UNDEFINED || !is_array($tags)) {
+        if (!is_array($tags) || Generator::isDefault($tags)) {
             return [[], []];
         }
 
@@ -1069,11 +1054,11 @@ final class SpecTreeBuilder
         $descriptions = [];
 
         foreach ($tags as $tag) {
-            if ($tag === Generator::UNDEFINED) {
+            if (Generator::isDefault($tag)) {
                 continue;
             }
 
-            $name = $tag->name !== Generator::UNDEFINED ? $tag->name : null;
+            $name = !Generator::isDefault($tag->name) ? $tag->name : null;
 
             if ($name === null) {
                 continue;
@@ -1081,7 +1066,7 @@ final class SpecTreeBuilder
 
             $names[] = $name;
             $desc
-                = $tag->description !== Generator::UNDEFINED
+                = !Generator::isDefault($tag->description)
                 ? $tag->description
                 : null;
 

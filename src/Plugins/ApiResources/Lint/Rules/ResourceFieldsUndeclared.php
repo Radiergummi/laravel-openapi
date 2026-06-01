@@ -62,7 +62,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
             level: $this->level(),
             message: sprintf(
                 '%s %s returns %s but it declares no #[ResourceField] — the response schema is empty',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
                 $resourceClass,
             ),

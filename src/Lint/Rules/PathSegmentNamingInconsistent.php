@@ -80,7 +80,7 @@ final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule im
             message: sprintf(
                 'Path segment(s) [%s] on %s %s do not follow the %s naming convention',
                 implode(', ', $offending),
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
                 $this->case->label(),
             ),

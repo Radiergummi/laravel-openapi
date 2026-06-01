@@ -37,9 +37,11 @@ use function realpath;
  */
 class GenerateCommand extends Command
 {
-    // Name/description use the version-portable string-property form rather than
-    // the #[Signature]/#[Description] attributes, which are Laravel 13+ only
-    // (Illuminate\Console\Attributes does not exist on Laravel 12).
+    /**
+     * @var list<string>
+     */
+    private const array SUPPORTED_FORMATS = ['yaml', 'json'];
+
     protected $signature = 'openapi:generate
         {spec? : Name of the spec to generate. Omit to generate every defined spec.}
         {--output= : Override output path. Requires a single spec target. Use "-" for stdout.}
@@ -47,11 +49,6 @@ class GenerateCommand extends Command
         {--explain : Print one (route × spec) decision line per route on stderr.}';
 
     protected $description = 'Generate an OpenAPI 3.1 document from the application\'s route definitions';
-
-    /**
-     * @var list<string>
-     */
-    private const array SUPPORTED_FORMATS = ['yaml', 'json'];
 
     /**
      * @throws \InvalidArgumentException
@@ -135,7 +132,7 @@ class GenerateCommand extends Command
             foreach ($specs as $spec) {
                 $decision = $evaluator->decide($descriptor, $spec, app()->environment());
                 $mark = $decision->included ? '✓' : '✗';
-                $method = $descriptor->route->methods()[0] ?? 'GET';
+                $method = $descriptor->httpMethod?->forDisplay() ?? '?';
                 $uri = $descriptor->route->uri();
                 fwrite(STDERR, "[{$spec->name}] {$mark} {$method} {$uri}  {$decision->summary}" . PHP_EOL);
             }

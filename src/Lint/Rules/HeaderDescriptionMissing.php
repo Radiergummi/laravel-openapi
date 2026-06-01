@@ -42,7 +42,7 @@ final class HeaderDescriptionMissing implements Rule, HeaderRuleVisitor
             message: sprintf(
                 'Header "%s" on %s %s has no description',
                 $header->name,
-                $operation !== null ? $operation->method : '(unknown)',
+                $operation !== null ? $operation->method->forDisplay() : '(unknown)',
                 $operation !== null ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Add a description to the response header to improve API documentation.',

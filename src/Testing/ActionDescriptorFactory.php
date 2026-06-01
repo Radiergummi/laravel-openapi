@@ -51,7 +51,7 @@ final class ActionDescriptorFactory
         $route = new Route(
             $httpMethods,
             $uri,
-            ['controller' => $controller . '@' . $method],
+            ['controller' => "{$controller}@{$method}"],
         );
 
         return new ActionDescriptor(

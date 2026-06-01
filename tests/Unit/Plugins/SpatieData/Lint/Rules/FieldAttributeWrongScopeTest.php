@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
@@ -25,15 +26,24 @@ function makeDirectOnlyScanner(): PayloadParameterScanner
 
 function makeWrongScopeOperation(string $method): OperationNode
 {
-    $descriptor = ActionDescriptorFactory::forControllerMethod(WrongScopeFixtureController::class, $method, '/fixture');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        WrongScopeFixtureController::class,
+        $method,
+        '/fixture',
+    );
 
-    return OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    return OperationNodeFactory::forDescriptor(
+        $descriptor,
+        method: HttpMethod::Post,
+        pathUri: '/api/v0/test',
+    );
 }
 
 it('reports its id and level', function (): void {
     $rule = new FieldAttributeWrongScope(makeDirectOnlyScanner());
 
-    expect($rule->id())->toBe('field.attribute-wrong-scope')
+    expect($rule->id())
+        ->toBe('field.attribute-wrong-scope')
         ->and($rule->level())->toBe(1);
 });
 
@@ -45,7 +55,8 @@ it('flags RequestField on a route parameter', function (): void {
         ),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.attribute-wrong-scope')
         ->and($findings[0]->message)->toContain('#[RequestField]')
         ->and($findings[0]->fixHint)->toBe('Use #[PathParam] for a URI parameter.');
@@ -59,7 +70,8 @@ it('flags PathParam on a Data-class property', function (): void {
         ),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('#[PathParam]')
         ->and($findings[0]->fixHint)->toBe('Use #[RequestField] for a request-body field.');
 });
@@ -79,9 +91,18 @@ it('flags PathParam on a Data-class property injected through a Domain Action', 
     // WrongScopeFixtureData (carried by ActionWithWrongScopeData's constructor) has
     // a misplaced #[PathParam] on its $misplaced property. The scanner must descend
     // into the Action constructor to reach it.
-    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithWrongScopeDataController::class, 'create', '/fixture', ['POST']);
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        ActionWithWrongScopeDataController::class,
+        'create',
+        '/fixture',
+        ['POST'],
+    );
 
-    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        method: HttpMethod::Post,
+        pathUri: '/api/v0/test',
+    );
 
     // Scanner configured with Action::class as an indirection base so it descends
     // into ActionWithWrongScopeData's constructor and finds WrongScopeFixtureData.
@@ -93,7 +114,8 @@ it('flags PathParam on a Data-class property injected through a Domain Action', 
         ),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('#[PathParam]')
         ->and($findings[0]->message)->toContain('WrongScopeFixtureData')
         ->and($findings[0]->fixHint)->toBe('Use #[RequestField] for a request-body field.');

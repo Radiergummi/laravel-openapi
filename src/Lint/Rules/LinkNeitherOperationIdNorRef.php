@@ -35,7 +35,7 @@ final class LinkNeitherOperationIdNorRef implements Rule, LinkRuleVisitor
         $message = sprintf(
             'Link "%s" on %s %s has neither operationId nor operationRef',
             $link->name,
-            $routeMethod ?? '?',
+            $routeMethod?->forDisplay() ?? '?',
             $routeUri ?? '?',
         );
 

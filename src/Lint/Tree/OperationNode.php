@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 use LogicException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Attributes\PublicEndpoint;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionAttribute;
 
@@ -16,25 +17,26 @@ use function array_values;
 use function sprintf;
 use function str_replace;
 use function str_starts_with;
-use function strtolower;
 
 final class OperationNode implements Node
 {
     private ?Node $parent = null;
 
     /**
-     * @param string                                            $pathUri         For API operations: the route URI. For
-     *                                                                           webhooks: the webhook name.
-     * @param string                                            $method          Uppercase: GET, POST, etc.
-     * @param list<ParameterNode>                               $parameters      Path parameters
-     * @param list<QueryParameterNode>                          $queryParameters
-     * @param list<ResponseNode>                                $responses       All responses
-     * @param list<array{scheme: string, scopes: list<string>}> $security
-     * @param list<string>                                      $tags
+     * @param string                   $pathUri         For API operations: the route URI.
+     *                                                  For webhooks: the webhook name.
+     * @param list<ParameterNode>      $parameters      Path parameters
+     * @param list<QueryParameterNode> $queryParameters
+     * @param list<ResponseNode>       $responses       All responses
+     * @param list<array{
+     *     scheme: string,
+     *     scopes: list<string>
+     * }>                              $security
+     * @param list<string> $tags
      */
     public function __construct(
         public readonly string $pathUri,
-        public readonly string $method,
+        public readonly HttpMethod $method,
         public readonly ?string $operationId,
         public readonly ?string $summary,
         public readonly ?string $description,
@@ -58,7 +60,9 @@ final class OperationNode implements Node
     public function linkParent(Node $parent): void
     {
         if ($this->parent !== null) {
-            throw new LogicException(sprintf('Parent already linked on %s', __CLASS__));
+            throw new LogicException(
+                sprintf('Parent already linked on %s', __CLASS__),
+            );
         }
 
         $this->parent = $parent;
@@ -67,10 +71,10 @@ final class OperationNode implements Node
     public function pointer(string $append = ''): string
     {
         if ($this->webhook) {
-            $base = $this->parent?->pointer() . '/' . strtolower($this->method);
+            $base = $this->parent?->pointer() . '/' . $this->method->value;
         } else {
             $escapedPath = str_replace(['~', '/'], ['~0', '~1'], $this->pathUri);
-            $base = "#/paths/{$escapedPath}/" . strtolower($this->method);
+            $base = "#/paths/{$escapedPath}/{$this->method->value}";
         }
 
         return $append !== '' ? $base . '/' . $append : $base;
@@ -82,7 +86,7 @@ final class OperationNode implements Node
     }
 
     /**
-     * Success responses (2xx). "default" responses are excluded.
+     * Success responses (2xx). "Default" responses are excluded.
      *
      * @return list<ResponseNode>
      */
@@ -91,13 +95,13 @@ final class OperationNode implements Node
         return array_values(
             array_filter(
                 $this->responses,
-                static fn(ResponseNode $r): bool => $r->isSuccess(),
+                static fn(ResponseNode $response): bool => $response->isSuccess(),
             ),
         );
     }
 
     /**
-     * Error responses (4xx/5xx). "default" responses are excluded.
+     * Error responses (4xx/5xx). "Default" responses are excluded.
      *
      * @return list<ResponseNode>
      */
@@ -106,14 +110,13 @@ final class OperationNode implements Node
         return array_values(
             array_filter(
                 $this->responses,
-                static fn(ResponseNode $r): bool => $r->isError(),
+                static fn(ResponseNode $response): bool => $response->isError(),
             ),
         );
     }
 
     /**
-     * Returns true when the controller method or its declaring class carries
-     * `#[PublicEndpoint]`.
+     * Returns true when the controller method or its declaring class carries `#[PublicEndpoint]`.
      */
     public function hasPublicEndpointAttribute(): bool
     {
@@ -143,27 +146,30 @@ final class OperationNode implements Node
     }
 
     /**
-     * Returns true when the route carries any `auth:*`, `scope:*`, or
-     * `scopes:*` middleware.
+     * Returns true when the route carries any `auth:*`, `scope:*`, or `scopes:*` middleware.
      */
     public function hasAuthMiddleware(): bool
     {
         return $this->descriptor !== null && array_any(
             $this->descriptor->route->middleware(),
-            static fn(string $mw): bool
-                    => str_starts_with($mw, 'auth:')
-                    || str_starts_with($mw, 'scope:')
-                    || str_starts_with($mw, 'scopes:'),
+            static fn(string $middleware): bool
+                    => str_starts_with($middleware, 'auth:')
+                    || str_starts_with($middleware, 'scope:')
+                    || str_starts_with($middleware, 'scopes:'),
         );
     }
 
-    /** Convenience: source file path. */
+    /**
+     * Convenience: source file path.
+     */
     public function file(): ?string
     {
         return $this->descriptor?->actionReflector?->getFileName() ?: null;
     }
 
-    /** Convenience: source line. */
+    /**
+     * Convenience: source line.
+     */
     public function line(): ?int
     {
         return $this->descriptor?->actionReflector?->getStartLine() ?: null;

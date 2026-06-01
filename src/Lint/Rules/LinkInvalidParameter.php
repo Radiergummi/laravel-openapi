@@ -63,7 +63,7 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
             $message = sprintf(
                 'Link "%s" on %s %s passes parameter "%s" which is not accepted by operation "%s"',
                 $link->name,
-                $routeMethod ?? '?',
+                $routeMethod?->forDisplay() ?? '?',
                 $routeUri ?? '?',
                 $paramName,
                 $link->operationId,

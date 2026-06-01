@@ -33,7 +33,7 @@ final class OperationIdMissing implements Rule, OperationRuleVisitor
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has no operationId',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add an operationId to the operation via #[Operation(operationId: "...")].',

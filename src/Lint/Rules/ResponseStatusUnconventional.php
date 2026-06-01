@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
@@ -37,7 +38,7 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
 
         $method = $operation->method;
 
-        if ($method !== 'POST' && $method !== 'DELETE') {
+        if ($method !== HttpMethod::Post && $method !== HttpMethod::Delete) {
             return;
         }
 
@@ -60,20 +61,20 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
             return;
         }
 
-        $expected = $method === 'POST' ? '201' : '204';
+        $expected = $method === HttpMethod::Post ? '201' : '204';
 
         yield new Finding(
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
                 'Operation %s %s uses status 200 as its only success response; consider using %s instead',
-                $method,
+                $method->forDisplay(),
                 $operation->pathUri,
                 $expected,
             ),
             fixHint: sprintf(
                 '%s operations should typically return %s instead of 200.',
-                $method,
+                $method->forDisplay(),
                 $expected,
             ),
         );

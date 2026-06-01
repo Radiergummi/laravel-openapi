@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Extraction;
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -14,7 +15,6 @@ use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
 
 use function in_array;
 use function sprintf;
-use function strtoupper;
 
 /**
  * Iterates registered {@see RequestSchemaResolver}s (first non-null wins) and assembles an
@@ -58,23 +58,21 @@ final readonly class RequestBodyExtractor
 
     private function emitEmptyFindingIfWriteMethod(ActionDescriptor $descriptor): void
     {
-        $httpMethod = strtoupper($descriptor->route->methods()[0] ?? 'GET');
-
-        if (in_array($httpMethod, ['POST', 'PUT', 'PATCH'], true)) {
+        if (in_array($descriptor->httpMethod, [HttpMethod::Post, HttpMethod::Put, HttpMethod::Patch], true)) {
             $this->findings->emit(
                 new Finding(
                     ruleId: 'request.empty',
                     level: 2,
                     message: sprintf(
                         'No request body schema for %s %s',
-                        $httpMethod,
+                        $descriptor->httpMethod->forDisplay(),
                         $descriptor->route->uri(),
                     ),
                     location: new FindingLocation(
                         file: $descriptor->method?->getFileName() ?: null,
                         line: $descriptor->method?->getStartLine() ?: null,
                         routeName: $descriptor->route->getName(),
-                        routeMethod: $httpMethod,
+                        routeMethod: $descriptor->httpMethod,
                         routeUri: $descriptor->route->uri(),
                     ),
                     fixHint: 'Type-hint a Data class or FormRequest on the controller or injected Action.',

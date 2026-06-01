@@ -41,14 +41,14 @@ final class PathParameterUndefined implements Rule, OperationRuleVisitor
                 ? sprintf(
                     'Path parameter "%s" on %s %s has no corresponding {%s} placeholder in the path',
                     $parameter->name,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                     $parameter->name,
                 )
                 : sprintf(
                     'Optional path parameter "%s" on %s %s has no corresponding {%s?} placeholder in the path',
                     $parameter->name,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                     $parameter->name,
                 );

@@ -42,7 +42,7 @@ final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
                     message: sprintf(
                         'Tag "%s" used on %s %s is not declared in the top-level tags array',
                         $tag,
-                        $operation->method,
+                        $operation->method->forDisplay(),
                         $operation->pathUri,
                     ),
                     location: new FindingLocation(

@@ -143,7 +143,7 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
                     file: $descriptor->method?->getFileName() ?: null,
                     line: $descriptor->method?->getStartLine() ?: null,
                     routeName: $descriptor->route->getName(),
-                    routeMethod: strtoupper($descriptor->route->methods()[0] ?? 'GET'),
+                    routeMethod: $descriptor->httpMethod,
                     routeUri: $descriptor->route->uri(),
                 ),
                 fixHint: $this->buildThrowsUnmappedHint($throw),

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use Override;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LinterSummary;
 use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
@@ -20,7 +21,6 @@ use function preg_replace;
 use function sprintf;
 use function str_replace;
 use function strlen;
-use function strtoupper;
 use function Termwind\terminal;
 use function wordwrap;
 
@@ -265,9 +265,9 @@ final class CliFormatter implements Formatter
         return implode(' ', $parts);
     }
 
-    private function formatRoute(string $method, string $uri): string
+    private function formatRoute(HttpMethod $method, string $uri): string
     {
-        $verb = sprintf('<options=bold>%s</>', strtoupper($method));
+        $verb = sprintf('<options=bold>%s</>', $method->forDisplay());
         $uri = preg_replace('/\{(\w+)(\??)}/', '<fg=cyan>{$1$2}</>', $uri);
 
         return sprintf('%s %s', $verb, $uri);

@@ -53,7 +53,7 @@ final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
             $message = sprintf(
                 'Link "%s" on %s %s does not supply required parameter "%s" for operation "%s"',
                 $link->name,
-                $routeMethod ?? '?',
+                $routeMethod?->forDisplay() ?? '?',
                 $routeUri ?? '?',
                 $requiredName,
                 $link->operationId,

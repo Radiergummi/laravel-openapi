@@ -55,7 +55,7 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
             level: $this->level(),
             message: sprintf(
                 '%s %s is bound to %s, which declares no #[TransformerField] — the response schema is empty',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
                 $transformer,
             ),

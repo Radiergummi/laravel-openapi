@@ -44,7 +44,7 @@ final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
             message: sprintf(
                 'Redirect response %d on %s %s has no Location header',
                 $response->statusCode,
-                $operation !== null ? $operation->method : '(unknown)',
+                $operation !== null ? $operation->method->forDisplay() : '(unknown)',
                 $operation !== null ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Add a Location header to the redirect response so clients know where to follow.',

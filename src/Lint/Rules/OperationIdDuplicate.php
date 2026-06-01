@@ -65,7 +65,7 @@ final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finaliza
                     message: sprintf(
                         'Duplicate operationId "%s" on %s %s (%d occurrences)',
                         $operationId,
-                        $node->method,
+                        $node->method->forDisplay(),
                         $node->pathUri,
                         count($nodes),
                     ),

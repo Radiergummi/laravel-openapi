@@ -40,7 +40,7 @@ final class OperationDescriptionMissing implements Rule, OperationRuleVisitor
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has no description',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add a description to complement the summary and provide more detail to API consumers.',

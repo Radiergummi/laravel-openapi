@@ -59,7 +59,7 @@ final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
             level: $this->level(),
             message: sprintf(
                 'Deprecated operation %s %s does not mention a sunset date or timeline',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Add an ISO date (e.g. "Will be removed on 2025-12-31") or quarter notation (e.g. "Sunset in Q1 2026") to the description.',

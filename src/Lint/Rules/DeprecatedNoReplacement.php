@@ -59,7 +59,7 @@ final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
             level: $this->level(),
             message: sprintf(
                 'Deprecated operation %s %s does not mention a replacement in its description',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Add migration guidance to the description (e.g. "Use GET /v2/resource instead").',

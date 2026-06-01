@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\LinkParameterRequiredMissing;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
@@ -22,7 +23,7 @@ function makeLinkRequiredMissingNode(?string $operationId, array $parameters): L
         parameters: $parameters,
     );
     OperationNodeFactory::makeOperation(
-        method: 'POST',
+        method: HttpMethod::Post,
         responses: [OperationNodeFactory::makeResponse(statusCode: 201, description: null, links: [$link])],
     );
 

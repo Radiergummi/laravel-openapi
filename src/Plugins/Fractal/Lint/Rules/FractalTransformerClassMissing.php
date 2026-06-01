@@ -52,7 +52,7 @@ final readonly class FractalTransformerClassMissing implements Rule, OperationRu
             level: $this->level(),
             message: sprintf(
                 '#[FractalResponse] on %s %s names unknown transformer %s',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
                 $transformer,
             ),

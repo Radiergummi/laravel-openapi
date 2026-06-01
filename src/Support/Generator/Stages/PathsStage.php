@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Events\RouteSkipped;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Extensions\OperationContext;
@@ -34,7 +35,6 @@ use function preg_match;
 use function preg_replace;
 use function str_ends_with;
 use function strtolower;
-use function strtoupper;
 use function ucfirst;
 
 /**
@@ -130,18 +130,18 @@ final readonly class PathsStage implements SpecStage
     {
         $operation = $this->operationBuilder->build($action, [$this->deriveTag($action)]);
 
-        foreach ($action->route->methods() as $method) {
-            $upper = strtoupper($method);
+        foreach ($action->route->methods() as $routeMethod) {
+            $method = HttpMethod::fromString($routeMethod) ?? HttpMethod::Get;
 
-            if ($upper === 'HEAD') {
+            if ($method === HttpMethod::Head) {
                 continue;
             }
 
             $resolved = $operation->operationId !== null
                 ? $operation
-                : $operation->withOperationId($this->buildOperationId($action, $upper));
+                : $operation->withOperationId($this->buildOperationId($action, $method));
 
-            $operationSchema = $resolved->toOpenApi($method);
+            $operationSchema = $resolved->attachTo($pathItem, $method);
 
             if ($operationSchema === null) {
                 continue;
@@ -151,10 +151,8 @@ final readonly class PathsStage implements SpecStage
 
             OpenApiExtensions::applyOperationTransformers(
                 $operationSchema,
-                new OperationContext($action, $upper),
+                new OperationContext($action, $method),
             );
-
-            $pathItem->{strtolower($upper)} = $operationSchema;
         }
     }
 
@@ -200,24 +198,24 @@ final readonly class PathsStage implements SpecStage
      * 1. Named route → `{name}.{method}` for multi-method routes, plain `{name}` otherwise.
      * 2. Generated/unnamed (`generated::*` prefix or null) → `{method}_{sanitised_path}`.
      */
-    private function buildOperationId(ActionDescriptor $descriptor, string $method): string
+    private function buildOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
     {
         $name = $descriptor->route->getName();
         $methods = array_filter(
             $descriptor->route->methods(),
-            static fn(string $m): bool => strtoupper($m) !== 'HEAD',
+            static fn(string $method): bool => HttpMethod::fromString($method) !== HttpMethod::Head,
         );
 
         if ($name !== null && !Str::startsWith($name, 'generated::')) {
             return count($methods) > 1
-                ? $name . '.' . strtolower($method)
+                ? $name . '.' . strtolower($method->value)
                 : $name;
         }
 
         $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
             ?? $descriptor->route->uri();
 
-        return strtolower($method) . '_' . $sanitised;
+        return strtolower($method->value) . '_' . $sanitised;
     }
 
     private function normalisePath(string $uri): string

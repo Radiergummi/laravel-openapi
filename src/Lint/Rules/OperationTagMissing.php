@@ -33,7 +33,7 @@ final class OperationTagMissing implements Rule, OperationRuleVisitor
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has no tags',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add at least one tag to the operation via #[Tag] or #[Operation(tags: [...])].',

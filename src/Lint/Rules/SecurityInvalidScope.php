@@ -48,7 +48,7 @@ final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
                     level: $this->level(),
                     message: sprintf(
                         'Operation %s %s references undefined scope "%s"',
-                        $operation->method,
+                        $operation->method->forDisplay(),
                         $operation->pathUri,
                         $scope,
                     ),

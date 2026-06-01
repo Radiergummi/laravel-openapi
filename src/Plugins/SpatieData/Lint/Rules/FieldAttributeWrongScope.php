@@ -130,7 +130,7 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
             message: sprintf(
                 '#[RequestField] on URI parameter $%s of %s %s applies to request-body fields, not URI parameters',
                 $param->getName(),
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Use #[PathParam] for a URI parameter.',

@@ -61,7 +61,7 @@ final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Reset
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s references undefined security scheme "%s"',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                     $schemeName,
                 ),
@@ -79,25 +79,25 @@ final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Reset
     {
         $components = $spec->components;
 
-        if ($components === Generator::UNDEFINED || $components === null) {
+        if (Generator::isDefault($components) || $components === null) {
             return [];
         }
 
         $schemes = $components->securitySchemes;
 
-        if ($schemes === Generator::UNDEFINED || !is_array($schemes)) {
+        if (Generator::isDefault($schemes) || !is_array($schemes)) {
             return [];
         }
 
         $names = [];
 
         foreach ($schemes as $scheme) {
-            if ($scheme === Generator::UNDEFINED) {
+            if (Generator::isDefault($scheme)) {
                 continue;
             }
 
             if (
-                $scheme->securityScheme !== Generator::UNDEFINED
+                !Generator::isDefault($scheme->securityScheme)
                 && $scheme->securityScheme !== null
             ) {
                 $names[] = $scheme->securityScheme;

@@ -39,7 +39,7 @@ final class ResponseNoSuccess implements Rule, OperationRuleVisitor
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has no 2xx success response',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add at least one success response (e.g. 200, 201, 204) to the operation.',
