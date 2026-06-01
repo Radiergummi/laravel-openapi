@@ -1,5 +1,17 @@
 name: Tests
 
+# Skip-when-unchanged, without path filters.
+#
+# Each job probes a "result marker" cache keyed on a content hash of the inputs that affect its
+# outcome (source, tests, config, examples, the lockfile). On an exact hit, that input set has
+# already passed in a prior green run, so the heavy steps (install + suite) are skipped — but the
+# job still runs and reports success, so these stay safe to mark as required checks (unlike
+# `paths-ignore`, which would never report on a docs-only PR). The marker is saved only on success,
+# so a red run is never remembered as green. A docs-only change leaves the source hash unchanged →
+# hit → the suite is skipped; touching any hashed input busts the marker → the suite runs.
+#
+# The Composer download cache is restored on every (non-skipped) run to speed installs.
+
 on:
   push:
     branches: [ main ]
@@ -37,12 +49,36 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Probe result marker
+        id: marker
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: tests-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          lookup-only: true
       - name: Setup PHP
+        if: steps.marker.outputs.cache-hit != 'true'
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: ${{ matrix.php }}
           coverage: none
+      - name: Resolve Composer cache directory
+        if: steps.marker.outputs.cache-hit != 'true'
+        id: composer-cache
+        shell: bash
+        # language=bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-
+            composer-${{ runner.os }}-
       - name: Constrain Laravel and Testbench versions
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -52,6 +88,7 @@ jobs:
             "laravel/framework:${{ matrix.laravel }}" \
             "orchestra/testbench:${{ matrix.testbench }}"
       - name: Install dependencies
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -60,6 +97,7 @@ jobs:
             --prefer-dist \
             --no-progress
       - name: Verify resolved Laravel major
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -74,6 +112,7 @@ jobs:
       # They are validated once against the locked toolchain in the `snapshot` job below and excluded here; the
       # semantic ExamplesTest cases (valid 3.1 document, lint-clean) still run on every cell.
       - name: Run tests (excluding toolchain-specific serialization snapshots)
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -82,11 +121,22 @@ jobs:
             --exclude-group=snapshot \
             --no-coverage
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.marker.outputs.cache-hit != 'true' }}
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3
         with:
           files: .cache/junit.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Record result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        shell: bash
+        # language=bash
+        run: echo "${GITHUB_SHA}" > .ci-marker
+      - name: Persist result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: ${{ steps.marker.outputs.cache-primary-key }}
 
   test-swagger-low:
     runs-on: ubuntu-latest
@@ -97,12 +147,36 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Probe result marker
+        id: marker
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: swaglow-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          lookup-only: true
       - name: Setup PHP
+        if: steps.marker.outputs.cache-hit != 'true'
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: '8.4'
           coverage: none
+      - name: Resolve Composer cache directory
+        if: steps.marker.outputs.cache-hit != 'true'
+        id: composer-cache
+        shell: bash
+        # language=bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-swaglow-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-swaglow-
+            composer-${{ runner.os }}-
       - name: Pin lowest swagger-php and Laravel 12 / Testbench 10
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -113,6 +187,7 @@ jobs:
             "laravel/framework:12.*" \
             "orchestra/testbench:^10.0"
       - name: Install dependencies
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -121,6 +196,7 @@ jobs:
             --prefer-dist \
             --no-progress
       - name: Verify resolved swagger-php major
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -133,12 +209,24 @@ jobs:
       # identical YAML with a different key order, so the snapshot group is excluded here. Everything else (generation,
       # OpenAPI 3.1 validity, lint-clean, all unit/feature tests) runs against 5.8.
       - name: Run tests (excluding 6.x-pinned serialization snapshots)
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
           vendor/bin/pest \
             --exclude-group=snapshot \
             --no-coverage
+      - name: Record result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        shell: bash
+        # language=bash
+        run: echo "${GITHUB_SHA}" > .ci-marker
+      - name: Persist result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: ${{ steps.marker.outputs.cache-primary-key }}
 
   coverage:
     name: Coverage
@@ -149,12 +237,36 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Probe result marker
+        id: marker
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: coverage-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          lookup-only: true
       - name: Setup PHP
+        if: steps.marker.outputs.cache-hit != 'true'
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: '8.4'
           coverage: pcov
+      - name: Resolve Composer cache directory
+        if: steps.marker.outputs.cache-hit != 'true'
+        id: composer-cache
+        shell: bash
+        # language=bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-coverage-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-coverage-
+            composer-${{ runner.os }}-
       - name: Install dependencies
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -165,6 +277,7 @@ jobs:
       # Run serially (not the parallel `pest` script): parallel workers race on the shared fixture destination
       # under coverage. Snapshots are excluded here too — they are the `snapshot` job's responsibility.
       - name: Run tests with coverage
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -174,6 +287,7 @@ jobs:
             --coverage \
             --coverage-clover .cache/clover.xml
       - name: Upload coverage to Codecov
+        if: ${{ !cancelled() && steps.marker.outputs.cache-hit != 'true' }}
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354
         with:
           files: .cache/clover.xml
@@ -181,11 +295,22 @@ jobs:
           # Coverage reporting must never gate the build; a flaky upload should not fail CI.
           fail_ci_if_error: false
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.marker.outputs.cache-hit != 'true' }}
         uses: codecov/test-results-action@0fa95f0e1eeaafde2c782583b36b28ad0d8c77d3
         with:
           files: .cache/junit.xml
           token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Record result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        shell: bash
+        # language=bash
+        run: echo "${GITHUB_SHA}" > .ci-marker
+      - name: Persist result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: ${{ steps.marker.outputs.cache-primary-key }}
 
   snapshot:
     name: Snapshot (locked toolchain)
@@ -196,15 +321,39 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+      - name: Probe result marker
+        id: marker
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: snapshot-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml') }}
+          lookup-only: true
       - name: Setup PHP
+        if: steps.marker.outputs.cache-hit != 'true'
         uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
         with:
           php-version: '8.4'
           coverage: none
+      - name: Resolve Composer cache directory
+        if: steps.marker.outputs.cache-hit != 'true'
+        id: composer-cache
+        shell: bash
+        # language=bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-snapshot-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-snapshot-
+            composer-${{ runner.os }}-
       # `composer install` (not update) so the byte-exact snapshots are checked against exactly the toolchain
       # they were generated with — the same versions a developer gets locally. This is the one job allowed to
       # run the `snapshot` group.
       - name: Install locked dependencies
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
@@ -213,9 +362,21 @@ jobs:
             --prefer-dist \
             --no-progress
       - name: Verify byte-exact snapshots
+        if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
         # language=bash
         run: |
           vendor/bin/pest \
             --group=snapshot \
             --no-coverage
+      - name: Record result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        shell: bash
+        # language=bash
+        run: echo "${GITHUB_SHA}" > .ci-marker
+      - name: Persist result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .ci-marker
+          key: ${{ steps.marker.outputs.cache-primary-key }}
