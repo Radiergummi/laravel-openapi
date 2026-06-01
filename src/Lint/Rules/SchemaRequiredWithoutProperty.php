@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -18,6 +17,8 @@ use function in_array;
 use function is_array;
 use function is_string;
 use function preg_match;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -42,7 +43,7 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
 
         $required = $schema->required;
 
-        if (Generator::isDefault($required) || !is_array($required)) {
+        if (is_undefined($required) || !is_array($required)) {
             return;
         }
 
@@ -108,8 +109,8 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
         if (is_array($properties)) {
             foreach ($properties as $property) {
                 if (
-                    !Generator::isDefault($property)
-                    && !Generator::isDefault($property->property)
+                    is_defined($property)
+                    && is_defined($property->property)
                 ) {
                     $names[] = $property->property;
                 }
@@ -123,7 +124,7 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
         }
 
         foreach ($allOf as $sub) {
-            if (Generator::isDefault($sub)) {
+            if (is_undefined($sub)) {
                 continue;
             }
 

@@ -10,6 +10,8 @@ use OpenApi\Generator;
 use function in_array;
 use function is_array;
 use function is_string;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Mutable accumulator for the JSON Schema fields derived from a single Laravel validation field's
@@ -121,34 +123,34 @@ final class FieldDescriptor
         // pass and must not be clobbered by the validation-rules pass (e.g. Spatie Data emits
         // type:'array' for nested Data classes even though the resolved schema is a $ref-in-oneOf).
         $alreadyComposed = !$overwrite
-            && (!Generator::isDefault($target->oneOf)
-                || !Generator::isDefault($target->allOf)
-                || !Generator::isDefault($target->anyOf));
+            && (is_defined($target->oneOf)
+                || is_defined($target->allOf)
+                || is_defined($target->anyOf));
 
-        if (!$alreadyComposed && $this->type !== null && ($overwrite || Generator::isDefault($target->type))) {
+        if (!$alreadyComposed && $this->type !== null && ($overwrite || is_undefined($target->type))) {
             $target->type = $this->type;
 
             // swagger-php requires every `type: array` schema to carry an `items` annotation.
             // Inject an empty fallback when no items has been set by the type-resolution pass or
             // a foo.* wildcard rule. This covers both OA\Property and OA\Items targets.
-            if ($this->type === 'array' && Generator::isDefault($target->items)) {
+            if ($this->type === 'array' && is_undefined($target->items)) {
                 $target->items = new OA\Items([]);
             }
         }
 
-        if ($this->format !== null && ($overwrite || Generator::isDefault($target->format))) {
+        if ($this->format !== null && ($overwrite || is_undefined($target->format))) {
             $target->format = $this->format;
         }
 
-        if ($this->enum !== null && ($overwrite || Generator::isDefault($target->enum))) {
+        if ($this->enum !== null && ($overwrite || is_undefined($target->enum))) {
             $target->enum = $this->enum;
         }
 
-        if ($this->pattern !== null && ($overwrite || Generator::isDefault($target->pattern))) {
+        if ($this->pattern !== null && ($overwrite || is_undefined($target->pattern))) {
             $target->pattern = $this->pattern;
         }
 
-        if ($this->description !== null && ($overwrite || Generator::isDefault($target->description))) {
+        if ($this->description !== null && ($overwrite || is_undefined($target->description))) {
             $target->description = $this->description;
         }
 
@@ -188,28 +190,28 @@ final class FieldDescriptor
         // - Already composed (oneOf/allOf/anyOf already set by the type-resolution pass): skip —
         //   the nullable wrapping was already applied upstream (e.g. via NullableSchema::wrap).
         if ($this->nullable && !$alreadyComposed) {
-            if (is_string($target->type) && !Generator::isDefault($target->type)) {
+            if (is_string($target->type) && is_defined($target->type)) {
                 if (in_array($target->type, ['array', 'object'], strict: true)) {
                     // Structured type: pull type (and structured keywords if present) into a oneOf
                     // inner schema so the outer schema carries oneOf and the inner keeps the type.
                     $inner = new OA\Schema(['type' => $target->type]);
 
-                    if (!Generator::isDefault($target->items)) {
+                    if (is_defined($target->items)) {
                         $inner->items = $target->items;
                         $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
-                    if (!Generator::isDefault($target->properties)) {
+                    if (is_defined($target->properties)) {
                         $inner->properties = $target->properties;
                         $target->properties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
-                    if (!Generator::isDefault($target->additionalProperties)) {
+                    if (is_defined($target->additionalProperties)) {
                         $inner->additionalProperties = $target->additionalProperties;
                         $target->additionalProperties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
-                    if (!Generator::isDefault($target->required)) {
+                    if (is_defined($target->required)) {
                         $inner->required = $target->required;
                         $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
@@ -225,7 +227,7 @@ final class FieldDescriptor
                 }
             } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {
                 $target->type = [...$target->type, 'null'];
-            } elseif (Generator::isDefault($target->type)) {
+            } elseif (is_undefined($target->type)) {
                 $target->type = ['null'];
             }
         }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Enums\ComponentType;
@@ -19,6 +18,7 @@ use Radiergummi\OpenApi\Lint\Visitors\ApiRule as ApiRuleVisitor;
 use function is_string;
 use function preg_match;
 use function property_exists;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -50,7 +50,7 @@ final class RefBroken implements Rule, ApiRuleVisitor
 
             $ref = $annotation->ref;
 
-            if (Generator::isDefault($ref) || !is_string($ref)) {
+            if (is_undefined($ref) || !is_string($ref)) {
                 return;
             }
 

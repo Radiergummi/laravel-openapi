@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Support\Generator\Stages;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Generator\GenerationContext;
@@ -14,6 +13,7 @@ use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Generator\SpecPipeline;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
 use function substr;
 
@@ -43,7 +43,7 @@ final readonly class OverridesStage implements SpecStage
         }
 
         foreach ($document->paths as $pathItem) {
-            if (!$pathItem instanceof OA\PathItem || Generator::isDefault($pathItem->path)) {
+            if (!$pathItem instanceof OA\PathItem || is_undefined($pathItem->path)) {
                 continue;
             }
 
@@ -75,7 +75,7 @@ final readonly class OverridesStage implements SpecStage
     {
         foreach ($fields as $field => $value) {
             if (str_starts_with($field, 'x-')) {
-                $x = Generator::isDefault($operation->x) ? [] : $operation->x;
+                $x = is_undefined($operation->x) ? [] : $operation->x;
                 $x[substr($field, 2)] = $value;
                 $operation->x = $x;
 

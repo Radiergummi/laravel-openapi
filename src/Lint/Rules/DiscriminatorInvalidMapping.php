@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -17,6 +16,8 @@ use Radiergummi\OpenApi\Lint\Visitors\Finalizable;
 use Radiergummi\OpenApi\Lint\Visitors\Resettable;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 use function str_starts_with;
 use function strlen;
@@ -64,15 +65,15 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         }
 
         // Index this schema for use in finalize()
-        if (!Generator::isDefault($schema->schema) && $schema->schema !== null) {
+        if (is_defined($schema->schema) && $schema->schema !== null) {
             $this->schemaMap[$schema->schema] = $schema;
         }
 
         // Queue schemas with discriminators for the finalize pass
         if (
-            !Generator::isDefault($schema->discriminator)
+            is_defined($schema->discriminator)
             && $schema->discriminator !== null
-            && !Generator::isDefault($schema->discriminator->propertyName)
+            && is_defined($schema->discriminator->propertyName)
             && is_array($schema->discriminator->mapping)
         ) {
             $this->pending[] = $schema;
@@ -99,7 +100,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
     {
         $discriminator = $schema->discriminator;
         $propertyName = $discriminator->propertyName;
-        $baseSchemaName = !Generator::isDefault($schema->schema) ? $schema->schema : '(unknown)';
+        $baseSchemaName = is_defined($schema->schema) ? $schema->schema : '(unknown)';
 
         foreach ($discriminator->mapping as $discriminatorValue => $ref) {
             if (!is_string($ref)) {
@@ -211,12 +212,12 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
     ): bool {
         if (is_array($schema->properties)) {
             foreach ($schema->properties as $property) {
-                if (Generator::isDefault($property)) {
+                if (is_undefined($property)) {
                     continue;
                 }
 
                 if (
-                    !Generator::isDefault($property->property)
+                    is_defined($property->property)
                     && $property->property === $propertyName
                 ) {
                     return true;
@@ -229,14 +230,14 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         }
 
         foreach ($schema->allOf as $sub) {
-            if (Generator::isDefault($sub)) {
+            if (is_undefined($sub)) {
                 continue;
             }
 
             // If this allOf entry is a $ref, resolve it to the actual schema first
             $ref = $sub->ref;
 
-            if (!Generator::isDefault($ref) && is_string($ref)) {
+            if (is_defined($ref) && is_string($ref)) {
                 $refName = $this->resolveRefToSchemaName($ref);
 
                 if ($refName !== null) {
@@ -261,7 +262,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             }
 
             // Inline allOf sub-schema (no $ref) — recurse directly
-            $subName = !Generator::isDefault($sub->schema) ? $sub->schema : null;
+            $subName = is_defined($sub->schema) ? $sub->schema : null;
 
             if ($subName !== null) {
                 if (isset($visited[$subName])) {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -32,7 +31,7 @@ final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
             return;
         }
 
-        if (Generator::isDefault($raw->nullable) || $raw->nullable !== true) {
+        if ($raw->nullable !== true) {
             return;
         }
 

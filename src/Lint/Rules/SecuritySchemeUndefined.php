@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -16,6 +15,8 @@ use Radiergummi\OpenApi\Lint\Visitors\Resettable;
 
 use function in_array;
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -79,25 +80,25 @@ final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Reset
     {
         $components = $spec->components;
 
-        if (Generator::isDefault($components) || $components === null) {
+        if (is_undefined($components) || $components === null) {
             return [];
         }
 
         $schemes = $components->securitySchemes;
 
-        if (Generator::isDefault($schemes) || !is_array($schemes)) {
+        if (is_undefined($schemes) || !is_array($schemes)) {
             return [];
         }
 
         $names = [];
 
         foreach ($schemes as $scheme) {
-            if (Generator::isDefault($scheme)) {
+            if (is_undefined($scheme)) {
                 continue;
             }
 
             if (
-                !Generator::isDefault($scheme->securityScheme)
+                is_defined($scheme->securityScheme)
                 && $scheme->securityScheme !== null
             ) {
                 $names[] = $scheme->securityScheme;

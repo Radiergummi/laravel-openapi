@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -13,6 +12,7 @@ use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Lint\Visitors\ParameterRule as ParameterRuleVisitor;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -33,10 +33,10 @@ final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
             return;
         }
 
-        $hasExample = !Generator::isDefault($parameter->raw->example)
+        $hasExample = is_defined($parameter->raw->example)
             && $parameter->raw->example !== null;
 
-        $hasExamples = !Generator::isDefault($parameter->raw->examples)
+        $hasExamples = is_defined($parameter->raw->examples)
             && is_array($parameter->raw->examples)
             && $parameter->raw->examples !== [];
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -14,6 +13,7 @@ use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Visitors\ApiRule as ApiRuleVisitor;
 
 use function implode;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Reports documents whose info object is missing a contact and/or license.
@@ -31,17 +31,17 @@ final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
     {
         $info = $context->rawSpec->info;
 
-        if (Generator::isDefault($info) || $info === null) {
+        if (is_undefined($info) || $info === null) {
             return;
         }
 
         $missing = [];
 
-        if (Generator::isDefault($info->contact) || $info->contact === null) {
+        if (is_undefined($info->contact) || $info->contact === null) {
             $missing[] = 'contact';
         }
 
-        if (Generator::isDefault($info->license) || $info->license === null) {
+        if (is_undefined($info->license) || $info->license === null) {
             $missing[] = 'license';
         }
 

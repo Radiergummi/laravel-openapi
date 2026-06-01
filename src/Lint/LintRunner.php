@@ -12,7 +12,6 @@ use Illuminate\Contracts\Events\Dispatcher;
 use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
@@ -46,6 +45,7 @@ use function in_array;
 use function is_array;
 use function ltrim;
 use function max;
+use function Radiergummi\OpenApi\is_defined;
 
 /**
  * Orchestrates one lint run against the application's routes.
@@ -416,7 +416,7 @@ final readonly class LintRunner
                 array_filter(
                     $document->paths,
                     static fn(OA\PathItem $p): bool
-                        => !Generator::isDefault($p->path)
+                        => is_defined($p->path)
                         && isset($allowedUris[$p->path]),
                 ),
             );

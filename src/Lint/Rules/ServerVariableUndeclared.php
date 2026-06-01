@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations\ServerVariable;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -17,6 +16,8 @@ use function array_key_exists;
 use function is_array;
 use function is_string;
 use function preg_match_all;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
@@ -36,7 +37,7 @@ final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
         foreach ($servers as $server) {
             $url = $server->url;
 
-            if (Generator::isDefault($url) || !is_string($url)) {
+            if (is_undefined($url) || !is_string($url)) {
                 continue;
             }
 
@@ -52,7 +53,7 @@ final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
 
             if (is_array($variables)) {
                 foreach ($variables as $key => $variable) {
-                    if ($variable instanceof ServerVariable && !Generator::isDefault($variable->serverVariable)) {
+                    if ($variable instanceof ServerVariable && is_defined($variable->serverVariable)) {
                         $declaredKeys[$variable->serverVariable] = true;
                     } else {
                         $declaredKeys[(string) $key] = true;

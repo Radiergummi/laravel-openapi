@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -19,6 +18,7 @@ use function implode;
 use function in_array;
 use function is_array;
 use function is_string;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -65,13 +65,13 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
         $types = [];
 
         foreach ($allOf as $subSchema) {
-            if (Generator::isDefault($subSchema)) {
+            if (is_undefined($subSchema)) {
                 continue;
             }
 
             $type = $subSchema->type;
 
-            if (Generator::isDefault($type) || $type === null) {
+            if (is_undefined($type) || $type === null) {
                 continue;
             }
 

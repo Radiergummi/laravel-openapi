@@ -7,7 +7,6 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -27,6 +26,8 @@ use function array_any;
 use function array_key_exists;
 use function class_basename;
 use function is_string;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
@@ -164,12 +165,12 @@ final readonly class SchemaFromFormRequest
             // #[RequestField] attribute on a PARAM_* constant) rather than the rules-derived
             // descriptor values — otherwise a type change in the override produces a wrong-typed
             // example.
-            if (Generator::isDefault($property->example)) {
-                if (is_string($property->type) && !Generator::isDefault($property->type)) {
+            if (is_undefined($property->example)) {
+                if (is_string($property->type) && is_defined($property->type)) {
                     $descriptor->type = $property->type;
                 }
 
-                if (is_string($property->format) && !Generator::isDefault($property->format)) {
+                if (is_string($property->format) && is_defined($property->format)) {
                     $descriptor->format = $property->format;
                 }
 

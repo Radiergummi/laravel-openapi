@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -14,6 +13,7 @@ use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRuleVisitor;
 
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -40,15 +40,15 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
             return;
         }
 
-        $hasExample = !Generator::isDefault($schema->example) && $schema->example !== null;
+        $hasExample = is_defined($schema->example) && $schema->example !== null;
 
         $hasExamples
-            = !Generator::isDefault($schema->examples)
+            = is_defined($schema->examples)
             && is_array($schema->examples)
             && $schema->examples !== [];
 
         $hasEnum
-            = !Generator::isDefault($schema->enum)
+            = is_defined($schema->enum)
             && is_array($schema->enum)
             && $schema->enum !== [];
 

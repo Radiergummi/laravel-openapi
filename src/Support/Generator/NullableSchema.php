@@ -10,6 +10,8 @@ use OpenApi\Generator;
 use function in_array;
 use function is_array;
 use function is_string;
+use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * OAS 3.1-compatible nullable schema wrapping.
@@ -49,7 +51,7 @@ final class NullableSchema
     {
 
         // $ref branch: extra fields alongside $ref are ignored by validators in OAS 3.1.
-        if (!Generator::isDefault($schema->ref) && is_string($schema->ref)) {
+        if (is_defined($schema->ref) && is_string($schema->ref)) {
             return new OA\Schema([
                 'oneOf' => [
                     new OA\Schema(['ref' => $schema->ref]),
@@ -60,7 +62,7 @@ final class NullableSchema
 
         // Scalar plain-type branch: widen to a type array that includes 'null'.
         if (
-            !Generator::isDefault($schema->type)
+            is_defined($schema->type)
             && is_string($schema->type)
             && in_array($schema->type, self::SCALAR_TYPES, strict: true)
         ) {
@@ -72,7 +74,7 @@ final class NullableSchema
 
         // Already a type array (caller passed a pre-widened scalar schema): add 'null' if absent.
         // Only safe when all existing types are scalars (no 'array' or 'object' mixed in).
-        if (!Generator::isDefault($schema->type) && is_array($schema->type)) {
+        if (is_defined($schema->type) && is_array($schema->type)) {
             $hasStructured = false;
 
             foreach ($schema->type as $type) {
@@ -120,11 +122,11 @@ final class NullableSchema
     public static function applyTo(OA\Schema $target): void
     {
 
-        if (is_string($target->type) && !Generator::isDefault($target->type)) {
+        if (is_string($target->type) && is_defined($target->type)) {
             if (in_array($target->type, ['array', 'object'], strict: true)) {
                 $inner = new OA\Schema(['type' => $target->type]);
 
-                if (!Generator::isDefault($target->items)) {
+                if (is_defined($target->items)) {
                     $inner->items = $target->items;
                     $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                 }
@@ -140,7 +142,7 @@ final class NullableSchema
             }
         } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {
             $target->type = [...$target->type, 'null'];
-        } elseif (Generator::isDefault($target->type)) {
+        } elseif (is_undefined($target->type)) {
             $target->type = ['null'];
         }
     }
