@@ -10,6 +10,8 @@ use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMissing;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalTransformerClassMissing;
+use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\FractalResponseResolver;
+use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\TransformerRefSchemaResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**

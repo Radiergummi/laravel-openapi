@@ -20,6 +20,7 @@ class ClearCommand extends Command
         {spec? : Name of the spec to clear. Omit to clear every defined spec.}';
 
     protected $description = 'Remove the generated OpenAPI specification file(s)';
+
     /**
      * @throws InvalidArgumentException
      */

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Envelopes\JsonApiEnvelope;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\JsonApiEnvelope;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 uses()->group('openapi');

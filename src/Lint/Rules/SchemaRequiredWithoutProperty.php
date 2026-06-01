@@ -42,7 +42,7 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
 
         $required = $schema->required;
 
-        if ($required === Generator::UNDEFINED || !is_array($required)) {
+        if (Generator::isDefault($required) || !is_array($required)) {
             return;
         }
 
@@ -108,8 +108,8 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
         if (is_array($properties)) {
             foreach ($properties as $property) {
                 if (
-                    $property !== Generator::UNDEFINED
-                    && $property->property !== Generator::UNDEFINED
+                    !Generator::isDefault($property)
+                    && !Generator::isDefault($property->property)
                 ) {
                     $names[] = $property->property;
                 }
@@ -123,7 +123,7 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
         }
 
         foreach ($allOf as $sub) {
-            if ($sub === Generator::UNDEFINED) {
+            if (Generator::isDefault($sub)) {
                 continue;
             }
 

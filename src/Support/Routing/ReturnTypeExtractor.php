@@ -40,6 +40,14 @@ final class ReturnTypeExtractor
         private readonly TypeNodeResolver $typeNodeResolver,
     ) {}
 
+    public static function create(): self
+    {
+        return new self(
+            docBlockParser: DocBlockParser::create(),
+            typeNodeResolver: TypeNodeResolver::create(),
+        );
+    }
+
     /**
      * Returns the FQCN (without a leading backslash) of the generic argument of
      * the at-return tag, or null when there is no docblock, no at-return tag,
@@ -68,14 +76,6 @@ final class ReturnTypeExtractor
         return $this->genericArgumentCache[$key] = $this->typeNodeResolver->genericValueClass(
             $returnType,
             $reflector,
-        );
-    }
-
-    public static function create(): self
-    {
-        return new self(
-            docBlockParser: DocBlockParser::create(),
-            typeNodeResolver: TypeNodeResolver::create(),
         );
     }
 }

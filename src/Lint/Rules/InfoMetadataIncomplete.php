@@ -31,17 +31,17 @@ final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
     {
         $info = $context->rawSpec->info;
 
-        if ($info === Generator::UNDEFINED || $info === null) {
+        if (Generator::isDefault($info) || $info === null) {
             return;
         }
 
         $missing = [];
 
-        if ($info->contact === Generator::UNDEFINED || $info->contact === null) {
+        if (Generator::isDefault($info->contact) || $info->contact === null) {
             $missing[] = 'contact';
         }
 
-        if ($info->license === Generator::UNDEFINED || $info->license === null) {
+        if (Generator::isDefault($info->license) || $info->license === null) {
             $missing[] = 'license';
         }
 

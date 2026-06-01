@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Plugins\ApiResources\ResourceEnvelopeFactory;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceEnvelopeFactory;
 
 /** @return array<string, OA\Property> */
 function envelopeProperties(OA\Schema $schema): array

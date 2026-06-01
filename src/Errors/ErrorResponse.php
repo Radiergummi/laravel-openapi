@@ -6,14 +6,14 @@ namespace Radiergummi\OpenApi\Errors;
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 
 /**
  * The body slice of an error response, produced by an {@see ErrorResponseResolver}.
  *
- * Carries only what a resolver can produce: media-type contents, response headers, links, and
- * an optional description that overrides the stage's default. The response key, named-
- * component registration, and default description are owned by
- * {@see \Radiergummi\OpenApi\Core\Stages\ErrorResponseInferenceStage} — there is
+ * Carries only what a resolver can produce: media-type contents, response headers, links, and an
+ * optional description that overrides the stage's default. The response key, named-component
+ * registration, and default description are owned by {@see ErrorResponseInferenceStage} — there is
  * intentionally no slot for them on this type.
  */
 final readonly class ErrorResponse

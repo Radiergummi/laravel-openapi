@@ -123,7 +123,7 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 
 ## Conventions
 
-- Every PHP file has a strict-types declaration and the MIT/copyright docblock header.
+- Every PHP file has a strict-types declaration.
 - `src/Core/`, `src/Support/`, and `src/Contracts/` must not depend on any plugin or
   third-party convention package — plugin-specific code belongs in `src/Plugins/`.
 - `src/Core/` holds **only concrete strategies** that participate in the Core Plugin

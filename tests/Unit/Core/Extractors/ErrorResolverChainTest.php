@@ -6,9 +6,9 @@ use Illuminate\Routing\Route;
 use Illuminate\Validation\ValidationException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\LaravelEnvelope;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 

@@ -252,18 +252,6 @@ final readonly class OperationBuilder
     }
 
     /**
-     * @param class-string $attribute
-     */
-    private function readAttribute(ActionDescriptor $descriptor, string $attribute): ?object
-    {
-        $source = $descriptor->actionAttributes($attribute)[0]
-            ?? $descriptor->controllerAttributes($attribute)[0]
-            ?? null;
-
-        return $source?->newInstance();
-    }
-
-    /**
      * Method-level entries win on name collision; declaration order is otherwise preserved.
      *
      * @return list<OA\Parameter>
@@ -334,6 +322,18 @@ final readonly class OperationBuilder
         }
 
         return $auto;
+    }
+
+    /**
+     * @param class-string $attribute
+     */
+    private function readAttribute(ActionDescriptor $descriptor, string $attribute): ?object
+    {
+        $source = $descriptor->actionAttributes($attribute)[0]
+            ?? $descriptor->controllerAttributes($attribute)[0]
+            ?? null;
+
+        return $source?->newInstance();
     }
 
     /**

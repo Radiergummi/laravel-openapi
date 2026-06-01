@@ -36,7 +36,7 @@ final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
         foreach ($servers as $server) {
             $url = $server->url;
 
-            if ($url === Generator::UNDEFINED || !is_string($url)) {
+            if (Generator::isDefault($url) || !is_string($url)) {
                 continue;
             }
 
@@ -52,7 +52,7 @@ final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
 
             if (is_array($variables)) {
                 foreach ($variables as $key => $variable) {
-                    if ($variable instanceof ServerVariable && $variable->serverVariable !== Generator::UNDEFINED) {
+                    if ($variable instanceof ServerVariable && !Generator::isDefault($variable->serverVariable)) {
                         $declaredKeys[$variable->serverVariable] = true;
                     } else {
                         $declaredKeys[(string) $key] = true;

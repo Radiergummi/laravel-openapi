@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\RouteFilters\SkipIgnitionRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipIgnitionRoutes;
 
 uses()->group('routing', 'openapi');
 

@@ -33,7 +33,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         $info = $context->rawSpec->info;
 
         // info itself may be UNDEFINED if the spec is incomplete
-        if ($info === Generator::UNDEFINED || $info === null) {
+        if (Generator::isDefault($info) || $info === null) {
             yield new Finding(
                 ruleId: $this->id(),
                 level: $this->level(),
@@ -48,7 +48,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         $description = $info->description;
 
         if (
-            $description === Generator::UNDEFINED
+            Generator::isDefault($description)
             || !is_string($description)
             || trim($description) === ''
         ) {

@@ -7,6 +7,9 @@ namespace Radiergummi\OpenApi\Plugins\SpatieData;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\MultipartFileWithoutMultipart;
+use Radiergummi\OpenApi\Plugins\SpatieData\Resolvers\DataClassRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\SpatieData\Resolvers\DataRefSchemaResolver;
+use Radiergummi\OpenApi\Plugins\SpatieData\Resolvers\DataResponseResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Spatie\LaravelData\Data;
 

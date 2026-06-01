@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Validation\ValidationException;
-use Radiergummi\OpenApi\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\NoneEnvelope;
 
 uses()->group('openapi');
 

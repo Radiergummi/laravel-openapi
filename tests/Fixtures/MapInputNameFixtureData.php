@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
-use Radiergummi\OpenApi\Plugins\SpatieData\SchemaFromDataClass;
+use Radiergummi\OpenApi\Plugins\SpatieData\Support\SchemaFromDataClass;
 use Spatie\LaravelData\Attributes\MapInputName;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Mappers\SnakeCaseMapper;

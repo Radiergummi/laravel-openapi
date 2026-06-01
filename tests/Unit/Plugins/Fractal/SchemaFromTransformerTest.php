@@ -8,7 +8,7 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use Radiergummi\OpenApi\Plugins\Fractal\SchemaFromTransformer;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\SchemaFromTransformer;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 use function array_find;

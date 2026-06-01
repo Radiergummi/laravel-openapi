@@ -38,7 +38,7 @@ final class ServerInvalidUrl implements Rule, ApiRuleVisitor
         foreach ($servers as $server) {
             $url = $server->url;
 
-            if ($url === Generator::UNDEFINED || !is_string($url)) {
+            if (Generator::isDefault($url) || !is_string($url)) {
                 continue;
             }
 

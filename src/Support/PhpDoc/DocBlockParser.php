@@ -36,6 +36,17 @@ final class DocBlockParser
         private readonly PhpDocParser $parser,
     ) {}
 
+    public static function create(): self
+    {
+        $config = new ParserConfig([]);
+        $constExpr = new ConstExprParser($config);
+
+        return new self(
+            lexer: new Lexer($config),
+            parser: new PhpDocParser($config, new TypeParser($config, $constExpr), $constExpr),
+        );
+    }
+
     public function parse(string $docComment): ParsedDocBlock
     {
         if (array_key_exists($docComment, $this->cache)) {
@@ -50,16 +61,5 @@ final class DocBlockParser
             // Malformed comment — behave as "no tags", never break the pipeline.
             return $this->cache[$docComment] = ParsedDocBlock::empty();
         }
-    }
-
-    public static function create(): self
-    {
-        $config = new ParserConfig([]);
-        $constExpr = new ConstExprParser($config);
-
-        return new self(
-            lexer: new Lexer($config),
-            parser: new PhpDocParser($config, new TypeParser($config, $constExpr), $constExpr),
-        );
     }
 }

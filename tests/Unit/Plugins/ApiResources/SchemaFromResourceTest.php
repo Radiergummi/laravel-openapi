@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\SchemaFromResource;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 use function array_find;

@@ -8,7 +8,7 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedInclude;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
-use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderParameterResolver;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Resolvers\QueryBuilderParameterResolver;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 use function array_find;

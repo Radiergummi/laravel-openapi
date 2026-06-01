@@ -19,6 +19,7 @@ class DiffConfigCommand extends Command
     protected $signature = 'openapi:diff:config';
 
     protected $description = 'Show drift between the published config/openapi.php and the package default';
+
     public function handle(ConfigRepository $config): int
     {
         $default = require __DIR__ . '/../../config/openapi.php';

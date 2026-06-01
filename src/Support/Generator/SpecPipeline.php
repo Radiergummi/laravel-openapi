@@ -27,7 +27,7 @@ use function assert;
  * Assembles the OpenAPI document by running ordered stages against a shared {@see OpenApi}.
  *
  * Stages are resolved from {@see OpenApiRegistry::$stages} in registration order — core stages
- * (registered by {@see \Radiergummi\OpenApi\Core\CorePlugin::register()}) come
+ * (registered by {@see \Radiergummi\OpenApi\Plugins\Core\CorePlugin::register()}) come
  * first, plugin stages follow. {@see OverridesStage} then applies the config-driven override
  * escape hatch (so it beats plugin and convention values), and {@see TransformersStage} runs last
  * as a fixed terminal step so a user-registered document transformer sees the fully assembled spec

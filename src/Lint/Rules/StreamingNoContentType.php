@@ -79,29 +79,29 @@ final class StreamingNoContentType implements Rule, OperationRuleVisitor
     {
         $responses = $operation->responses;
 
-        if ($responses === Generator::UNDEFINED || !is_array($responses)) {
+        if (Generator::isDefault($responses) || !is_array($responses)) {
             return false;
         }
 
         foreach ($responses as $response) {
-            if ($response === Generator::UNDEFINED) {
+            if (Generator::isDefault($response)) {
                 continue;
             }
 
             $content = $response->content;
 
-            if ($content === Generator::UNDEFINED || !is_array($content)) {
+            if (Generator::isDefault($content) || !is_array($content)) {
                 continue;
             }
 
             foreach ($content as $mediaType) {
-                if ($mediaType === Generator::UNDEFINED) {
+                if (Generator::isDefault($mediaType)) {
                     continue;
                 }
 
                 if (
                     $mediaType instanceof OA\MediaType
-                    && $mediaType->mediaType !== Generator::UNDEFINED
+                    && !Generator::isDefault($mediaType->mediaType)
                     && $mediaType->mediaType === 'text/event-stream'
                 ) {
                     return true;

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Core\ErrorContributors\MiddlewareErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 

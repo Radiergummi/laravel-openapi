@@ -11,7 +11,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin;
-use Radiergummi\OpenApi\Plugins\Fractal\Serializer;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 
 uses()->group('openapi', 'plugin:fractal');

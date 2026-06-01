@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderFilterTypeMissing;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\Resolvers\QueryBuilderParameterResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
