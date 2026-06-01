@@ -44,6 +44,7 @@ use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
@@ -238,6 +239,15 @@ class OpenApiServiceProvider extends ServiceProvider
      */
     private function registerRegistries(): void
     {
+        // OverrideMatcher needs the raw config array, so it cannot autowire from an empty
+        // constructor. Scoped to match the rest of the pipeline (Octane-reset per run).
+        $this->app->scoped(
+            OverrideMatcher::class,
+            static fn(): OverrideMatcher => new OverrideMatcher(
+                (array) config('openapi.overrides', []),
+            ),
+        );
+
         $this->app->scoped(
             OpenApiRegistry::class,
             static function (Container $app): OpenApiRegistry {

@@ -20,6 +20,7 @@ use OpenApi\Generator;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use ReflectionException;
@@ -34,8 +35,10 @@ use function assert;
  *
  * Stages are resolved from {@see OpenApiRegistry::stages()} in registration order — core stages
  * (registered by {@see \Radiergummi\OpenApi\Core\CorePlugin::register()}) come
- * first, plugin stages follow. {@see TransformersStage} runs last as a fixed terminal step so
- * user-registered document transformers see the fully assembled spec.
+ * first, plugin stages follow. {@see OverridesStage} then applies the config-driven override
+ * escape hatch (so it beats plugin and convention values), and {@see TransformersStage} runs last
+ * as a fixed terminal step so a user-registered document transformer sees the fully assembled spec
+ * and retains the final word. Both terminal steps are always loaded, independent of any plugin.
  *
  * Pins swagger-php's {@see Context} to OpenAPI 3.1 for the duration of the run so nullable
  * type unions (`type: ['…','null']`) serialise as 3.1 unions instead of the 3.0 `nullable: true`
@@ -50,6 +53,7 @@ final readonly class SpecPipeline
     public function __construct(
         private OpenApiRegistry $registry,
         private Container $container,
+        private OverridesStage $overridesStage,
         private TransformersStage $terminalStage,
     ) {}
 
@@ -75,6 +79,7 @@ final readonly class SpecPipeline
                 $stage->apply($doc, $ctx);
             }
 
+            $this->overridesStage->apply($doc, $ctx);
             $this->terminalStage->apply($doc, $ctx);
 
             return $doc;

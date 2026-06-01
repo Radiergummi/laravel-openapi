@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Extensions\OperationContext;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\RouteIndex;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use ReflectionException;
@@ -58,6 +59,7 @@ final readonly class PathsStage implements SpecStage
         private OperationBuilder $operationBuilder,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
+        private RouteIndex $routeIndex,
     ) {}
 
     /**
@@ -143,6 +145,10 @@ final readonly class PathsStage implements SpecStage
             if ($upper === 'HEAD') {
                 continue;
             }
+
+            // Record the route name so OverridesStage can resolve config overrides by route name
+            // for the assembled operation without re-walking routes.
+            $this->routeIndex->record($action->route->uri(), $upper, $action->route->getName());
 
             $resolved = $operation->operationId !== null
                 ? $operation

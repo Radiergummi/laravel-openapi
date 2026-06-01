@@ -6,6 +6,8 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- `openapi.overrides` config key: a spec-only escape hatch to set operation-level fields (`operationId`, `summary`, `description`, `tags`, `deprecated`, and any `x-*` extension) per route name or URI glob, without touching controller code. Applied as a late pipeline stage (always loaded, independent of any plugin). Overrides beat plugin contributions and convention-derived values; a code-based `transformDocument()` callback still wins. URI globs match by specificity (literal-character count, ties broken by declaration order); an exact route-name key wins over any glob. See [Configuration → Operation overrides](docs/config.md#operation-overrides).
+- Lint rules `overrides.unknown-field` (flags an override field outside the allowlist) and `overrides.unused` (flags an override key matching no route name or URI). Both are level 3 and severity-overridable.
 - New `SkipSelfRoutes` route filter that excludes the library's own spec/playground routes (matched on the `openapi.` Laravel-route-name prefix) from the generated document. Surfaced by P1 dogfooding (`docs/internal/dogfooding/2026-05-29-p1-bundled-docs-controller-self-findings.md`) and BookStack survey (`docs/internal/dogfooding/2026-05-30-bookstack-self-route-pollutes-api-namespace-and-spec.md`).
 
 ### Changed

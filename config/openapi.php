@@ -378,6 +378,40 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Operation Overrides
+    |--------------------------------------------------------------------------
+    |
+    | A config-keyed escape hatch for setting operation-level fields of the
+    | emitted document per route — without touching controller code. Keyed by
+    | exact route name or URI glob ('*' matches any run of characters,
+    | including '/'). Each value is a field-array.
+    |
+    | Allowed fields: operationId, summary, description, tags, deprecated, and
+    | any 'x-*' vendor extension. Other keys are skipped and reported by the
+    | 'overrides.unknown-field' lint rule. Keys matching no route are reported
+    | by 'overrides.unused'.
+    |
+    | Overrides beat plugin contributions and convention-derived values; a
+    | code-based transformDocument() callback still wins. Set-only — there is no
+    | field-removal semantics.
+    |
+    |   'overrides' => [
+    |       'users.show' => [
+    |           'operationId' => 'getCurrentUser',
+    |           'tags'        => ['Identity'],
+    |           'deprecated'  => true,
+    |       ],
+    |       'api/v1/legacy/*' => [
+    |           'x-internal' => true,
+    |       ],
+    |   ],
+    |
+    */
+
+    'overrides' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Plugins
     |--------------------------------------------------------------------------
     |

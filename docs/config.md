@@ -24,6 +24,7 @@ this page is the at-a-glance summary.
 | `plugins` | Ordered list of `Plugin` class-strings. Ships with `SpatieDataPlugin` and `ApiResourcesPlugin` enabled; `QueryBuilderPlugin` and `FractalPlugin` shipped commented out. |
 | `request_payload_indirection` | Base classes whose constructors are also scanned for Data-class parameters. See [Request bodies → Indirect request payloads](request-bodies.md#indirect-request-payloads). |
 | `visibility` | `default` accepts `'public'` (every route documented unless `#[Hide]`) or `'hidden'` (every route excluded unless `#[Expose]`). See [Recipes → Switch between public-default and hidden-default visibility](recipes.md#switch-between-public-default-and-hidden-default-visibility). |
+| `overrides` | Spec-only per-route operation field overrides, keyed by route name or URI glob. See [Operation overrides](#operation-overrides) below. |
 | `routes` | Spec/playground route registration. See below. |
 | `filters` | Route-exclusion filters. Ships with filters that exclude the library's own spec/playground routes plus routes from Nova, Telescope, Ignition, and (when installed) Passport. Remove `SkipSelfRoutes` to document the library's `/api/openapi.yaml` and `/api/docs` endpoints in your spec. |
 
@@ -59,6 +60,50 @@ wins over the `auth` middleware entry.
     ],
 ],
 ```
+
+## Operation overrides
+
+`overrides` is a spec-only escape hatch for setting operation-level fields directly from config —
+no controller edits. It exists for the cases convention can't reach: vendor packages ship
+controllers you can't annotate, a legacy route needs `deprecated: true` without a code commit, or a
+release correction (a renamed `operationId`, an extra tag) shouldn't require a PR against
+application code. A late pipeline stage mutates the emitted document and never touches the host app.
+
+Each entry maps a **route name** or a **URI glob** to a field-array:
+
+```php
+'overrides' => [
+    'users.show' => [
+        'operationId' => 'getCurrentUser',
+        'tags'        => ['Identity'],
+        'deprecated'  => true,
+    ],
+    'api/v1/legacy/*' => [
+        'x-internal' => true,
+    ],
+],
+```
+
+**Allowed fields:** `operationId`, `summary`, `description`, `tags`, `deprecated`, and any `x-*`
+vendor extension (emitted under the operation's `x` object, e.g. `x-internal: true`). The set is
+write-only — there is no field-removal semantics, and nested response/parameter structures are out
+of scope. A non-allowlisted field key is skipped and reported by the `overrides.unknown-field`
+lint rule.
+
+**Matching** is per operation (URI + method). A key is treated as a route name if a route with
+exactly that name exists; otherwise it is a URI glob, where `*` matches any run of characters
+*including* `/`. When several keys match one operation, fields merge in ascending precedence so the
+most specific source wins per field:
+
+1. URI globs, ordered by specificity (count of literal non-`*` characters); ties broken by
+   declaration order, later key winning.
+2. The exact route-name key, applied last (highest precedence).
+
+A key matching neither a route name nor any URI is reported by the `overrides.unused` lint rule.
+
+**Precedence against other sources.** Overrides beat plugin contributions and convention-derived
+values (attributes, docblocks, route names). A code-based
+[`transformDocument()`](extensions.md) callback still runs last and retains the final word.
 
 ## Lint keys
 

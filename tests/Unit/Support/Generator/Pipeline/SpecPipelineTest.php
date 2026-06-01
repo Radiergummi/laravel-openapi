@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\SpecPipeline;
+use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use stdClass;
@@ -56,6 +57,7 @@ it('runs registry stages in registration order, then the terminal stage', functi
     $pipeline = new SpecPipeline(
         registry: $registry,
         container: app(),
+        overridesStage: app(OverridesStage::class),
         terminalStage: app(TransformersStage::class),
     );
 
