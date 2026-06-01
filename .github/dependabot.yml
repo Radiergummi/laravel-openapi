@@ -1,7 +1,6 @@
 version: 2
 updates:
   - package-ecosystem: "composer"
-    name: "Update PHP dependencies"
     directory: "/"
     open-pull-requests-limit: 5
     versioning-strategy: widen
@@ -11,10 +10,8 @@ updates:
     schedule:
       interval: "weekly"
   - package-ecosystem: "github-actions"
-    name: "Update GitHub Actions"
     directory: "/"
     open-pull-requests-limit: 5
-    versioning-strategy: auto
     cooldown:
       default-days: 3
     labels:
