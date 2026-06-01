@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true   # report coverage, never fail the build
+    patch:
+      default:
+        informational: true
+
+comment:
+  layout: "condensed_header, diff, files"
+  require_changes: true        # only comment when coverage actually changes
+
+ignore:
+  - "tests"
+  - "examples"
