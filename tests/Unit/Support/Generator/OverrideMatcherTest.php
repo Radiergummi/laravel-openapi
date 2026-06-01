@@ -113,6 +113,19 @@ it('returns an empty array when nothing matches', function (): void {
     expect($matcher->fieldsFor('posts.index', 'api/posts'))->toBe([]);
 });
 
+it('skips a matching block whose fields are all non-allowlisted', function (): void {
+    $matcher = new OverrideMatcher([
+        'users.show' => ['responses' => [], 'parameters' => []], // filters to empty
+    ]);
+
+    expect($matcher->fieldsFor('users.show', 'api/users'))->toBe([]);
+});
+
+it('reports hasOverrides only when overrides are configured', function (): void {
+    expect(new OverrideMatcher([])->hasOverrides())->toBeFalse()
+        ->and(new OverrideMatcher(['users.show' => ['summary' => 'ok']])->hasOverrides())->toBeTrue();
+});
+
 it('reports keys that match no route name and no uri as unused', function (): void {
     $matcher = new OverrideMatcher([
         'users.show'    => ['summary' => 'ok'],     // matches by name

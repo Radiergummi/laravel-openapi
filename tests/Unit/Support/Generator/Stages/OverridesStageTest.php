@@ -111,3 +111,18 @@ it('leaves operations untouched when nothing matches', function (): void {
     expect($op->operationId)->toBe(Generator::UNDEFINED)
         ->and($op->deprecated)->toBe(Generator::UNDEFINED);
 });
+
+it('skips a path item with no path even when overrides are configured', function (): void {
+    $matcher = new OverrideMatcher(['api/*' => ['deprecated' => true]]);
+
+    $pathItem = new OA\PathItem([]); // path stays Generator::UNDEFINED
+    $pathItem->get = new OA\Get([]);
+
+    $doc = new OA\OpenApi(['openapi' => '3.1.0']);
+    $doc->paths = [$pathItem];
+
+    $ctx = new GenerationContext(app(SpecRegistry::class)->default(), 'testing');
+    new OverridesStage($matcher)->apply($doc, $ctx);
+
+    expect($doc->paths[0]->get->deprecated)->toBe(Generator::UNDEFINED);
+});

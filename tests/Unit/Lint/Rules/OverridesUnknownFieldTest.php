@@ -70,3 +70,12 @@ it('flags each unknown field in a block separately', function (): void {
 
     expect($findings)->toHaveCount(2);
 });
+
+it('ignores a malformed (non-array) override block', function (): void {
+    // @phpstan-ignore argument.type (intentionally malformed config to exercise the is_array guard)
+    $findings = overridesUnknownFieldCollect([
+        'users.show' => 'not-an-array',
+    ]);
+
+    expect($findings)->toBe([]);
+});
