@@ -46,7 +46,7 @@ final class OperationIdInvalidChars implements Rule, OperationRuleVisitor
             message: sprintf(
                 'Operation ID "%s" on %s %s contains characters that are not safe for code generation',
                 $operation->operationId,
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Use only letters, digits, dots, hyphens and underscores in operationId, starting with a letter.',

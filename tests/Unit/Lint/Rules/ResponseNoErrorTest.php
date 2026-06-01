@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\ResponseNoError;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -17,7 +18,7 @@ it('reports its id and level', function (): void {
 
 it(
     'emits no finding when an operation has an error response',
-    function (string $method, array $statusCodes): void {
+    function (HttpMethod $method, array $statusCodes): void {
         $operation = makeResponseNoErrorOperation('/users', $method, $statusCodes);
 
         $findings = iterator_to_array(
@@ -27,13 +28,13 @@ it(
         expect($findings)->toBe([]);
     },
 )->with([
-    '4xx alongside success' => ['GET', [200, 404]],
-    '5xx alongside success' => ['GET', [200, 500]],
-    'mixed success + 4xx + 5xx' => ['POST', [201, 400, 422, 500]],
+    '4xx alongside success' => [HttpMethod::Get, [200, 404]],
+    '5xx alongside success' => [HttpMethod::Get, [200, 500]],
+    'mixed success + 4xx + 5xx' => [HttpMethod::Post, [201, 400, 422, 500]],
 ]);
 
 it('emits a finding when an operation has only success responses', function (): void {
-    $operation = makeResponseNoErrorOperation('/users', 'GET', [200]);
+    $operation = makeResponseNoErrorOperation('/users', HttpMethod::Get, [200]);
 
     $findings = iterator_to_array(
         new ResponseNoError()->checkOperation($operation, OperationNodeFactory::emptyContext()),
@@ -48,7 +49,7 @@ it('emits a finding when an operation has only success responses', function (): 
 });
 
 it('skips operations with no responses (caught by response.empty)', function (): void {
-    $operation = makeResponseNoErrorOperation('/empty', 'GET', []);
+    $operation = makeResponseNoErrorOperation('/empty', HttpMethod::Get, []);
 
     $findings = iterator_to_array(
         new ResponseNoError()->checkOperation($operation, OperationNodeFactory::emptyContext()),
@@ -59,8 +60,8 @@ it('skips operations with no responses (caught by response.empty)', function ():
 
 it('emits a finding per operation missing an error response', function (): void {
     $context = OperationNodeFactory::emptyContext();
-    $op1 = makeResponseNoErrorOperation('/things', 'GET', [200]);
-    $op2 = makeResponseNoErrorOperation('/stuff', 'POST', [201]);
+    $op1 = makeResponseNoErrorOperation('/things', HttpMethod::Get, [200]);
+    $op2 = makeResponseNoErrorOperation('/stuff', HttpMethod::Post, [201]);
 
     $findings = [
         ...iterator_to_array(new ResponseNoError()->checkOperation($op1, $context)),
@@ -74,8 +75,10 @@ it('emits a finding per operation missing an error response', function (): void 
 
 /**
  * @param list<int> $statusCodes
+ *
+ * @throws LogicException
  */
-function makeResponseNoErrorOperation(string $path, string $method, array $statusCodes): OperationNode
+function makeResponseNoErrorOperation(string $path, HttpMethod $method, array $statusCodes): OperationNode
 {
     return OperationNodeFactory::makeOperation(
         pathUri: $path,

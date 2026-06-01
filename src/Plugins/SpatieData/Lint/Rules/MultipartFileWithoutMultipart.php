@@ -66,7 +66,7 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
                 '%s::%s() accepts an UploadedFile via a Data object, but %s %s does not declare multipart/form-data',
                 $operation->descriptor->controller?->getShortName() ?? '(unknown)',
                 $operation->descriptor->method->getName(),
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Add a multipart/form-data request body to the operation, or use #[RequestBody] with the correct media type.',

@@ -40,7 +40,7 @@ final class ParameterPathMustBeRequired implements Rule, ParameterRuleVisitor
             message: sprintf(
                 'Path parameter "%s" on %s %s must be required',
                 $parameter->name,
-                $operation instanceof OperationNode ? $operation->method : '(unknown)',
+                $operation instanceof OperationNode ? $operation->method->forDisplay() : '(unknown)',
                 $operation instanceof OperationNode ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Set required=true on all path parameters (OAS 3.x requirement).',

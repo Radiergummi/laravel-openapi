@@ -42,7 +42,7 @@ final class ParameterQueryNoSchema implements Rule, QueryParameterRuleVisitor
             message: sprintf(
                 'Query parameter "%s" on %s %s has no schema',
                 $queryParameter->name,
-                $operation instanceof OperationNode ? $operation->method : '(unknown)',
+                $operation instanceof OperationNode ? $operation->method->forDisplay() : '(unknown)',
                 $operation instanceof OperationNode ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Add a schema to the query parameter to declare its type and format.',

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 
@@ -12,7 +13,7 @@ it('constructs a Finding with required fields and exposes them readonly', functi
         file: 'app/Http/Controllers/Foo.php',
         line: 42,
         routeName: 'foo.show',
-        routeMethod: 'GET',
+        routeMethod: HttpMethod::Get,
         routeUri: 'foo/{id}',
     );
 
@@ -50,7 +51,7 @@ it('withLevel returns a copy with the new level and all other fields preserved',
         file: 'app/Http/Controllers/Foo.php',
         line: 10,
         routeName: 'foo.index',
-        routeMethod: 'GET',
+        routeMethod: HttpMethod::Get,
         routeUri: 'foo',
     );
 

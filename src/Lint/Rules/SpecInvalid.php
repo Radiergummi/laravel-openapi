@@ -11,6 +11,7 @@ use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -349,7 +350,7 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
                 file: $descriptor->method->getFileName() ?: null,
                 line: $descriptor->method->getStartLine() ?: null,
                 routeName: $descriptor->route->getName(),
-                routeMethod: strtoupper($parsed['method'] ?? ''),
+                routeMethod: HttpMethod::fromString($parsed['method'] ?? ''),
                 routeUri: $parsed['routeUri'],
                 jsonPointer: $jsonPointer,
             );

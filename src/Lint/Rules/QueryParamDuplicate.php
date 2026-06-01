@@ -44,7 +44,7 @@ final class QueryParamDuplicate implements Rule, OperationRuleVisitor
                     'Query parameter "%s" is declared %d times on %s %s',
                     $name,
                     $occurrenceCount,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate query parameter declaration; names must be unique per operation.',

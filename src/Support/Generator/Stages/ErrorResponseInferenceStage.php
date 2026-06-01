@@ -12,11 +12,13 @@ use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Enums\ComponentType;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Throwable;
 
@@ -40,11 +42,12 @@ use function sprintf;
 final readonly class ErrorResponseInferenceStage implements SpecStage
 {
     /**
-     * Fix hint emitted with every `errors.resolver-failed` finding. Public so the lint rule
-     * stub ({@see \Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed}) can reference it
-     * without forcing a Support → Lint import.
+     * Fix hint emitted with every `errors.resolver-failed` finding. Public, so the lint rule
+     * stub ({@see ErrorsResolverFailed}) can reference it without forcing a Support → Lint import.
      */
-    public const string RESOLVER_FAILED_FIX_HINT = 'Fix the throwing ErrorResponseResolver — implementations must catch internally and return null on failure.';
+    public const string RESOLVER_FAILED_FIX_HINT
+        = 'Fix the throwing ErrorResponseResolver — implementations must catch internally and'
+        . ' return null on failure.';
 
     /**
      * Maps HTTP status codes to stable `components.responses` component names.
@@ -63,8 +66,6 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         429 => 'TooManyRequests',
         500 => 'InternalServerError',
     ];
-
-    private const array HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options'];
 
     /**
      * @param list<ErrorResponseContributor> $contributors
@@ -95,8 +96,8 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     private function decorateContainers(array $containers, GenerationContext $ctx): void
     {
         foreach ($containers as $container) {
-            foreach (self::HTTP_METHODS as $verb) {
-                $operation = $container->{$verb} ?? Generator::UNDEFINED;
+            foreach (HttpMethod::cases() as $method) {
+                $operation = $container->{$method->value} ?? Generator::UNDEFINED;
 
                 if (!$operation instanceof OA\Operation) {
                     continue;
@@ -149,7 +150,11 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         foreach ($byStatus as $descriptor) {
             $body = $this->resolveBody($descriptor);
             $componentName = self::STATUS_COMPONENT_NAMES[$descriptor->status] ?? null;
-            $additions[] = $this->buildResponse($descriptor, $body, $componentName);
+            $additions[] = $this->buildResponse(
+                $descriptor,
+                $body,
+                $componentName,
+            );
         }
 
         $operation->responses = [...$existing, ...$additions];
@@ -158,14 +163,13 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     // region Body resolution helpers
 
     /**
-     * Walks the resolver chain for one descriptor. First non-null wins. Returns null when
-     * every resolver passes — the stage then emits a bodyless response.
+     * Walks the resolver chain for one descriptor. First non-null wins. Returns null when every
+     * resolver passes — the stage then emits a bodyless response.
      *
-     * The {@see ErrorResponseResolver} contract requires implementations to catch internally
-     * and return null on failure, but the stage defends against misbehaving resolvers
-     * anyway: a throwing resolver emits a `errors.resolver-failed` finding and the chain
-     * continues, matching the spec's promise that a single bad resolver does not abort the
-     * full generation run.
+     * The {@see ErrorResponseResolver} contract requires implementations to catch internally and
+     * return null on failure, but the stage defends against misbehaving resolvers anyway: a
+     * throwing resolver emits a `errors.resolver-failed` finding and the chain continues, matching
+     * the spec's promise that a single bad resolver does not abort the full generation run.
      */
     private function resolveBody(ErrorDescriptor $descriptor): ?ErrorResponse
     {
@@ -205,16 +209,15 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     }
 
     /**
-     * Composes the resolver's body slice with the stage-owned fields: response key,
-     * default description, named-component registration.
+     * Composes the resolver's body slice with the stage-owned fields: response key, default
+     * description, named-component registration.
      *
-     * A named component is only used when the body is empty (description-only). When a
-     * resolver produces content, headers, or links, the response is inlined per operation to
-     * avoid first-write-wins collisions on the shared component — e.g. two operations at 422
-     * with different resolver outputs (generic Error vs. ValidationError) would otherwise
-     * silently share the first registration. The shared schemas referenced inside the content
-     * (e.g. `$ref: '#/components/schemas/Error'`) are still reused; only the response wrapper
-     * is inlined.
+     * A named component is only used when the body is empty (description-only). When a resolver
+     * produces content, headers, or links, the response is inlined per operation to avoid
+     * first-write-wins collisions on the shared component — e.g. two operations at 422 with
+     * different resolver outputs (generic Error vs. ValidationError) would otherwise silently share
+     * the first registration. The shared schemas referenced inside the content (e.g.
+     * `$ref: '#/components/schemas/Error'`) are still reused; only the response wrapper is inlined.
      */
     private function buildResponse(
         ErrorDescriptor $descriptor,
@@ -225,8 +228,8 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         $content = $headers = $links = null;
 
         if ($body !== null) {
-            // Only override the curated default description when the resolver supplied a
-            // non-empty string; OpenAPI 3.1 requires response.description to be non-empty.
+            // Only override the curated default description when the resolver supplied a non-empty
+            // string; OpenAPI 3.1 requires response.description to be non-empty.
             if ($body->description !== null && $body->description !== '') {
                 $description = $body->description;
             }
@@ -246,10 +249,10 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
 
         $hasBody = $content !== null || $headers !== null || $links !== null;
 
-        // Share via a named response component only when the body is empty
-        // (description-only). Resolver-produced bodies may vary by descriptor —
-        // e.g. validation vs generic at status 422 — so we inline them per operation
-        // to avoid first-write-wins collisions on the shared component.
+        // Share via a named response component only when the body is empty (description-only).
+        // Resolver-produced bodies may vary by descriptor — e.g., validation vs. generic at
+        // status 422 — so we inline them per operation to avoid first-write-wins collisions on the
+        // shared component.
         if ($componentName !== null && !$hasBody) {
             $this->registry->registerNamedResponse(
                 $componentName,

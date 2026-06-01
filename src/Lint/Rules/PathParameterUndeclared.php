@@ -54,7 +54,7 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
                 message: sprintf(
                     'Path placeholder "{%s}" on %s %s is not declared as a path parameter',
                     $placeholder,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: sprintf(

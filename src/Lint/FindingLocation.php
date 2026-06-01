@@ -7,10 +7,9 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use Override;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
-
-use function strtoupper;
 
 /**
  * @implements Arrayable<string, mixed>
@@ -21,7 +20,7 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
         public ?string $file = null,
         public ?int $line = null,
         public ?string $routeName = null,
-        public ?string $routeMethod = null,
+        public ?HttpMethod $routeMethod = null,
         public ?string $routeUri = null,
         public ?string $jsonPointer = null,
     ) {}
@@ -32,7 +31,7 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
             file: $descriptor->actionReflector?->getFileName() ?: null,
             line: $descriptor->actionReflector?->getStartLine() ?: null,
             routeName: $descriptor->route->getName(),
-            routeMethod: strtoupper($descriptor->route->methods()[0] ?? 'GET'),
+            routeMethod: $descriptor->httpMethod,
             routeUri: $descriptor->route->uri(),
         );
     }

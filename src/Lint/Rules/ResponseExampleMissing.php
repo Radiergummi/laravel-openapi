@@ -46,7 +46,7 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
             message: sprintf(
                 'Response %d on %s %s has no example',
                 $response->statusCode,
-                $operation !== null ? $operation->method : '(unknown)',
+                $operation !== null ? $operation->method->forDisplay() : '(unknown)',
                 $operation !== null ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Add an "examples" entry to the response media type to illustrate the expected payload.',

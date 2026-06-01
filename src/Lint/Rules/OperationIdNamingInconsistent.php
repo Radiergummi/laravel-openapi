@@ -52,7 +52,7 @@ final readonly class OperationIdNamingInconsistent extends AbstractNamingRule im
             message: sprintf(
                 'Operation ID "%s" on %s %s does not follow the %s naming convention',
                 $operation->operationId,
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
                 $this->case->label(),
             ),

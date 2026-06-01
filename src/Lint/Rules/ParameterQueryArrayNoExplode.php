@@ -44,7 +44,7 @@ final class ParameterQueryArrayNoExplode implements Rule, QueryParameterRuleVisi
             message: sprintf(
                 'Query parameter "%s" on %s %s has an array schema but does not set style or explode',
                 $queryParameter->name,
-                $operation instanceof OperationNode ? $operation->method : '(unknown)',
+                $operation instanceof OperationNode ? $operation->method->forDisplay() : '(unknown)',
                 $operation instanceof OperationNode ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Explicitly set style (e.g. "form") and/or explode (true/false) to avoid ambiguous array serialisation.',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Extensions;
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 /**
@@ -46,8 +47,8 @@ final class OperationContext
         public readonly ActionDescriptor $descriptor,
 
         /**
-         * The HTTP method in uppercase: GET, POST, PUT, PATCH, DELETE, OPTIONS.
+         * The HTTP method of the route
          */
-        public readonly string $httpMethod,
+        public readonly HttpMethod $httpMethod,
     ) {}
 }

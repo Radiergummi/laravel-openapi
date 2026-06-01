@@ -48,7 +48,7 @@ final class ResponseNoError implements Rule, OperationRuleVisitor
                 level: $this->level(),
                 message: sprintf(
                     'Operation %s %s has no error response (4xx/5xx)',
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add at least one error response (e.g. 400, 401, 404, 422, 500) to the operation.',

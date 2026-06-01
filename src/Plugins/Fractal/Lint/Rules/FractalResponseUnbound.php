@@ -62,7 +62,7 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
             level: $this->level(),
             message: sprintf(
                 '%s %s injects a Fractal Manager but declares no #[FractalResponse]',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Add #[FractalResponse(transformer: SomeTransformer::class)] to the action.',

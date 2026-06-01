@@ -41,7 +41,7 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
             message: sprintf(
                 'Response %d on %s %s has no description',
                 $response->statusCode,
-                $operation !== null ? $operation->method : '(unknown)',
+                $operation !== null ? $operation->method->forDisplay() : '(unknown)',
                 $operation !== null ? $operation->pathUri : '(unknown)',
             ),
             fixHint: 'Add a description to the response object as required by the OpenAPI specification.',

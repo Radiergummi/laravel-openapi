@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\LinkInvalidParameter;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
@@ -20,7 +21,7 @@ function makeLinkInvalidParamNode(?string $operationId, array $parameters): Link
         parameters: $parameters,
     );
     OperationNodeFactory::makeOperation(
-        method: 'POST',
+        method: HttpMethod::Post,
         responses: [OperationNodeFactory::makeResponse(statusCode: 201, description: null, links: [$link])],
     );
 
@@ -44,7 +45,11 @@ function makeLinkInvalidParamContext(
             $pathParams,
         ),
         queryParameters: array_map(
-            static fn(string $name) => OperationNodeFactory::makeQueryParameter(name: $name, type: null, hasSchema: false),
+            static fn(string $name) => OperationNodeFactory::makeQueryParameter(
+                name: $name,
+                type: null,
+                hasSchema: false,
+            ),
             $queryParams,
         ),
     );
@@ -151,6 +156,6 @@ it('skips links without a resolvable target', function (?string $operationId, st
 
     expect($findings)->toBe([]);
 })->with([
-    'no operationId on link'    => [null, 'foo.show'],
+    'no operationId on link' => [null, 'foo.show'],
     'unknown target operationId' => ['nonexistent', 'different.operation'],
 ]);

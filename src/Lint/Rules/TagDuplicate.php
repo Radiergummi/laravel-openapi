@@ -40,7 +40,7 @@ final class TagDuplicate implements Rule, OperationRuleVisitor
                     'Tag "%s" is applied %d times on %s %s',
                     $tag,
                     $count,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate #[Tag] attribute.',

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\LinkNeitherOperationIdNorRef;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -15,7 +16,7 @@ function makeLinkNeitherFieldNode(?string $operationId, ?string $operationRef): 
         operationRef: $operationRef,
     );
     OperationNodeFactory::makeOperation(
-        method: 'POST',
+        method: HttpMethod::Post,
         responses: [OperationNodeFactory::makeResponse(statusCode: 201, description: null, links: [$link])],
     );
 

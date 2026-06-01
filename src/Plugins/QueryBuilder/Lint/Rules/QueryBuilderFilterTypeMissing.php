@@ -45,7 +45,7 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
                 message: sprintf(
                     '#[AllowedFilter(\'%s\')] on %s %s has no type — the filter parameter defaults to string',
                     $filter->name,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Add a type: to #[AllowedFilter] (\'string\', \'integer\', \'boolean\', …).',

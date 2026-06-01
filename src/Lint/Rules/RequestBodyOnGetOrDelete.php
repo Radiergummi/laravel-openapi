@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -23,8 +24,8 @@ use function sprintf;
  */
 final class RequestBodyOnGetOrDelete implements Rule, OperationRuleVisitor
 {
-    /** @var list<string> */
-    private const DISALLOWED_METHODS = ['GET', 'DELETE'];
+    /** @var list<HttpMethod> */
+    private const array DISALLOWED_METHODS = [HttpMethod::Get, HttpMethod::Delete];
 
     /**
      * @return iterable<Finding>
@@ -45,9 +46,9 @@ final class RequestBodyOnGetOrDelete implements Rule, OperationRuleVisitor
             level: $this->level(),
             message: sprintf(
                 'Operation %s %s defines a request body, which is unconventional for %s requests',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
-                $operation->method,
+                $operation->method->forDisplay(),
             ),
             fixHint: 'Move parameters to query string or path parameters instead of using a request body.',
         );

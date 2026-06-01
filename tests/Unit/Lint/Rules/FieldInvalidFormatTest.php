@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\FieldInvalidFormat;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithInvalidFormatData;
@@ -21,19 +22,26 @@ function makeDirectScannerForInvalidFormat(): PayloadParameterScanner
 it('reports its id and level', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
 
-    expect($rule->id())->toBe('field.invalid-format')
+    expect($rule->id())
+        ->toBe('field.invalid-format')
         ->and($rule->level())->toBe(3);
 });
 
 it('emits a finding when RequestField declares an unrecognized format', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withInvalidFormat', '/fixture', ['POST']);
-    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        InvalidFormatFixtureController::class,
+        'withInvalidFormat',
+        '/fixture',
+        ['POST'],
+    );
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: HttpMethod::Post, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.invalid-format')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)->toContain('$invalidFormat')
@@ -42,7 +50,7 @@ it('emits a finding when RequestField declares an unrecognized format', function
 
 it('emits no findings when there is no descriptor on the operation', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/v0/test', method: 'POST');
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/api/v0/test', method: HttpMethod::Post);
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
@@ -52,8 +60,13 @@ it('emits no findings when there is no descriptor on the operation', function ()
 
 it('emits no findings when the method has no Data class parameters', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withoutData', '/fixture', ['POST']);
-    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        InvalidFormatFixtureController::class,
+        'withoutData',
+        '/fixture',
+        ['POST'],
+    );
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: HttpMethod::Post, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
@@ -63,32 +76,57 @@ it('emits no findings when the method has no Data class parameters', function ()
 
 it('does not flag valid formats or properties without a format', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withInvalidFormat', '/fixture', ['POST']);
-    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        InvalidFormatFixtureController::class,
+        'withInvalidFormat',
+        '/fixture',
+        ['POST'],
+    );
+    $operation = OperationNodeFactory::forDescriptor($descriptor, method: HttpMethod::Post, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
     // Only $invalidFormat should fire; $validFormat (date-time) and $noFormat (null) should not.
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('$invalidFormat');
 });
 
 it('provides a fix hint listing valid formats', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(InvalidFormatFixtureController::class, 'withInvalidFormat', '/fixture', ['POST']);
-    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        InvalidFormatFixtureController::class,
+        'withInvalidFormat',
+        '/fixture',
+        ['POST'],
+    );
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        method: HttpMethod::Post,
+        pathUri: '/api/v0/test',
+    );
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
-    expect($findings[0]->fixHint)->toContain('date-time')
+    expect($findings[0]->fixHint)
+        ->toContain('date-time')
         ->and($findings[0]->fixHint)->toContain('uuid');
 });
 
 it('emits a finding for a Data class injected through a Domain Action', function (): void {
-    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithInvalidFormatDataController::class, 'create', '/fixture', ['POST']);
-    $operation = OperationNodeFactory::forDescriptor($descriptor, method: 'POST', pathUri: '/api/v0/test');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        ActionWithInvalidFormatDataController::class,
+        'create',
+        '/fixture',
+        ['POST'],
+    );
+    $operation = OperationNodeFactory::forDescriptor(
+        $descriptor,
+        method: HttpMethod::Post,
+        pathUri: '/api/v0/test',
+    );
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     // Scanner descends into ActionWithInvalidFormatData's constructor to find InvalidFormatFixtureData.
@@ -97,7 +135,8 @@ it('emits a finding for a Data class injected through a Domain Action', function
         new FieldInvalidFormat($scanner)->checkOperation($operation, $context),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.invalid-format')
         ->and($findings[0]->message)->toContain('$invalidFormat');
 });

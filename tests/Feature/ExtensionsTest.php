@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Extensions\OperationContext;
 use Radiergummi\OpenApi\Extensions\SchemaContext;
@@ -59,7 +60,7 @@ it('invokes a registered operation transformer for each assembled operation', fu
 
     OpenApiExtensions::transformOperation(
         static function (OA\Operation $op, OperationContext $context) use (&$seen): void {
-            $seen[] = $context->httpMethod . ' ' . $context->routeUri;
+            $seen[] = $context->httpMethod->forDisplay() . ' ' . $context->routeUri;
         },
     );
 
@@ -95,8 +96,8 @@ it('passes the correct HTTP method in the operation context', function (): void 
 
     app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
 
-    expect($methods)->toContain('POST')
-        ->and($methods)->toContain('GET');
+    expect($methods)->toContain(HttpMethod::Post)
+        ->and($methods)->toContain(HttpMethod::Get);
 });
 
 it('passes the correct controller class and method name in the operation context', function (): void {

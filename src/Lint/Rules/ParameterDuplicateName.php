@@ -45,7 +45,7 @@ final class ParameterDuplicateName implements Rule, OperationRuleVisitor
                     'Parameter "%s" (in: path) is declared %d times on %s %s',
                     $name,
                     $occurrenceCount,
-                    $operation->method,
+                    $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate parameter declaration; (name, in) must be unique per operation.',

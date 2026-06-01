@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Routing;
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
@@ -40,6 +41,10 @@ final class ActionDescriptor
         get => $this->method ?? $this->closure;
     }
 
+    public ?HttpMethod $httpMethod {
+        get => HttpMethod::fromString($this->route->methods[0] ?? '');
+    }
+
     /**
      * Buckets of `ReflectionAttribute`s keyed by attribute FQCN. Built lazily on first access via
      * a single `getAttributes()` call per reflector — every caller that asks for a specific
@@ -52,8 +57,8 @@ final class ActionDescriptor
 
     /**
      * @param null|ReflectionClass<object> $controller
-     * @param list<string>                 $throws     Fully-qualified exception class names resolved from
-     *                                                 the action's `@throws` lines.
+     * @param list<string>                 $throws     Fully-qualified exception class names
+     *                                                 resolved from the action's at-throws lines.
      */
     public function __construct(
         public readonly Route $route,

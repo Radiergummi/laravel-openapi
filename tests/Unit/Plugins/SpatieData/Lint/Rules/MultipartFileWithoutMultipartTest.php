@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -53,7 +54,7 @@ function makeMultipartOperationNode(
 ): OperationNode {
     return new OperationNode(
         pathUri: $descriptor->route->uri(),
-        method: 'POST',
+        method: HttpMethod::Post,
         operationId: null,
         summary: null,
         description: null,

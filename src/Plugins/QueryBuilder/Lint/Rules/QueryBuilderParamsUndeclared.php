@@ -23,9 +23,9 @@ use function sprintf;
  * declares none of `#[AllowedFilter]`, `#[AllowedSort]`, or `#[AllowedInclude]` — the endpoint
  * accepts filter/sort/include parameters that the generated document does not describe.
  *
- * Detection is deliberately conservative: it keys off an injected `QueryBuilder` parameter
- * (matched by FQCN string via {@see PayloadParameterScanner}, so the package need not be
- * installed), not a body-inference heuristic.
+ * Detection is deliberately conservative: it keys off an injected `QueryBuilder` parameter (matched
+ * by FQCN string via {@see PayloadParameterScanner}, so the package need not be installed), not a
+ * body-inference heuristic.
  */
 final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
 {
@@ -65,7 +65,7 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
             level: $this->level(),
             message: sprintf(
                 '%s %s injects a QueryBuilder but declares no #[AllowedFilter]/#[AllowedSort]/#[AllowedInclude]',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Declare the accepted parameters with #[AllowedFilter], #[AllowedSort], and #[AllowedInclude].',

@@ -50,7 +50,7 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
                     level: $this->level(),
                     message: sprintf(
                         'Operation %s %s uses only the wildcard scope "*" — consider using more specific scopes',
-                        $operation->method,
+                        $operation->method->forDisplay(),
                         $operation->pathUri,
                     ),
                     fixHint: 'Replace the "*" scope with specific scopes from Passport::tokensCan().',

@@ -39,7 +39,7 @@ final class LinkBothOperationIdAndRef implements Rule, LinkRuleVisitor
             message: sprintf(
                 'Link "%s" on %s %s sets both operationId ("%s") and operationRef ("%s"); only one is allowed',
                 $link->name,
-                $routeMethod ?? '?',
+                $routeMethod?->forDisplay() ?? '?',
                 $routeUri ?? '?',
                 $link->operationId,
                 $link->operationRef,

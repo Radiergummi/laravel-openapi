@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
@@ -45,7 +46,7 @@ final class ResponseSuccessEmptyBody implements Rule, ResponseRuleVisitor
             return;
         }
 
-        if ($response->operation()?->method === 'HEAD') {
+        if ($response->operation()?->method === HttpMethod::Head) {
             return;
         }
 
@@ -55,7 +56,7 @@ final class ResponseSuccessEmptyBody implements Rule, ResponseRuleVisitor
 
         $operation = $response->operation();
         $route = $operation !== null
-            ? sprintf('%s %s', $operation->method, $operation->pathUri)
+            ? sprintf('%s %s', $operation->method->forDisplay(), $operation->pathUri)
             : '<unknown operation>';
 
         yield new Finding(

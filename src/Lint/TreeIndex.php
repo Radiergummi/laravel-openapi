@@ -72,7 +72,7 @@ final readonly class TreeIndex
                 $operationsByOperationId[$operation->operationId] = $operation;
             }
 
-            $routeKey = strtoupper($operation->method) . ' ' . $operation->pathUri;
+            $routeKey = strtoupper($operation->method->value) . ' ' . $operation->pathUri;
             $operationsByRouteKey[$routeKey] = $operation;
         }
 
@@ -119,11 +119,7 @@ final readonly class TreeIndex
 
             $ref = $annotation->ref;
 
-            if (
-                $ref === Generator::UNDEFINED
-                || $ref === null
-                || !is_string($ref)
-            ) {
+            if (Generator::isDefault($ref) || $ref === null || !is_string($ref)) {
                 return;
             }
 

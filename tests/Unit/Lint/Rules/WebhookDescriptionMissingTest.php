@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Tree\WebhookNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
+/**
+ * @throws LogicException
+ */
 function makeWebhookForDescription(string $name, ?string $description): WebhookNode
 {
     $raw = new OA\Post([
@@ -20,7 +24,7 @@ function makeWebhookForDescription(string $name, ?string $description): WebhookN
 
     $operationNode = OperationNodeFactory::makeOperation(
         pathUri: $name,
-        method: 'POST',
+        method: HttpMethod::Post,
         operationId: 'webhook.test',
         description: $description,
         responses: [],
@@ -39,7 +43,8 @@ function makeWebhookForDescription(string $name, ?string $description): WebhookN
 it('has the correct rule id and level', function (): void {
     $rule = new WebhookDescriptionMissing();
 
-    expect($rule->id())->toBe('webhook.description-missing')
+    expect($rule->id())
+        ->toBe('webhook.description-missing')
         ->and($rule->level())->toBe(2);
 });
 
@@ -51,14 +56,15 @@ it('emits a finding when a webhook has a missing or blank description', function
         $rule->checkWebhook($webhook, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('webhook.description-missing')
         ->and($findings[0]->level)->toBe(2)
         ->and($findings[0]->message)->toContain('orderCreated')
         ->and($findings[0]->location->jsonPointer)->toBe('#/webhooks/orderCreated');
 })->with([
-    'null'            => [null],
-    'empty string'    => [''],
+    'null' => [null],
+    'empty string' => [''],
     'whitespace only' => ['   '],
 ]);
 

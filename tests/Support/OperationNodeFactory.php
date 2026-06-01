@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Support;
 
+use LogicException;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
@@ -35,15 +37,14 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 final class OperationNodeFactory
 {
     /**
-     * An `OperationNode` carrying `$descriptor`. Document-shaped fields are empty
-     * by default — most lint rules resolve everything from the descriptor's
-     * reflection rather than from the produced operation. Optional overrides let
-     * tests vary the HTTP method, the document-side `pathUri` / `operationId`,
-     * or the `raw` swagger-php operation when a rule actually inspects them.
+     * An `OperationNode` carrying `$descriptor`. Document-shaped fields are empty by default — most
+     * lint rules resolve everything from the descriptor's reflection rather than from the produced
+     * operation. Optional overrides let tests vary the HTTP method, the document-side `pathUri` /
+     * `operationId`, or the `raw` swagger-php operation when a rule actually inspects them.
      */
     public static function forDescriptor(
         ActionDescriptor $descriptor,
-        string $method = 'GET',
+        HttpMethod $method = HttpMethod::Get,
         ?string $pathUri = null,
         ?string $operationId = null,
         ?OA\Operation $raw = null,
@@ -68,22 +69,22 @@ final class OperationNodeFactory
     }
 
     /**
-     * A minimal valid `LintContext`. The plugin lint rules never read it, but
-     * `checkOperation()` requires a non-null instance. `$payloadClasses` lets
-     * tests opt in to the Data-plugin payload-class detection path;
-     * `$declaredTags` lets api-level rules (e.g. `tag.*`) see a non-empty
-     * `ApiNode->declaredTags`.
+     * A minimal valid `LintContext`. The plugin lint rules never read it, but `checkOperation()`
+     * requires a non-null instance. `$payloadClasses` lets tests opt in to the Data-plugin
+     * payload-class detection path; `$declaredTags` lets api-level rules (e.g. `tag.*`) see a
+     * non-empty `ApiNode->declaredTags`.
      *
      * @param list<class-string>           $payloadClasses
      * @param list<string>                 $declaredTags
-     * @param array<string, OperationNode> $operationsByOperationId prepopulates the `TreeIndex` lookup
-     *                                                              used by link / security cross-ref rules
-     * @param list<OperationNode>          $operations              populates `ApiNode->operations`; used by
-     *                                                              api-level rules (e.g. `tag.undeclared-at-root`)
+     * @param array<string, OperationNode> $operationsByOperationId prepopulates the `TreeIndex` lookup used by link /
+     *                                                              security cross-ref rules
+     * @param list<OperationNode>          $operations              populates `ApiNode->operations`; used by api-level
+     *                                                              rules (e.g. `tag.undeclared-at-root`)
      * @param list<WebhookNode>            $webhooks                populates `ApiNode->webhooks`
-     * @param array<string, string>        $tagDescriptions         tag name → description; used by `tags.no-description`
-     * @param list<string>                 $registeredScopes        prepopulates `TreeIndex->registeredScopes`;
-     *                                                              used by security/scope rules
+     * @param array<string, string>        $tagDescriptions         tag name → description; used by
+     *                                                              `tags.no-description`
+     * @param list<string>                 $registeredScopes        prepopulates `TreeIndex->registeredScopes`; used by
+     *                                                              security/scope rules
      */
     public static function emptyContext(
         array $payloadClasses = [],
@@ -124,20 +125,23 @@ final class OperationNodeFactory
     }
 
     /**
-     * A standalone `OperationNode` with safe defaults. Children passed in
-     * `$responses`, `$requestBody`, `$parameters`, and `$queryParameters` are
-     * linked to the produced operation so that rules walking up the tree
-     * (e.g. for `pathUri` / `method`) work without ceremony.
+     * A standalone `OperationNode` with safe defaults.
+     *
+     * Children passed in `$responses`, `$requestBody`, `$parameters`, and `$queryParameters` are
+     * linked to the produced operation so that rules walking up the tree (e.g., for `pathUri` /
+     * `method`) work without ceremony.
      *
      * @param list<ParameterNode>                               $parameters
      * @param list<QueryParameterNode>                          $queryParameters
      * @param null|list<ResponseNode>                           $responses       defaults to a single 200 response
      * @param list<array{scheme: string, scopes: list<string>}> $security
      * @param list<string>                                      $tags
+     *
+     * @throws LogicException
      */
     public static function makeOperation(
         string $pathUri = '/test',
-        string $method = 'GET',
+        HttpMethod $method = HttpMethod::Get,
         ?string $operationId = 'test.index',
         ?string $summary = null,
         ?string $description = null,
@@ -190,13 +194,15 @@ final class OperationNodeFactory
     }
 
     /**
-     * A `ResponseNode` with safe defaults. Use within `makeOperation(responses:
-     * [...])` to attach parents automatically.
+     * A `ResponseNode` with safe defaults. Use within `makeOperation(responses: […])` to attach
+     * parents automatically.
      *
      * @param list<FieldNode>   $fields
      * @param list<ExampleNode> $examples
      * @param list<HeaderNode>  $headers
      * @param list<LinkNode>    $links
+     *
+     * @throws LogicException
      */
     public static function makeResponse(
         int|string $statusCode = 200,
@@ -231,8 +237,8 @@ final class OperationNodeFactory
     }
 
     /**
-     * A `HeaderNode` with safe defaults. Wrap inside `makeResponse(headers:
-     * [...])` to attach the parent automatically.
+     * A `HeaderNode` with safe defaults. Wrap inside `makeResponse(headers: […])` to attach the
+     * parent automatically.
      */
     public static function makeHeader(
         string $name = 'X-Header',
@@ -270,8 +276,8 @@ final class OperationNodeFactory
     }
 
     /**
-     * A `LinkNode` with safe defaults. Wrap inside `makeResponse(links: [...])`
-     * to attach the parent automatically.
+     * A `LinkNode` with safe defaults. Wrap inside `makeResponse(links: […])` to attach the
+     * parent automatically.
      *
      * @param array<string, string> $parameters
      */
@@ -322,7 +328,7 @@ final class OperationNodeFactory
 
     /**
      * A path/header-style `ParameterNode` with safe defaults. Wrap inside
-     * `makeOperation(parameters: [...])` to attach the parent automatically.
+     * `makeOperation(parameters: […])` to attach the parent automatically.
      *
      * @param list<ExampleNode> $examples
      */
@@ -347,8 +353,8 @@ final class OperationNodeFactory
     }
 
     /**
-     * A `QueryParameterNode` with safe defaults. Wrap inside
-     * `makeOperation(queryParameters: [...])` to attach the parent automatically.
+     * A `QueryParameterNode` with safe defaults. Wrap inside `makeOperation(queryParameters: […])`
+     * to attach the parent automatically.
      *
      * @param null|list<string> $enum
      * @param list<ExampleNode> $examples
@@ -380,8 +386,8 @@ final class OperationNodeFactory
     }
 
     /**
-     * A `FieldNode` with safe defaults. Standalone — caller is responsible for
-     * placing it inside a parent's `fields:` list if a rule walks up the tree.
+     * A `FieldNode` with safe defaults. Standalone — caller is responsible for placing it inside a
+     * parent's `fields:` list if a rule walks up the tree.
      *
      * @param null|list<mixed>  $enum
      * @param list<FieldNode>   $children
@@ -418,10 +424,12 @@ final class OperationNodeFactory
     }
 
     /**
-     * A `WebhookNode` with safe defaults. The wrapped operation is built via
-     * `makeOperation()` unless callers pass their own. `linkParent` is left to
-     * the caller — the api-level `WebhookNameDuplicate` finalize path doesn't
-     * need it, and most other rules only inspect the wrapped operation.
+     * A `WebhookNode` with safe defaults. The wrapped operation is built via `makeOperation()`
+     * unless callers pass their own. `linkParent` is left to the caller — the api-level
+     * `WebhookNameDuplicate` finalize path doesn't need it, and most other rules only inspect the
+     * wrapped operation.
+     *
+     * @throws LogicException
      */
     public static function makeWebhook(
         string $name = 'sample.event',
@@ -434,7 +442,7 @@ final class OperationNodeFactory
             description: $description,
             operation: $operation ?? self::makeOperation(
                 pathUri: $name,
-                method: 'POST',
+                method: HttpMethod::Post,
                 operationId: 'webhook.' . $name,
                 responses: [],
                 webhook: true,
@@ -462,17 +470,17 @@ final class OperationNodeFactory
         );
     }
 
-    private static function rawForMethod(string $method): OA\Operation
+    private static function rawForMethod(HttpMethod $method): OA\Operation
     {
         $context = ['_context' => new Context()];
 
-        return match (strtoupper($method)) {
-            'POST' => new OA\Post($context),
-            'PUT' => new OA\Put($context),
-            'DELETE' => new OA\Delete($context),
-            'PATCH' => new OA\Patch($context),
-            'HEAD' => new OA\Head($context),
-            'OPTIONS' => new OA\Options($context),
+        return match ($method) {
+            HttpMethod::Post => new OA\Post($context),
+            HttpMethod::Put => new OA\Put($context),
+            HttpMethod::Delete => new OA\Delete($context),
+            HttpMethod::Patch => new OA\Patch($context),
+            HttpMethod::Head => new OA\Head($context),
+            HttpMethod::Options => new OA\Options($context),
             default => new OA\Get($context),
         };
     }

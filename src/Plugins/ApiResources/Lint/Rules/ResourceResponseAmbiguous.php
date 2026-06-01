@@ -46,7 +46,7 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
             level: $this->level(),
             message: sprintf(
                 '%s %s returns a resource collection but no #[ResponseResource] names the item class',
-                $operation->method,
+                $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
             fixHint: 'Add #[ResponseResource(SomeResource::class, collection: true)] to the action.',
