@@ -76,6 +76,13 @@ resolvers, extractors, error-response factories, payload class markers, lint rul
 additional `SpecStage`s. `FormRequest` request bodies are handled by Core directly; Spatie Data
 classes are handled by the SpatieData plugin.
 
+Beyond the registry-ordered stages, `SpecPipeline::run()` appends two **fixed terminal steps** it
+holds as direct dependencies (not via `addStage`): `OverridesStage` then `TransformersStage`. This
+encodes the precedence `baseline+plugin stages → OverridesStage (config escape hatch) →
+TransformersStage (user code)`. A stage that must run after *all* registered/plugin stages
+regardless of registration order belongs here, injected into `SpecPipeline`, not in
+`BaselineRegistration` (which runs first) or a plugin.
+
 ### Lint subsystem (`src/Lint/`)
 
 `SpecTreeBuilder` converts the generated document into a domain tree (`Tree/*Node`).
@@ -99,6 +106,14 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 - `src/Core/` holds **only concrete strategies** that participate in the Core Plugin
   (extractors, envelope strategies, the default query-parameter resolver, route
   introspection, etc.). Infrastructure shared across plugins goes in `src/Support/`.
+- **The Core Plugin exists only to understand vanilla Laravel code patterns** (FormRequests,
+  API Resources, validation rules). The package must stay fully functional with Core disabled —
+  just without the smarts to read those structures. So config-driven, plugin-agnostic
+  infrastructure (e.g. the `openapi.overrides` escape hatch and its lint rules) belongs in the
+  general package (`src/Support/`, `src/Lint/Rules/`, registered by `BaselineRegistration` or
+  `SpecPipeline`), **never** in `src/Core/` or gated behind a plugin.
+- The lint rule catalog in `docs/linting.md` (between the `lint-rule-catalog` markers) is
+  hand-maintained — add a row when you add a rule. `openapi:lint --list` is the live source.
 - Classes intended only for internal use (not part of the documented extension
   surface) should carry an `@internal` PHPDoc tag.
 - Behaviour changes need test updates, an update to the relevant page under `docs/`
