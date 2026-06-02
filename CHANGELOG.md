@@ -10,9 +10,11 @@ All notable changes to this project are documented here.
 - `openapi.overrides` config key: a spec-only escape hatch to set operation-level fields (`operationId`, `summary`, `description`, `tags`, `deprecated`, and any `x-*` extension) per route name or URI glob, without touching controller code. Applied as a late pipeline stage (always loaded, independent of any plugin). Overrides beat plugin contributions and convention-derived values; a code-based `transformDocument()` callback still wins. URI globs match by specificity (literal-character count, ties broken by declaration order); an exact route-name key wins over any glob. See [Configuration → Operation overrides](docs/config.md#operation-overrides).
 - Lint rules `overrides.unknown-field` (flags an override field outside the allowlist) and `overrides.unused` (flags an override key matching no route name or URI). Both are level 3 and severity-overridable.
 - New `SkipSelfRoutes` route filter that excludes the library's own spec/playground routes (matched on the `openapi.` Laravel-route-name prefix) from the generated document. Surfaced by P1 dogfooding (`docs/internal/dogfooding/2026-05-29-p1-bundled-docs-controller-self-findings.md`) and BookStack survey (`docs/internal/dogfooding/2026-05-30-bookstack-self-route-pollutes-api-namespace-and-spec.md`).
+- Architecture tests (`tests/Arch/ConventionsTest.php`) pinning three conventions previously enforced only by review: every source and test file declares `strict_types`; no plugin imports a sibling plugin (Core included — the convention plugins reach shared logic through `Support\`, not Core); and the public `Contracts\` surface references no `@internal` class. The pre-existing `tests/Arch/CoreBoundaryTest.php` expectations, which named the long-gone `Radiergummi\OpenApi\Core` namespace and passed vacuously, were repointed to the real `Plugins\Core` / `Support` namespaces.
 
 ### Changed
 
+- Relocated the shared `ValidationRulesToSchema` (Laravel validation-rule → JSON-Schema mapper) and `FakerExampleSynthesiser` from `Plugins\Core\Support\` to `Support\Extraction\`. Both are plugin-agnostic and used by Core and the SpatieData plugin alike; living under `Support\` lets the convention plugins reach them without importing the Core plugin, which the new plugin-isolation arch test now forbids. Behaviour is unchanged.
 - Lint rules `tag.duplicate` and `queryparam.duplicate` now detect duplicates by reading the `#[Tag]` / `#[QueryParam]` attributes on the controller method via reflection, rather than scanning the generated operation. The generator deduplicates both upstream (tags via `array_unique`, query parameters keyed by name), so a repeated attribute never reached the old spec-level check and the rules could not fire from real code — which also meant their `--fix` removers could never run. Severities were corrected to match impact: `tag.duplicate` 0 → 3 (a redundant tag changes nothing in the valid output — pure source hygiene, alongside `field.no-effect`), `queryparam.duplicate` 0 → 1 (the last-wins merge silently drops the earlier declaration's details). Consequence: `tag.duplicate` now only runs at `--level=3`/`max`; `queryparam.duplicate` still runs at the default level. The guarantee that duplicate parameter `(name, in)` never reach the document is unchanged, still enforced by the level-0 `parameter.duplicate-name`. Surfaced by Phase 1 dogfooding (#78).
 - Widened `zircote/swagger-php` support to `^5.8 || ^6.1.2`, so apps pinning swagger-php 5.x
   (e.g. those that self-generate OpenAPI from `#[OA\*]` attributes) can install the package.
@@ -138,6 +140,26 @@ All notable changes to this project are documented here.
   `AuthoringAttributesTest`, `#[QueryParam]` by `QueryParamClassLevelTest`, `#[ResponseResource]` by
   `PaginatorResponseTest`, `#[Expose]` by `VisibilityDefaultHiddenTest` — and `GenerateCommand`
   already had bad-directory, bad-format, and multi-spec `--output` failure cases.)
+- Quality-bar invariant coverage (#57): `tests/Feature/DeterministicGenerationTest.php` pins
+  that regeneration is stable — two independent `generateSpec()` runs (with scoped pipeline state
+  reset between them, as Octane does) produce identical documents, and every operation gets a
+  unique `operationId`. The existing `ValidationRulesToSchemaTest` gains a dataset pinning the
+  current silent-ignore contract for rules with no constraint mapping yet (`multiple_of`,
+  `active_url`, `mac_address`, `hex_color`, `lowercase`, `uppercase`, `current_password`); closing
+  any of these is tracked in #83. (The audit's other invariants were already covered:
+  validation→constraint mapping by `ValidationRulesToSchemaTest`, unknown-rule-object findings by
+  `RuleUnknownTest`, union `oneOf` by `UnionReturnTypeTest`/`DataDiscriminatorTest`, and optional
+  path parameters by `UriParametersExtractorTest` — which correctly keeps `required: true` per
+  OpenAPI 3.x §4.8.12.1.)
+- Edge-case coverage from the 2026-05-31 audit (#55): `tests/Unit/Lint/RuleRegistryTest.php`
+  pins the registry's current no-deduplication behaviour when two rules share an id (both are
+  kept, `forLevel` returns both, a severity override keyed by the id collapses both); a new
+  `OpenApiGeneratorTest` case asserts the YAML and JSON serialisers produce structurally
+  equivalent documents from one generation; and `VisibilityResolverTest` gains the fall-through
+  ordering cases where a present `#[Hide]` whose env scope misses defers to `#[Expose]`, then to
+  the configured default. (The audit's cyclic-schema and `RouteFilter`/`SpecStage` contract cases
+  were already covered by `SchemaFromDataClassTest`, `OpenApiGeneratorTest`, and
+  `PluginStageRegistrationTest`.)
 - Observability events. The generator and linter dispatch four Laravel events for use as
   read-only notification hooks (mutation still belongs to `OpenApiExtensions` transformers):
   `SpecGenerationStarted`, `SpecGenerationCompleted` (carries the assembled document and

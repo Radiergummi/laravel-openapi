@@ -50,6 +50,18 @@ it('serialises to both YAML and JSON', function (): void {
         ->toHaveKey('paths');
 });
 
+it('produces structurally equivalent YAML and JSON from a single generation', function (): void {
+    Route::get('/things', [SmokeController::class, 'plain']);
+
+    $spec = app(SpecRegistry::class)->default();
+    $document = app(OpenApiGenerator::class)->generate($spec, 'testing');
+
+    // Both serialisers must encode the same document; a divergence means one path mutates or
+    // drops state the other keeps.
+    expect(Yaml::parse($document->toYaml()))
+        ->toEqual(json_decode($document->toJson(), true));
+});
+
 it('does not leak component schemas between scopes', function (): void {
     // First run: register a route, generate the document, drop something into the registry.
     Route::get('/things', [SmokeController::class, 'plain']);

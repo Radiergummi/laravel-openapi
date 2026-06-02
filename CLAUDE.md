@@ -60,10 +60,13 @@ The codebase splits into four namespaces:
   `PrimaryResponseResolver`, `ErrorResponseResolver`, `SpecStage`, `RouteFilter`).
 - `Core\` — the **Core Plugin**: bundled extraction/processing strategies
   (FormRequest extractor, error-envelope strategies, paginator response resolver,
-  standard-response extractor, default query-parameter resolver, Faker example
-  synthesiser, route introspection). Registers itself as `Core\CorePlugin`.
+  standard-response extractor, default query-parameter resolver, route
+  introspection). Registers itself as `Core\CorePlugin`.
 - `Support\` — internal infrastructure (generator pipeline + stages, spec
-  resolution, inclusion evaluator, visibility resolver, extraction primitives).
+  resolution, inclusion evaluator, visibility resolver, extraction primitives —
+  including the plugin-agnostic `Support\Extraction\ValidationRulesToSchema`
+  rule→schema mapper and `Support\Extraction\FakerExampleSynthesiser`, shared by
+  Core and the convention plugins).
   PHPDoc/type parsing lives here: `Support\PhpDoc\DocBlockParser` +
   `Support\Types\TypeNodeResolver`, built on `phpstan/phpdoc-parser` +
   `symfony/type-info` — the `phpdocumentor`/`reflection-docblock` stack was dropped.
