@@ -127,6 +127,17 @@ All notable changes to this project are documented here.
   `RouteSkipped` (alongside the existing `Visibility` and `SpecMembership`
   cases). Registers an inline `RouteFilter` via `openapi.filters` and asserts
   the event fires with the right reason and summary.
+- Quality-bar invariant coverage (#57): `tests/Feature/DeterministicGenerationTest.php` pins
+  that regeneration is stable — two independent `generateSpec()` runs (with scoped pipeline state
+  reset between them, as Octane does) produce identical documents, and every operation gets a
+  unique `operationId`. The existing `ValidationRulesToSchemaTest` gains a dataset pinning the
+  current silent-ignore contract for rules with no constraint mapping yet (`multiple_of`,
+  `active_url`, `mac_address`, `hex_color`, `lowercase`, `uppercase`, `current_password`); closing
+  any of these is tracked in #83. (The audit's other invariants were already covered:
+  validation→constraint mapping by `ValidationRulesToSchemaTest`, unknown-rule-object findings by
+  `RuleUnknownTest`, union `oneOf` by `UnionReturnTypeTest`/`DataDiscriminatorTest`, and optional
+  path parameters by `UriParametersExtractorTest` — which correctly keeps `required: true` per
+  OpenAPI 3.x §4.8.12.1.)
 - Observability events. The generator and linter dispatch four Laravel events for use as
   read-only notification hooks (mutation still belongs to `OpenApiExtensions` transformers):
   `SpecGenerationStarted`, `SpecGenerationCompleted` (carries the assembled document and
