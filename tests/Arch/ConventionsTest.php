@@ -60,7 +60,7 @@ function internalSourceClasses(): array
     foreach (phpFilesUnder(srcPath()) as $file) {
         $contents = file_get_contents($file);
 
-        if ($contents === false || ! str_contains($contents, '@internal')) {
+        if ($contents === false || ! hasClassLevelInternalTag($contents)) {
             continue;
         }
 
@@ -72,6 +72,22 @@ function internalSourceClasses(): array
     }
 
     return $classes;
+}
+
+/**
+ * Whether the file's type declaration carries a class-level @internal tag in its own docblock.
+ * A bare str_contains('@internal') would also match method- and property-level @internal tags
+ * (e.g. the `linkParent()` methods on Lint\Tree nodes), wrongly marking otherwise-public classes
+ * as internal. We require the @internal docblock to immediately precede the class/interface/enum/
+ * trait declaration (allowing intervening attributes and modifiers).
+ */
+function hasClassLevelInternalTag(string $contents): bool
+{
+    return preg_match(
+        '~/\*\*(?:[^*]|\*(?!/))*?@internal\b(?:[^*]|\*(?!/))*?\*/\s*'
+        . '(?:#\[[^\]]*\]\s*)*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+~',
+        $contents,
+    ) === 1;
 }
 
 /**
