@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Plugins\Core\Support;
+namespace Radiergummi\OpenApi\Support\Extraction;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Validation\Rules\Dimensions;
@@ -18,7 +18,6 @@ use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 
 use function array_key_exists;
 use function array_merge;

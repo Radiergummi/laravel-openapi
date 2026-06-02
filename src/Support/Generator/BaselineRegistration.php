@@ -103,7 +103,6 @@ use Radiergummi\OpenApi\Lint\Rules\ThrowsTransitiveMissing;
 use Radiergummi\OpenApi\Lint\Rules\VisibilityAttributeNoOp;
 use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\WebhookNameDuplicate;
-use Radiergummi\OpenApi\Plugins\Core\CorePlugin;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
@@ -115,7 +114,8 @@ use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
  * Registers the library's baseline pipeline stages — the generator infrastructure that runs
  * regardless of which plugins (Core or otherwise) are enabled.
  *
- * Runs first, before {@see CorePlugin} and any user-configured plugins. Stage order is important:
+ * Runs first, before {@see \Radiergummi\OpenApi\Plugins\Core\CorePlugin} and any user-configured
+ * plugins. Stage order is important:
  *
  * 1. {@see RootStage} — populate document root (info, servers, tags, security schemes).
  * 2. {@see PathsStage} — assemble operation objects per route.

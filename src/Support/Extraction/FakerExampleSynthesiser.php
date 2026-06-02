@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Radiergummi\OpenApi\Plugins\Core\Support;
+namespace Radiergummi\OpenApi\Support\Extraction;
 
 use Faker\Factory as FakerFactory;
 use Faker\Generator as Faker;
-use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Throwable;
 
 use function class_exists;

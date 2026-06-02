@@ -10,7 +10,6 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
-use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionException;
@@ -47,7 +46,8 @@ use function sprintf;
  * Returns null when the return type is not a Data class or non-paginating collection, or when the
  * collection's item generic is missing — the next resolver gets a turn.
  *
- * Mirror of {@see ResourceResponseResolver} for the SpatieData plugin.
+ * Mirror of {@see \Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver}
+ * for the SpatieData plugin.
  */
 #[Scoped]
 final readonly class DataResponseResolver implements PrimaryResponseResolver

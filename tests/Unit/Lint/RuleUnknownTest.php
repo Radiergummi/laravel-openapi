@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
-use Radiergummi\OpenApi\Plugins\Core\Support\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 
 uses()->group('openapi', 'lint');
 
