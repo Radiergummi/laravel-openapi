@@ -21,14 +21,8 @@ it('emits a finding when a component schema has a missing or blank description',
         description: $description,
     );
 
-    $findings = iterator_to_array(
-        $rule->checkComponentSchema($schema, OperationNodeFactory::emptyContext()),
-    );
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('schema.description-missing')
-        ->and($findings[0]->level)->toBe(2)
-        ->and($findings[0]->message)->toContain('ProjectResource');
+    expect($rule->checkComponentSchema($schema, OperationNodeFactory::emptyContext()))
+        ->toEmitFinding(ruleId: 'schema.description-missing', messageContains: 'ProjectResource');
 })->with([
     'null'            => [null],
     'empty string'    => [''],

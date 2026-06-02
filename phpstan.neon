@@ -62,6 +62,13 @@ parameters:
             identifier: method.notFound
             paths:
                 - tests/
+        # `toEmitFinding()` is a custom expectation registered via `expect()->extend()` in
+        # tests/Pest.php; PHPStan can't see macros added to Pest's generic Expectation at runtime.
+        -
+            message: '#Call to an undefined method Pest\\Expectation<.+>::toEmitFinding\(\)#'
+            identifier: method.notFound
+            paths:
+                - tests/
         # Test fixtures exist to exercise the introspector and lint rules; demanding full
         # generic array shapes on every fixture controller method drowns the signal.
         -

@@ -37,14 +37,8 @@ it('emits a finding when a field has a missing or blank description', function (
     $rule = new FieldDescriptionMissing();
     $field = makeFieldForDescription($description);
 
-    $findings = iterator_to_array(
-        $rule->checkField($field, OperationNodeFactory::emptyContext()),
-    );
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('field.description-missing')
-        ->and($findings[0]->level)->toBe(2)
-        ->and($findings[0]->message)->toContain('status');
+    expect($rule->checkField($field, OperationNodeFactory::emptyContext()))
+        ->toEmitFinding(ruleId: 'field.description-missing', messageContains: 'status');
 })->with([
     'null'            => [null],
     'empty string'    => [''],
