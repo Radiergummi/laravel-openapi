@@ -8,9 +8,9 @@ use OpenApi\Generator;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
-use Radiergummi\OpenApi\Plugins\Core\Support\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
-use Radiergummi\OpenApi\Plugins\Core\Support\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 uses()->group('openapi', 'examples');
