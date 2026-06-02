@@ -214,9 +214,12 @@ final readonly class OperationBuilder
      *    the class-level instances are ignored.
      * 3. Middleware-derived security via {@see SecurityExtractor}.
      *
-     * @return list<array<string, list<string>>>
+     * Returns `null` when the route is authed but no scheme is derivable, so the operation omits
+     * `security` rather than emitting `[]` (which would mislabel it as public).
+     *
+     * @return null|list<array<string, list<string>>>
      */
-    private function resolveSecurity(ActionDescriptor $descriptor): array
+    private function resolveSecurity(ActionDescriptor $descriptor): ?array
     {
         if ($this->hasAttribute($descriptor, PublicEndpoint::class)) {
             return [];

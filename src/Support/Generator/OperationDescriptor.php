@@ -17,17 +17,19 @@ use function in_array;
 final readonly class OperationDescriptor implements Arrayable
 {
     /**
-     * @param list<string>                      $tags
-     * @param list<OA\Parameter>                $parameters
-     * @param list<array<string, list<string>>> $security
-     * @param list<OA\Response>                 $responses
+     * @param list<string>                           $tags
+     * @param list<OA\Parameter>                     $parameters
+     * @param null|list<array<string, list<string>>> $security   `null` omits the field entirely
+     *                                                           (authed route, no derivable scheme);
+     *                                                           `[]` is the explicit public signal
+     * @param list<OA\Response>                      $responses
      */
     public function __construct(
         public ?string $summary,
         public ?string $description,
         public array $tags,
         public array $parameters,
-        public array $security,
+        public ?array $security,
         public array $responses,
         public ?OA\RequestBody $requestBody,
         public bool $deprecated,

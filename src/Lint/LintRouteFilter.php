@@ -220,7 +220,7 @@ class LintRouteFilter
         $process->run();
 
         return array_values(
-            array_filter(array_map('trim', explode(PHP_EOL, $process->getOutput()))),
+            array_filter(array_map(trim(...), explode(PHP_EOL, $process->getOutput()))),
         );
     }
 

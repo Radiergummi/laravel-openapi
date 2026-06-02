@@ -40,6 +40,9 @@ use function substr;
  * middleware. Routes with `auth:api` but no `scope:*` middleware emit an empty scope list —
  * meaning "a valid token is required but no specific scope is checked". This is distinct from
  * `security: []` (public). Routes with neither auth nor scope middleware emit `security: []`.
+ * A route that *is* authed but for which no scheme can be derived (e.g. `auth:sanctum` with no
+ * matching scheme) returns `null` so the caller omits `security` entirely — emitting `[]` there
+ * would mislabel a protected route as public.
  *
  * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
  * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
@@ -198,9 +201,10 @@ final class SecurityExtractor
     }
 
     /**
-     * @return list<array<string, list<string>>>
+     * @return null|list<array<string, list<string>>> `null` = authed route, no derivable scheme
+     *                                                (caller omits `security`); see class docblock
      */
-    public function forRoute(Route $route): array
+    public function forRoute(Route $route): ?array
     {
         $middleware = $this->expandGroups(
             array_values($route->gatherMiddleware()),
@@ -213,7 +217,11 @@ final class SecurityExtractor
             return [];
         }
 
-        return $this->requirementForScopes($scopes);
+        $requirement = $this->requirementForScopes($scopes);
+
+        // No derivable scheme for an authed/scoped route: return null to omit `security`
+        // (not `[]`, which means public), so `operation.security-missing` can fire.
+        return $requirement === [] ? null : $requirement;
     }
 
     /**

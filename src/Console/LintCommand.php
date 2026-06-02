@@ -172,7 +172,7 @@ class LintCommand extends Command
         }
 
         return array_values(
-            array_filter(array_map('trim', explode(',', $raw))),
+            array_filter(array_map(trim(...), explode(',', $raw))),
         );
     }
 
