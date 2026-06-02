@@ -610,6 +610,29 @@ it('ignores unknown rules without throwing', function (): void {
     expect($d->type)->toBe('string');
 });
 
+// These rules have a plausible JSON-Schema mapping but are not handled yet; this pins the current
+// silent-ignore contract so closing any of them in #83 is a visible change. When a rule moves to
+// mapped, drop its entry here and assert the new constraint instead.
+it('currently drops rules that have no constraint mapping yet (gap tracked in #83)', function (string $rule): void {
+    $d = field($this->mapper, "string|{$rule}");
+
+    expect($d->type)->toBe('string')
+        ->and($d->format)->toBeNull()
+        ->and($d->pattern)->toBeNull()
+        ->and($d->minimum)->toBeNull()
+        ->and($d->maximum)->toBeNull()
+        ->and($d->minLength)->toBeNull()
+        ->and($d->maxLength)->toBeNull();
+})->with([
+    'multiple_of:5',
+    'active_url',
+    'mac_address',
+    'hex_color',
+    'lowercase',
+    'uppercase',
+    'current_password',
+]);
+
 // endregion
 
 // region normaliseIndexedPaths
