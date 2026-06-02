@@ -15,13 +15,14 @@ use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+use ReflectionAttribute;
 
 use function array_count_values;
 use function array_map;
 use function sprintf;
 
 /**
- * Reports duplicate query parameters within a single operation.
+ * Reports duplicate `#[QueryParam]` attributes within a single operation.
  *
  * Query parameter names must be unique per operation.
  */
@@ -33,7 +34,24 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $names = array_map(static fn($queryParameter): string => $queryParameter->name, $operation->queryParameters);
+        // Detect on the source attributes via reflection, not on $operation->queryParameters: the
+        // query-parameter resolver keys merged parameters by name (last-wins), so a duplicate
+        // #[QueryParam('q')] silently drops the earlier declaration before it reaches the spec.
+        // Reflection on the method is where that data loss is still visible — and what the fixer removes.
+        if ($operation->descriptor?->method === null) {
+            return;
+        }
+
+        $attributes = $operation->descriptor->method->getAttributes(QueryParam::class);
+
+        if ($attributes === []) {
+            return;
+        }
+
+        $names = array_map(
+            static fn(ReflectionAttribute $attribute): string => $attribute->newInstance()->name,
+            $attributes,
+        );
 
         $counts = array_count_values($names);
 
@@ -80,12 +98,15 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     #[Override]
     public function level(): int
     {
-        return 0;
+        // Degraded, not broken: the emitted document is valid (the resolver keeps one parameter per
+        // name), but the last-wins merge silently discards the earlier #[QueryParam]'s details —
+        // the document drops information the author declared. Level 1.
+        return 1;
     }
 
     #[Override]
     public function description(): string
     {
-        return 'Two #[QueryParam] attributes on the same controller/method share the same name.';
+        return 'Two #[QueryParam] attributes on the same controller method share the same name.';
     }
 }

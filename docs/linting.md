@@ -276,7 +276,6 @@ plugin-registered rules.
 | `parameter.query-no-schema` | 0 | Query parameter has no schema. |
 | `path.parameter-undeclared` | 0 | Path template uses a variable not declared as a parameter. |
 | `path.parameter-undefined` | 0 | A declared path parameter doesn't appear in the path template. Both `{name}` and `{name?}` placeholders satisfy the rule regardless of the OAS `required` flag (Laravel's optional-segment URI syntax is the source of truth for placeholders). |
-| `queryparam.duplicate` | 0 | Two #[QueryParam] attributes on the same controller/method share the same name. |
 | `ref.broken` | 0 | A $ref points to a component that doesn't exist in the spec. |
 | `response.description-missing` | 0 | Response has no description. OAS 3.1 requires description on every Response Object. |
 | `response.duplicate-status` | 0 | Two responses on the same operation share the same status code. |
@@ -289,7 +288,6 @@ plugin-registered rules.
 | `spec.invalid` | 0 | Spec fails swagger-php validation. Cannot be suppressed or remapped. |
 | `spec.route-orphaned` | 0 | A route's #[Spec] list resolves to no defined specs. |
 | `spec.unknown-reference` | 0 | #[Spec] references a spec not declared in config. |
-| `tag.duplicate` | 0 | Two top-level tag definitions share the same name. |
 | `webhook.name-duplicate` | 0 | Two webhooks share the same name. |
 | `externaldocs.invalid-url` | 1 | externalDocs.url is not a valid URL. |
 | `field.attribute-wrong-scope` | 1 | #[RequestField] on a URI parameter, or #[PathParam] on a Data-class property. |
@@ -315,6 +313,7 @@ plugin-registered rules.
 | `security.invalid-scope` | 1 | Operation requires a scope not declared in securitySchemes. |
 | `streaming.no-content-type` | 1 | Streaming operation has no content-type: text/event-stream response. |
 | `throws.transitive-missing` | 1 | An action's handler declares @throws exceptions not redeclared on the controller method. |
+| `queryparam.duplicate` | 1 | Two #[QueryParam] attributes on the same controller method share the same name; the later one silently overrides the earlier (names must be unique per operation). |
 | `visibility.hide-expose-conflict` | 1 | Route carries overlapping #[Hide] and #[Expose] in the current environment. |
 | `enum.values-undocumented` | 2 | Enum field has no description explaining the allowed values. |
 | `field.description-missing` | 2 | Schema property has no description. |
@@ -357,6 +356,7 @@ plugin-registered rules.
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
 | `spec.config-orphaned` | 3 | A configured spec has zero assigned routes after evaluation. |
+| `tag.duplicate` | 3 | The same #[Tag] is applied more than once to a controller method (redundant; tags are deduplicated in the output). |
 | `tag.name-naming-inconsistent` | 3 | Tag name doesn't follow the configured tag_case convention. |
 | `tag.undeclared-at-root` | 3 | Operation uses a tag not declared in the document-level tags array. |
 | `deprecated.no-replacement` | 4 | Deprecated operation/field has no x-replacement or suggested alternative. |

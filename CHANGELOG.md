@@ -13,6 +13,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Lint rules `tag.duplicate` and `queryparam.duplicate` now detect duplicates by reading the `#[Tag]` / `#[QueryParam]` attributes on the controller method via reflection, rather than scanning the generated operation. The generator deduplicates both upstream (tags via `array_unique`, query parameters keyed by name), so a repeated attribute never reached the old spec-level check and the rules could not fire from real code — which also meant their `--fix` removers could never run. Severities were corrected to match impact: `tag.duplicate` 0 → 3 (a redundant tag changes nothing in the valid output — pure source hygiene, alongside `field.no-effect`), `queryparam.duplicate` 0 → 1 (the last-wins merge silently drops the earlier declaration's details). Consequence: `tag.duplicate` now only runs at `--level=3`/`max`; `queryparam.duplicate` still runs at the default level. The guarantee that duplicate parameter `(name, in)` never reach the document is unchanged, still enforced by the level-0 `parameter.duplicate-name`. Surfaced by Phase 1 dogfooding (#78).
 - Widened `zircote/swagger-php` support to `^5.8 || ^6.1.2`, so apps pinning swagger-php 5.x
   (e.g. those that self-generate OpenAPI from `#[OA\*]` attributes) can install the package.
   A dedicated CI job runs the suite against swagger-php 5.8; the byte-exact example snapshots
