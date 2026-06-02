@@ -27,11 +27,9 @@ uses(TestCase::class)->in('Unit', 'Feature');
 expect()->extend('toEmitFinding', function (string $ruleId, ?string $messageContains = null): Expectation {
     /** @var iterable<Finding> $value */
     $value = $this->value;
-    $findings = is_array($value)
-        ? array_values($value)
-        : array_values(iterator_to_array($value));
+    $findings = is_array($value) ? $value : iterator_to_array($value);
 
-    $matched = array_filter(
+    $matched = array_any(
         $findings,
         static fn(Finding $finding): bool => $finding->ruleId === $ruleId
             && ($messageContains === null || str_contains($finding->message, $messageContains)),
@@ -48,7 +46,7 @@ expect()->extend('toEmitFinding', function (string $ruleId, ?string $messageCont
             $findings,
         ));
 
-    Assert::assertNotEmpty(
+    Assert::assertTrue(
         $matched,
         "Failed asserting that a finding with {$criteria} was emitted; {$emitted}.",
     );
