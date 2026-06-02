@@ -32,14 +32,8 @@ it('emits a finding when a parameter has a missing or blank description', functi
     $rule = new ParameterDescriptionMissing();
     $parameter = makeParameterForDescription($description);
 
-    $findings = iterator_to_array(
-        $rule->checkParameter($parameter, OperationNodeFactory::emptyContext()),
-    );
-
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('parameter.description-missing')
-        ->and($findings[0]->level)->toBe(2)
-        ->and($findings[0]->message)->toContain('filter');
+    expect($rule->checkParameter($parameter, OperationNodeFactory::emptyContext()))
+        ->toEmitFinding(ruleId: 'parameter.description-missing', messageContains: 'filter');
 })->with([
     'null'            => [null],
     'empty string'    => [''],
