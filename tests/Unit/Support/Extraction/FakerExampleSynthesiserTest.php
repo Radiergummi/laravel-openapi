@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Plugins\Core\Support\FakerExampleSynthesiser;
+use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 
 uses()->group('generator', 'examples', 'openapi');

@@ -8,7 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
-use Radiergummi\OpenApi\Plugins\Core\Support\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 
 /**
  * Registration stub for the `rule.unknown` finding.
