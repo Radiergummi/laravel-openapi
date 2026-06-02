@@ -127,6 +127,17 @@ All notable changes to this project are documented here.
   `RouteSkipped` (alongside the existing `Visibility` and `SpecMembership`
   cases). Registers an inline `RouteFilter` via `openapi.filters` and asserts
   the event fires with the right reason and summary.
+- Authoring-attribute and command coverage gaps (#56): `tests/Feature/AttributeCoverageTest.php`
+  pins the two attributes that lacked document-level feature coverage — `#[ResponseField]`
+  (description/`readOnly` surfaced on a response component schema) and operation-level
+  `#[Deprecated]` (`deprecated: true` on the operation, distinct from the property-level case) —
+  plus a multi-attribute combination on one route (`#[Summary]` + `#[Deprecated]` + `#[QueryParam]`
+  + `#[Response]` + `#[PublicEndpoint]`). `GenerateCommandTest` gains a zero-route case asserting
+  the command succeeds and writes a valid empty-`paths` document. (The other attributes the audit
+  listed were already covered — `#[Security]`/`#[PublicEndpoint]`/`#[RequestBody]`/`#[Response]` by
+  `AuthoringAttributesTest`, `#[QueryParam]` by `QueryParamClassLevelTest`, `#[ResponseResource]` by
+  `PaginatorResponseTest`, `#[Expose]` by `VisibilityDefaultHiddenTest` — and `GenerateCommand`
+  already had bad-directory, bad-format, and multi-spec `--output` failure cases.)
 - Observability events. The generator and linter dispatch four Laravel events for use as
   read-only notification hooks (mutation still belongs to `OpenApiExtensions` transformers):
   `SpecGenerationStarted`, `SpecGenerationCompleted` (carries the assembled document and

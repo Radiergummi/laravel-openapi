@@ -68,6 +68,32 @@ it('prints the document to stdout and suppresses the info line when --output is 
         ->assertExitCode(Command::SUCCESS);
 });
 
+it('succeeds and writes a valid empty-paths document when no routes are discoverable', function (): void {
+    $path = generateCommandTmpPath();
+    config([
+        'openapi.output_path' => $path,
+        // Drop the only fixture route so the discoverable set is empty.
+        'openapi.filters' => [
+            new class () implements Radiergummi\OpenApi\Contracts\Routing\RouteFilter {
+                public function shouldSkip(Illuminate\Routing\Route $route): bool
+                {
+                    return true;
+                }
+            },
+        ],
+    ]);
+    app()->forgetScopedInstances();
+
+    $this->artisan('openapi:generate')->assertExitCode(Command::SUCCESS);
+
+    $document = Symfony\Component\Yaml\Yaml::parse((string) file_get_contents($path));
+
+    expect($document['openapi'])->toBe('3.1.0')
+        ->and($document['paths'] ?? 'missing')->toBe([]);
+
+    @unlink($path);
+});
+
 it('fails when the output directory does not exist', function (): void {
     $bogus = sys_get_temp_dir() . '/laravel-openapi-no-such-dir-' . uniqid('', true) . '/spec.yaml';
 
