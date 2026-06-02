@@ -7,17 +7,37 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\FixableRule;
+use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\Fix\MemberKind;
+use Radiergummi\OpenApi\Lint\Fix\RemoveAttributeFixer;
+use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use ReflectionProperty;
 
 use function sprintf;
 
-final class FieldNoEffect extends AbstractFieldRule
+final class FieldNoEffect extends AbstractFieldRule implements FixableRule
 {
     #[Override]
     public function description(): string
     {
         return 'A field attribute was applied but has no visible effect on the schema.';
+    }
+
+    /**
+     * The no-op field attribute carries no information, so it is removed outright. The owning
+     * property is identified by the {@see Finding::CONTEXT_SOURCE_CLASS} /
+     * {@see Finding::CONTEXT_SOURCE_MEMBER} keys {@see AbstractFieldRule} already stamps.
+     */
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: FieldAttribute::class,
+            member: MemberKind::Property,
+            mode: RemoveMode::RemoveAll,
+        );
     }
 
     /**

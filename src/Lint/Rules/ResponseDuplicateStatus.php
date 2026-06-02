@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
-use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\FixableRule;
+use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\Fix\MemberKind;
+use Radiergummi\OpenApi\Lint\Fix\RemoveAttributeFixer;
+use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
@@ -16,7 +21,7 @@ use function array_count_values;
 use function array_map;
 use function sprintf;
 
-final class ResponseDuplicateStatus implements Rule, OperationRuleVisitor
+final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
 {
     /**
      * @return iterable<Finding>
@@ -29,7 +34,7 @@ final class ResponseDuplicateStatus implements Rule, OperationRuleVisitor
         }
 
         $statusCodes = array_map(
-            static fn(ResponseNode $r): string => (string) $r->statusCode,
+            static fn(ResponseNode $response): string => (string) $response->statusCode,
             $operation->responses,
         );
 
@@ -51,8 +56,22 @@ final class ResponseDuplicateStatus implements Rule, OperationRuleVisitor
                     $operation->pathUri,
                 ),
                 fixHint: 'Remove the duplicate #[Response] attribute or change the status code.',
+                context: RemoveAttributeFixer::contextForOperation($operation->descriptor, (string) $statusCode),
             );
         }
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: Response::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: static fn(object $attr): ?string => $attr instanceof Response
+                ? (string) $attr->status
+                : null,
+        );
     }
 
     #[Override]

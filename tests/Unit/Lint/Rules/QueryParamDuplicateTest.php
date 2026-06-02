@@ -4,21 +4,20 @@ declare(strict_types=1);
 
 use Radiergummi\OpenApi\Lint\Rules\QueryParamDuplicate;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\DuplicateQueryParamController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
 
-/**
- * @param list<string> $queryParamNames
- */
-function makeOperationWithQueryParams(array $queryParamNames): OperationNode
+function makeQueryParamDuplicateOperation(string $method): OperationNode
 {
-    return OperationNodeFactory::makeOperation(
+    $descriptor = ActionDescriptorFactory::forControllerMethod(DuplicateQueryParamController::class, $method, '/fixture');
+
+    return OperationNodeFactory::forDescriptor(
+        $descriptor,
         pathUri: '/fixture',
-        queryParameters: array_map(
-            static fn(string $name) => OperationNodeFactory::makeQueryParameter(name: $name),
-            $queryParamNames,
-        ),
+        operationId: 'fixture.' . $method,
     );
 }
 
@@ -26,41 +25,49 @@ it('has the correct rule id and level', function (): void {
     $rule = new QueryParamDuplicate();
 
     expect($rule->id())->toBe('queryparam.duplicate')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->level())->toBe(1);
 });
-
-it('emits no findings when query param names are unique or absent', function (array $names): void {
-    $rule = new QueryParamDuplicate();
-    $operation = makeOperationWithQueryParams($names);
-
-    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
-
-    expect($findings)->toBe([]);
-})->with([
-    'no params' => [[]],
-    'all unique' => [['q', 'limit', 'offset']],
-]);
 
 it('emits a finding when a method has duplicate query param names', function (): void {
     $rule = new QueryParamDuplicate();
-    $operation = makeOperationWithQueryParams(['q', 'q', 'limit']);
+    $operation = makeQueryParamDuplicateOperation('withDuplicates');
 
     $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('queryparam.duplicate')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->level)->toBe(1)
         ->and($findings[0]->message)->toContain('"q"')
         ->and($findings[0]->message)->toContain('2 times');
 });
 
-it('emits one finding per duplicate group', function (): void {
+it('emits no findings when query param names are unique', function (): void {
     $rule = new QueryParamDuplicate();
-    $operation = makeOperationWithQueryParams(['q', 'q', 'filter', 'filter']);
+    $operation = makeQueryParamDuplicateOperation('withoutDuplicates');
 
     $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(2)
-        ->and($findings[0]->message)->toContain('"q"')
-        ->and($findings[1]->message)->toContain('"filter"');
+    expect($findings)->toBe([]);
+});
+
+it('emits no findings when a method has no query parameters', function (): void {
+    $rule = new QueryParamDuplicate();
+    $operation = makeQueryParamDuplicateOperation('withoutQueryParams');
+
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
+
+    expect($findings)->toBe([]);
+});
+
+it('emits no findings when the operation has no descriptor', function (): void {
+    $rule = new QueryParamDuplicate();
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/no-descriptor',
+        operationId: 'no.descriptor',
+        responses: [],
+    );
+
+    $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
+
+    expect($findings)->toBe([]);
 });

@@ -8,6 +8,8 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use JsonException;
+use Radiergummi\OpenApi\Lint\Fix\FixRunner;
+use Radiergummi\OpenApi\Lint\Fix\FixRunResult;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\Formatter;
 use Radiergummi\OpenApi\Lint\Formatters\GithubFormatter;
@@ -32,6 +34,7 @@ use function array_column;
 use function array_filter;
 use function array_map;
 use function array_values;
+use function count;
 use function explode;
 use function getenv;
 use function implode;
@@ -58,6 +61,8 @@ class LintCommand extends Command
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the repository default branch)}
         {--no-suppress : Ignore #[IgnoreLint] attributes}
         {--list : Print the rule catalog instead of linting}
+        {--fix : Apply fixable findings to the source, then report the rest}
+        {--check : Report whether --fix would change anything, without writing (CI-safe)}
         {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}';
 
     protected $description = 'Lint OpenAPI documentation gaps across the API surface';
@@ -77,10 +82,14 @@ class LintCommand extends Command
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    public function handle(LintRunner $runner, RuleRegistry $registry): int
+    public function handle(LintRunner $runner, RuleRegistry $registry, FixRunner $fixRunner): int
     {
         if ($this->option('list')) {
             return $this->renderCatalog($registry);
+        }
+
+        if ($this->option('fix') || $this->option('check')) {
+            return $this->runFix($fixRunner);
         }
 
         $result = $runner->run($this->buildOptions());
@@ -94,6 +103,79 @@ class LintCommand extends Command
         );
 
         return $result->exitCode;
+    }
+
+    /**
+     * Apply (`--fix`) or preview (`--check`) the fixable findings, then report what remains.
+     *
+     * @throws \LogicException
+     * @throws BindingResolutionException
+     * @throws InvalidArgumentException
+     * @throws JsonException
+     * @throws LogicException
+     * @throws ProcessRuntimeException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws UnsupportedException
+     */
+    private function runFix(FixRunner $fixRunner): int
+    {
+        $dryRun = (bool) $this->option('check');
+        $outcome = $fixRunner->run($this->buildOptions(), $dryRun);
+
+        $this->renderFixSummary($outcome, $dryRun);
+
+        if ($outcome->remainingFindings !== []) {
+            $this->resolveFormatter()->render(
+                $outcome->remainingFindings,
+                $outcome->level,
+                $outcome->exitCode(),
+                $this->output->getOutput(),
+            );
+        }
+
+        return $outcome->exitCode();
+    }
+
+    private function renderFixSummary(FixRunResult $outcome, bool $dryRun): void
+    {
+        $files = $outcome->fixResult->modifiedFiles;
+        $count = count($outcome->fixResult->applied);
+
+        if ($count === 0) {
+            $this->info('openapi:lint --fix: nothing to fix.');
+
+            return;
+        }
+
+        if ($dryRun) {
+            $this->warn(sprintf(
+                '%d fixable finding(s) pending across %d file(s). Run `php artisan openapi:lint --fix` to apply them.',
+                $count,
+                count($files),
+            ));
+
+            return;
+        }
+
+        $this->info(sprintf('Fixed %d finding(s) across %d file(s):', $count, count($files)));
+
+        foreach ($files as $file) {
+            $this->line('  ' . $file);
+        }
+
+        if ($outcome->fixResult->skipped !== []) {
+            $this->warn(sprintf(
+                '%d fix(es) skipped due to overlapping edits; re-run --fix to resolve the rest.',
+                count($outcome->fixResult->skipped),
+            ));
+        }
+
+        $this->line('Run your formatter on the changes, e.g. `vendor/bin/pint --dirty`.');
     }
 
     /**
