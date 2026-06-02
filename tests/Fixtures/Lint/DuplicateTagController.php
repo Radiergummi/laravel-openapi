@@ -29,6 +29,13 @@ final class DuplicateTagController
         return response()->json();
     }
 
+    #[Tag(FixtureStatusEnum::Active)]
+    #[Tag(FixtureStatusEnum::Active)]
+    public function withDuplicateEnumTags(): JsonResponse
+    {
+        return response()->json();
+    }
+
     public function withoutTags(): JsonResponse
     {
         return response()->json();

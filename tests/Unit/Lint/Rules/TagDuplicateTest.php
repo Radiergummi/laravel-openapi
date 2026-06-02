@@ -61,6 +61,18 @@ it('emits no findings when a method has no tags', function (): void {
     expect($findings)->toBe([]);
 });
 
+it('detects duplicate enum-backed tags by their value', function (): void {
+    $operation = makeTagDuplicateOperation('withDuplicateEnumTags');
+
+    $findings = iterator_to_array(
+        new TagDuplicate()->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->message)->toContain('"active"')
+        ->and($findings[0]->message)->toContain('2 times');
+});
+
 it('emits no findings when the operation has no descriptor', function (): void {
     $operation = OperationNodeFactory::makeOperation(
         pathUri: '/no-descriptor',
