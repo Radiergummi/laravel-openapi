@@ -7,6 +7,8 @@ use Radiergummi\OpenApi\Attributes\Hide;
 use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;
 use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 
+uses()->group('openapi');
+
 $resolver = fn(VisibilityMode $mode = VisibilityMode::Public): VisibilityResolver => new VisibilityResolver($mode);
 
 it('returns visible in public default with no attributes', function () use ($resolver): void {
