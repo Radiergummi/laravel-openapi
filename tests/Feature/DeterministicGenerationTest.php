@@ -39,12 +39,8 @@ beforeEach(function (): void {
     Route::post('/nodes', [DeterminismFixtureController::class, 'store']);
 });
 
-/**
- * Every operationId emitted across the document, in document order. File-scoped (not a global
- * function) so the suite can't hit a redeclaration clash if another file picks the same name.
- *
- * @var Closure(array<string, mixed>): list<string>
- */
+// Every operationId emitted across the document, in document order. File-scoped (not a global
+// function) so the suite can't hit a redeclaration clash if another file picks the same name.
 $collectOperationIds = static function (array $spec): array {
     $ids = [];
 
