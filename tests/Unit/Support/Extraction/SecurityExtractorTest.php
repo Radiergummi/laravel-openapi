@@ -123,6 +123,33 @@ it('preserves the Passport oauth2 pair as the default when default is unset and 
         ]);
 });
 
+it('omits security for an auth route when no scheme is derivable, instead of an empty (public) requirement', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    // Passport absent + no config schemes => no scheme can be derived for the
+    // auth:* route. The operation must omit `security` (null) rather than assert
+    // `[]`, which OpenAPI reads as "explicitly public".
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+
+    $route                        = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware']  = ['auth:sanctum'];
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBeNull();
+});
+
+it('emits an explicit empty (public) requirement for a route with no auth or scope middleware', function (): void {
+    $route = new Route(['GET'], '/open', ['uses' => static fn() => null]);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    expect($extractor->forRoute($route))->toBe([]);
+});
+
 it('does not crash on a route carrying closure middleware', function (): void {
     // Closure middleware reaches gatherMiddleware() via controller middleware
     // (and is not cast to string the way Route::middleware() casts its args), so

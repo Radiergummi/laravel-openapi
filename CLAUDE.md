@@ -144,6 +144,9 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
   entry under `[Unreleased]`.
 - Authoring attributes live in `src/Attributes/`; they are the escape hatch for cases
   convention cannot derive.
+- Do not use abbreviations in class names, method names, or variable names. The codebase favors
+  verbosity for clarity.
+- Keep code comments short and to the point.
 
 ## Inference philosophy & boundaries
 

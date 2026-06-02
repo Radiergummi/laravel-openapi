@@ -112,8 +112,8 @@ final readonly class DescriptionDirectives
             array_map(
                 self::coerceScalar(...),
                 array_filter(
-                    array_map('trim', explode(',', $raw)),
-                    static fn(string $v): bool => $v !== '',
+                    array_map(trim(...), explode(',', $raw)),
+                    static fn(string $value): bool => $value !== '',
                 ),
             ),
         );
