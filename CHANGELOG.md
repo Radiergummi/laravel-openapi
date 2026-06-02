@@ -127,6 +127,15 @@ All notable changes to this project are documented here.
   `RouteSkipped` (alongside the existing `Visibility` and `SpecMembership`
   cases). Registers an inline `RouteFilter` via `openapi.filters` and asserts
   the event fires with the right reason and summary.
+- Edge-case coverage from the 2026-05-31 audit (#55): `tests/Unit/Lint/RuleRegistryTest.php`
+  pins the registry's current no-deduplication behaviour when two rules share an id (both are
+  kept, `forLevel` returns both, a severity override keyed by the id collapses both); a new
+  `OpenApiGeneratorTest` case asserts the YAML and JSON serialisers produce structurally
+  equivalent documents from one generation; and `VisibilityResolverTest` gains the fall-through
+  ordering cases where a present `#[Hide]` whose env scope misses defers to `#[Expose]`, then to
+  the configured default. (The audit's cyclic-schema and `RouteFilter`/`SpecStage` contract cases
+  were already covered by `SchemaFromDataClassTest`, `OpenApiGeneratorTest`, and
+  `PluginStageRegistrationTest`.)
 - Observability events. The generator and linter dispatch four Laravel events for use as
   read-only notification hooks (mutation still belongs to `OpenApiExtensions` transformers):
   `SpecGenerationStarted`, `SpecGenerationCompleted` (carries the assembled document and

@@ -49,3 +49,18 @@ it('lets Hide beat Expose when both apply', function () use ($resolver): void {
     expect($resolver()->isVisible([new Hide()], [new Expose()], 'production'))->toBeFalse()
         ->and($resolver(VisibilityMode::Hidden)->isVisible([new Hide()], [new Expose()], 'production'))->toBeFalse();
 });
+
+it('falls through to Expose when a present Hide misses the env', function () use ($resolver): void {
+    // Hide is present but scoped away from this env, so the next rule — Expose — decides; in the
+    // hidden default this is the only path to a visible route.
+    expect($resolver(VisibilityMode::Hidden)->isVisible([new Hide(only: ['local'])], [new Expose()], 'production'))
+        ->toBeTrue();
+});
+
+it('falls through to the default when both a present Hide and Expose miss the env', function () use ($resolver): void {
+    // Neither attribute applies in this env, so the configured default mode decides.
+    expect($resolver(VisibilityMode::Hidden)->isVisible([new Hide(only: ['local'])], [new Expose(only: ['staging'])], 'production'))
+        ->toBeFalse()
+        ->and($resolver()->isVisible([new Hide(only: ['local'])], [new Expose(only: ['staging'])], 'production'))
+        ->toBeTrue();
+});
