@@ -30,15 +30,16 @@ class AttributeCoverageFixtureController extends Controller
     }
 
     // One action stacking five distinct authoring attributes — the multi-attribute combination
-    // case. The route carries auth middleware so #[PublicEndpoint] has something to override.
+    // case. The route carries auth middleware so #[PublicEndpoint] has something to override, and
+    // the Data return type derives a 200 primary so #[Response(202)] has something to displace.
     #[Summary('Queue a combo job.')]
     #[Deprecated(reason: 'Superseded by /v2/combo.')]
     #[QueryParam(name: 'locale', type: 'string', description: 'Response locale.')]
     #[Response(status: 202, description: 'Accepted for processing.')]
     #[PublicEndpoint]
-    public function combo(): JsonResponse
+    public function combo(): ResponseFieldFixtureData
     {
-        return new JsonResponse();
+        return new ResponseFieldFixtureData(id: '1', name: 'widget');
     }
 }
 

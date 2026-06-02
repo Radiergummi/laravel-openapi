@@ -62,10 +62,18 @@ it('writes JSON when --format=json is passed', function (): void {
     @unlink($path);
 });
 
-it('prints the document to stdout and suppresses the info line when --output is "-"', function (): void {
+it('writes to stdout instead of a file and suppresses the info line when --output is "-"', function (): void {
+    $path = generateCommandTmpPath();
+    config(['openapi.output_path' => $path]);
+
+    // Artisan's PendingCommand captures the Symfony console buffer, not the process STDOUT
+    // handle that "-" writes to — so we assert the observable side effects instead: the
+    // info line is suppressed and, crucially, nothing is written to the configured path.
     $this->artisan('openapi:generate', ['--output' => '-'])
-        ->doesntExpectOutputToContain('OpenAPI document written to')
+        ->doesntExpectOutputToContain('written to')
         ->assertExitCode(Command::SUCCESS);
+
+    expect(file_exists($path))->toBeFalse();
 });
 
 it('succeeds and writes a valid empty-paths document when no routes are discoverable', function (): void {
@@ -206,6 +214,9 @@ it('--output= is rejected when generating multiple specs', function (): void {
             ],
         ],
     ]);
+    // SpecRegistry is a scoped singleton that memoises on first resolution; drop it so the
+    // command sees the two-spec config above rather than a cached single-spec result.
+    app()->forgetScopedInstances();
 
     $this->artisan('openapi:generate', ['--output' => '/tmp/x.yaml'])
         ->expectsOutputToContain('--output= requires a single spec target')
