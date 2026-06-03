@@ -610,10 +610,10 @@ it('ignores unknown rules without throwing', function (): void {
     expect($d->type)->toBe('string');
 });
 
-// These rules have a plausible JSON-Schema mapping but are not handled yet; this pins the current
-// silent-ignore contract so closing any of them in #83 is a visible change. When a rule moves to
-// mapped, drop its entry here and assert the new constraint instead.
-it('currently drops rules that have no constraint mapping yet (gap tracked in #83)', function (string $rule): void {
+// These rules are declined in #83 — `lowercase`/`uppercase` only map to a lossy ASCII pattern
+// (accepts multibyte uppercase), and `current_password` is a server-side auth check with no
+// schema shape. This pins their silent-ignore contract so any future change is visible.
+it('currently drops rules that have no constraint mapping (declined in #83)', function (string $rule): void {
     $d = field($this->mapper, "string|{$rule}");
 
     expect($d->type)->toBe('string')
@@ -624,14 +624,47 @@ it('currently drops rules that have no constraint mapping yet (gap tracked in #8
         ->and($d->minLength)->toBeNull()
         ->and($d->maxLength)->toBeNull();
 })->with([
-    'multiple_of:5',
-    'active_url',
-    'mac_address',
-    'hex_color',
     'lowercase',
     'uppercase',
     'current_password',
 ]);
+
+// endregion
+
+// region multiple_of / active_url / mac_address / hex_color — newly mapped in #83
+
+it('maps multiple_of:N (integer arg) to an integer multipleOf', function (): void {
+    $d = field($this->mapper, 'integer|multiple_of:5');
+
+    expect($d->multipleOf)->toBe(5);
+});
+
+it('maps multiple_of:N (decimal arg) to a float multipleOf', function (): void {
+    $d = field($this->mapper, 'numeric|multiple_of:0.5');
+
+    expect($d->multipleOf)->toBe(0.5);
+});
+
+it('maps active_url to format=uri (consistent with url)', function (): void {
+    $d = field($this->mapper, 'active_url');
+
+    expect($d->type)->toBe('string')
+        ->and($d->format)->toBe('uri');
+});
+
+it('maps mac_address to a MAC-address pattern', function (): void {
+    $d = field($this->mapper, 'mac_address');
+
+    expect($d->type)->toBe('string')
+        ->and($d->pattern)->toBe('^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$');
+});
+
+it('maps hex_color to a hex-color pattern', function (): void {
+    $d = field($this->mapper, 'hex_color');
+
+    expect($d->type)->toBe('string')
+        ->and($d->pattern)->toBe('^#?[0-9a-fA-F]{6}$');
+});
 
 // endregion
 

@@ -345,8 +345,11 @@ final readonly class ValidationRulesToSchema
             'array' => $field->type = 'array',
             'file', 'image' => $this->applyFile($field),
             'email' => $this->applyEmail($field),
-            'url' => $this->applyUrl($field),
+            'url', 'active_url' => $this->applyUrl($field),
             'uuid' => $this->applyUuid($field),
+            'multiple_of' => $this->applyMultipleOf($field, $arg),
+            'mac_address' => $this->applyMacAddress($field),
+            'hex_color' => $this->applyHexColor($field),
             'ip' => $this->applyIp($field),
             'ipv4' => $this->applyIpv4($field),
             'ipv6' => $this->applyIpv6($field),
@@ -407,6 +410,42 @@ final readonly class ValidationRulesToSchema
     {
         $field->type = 'string';
         $field->format = 'uuid';
+    }
+
+    /**
+     * Maps `multiple_of:N` to JSON Schema's `multipleOf`. The argument keeps its numeric kind —
+     * integer-looking args stay ints, decimal args become floats — so the constraint matches the
+     * declared numeric type. The `type` is left to an explicit `integer`/`numeric` rule.
+     */
+    private function applyMultipleOf(FieldDescriptor $field, string $arg): void
+    {
+        if ($arg === '') {
+            return;
+        }
+
+        $field->multipleOf = preg_match('/^-?\d+$/', $arg) === 1
+            ? (int) $arg
+            : (float) $arg;
+    }
+
+    /**
+     * Maps `mac_address` to a pattern. JSON Schema has no MAC-address `format`; the pattern accepts
+     * the colon- and hyphen-separated six-octet forms Laravel's validator allows.
+     */
+    private function applyMacAddress(FieldDescriptor $field): void
+    {
+        $field->type = 'string';
+        $field->pattern = '^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$';
+    }
+
+    /**
+     * Maps `hex_color` to a pattern. No standard `format` exists; the pattern matches a six-digit
+     * hex colour with an optional leading `#`.
+     */
+    private function applyHexColor(FieldDescriptor $field): void
+    {
+        $field->type = 'string';
+        $field->pattern = '^#?[0-9a-fA-F]{6}$';
     }
 
     private function applyIp(FieldDescriptor $field): void
