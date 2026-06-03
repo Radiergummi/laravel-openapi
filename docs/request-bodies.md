@@ -177,8 +177,11 @@ constraints:
 | `between:a,b` | both `min`/`max` of the appropriate kind |
 | `size:N` | both min and max set to `N` |
 | `regex:/…/` | `pattern: …` (delimiter stripped) |
+| `multiple_of:N` | `multipleOf: N` (integer arg stays int, decimal arg becomes float) |
+| `mac_address` | `pattern: '^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$'` |
+| `hex_color` | `pattern: '^#?[0-9a-fA-F]{6}$'` |
 | `in:a,b,c` (or `Rule::in([...])`) | `enum: ['a', 'b', 'c']` |
-| `email` / `url` / `uuid` / `ip` / `ipv4` / `ipv6` | `format: …` |
+| `email` / `url` / `active_url` / `uuid` / `ip` / `ipv4` / `ipv6` | `format: …` (`url` and `active_url` → `format: uri`) |
 | `date` / `date_format:Y-m-d` | `format: date` |
 | `date_format:H:i:s` (time-only tokens) | `format: time` |
 | `date_format` with date+time tokens | `format: date-time` |

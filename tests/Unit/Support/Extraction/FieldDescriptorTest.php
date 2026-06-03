@@ -146,3 +146,28 @@ it('nullable scalar widens type array without oneOf wrapping', function (): void
 });
 
 // endregion
+
+// region multipleOf wiring (#83)
+
+it('writes a non-null multipleOf onto the target schema', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'integer';
+    $descriptor->multipleOf = 5;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->multipleOf)->toBe(5);
+});
+
+it('leaves multipleOf undefined when the descriptor does not set it', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'integer';
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect(isUndefined($target->multipleOf))->toBeTrue();
+});
+
+// endregion

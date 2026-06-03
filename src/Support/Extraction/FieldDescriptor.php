@@ -76,6 +76,11 @@ final class FieldDescriptor
     public int|float|null $maximum = null;
 
     /**
+     * Numeric multiple-of constraint (from the `multiple_of:N` rule).
+     */
+    public int|float|null $multipleOf = null;
+
+    /**
      * Array minimum items (set when type is array).
      */
     public ?int $minItems = null;
@@ -169,6 +174,10 @@ final class FieldDescriptor
 
         if ($this->maximum !== null) {
             $target->maximum = $this->maximum;
+        }
+
+        if ($this->multipleOf !== null) {
+            $target->multipleOf = $this->multipleOf;
         }
 
         if ($this->minItems !== null) {
