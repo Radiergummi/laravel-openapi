@@ -19,7 +19,7 @@ this page is the at-a-glance summary.
 | `output_path` | Absolute path the `openapi:generate` command writes to and the spec route serves from. Defaults to `storage_path('openapi.yaml')`. |
 | `exception_responses` | Maps exception FQCNs (or short names) to `['status', 'description']`. See [precedence](#exception-response-precedence) below. |
 | `middleware_responses` | 401/403/429 responses keyed by Laravel middleware alias (`auth`/`scope`/`throttle`) — only fills status codes no `@throws`-derived response already supplied. |
-| `security_schemes` | Custom OpenAPI security schemes. Merged with the Passport-derived defaults; config wins on key collision. See [Recipes → Declare custom security schemes](recipes.md#declare-custom-security-schemes). |
+| `security_schemes` | Custom OpenAPI security schemes. Merged with the auto-derived defaults (Passport's OAuth2 flows; a `sanctum` http/bearer scheme when any route uses `auth:sanctum`); config wins on key collision. See [Recipes → Declare custom security schemes](recipes.md#declare-custom-security-schemes). |
 | `security_default_scheme` | Default scheme name targeted by scope-only `#[Security]` requirements when no `scheme:` is passed. |
 | `plugins` | Ordered list of `Plugin` class-strings. Ships with `SpatieDataPlugin` and `ApiResourcesPlugin` enabled; `QueryBuilderPlugin` and `FractalPlugin` shipped commented out. |
 | `request_payload_indirection` | Base classes whose constructors are also scanned for Data-class parameters. See [Request bodies → Indirect request payloads](request-bodies.md#indirect-request-payloads). |

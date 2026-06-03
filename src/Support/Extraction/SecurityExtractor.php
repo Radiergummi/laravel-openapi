@@ -10,12 +10,14 @@ use Illuminate\Routing\Router;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 
+use function array_any;
 use function array_key_first;
 use function array_unique;
 use function array_values;
 use function class_exists;
 use function config;
 use function explode;
+use function in_array;
 use function is_array;
 use function is_string;
 use function str_starts_with;
@@ -25,14 +27,17 @@ use function substr;
  * Builds the security schemes for the OpenAPI document and derives per-operation `security`
  * requirements from route middleware.
  *
- * Two sources contribute to the scheme catalogue:
+ * Three sources contribute to the scheme catalogue:
  *
  * 1. The `openapi.security_schemes` config map. Each entry maps a scheme name to the OAS 3.1
  *    security-scheme shape; the array is passed through to {@see OA\SecurityScheme} unchanged.
  * 2. Passport's `oauth2` / `oauth2ClientCredentials` Authorization-Code and Client-Credentials
  *    flows, auto-derived when Laravel Passport is installed and its routes are registered.
+ * 3. A Sanctum `sanctum` http/bearer scheme, auto-derived when any discovered route carries the
+ *    `auth:sanctum` middleware token. Detection keys off the token, not `class_exists`, because
+ *    Sanctum ships by default in fresh Laravel apps and is not always used for API auth.
  *
- * Config entries win on name collision. When neither source yields a scheme the catalogue is
+ * Config entries win on name collision. When no source yields a scheme the catalogue is
  * empty — the generator still emits a valid document; operations simply reference whatever
  * scheme names callers point at via `#[Security(scheme:)]`.
  *
@@ -40,9 +45,9 @@ use function substr;
  * middleware. Routes with `auth:api` but no `scope:*` middleware emit an empty scope list —
  * meaning "a valid token is required but no specific scope is checked". This is distinct from
  * `security: []` (public). Routes with neither auth nor scope middleware emit `security: []`.
- * A route that *is* authed but for which no scheme can be derived (e.g. `auth:sanctum` with no
- * matching scheme) returns `null` so the caller omits `security` entirely — emitting `[]` there
- * would mislabel a protected route as public.
+ * A route that *is* authed but for which no scheme can be derived (e.g. `auth:web` with Passport
+ * absent and no config scheme) returns `null` so the caller omits `security` entirely — emitting
+ * `[]` there would mislabel a protected route as public.
  *
  * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
  * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
@@ -56,6 +61,8 @@ final class SecurityExtractor
 
     private const string SCHEME_CLIENT_CREDENTIALS = 'oauth2ClientCredentials';
 
+    private const string SCHEME_SANCTUM = 'sanctum';
+
     private const int MAX_GROUP_EXPANSION_DEPTH = 10;
 
     /**
@@ -66,6 +73,15 @@ final class SecurityExtractor
      * the time generation starts, and the config catalogue is read once per process.
      */
     private ?bool $passportAvailable = null;
+
+    /**
+     * Whether any discovered route carries the `auth:sanctum` middleware token — the only
+     * reliable signal that Sanctum is used for API auth. Detection is deliberately not
+     * `class_exists(Sanctum::class)`: Sanctum ships by default in fresh Laravel apps, so class
+     * presence would register an unreferenced scheme in the majority of apps that don't use it.
+     * Lazily computed and cached for the run, like {@see $passportAvailable}.
+     */
+    private ?bool $sanctumInUse = null;
 
     /** @var ?array<string, array<int, string>> */
     private ?array $middlewareGroups = null;
@@ -87,6 +103,10 @@ final class SecurityExtractor
         $schemes = [];
 
         foreach ($this->passportSchemes() as $scheme) {
+            $schemes[$scheme->securityScheme] = $scheme;
+        }
+
+        foreach ($this->sanctumSchemes() as $scheme) {
             $schemes[$scheme->securityScheme] = $scheme;
         }
 
@@ -152,6 +172,37 @@ final class SecurityExtractor
     }
 
     /**
+     * The Sanctum-derived bearer scheme, returned only when a route actually uses
+     * `auth:sanctum`. Sanctum tokens are opaque `id|plaintext` strings, not JWTs, so no
+     * `bearerFormat` is set.
+     *
+     * @return list<OA\SecurityScheme>
+     */
+    private function sanctumSchemes(): array
+    {
+        if (!$this->sanctumInUse()) {
+            return [];
+        }
+
+        return [
+            new OA\SecurityScheme([
+                'securityScheme' => self::SCHEME_SANCTUM,
+                'type' => 'http',
+                'scheme' => 'bearer',
+                'description' => 'Laravel Sanctum bearer token.',
+            ]),
+        ];
+    }
+
+    private function sanctumInUse(): bool
+    {
+        return $this->sanctumInUse ??= array_any(
+            $this->router->getRoutes()->getRoutes(),
+            fn(Route $route): bool => in_array('auth:sanctum', $this->expandedMiddlewareFor($route), true),
+        );
+    }
+
+    /**
      * @return array<string, string>
      */
     private function allScopes(): array
@@ -206,10 +257,7 @@ final class SecurityExtractor
      */
     public function forRoute(Route $route): ?array
     {
-        $middleware = $this->expandGroups(
-            array_values($route->gatherMiddleware()),
-            $this->middlewareGroups(),
-        );
+        $middleware = $this->expandedMiddlewareFor($route);
         $scopes = $this->extractScopes($middleware);
         $hasAuth = $this->hasAuthMiddleware($middleware);
 
@@ -222,6 +270,16 @@ final class SecurityExtractor
         // No derivable scheme for an authed/scoped route: return null to omit `security`
         // (not `[]`, which means public), so `operation.security-missing` can fire.
         return $requirement === [] ? null : $requirement;
+    }
+
+    /**
+     * Gathers a route's middleware and expands any group names to their members.
+     *
+     * @return list<string>
+     */
+    private function expandedMiddlewareFor(Route $route): array
+    {
+        return $this->expandGroups(array_values($route->gatherMiddleware()), $this->middlewareGroups());
     }
 
     /**
@@ -336,11 +394,19 @@ final class SecurityExtractor
             return $this->defaultSchemeNames = $configured;
         }
 
+        $autoDerived = [];
+
         if ($this->passportAvailable()) {
-            return $this->defaultSchemeNames = [
-                self::SCHEME_AUTHORIZATION_CODE,
-                self::SCHEME_CLIENT_CREDENTIALS,
-            ];
+            $autoDerived[] = self::SCHEME_AUTHORIZATION_CODE;
+            $autoDerived[] = self::SCHEME_CLIENT_CREDENTIALS;
+        }
+
+        if ($this->sanctumInUse()) {
+            $autoDerived[] = self::SCHEME_SANCTUM;
+        }
+
+        if ($autoDerived !== []) {
+            return $this->defaultSchemeNames = $autoDerived;
         }
 
         $first = array_key_first($this->configSchemes());

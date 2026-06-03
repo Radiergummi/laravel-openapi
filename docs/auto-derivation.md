@@ -12,7 +12,7 @@ source.
 | `operationId` | Route name, or `{method}_{sanitized_path}`. |
 | Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. |
-| Security | `auth:*` / `scope:*` middleware → a per-operation `security` requirement against the derived scheme(s) (Passport's OAuth2 flows, or `openapi.security_schemes`). When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
+| Security | `auth:*` / `scope:*` middleware → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
 | Error responses | `@throws ExceptionClass` → status codes; `auth`/`scope`/`throttle` middleware → 401 / 403 / 429. |
 | Validation constraints | `Data::rules()` and Spatie validation attributes → `maxLength`, `minLength`, `pattern`, `enum`, `format`, `minimum`/`maximum`, `minItems`/`maxItems`. |
 
