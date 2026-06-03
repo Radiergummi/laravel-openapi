@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -187,6 +188,10 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
                             $e::class,
                             $descriptor->status,
                             $e->getMessage(),
+                        ),
+                        location: new FindingLocation(
+                            routeName: $descriptor->action?->route->getName(),
+                            routeUri: $descriptor->action?->route->uri(),
                         ),
                         fixHint: self::RESOLVER_FAILED_FIX_HINT,
                         context: [
