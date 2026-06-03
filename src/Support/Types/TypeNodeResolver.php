@@ -13,6 +13,7 @@ use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use ReflectionClass;
 use ReflectionMethod;
 use Reflector;
+use Symfony\Component\TypeInfo\Type\CollectionType;
 use Symfony\Component\TypeInfo\Type\ObjectType;
 use Symfony\Component\TypeInfo\TypeContext\TypeContext;
 use Symfony\Component\TypeInfo\TypeContext\TypeContextFactory;
@@ -105,26 +106,58 @@ final class TypeNodeResolver
     }
 
     /**
+     * Descends through a single nullable wrapper to reach the inner type node:
+     * - `?T`       → `T`
+     * - `T|null`   → `T`  (only when there is exactly one non-null member)
+     * - anything else → returned unchanged
+     *
+     * Shared by {@see resolveClassName()} and {@see EloquentModelToSchema} so the
+     * null-unwrap logic has a single canonical implementation.
+     */
+    public function unwrapNullable(TypeNode $node): TypeNode
+    {
+        if ($node instanceof NullableTypeNode) {
+            return $node->type;
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            $nonNull = null;
+
+            foreach ($node->types as $member) {
+                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
+                    continue;
+                }
+
+                if ($nonNull !== null) {
+                    // Multi-class union — not a simple nullable; return unchanged.
+                    return $node;
+                }
+
+                $nonNull = $member;
+            }
+
+            return $nonNull ?? $node;
+        }
+
+        return $node;
+    }
+
+    /**
      * Resolves the FQCN (no leading backslash) of a type node that denotes a single
      * class — unwrapping a leading `?` or a `T|null` union first. Returns null for
      * scalar keywords, generics, arrays, or unresolvable identifiers.
      */
     public function resolveClassName(TypeNode $node, Reflector $context): ?string
     {
-        if ($node instanceof NullableTypeNode) {
-            return $this->resolveClassName($node->type, $context);
-        }
+        $inner = $this->unwrapNullable($node);
 
-        if ($node instanceof UnionTypeNode) {
-            foreach ($node->types as $member) {
-                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
-                    continue;
-                }
-
-                return $this->resolveClassName($member, $context);
-            }
-
-            return null;
+        // If unwrapNullable returned the same node, it is either:
+        //   (a) a plain IdentifierTypeNode needing no unwrap — handled by the identifier check below, or
+        //   (b) a multi-member union that cannot resolve to a single class — the instanceof check returns null.
+        if ($inner !== $node) {
+            return $inner instanceof IdentifierTypeNode
+                ? $this->resolveClass($inner, $context)
+                : null;
         }
 
         return $node instanceof IdentifierTypeNode
@@ -154,9 +187,17 @@ final class TypeNodeResolver
             }
         }
 
-        return $type instanceof ObjectType
-            ? ltrim($type->getClassName(), '\\')
-            : null;
+        if ($type instanceof ObjectType) {
+            return ltrim($type->getClassName(), '\\');
+        }
+
+        // symfony/type-info wraps same-namespace class identifiers (no `use` import needed) in a
+        // CollectionType whose inner wrapped type is the ObjectType — unwrap one level.
+        if ($type instanceof CollectionType && $type->getWrappedType() instanceof ObjectType) {
+            return ltrim($type->getWrappedType()->getClassName(), '\\');
+        }
+
+        return null;
     }
 
     private function contextFor(Reflector $context): ?TypeContext

@@ -24,6 +24,7 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
+use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_diff;
@@ -32,6 +33,7 @@ use function array_keys;
 use function array_merge;
 use function array_unique;
 use function array_values;
+use function class_exists;
 use function enum_exists;
 use function explode;
 use function in_array;
@@ -55,10 +57,8 @@ final class EloquentModelToSchema
         private readonly ComponentSchemaRegistry $registry,
         private readonly JsonSchemaFromType $jsonSchemaFromType,
         private readonly TypeResolver $typeResolver,
-        // @phpstan-ignore property.onlyWritten (injected now for constructor stability; used by later @property/relation tasks)
         private readonly TypeNodeResolver $typeNodeResolver,
         private readonly DocBlockParser $docBlockParser,
-        // @phpstan-ignore property.onlyWritten (injected now for constructor stability; used by later relation/logging tasks)
         private readonly LoggerInterface $logger,
     ) {}
 
@@ -149,7 +149,7 @@ final class EloquentModelToSchema
             $tag = $propertyTags[$name] ?? null;
 
             if ($tag !== null) {
-                $property = $this->propertyFromTag($name, $tag->type);
+                $property = $this->propertyFromTag($name, $tag->type, $reflection);
 
                 if ($property !== null) {
                     $properties[] = $property;
@@ -194,11 +194,21 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Builds an OA\Property from a docblock type node for scalar types.
-     * Returns null when the type is a class, generic, array, or otherwise
-     * not a recognised scalar keyword — those fall through to the empty fallback.
+     * Builds an OA\Property from a docblock type node.
+     *
+     * Precedence:
+     * 1. Scalar keyword → inline type definition.
+     * 2. Eloquent Model class → `$ref` to the related model's component schema (recursive, cycle-guarded).
+     * 3. Non-model class (e.g. Carbon, UuidInterface) → schema via JsonSchemaFromType::fromType.
+     * 4. Unresolvable node → returns null, caller falls through to the empty fallback.
+     *
+     * Nullability is preserved on all paths.
+     *
+     * @param ReflectionClass<Model> $reflection
+     *
+     * @throws ReflectionException
      */
-    private function propertyFromTag(string $name, TypeNode $node): ?OA\Property
+    private function propertyFromTag(string $name, TypeNode $node, ReflectionClass $reflection): ?OA\Property
     {
         $identifier = $this->unwrapToIdentifier($node);
 
@@ -208,11 +218,38 @@ final class EloquentModelToSchema
 
         $definition = $this->scalarTypeDefinition($identifier->name);
 
-        if ($definition === null) {
+        if ($definition !== null) {
+            $property = new OA\Property(['property' => $name, ...$definition]);
+
+            if ($this->isNullable($node)) {
+                $property->nullable = true;
+            }
+
+            return $property;
+        }
+
+        // Not a scalar — try to resolve the identifier as a class name.
+        $className = $this->typeNodeResolver->resolveClassName($node, $reflection);
+
+        if ($className === null || ! class_exists($className)) {
+            $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
+                'model' => $reflection->getName(),
+                'property' => $name,
+                'type' => (string) $node,
+            ]);
+
             return null;
         }
 
-        $property = new OA\Property(['property' => $name, ...$definition]);
+        if (is_a($className, Model::class, allow_string: true)) {
+            /** @var class-string<Model> $className */
+            $key = $this->build($className);
+            $schema = new OA\Schema(['ref' => $this->registry->qualifyKey($key)]);
+        } else {
+            $schema = $this->jsonSchemaFromType->fromType(Type::object($className));
+        }
+
+        $property = $this->propertyFromSchema($name, $schema);
 
         if ($this->isNullable($node)) {
             $property->nullable = true;
@@ -224,37 +261,18 @@ final class EloquentModelToSchema
     /**
      * Unwraps a nullable or union-with-null wrapper to reach the inner
      * IdentifierTypeNode. Returns null for compound/generic/array nodes.
+     *
+     * Uses {@see TypeNodeResolver::unwrapNullable()} as the shared primitive for
+     * the nullable-descend step.
+     *
+     * Scalar fast-path: yields the bare IdentifierTypeNode so the scalar keyword check
+     * can run before resolveClassName() (class path) is tried on the original node.
      */
     private function unwrapToIdentifier(TypeNode $node): ?IdentifierTypeNode
     {
-        if ($node instanceof IdentifierTypeNode) {
-            return $node;
-        }
+        $inner = $this->typeNodeResolver->unwrapNullable($node);
 
-        if ($node instanceof NullableTypeNode) {
-            return $this->unwrapToIdentifier($node->type);
-        }
-
-        if ($node instanceof UnionTypeNode) {
-            $nonNull = null;
-
-            foreach ($node->types as $member) {
-                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
-                    continue;
-                }
-
-                if ($nonNull !== null) {
-                    // More than one non-null member — not a simple nullable scalar.
-                    return null;
-                }
-
-                $nonNull = $member;
-            }
-
-            return $nonNull instanceof IdentifierTypeNode ? $nonNull : null;
-        }
-
-        return null;
+        return $inner instanceof IdentifierTypeNode ? $inner : null;
     }
 
     /**

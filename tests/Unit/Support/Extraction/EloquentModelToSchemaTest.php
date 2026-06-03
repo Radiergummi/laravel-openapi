@@ -97,3 +97,25 @@ it('types an $appends accessor from its return type', function (): void {
 
     expect($schema['properties']['reading_time']['type'])->toBe('integer');
 });
+
+it('emits a $ref for a @property-read model relation and registers the nested component', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $logger = new NullLogger();
+
+    $reader = new EloquentModelToSchema(
+        registry: $registry,
+        jsonSchemaFromType: new JsonSchemaFromType($logger),
+        typeResolver: TypeResolver::create(),
+        typeNodeResolver: TypeNodeResolver::create(),
+        docBlockParser: DocBlockParser::create(),
+        logger: $logger,
+    );
+
+    $reader->build(Article::class);
+
+    $article = json_decode(json_encode(collect($registry->all())->firstWhere('schema', 'Article')), true);
+    $authorRegistered = collect($registry->all())->firstWhere('schema', 'Author');
+
+    expect($article['properties']['author']['$ref'])->toBe('#/components/schemas/Author')
+        ->and($authorRegistered)->not->toBeNull();
+});
