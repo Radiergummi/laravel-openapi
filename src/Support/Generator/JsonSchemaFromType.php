@@ -14,9 +14,7 @@ use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\UuidInterface;
-use ReflectionEnum;
 use ReflectionEnumBackedCase;
-use ReflectionException;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\Type\BackedEnumType;
 use Symfony\Component\TypeInfo\Type\BuiltinType;
@@ -31,6 +29,7 @@ use function array_map;
 use function explode;
 use function implode;
 use function is_a;
+use function is_int;
 use function ltrim;
 use function preg_replace;
 use function sprintf;
@@ -53,9 +52,6 @@ final readonly class JsonSchemaFromType
         private LoggerInterface $logger,
     ) {}
 
-    /**
-     * @throws ReflectionException
-     */
     public function fromType(Type $type): OA\Schema
     {
         // NullableType MUST come before UnionType (it extends it).
@@ -115,12 +111,11 @@ final readonly class JsonSchemaFromType
      * comes from a cast string rather than a resolved type tree.
      *
      * @param class-string<BackedEnum> $enumClass
-     *
-     * @throws ReflectionException
      */
     public function fromBackedEnumClass(string $enumClass): OA\Schema
     {
-        $isInt = (new ReflectionEnum($enumClass))->getBackingType()?->getName() === 'int';
+        $cases = $enumClass::cases();
+        $isInt = $cases !== [] && is_int($cases[0]->value);
 
         $props = [
             'type' => $isInt ? 'integer' : 'string',
