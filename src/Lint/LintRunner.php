@@ -38,14 +38,19 @@ use UnexpectedValueException;
 use function array_filter;
 use function array_keys;
 use function array_merge;
+use function array_pop;
 use function array_unique;
 use function array_values;
 use function class_exists;
 use function in_array;
 use function is_array;
+use function is_string;
 use function ltrim;
 use function max;
+use function preg_match;
+use function property_exists;
 use function Radiergummi\OpenApi\is_defined;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Orchestrates one lint run against the application's routes.
@@ -171,6 +176,16 @@ final readonly class LintRunner
         // restricts $document->paths before walking, but stage-emitted findings bypass that gate.
         $allowedRouteUris = null;
 
+        // Schema-derived generation-time findings (rule.unknown, rule.invalid-enum-value,
+        // request-body.schema-degraded) carry no routeUri — the schema is built once and shared
+        // across routes — so they cannot be scoped by URI. Instead they are scoped by reachability:
+        // $allowedSchemaClasses holds the component classes referenced by in-scope routes, and
+        // $allComponentClasses holds every component class seen (the confidence gate that stops us
+        // dropping a finding whose source class we cannot place as a component). Both are populated
+        // per spec inside the loop below, and only consulted when a route filter is active.
+        $allowedSchemaClasses = [];
+        $allComponentClasses = [];
+
         if ($options->path !== null || $options->diffEnabled) {
             $allowedRouteUris = [];
 
@@ -232,6 +247,18 @@ final readonly class LintRunner
             $liveRegistry = $this->container->make(ComponentSchemaRegistry::class);
             $classMap = $liveRegistry->componentClassMap();
 
+            // Accumulate the schema-class scoping sets for this spec's document before the tree
+            // walk restricts $document->paths in place.
+            if ($allowedRouteUris !== null) {
+                foreach ($classMap as $componentClass) {
+                    $allComponentClasses[$componentClass] = true;
+                }
+
+                foreach (array_keys($this->reachableComponentClasses($document, $allowedRouteUris, $classMap)) as $class) {
+                    $allowedSchemaClasses[$class] = true;
+                }
+            }
+
             $componentDirectives = $this->suppressionCollector->collectFromComponentSchemas($classMap);
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
@@ -262,12 +289,25 @@ final readonly class LintRunner
         if ($allowedRouteUris !== null) {
             $findings = array_filter(
                 $findings,
-                static function (Finding $finding) use ($allowedRouteUris): bool {
+                static function (Finding $finding) use ($allowedRouteUris, $allowedSchemaClasses, $allComponentClasses): bool {
                     $uri = $finding->location->routeUri;
 
-                    // Non-route-scoped findings (pre-build, spec-level) are always kept.
-                    return $uri === null
-                        || isset($allowedRouteUris[ltrim($uri, '/')]);
+                    if ($uri !== null) {
+                        return isset($allowedRouteUris[ltrim($uri, '/')]);
+                    }
+
+                    // No routeUri: this is either a schema-derived generation finding (scope it by
+                    // the schema's reachability from in-scope routes) or a genuinely route-agnostic
+                    // finding (pre-build, spec-level — always kept). A source class we don't
+                    // recognise as a component is treated as route-agnostic and kept, so an
+                    // in-scope finding is never hidden because we couldn't place its schema.
+                    $sourceClass = $finding->context['source_class'] ?? null;
+
+                    if (is_string($sourceClass) && isset($allComponentClasses[$sourceClass])) {
+                        return isset($allowedSchemaClasses[$sourceClass]);
+                    }
+
+                    return true;
                 },
             );
         }
@@ -529,5 +569,109 @@ final readonly class LintRunner
                 );
             }),
         );
+    }
+
+    /**
+     * Component classes reachable from the in-scope operations, transitively through
+     * component-to-component `$ref`s. Schema-derived findings are class-keyed (a FormRequest or
+     * Data class is built once and `$ref`'d by many routes), so they are scoped by membership in
+     * this set rather than by a single routeUri.
+     *
+     * Seeding from in-scope path items only — not the whole document, whose component pool still
+     * holds out-of-scope schemas — keeps a schema in scope exactly when an in-scope route reaches
+     * it.
+     *
+     * @param array<string, true>         $allowedRouteUris  in-scope route URIs, leading slash trimmed
+     * @param array<string, class-string> $componentClassMap component schema name → class
+     *
+     * @return array<class-string, true>
+     */
+    private function reachableComponentClasses(
+        OA\OpenApi $document,
+        array $allowedRouteUris,
+        array $componentClassMap,
+    ): array {
+        $componentsByName = [];
+
+        if ($document->components !== null && is_array($document->components->schemas)) {
+            foreach ($document->components->schemas as $schema) {
+                if (is_string($schema->schema)) {
+                    $componentsByName[$schema->schema] = $schema;
+                }
+            }
+        }
+
+        $reachable = [];
+        $queue = [];
+
+        foreach (is_array($document->paths) ? $document->paths : [] as $pathItem) {
+            if (!is_defined($pathItem->path)
+                || !is_string($pathItem->path)
+                || !isset($allowedRouteUris[ltrim($pathItem->path, '/')])) {
+                continue;
+            }
+
+            foreach (self::refSchemaNames($pathItem) as $name) {
+                if (!isset($reachable[$name])) {
+                    $reachable[$name] = true;
+                    $queue[] = $name;
+                }
+            }
+        }
+
+        while ($queue !== []) {
+            $component = $componentsByName[array_pop($queue)] ?? null;
+
+            if ($component === null) {
+                continue;
+            }
+
+            foreach (self::refSchemaNames($component) as $next) {
+                if (!isset($reachable[$next])) {
+                    $reachable[$next] = true;
+                    $queue[] = $next;
+                }
+            }
+        }
+
+        $classes = [];
+
+        foreach (array_keys($reachable) as $name) {
+            $class = $componentClassMap[$name] ?? null;
+
+            if ($class !== null) {
+                $classes[$class] = true;
+            }
+        }
+
+        return $classes;
+    }
+
+    /**
+     * Schema-component names referenced via `$ref` anywhere within the given annotation subtree.
+     *
+     * @return list<string>
+     */
+    private static function refSchemaNames(OA\AbstractAnnotation $root): array
+    {
+        $names = [];
+
+        AnnotationWalker::walk($root, static function (OA\AbstractAnnotation $annotation) use (&$names): void {
+            if (!property_exists($annotation, 'ref')) {
+                return;
+            }
+
+            $ref = $annotation->ref;
+
+            if (is_undefined($ref) || $ref === null || !is_string($ref)) {
+                return;
+            }
+
+            if (preg_match('~^#/components/schemas/(.+)$~', $ref, $matches) === 1) {
+                $names[] = $matches[1];
+            }
+        });
+
+        return $names;
     }
 }

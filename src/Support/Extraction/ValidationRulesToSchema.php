@@ -337,7 +337,7 @@ final readonly class ValidationRulesToSchema
         }
 
         if ($rule instanceof SelfDocumentingRule) {
-            $this->applySelfDocumentingRule($rule, $field);
+            $this->applySelfDocumentingRule($rule, $field, $sourceClass);
 
             return;
         }
@@ -932,6 +932,7 @@ final readonly class ValidationRulesToSchema
     private function applySelfDocumentingRule(
         SelfDocumentingRule $rule,
         FieldDescriptor $field,
+        ?string $sourceClass = null,
     ): void {
         $doc = $rule->documentation();
 
@@ -973,7 +974,7 @@ final readonly class ValidationRulesToSchema
                             $rule::class,
                         ),
                         fixHint: 'Return enum values as int|float|string from RuleDocumentation::$enum.',
-                        context: ['rule_class' => $rule::class],
+                        context: ['rule_class' => $rule::class, 'source_class' => $sourceClass],
                     ),
                 );
             }

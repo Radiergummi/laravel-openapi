@@ -266,6 +266,21 @@ it('--path filter scopes extractor findings that carry no routeUri', function ()
     expect($leaked)->toBeEmpty();
 });
 
+it('--path keeps a schema finding when an in-scope route shares the schema', function (): void {
+    // The same FormRequest backs an in-scope and an out-of-scope route. Its rule.unknown finding
+    // is schema-keyed (no routeUri) and must stay visible: the in-scope route references the
+    // schema, so scoping must not silently drop a finding that belongs to the requested slice.
+    Route::post('shared-fixtures/in-scope', [UnknownRuleController::class, 'store'])->name('shared.in-scope');
+    Route::post('shared-fixtures/out-scope', [UnknownRuleController::class, 'store'])->name('shared.out-scope');
+
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, path: 'shared-fixtures/in-scope'));
+    $kept = array_filter(
+        $filtered->findings,
+        static fn($f) => $f->ruleId === 'rule.unknown',
+    );
+    expect($kept)->not->toBeEmpty();
+});
+
 it('cannot disable spec.invalid via config disabled_rules', function (): void {
     config(['openapi.lint.disabled_rules' => ['spec.invalid']]);
 
