@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 
 use function array_key_exists;
+use function array_map;
 use function array_merge;
 use function array_pad;
 use function array_unique;
@@ -37,21 +38,28 @@ use function is_string;
 use function ltrim;
 use function preg_match;
 use function preg_replace;
+use function sprintf;
 use function str_contains;
 use function str_ends_with;
 use function str_getcsv;
+use function str_replace;
 use function strpbrk;
+use function strpos;
+use function strrpos;
 use function strtolower;
 use function substr;
 use function substr_count;
 use function trim;
 
+use const PHP_EOL;
+use const SORT_REGULAR;
+
 /**
  * Maps Laravel validation rules to JSON Schema field descriptors.
  *
- * Accepts the raw `rules()` output — pipe-string (`'required|string|max:250'`) or array form
- * (`['required', 'string', Rule::in([…]]`) — and produces one {@see FieldDescriptor} per field.
- * Unknown rule objects emit a {@see Finding} with rule ID `rule.unknown` instead of being
+ * Accepts the raw `rules()` output — pipe-string (`'required|string|max:250'`) or array
+ * form (`['required', 'string', Rule::in([…]]`) — and produces one {@see FieldDescriptor} per
+ * field. Unknown rule objects emit a {@see Finding} with rule ID `rule.unknown` instead of being
  * silently dropped.
  */
 #[Scoped]
@@ -62,10 +70,10 @@ final readonly class ValidationRulesToSchema
     ) {}
 
     /**
-     * Collapses numeric path segments to `*` (`tags.0` → `tags.*`, `items.0.price` → `items.*.price`).
+     * Collapses numeric path segments (`tags.0` → `tags.*`, `items.0.price` → `items.*.price`).
      *
      * The Spatie `DataValidationRulesResolver` emits concrete indices because it iterates over the
-     * synthetic payload; schema generation needs wildcard paths. When two normalised paths collide,
+     * synthetic payload; schema generation needs wildcard paths. When two normalized paths collide,
      * their rule lists are merged. Idempotent — already-wildcarded paths pass through unchanged.
      *
      * @param array<string, array<int, mixed>|string> $rules
@@ -104,10 +112,16 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
+     * Normalizes the given rules into a format suitable for {@see self::process()}.
+     *
      * @param array<string, array<int, mixed>|string> $rules
      *
-     * @return array{fields: array<string, FieldDescriptor>, itemsFields: array<string, FieldDescriptor>,
-     *                       additionalPropertiesField: ?FieldDescriptor, hasDottedKeys: bool}
+     * @return array{
+     *     fields: array<string, FieldDescriptor>,
+     *     itemsFields: array<string, FieldDescriptor>,
+     *     additionalPropertiesField: ?FieldDescriptor,
+     *     hasDottedKeys: bool
+     * }
      */
     public function process(array $rules, ?string $sourceClass = null): array
     {
@@ -119,25 +133,33 @@ final readonly class ValidationRulesToSchema
         foreach ($rules as $field => $fieldRules) {
             // A field's ruleset may be a bare Rule object (`'x' => new SomeRule`) rather than a
             // pipe-string or array — Laravel permits this. Wrap it so it flows through the same
-            // path as an in-array rule object; an unintrospectable object then yields a bare
+            // path as an in-array rule object; an un-introspectable object then yields a bare
             // descriptor (and a `rule.unknown` finding) instead of a TypeError.
             if (!is_string($fieldRules) && !is_array($fieldRules)) {
                 $fieldRules = [$fieldRules];
             }
 
-            // A bare `*` rule key applies to every value in the request body — model this as
-            // JSON Schema's `additionalProperties` rather than emitting a property literally
-            // named `*` (which is OAS-meaningless and trips downstream lint rules).
+            // A bare `*` rule key applies to every value in the request body — model this as JSON
+            // Schema's `additionalProperties` rather than emitting a property literally named
+            // `*` (which is OAS-meaningless and trips downstream lint rules).
             if ($field === '*') {
                 $normalized = $this->normalizeRules($fieldRules);
-                $additionalPropertiesField = $this->mapRules($normalized, $field, $sourceClass);
+                $additionalPropertiesField = $this->mapRules(
+                    $normalized,
+                    $field,
+                    $sourceClass,
+                );
 
                 continue;
             }
 
             if (!str_contains($field, '.')) {
                 $normalized = $this->normalizeRules($fieldRules);
-                $fields[$field] = $this->mapRules($normalized, $field, $sourceClass);
+                $fields[$field] = $this->mapRules(
+                    $normalized,
+                    $field,
+                    $sourceClass,
+                );
 
                 continue;
             }
@@ -149,7 +171,11 @@ final readonly class ValidationRulesToSchema
             if (substr_count($field, '.') === 1 && str_ends_with($field, '.*')) {
                 $parent = substr($field, 0, -2);
                 $normalized = $this->normalizeRules($fieldRules);
-                $itemsFields[$parent] = $this->mapRules($normalized, $parent, $sourceClass);
+                $itemsFields[$parent] = $this->mapRules(
+                    $normalized,
+                    $parent,
+                    $sourceClass,
+                );
             }
         }
 
@@ -196,8 +222,11 @@ final readonly class ValidationRulesToSchema
      *
      * @param list<object|string> $rules
      */
-    private function mapRules(array $rules, string $field = '', ?string $sourceClass = null): FieldDescriptor
-    {
+    private function mapRules(
+        array $rules,
+        string $field = '',
+        ?string $sourceClass = null,
+    ): FieldDescriptor {
         $descriptor = new FieldDescriptor();
 
         /** @var list<array{name: string, arg: string}> $deferred */
@@ -205,7 +234,12 @@ final readonly class ValidationRulesToSchema
 
         foreach ($rules as $rule) {
             if (is_object($rule)) {
-                $this->applyObjectRule($rule, $descriptor, $field, $sourceClass);
+                $this->applyObjectRule(
+                    $rule,
+                    $descriptor,
+                    $field,
+                    $sourceClass,
+                );
 
                 continue;
             }
@@ -237,7 +271,7 @@ final readonly class ValidationRulesToSchema
      * Maps a Laravel Rule object to schema constraints using only public APIs.
      *
      * `In`, `Enum` and `Dimensions` implement `Stringable`; their `__toString()` output is the
-     * documented serialisation Laravel itself feeds to the validator (`Enum::__toString()` even
+     * documented serialization Laravel itself feeds to the validator (`Enum::__toString()` even
      * resolves `only()`/`except()` for us). It is re-dispatched through the string-rule path
      * rather than reflecting into protected state, so a renamed internal property cannot silently
      * break extraction.
@@ -368,7 +402,7 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * `present` requires the key to be present in the input, but says nothing about nullability.
+     * `present` requires the key to be present in the input but says nothing about nullability.
      * Express this as required only; nullable must come from an explicit `nullable` rule.
      */
     private function applyPresent(FieldDescriptor $field): void
@@ -440,7 +474,7 @@ final readonly class ValidationRulesToSchema
 
     /**
      * Maps `hex_color` to a pattern. No standard `format` exists; the pattern matches a six-digit
-     * hex colour with an optional leading `#`.
+     * hex color with an optional leading `#`.
      */
     private function applyHexColor(FieldDescriptor $field): void
     {
@@ -495,11 +529,11 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Strips the PCRE delimiter pair and trailing flags, producing a raw ECMA
-     * pattern suitable for OAS `pattern`.
+     * Strips the PCRE delimiter pair and trailing flags, producing a raw ECMA pattern suitable for
+     * OAS `pattern`.
      *
-     * Laravel supports any non-alphanumeric delimiter; the most common is `/`.
-     * On parse failure, the rule is silently dropped.
+     * Laravel supports any non-alphanumeric delimiter; the most common is `/`. On parse failure,
+     * the rule is silently dropped.
      */
     private function applyRegex(FieldDescriptor $field, string $raw): void
     {
@@ -732,7 +766,7 @@ final readonly class ValidationRulesToSchema
 
         return $parts === []
             ? ''
-            : 'Image dimensions: ' . implode(', ', $parts) . '.';
+            : sprintf('Image dimensions: %s.', implode(', ', $parts));
     }
 
     private function ruleName(string $rule): string
@@ -752,8 +786,8 @@ final readonly class ValidationRulesToSchema
     /**
      * Extracts constraints from a `Password` rule object.
      *
-     * JSON Schema has no built-in equivalents for character-class requirements (letters, mixed case,
-     * numbers, symbols) or the HaveIBeenPwned check. We emit:
+     * JSON Schema has no built-in equivalents for character-class requirements (letters, mixed
+     * case, numbers, symbols) or the HaveIBeenPwned check. We emit:
      * - `type: string` + `format: password` (signals "render as password input" to UI tooling).
      * - `minLength` from `Password::min(N)` (always present; defaults to 8 per Laravel).
      * - `maxLength` from `Password::max(N)` when set.
@@ -798,7 +832,10 @@ final readonly class ValidationRulesToSchema
         }
 
         if ($requirements !== []) {
-            $field->description = 'Must contain: ' . implode(', ', $requirements) . '.';
+            $field->description = sprintf(
+                'Must contain: %s.',
+                implode(', ', $requirements),
+            );
         }
     }
 
@@ -819,7 +856,7 @@ final readonly class ValidationRulesToSchema
     {
         return $existing === null || $existing === ''
             ? $addition
-            : $existing . ' ' . $addition;
+            : "{$existing} {$addition}";
     }
 
     private function applyExistsRule(Exists $rule, FieldDescriptor $field): void
@@ -873,8 +910,8 @@ final readonly class ValidationRulesToSchema
         $values = $this->ruleArg($serialised);
 
         // Strip the wrapping double-quotes that NotIn emits around each value (and any
-        // doubled-quote escapes) so the description reads naturally. The empty $escape is
-        // required on PHP 8.4+ where the backslash default was deprecated.
+        // doubled-quote escapes) so the description reads naturally. The empty $escape is required
+        // on PHP 8.4+ where the backslash default was deprecated.
         $parsed = array_map(
             static fn(?string $value): string
                 => $value === null
@@ -885,12 +922,17 @@ final readonly class ValidationRulesToSchema
 
         $field->description = $this->appendDescription(
             $field->description,
-            'Must not be one of: ' . implode(', ', $parsed) . '.',
+            sprintf(
+                'Must not be one of: %s.',
+                implode(', ', $parsed),
+            ),
         );
     }
 
-    private function applySelfDocumentingRule(SelfDocumentingRule $rule, FieldDescriptor $field): void
-    {
+    private function applySelfDocumentingRule(
+        SelfDocumentingRule $rule,
+        FieldDescriptor $field,
+    ): void {
         $doc = $rule->documentation();
 
         if ($doc->type !== null && $field->type === null) {
@@ -906,9 +948,9 @@ final readonly class ValidationRulesToSchema
         }
 
         if ($doc->enum !== null && $field->enum === null) {
-            // PHPStan-types `RuleDocumentation::$enum` as `list<float|int|string>|null`, but
-            // user code can ignore PHPStan. Filter at runtime so non-scalars don't propagate to
-            // swagger-php's YAML emitter (where they fail with an opaque serialisation error far
+            // PHPStan-types `RuleDocumentation::$enum` as `list<float|int|string>|null`, but user
+            // code can ignore PHPStan. Filter at runtime so non-scalars don't propagate to
+            // swagger-php's YAML emitter (where they fail with an opaque serialization error far
             // from the source).
             $sanitised = [];
             $rejected = false;
@@ -960,7 +1002,7 @@ final readonly class ValidationRulesToSchema
         if ($doc->description !== null) {
             $field->description = $field->description === null
                 ? $doc->description
-                : $field->description . "\n\n" . $doc->description;
+                : $field->description . PHP_EOL . PHP_EOL . $doc->description;
         }
     }
 
@@ -977,27 +1019,27 @@ final readonly class ValidationRulesToSchema
 
     private function applyMin(FieldDescriptor $field, string $arg): void
     {
-        $n = (int) $arg;
+        $min = (int) $arg;
 
         if ($field->type === 'integer' || $field->type === 'number') {
-            $field->minimum = $n;
+            $field->minimum = $min;
         } elseif ($field->type === 'array') {
-            $field->minItems = $n;
+            $field->minItems = $min;
         } else {
-            $field->minLength = $n;
+            $field->minLength = $min;
         }
     }
 
     private function applyMax(FieldDescriptor $field, string $arg): void
     {
-        $n = (int) $arg;
+        $max = (int) $arg;
 
         if ($field->type === 'integer' || $field->type === 'number') {
-            $field->maximum = $n;
+            $field->maximum = $max;
         } elseif ($field->type === 'array') {
-            $field->maxItems = $n;
+            $field->maxItems = $max;
         } else {
-            $field->maxLength = $n;
+            $field->maxLength = $max;
         }
     }
 
@@ -1006,24 +1048,26 @@ final readonly class ValidationRulesToSchema
         $parts = explode(',', $arg, 2);
 
         if (count($parts) === 2) {
-            $this->applyMin($field, trim($parts[0]));
-            $this->applyMax($field, trim($parts[1]));
+            [$min, $max] = $parts;
+
+            $this->applyMin($field, trim($min));
+            $this->applyMax($field, trim($max));
         }
     }
 
     private function applySize(FieldDescriptor $field, string $arg): void
     {
-        $n = (int) $arg;
+        $size = (int) $arg;
 
         if ($field->type === 'integer' || $field->type === 'number') {
-            $field->minimum = $n;
-            $field->maximum = $n;
+            $field->minimum = $size;
+            $field->maximum = $size;
         } elseif ($field->type === 'array') {
-            $field->minItems = $n;
-            $field->maxItems = $n;
+            $field->minItems = $size;
+            $field->maxItems = $size;
         } else {
-            $field->minLength = $n;
-            $field->maxLength = $n;
+            $field->minLength = $size;
+            $field->maxLength = $size;
         }
     }
 }
