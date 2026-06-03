@@ -17,6 +17,22 @@ class ModelResponseController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Article>
+     */
+    public function list(): \Illuminate\Database\Eloquent\Collection
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Http\Request>
+     */
+    public function nonModelCollection(): \Illuminate\Database\Eloquent\Collection
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
 it('emits a 200 with a $ref for a single model return type', function (): void {
@@ -33,6 +49,18 @@ it('emits a 200 with a $ref for a single model return type', function (): void {
         ->and($spec['components']['schemas']['Article']['properties'])->toHaveKey('title');
 });
 
+it('emits an array of $ref for a Collection<Model> return type', function (): void {
+    Route::get('/articles', [ModelResponseController::class, 'list']);
+
+    $spec = generateSpec();
+
+    $schema = $spec['paths']['/articles']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
+
+    expect($schema)->not->toBeNull()
+        ->and($schema['type'])->toBe('array')
+        ->and($schema['items']['$ref'])->toBe('#/components/schemas/Article');
+});
+
 it('does not emit a $ref response schema for a non-model return type', function (): void {
     Route::get('/plain-status', fn(): string => 'ok');
 
@@ -41,4 +69,14 @@ it('does not emit a $ref response schema for a non-model return type', function 
     $schema = $spec['paths']['/plain-status']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     expect($schema['$ref'] ?? null)->toBeNull();
+});
+
+it('does not emit an array $ref for a Collection of non-models', function (): void {
+    Route::get('/requests', [ModelResponseController::class, 'nonModelCollection']);
+
+    $spec = generateSpec();
+
+    $schema = $spec['paths']['/requests']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
+
+    expect($schema['items']['$ref'] ?? null)->toBeNull();
 });
