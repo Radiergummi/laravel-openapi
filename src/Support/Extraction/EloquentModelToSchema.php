@@ -272,6 +272,9 @@ final class EloquentModelToSchema
     {
         $inner = $this->typeNodeResolver->unwrapNullable($node);
 
+        // GenericTypeNode (e.g. Collection<Tag>) and ArrayTypeNode (e.g. array<string,mixed>)
+        // are intentionally not descended into — Tier-0 doesn't parse deep generics. The caller
+        // will fall through to the unconstrained empty-property fallback (see docs/auto-derivation.md).
         return $inner instanceof IdentifierTypeNode ? $inner : null;
     }
 

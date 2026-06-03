@@ -98,6 +98,14 @@ it('types an $appends accessor from its return type', function (): void {
     expect($schema['properties']['reading_time']['type'])->toBe('integer');
 });
 
+it('restricts the property set to $visible when the allow-list is non-empty', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\VisibleArticle::class);
+
+    expect(array_keys($schema['properties'] ?? []))->toContain('title')
+        ->and(array_keys($schema['properties'] ?? []))->toContain('reading_time')
+        ->and($schema['properties'] ?? [])->not->toHaveKey('secret');
+});
+
 it('emits a $ref for a @property-read model relation and registers the nested component', function (): void {
     $registry = new ComponentSchemaRegistry();
     $logger = new NullLogger();
