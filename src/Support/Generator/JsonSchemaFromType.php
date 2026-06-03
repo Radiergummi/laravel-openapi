@@ -14,7 +14,9 @@ use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Ramsey\Uuid\UuidInterface;
+use ReflectionEnum;
 use ReflectionEnumBackedCase;
+use ReflectionException;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\Type\BackedEnumType;
 use Symfony\Component\TypeInfo\Type\BuiltinType;
@@ -51,6 +53,9 @@ final readonly class JsonSchemaFromType
         private LoggerInterface $logger,
     ) {}
 
+    /**
+     * @throws ReflectionException
+     */
     public function fromType(Type $type): OA\Schema
     {
         // NullableType MUST come before UnionType (it extends it).
@@ -70,26 +75,8 @@ final readonly class JsonSchemaFromType
         if ($type instanceof BackedEnumType) {
             /** @var class-string<BackedEnum> $className */
             $className = $type->getClassName();
-            $isInt = $type->getBackingType()->getTypeIdentifier() === TypeIdentifier::INT;
 
-            $props = [
-                'type' => $isInt ? 'integer' : 'string',
-                'enum' => array_map(
-                    static fn(BackedEnum $case): int|string
-                        => $isInt
-                        ? (int) $case->value
-                        : (string) $case->value,
-                    $className::cases(),
-                ),
-            ];
-
-            $caseDescription = $this->enumCaseDescription($className);
-
-            if ($caseDescription !== null) {
-                $props['description'] = $caseDescription;
-            }
-
-            return new OA\Schema($props);
+            return $this->fromBackedEnumClass($className);
         }
 
         if ($type instanceof EnumType) {
@@ -118,6 +105,41 @@ final readonly class JsonSchemaFromType
             'type' => 'string',
             'description' => sprintf('Unmapped type: %s', $type::class),
         ]);
+    }
+
+    /**
+     * Builds an inline enum schema from a backed-enum class-string.
+     *
+     * Determines integer-vs-string backing via reflection so the caller does not need a
+     * symfony/type-info {@see BackedEnumType} in hand — useful when the enum class name
+     * comes from a cast string rather than a resolved type tree.
+     *
+     * @param class-string<BackedEnum> $enumClass
+     *
+     * @throws ReflectionException
+     */
+    public function fromBackedEnumClass(string $enumClass): OA\Schema
+    {
+        $isInt = (new ReflectionEnum($enumClass))->getBackingType()?->getName() === 'int';
+
+        $props = [
+            'type' => $isInt ? 'integer' : 'string',
+            'enum' => array_map(
+                static fn(BackedEnum $case): int|string
+                    => $isInt
+                    ? (int) $case->value
+                    : (string) $case->value,
+                $enumClass::cases(),
+            ),
+        ];
+
+        $caseDescription = $this->enumCaseDescription($enumClass);
+
+        if ($caseDescription !== null) {
+            $props['description'] = $caseDescription;
+        }
+
+        return new OA\Schema($props);
     }
 
     /**

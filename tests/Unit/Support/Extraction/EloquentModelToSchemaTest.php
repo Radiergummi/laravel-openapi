@@ -84,3 +84,16 @@ it('marks a cast-typed field required when its @property is non-nullable', funct
 
     expect($schema['required'] ?? [])->toContain('published_at');
 });
+
+it('maps an enum cast to an inline enum schema', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    expect($schema['properties']['status']['type'])->toBe('string')
+        ->and($schema['properties']['status']['enum'])->toBe(['draft', 'published']);
+});
+
+it('types an $appends accessor from its return type', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    expect($schema['properties']['reading_time']['type'])->toBe('integer');
+});

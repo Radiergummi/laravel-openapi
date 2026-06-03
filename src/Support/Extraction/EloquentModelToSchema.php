@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Extraction;
 
+use BackedEnum;
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\NullableTypeNode;
@@ -18,6 +21,9 @@ use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
+use ReflectionException;
+use ReflectionNamedType;
+use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_diff;
@@ -26,11 +32,15 @@ use function array_keys;
 use function array_merge;
 use function array_unique;
 use function array_values;
+use function enum_exists;
 use function explode;
 use function in_array;
+use function is_a;
 use function ltrim;
 use function str_contains;
+use function str_replace;
 use function strtolower;
+use function ucwords;
 
 /**
  * Builds an OpenAPI schema for an Eloquent model from its metadata:
@@ -43,9 +53,7 @@ final class EloquentModelToSchema
 {
     public function __construct(
         private readonly ComponentSchemaRegistry $registry,
-        // @phpstan-ignore property.onlyWritten (injected now for constructor stability; used by later @property/relation tasks)
         private readonly JsonSchemaFromType $jsonSchemaFromType,
-        // @phpstan-ignore property.onlyWritten (injected now for constructor stability; used by later @property/relation tasks)
         private readonly TypeResolver $typeResolver,
         // @phpstan-ignore property.onlyWritten (injected now for constructor stability; used by later @property/relation tasks)
         private readonly TypeNodeResolver $typeNodeResolver,
@@ -66,6 +74,8 @@ final class EloquentModelToSchema
 
     /**
      * @param class-string<Model> $modelClass
+     *
+     * @throws ReflectionException
      */
     private function schemaFor(string $modelClass): OA\Schema
     {
@@ -124,6 +134,13 @@ final class EloquentModelToSchema
             $castString = $casts[$name] ?? null;
 
             if ($castString !== null) {
+                // Enum-class cast takes priority: produce an inline enum schema.
+                if (enum_exists($castString) && is_a($castString, BackedEnum::class, allow_string: true)) {
+                    $properties[] = $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromBackedEnumClass($castString));
+
+                    continue;
+                }
+
                 $properties[] = $this->castToProperty($name, $castString) ?? new OA\Property(['property' => $name]);
 
                 continue;
@@ -133,6 +150,17 @@ final class EloquentModelToSchema
 
             if ($tag !== null) {
                 $property = $this->propertyFromTag($name, $tag->type);
+
+                if ($property !== null) {
+                    $properties[] = $property;
+
+                    continue;
+                }
+            }
+
+            // For appended attributes not typed via @property, try the accessor method.
+            if (in_array($name, $appends, strict: true)) {
+                $property = $this->propertyFromAccessor($reflection, $name);
 
                 if ($property !== null) {
                     $properties[] = $property;
@@ -266,6 +294,71 @@ final class EloquentModelToSchema
             'true', 'false'         => ['type' => 'boolean'],
             default                 => null,
         };
+    }
+
+    /**
+     * Resolves the return type of an accessor method to an OA\Property, or returns null when
+     * no reflectable typed accessor exists for the property name.
+     *
+     * Checks the new-style studly-cased method (e.g. `readingTime`) and the legacy
+     * `getReadingTimeAttribute` form. If the return type is `Attribute` (the new
+     * `Attribute::get(...)` style), the value type is not reflectable so null is returned.
+     *
+     * @param ReflectionClass<Model> $reflection
+     *
+     * @throws ReflectionException
+     */
+    private function propertyFromAccessor(ReflectionClass $reflection, string $name): ?OA\Property
+    {
+        $studly = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        $candidates = [$studly, 'get' . $studly . 'Attribute'];
+
+        foreach ($candidates as $methodName) {
+            if (! $reflection->hasMethod($methodName)) {
+                continue;
+            }
+
+            $returnType = $reflection->getMethod($methodName)->getReturnType();
+
+            if (! $returnType instanceof ReflectionNamedType) {
+                continue;
+            }
+
+            // New-style Attribute::get() accessors don't expose the value type.
+            if ($returnType->getName() === Attribute::class) {
+                continue;
+            }
+
+            try {
+                $type = $this->typeResolver->resolve($returnType);
+            } catch (UnsupportedException) {
+                continue;
+            }
+
+            return $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromType($type));
+        }
+
+        return null;
+    }
+
+    /**
+     * Converts an OA\Schema into an OA\Property by copying non-UNDEFINED JSON-Schema fields.
+     */
+    private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
+    {
+        $props = ['property' => $name];
+
+        // The fields JsonSchemaFromType / fromBackedEnumClass actually emit. Extend this
+        // list if those methods start producing additional schema keywords.
+        foreach (['type', 'format', 'enum', 'description', 'items', 'ref', 'oneOf', 'nullable'] as $field) {
+            $value = $schema->{$field};
+
+            if ($value !== Generator::UNDEFINED) {
+                $props[$field] = $value;
+            }
+        }
+
+        return new OA\Property($props);
     }
 
     /**
