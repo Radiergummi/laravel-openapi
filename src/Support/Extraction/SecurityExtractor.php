@@ -10,6 +10,7 @@ use Illuminate\Routing\Router;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 
+use function array_any;
 use function array_key_first;
 use function array_unique;
 use function array_values;
@@ -61,8 +62,6 @@ final class SecurityExtractor
     private const string SCHEME_CLIENT_CREDENTIALS = 'oauth2ClientCredentials';
 
     private const string SCHEME_SANCTUM = 'sanctum';
-
-    private const string MIDDLEWARE_SANCTUM = 'auth:sanctum';
 
     private const int MAX_GROUP_EXPANSION_DEPTH = 10;
 
@@ -197,21 +196,10 @@ final class SecurityExtractor
 
     private function sanctumInUse(): bool
     {
-        if ($this->sanctumInUse !== null) {
-            return $this->sanctumInUse;
-        }
-
-        $groups = $this->middlewareGroups();
-
-        foreach ($this->router->getRoutes()->getRoutes() as $route) {
-            $middleware = $this->expandGroups(array_values($route->gatherMiddleware()), $groups);
-
-            if (in_array(self::MIDDLEWARE_SANCTUM, $middleware, true)) {
-                return $this->sanctumInUse = true;
-            }
-        }
-
-        return $this->sanctumInUse = false;
+        return $this->sanctumInUse ??= array_any(
+            $this->router->getRoutes()->getRoutes(),
+            fn(Route $route): bool => in_array('auth:sanctum', $this->expandedMiddlewareFor($route), true),
+        );
     }
 
     /**
@@ -269,10 +257,7 @@ final class SecurityExtractor
      */
     public function forRoute(Route $route): ?array
     {
-        $middleware = $this->expandGroups(
-            array_values($route->gatherMiddleware()),
-            $this->middlewareGroups(),
-        );
+        $middleware = $this->expandedMiddlewareFor($route);
         $scopes = $this->extractScopes($middleware);
         $hasAuth = $this->hasAuthMiddleware($middleware);
 
@@ -285,6 +270,16 @@ final class SecurityExtractor
         // No derivable scheme for an authed/scoped route: return null to omit `security`
         // (not `[]`, which means public), so `operation.security-missing` can fire.
         return $requirement === [] ? null : $requirement;
+    }
+
+    /**
+     * Gathers a route's middleware and expands any group names to their members.
+     *
+     * @return list<string>
+     */
+    private function expandedMiddlewareFor(Route $route): array
+    {
+        return $this->expandGroups(array_values($route->gatherMiddleware()), $this->middlewareGroups());
     }
 
     /**
