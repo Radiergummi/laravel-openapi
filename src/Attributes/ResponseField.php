@@ -11,7 +11,12 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 /**
  * Documents a response output field.
  *
- * Place on an ApiResource `FIELD_*` class constant or a resource property.
+ * Place on a Spatie Data class property that is part of a response payload.
+ * (For Eloquent API Resources — whose keys are arbitrary `toArray()` entries
+ * rather than typed properties — declare each key with a class-level
+ * {@see \Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField}
+ * instead.)
+ *
  * Response fields support `readOnly` and `conditional` but not `writeOnly` or
  * `default` (those are request-side concerns).
  *

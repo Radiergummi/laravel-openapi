@@ -71,18 +71,30 @@ class CreateProjectData extends Data
 
 ## Enrich a response field
 
+A `JsonResource`'s output keys are arbitrary `toArray()` entries, not typed
+properties, so each key is declared with a class-level, repeatable
+`#[ResourceField]` (from the ApiResources plugin) naming the key:
+
 ```php
-class ProjectResource extends JsonResource
+use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+
+#[ResourceField('created_at', type: 'string', format: 'date-time', description: 'ISO 8601 creation timestamp.')]
+#[ResourceField('match_count', type: 'integer', readOnly: true, description: 'Computed supplier match count.')]
+// For conditionally-present fields (kept in `properties`, dropped from `required`):
+#[ResourceField('phases', conditional: true, description: 'Loaded only when ?include=phases is requested.')]
+class ProjectResource extends JsonResource { /* … */ }
+```
+
+On a Spatie Data class, where keys *are* typed properties, use
+`#[ResponseField]` on the property instead:
+
+```php
+class ProjectData extends Data
 {
-    #[OpenApi\ResponseField(description: 'ISO 8601 creation timestamp.', example: '2024-01-15T10:30:00Z')]
-    public const string FIELD_CREATED_AT = 'created_at';
-
-    #[OpenApi\ResponseField(readOnly: true, description: 'Computed supplier match count.')]
-    public const string FIELD_MATCH_COUNT = 'match_count';
-
-    // For conditionally-present fields:
-    #[OpenApi\ResponseField(conditional: true, description: 'Loaded only when ?include=phases is requested.')]
-    public const string RELATIONSHIP_PHASES = 'phases';
+    public function __construct(
+        #[OpenApi\ResponseField(readOnly: true, description: 'Server-assigned identifier.')]
+        public string $id,
+    ) {}
 }
 ```
 

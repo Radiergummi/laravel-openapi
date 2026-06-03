@@ -47,6 +47,14 @@ it('does not expose when Expose(only:) misses the env in hidden default', functi
     expect($resolver(VisibilityMode::Hidden)->isVisible([], [new Expose(only: ['staging'])], 'production'))->toBeFalse();
 });
 
+it('exposes when Expose(except:) does not list the env in hidden default', function () use ($resolver): void {
+    expect($resolver(VisibilityMode::Hidden)->isVisible([], [new Expose(except: ['local'])], 'production'))->toBeTrue();
+});
+
+it('does not expose when Expose(except:) lists the env in hidden default', function () use ($resolver): void {
+    expect($resolver(VisibilityMode::Hidden)->isVisible([], [new Expose(except: ['local'])], 'local'))->toBeFalse();
+});
+
 it('lets Hide beat Expose when both apply', function () use ($resolver): void {
     expect($resolver()->isVisible([new Hide()], [new Expose()], 'production'))->toBeFalse()
         ->and($resolver(VisibilityMode::Hidden)->isVisible([new Hide()], [new Expose()], 'production'))->toBeFalse();

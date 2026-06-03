@@ -8,12 +8,22 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Radiergummi\OpenApi\Attributes\Operation;
+use Radiergummi\OpenApi\Attributes\Tag;
 
 uses()->group('openapi');
 
 #[Operation(tags: ['ExtraTag'])]
 class MergeTagController extends Controller
 {
+    public function index(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
+
+class StandaloneTagController extends Controller
+{
+    #[Tag('Beta')]
     public function index(): JsonResponse
     {
         return new JsonResponse();
@@ -53,4 +63,15 @@ it('OAPI-020: Operation(tags:, replace: true) discards namespace-derived tags', 
     $tags = $spec['paths']['/oa-p2/replace-tag']['get']['tags'] ?? [];
 
     expect($tags)->toBe(['Replacement']);
+});
+
+it('surfaces a standalone #[Tag] on the operation', function (): void {
+    RouteFacade::get(
+        '/oa-86/tag',
+        [StandaloneTagController::class, 'index'],
+    );
+
+    $tags = generateSpec()['paths']['/oa-86/tag']['get']['tags'] ?? [];
+
+    expect($tags)->toContain('Beta');
 });
