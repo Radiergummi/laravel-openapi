@@ -22,6 +22,7 @@ use Throwable;
 use function array_key_exists;
 use function array_key_last;
 use function ltrim;
+use function strtolower;
 
 /**
  * Resolves phpstan/phpdoc-parser type nodes to FQCNs, using symfony/type-info to
@@ -101,6 +102,34 @@ final class TypeNodeResolver
         }
 
         return null;
+    }
+
+    /**
+     * Resolves the FQCN (no leading backslash) of a type node that denotes a single
+     * class — unwrapping a leading `?` or a `T|null` union first. Returns null for
+     * scalar keywords, generics, arrays, or unresolvable identifiers.
+     */
+    public function resolveClassName(TypeNode $node, Reflector $context): ?string
+    {
+        if ($node instanceof NullableTypeNode) {
+            return $this->resolveClassName($node->type, $context);
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            foreach ($node->types as $member) {
+                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
+                    continue;
+                }
+
+                return $this->resolveClassName($member, $context);
+            }
+
+            return null;
+        }
+
+        return $node instanceof IdentifierTypeNode
+            ? $this->resolveClass($node, $context)
+            : null;
     }
 
     private function resolveClass(IdentifierTypeNode $node, Reflector $context): ?string

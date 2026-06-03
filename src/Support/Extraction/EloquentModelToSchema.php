@@ -8,6 +8,10 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\NullableTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\TypeNode;
+use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
@@ -17,6 +21,7 @@ use ReflectionClass;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_diff;
+use function array_filter;
 use function array_keys;
 use function array_merge;
 use function array_unique;
@@ -75,20 +80,22 @@ final class EloquentModelToSchema
 
         $reflection = new ReflectionClass($modelClass);
         $docComment = $reflection->getDocComment();
-        $docPropertyNames = [];
+
+        /** @var array<string, PropertyTagValueNode> $propertyTags */
+        $propertyTags = [];
 
         if ($docComment !== false) {
             $parsed = $this->docBlockParser->parse($docComment);
 
             foreach ($parsed->tagValues('@property') as $tag) {
                 if ($tag instanceof PropertyTagValueNode) {
-                    $docPropertyNames[] = ltrim($tag->propertyName, '$');
+                    $propertyTags[ltrim($tag->propertyName, '$')] = $tag;
                 }
             }
 
             foreach ($parsed->tagValues('@property-read') as $tag) {
                 if ($tag instanceof PropertyTagValueNode) {
-                    $docPropertyNames[] = ltrim($tag->propertyName, '$');
+                    $propertyTags[ltrim($tag->propertyName, '$')] = $tag;
                 }
             }
         }
@@ -98,7 +105,7 @@ final class EloquentModelToSchema
             array_keys($casts),
             $fillable,
             $appends,
-            $docPropertyNames,
+            array_keys($propertyTags),
         ));
 
         // Apply visibility/hidden filters.
@@ -115,15 +122,150 @@ final class EloquentModelToSchema
 
         foreach ($names as $name) {
             $castString = $casts[$name] ?? null;
-            $properties[] = $castString !== null
-                ? ($this->castToProperty($name, $castString) ?? new OA\Property(['property' => $name]))
-                : new OA\Property(['property' => $name]);
+
+            if ($castString !== null) {
+                $properties[] = $this->castToProperty($name, $castString) ?? new OA\Property(['property' => $name]);
+
+                continue;
+            }
+
+            $tag = $propertyTags[$name] ?? null;
+
+            if ($tag !== null) {
+                $property = $this->propertyFromTag($name, $tag->type);
+
+                if ($property !== null) {
+                    $properties[] = $property;
+
+                    continue;
+                }
+            }
+
+            $properties[] = new OA\Property(['property' => $name]);
         }
 
-        return new OA\Schema([
-            'type' => 'object',
-            'properties' => $properties,
-        ]);
+        // A property is required when it has a @property/@property-read annotation whose
+        // type is non-nullable — regardless of whether the schema type came from a cast.
+        $required = [];
+
+        foreach ($names as $name) {
+            $tag = $propertyTags[$name] ?? null;
+
+            if ($tag !== null && ! $this->isNullable($tag->type)) {
+                $required[] = $name;
+            }
+        }
+
+        $schemaArgs = ['type' => 'object', 'properties' => $properties];
+
+        if ($required !== []) {
+            $schemaArgs['required'] = $required;
+        }
+
+        return new OA\Schema($schemaArgs);
+    }
+
+    /**
+     * Builds an OA\Property from a docblock type node for scalar types.
+     * Returns null when the type is a class, generic, array, or otherwise
+     * not a recognised scalar keyword — those fall through to the empty fallback.
+     */
+    private function propertyFromTag(string $name, TypeNode $node): ?OA\Property
+    {
+        $identifier = $this->unwrapToIdentifier($node);
+
+        if ($identifier === null) {
+            return null;
+        }
+
+        $definition = $this->scalarTypeDefinition($identifier->name);
+
+        if ($definition === null) {
+            return null;
+        }
+
+        $property = new OA\Property(['property' => $name, ...$definition]);
+
+        if ($this->isNullable($node)) {
+            $property->nullable = true;
+        }
+
+        return $property;
+    }
+
+    /**
+     * Unwraps a nullable or union-with-null wrapper to reach the inner
+     * IdentifierTypeNode. Returns null for compound/generic/array nodes.
+     */
+    private function unwrapToIdentifier(TypeNode $node): ?IdentifierTypeNode
+    {
+        if ($node instanceof IdentifierTypeNode) {
+            return $node;
+        }
+
+        if ($node instanceof NullableTypeNode) {
+            return $this->unwrapToIdentifier($node->type);
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            $nonNull = null;
+
+            foreach ($node->types as $member) {
+                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
+                    continue;
+                }
+
+                if ($nonNull !== null) {
+                    // More than one non-null member — not a simple nullable scalar.
+                    return null;
+                }
+
+                $nonNull = $member;
+            }
+
+            return $nonNull instanceof IdentifierTypeNode ? $nonNull : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns true when the type node represents a nullable type
+     * (NullableTypeNode or a union containing a `null` identifier).
+     */
+    private function isNullable(TypeNode $node): bool
+    {
+        if ($node instanceof NullableTypeNode) {
+            return true;
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            foreach ($node->types as $member) {
+                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Maps a scalar PHPDoc keyword to an OpenAPI type definition array,
+     * or returns null for class names and non-scalar keywords.
+     *
+     * @return null|array<string, string>
+     */
+    private function scalarTypeDefinition(string $keyword): ?array
+    {
+        return match (strtolower($keyword)) {
+            'int', 'integer'        => ['type' => 'integer'],
+            'float', 'double'       => ['type' => 'number'],
+            'string'                => ['type' => 'string'],
+            'bool', 'boolean',
+            'true', 'false'         => ['type' => 'boolean'],
+            default                 => null,
+        };
     }
 
     /**

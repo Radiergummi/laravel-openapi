@@ -62,3 +62,25 @@ it('includes $appends names in the property set', function (): void {
 
     expect($schema['properties'])->toHaveKey('reading_time');
 });
+
+it('types scalar @property fields and marks nullable ones', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    expect($schema['properties']['title']['type'])->toBe('string')
+        ->and($schema['properties']['subtitle']['type'])->toBe('string')
+        ->and($schema['properties']['subtitle']['nullable'] ?? false)->toBeTrue();
+});
+
+it('marks non-nullable @property fields required and omits nullable ones', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    expect($schema['required'] ?? [])->toContain('title')
+        ->and($schema['required'] ?? [])->not->toContain('subtitle')
+        ->and($schema['required'] ?? [])->not->toContain('internal_notes');
+});
+
+it('marks a cast-typed field required when its @property is non-nullable', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    expect($schema['required'] ?? [])->toContain('published_at');
+});
