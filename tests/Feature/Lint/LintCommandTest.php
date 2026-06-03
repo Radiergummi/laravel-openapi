@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ResponseEmptyController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedResponseEmptyController;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\UnknownRuleController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi', 'lint');
@@ -241,6 +242,28 @@ it('--path filter scopes extractor-emitted findings, not just tree-walk findings
         static fn($f) => $f->location->routeUri === 'leak-fixtures/excluded',
     );
     expect($leakedAfterFilter)->toBeEmpty();
+});
+
+it('--path filter scopes extractor findings that carry no routeUri', function (): void {
+    // UnknownRuleController injects a FormRequest with an un-introspectable Rule, so generation
+    // emits a route-scoped `rule.unknown` finding for it — historically with no routeUri. The
+    // clean GET route from beforeEach never produces rule.unknown, so with --path scoped to the
+    // clean route, any surviving rule.unknown is a leak from the excluded route.
+    Route::post('leak-fixtures/unknown-rule', [UnknownRuleController::class, 'store'])->name('leak.unknown-rule');
+
+    $unfiltered = app(LintRunner::class)->run(new LintOptions(level: 2));
+    $unknownRuleFindings = array_filter(
+        $unfiltered->findings,
+        static fn($f) => $f->ruleId === 'rule.unknown',
+    );
+    expect($unknownRuleFindings)->not->toBeEmpty();
+
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, path: 'lint-fixtures/clean*'));
+    $leaked = array_filter(
+        $filtered->findings,
+        static fn($f) => $f->ruleId === 'rule.unknown',
+    );
+    expect($leaked)->toBeEmpty();
 });
 
 it('cannot disable spec.invalid via config disabled_rules', function (): void {
