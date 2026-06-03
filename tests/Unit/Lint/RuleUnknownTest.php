@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 
 uses()->group('openapi', 'lint');
@@ -25,5 +26,5 @@ it('emits rule.unknown when an unknown Rule object cannot be introspected', func
     expect($findings)->toHaveCount(1)
         ->and($findings->first()->context['rule_class'])->toBe($customRule::class)
         ->and($findings->first()->context['property'])->toBe('color')
-        ->and($findings->first()->context['source_class'])->toBe('SomeData');
+        ->and($findings->first()->context[Finding::CONTEXT_SOURCE_CLASS])->toBe('SomeData');
 });

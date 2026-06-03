@@ -275,7 +275,7 @@ final readonly class SchemaFromFormRequest
                 ),
                 location: new FindingLocation(file: $file, line: $line),
                 fixHint: RequestBodySchemaDegraded::FIX_HINT,
-                context: ['source_class' => $formRequestClass],
+                context: [Finding::CONTEXT_SOURCE_CLASS => $formRequestClass],
             ),
         );
     }

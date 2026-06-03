@@ -301,7 +301,7 @@ final readonly class LintRunner
                     // finding (pre-build, spec-level — always kept). A source class we don't
                     // recognise as a component is treated as route-agnostic and kept, so an
                     // in-scope finding is never hidden because we couldn't place its schema.
-                    $sourceClass = $finding->context['source_class'] ?? null;
+                    $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
 
                     if (is_string($sourceClass) && isset($allComponentClasses[$sourceClass])) {
                         return isset($allowedSchemaClasses[$sourceClass]);

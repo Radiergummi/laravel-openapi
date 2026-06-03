@@ -355,7 +355,7 @@ final readonly class ValidationRulesToSchema
                 context: [
                     'rule_class' => $rule::class,
                     'property' => $propertyName,
-                    'source_class' => $sourceClass,
+                    Finding::CONTEXT_SOURCE_CLASS => $sourceClass,
                 ],
             ),
         );
@@ -974,7 +974,7 @@ final readonly class ValidationRulesToSchema
                             $rule::class,
                         ),
                         fixHint: 'Return enum values as int|float|string from RuleDocumentation::$enum.',
-                        context: ['rule_class' => $rule::class, 'source_class' => $sourceClass],
+                        context: ['rule_class' => $rule::class, Finding::CONTEXT_SOURCE_CLASS => $sourceClass],
                     ),
                 );
             }
