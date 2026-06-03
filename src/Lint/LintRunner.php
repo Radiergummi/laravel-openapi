@@ -663,7 +663,7 @@ final readonly class LintRunner
 
             $ref = $annotation->ref;
 
-            if (is_undefined($ref) || $ref === null || !is_string($ref)) {
+            if (is_undefined($ref) || !is_string($ref)) {
                 return;
             }
 
