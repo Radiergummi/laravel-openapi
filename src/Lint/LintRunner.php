@@ -187,11 +187,7 @@ final readonly class LintRunner
         $allComponentClasses = [];
 
         if ($options->path !== null || $options->diffEnabled) {
-            $allowedRouteUris = [];
-
-            foreach ($descriptors as $descriptor) {
-                $allowedRouteUris[ltrim($descriptor->route->uri(), '/')] = true;
-            }
+            $allowedRouteUris = self::descriptorUriSet($descriptors);
         }
 
         // endregion
@@ -247,8 +243,9 @@ final readonly class LintRunner
             $liveRegistry = $this->container->make(ComponentSchemaRegistry::class);
             $classMap = $liveRegistry->componentClassMap();
 
-            // Accumulate the schema-class scoping sets for this spec's document before the tree
-            // walk restricts $document->paths in place.
+            // Accumulate the schema-class scoping sets for this spec's document. Reachability
+            // selects in-scope path items by URI (shared inScopePathItems helper), so it is
+            // independent of whether the tree walk has already restricted $document->paths.
             if ($allowedRouteUris !== null) {
                 foreach ($classMap as $componentClass) {
                     $allComponentClasses[$componentClass] = true;
@@ -446,20 +443,7 @@ final readonly class LintRunner
         // URI appears in the allowed set so rules don't fire on routes that were excluded by
         // `--path` or `--diff`.
         if ($descriptors !== [] && is_array($document->paths)) {
-            $allowedUris = [];
-
-            foreach ($descriptors as $descriptor) {
-                $allowedUris['/' . ltrim($descriptor->route->uri(), '/')] = true;
-            }
-
-            $document->paths = array_values(
-                array_filter(
-                    $document->paths,
-                    static fn(OA\PathItem $p): bool
-                        => is_defined($p->path)
-                        && isset($allowedUris[$p->path]),
-                ),
-            );
+            $document->paths = self::inScopePathItems($document, self::descriptorUriSet($descriptors));
         }
 
         $treeBuilder = new SpecTreeBuilder(
@@ -572,6 +556,51 @@ final readonly class LintRunner
     }
 
     /**
+     * In-scope route URIs (leading slash trimmed) for the given descriptors. The single source of
+     * the "which routes are in scope" set — shared by the `--path`/`--diff` finding filter, the
+     * tree-walk path restriction, and schema reachability — so they cannot diverge on slash
+     * handling.
+     *
+     * @param list<ActionDescriptor> $descriptors
+     *
+     * @return array<string, true>
+     */
+    private static function descriptorUriSet(array $descriptors): array
+    {
+        $uris = [];
+
+        foreach ($descriptors as $descriptor) {
+            $uris[ltrim($descriptor->route->uri(), '/')] = true;
+        }
+
+        return $uris;
+    }
+
+    /**
+     * The document's path items whose URI is in `$allowedRouteUris` (leading slash trimmed).
+     *
+     * @param array<string, true> $allowedRouteUris
+     *
+     * @return list<OA\PathItem>
+     */
+    private static function inScopePathItems(OA\OpenApi $document, array $allowedRouteUris): array
+    {
+        if (!is_array($document->paths)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                $document->paths,
+                static fn(OA\PathItem $p): bool
+                    => is_defined($p->path)
+                    && is_string($p->path)
+                    && isset($allowedRouteUris[ltrim($p->path, '/')]),
+            ),
+        );
+    }
+
+    /**
      * Component classes reachable from the in-scope operations, transitively through
      * component-to-component `$ref`s. Schema-derived findings are class-keyed (a FormRequest or
      * Data class is built once and `$ref`'d by many routes), so they are scoped by membership in
@@ -604,13 +633,7 @@ final readonly class LintRunner
         $reachable = [];
         $queue = [];
 
-        foreach (is_array($document->paths) ? $document->paths : [] as $pathItem) {
-            if (!is_defined($pathItem->path)
-                || !is_string($pathItem->path)
-                || !isset($allowedRouteUris[ltrim($pathItem->path, '/')])) {
-                continue;
-            }
-
+        foreach (self::inScopePathItems($document, $allowedRouteUris) as $pathItem) {
             foreach (self::refSchemaNames($pathItem) as $name) {
                 if (!isset($reachable[$name])) {
                     $reachable[$name] = true;
