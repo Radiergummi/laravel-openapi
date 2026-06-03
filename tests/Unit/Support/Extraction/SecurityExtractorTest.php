@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Illuminate\Routing\RouteCollection;
 use Illuminate\Routing\Router;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 
@@ -57,6 +58,54 @@ it('lets a config entry override a Passport-derived scheme on key collision', fu
     expect($byName['oauth2']->type)->toBe('apiKey');
 });
 
+it('auto-derives a sanctum bearer scheme when an auth:sanctum route exists', function (): void {
+    app('router')->get('/protected', static fn() => null)->middleware('auth:sanctum');
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    $byName = [];
+
+    foreach ($extractor->buildSchemes() as $scheme) {
+        $byName[$scheme->securityScheme] = $scheme;
+    }
+
+    expect($byName)->toHaveKey('sanctum')
+        ->and($byName['sanctum']->type)->toBe('http')
+        ->and($byName['sanctum']->scheme)->toBe('bearer');
+});
+
+it('does not register a sanctum scheme when no route uses auth:sanctum', function (): void {
+    // Token-based detection guards against over-registration: Passport is the only
+    // auto-derived source here, and no route carries auth:sanctum.
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    $names = array_map(static fn($s) => $s->securityScheme, $extractor->buildSchemes());
+
+    expect($names)->not->toContain('sanctum');
+});
+
+it('emits a sanctum per-operation requirement for an auth:sanctum route when Passport is absent', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    // Passport absent so the default resolves to Sanctum alone; the route collection
+    // must report the auth:sanctum route so sanctumInUse() detects it.
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['sanctum' => []]]);
+});
+
 it('targets the explicit scheme name when requirementForScopes is called with $scheme', function (): void {
     $extractor = new SecurityExtractor(router: app('router'));
 
@@ -104,6 +153,8 @@ it('falls back to the first config-declared scheme when default is unset and Pas
     // Testbench always registers Passport in the test environment.
     $router = Mockery::mock(Router::class);
     $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn(new RouteCollection())->byDefault();
 
     $extractor = new SecurityExtractor(router: $router);
 
@@ -127,15 +178,17 @@ it('omits security for an auth route when no scheme is derivable, instead of an 
     config()->set('openapi.security_schemes', []);
     config()->set('openapi.security_default_scheme', null);
 
-    // Passport absent + no config schemes => no scheme can be derived for the
-    // auth:* route. The operation must omit `security` (null) rather than assert
-    // `[]`, which OpenAPI reads as "explicitly public".
+    // Passport absent + no config schemes + a non-Sanctum guard => no scheme can be
+    // derived for the auth:* route. `auth:web` (not auth:sanctum, which is now derivable)
+    // and an empty route collection keep sanctumInUse() false. The operation must omit
+    // `security` (null) rather than assert `[]`, which OpenAPI reads as "explicitly public".
     $router = Mockery::mock(Router::class);
     $router->allows('has')->andReturn(false)->byDefault();
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn(new RouteCollection())->byDefault();
 
     $route                        = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
-    $route->action['middleware']  = ['auth:sanctum'];
+    $route->action['middleware']  = ['auth:web'];
 
     $extractor = new SecurityExtractor(router: $router);
 
