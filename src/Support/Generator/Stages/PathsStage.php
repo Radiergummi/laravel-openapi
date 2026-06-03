@@ -207,15 +207,33 @@ final readonly class PathsStage implements SpecStage
         );
 
         if ($name !== null && !Str::startsWith($name, 'generated::')) {
-            return count($methods) > 1
+            $operationId = count($methods) > 1
                 ? $name . '.' . strtolower($method->value)
                 : $name;
+
+            return $this->sanitiseOperationId($operationId);
         }
 
         $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
             ?? $descriptor->route->uri();
 
         return strtolower($method->value) . '_' . $sanitised;
+    }
+
+    /**
+     * Sanitises a route-name-derived operation ID so it satisfies the codegen-safe identifier
+     * pattern enforced by {@see \Radiergummi\OpenApi\Lint\Rules\OperationIdInvalidChars}
+     * (`^[A-Za-z][A-Za-z0-9._-]*$`): characters outside the allowed set (e.g. the `:` from
+     * namespaced names, the `{}` from bound segments) are replaced with `_`, and any leading
+     * non-letter characters are stripped so the id begins with a letter. The `.`/`-`/`_`
+     * characters the pattern permits are preserved, keeping dotted names like `api.users.show`
+     * intact.
+     */
+    private function sanitiseOperationId(string $operationId): string
+    {
+        $sanitised = preg_replace('/[^A-Za-z0-9._-]+/', '_', $operationId) ?? $operationId;
+
+        return preg_replace('/^[^A-Za-z]+/', '', $sanitised) ?? $sanitised;
     }
 
     private function normalisePath(string $uri): string
