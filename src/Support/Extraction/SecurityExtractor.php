@@ -89,6 +89,9 @@ final class SecurityExtractor
     /** @var ?array<string, OA\SecurityScheme> */
     private ?array $configSchemesCache = null;
 
+    /** @var ?array<string, string> */
+    private ?array $middlewareSchemeMapCache = null;
+
     /** @var ?list<string> */
     private ?array $defaultSchemeNames = null;
 
@@ -260,12 +263,27 @@ final class SecurityExtractor
         $middleware = $this->expandedMiddlewareFor($route);
         $scopes = $this->extractScopes($middleware);
         $hasAuth = $this->hasAuthMiddleware($middleware);
+        $mappedSchemes = $this->mappedSchemeNames($middleware);
 
-        if ($scopes === [] && !$hasAuth) {
+        if ($scopes === [] && !$hasAuth && $mappedSchemes === []) {
             return [];
         }
 
-        $requirement = $this->requirementForScopes($scopes);
+        // Schemes mapped from custom guard middleware via `openapi.security_middleware_map`, each
+        // carrying the route's scopes. Emitted alongside (not replacing) the auth:*/scope: path.
+        $requirement = [];
+
+        foreach ($mappedSchemes as $name) {
+            $requirement[] = [$name => $scopes];
+        }
+
+        if ($hasAuth || $scopes !== []) {
+            foreach ($this->requirementForScopes($scopes) as $entry) {
+                if (!in_array(array_key_first($entry), $mappedSchemes, true)) {
+                    $requirement[] = $entry;
+                }
+            }
+        }
 
         // No derivable scheme for an authed/scoped route: return null to omit `security`
         // (not `[]`, which means public), so `operation.security-missing` can fire.
@@ -344,10 +362,76 @@ final class SecurityExtractor
                 foreach (explode(',', substr($entry, 7)) as $s) {
                     $scopes[] = $s;
                 }
+            } elseif (str_starts_with($entry, 'abilities:')) {
+                // Sanctum's `abilities:` middleware — the Sanctum analogue of Passport scopes.
+                foreach (explode(',', substr($entry, 10)) as $s) {
+                    $scopes[] = $s;
+                }
+            } elseif (str_starts_with($entry, 'ability:')) {
+                foreach (explode(',', substr($entry, 8)) as $s) {
+                    $scopes[] = $s;
+                }
             }
         }
 
         return array_values(array_unique($scopes));
+    }
+
+    /**
+     * Scheme names mapped from a route's middleware via `openapi.security_middleware_map`.
+     * Matches the full middleware token (including any `guard` parameter) against the map keys.
+     *
+     * @param list<string> $middleware
+     *
+     * @return list<string>
+     */
+    private function mappedSchemeNames(array $middleware): array
+    {
+        $map = $this->middlewareSchemeMap();
+
+        if ($map === []) {
+            return [];
+        }
+
+        $names = [];
+
+        foreach ($middleware as $entry) {
+            if (isset($map[$entry])) {
+                $names[] = $map[$entry];
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * The `openapi.security_middleware_map` config: middleware name → an already-declared
+     * scheme name. Non-string keys/values and empty scheme names are dropped.
+     *
+     * @return array<string, string>
+     */
+    private function middlewareSchemeMap(): array
+    {
+        if ($this->middlewareSchemeMapCache !== null) {
+            return $this->middlewareSchemeMapCache;
+        }
+
+        /** @var mixed $raw */
+        $raw = config('openapi.security_middleware_map', []);
+
+        if (!is_array($raw)) {
+            return $this->middlewareSchemeMapCache = [];
+        }
+
+        $map = [];
+
+        foreach ($raw as $middleware => $scheme) {
+            if (is_string($middleware) && is_string($scheme) && $scheme !== '') {
+                $map[$middleware] = $scheme;
+            }
+        }
+
+        return $this->middlewareSchemeMapCache = $map;
     }
 
     /**
