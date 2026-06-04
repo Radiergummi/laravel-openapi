@@ -262,32 +262,60 @@ final class SecurityExtractor
     public function forRoute(Route $route): ?array
     {
         $middleware = $this->expandedMiddlewareFor($route);
-        $scopes = $this->extractScopes($middleware);
+        $allOfScopes = $this->extractScopes($middleware);
+        $anyOfScopes = $this->extractAnyOfScopes($middleware);
         $hasAuth = $this->hasAuthMiddleware($middleware);
         $mappedSchemes = $this->mappedSchemeNames($middleware);
 
-        if ($scopes === [] && !$hasAuth && $mappedSchemes === []) {
+        $hasScopes = $allOfScopes !== [] || $anyOfScopes !== [];
+
+        if (!$hasScopes && !$hasAuth && $mappedSchemes === []) {
             return [];
         }
 
         // An explicit `openapi.security_middleware_map` entry fully describes how this route
         // authenticates, so it takes precedence over the auto-derived default scheme(s) for this
-        // route. Each mapped scheme carries the route's scopes.
+        // route.
         if ($mappedSchemes !== []) {
-            $requirement = [];
-
-            foreach ($mappedSchemes as $name) {
-                $requirement[] = [$name => $scopes];
-            }
-
-            return $requirement;
+            return $this->buildRequirement($mappedSchemes, $allOfScopes, $anyOfScopes);
         }
 
-        $requirement = $this->requirementForScopes($scopes);
+        $requirement = $this->buildRequirement($this->defaultSchemeNames(), $allOfScopes, $anyOfScopes);
 
         // No derivable scheme for an authed/scoped route: return null to omit `security`
         // (not `[]`, which means public), so `operation.security-missing` can fire.
         return $requirement === [] ? null : $requirement;
+    }
+
+    /**
+     * Builds the per-operation `security` block for a set of scheme names. `$allOf` scopes must all
+     * be present (one requirement, AND semantics); each `$anyOf` scope (Sanctum `ability:`, an
+     * any-of check) becomes its own OR-alternative requirement carrying the all-of scopes too. With
+     * no any-of scopes this is one requirement per scheme name, as before.
+     *
+     * @param list<string> $schemeNames
+     * @param list<string> $allOf
+     * @param list<string> $anyOf
+     *
+     * @return list<array<string, list<string>>>
+     */
+    private function buildRequirement(array $schemeNames, array $allOf, array $anyOf): array
+    {
+        $requirement = [];
+
+        foreach ($schemeNames as $name) {
+            if ($anyOf === []) {
+                $requirement[] = [$name => $allOf];
+
+                continue;
+            }
+
+            foreach ($anyOf as $scope) {
+                $requirement[] = [$name => array_values(array_unique([...$allOf, $scope]))];
+            }
+        }
+
+        return $requirement;
     }
 
     /**
@@ -347,6 +375,10 @@ final class SecurityExtractor
     }
 
     /**
+     * All-of scopes: a token must carry every one of these. Sourced from Passport `scope:` /
+     * `scopes:` and Sanctum's all-of `abilities:` middleware. Sanctum's any-of `ability:` is
+     * handled separately by {@see extractAnyOfScopes}.
+     *
      * @param list<string> $middleware
      *
      * @return list<string>
@@ -363,19 +395,49 @@ final class SecurityExtractor
                     $scopes[] = $s;
                 }
             } elseif (str_starts_with($entry, 'abilities:')) {
-                // Sanctum's `abilities:` middleware — the Sanctum analogue of Passport scopes.
+                // Sanctum's `abilities:` middleware — all-of, the Sanctum analogue of Passport scopes.
                 foreach (explode(',', substr($entry, 10)) as $s) {
                     $scopes[] = $s;
                 }
-            } elseif (str_starts_with($entry, 'ability:')) {
+            }
+        }
+
+        return $this->cleanScopes($scopes);
+    }
+
+    /**
+     * Any-of scopes from Sanctum's `ability:` middleware (token needs *any one* of the listed
+     * abilities). Each becomes its own OR-alternative requirement in {@see buildRequirement}.
+     *
+     * @param list<string> $middleware
+     *
+     * @return list<string>
+     */
+    private function extractAnyOfScopes(array $middleware): array
+    {
+        $scopes = [];
+
+        foreach ($middleware as $entry) {
+            if (str_starts_with($entry, 'ability:')) {
                 foreach (explode(',', substr($entry, 8)) as $s) {
                     $scopes[] = $s;
                 }
             }
         }
 
-        // Drop empty segments from argument-less or trailing-comma tokens (e.g. `ability:`,
-        // `scopes:read,`) so they never leak an empty-string scope into the requirement.
+        return $this->cleanScopes($scopes);
+    }
+
+    /**
+     * Deduplicate and drop empty segments left by argument-less or trailing-comma tokens
+     * (e.g. `ability:`, `scopes:read,`) so they never leak an empty-string scope.
+     *
+     * @param list<string> $scopes
+     *
+     * @return list<string>
+     */
+    private function cleanScopes(array $scopes): array
+    {
         return array_values(array_unique(array_filter($scopes, static fn(string $s): bool => $s !== '')));
     }
 

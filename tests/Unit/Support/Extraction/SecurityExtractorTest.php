@@ -245,6 +245,55 @@ it('lists ability:admin as a scope on the security requirement', function (): vo
     expect($extractor->forRoute($route))->toBe([['sanctum' => ['admin']]]);
 });
 
+it('maps ability: (any-of) to OR-alternative requirements, one per ability', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    // Sanctum's `ability` middleware passes when the token has ANY one of the listed abilities,
+    // so each becomes its own OR-alternative requirement rather than a single all-of list.
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum', 'ability:read,write'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([
+        ['sanctum' => ['read']],
+        ['sanctum' => ['write']],
+    ]);
+});
+
+it('carries the all-of abilities onto each any-of alternative when both are present', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    // abilities:base (all-of) must hold for every alternative; ability:x,y (any-of) splits.
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum', 'abilities:base', 'ability:x,y'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([
+        ['sanctum' => ['base', 'x']],
+        ['sanctum' => ['base', 'y']],
+    ]);
+});
+
 it('deduplicates repeated abilities like the Passport scope path', function (): void {
     config()->set('openapi.security_schemes', []);
     config()->set('openapi.security_default_scheme', null);
