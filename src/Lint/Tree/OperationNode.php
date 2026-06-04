@@ -146,7 +146,8 @@ final class OperationNode implements Node
     }
 
     /**
-     * Returns true when the route carries any `auth:*`, `scope:*`, or `scopes:*` middleware.
+     * Returns true when the route carries any `auth:*`, `scope:*`, `scopes:*`, or Sanctum
+     * `abilities:*` / `ability:*` middleware.
      */
     public function hasAuthMiddleware(): bool
     {
@@ -155,7 +156,9 @@ final class OperationNode implements Node
             static fn(string $middleware): bool
                     => str_starts_with($middleware, 'auth:')
                     || str_starts_with($middleware, 'scope:')
-                    || str_starts_with($middleware, 'scopes:'),
+                    || str_starts_with($middleware, 'scopes:')
+                    || str_starts_with($middleware, 'abilities:')
+                    || str_starts_with($middleware, 'ability:'),
         );
     }
 

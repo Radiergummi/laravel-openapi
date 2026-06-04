@@ -11,6 +11,7 @@ use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 
 use function array_any;
+use function array_filter;
 use function array_key_first;
 use function array_unique;
 use function array_values;
@@ -374,7 +375,9 @@ final class SecurityExtractor
             }
         }
 
-        return array_values(array_unique($scopes));
+        // Drop empty segments from argument-less or trailing-comma tokens (e.g. `ability:`,
+        // `scopes:read,`) so they never leak an empty-string scope into the requirement.
+        return array_values(array_unique(array_filter($scopes, static fn(string $s): bool => $s !== '')));
     }
 
     /**
