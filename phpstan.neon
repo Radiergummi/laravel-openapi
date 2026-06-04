@@ -84,6 +84,13 @@ parameters:
             identifier: argument.type
             paths:
                 - tests/Fixtures/Lint/
+        # The ReturnTypeNudgeController fixture intentionally omits return types — the missing
+        # return type is exactly what the `operation.return-type-missing` lint rule detects, so
+        # adding types would defeat the fixture.
+        -
+            identifier: missingType.return
+            paths:
+                - tests/Fixtures/Lint/ReturnTypeNudgeController.php
         # Attribute-misuse fixtures intentionally trip the bundled PHPStan rules so the linter
         # / generator tests have something to consume. The static rules report the misuse for
         # everyone else; here the misuse is the test input. Identifiers use camelCase because

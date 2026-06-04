@@ -371,6 +371,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | operationId Strategy
+    |--------------------------------------------------------------------------
+    |
+    | Controls how each operation's `operationId` is derived. Whatever strategy
+    | is selected, the result is always sanitised to the codegen-safe identifier
+    | shape enforced by the `operation.id-invalid-chars` lint rule.
+    |
+    |   'route-name' (default) — use the route name (with a `.{method}` suffix
+    |       for multi-verb routes); unnamed routes fall back to `{method}_{path}`.
+    |   'method-path'          — always `{method}_{path}`, ignoring route names.
+    |       Useful when route names aren't stable or meaningful as method names
+    |       in a generated client.
+    |
+    | Unknown values fall back to 'route-name'.
+    |
+    */
+
+    'operation_id_strategy' => 'route-name',
+
+    /*
+    |--------------------------------------------------------------------------
     | Operation Overrides
     |--------------------------------------------------------------------------
     |

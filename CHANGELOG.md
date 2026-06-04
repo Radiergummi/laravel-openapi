@@ -6,6 +6,9 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- `openapi.operation_id_strategy` config key selecting how each operation's `operationId` is derived: `'route-name'` (default — the existing behaviour: sanitised route name, or `{method}_{path}` for unnamed routes; byte-stable with prior output) or `'method-path'` (always `{method}_{path}`, ignoring route names — for client toolchains where route names aren't meaningful method names). Every strategy's output is sanitised to satisfy the `operation.id-invalid-chars` rule; unknown values fall back to `'route-name'`. (#43)
+- Lint rule `operation.return-type-missing` (level 3): nudges controller actions that have neither a usable return type (absent / `mixed` / `void`-like) nor a response-declaring attribute (`#[Response]` / `#[ResponseResource]`) — the most common reason a generated operation emits no response schema. Documentation-quality only; off at the default `--level 1`. (#44)
+
 - Response schemas are now derived from Eloquent model metadata when a controller returns a model
   (or a `Collection<Model>`) directly. The schema is built by reflection from `$casts`, the model's
   `@property`/`@property-read` docblock, typed `$appends` accessors, and `$hidden`/`$visible`;
