@@ -167,3 +167,12 @@ it('wraps a nullable relation $ref in oneOf (OAS 3.1) rather than a dropped sibl
             ['type' => 'null'],
         ]);
 });
+
+it('degrades to an unknown-shape schema for a non-instantiable model instead of throwing', function (): void {
+    // Regression for #100: `new $modelClass()` on an abstract model throws an Error, which the
+    // resolver fault boundary does not catch. The reader must guard instantiation and fall back.
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\AbstractModel::class);
+
+    expect($schema['type'])->toBe('object')
+        ->and($schema)->not->toHaveKey('properties');
+});

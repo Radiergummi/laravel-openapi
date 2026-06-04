@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
+use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 
 use function in_array;
 use function sprintf;
@@ -27,12 +28,17 @@ final readonly class RequestBodyExtractor
         /** @var list<RequestSchemaResolver> */
         private array $resolvers,
         private FindingsCollector $findings,
+        private ResolverFaultBoundary $faultBoundary,
     ) {}
 
     public function extractFromMethod(ActionDescriptor $descriptor): ?OA\RequestBody
     {
         foreach ($this->resolvers as $resolver) {
-            $resolved = $resolver->resolveRequestSchema($descriptor);
+            $resolved = $this->faultBoundary->isolate(
+                $resolver::class,
+                $descriptor,
+                fn(): ?ResolvedSchema => $resolver->resolveRequestSchema($descriptor),
+            );
 
             if ($resolved !== null) {
                 return $this->buildRequestBody($resolved);

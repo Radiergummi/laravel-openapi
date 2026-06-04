@@ -107,6 +107,19 @@ Each resolver pairs a "can I handle this?" predicate with a "produce the
 result" method. The pipeline iterates registered resolvers in registration
 order and uses the first that claims the input.
 
+> [!NOTE]
+> **Fault isolation is centralized — resolvers needn't self-isolate.** Every
+> `PrimaryResponseResolver`, `RequestSchemaResolver`, `QueryParameterResolver`,
+> and `RefSchemaResolver` call is wrapped at its pipeline seam: a thrown
+> `Exception` (including yours) is logged with the route and resolver class,
+> that resolver is skipped for the route, and the rest of the document still
+> generates. So you don't need a defensive `try`/`catch` for robustness — let a
+> malformed input surface as an `Exception` and the pipeline degrades for you.
+> Conversely, **let programming errors propagate**: `Error`/`TypeError` are
+> *not* caught, so a real bug in resolver code surfaces as a stack trace instead
+> of disappearing into a silently missing schema. (The `ErrorResponseResolver`
+> backstop described above is separate and unchanged.)
+
 > [!TIP]
 > Read the interface source for the exact signatures. They're small and
 > self-documenting.

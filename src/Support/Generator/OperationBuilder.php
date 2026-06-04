@@ -31,6 +31,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
+use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
 use ReflectionException;
@@ -58,6 +59,7 @@ final readonly class OperationBuilder
         private RequestBodyExtractor $bodyExtractor,
         private SecurityExtractor $securityExtractor,
         private ExampleFileLoader $fileLoader,
+        private ResolverFaultBoundary $faultBoundary,
         /**
          * @var list<RefSchemaResolver>
          */
@@ -106,7 +108,13 @@ final readonly class OperationBuilder
         $queryParams = [];
 
         foreach ($this->queryParameterResolvers as $queryResolver) {
-            foreach ($queryResolver->resolveQueryParameters($action) as $param) {
+            $resolved = $this->faultBoundary->isolate(
+                $queryResolver::class,
+                $action,
+                fn(): array => $queryResolver->resolveQueryParameters($action),
+            ) ?? [];
+
+            foreach ($resolved as $param) {
                 $queryParams[] = $param;
             }
         }
@@ -121,7 +129,11 @@ final readonly class OperationBuilder
         $autoPrimaryResponse = null;
 
         foreach ($this->primaryResponseResolvers as $responseResolver) {
-            $autoPrimaryResponse = $responseResolver->resolvePrimaryResponse($action);
+            $autoPrimaryResponse = $this->faultBoundary->isolate(
+                $responseResolver::class,
+                $action,
+                fn(): ?OA\Response => $responseResolver->resolvePrimaryResponse($action),
+            );
 
             if ($autoPrimaryResponse !== null) {
                 break;
@@ -455,12 +467,13 @@ final readonly class OperationBuilder
             fn(ReflectionAttribute $attribute): OA\Response
                 => $this->buildResponseFromAttribute(
                     $attribute->newInstance(),
+                    $descriptor,
                 ),
             $descriptor->actionAttributes(ResponseAttribute::class),
         );
     }
 
-    private function buildResponseFromAttribute(ResponseAttribute $attribute): OA\Response
+    private function buildResponseFromAttribute(ResponseAttribute $attribute, ActionDescriptor $descriptor): OA\Response
     {
         $props = [
             'response' => (string) $attribute->status,
@@ -475,7 +488,7 @@ final readonly class OperationBuilder
                 $mediaType->schema(new OA\Schema($attribute->schema)),
             ];
         } else {
-            $schemaRef = $this->resolveRefSchema($attribute->ref);
+            $schemaRef = $this->resolveRefSchema($attribute->ref, $descriptor);
 
             if ($schemaRef !== null) {
                 $props['content'] = [
@@ -492,14 +505,18 @@ final readonly class OperationBuilder
      *
      * @param null|class-string $ref
      */
-    private function resolveRefSchema(?string $ref): ?string
+    private function resolveRefSchema(?string $ref, ActionDescriptor $descriptor): ?string
     {
         if ($ref === null) {
             return null;
         }
 
         foreach ($this->refSchemaResolvers as $resolver) {
-            $result = $resolver->resolveRef($ref);
+            $result = $this->faultBoundary->isolate(
+                $resolver::class,
+                $descriptor,
+                fn(): ?string => $resolver->resolveRef($ref),
+            );
 
             if ($result !== null) {
                 return $result;
