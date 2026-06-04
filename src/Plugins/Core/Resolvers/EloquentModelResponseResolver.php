@@ -7,7 +7,6 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use OpenApi\Annotations as OA;
-use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -15,11 +14,9 @@ use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionNamedType;
-use Throwable;
 
 use function class_exists;
 use function is_a;
-use function sprintf;
 
 /**
  * Resolves a direct Eloquent model return type — or a typed Collection of models — into a
@@ -41,28 +38,10 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
     public function __construct(
         private EloquentModelToSchema $modelToSchema,
         private ComponentSchemaRegistry $registry,
-        private LoggerInterface $logger,
         private ReturnTypeExtractor $returnTypeExtractor,
     ) {}
 
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
-    {
-        try {
-            return $this->resolve($descriptor);
-        } catch (Throwable $exception) {
-            $this->logger->warning(
-                sprintf(
-                    'EloquentModelResponseResolver failed for route %s: %s',
-                    $descriptor->route->uri(),
-                    $exception->getMessage(),
-                ),
-            );
-
-            return null;
-        }
-    }
-
-    private function resolve(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;
 

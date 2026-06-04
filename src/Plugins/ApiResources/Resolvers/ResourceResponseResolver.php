@@ -7,7 +7,6 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Resolvers;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
-use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -15,8 +14,6 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceEnvelopeFactory;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionException;
-
-use function sprintf;
 
 /**
  * Resolves an Eloquent API Resource return type into its `200 OK` response.
@@ -32,45 +29,31 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
         private ResourceTargetLocator $locator,
         private SchemaFromResource $schemaFromResource,
         private ResourceEnvelopeFactory $envelopeFactory,
-        private LoggerInterface $logger,
     ) {}
 
+    /**
+     * @throws ReflectionException
+     */
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
-        try {
-            $target = $this->locator->locate($descriptor);
+        $target = $this->locator->locate($descriptor);
 
-            if ($target === null || $target->isAmbiguous()) {
-                return null;
-            }
-
-            /** @var class-string<JsonResource> $resourceClass */
-            $resourceClass = $target->resourceClass;
-            $ref = $this->schemaFromResource->buildRef($resourceClass);
-
-            $envelope = $target->isCollection
-                ? $this->envelopeFactory->collection($ref)
-                : $this->envelopeFactory->single($ref);
-
-            return new OA\Response([
-                'response' => '200',
-                'description' => 'OK',
-                'content' => [MediaType::Json->schema($envelope)],
-            ]);
-        } catch (ReflectionException $exception) {
-            // Tolerate reflection failures only (e.g. a resource class that disappears between
-            // locator resolution and schema build). Real bugs — attribute construction errors,
-            // schema-build logic errors — propagate so they surface in dev rather than
-            // disappearing into a warning log.
-            $this->logger->warning(
-                sprintf(
-                    'ResourceResponseResolver reflection failure for route %s: %s',
-                    $descriptor->route->uri(),
-                    $exception->getMessage(),
-                ),
-            );
-
+        if ($target === null || $target->isAmbiguous()) {
             return null;
         }
+
+        /** @var class-string<JsonResource> $resourceClass */
+        $resourceClass = $target->resourceClass;
+        $ref = $this->schemaFromResource->buildRef($resourceClass);
+
+        $envelope = $target->isCollection
+            ? $this->envelopeFactory->collection($ref)
+            : $this->envelopeFactory->single($ref);
+
+        return new OA\Response([
+            'response' => '200',
+            'description' => 'OK',
+            'content' => [MediaType::Json->schema($envelope)],
+        ]);
     }
 }

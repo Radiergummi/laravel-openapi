@@ -59,36 +59,11 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
     ) {}
 
     /**
-     * @throws RuntimeException
-     * @throws UnsupportedException
-     */
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
-    {
-        try {
-            return $this->resolve($descriptor);
-        } catch (ReflectionException $exception) {
-            // Tolerate reflection failures only (e.g. a Data class that disappears between
-            // attribute resolution and schema build). Real bugs — attribute construction errors,
-            // schema-build logic errors — propagate so they surface in dev rather than disappearing
-            // into a warning log.
-            $this->logger->warning(
-                sprintf(
-                    'DataResponseResolver reflection failure for route %s: %s',
-                    $descriptor->route->uri(),
-                    $exception->getMessage(),
-                ),
-            );
-
-            return null;
-        }
-    }
-
-    /**
      * @throws ReflectionException
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    private function resolve(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;
 

@@ -415,6 +415,7 @@ class OpenApiServiceProvider extends ServiceProvider
                         $registry->requestSchemaResolvers,
                     ),
                     findings: $app->make(FindingsCollector::class),
+                    faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
                 );
             },
         );
@@ -583,6 +584,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     bodyExtractor: $app->make(Support\Extraction\RequestBodyExtractor::class),
                     securityExtractor: $app->make(Support\Extraction\SecurityExtractor::class),
                     fileLoader: $app->make(ExampleFileLoader::class),
+                    faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),
                         $registry->refSchemaResolvers,

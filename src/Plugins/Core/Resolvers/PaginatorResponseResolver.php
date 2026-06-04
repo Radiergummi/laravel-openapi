@@ -16,7 +16,6 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
-use Throwable;
 
 use function class_exists;
 use function sprintf;
@@ -44,23 +43,6 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     ) {}
 
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
-    {
-        try {
-            return $this->resolve($descriptor);
-        } catch (Throwable $exception) {
-            $this->logger->warning(
-                sprintf(
-                    'PaginatorResponseResolver failed for route %s: %s',
-                    $descriptor->route->uri(),
-                    $exception->getMessage(),
-                ),
-            );
-
-            return null;
-        }
-    }
-
-    private function resolve(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;
 

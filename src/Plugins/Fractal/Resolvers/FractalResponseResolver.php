@@ -37,58 +37,45 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
         private LoggerInterface $logger,
     ) {}
 
+    /**
+     * @throws ReflectionException
+     */
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
-        try {
-            $reflector = $descriptor->actionReflector;
+        $reflector = $descriptor->actionReflector;
 
-            $attribute = $reflector?->getAttributes(FractalResponse::class)[0] ?? null;
+        $attribute = $reflector?->getAttributes(FractalResponse::class)[0] ?? null;
 
-            if ($attribute === null) {
-                return null;
-            }
+        if ($attribute === null) {
+            return null;
+        }
 
-            /** @var FractalResponse $fractalResponse */
-            $fractalResponse = $attribute->newInstance();
+        /** @var FractalResponse $fractalResponse */
+        $fractalResponse = $attribute->newInstance();
 
-            if (!class_exists($fractalResponse->transformer)) {
-                $this->logger->warning(
-                    sprintf(
-                        '#[FractalResponse] on route %s names unknown transformer %s',
-                        $descriptor->route->uri(),
-                        $fractalResponse->transformer,
-                    ),
-                );
-
-                return null;
-            }
-
-            $ref = $this->schemaFromTransformer->buildRef($fractalResponse->transformer);
-            $envelope = $this->envelopeFor($fractalResponse, $ref);
-            $mediaType = $fractalResponse->serializer === Serializer::JsonApi
-                ? MediaType::JsonApi
-                : MediaType::Json;
-
-            return new OA\Response([
-                'response' => '200',
-                'description' => 'OK',
-                'content' => [$mediaType->schema($envelope)],
-            ]);
-        } catch (ReflectionException $exception) {
-            // Tolerate reflection failures only (e.g. a transformer FQCN that class_exists
-            // declares present but fails to instantiate via ReflectionClass). Real bugs —
-            // attribute constructor TypeErrors, schema-build logic errors — propagate so
-            // they surface in dev instead of disappearing into a warning log.
+        if (!class_exists($fractalResponse->transformer)) {
             $this->logger->warning(
                 sprintf(
-                    'FractalResponseResolver reflection failure for route %s: %s',
+                    '#[FractalResponse] on route %s names unknown transformer %s',
                     $descriptor->route->uri(),
-                    $exception->getMessage(),
+                    $fractalResponse->transformer,
                 ),
             );
 
             return null;
         }
+
+        $ref = $this->schemaFromTransformer->buildRef($fractalResponse->transformer);
+        $envelope = $this->envelopeFor($fractalResponse, $ref);
+        $mediaType = $fractalResponse->serializer === Serializer::JsonApi
+            ? MediaType::JsonApi
+            : MediaType::Json;
+
+        return new OA\Response([
+            'response' => '200',
+            'description' => 'OK',
+            'content' => [$mediaType->schema($envelope)],
+        ]);
     }
 
     private function envelopeFor(FractalResponse $response, string $ref): OA\Schema
