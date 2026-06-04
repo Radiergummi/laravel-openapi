@@ -143,6 +143,27 @@ final class TypeNodeResolver
     }
 
     /**
+     * Returns true when the type node represents a nullable type: a {@see NullableTypeNode}
+     * (`?T`) or a {@see UnionTypeNode} containing a bare `null` identifier (`T|null`).
+     */
+    public function isNullable(TypeNode $node): bool
+    {
+        if ($node instanceof NullableTypeNode) {
+            return true;
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            foreach ($node->types as $member) {
+                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Resolves the FQCN (no leading backslash) of a type node that denotes a single
      * class — unwrapping a leading `?` or a `T|null` union first. Returns null for
      * scalar keywords, generics, arrays, or unresolvable identifiers.

@@ -82,7 +82,7 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
             /** @var class-string<Model> $modelClass */
             $modelClass = $typeName;
 
-            return $this->jsonResponse($this->refSchema($modelClass));
+            return $this->jsonResponse(new OA\Schema(['ref' => $this->refKey($modelClass)]));
         }
 
         if (is_a($typeName, Collection::class, true)) {
@@ -95,7 +95,7 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
             /** @var class-string<Model> $modelClass */
             $modelClass = $itemClass;
 
-            $items = new OA\Items(['ref' => $this->registry->qualifyKey($this->modelToSchema->build($modelClass))]);
+            $items = new OA\Items(['ref' => $this->refKey($modelClass)]);
 
             return $this->jsonResponse(new OA\Schema(['type' => 'array', 'items' => $items]));
         }
@@ -104,11 +104,14 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
     }
 
     /**
+     * Builds (once, cycle-guarded) the model's component schema and returns the qualified `$ref`
+     * key pointing at it — shared by the single-model and collection-item paths.
+     *
      * @param class-string<Model> $modelClass
      */
-    private function refSchema(string $modelClass): OA\Schema
+    private function refKey(string $modelClass): string
     {
-        return new OA\Schema(['ref' => $this->registry->qualifyKey($this->modelToSchema->build($modelClass))]);
+        return $this->registry->qualifyKey($this->modelToSchema->build($modelClass));
     }
 
     private function jsonResponse(OA\Schema $schema): OA\Response

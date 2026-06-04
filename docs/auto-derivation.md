@@ -147,7 +147,7 @@ Article:
   properties:
     id:           { type: integer }
     name:         { type: string }
-    bio:          { type: string, nullable: true }
+    bio:          { type: [string, 'null'] }   # OAS 3.1 nullable idiom (the `nullable` keyword is gone)
     published:    { type: boolean }            # from $casts
     created_at:   { type: string, format: date-time }
     category:     { $ref: '#/components/schemas/Category' }  # Model relation, built recursively

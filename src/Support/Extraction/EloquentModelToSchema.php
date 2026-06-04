@@ -12,12 +12,11 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
-use PHPStan\PhpDocParser\Ast\Type\NullableTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
-use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
@@ -179,7 +178,7 @@ final class EloquentModelToSchema
         foreach ($names as $name) {
             $tag = $propertyTags[$name] ?? null;
 
-            if ($tag !== null && ! $this->isNullable($tag->type)) {
+            if ($tag !== null && ! $this->typeNodeResolver->isNullable($tag->type)) {
                 $required[] = $name;
             }
         }
@@ -194,15 +193,9 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Builds an OA\Property from a docblock type node.
-     *
-     * Precedence:
-     * 1. Scalar keyword → inline type definition.
-     * 2. Eloquent Model class → `$ref` to the related model's component schema (recursive, cycle-guarded).
-     * 3. Non-model class (e.g. Carbon, UuidInterface) → schema via JsonSchemaFromType::fromType.
-     * 4. Unresolvable node → returns null, caller falls through to the empty fallback.
-     *
-     * Nullability is preserved on all paths.
+     * Builds a named OA\Property from a docblock type node, applying nullability via the
+     * OAS 3.1 idiom ({@see NullableSchema}). Returns null when the node is unresolvable, so the
+     * caller falls through to the empty-property fallback.
      *
      * @param ReflectionClass<Model> $reflection
      *
@@ -210,25 +203,45 @@ final class EloquentModelToSchema
      */
     private function propertyFromTag(string $name, TypeNode $node, ReflectionClass $reflection): ?OA\Property
     {
-        $identifier = $this->unwrapToIdentifier($node);
+        $schema = $this->schemaFromTagType($node, $reflection, $name);
 
-        if ($identifier === null) {
+        if ($schema === null) {
             return null;
         }
 
-        $definition = $this->scalarTypeDefinition($identifier->name);
-
-        if ($definition !== null) {
-            $property = new OA\Property(['property' => $name, ...$definition]);
-
-            if ($this->isNullable($node)) {
-                $property->nullable = true;
-            }
-
-            return $property;
+        if ($this->typeNodeResolver->isNullable($node)) {
+            $schema = NullableSchema::wrap($schema);
         }
 
-        // Not a scalar — try to resolve the identifier as a class name.
+        return $this->propertyFromSchema($name, $schema);
+    }
+
+    /**
+     * Builds the type schema for a docblock node — scalar keyword, related-model `$ref`, or a
+     * non-model class via {@see JsonSchemaFromType} — or returns null when the node is a generic,
+     * array, or otherwise unresolvable type (caller falls through to the empty-property fallback).
+     *
+     * Nullability is applied by the caller; this method only shapes the underlying type.
+     *
+     * @param ReflectionClass<Model> $reflection
+     *
+     * @throws ReflectionException
+     */
+    private function schemaFromTagType(TypeNode $node, ReflectionClass $reflection, string $name): ?OA\Schema
+    {
+        // GenericTypeNode (e.g. Collection<Tag>) and ArrayTypeNode are intentionally not descended
+        // into — Tier-0 doesn't parse deep generics (see docs/auto-derivation.md). The scalar
+        // fast-path peeks at the unwrapped identifier before the class path is tried.
+        $inner = $this->typeNodeResolver->unwrapNullable($node);
+
+        if ($inner instanceof IdentifierTypeNode) {
+            $definition = $this->scalarKeywordToDefinition($inner->name);
+
+            if ($definition !== null) {
+                return new OA\Schema($definition);
+            }
+        }
+
         $className = $this->typeNodeResolver->resolveClassName($node, $reflection);
 
         if ($className === null || ! class_exists($className)) {
@@ -243,69 +256,19 @@ final class EloquentModelToSchema
 
         if (is_a($className, Model::class, allow_string: true)) {
             /** @var class-string<Model> $className */
-            $key = $this->build($className);
-            $schema = new OA\Schema(['ref' => $this->registry->qualifyKey($key)]);
-        } else {
-            $schema = $this->jsonSchemaFromType->fromType(Type::object($className));
+            return new OA\Schema(['ref' => $this->registry->qualifyKey($this->build($className))]);
         }
 
-        $property = $this->propertyFromSchema($name, $schema);
-
-        if ($this->isNullable($node)) {
-            $property->nullable = true;
-        }
-
-        return $property;
+        return $this->jsonSchemaFromType->fromType(Type::object($className));
     }
 
     /**
-     * Unwraps a nullable or union-with-null wrapper to reach the inner
-     * IdentifierTypeNode. Returns null for compound/generic/array nodes.
-     *
-     * Uses {@see TypeNodeResolver::unwrapNullable()} as the shared primitive for
-     * the nullable-descend step.
-     *
-     * Scalar fast-path: yields the bare IdentifierTypeNode so the scalar keyword check
-     * can run before resolveClassName() (class path) is tried on the original node.
-     */
-    private function unwrapToIdentifier(TypeNode $node): ?IdentifierTypeNode
-    {
-        $inner = $this->typeNodeResolver->unwrapNullable($node);
-
-        // GenericTypeNode (e.g. Collection<Tag>) and ArrayTypeNode (e.g. array<string,mixed>)
-        // are intentionally not descended into — Tier-0 doesn't parse deep generics. The caller
-        // will fall through to the unconstrained empty-property fallback (see docs/auto-derivation.md).
-        return $inner instanceof IdentifierTypeNode ? $inner : null;
-    }
-
-    /**
-     * Returns true when the type node represents a nullable type
-     * (NullableTypeNode or a union containing a `null` identifier).
-     */
-    private function isNullable(TypeNode $node): bool
-    {
-        if ($node instanceof NullableTypeNode) {
-            return true;
-        }
-
-        if ($node instanceof UnionTypeNode) {
-            foreach ($node->types as $member) {
-                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Maps a scalar PHPDoc keyword to an OpenAPI type definition array,
+     * Maps a scalar PHPDoc/cast keyword to an OpenAPI type definition array,
      * or returns null for class names and non-scalar keywords.
      *
      * @return null|array<string, string>
      */
-    private function scalarTypeDefinition(string $keyword): ?array
+    private function scalarKeywordToDefinition(string $keyword): ?array
     {
         return match (strtolower($keyword)) {
             'int', 'integer'        => ['type' => 'integer'],
@@ -363,23 +326,26 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Converts an OA\Schema into an OA\Property by copying non-UNDEFINED JSON-Schema fields.
+     * Converts an OA\Schema into a named OA\Property by copying every defined JSON-Schema field.
+     *
+     * OA\Property extends OA\Schema, so the field set is identical; swagger-php internals are
+     * underscore-prefixed and skipped, as is the component-key `schema` field.
      */
     private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
     {
-        $props = ['property' => $name];
+        $property = new OA\Property(['property' => $name]);
 
-        // The fields JsonSchemaFromType / fromBackedEnumClass actually emit. Extend this
-        // list if those methods start producing additional schema keywords.
-        foreach (['type', 'format', 'enum', 'description', 'items', 'ref', 'oneOf', 'nullable'] as $field) {
-            $value = $schema->{$field};
+        foreach (get_object_vars($schema) as $field => $value) {
+            if ($field === 'property' || $field === 'schema' || $field[0] === '_') {
+                continue;
+            }
 
             if ($value !== Generator::UNDEFINED) {
-                $props[$field] = $value;
+                $property->{$field} = $value;
             }
         }
 
-        return new OA\Property($props);
+        return $property;
     }
 
     /**
@@ -393,14 +359,12 @@ final class EloquentModelToSchema
             str_contains($cast, ':') ? explode(':', $cast, 2)[0] : $cast,
         );
 
-        $definition = match ($normalised) {
-            'int', 'integer'
-                => ['type' => 'integer'],
-            'real', 'float', 'double'
+        // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
+        // keywords (decimal/date/datetime/array/…) are handled here.
+        $definition = $this->scalarKeywordToDefinition($normalised) ?? match ($normalised) {
+            'real'
                 => ['type' => 'number'],
-            'bool', 'boolean'
-                => ['type' => 'boolean'],
-            'string', 'decimal', 'hashed', 'encrypted'
+            'decimal', 'hashed', 'encrypted'
                 => ['type' => 'string'],
             'date'
                 => ['type' => 'string', 'format' => 'date'],

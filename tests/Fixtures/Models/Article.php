@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
  * @property      ?string       $subtitle
  * @property      string        $title
  * @property-read Author        $author
+ * @property-read ?Author       $editor
  */
 class Article extends Model
 {

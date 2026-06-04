@@ -17,11 +17,14 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 uses()->group('openapi');
 
 /**
- * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+ * Builds the model's schema and returns the live OA\Schema object. Assert on the object's
+ * properties to see the OAS 3.1 type unions (`type: ['…', 'null']`) — swagger-php's raw
+ * json_encode down-converts those to the 3.0 `nullable: true` form, so {@see readModelSchema()}
+ * (the array view) is only suitable for version-agnostic assertions.
  *
- * @return array<string, mixed>
+ * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
  */
-function readModelSchema(string $modelClass): array
+function buildModelSchema(string $modelClass): OA\Schema
 {
     $registry = new ComponentSchemaRegistry();
     $logger = new NullLogger();
@@ -40,7 +43,28 @@ function readModelSchema(string $modelClass): array
     /** @var OA\Schema $schema */
     $schema = collect($registry->all())->firstWhere('schema', $key);
 
-    return json_decode(json_encode($schema), associative: true);
+    return $schema;
+}
+
+/**
+ * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+ *
+ * @return array<string, mixed>
+ */
+function readModelSchema(string $modelClass): array
+{
+    return json_decode(json_encode(buildModelSchema($modelClass)), associative: true);
+}
+
+/**
+ * Returns the named property object from a built model schema.
+ */
+function modelProperty(OA\Schema $schema, string $name): OA\Property
+{
+    /** @var OA\Property $property */
+    $property = collect($schema->properties)->firstWhere('property', $name);
+
+    return $property;
 }
 
 it('maps datetime casts to string/date-time', function (): void {
@@ -63,12 +87,13 @@ it('includes $appends names in the property set', function (): void {
     expect($schema['properties'])->toHaveKey('reading_time');
 });
 
-it('types scalar @property fields and marks nullable ones', function (): void {
-    $schema = readModelSchema(Article::class);
+it('types scalar @property fields and expresses nullable ones via the OAS 3.1 idiom', function (): void {
+    $schema = buildModelSchema(Article::class);
 
-    expect($schema['properties']['title']['type'])->toBe('string')
-        ->and($schema['properties']['subtitle']['type'])->toBe('string')
-        ->and($schema['properties']['subtitle']['nullable'] ?? false)->toBeTrue();
+    // OAS 3.1 removed `nullable`; a nullable scalar widens its `type` to include 'null'. Asserted
+    // on the object because swagger-php's json_encode down-converts the union to `nullable: true`.
+    expect(modelProperty($schema, 'title')->type)->toBe('string')
+        ->and(modelProperty($schema, 'subtitle')->type)->toBe(['string', 'null']);
 });
 
 it('marks non-nullable @property fields required and omits nullable ones', function (): void {
@@ -126,4 +151,19 @@ it('emits a $ref for a @property-read model relation and registers the nested co
 
     expect($article['properties']['author']['$ref'])->toBe('#/components/schemas/Author')
         ->and($authorRegistered)->not->toBeNull();
+});
+
+it('wraps a nullable relation $ref in oneOf (OAS 3.1) rather than a dropped sibling nullable', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    // A bare $ref ignores sibling keywords in OAS 3.1, so nullability must be expressed as a
+    // oneOf of the ref and a null type — not `{$ref, nullable: true}`.
+    $editor = $schema['properties']['editor'];
+
+    expect($editor)->not->toHaveKey('$ref')
+        ->and($editor)->not->toHaveKey('nullable')
+        ->and($editor['oneOf'])->toBe([
+            ['$ref' => '#/components/schemas/Author'],
+            ['type' => 'null'],
+        ]);
 });
