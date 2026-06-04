@@ -28,6 +28,7 @@ use function array_filter;
 use function array_reverse;
 use function array_values;
 use function assert;
+use function config;
 use function count;
 use function explode;
 use function in_array;
@@ -192,21 +193,40 @@ final readonly class PathsStage implements SpecStage
     }
 
     /**
-     * Builds an operation ID for the given route.
+     * Builds an operation ID for the given route, dispatching on the configured
+     * `openapi.operation_id_strategy`:
      *
+     * - `route-name` (default) → {@see routeNameOperationId}: named route verbatim (sanitised),
+     *   unnamed routes fall back to `{method}_{path}`.
+     * - `method-path` → {@see methodPathOperationId}: always `{method}_{path}`, ignoring names.
+     *
+     * Unknown values fall back to the default. Every strategy's output satisfies the
+     * `operation.id-invalid-chars` pattern.
+     */
+    private function buildOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
+    {
+        if (config('openapi.operation_id_strategy') === 'method-path') {
+            return $this->methodPathOperationId($descriptor, $method);
+        }
+
+        return $this->routeNameOperationId($descriptor, $method);
+    }
+
+    /**
      * Priority:
      * 1. Named route → `{name}.{method}` for multi-method routes, plain `{name}` otherwise.
      * 2. Generated/unnamed (`generated::*` prefix or null) → `{method}_{sanitised_path}`.
      */
-    private function buildOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
+    private function routeNameOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
     {
         $name = $descriptor->route->getName();
-        $methods = array_filter(
-            $descriptor->route->methods(),
-            static fn(string $method): bool => HttpMethod::fromString($method) !== HttpMethod::Head,
-        );
 
         if ($name !== null && !Str::startsWith($name, 'generated::')) {
+            $methods = array_filter(
+                $descriptor->route->methods(),
+                static fn(string $method): bool => HttpMethod::fromString($method) !== HttpMethod::Head,
+            );
+
             $operationId = count($methods) > 1
                 ? $name . '.' . strtolower($method->value)
                 : $name;
@@ -214,6 +234,11 @@ final readonly class PathsStage implements SpecStage
             return $this->sanitiseOperationId($operationId);
         }
 
+        return $this->methodPathOperationId($descriptor, $method);
+    }
+
+    private function methodPathOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
+    {
         $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
             ?? $descriptor->route->uri();
 

@@ -347,6 +347,7 @@ plugin-registered rules.
 | `meta.too-many-suppressions` | 3 | Symbol carries an excessive number of suppression directives. |
 | `meta.unknown-rule` | 3 | #[IgnoreLint] references a rule ID not in the registry. |
 | `operation.id-naming-inconsistent` | 3 | operationId doesn't follow the configured operation_id_case convention. |
+| `operation.return-type-missing` | 3 | Action has no typed return value or response attribute, so no response schema can be inferred. |
 | `operation.summary-equals-description` | 3 | Operation summary and description are identical (redundant). |
 | `overrides.unknown-field` | 3 | An `openapi.overrides` block sets a field outside the allowlist (operationId, summary, description, tags, deprecated, x-*). |
 | `overrides.unused` | 3 | An `openapi.overrides` key matches no route name and no route URI. |

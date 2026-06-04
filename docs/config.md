@@ -17,6 +17,7 @@ this page is the at-a-glance summary.
 | `servers` | List of `OA\Server` entries. Default uses `APP_URL`. |
 | `tags` | Document-level tag descriptions keyed by tag name. |
 | `output_path` | Absolute path the `openapi:generate` command writes to and the spec route serves from. Defaults to `storage_path('openapi.yaml')`. |
+| `operation_id_strategy` | How each operation's `operationId` is derived: `'route-name'` (default — route name, or `{method}_{path}` for unnamed routes) or `'method-path'` (always `{method}_{path}`, ignoring route names). Output is always sanitised to satisfy `operation.id-invalid-chars`. Unknown values fall back to `'route-name'`. |
 | `exception_responses` | Maps exception FQCNs (or short names) to `['status', 'description']`. See [precedence](#exception-response-precedence) below. |
 | `middleware_responses` | 401/403/429 responses keyed by Laravel middleware alias (`auth`/`scope`/`throttle`) — only fills status codes no `@throws`-derived response already supplied. |
 | `security_schemes` | Custom OpenAPI security schemes. Merged with the auto-derived defaults (Passport's OAuth2 flows; a `sanctum` http/bearer scheme when any route uses `auth:sanctum`); config wins on key collision. See [Recipes → Declare custom security schemes](recipes.md#declare-custom-security-schemes). |

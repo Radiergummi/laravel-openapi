@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Lint\Rules\ActionMissingReturnType;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
 use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
@@ -230,6 +231,7 @@ final class BaselineRegistration
         SchemaExampleMissing::class,
         OperationDescriptionMissing::class,
         OperationSummaryEqualsDescription::class,
+        ActionMissingReturnType::class,
         EnumValuesUndocumented::class,
         WebhookDescriptionMissing::class,
         DeprecatedNoSunsetDate::class,
