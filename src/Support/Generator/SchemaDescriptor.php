@@ -30,6 +30,7 @@ final readonly class SchemaDescriptor
         public mixed $example = null,
         public ?string $type = null,
         public ?string $format = null,
+        public ?string $items = null,
         public ?bool $nullable = null,
         public mixed $default = null,
         public ?array $enum = null,
@@ -60,11 +61,31 @@ final readonly class SchemaDescriptor
     {
         $schema = new OA\Schema(['type' => 'string', ...$this->toOpenApi()]);
 
+        if (($items = $this->itemsSchema()) !== null) {
+            $schema->items = $items;
+        }
+
         if ($this->nullable === true) {
             NullableSchema::applyTo($schema);
         }
 
         return $schema;
+    }
+
+    /**
+     * The `items` schema for an `array` type. Always present for an array (a permissive `{}` when
+     * no element type is declared), because swagger-php rejects an items-less array and would
+     * hard-fail generation.
+     */
+    private function itemsSchema(): ?OA\Items
+    {
+        if ($this->type !== 'array') {
+            return null;
+        }
+
+        return $this->items !== null
+            ? new OA\Items(['type' => $this->items])
+            : new OA\Items([]);
     }
 
     /** @return array<string, mixed> */
@@ -116,6 +137,10 @@ final readonly class SchemaDescriptor
     {
         foreach ($this->toOpenApi() as $field => $value) {
             $property->{$field} = $value;
+        }
+
+        if (($items = $this->itemsSchema()) !== null) {
+            $property->items = $items;
         }
 
         if ($this->nullable === true) {
