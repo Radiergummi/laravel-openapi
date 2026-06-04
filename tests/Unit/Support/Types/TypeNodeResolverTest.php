@@ -14,12 +14,24 @@ use RuntimeException;
 use stdClass;
 
 /**
+ * Same-namespace value class referenced bare (no `use` import) in a generic below, exercising the
+ * CollectionType-unwrap branch symfony/type-info takes for same-namespace identifiers.
+ */
+class SameNamespaceValue {}
+
+/**
  * Fixture supplies the namespace + `use` context the resolver reads.
  */
 class TypeNodeResolverFixture
 {
     /** @return Collection<int, stdClass> */
     public function generic(): Collection
+    {
+        return new Collection();
+    }
+
+    /** @return Collection<int, SameNamespaceValue> */
+    public function sameNamespaceGeneric(): Collection
     {
         return new Collection();
     }
@@ -62,6 +74,14 @@ it('resolves the value class of a generic to an FQCN', function (): void {
     $type = $parser->parse((string) $method->getDocComment())->returnType();
 
     expect($resolver->genericValueClass($type, $method))->toBe('stdClass');
+});
+
+it('resolves a same-namespace generic value class via the CollectionType branch', function (): void {
+    [$parser, $resolver] = makeResolverPair();
+    $method = new ReflectionMethod(TypeNodeResolverFixture::class, 'sameNamespaceGeneric');
+    $type = $parser->parse((string) $method->getDocComment())->returnType();
+
+    expect($resolver->genericValueClass($type, $method))->toBe(SameNamespaceValue::class);
 });
 
 it('resolves the value class of a nullable generic', function (): void {
