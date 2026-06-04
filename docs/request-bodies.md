@@ -119,6 +119,33 @@ final class CreateFlightAction extends DomainAction
 
 `FlightData` is picked up as the request body for `store`.
 
+## Documenting a body field-by-field with `#[RequestField]`
+
+When an action validates outside a `FormRequest`/Data class — a bare
+`Illuminate\Http\Request` whose input is validated inline or inside an
+Action/service — there is no type the generator can introspect. Document the body
+by stacking `#[RequestField]` on the action (repeatable); each one becomes a
+request-body property, and `required: true` fields populate the schema's
+`required` list. Pair it with `#[RequestBody]` for the description / media type.
+
+```php
+#[RequestBody(description: 'Create a site.')]
+#[RequestField('domain', required: true, type: 'string', format: 'hostname')]
+#[RequestField('php_version', type: 'string', default: '8.4')]
+public function store(Request $request): SiteResource
+{
+    $site = app(CreateSite::class)->handle($request->validate([/* … */]));
+
+    return new SiteResource($site);
+}
+```
+
+On a method the first `$name` argument is required (it is derived from the target
+for the property / `PARAM_*`-constant placements). An explicit `#[RequestField]`
+declaration wins over a type-hinted `FormRequest` on the same action. The same
+field attributes apply as everywhere else — `type`, `format`, `enum`, `minLength`,
+`pattern`, and so on (see [Validation rules → schema constraints](#validation-rules--schema-constraints)).
+
 ## Runtime state in `rules()`
 
 `rules()` bodies that read request state — `$this->route('foo')->bar`,

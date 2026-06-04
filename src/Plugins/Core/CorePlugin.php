@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
@@ -43,6 +44,7 @@ final class CorePlugin implements Plugin
 
     public function register(OpenApiRegistry $registry): void
     {
+        $registry->addRequestSchemaResolver(RequestFieldRequestSchemaResolver::class);
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
