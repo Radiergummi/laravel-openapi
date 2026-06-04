@@ -203,6 +203,167 @@ it('emits an explicit empty (public) requirement for a route with no auth or sco
     expect($extractor->forRoute($route))->toBe([]);
 });
 
+// #33 — Sanctum abilities:/ability: middleware feeds the scope list like Passport scopes.
+
+it('lists abilities:read,write as scopes on the security requirement', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum', 'abilities:read,write'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['sanctum' => ['read', 'write']]]);
+});
+
+it('lists ability:admin as a scope on the security requirement', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum', 'ability:admin'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['sanctum' => ['admin']]]);
+});
+
+it('deduplicates repeated abilities like the Passport scope path', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum', 'abilities:read,read,write'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['sanctum' => ['read', 'write']]]);
+});
+
+// #34 — openapi.security_middleware_map points custom guard middleware at a declared scheme.
+
+it('emits the mapped scheme for a route carrying a configured custom guard middleware', function (): void {
+    config()->set('openapi.security_schemes', [
+        'partner' => ['type' => 'http', 'scheme' => 'bearer'],
+    ]);
+    config()->set('openapi.security_default_scheme', null);
+    config()->set('openapi.security_middleware_map', ['partner-guard' => 'partner']);
+
+    $route                       = new Route(['GET'], '/partner', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['partner-guard'];
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn(new RouteCollection())->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['partner' => []]]);
+});
+
+it('leaves a route with no mapped middleware as a public requirement', function (): void {
+    config()->set('openapi.security_middleware_map', ['partner-guard' => 'partner']);
+
+    $route = new Route(['GET'], '/open', ['uses' => static fn() => null]);
+
+    $extractor = new SecurityExtractor(router: app('router'));
+
+    expect($extractor->forRoute($route))->toBe([]);
+});
+
+it('lets a mapped scheme take precedence over the auto-derived default, carrying the route scopes', function (): void {
+    config()->set('openapi.security_schemes', [
+        'partner' => ['type' => 'http', 'scheme' => 'bearer'],
+    ]);
+    config()->set('openapi.security_default_scheme', null);
+    config()->set('openapi.security_middleware_map', ['partner-guard' => 'partner']);
+
+    // The route also carries auth:sanctum (which would otherwise resolve the default to sanctum),
+    // but the explicit map entry fully describes this route: only the mapped partner scheme is
+    // emitted, carrying the abilities-derived scopes. The sanctum default is not appended.
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['partner-guard', 'auth:sanctum', 'abilities:read'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['partner' => ['read']]]);
+});
+
+it('emits a single requirement for a mapped scheme whose name matches the auto-derived default', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+    config()->set('openapi.security_middleware_map', ['sanctum-guard' => 'sanctum']);
+
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['sanctum-guard', 'auth:sanctum'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['sanctum' => []]]);
+});
+
+it('does not leak an empty-string scope from an argument-less ability token', function (): void {
+    config()->set('openapi.security_schemes', []);
+    config()->set('openapi.security_default_scheme', null);
+
+    $route                       = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
+    $route->action['middleware'] = ['auth:sanctum', 'ability:'];
+
+    $collection = new RouteCollection();
+    $collection->add($route);
+
+    $router = Mockery::mock(Router::class);
+    $router->allows('has')->andReturn(false)->byDefault();
+    $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
+    $router->allows('getRoutes')->andReturn($collection)->byDefault();
+
+    $extractor = new SecurityExtractor(router: $router);
+
+    expect($extractor->forRoute($route))->toBe([['sanctum' => []]]);
+});
+
 it('does not crash on a route carrying closure middleware', function (): void {
     // Closure middleware reaches gatherMiddleware() via controller middleware
     // (and is not cast to string the way Route::middleware() casts its args), so

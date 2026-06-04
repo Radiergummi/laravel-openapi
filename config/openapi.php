@@ -212,6 +212,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Custom Auth-Middleware → Scheme Map
+    |--------------------------------------------------------------------------
+    |
+    | Maps a guard-middleware name to the name of a scheme declared in
+    | `security_schemes` above. Routes carrying `auth:sanctum` / `auth:api` are
+    | already understood; use this for project-specific guard middleware the
+    | generator can't recognise on its own, so a protected endpoint doesn't look
+    | public in the document.
+    |
+    | The match is on the full middleware token (including any `guard` argument).
+    | A mapped entry fully describes the route's auth, so it takes precedence over
+    | the auto-derived `auth:*` / `scope:*` scheme resolution for that route (any
+    | `scope:*` / `abilities:*` scopes still attach to the mapped scheme). Routes
+    | with no matching entry are unaffected. The scheme itself must be defined in
+    | `security_schemes`.
+    |
+    |   'security_middleware_map' => [
+    |       'auth:partner' => 'partner',
+    |       'verify-api-key' => 'apiKey',
+    |   ],
+    |
+    */
+
+    'security_middleware_map' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Visibility
     |--------------------------------------------------------------------------
     |
