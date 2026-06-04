@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Core\Support;
 
-use Exception;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
@@ -23,6 +22,7 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
 use ReflectionException;
+use Throwable;
 
 use function array_any;
 use function array_key_exists;
@@ -112,7 +112,7 @@ final readonly class SchemaFromFormRequest
             $instance = new $formRequestClass(...$args);
             SpecTimeRequest::configure($instance);
             $rules = $instance->rules();
-        } catch (Exception $exception) {
+        } catch (Throwable $exception) {
             $this->logger->warning(
                 sprintf(
                     'SchemaFromFormRequest failed for %s: %s',
@@ -250,7 +250,7 @@ final readonly class SchemaFromFormRequest
     /**
      * @param class-string<FormRequest> $formRequestClass
      */
-    private function emitDegradedFinding(string $formRequestClass, Exception $exception): void
+    private function emitDegradedFinding(string $formRequestClass, Throwable $exception): void
     {
         $file = null;
         $line = null;

@@ -192,6 +192,33 @@ it('registers a placeholder schema, logs a warning, and emits a finding when rul
         ->and($emitted[0]->message)->toContain($brokenClassName);
 });
 
+it('degrades gracefully when rules() raises an Error or TypeError', function (): void {
+    // Real apps' rules() routinely raise Error/TypeError at spec time, not just
+    // Exception: a typed Rule constructor rejecting the route-binding placeholder
+    // (TypeError), or a method call on a null auth user (Error). The userland
+    // invocation seam must catch Throwable, not only Exception.
+    $brokenClass = new class () extends FormRequest {
+        public function rules(): array
+        {
+            throw new TypeError('Argument #1 ($user) must be of type User, AnyValue given');
+        }
+    };
+
+    $brokenClassName = $brokenClass::class;
+
+    $this->builder->build($brokenClassName);
+
+    $schemas = $this->registry->all();
+    expect($schemas)->toHaveCount(1)
+        ->and($schemas[0]->type)->toBe('object')
+        ->and($schemas[0]->description)->toContain('Schema introspection failed');
+
+    $emitted = $this->findings->all();
+    expect($emitted)->toHaveCount(1)
+        ->and($emitted[0]->ruleId)->toBe('request-body.schema-degraded')
+        ->and($emitted[0]->message)->toContain('AnyValue given');
+});
+
 // endregion
 
 // region Runtime-state stubbing

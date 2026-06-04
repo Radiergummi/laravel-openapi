@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData\Support;
 
-use Exception;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\UploadedFile;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
@@ -45,6 +43,7 @@ use Symfony\Component\TypeInfo\TypeContext\TypeContext;
 use Symfony\Component\TypeInfo\TypeContext\TypeContextFactory;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+use Throwable;
 
 use function array_any;
 use function array_filter;
@@ -699,7 +698,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
                 $cachedItems = $processed['itemsFields'];
                 $this->registry->setCompiledFields($dataClass, $cached);
                 $this->registry->setCompiledItemsFields($dataClass, $cachedItems);
-            } catch (Exception $exception) {
+            } catch (Throwable $exception) {
                 $this->logger->warning(
                     sprintf(
                         'SchemaFromDataClass: Skipping validation rule extraction for %s: %s',
