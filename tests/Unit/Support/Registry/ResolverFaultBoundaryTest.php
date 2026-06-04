@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 
@@ -20,22 +19,6 @@ function faultBoundaryDescriptor(string $uri = 'widgets/{id}'): ActionDescriptor
         summary: null,
         description: null,
     );
-}
-
-/**
- * @return AbstractLogger&object{records: list<array{level: mixed, message: string}>}
- */
-function recordingLogger(): AbstractLogger
-{
-    return new class () extends AbstractLogger {
-        /** @var list<array{level: mixed, message: string}> */
-        public array $records = [];
-
-        public function log($level, string|Stringable $message, array $context = []): void
-        {
-            $this->records[] = ['level' => $level, 'message' => (string) $message];
-        }
-    };
 }
 
 // endregion

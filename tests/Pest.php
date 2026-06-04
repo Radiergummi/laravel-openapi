@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Pest\Expectation;
 use PHPUnit\Framework\Assert;
+use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
@@ -82,4 +83,23 @@ function generateSpec(?string $specName = null, string $environment = 'testing')
     $env = $environment !== 'testing' ? $environment : app()->environment();
 
     return Yaml::parse(app(OpenApiGenerator::class)->generate($spec, $env)->toYaml());
+}
+
+/**
+ * A PSR-3 logger that records each call as `['level' => ..., 'message' => ...]`, for asserting
+ * on warnings emitted by code under test (e.g. the resolver fault boundary).
+ *
+ * @return AbstractLogger&object{records: list<array{level: mixed, message: string}>}
+ */
+function recordingLogger(): AbstractLogger
+{
+    return new class () extends AbstractLogger {
+        /** @var list<array{level: mixed, message: string}> */
+        public array $records = [];
+
+        public function log($level, string|Stringable $message, array $context = []): void
+        {
+            $this->records[] = ['level' => $level, 'message' => (string) $message];
+        }
+    };
 }

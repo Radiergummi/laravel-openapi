@@ -78,6 +78,20 @@ final class EloquentModelToSchema
      */
     private function schemaFor(string $modelClass): OA\Schema
     {
+        $reflection = new ReflectionClass($modelClass);
+
+        // An abstract or otherwise non-instantiable model (reachable as a return type or a
+        // @property-read relation) would throw an Error from `new $modelClass()` — which the
+        // resolver fault boundary deliberately does not catch. Degrade to an unknown-shape schema
+        // here instead, so one such model does not abort the whole generation run.
+        if (! $reflection->isInstantiable()) {
+            $this->logger->warning('EloquentModelToSchema: model is not instantiable, using empty fallback', [
+                'model' => $modelClass,
+            ]);
+
+            return new OA\Schema(['type' => 'object']);
+        }
+
         $model = new $modelClass();
 
         $casts = $model->getCasts();
@@ -87,7 +101,6 @@ final class EloquentModelToSchema
 
         $appends = $model->getAppends();
 
-        $reflection = new ReflectionClass($modelClass);
         $docComment = $reflection->getDocComment();
 
         /** @var array<string, PropertyTagValueNode> $propertyTags */

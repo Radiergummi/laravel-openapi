@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
@@ -30,15 +29,7 @@ function requestBodyFaultDescriptor(): ActionDescriptor
 // endregion
 
 it('skips a request-schema resolver that throws and falls through to the next', function (): void {
-    $logger = new class () extends AbstractLogger {
-        /** @var list<string> */
-        public array $records = [];
-
-        public function log($level, string|Stringable $message, array $context = []): void
-        {
-            $this->records[] = (string) $message;
-        }
-    };
+    $logger = recordingLogger();
 
     $throwing = new class () implements RequestSchemaResolver {
         public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
@@ -64,6 +55,6 @@ it('skips a request-schema resolver that throws and falls through to the next', 
 
     expect($body)->not->toBeNull()
         ->and($logger->records)->toHaveCount(1)
-        ->and($logger->records[0])->toContain('orders')
-        ->and($logger->records[0])->toContain('body resolver failed');
+        ->and($logger->records[0]['message'])->toContain('orders')
+        ->and($logger->records[0]['message'])->toContain('body resolver failed');
 });

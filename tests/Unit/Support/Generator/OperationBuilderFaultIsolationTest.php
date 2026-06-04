@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
-use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -21,22 +20,6 @@ use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
 uses()->group('openapi');
 
 // region Helpers
-
-/**
- * @return AbstractLogger&object{records: list<string>}
- */
-function faultIsolationLogger(): AbstractLogger
-{
-    return new class () extends AbstractLogger {
-        /** @var list<string> */
-        public array $records = [];
-
-        public function log($level, string|Stringable $message, array $context = []): void
-        {
-            $this->records[] = (string) $message;
-        }
-    };
-}
 
 /**
  * Builds an OperationBuilder from the live collaborators, overriding only the resolver lists and
@@ -82,7 +65,7 @@ function faultIsolationDescriptor(): ActionDescriptor
 // region Exception isolation
 
 it('skips a primary-response resolver that throws and still emits the fallback 200', function (): void {
-    $logger   = faultIsolationLogger();
+    $logger   = recordingLogger();
     $throwing = new class () implements PrimaryResponseResolver {
         public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
         {
@@ -99,12 +82,12 @@ it('skips a primary-response resolver that throws and still emits the fallback 2
 
     expect($op->responses[0]->response)->toBe('200')
         ->and($logger->records)->toHaveCount(1)
-        ->and($logger->records[0])->toContain('fault-isolation')
-        ->and($logger->records[0])->toContain('resolver blew up');
+        ->and($logger->records[0]['message'])->toContain('fault-isolation')
+        ->and($logger->records[0]['message'])->toContain('resolver blew up');
 });
 
 it('keeps the surviving resolvers output when one query-parameter resolver throws', function (): void {
-    $logger = faultIsolationLogger();
+    $logger = recordingLogger();
 
     $throwing = new class () implements QueryParameterResolver {
         public function resolveQueryParameters(ActionDescriptor $descriptor): array
@@ -138,7 +121,7 @@ it('keeps the surviving resolvers output when one query-parameter resolver throw
 // region Programming errors propagate
 
 it('lets a TypeError from a resolver abort the build instead of swallowing it', function (): void {
-    $logger   = faultIsolationLogger();
+    $logger   = recordingLogger();
     $throwing = new class () implements PrimaryResponseResolver {
         public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
         {
