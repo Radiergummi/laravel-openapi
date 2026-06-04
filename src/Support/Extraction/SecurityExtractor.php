@@ -270,21 +270,20 @@ final class SecurityExtractor
             return [];
         }
 
-        // Schemes mapped from custom guard middleware via `openapi.security_middleware_map`, each
-        // carrying the route's scopes. Emitted alongside (not replacing) the auth:*/scope: path.
-        $requirement = [];
+        // An explicit `openapi.security_middleware_map` entry fully describes how this route
+        // authenticates, so it takes precedence over the auto-derived default scheme(s) for this
+        // route. Each mapped scheme carries the route's scopes.
+        if ($mappedSchemes !== []) {
+            $requirement = [];
 
-        foreach ($mappedSchemes as $name) {
-            $requirement[] = [$name => $scopes];
-        }
-
-        if ($hasAuth || $scopes !== []) {
-            foreach ($this->requirementForScopes($scopes) as $entry) {
-                if (!in_array(array_key_first($entry), $mappedSchemes, true)) {
-                    $requirement[] = $entry;
-                }
+            foreach ($mappedSchemes as $name) {
+                $requirement[] = [$name => $scopes];
             }
+
+            return $requirement;
         }
+
+        $requirement = $this->requirementForScopes($scopes);
 
         // No derivable scheme for an authed/scoped route: return null to omit `security`
         // (not `[]`, which means public), so `operation.security-missing` can fire.

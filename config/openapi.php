@@ -222,9 +222,11 @@ return [
     | public in the document.
     |
     | The match is on the full middleware token (including any `guard` argument).
-    | The mapped scheme's per-operation requirement is emitted alongside the
-    | auto-derived `auth:*` / `scope:*` handling; routes with no matching entry
-    | are unaffected. The scheme itself must be defined in `security_schemes`.
+    | A mapped entry fully describes the route's auth, so it takes precedence over
+    | the auto-derived `auth:*` / `scope:*` scheme resolution for that route (any
+    | `scope:*` / `abilities:*` scopes still attach to the mapped scheme). Routes
+    | with no matching entry are unaffected. The scheme itself must be defined in
+    | `security_schemes`.
     |
     |   'security_middleware_map' => [
     |       'auth:partner' => 'partner',
