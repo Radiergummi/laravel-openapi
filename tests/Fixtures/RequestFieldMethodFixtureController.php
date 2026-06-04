@@ -20,6 +20,7 @@ class RequestFieldMethodFixtureController extends Controller
     #[RequestBody(description: 'Create a site.')]
     #[RequestField('domain', required: true, type: 'string', format: 'hostname')]
     #[RequestField('php_version', type: 'string', default: '8.4')]
+    #[RequestField('aliases', type: 'array', items: 'string')]
     public function store(Request $request): array
     {
         return [];
