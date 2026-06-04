@@ -485,7 +485,7 @@ final readonly class OperationBuilder
         // Inline schema wins over $ref when both are supplied.
         if ($attribute->schema !== null) {
             $props['content'] = [
-                $mediaType->schema(new OA\Schema($attribute->schema)),
+                $mediaType->schema($this->schemaFromArrayLiteral($attribute->schema)),
             ];
         } else {
             $schemaRef = $this->resolveRefSchema($attribute->ref, $descriptor);
@@ -498,6 +498,59 @@ final readonly class OperationBuilder
         }
 
         return new OA\Response($props);
+    }
+
+    /**
+     * Builds an `OA\Schema` from a literal JSON-Schema array, recursively converting `properties`
+     * into `OA\Property` and `items` into `OA\Items`. swagger-php 5.x rejects a raw array left under
+     * `properties`/`items` (`properties is an object literal`), failing validation; a proper object
+     * graph validates on both the 5.x and 6.x lines.
+     *
+     * @param array<string, mixed> $definition
+     */
+    private function schemaFromArrayLiteral(array $definition): OA\Schema
+    {
+        $schema = new OA\Schema([]);
+        $this->applyArraySchema($schema, $definition);
+
+        return $schema;
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     */
+    private function applyArraySchema(OA\Schema $node, array $definition): void
+    {
+        foreach ($definition as $key => $value) {
+            if ($key === 'properties' && is_array($value)) {
+                $properties = [];
+
+                /** @var mixed $childDefinition */
+                foreach ($value as $name => $childDefinition) {
+                    $property = new OA\Property(['property' => (string) $name]);
+
+                    if (is_array($childDefinition)) {
+                        $this->applyArraySchema($property, $childDefinition);
+                    }
+
+                    $properties[] = $property;
+                }
+
+                $node->properties = $properties;
+
+                continue;
+            }
+
+            if ($key === 'items' && is_array($value)) {
+                $items = new OA\Items([]);
+                $this->applyArraySchema($items, $value);
+                $node->items = $items;
+
+                continue;
+            }
+
+            $node->{$key} = $value;
+        }
     }
 
     /**
