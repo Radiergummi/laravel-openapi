@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Plugins\Core\Lint\RuleInvalidEnumValue;
 use Radiergummi\OpenApi\Plugins\Core\Lint\RuleUnknown;
 use Radiergummi\OpenApi\Plugins\Core\Lint\ThrowsUnmapped;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
@@ -45,6 +46,7 @@ final class CorePlugin implements Plugin
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
+        $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
 
         // Error-response inference contributors; the registration order is important: Throws
         // first (most specific), Middleware second, Validation last (most implicit). The stage that

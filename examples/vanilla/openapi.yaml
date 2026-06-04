@@ -200,7 +200,81 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       security: []
+  /api/typed/flights:
+    get:
+      tags:
+        - Vanilla
+        - Flights
+      summary: 'List flights.'
+      description: 'Returns all flights. The response schema is inferred from the Flight model.'
+      operationId: get_api_typed_flights
+      parameters: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Flight'
+      security: []
+  '/api/typed/flights/{flight}':
+    get:
+      tags:
+        - Vanilla
+        - Flights
+      summary: 'Show a single flight.'
+      operationId: get_api_typed_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
 components:
+  schemas:
+    Flight:
+      required:
+        - departs_at
+        - arrives_at
+        - aircraft_type
+        - destination
+        - id
+        - number
+        - origin
+        - status
+      properties:
+        departs_at:
+          type: string
+          format: date-time
+        arrives_at:
+          type: string
+          format: date-time
+        aircraft_type:
+          type: string
+        destination:
+          type: string
+        id:
+          type: string
+        number:
+          type: string
+        origin:
+          type: string
+        status:
+          type: string
+      type: object
   responses:
     ValidationFailed:
       description: 'Validation failed'

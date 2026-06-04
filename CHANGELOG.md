@@ -6,6 +6,11 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- Response schemas are now derived from Eloquent model metadata when a controller returns a model
+  (or a `Collection<Model>`) directly. The schema is built by reflection from `$casts`, the model's
+  `@property`/`@property-read` docblock, typed `$appends` accessors, and `$hidden`/`$visible`;
+  `@property-read` model relations become `$ref`s to nested component schemas. Document computed
+  fields with `@property-read` (or a typed legacy accessor) to include them. (#18)
 - `openapi:lint --fix` and `--check`: auto-fix for the mechanical, unambiguous lint findings. `--fix` rewrites the offending PHP source in place (then lists the modified files so you can run your formatter, e.g. `vendor/bin/pint --dirty`); `--check` is a CI-safe dry run that writes nothing and exits `1` when any fix is pending (like `vendor/bin/pint --test`). Both compose with `--only` / `--skip` / `--level` / `--path` / `--spec`. Phase 1 covers the Tier A removals — `tag.duplicate`, `queryparam.duplicate`, `response.duplicate-status`, `link.duplicate-name`, and `field.no-effect` — by deleting the redundant or no-op attribute via `nikic/php-parser` (now an explicit dependency); a rule opts in by implementing `Lint\Fix\FixableRule`. Findings without an owning fixable rule are reported, never rewritten. See [Linting → Auto-fixing findings](docs/linting.md#auto-fixing-findings).
 - `openapi.overrides` config key: a spec-only escape hatch to set operation-level fields (`operationId`, `summary`, `description`, `tags`, `deprecated`, and any `x-*` extension) per route name or URI glob, without touching controller code. Applied as a late pipeline stage (always loaded, independent of any plugin). Overrides beat plugin contributions and convention-derived values; a code-based `transformDocument()` callback still wins. URI globs match by specificity (literal-character count, ties broken by declaration order); an exact route-name key wins over any glob. See [Configuration → Operation overrides](docs/config.md#operation-overrides).
 - Lint rules `overrides.unknown-field` (flags an override field outside the allowlist) and `overrides.unused` (flags an override key matching no route name or URI). Both are level 3 and severity-overridable.

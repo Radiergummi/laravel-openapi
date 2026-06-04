@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Examples\Vanilla\Http\BookingController;
 use Examples\Vanilla\Http\FlightController;
+use Examples\Vanilla\Http\TypedFlightController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/flights', [FlightController::class, 'index']);
@@ -15,3 +16,6 @@ Route::delete('/flights/{flight}', [FlightController::class, 'destroy']);
 Route::get('/flights/{flight}/bookings', [BookingController::class, 'index']);
 Route::post('/flights/{flight}/bookings', [BookingController::class, 'store']);
 Route::delete('/bookings/{booking}', [BookingController::class, 'destroy']);
+
+Route::get('/typed/flights', [TypedFlightController::class, 'index']);
+Route::get('/typed/flights/{flight}', [TypedFlightController::class, 'show']);

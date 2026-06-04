@@ -29,6 +29,7 @@ use function array_map;
 use function explode;
 use function implode;
 use function is_a;
+use function is_int;
 use function ltrim;
 use function preg_replace;
 use function sprintf;
@@ -70,26 +71,8 @@ final readonly class JsonSchemaFromType
         if ($type instanceof BackedEnumType) {
             /** @var class-string<BackedEnum> $className */
             $className = $type->getClassName();
-            $isInt = $type->getBackingType()->getTypeIdentifier() === TypeIdentifier::INT;
 
-            $props = [
-                'type' => $isInt ? 'integer' : 'string',
-                'enum' => array_map(
-                    static fn(BackedEnum $case): int|string
-                        => $isInt
-                        ? (int) $case->value
-                        : (string) $case->value,
-                    $className::cases(),
-                ),
-            ];
-
-            $caseDescription = $this->enumCaseDescription($className);
-
-            if ($caseDescription !== null) {
-                $props['description'] = $caseDescription;
-            }
-
-            return new OA\Schema($props);
+            return $this->fromBackedEnumClass($className);
         }
 
         if ($type instanceof EnumType) {
@@ -118,6 +101,40 @@ final readonly class JsonSchemaFromType
             'type' => 'string',
             'description' => sprintf('Unmapped type: %s', $type::class),
         ]);
+    }
+
+    /**
+     * Builds an inline enum schema from a backed-enum class-string.
+     *
+     * Determines integer-vs-string backing via reflection so the caller does not need a
+     * symfony/type-info {@see BackedEnumType} in hand — useful when the enum class name
+     * comes from a cast string rather than a resolved type tree.
+     *
+     * @param class-string<BackedEnum> $enumClass
+     */
+    public function fromBackedEnumClass(string $enumClass): OA\Schema
+    {
+        $cases = $enumClass::cases();
+        $isInt = $cases !== [] && is_int($cases[0]->value);
+
+        $props = [
+            'type' => $isInt ? 'integer' : 'string',
+            'enum' => array_map(
+                static fn(BackedEnum $case): int|string
+                    => $isInt
+                    ? (int) $case->value
+                    : (string) $case->value,
+                $enumClass::cases(),
+            ),
+        ];
+
+        $caseDescription = $this->enumCaseDescription($enumClass);
+
+        if ($caseDescription !== null) {
+            $props['description'] = $caseDescription;
+        }
+
+        return new OA\Schema($props);
     }
 
     /**
