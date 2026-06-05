@@ -208,3 +208,67 @@ it('does not clobber an existing target example when merging', function (): void
 });
 
 // endregion
+
+// region nested properties / items (#28)
+
+it('emits nested object properties with a required list', function (): void {
+    $city = new FieldDescriptor();
+    $city->type = 'string';
+    $city->required = true;
+
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'object';
+    $descriptor->properties = ['city' => $city];
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->type)->toBe('object')
+        ->and($target->properties)->toBeArray()->toHaveCount(1)
+        ->and($target->properties[0]->property)->toBe('city')
+        ->and($target->properties[0]->type)->toBe('string')
+        ->and($target->required)->toBe(['city']);
+});
+
+it('emits array items from a nested items descriptor', function (): void {
+    $element = new FieldDescriptor();
+    $element->type = 'string';
+
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'array';
+    $descriptor->items = $element;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->type)->toBe('array')
+        ->and($target->items)->toBeInstanceOf(OA\Items::class)
+        ->and($target->items->type)->toBe('string');
+});
+
+it('emits a deep array-of-object with a nested object property', function (): void {
+    $cityField = new FieldDescriptor();
+    $cityField->type = 'string';
+
+    $addressField = new FieldDescriptor();
+    $addressField->type = 'object';
+    $addressField->properties = ['city' => $cityField];
+
+    $element = new FieldDescriptor();
+    $element->type = 'object';
+    $element->properties = ['address' => $addressField];
+
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'array';
+    $descriptor->items = $element;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->type)->toBe('array')
+        ->and($target->items->type)->toBe('object')
+        ->and($target->items->properties[0]->property)->toBe('address')
+        ->and($target->items->properties[0]->properties[0]->property)->toBe('city');
+});
+
+// endregion

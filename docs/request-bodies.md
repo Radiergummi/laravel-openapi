@@ -17,7 +17,7 @@ validation.
 | Validation rules live in | `rules()` (Laravel core) | `rules()` and/or `#[Validation*]` attributes |
 | Request-side support | Yes, always on | Yes, via the SpatieData plugin |
 | Response-side support | No. Return a typed resource (`JsonResource`) or use `#[ResponseResource]`. | Yes. Return a `Data`, `DataCollection<…>`, or paginated variant. |
-| Nested objects | No, flat key→rule map only | Yes. Nested `Data` classes become nested component schemas via `$ref`. |
+| Nested objects | Yes, via dotted/wildcard rule keys (`address.city`, `items.*.name`) → inline nested object/array schemas | Yes. Nested `Data` classes become nested component schemas via `$ref`. |
 | Enums | `Rule::in([...])` / `enum:` validation rule → `enum` | Native PHP enum property → `enum`; validation `Rule::in([...])` still works |
 | Field-level enrichment | `#[RequestField]` on a `PARAM_*` class-constant whose value matches the field name | `#[RequestField]` on the promoted constructor parameter or property |
 | Transformations / computed properties | No. The generator reads signatures only — method bodies are not read. | The `Data` class can carry `Optional`-typed and computed properties. PATCH semantics are inferred from `Optional\|…\|null`. |
@@ -227,17 +227,29 @@ Properties typed as `Optional|string|null` (Spatie's `Optional`) are stripped
 from the schema's `required` list even if `rules()` says `required`. The
 PHP-type pass is authoritative for "is this field required?".
 
-### Dotted-key rules (one level)
+### Dotted & wildcard rules → nested schemas
 
-`foo.*` rules are applied to the parent field's `items` schema:
+Dotted (`address.city`) and wildcard (`items.*`) validation keys become nested object/array
+schemas to arbitrary depth. A plain segment is a nested object property; a `*` segment is an
+array element:
 
 ```php
-'tags.*' => ['string', 'max:10']
+'tags.*'               => ['string', 'max:10'],
+'address.city'         => ['required', 'string'],
+'items.*.name'         => ['string'],
+'items.*.address.city' => ['string'],
 // yields:
-// tags: { type: array, items: { type: string, maxLength: 10 } }
+// tags:    { type: array, items: { type: string, maxLength: 10 } }
+// address: { type: object, properties: { city: { type: string } }, required: [city] }
+// items:   { type: array, items: { type: object, properties: {
+//             name: { type: string },
+//             address: { type: object, properties: { city: { type: string } } }
+//           } } }
 ```
 
-Deeper paths (`foo.*.bar`) are not yet supported and are silently dropped.
+A bare `*` key maps to the schema's `additionalProperties`. For Spatie `Data` classes the
+PHP-type pass remains authoritative — rule-derived nesting only fills gaps it leaves (e.g. the
+element type of a scalar array), never overriding a typed nested `Data` `$ref`.
 
 ### Custom Rule objects
 
