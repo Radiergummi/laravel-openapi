@@ -64,6 +64,21 @@ All four subclasses share the same JSON Schema field surface inherited from
 `minLength` / `maxLength`, `pattern`, `minItems` / `maxItems`, `uniqueItems`,
 `readOnly`, `writeOnly`.
 
+### Enum from a backed-enum class-string
+
+`enum:` accepts a backed-enum class-string in place of a literal value list — the generator
+resolves it to the enum's cases and infers the scalar `type` (`string` or `integer`) from the
+backing type:
+
+```php
+#[ResourceField('status', enum: ServerStatus::class)]
+```
+
+This is equivalent to hand-listing `enum: ['ready', 'installing', …]` plus `type: 'string'`, but
+stays in sync with the enum automatically — useful for status-like fields whose values come from
+a backed enum the resource exposes as a string. An explicit `type:` still wins over the inferred
+one, and the literal-array form keeps working as an override.
+
 ### Inline description directives
 
 The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[ResponseField]`, and
