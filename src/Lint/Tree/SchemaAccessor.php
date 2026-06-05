@@ -48,6 +48,25 @@ final class SchemaAccessor
         return null;
     }
 
+    /**
+     * Extract the component name from a Response Reference Object
+     * (`$ref: '#/components/responses/{name}'`), or null when the response is not a ref.
+     */
+    public static function extractResponseRef(OA\Response $response): ?string
+    {
+        $ref = $response->ref;
+
+        if (is_undefined($ref) || !is_string($ref)) {
+            return null;
+        }
+
+        if (preg_match('~^#/components/responses/(.+)$~', $ref, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
     public static function extractSchemaType(mixed $schema): ?string
     {
         if ($schema === null || is_undefined($schema)) {

@@ -35,6 +35,16 @@ final class SpecTreeBuilder
     private array $componentSchemaIndex = [];
 
     /**
+     * Component responses indexed by name — populated at the start of {@see build()} so
+     * {@see buildResponses()} can dereference a `$ref` response
+     * (`$ref: '#/components/responses/{name}'`) to the description carried by the referenced
+     * component, which the local response node lacks.
+     *
+     * @var array<string, OA\Response>
+     */
+    private array $componentResponseIndex = [];
+
+    /**
      * @param array<string, class-string> $componentClassMap Component key → originating PHP class,
      *                                                       as returned by
      *                                                       {@see ComponentSchemaRegistry::componentClassMap()}.
@@ -55,6 +65,7 @@ final class SpecTreeBuilder
     public function build(OA\OpenApi $spec, array $actionDescriptors): ApiNode
     {
         $this->componentSchemaIndex = $this->indexComponentSchemas($spec);
+        $this->componentResponseIndex = $this->indexComponentResponses($spec);
 
         $descriptorIndex = $this->buildDescriptorIndex($actionDescriptors);
         $operations = $this->buildOperations($spec, $descriptorIndex);
@@ -119,6 +130,47 @@ final class SpecTreeBuilder
             }
 
             $index[$schema->schema] = $schema;
+        }
+
+        return $index;
+    }
+
+    /**
+     * Index `components.responses` by component name so {@see buildResponses()} can dereference
+     * `$ref` responses. The component name is carried on each response's `response` property,
+     * mirroring how {@see indexComponentSchemas()} keys off `$schema->schema`.
+     *
+     * @return array<string, OA\Response>
+     */
+    private function indexComponentResponses(OA\OpenApi $spec): array
+    {
+        $components = $spec->components;
+
+        if ($components === null || is_undefined($components)) {
+            return [];
+        }
+
+        $responses = $components->responses;
+
+        if (!is_array($responses) || is_undefined($responses)) {
+            return [];
+        }
+
+        $index = [];
+
+        foreach ($responses as $response) {
+            if (
+                !$response instanceof OA\Response
+                || is_undefined($response)
+            ) {
+                continue;
+            }
+
+            if (is_undefined($response->response)) {
+                continue;
+            }
+
+            $index[(string) $response->response] = $response;
         }
 
         return $index;
@@ -281,6 +333,10 @@ final class SpecTreeBuilder
                 continue;
             }
 
+            // Latent: a `$ref`'d parameter would carry no inline description and false-fire
+            // `parameter.description-missing`, like the response-ref bug fixed in this class. The
+            // generator never emits `components.parameters`/`$ref` parameters today (parameters are
+            // always inlined), so no dereference is wired in. Add one here if that changes.
             $examples = $this->buildExamplesFromParameter($param);
             $node = new ParameterNode(
                 name: is_defined($param->name)
@@ -712,6 +768,15 @@ final class SpecTreeBuilder
                 : 'default';
 
             $description = SchemaAccessor::undefinedToNull($response->description);
+
+            // A response emitted as a Reference Object (`$ref: '#/components/responses/{name}'`)
+            // carries no inline description — the referenced component does. Dereference it so
+            // description rules see the real text instead of false-firing. Only fill in when the
+            // local node has none of its own.
+            if ($description === null) {
+                $description = $this->resolveReferencedResponseDescription($response);
+            }
+
             $fields = [];
             $examples = [];
             $schemaRef = null;
@@ -822,8 +887,35 @@ final class SpecTreeBuilder
         return $result;
     }
 
+    /**
+     * Resolve the description of a `$ref` response from the indexed component it points at.
+     * Returns null when the response is not a ref or the ref is dangling — a dangling ref is the
+     * `ref.broken` rule's concern, not a description-rule's, so we leave the description absent
+     * rather than crash or silently satisfy the check.
+     */
+    private function resolveReferencedResponseDescription(OA\Response $response): ?string
+    {
+        $name = SchemaAccessor::extractResponseRef($response);
+
+        if ($name === null) {
+            return null;
+        }
+
+        $target = $this->componentResponseIndex[$name] ?? null;
+
+        if ($target === null) {
+            return null;
+        }
+
+        return SchemaAccessor::undefinedToNull($target->description);
+    }
+
     private function buildHeader(OA\Header $header): HeaderNode
     {
+        // Latent: a `$ref`'d header would carry no inline description and false-fire
+        // `header.description-missing`, mirroring the response-ref bug fixed in this class. The
+        // generator never emits `components.headers`/`$ref` headers today (headers are always
+        // inlined on responses), so no dereference is wired in. Add one here if that changes.
         return new HeaderNode(
             name: is_defined($header->header)
                 ? $header->header
