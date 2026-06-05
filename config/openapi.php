@@ -9,9 +9,13 @@ use Illuminate\Database\MultipleRecordsFoundException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Validation\ValidationException;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipBroadcastingRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipCashierRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipHorizonRoutes;
 use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipIgnitionRoutes;
 use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipNovaRoutes;
 use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipPassportRoutes;
+use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipPulseRoutes;
 use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipSelfRoutes;
 use Radiergummi\OpenApi\Plugins\Core\RouteFilters\SkipTelescopeRoutes;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
@@ -539,9 +543,10 @@ return [
     | contract; returning true from `shouldSkip()` omits the route from the
     | generated document.
     |
-    | The five shipped filters exclude (1) the library's own spec/playground
-    | routes and (2) routes from common dev/admin/auth packages (Nova,
-    | Telescope, Ignition, Passport). Each one tolerates its package being
+    | The shipped filters exclude (1) the library's own spec/playground routes
+    | and (2) routes from common dev/admin/auth/vendor packages (Nova,
+    | Telescope, Ignition, Passport, Horizon, Pulse, Cashier, and the
+    | broadcasting channel-auth endpoints). Each one tolerates its package being
     | absent: with no config present it simply matches nothing.
     |
     */
@@ -554,6 +559,10 @@ return [
         SkipTelescopeRoutes::class,
         SkipIgnitionRoutes::class,
         SkipPassportRoutes::class,
+        SkipHorizonRoutes::class,
+        SkipPulseRoutes::class,
+        SkipCashierRoutes::class,
+        SkipBroadcastingRoutes::class,
     ],
 
 ];
