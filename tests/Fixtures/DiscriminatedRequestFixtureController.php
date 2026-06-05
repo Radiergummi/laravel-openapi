@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
+use DateTimeImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Radiergummi\OpenApi\Attributes\RequestBody;
@@ -45,6 +46,28 @@ class DiscriminatedRequestFixtureController extends Controller
     #[RequestVariant('a', fields: [new RequestField('only_a', required: true)])]
     #[RequestVariant('b', fields: [new RequestField('type', description: 'Authored discriminator.'), new RequestField('only_b')])]
     public function injection(Request $request): array
+    {
+        return [];
+    }
+
+    #[RequestBody(discriminator: 'provider')]
+    #[RequestVariant('aws')] // malformed: neither schema nor fields
+    public function malformed(Request $request): array
+    {
+        return [];
+    }
+
+    #[RequestBody(discriminator: 'provider')]
+    #[RequestVariant('aws', fields: [new RequestField('a')])]
+    #[RequestVariant('aws', fields: [new RequestField('b')])] // duplicate value
+    public function duplicate(Request $request): array
+    {
+        return [];
+    }
+
+    #[RequestBody(discriminator: 'provider')]
+    #[RequestVariant('weird', schema: DateTimeImmutable::class)] // not resolvable by any ref resolver
+    public function unresolvable(Request $request): array
     {
         return [];
     }
