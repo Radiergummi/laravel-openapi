@@ -686,7 +686,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
     private function applyValidationRules(string $dataClass, array $properties, array $required): array
     {
         $cached = $this->registry->compiledFields($dataClass);
-        $cachedItems = $this->registry->compiledItemsFields($dataClass);
 
         if ($cached === null) {
             try {
@@ -695,9 +694,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
                 $normalised = $this->rulesToSchema->normaliseIndexedPaths($raw);
                 $processed = $this->rulesToSchema->process($normalised, sourceClass: $dataClass);
                 $cached = $processed['fields'];
-                $cachedItems = $processed['itemsFields'];
                 $this->registry->setCompiledFields($dataClass, $cached);
-                $this->registry->setCompiledItemsFields($dataClass, $cachedItems);
             } catch (Throwable $exception) {
                 $this->logger->warning(
                     sprintf(
@@ -707,7 +704,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
                     ),
                 );
                 $this->registry->setCompiledFields($dataClass, []);
-                $this->registry->setCompiledItemsFields($dataClass, []);
 
                 return [$properties, $required];
             }
@@ -715,9 +711,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
         /** @var array<string, FieldDescriptor> $fieldMap */
         $fieldMap = $cached;
-
-        /** @var array<string, FieldDescriptor> $itemsMap */
-        $itemsMap = $cachedItems ?? [];
 
         /** @var array<string, OA\Property> $propsByName */
         $propsByName = [];
@@ -731,6 +724,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
                 continue;
             }
 
+            // Merge mode: rule-derived constraints (including nested properties/items) fill gaps
+            // the PHP-type pass left undefined; they never clobber a type-pass decision.
             $descriptor->applyTo($propsByName[$fieldName], overwrite: false);
 
             // Only an explicit `sometimes` rule (descriptor->required === false) demotes a
@@ -743,32 +738,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
                         static fn(string $name): bool => $name !== $fieldName,
                     ),
                 );
-            }
-        }
-
-        foreach ($itemsMap as $fieldName => $itemsDescriptor) {
-            $prop = $propsByName[$fieldName] ?? null;
-
-            if ($prop === null) {
-                continue;
-            }
-
-            $items = new OA\Items([]);
-            $itemsDescriptor->applyTo($items);
-
-            // When the property is expressed as oneOf (nullable array wrapped by NullableSchema),
-            // items must go onto the type:'array' inner schema — not on the outer oneOf wrapper,
-            // which would trigger swagger-php's "OA\Items() parent type must be an array" check.
-            if (is_array($prop->oneOf)) {
-                foreach ($prop->oneOf as $branch) {
-                    if ($branch instanceof OA\Schema && $branch->type === 'array') {
-                        $branch->items = $items;
-
-                        break;
-                    }
-                }
-            } else {
-                $prop->items = $items;
             }
         }
 

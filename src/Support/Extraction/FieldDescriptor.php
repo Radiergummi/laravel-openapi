@@ -108,6 +108,21 @@ final class FieldDescriptor
     public mixed $example = null;
 
     /**
+     * Nested object properties, keyed by property name, derived from dotted validation keys
+     * (`address.city`). Non-null marks this descriptor an `object`; each child is emitted as an
+     * `OA\Property` and required children populate the object's `required` list.
+     *
+     * @var null|array<string, FieldDescriptor>
+     */
+    public ?array $properties = null;
+
+    /**
+     * Nested array element descriptor, derived from wildcard validation keys (`items.*`). Non-null
+     * marks this descriptor an `array`; it is emitted as the schema's `items`.
+     */
+    public ?FieldDescriptor $items = null;
+
+    /**
      * Copies set descriptor fields onto `$target`.
      *
      * Accepts any {@see OA\Schema} subclass (`OA\Property`, `OA\Items`, etc.) since they all share
@@ -143,8 +158,9 @@ final class FieldDescriptor
 
             // swagger-php requires every `type: array` schema to carry an `items` annotation.
             // Inject an empty fallback when no items has been set by the type-resolution pass or
-            // a foo.* wildcard rule. This covers both OA\Property and OA\Items targets.
-            if ($this->type === 'array' && is_undefined($target->items)) {
+            // a foo.* wildcard rule. This covers both OA\Property and OA\Items targets. Skip it
+            // when this descriptor carries a nested items descriptor — the real items is emitted below.
+            if ($this->type === 'array' && $this->items === null && is_undefined($target->items)) {
                 $target->items = new OA\Items([]);
             }
         }
@@ -196,6 +212,49 @@ final class FieldDescriptor
 
         if ($this->maxItems !== null) {
             $target->maxItems = $this->maxItems;
+        }
+
+        // Nested object properties (from dotted validation keys). Emitted before the nullable
+        // block so a nullable object's properties/required migrate into the oneOf inner schema.
+        //
+        // In merge mode (overwrite: false — the Spatie type-pass-first path) only fill a bare
+        // object placeholder: never add properties to a schema the type pass already composed
+        // (oneOf/allOf/anyOf) or expressed as a `$ref`.
+        $canFillProperties = $overwrite
+            || (is_undefined($target->properties) && !$alreadyComposed && is_undefined($target->ref));
+
+        if ($this->properties !== null && $canFillProperties) {
+            $childProperties = [];
+            $requiredChildren = [];
+
+            foreach ($this->properties as $name => $childDescriptor) {
+                $childProperty = new OA\Property(['property' => $name]);
+                $childDescriptor->applyTo($childProperty);
+                $childProperties[] = $childProperty;
+
+                if ($childDescriptor->required === true) {
+                    $requiredChildren[] = $name;
+                }
+            }
+
+            $target->properties = $childProperties;
+
+            if ($requiredChildren !== [] && is_undefined($target->required)) {
+                $target->required = $requiredChildren;
+            }
+        }
+
+        // Nested array element (from wildcard validation keys).
+        if ($this->items !== null) {
+            if ($overwrite || is_undefined($target->items)) {
+                $childItems = new OA\Items([]);
+                $this->items->applyTo($childItems);
+                $target->items = $childItems;
+            } elseif ($target->items instanceof OA\Items && is_undefined($target->items->ref)) {
+                // Fill the empty placeholder items swagger-php requires on every array (the
+                // scalar-array case in the Spatie merge path) without clobbering a `$ref` element.
+                $this->items->applyTo($target->items, overwrite: false);
+            }
         }
 
         // Nullable (OAS 3.1): express nullability without the removed `nullable` keyword.

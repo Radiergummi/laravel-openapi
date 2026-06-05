@@ -435,11 +435,12 @@ it('does not throw on a bare custom ValidationRule object field value', function
     expect($result['fields'])->toHaveKey('name');
 });
 
-it('handles a bare Rule object on a dotted foo.* key (no throw, populates items)', function (): void {
+it('handles a bare Rule object on a dotted foo.* key (no throw, nests into array items)', function (): void {
     $result = $this->mapper->process(['tags.*' => new BareFixtureRule()]);
 
-    expect($result['itemsFields'])->toHaveKey('tags')
-        ->and($result['hasDottedKeys'])->toBeTrue();
+    expect($result['fields'])->toHaveKey('tags')
+        ->and($result['fields']['tags']->type)->toBe('array')
+        ->and($result['fields']['tags']->items)->not->toBeNull();
 });
 
 // endregion
@@ -583,21 +584,62 @@ it('accepts array form with same results', function (): void {
 
 // region Dotted keys
 
-it('skips dotted keys and sets hasDottedKeys=true', function (): void {
+it('nests a dotted object key into the parent object properties', function (): void {
     $result = $this->mapper->process([
         'name'         => 'required|string',
+        'address.city' => 'required|string',
+    ]);
+
+    $address = $result['fields']['address'];
+
+    expect($result['fields'])->toHaveKey('name')
+        ->and($result['fields'])->not->toHaveKey('address.city')
+        ->and($address->type)->toBe('object')
+        ->and($address->properties)->toHaveKey('city')
+        ->and($address->properties['city']->type)->toBe('string')
+        ->and($address->properties['city']->required)->toBeTrue();
+});
+
+it('nests a wildcard key into array-of-object items', function (): void {
+    $result = $this->mapper->process([
         'items.*.price' => 'numeric',
     ]);
 
-    expect($result['hasDottedKeys'])->toBeTrue()
-        ->and($result['fields'])->toHaveKey('name')
-        ->and($result['fields'])->not->toHaveKey('items.*.price');
+    $items = $result['fields']['items'];
+
+    expect($items->type)->toBe('array')
+        ->and($items->items)->not->toBeNull()
+        ->and($items->items->type)->toBe('object')
+        ->and($items->items->properties)->toHaveKey('price')
+        ->and($items->items->properties['price']->type)->toBe('number');
 });
 
-it('leaves hasDottedKeys=false when no dotted rules present', function (): void {
-    $result = $this->mapper->process(['name' => 'required|string']);
+it('composes a deep mixed path (items.*.address.city) into array-of-object with a nested object', function (): void {
+    $result = $this->mapper->process([
+        'items.*.address.city' => 'string',
+    ]);
 
-    expect($result['hasDottedKeys'])->toBeFalse();
+    $items   = $result['fields']['items'];
+    $element = $items->items;
+    $address = $element->properties['address'];
+
+    expect($items->type)->toBe('array')
+        ->and($element->type)->toBe('object')
+        ->and($address->type)->toBe('object')
+        ->and($address->properties)->toHaveKey('city')
+        ->and($address->properties['city']->type)->toBe('string');
+});
+
+it('merges a parent rule with its nested children on one descriptor', function (): void {
+    $result = $this->mapper->process([
+        'address'      => 'required',
+        'address.city' => 'string',
+    ]);
+
+    $address = $result['fields']['address'];
+
+    expect($address->required)->toBeTrue()
+        ->and($address->properties)->toHaveKey('city');
 });
 
 // endregion
@@ -911,11 +953,13 @@ it('does not set additionalPropertiesField when no bare "*" key is present', fun
     expect($result['additionalPropertiesField'])->toBeNull();
 });
 
-it('populates itemsFields for foo.* even when the parent foo is not separately declared', function (): void {
+it('nests foo.* into array items even when the parent foo is not separately declared', function (): void {
     $result = $this->mapper->process(['attachments.*' => 'file']);
 
-    expect($result['itemsFields'])->toHaveKey('attachments')
-        ->and($result['itemsFields']['attachments']->isFile)->toBeTrue();
+    expect($result['fields'])->toHaveKey('attachments')
+        ->and($result['fields']['attachments']->type)->toBe('array')
+        ->and($result['fields']['attachments']->items)->not->toBeNull()
+        ->and($result['fields']['attachments']->items->isFile)->toBeTrue();
 });
 
 // endregion
