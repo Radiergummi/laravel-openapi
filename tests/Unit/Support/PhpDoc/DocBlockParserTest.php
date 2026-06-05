@@ -44,6 +44,24 @@ it('exposes raw value nodes for arbitrary tags', function (): void {
     expect(makeDocBlockParser()->parse($comment)->tagValues('@param'))->toHaveCount(1);
 });
 
+it('exposes the @deprecated reason text', function (): void {
+    $comment = "/**\n * @deprecated Use bar() instead.\n */";
+
+    expect(makeDocBlockParser()->parse($comment)->deprecation())->toBe('Use bar() instead.');
+});
+
+it('returns an empty string for a bare @deprecated tag', function (): void {
+    $comment = "/**\n * @deprecated\n */";
+
+    expect(makeDocBlockParser()->parse($comment)->deprecation())->toBe('');
+});
+
+it('returns null when there is no @deprecated tag', function (): void {
+    $comment = "/**\n * @return Foo\n */";
+
+    expect(makeDocBlockParser()->parse($comment)->deprecation())->toBeNull();
+});
+
 it('returns an empty doc block for an unparseable comment', function (): void {
     $parsed = makeDocBlockParser()->parse('not a doc comment');
 

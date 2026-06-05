@@ -59,6 +59,21 @@ it('uses an explicit #[Response(status: 201)] as the primary response', function
         ->and($statuses)->not->toContain('200');
 });
 
+it('marks an operation deprecated from a @deprecated PHPDoc tag', function (): void {
+    $op = buildOperation('deprecatedViaDocBlockAction');
+
+    expect($op->deprecated)->toBeTrue()
+        ->and($op->description)->toContain('**Deprecated:** Use createdResponseAction() instead.');
+});
+
+it('lets a #[Deprecated] attribute win over the @deprecated PHPDoc tag', function (): void {
+    $op = buildOperation('deprecatedViaAttributeAndDocBlockAction');
+
+    expect($op->deprecated)->toBeTrue()
+        ->and($op->description)->toContain('**Deprecated:** Attribute reason.')
+        ->and($op->description)->not->toContain('Doc reason.');
+});
+
 it('merges multiple 2xx #[Response] attributes: first primary, rest additional', function (): void {
     $op = buildOperation('multiTwoxxResponseAction');
 
