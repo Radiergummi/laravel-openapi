@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\PhpDoc;
 
+use PHPStan\PhpDocParser\Ast\PhpDoc\DeprecatedTagValueNode;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocNode;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
@@ -52,6 +53,21 @@ final readonly class ParsedDocBlock
         }
 
         return $types;
+    }
+
+    /**
+     * Reason text from a `deprecated` PHPDoc tag: the trailing text, `''` for a bare tag,
+     * or null when no such tag is present.
+     */
+    public function deprecation(): ?string
+    {
+        foreach ($this->node->getTagsByName('@deprecated') as $tag) {
+            $value = $tag->value;
+
+            return $value instanceof DeprecatedTagValueNode ? $value->description : '';
+        }
+
+        return null;
     }
 
     /**

@@ -585,6 +585,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     securityExtractor: $app->make(Support\Extraction\SecurityExtractor::class),
                     fileLoader: $app->make(ExampleFileLoader::class),
                     faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
+                    docBlockParser: $app->make(DocBlockParser::class),
                     refSchemaResolvers: array_map(
                         static fn(string $class) => $app->make($class),
                         $registry->refSchemaResolvers,

@@ -42,6 +42,7 @@ Attach to controller classes or methods.
 | `Spec` | class, method | yes | Pin the route to one or more named specs explicitly, bypassing the partition's `match` config. `#[Spec]` (no argument) means "only the `default` spec". Method-level declarations replace class-level ones. See [Multi-spec](multi-spec.md). |
 | `IgnoreLint` | class, method, property | yes | Suppress one `openapi:lint` rule for the annotated symbol. See [Suppress a finding](linting.md#suppress-a-finding). |
 | `#[\Deprecated]` (PHP native) | class, method | no | Marks the operation `deprecated: true` and appends the message to the description. |
+| `@deprecated` (PHPDoc tag) | method | no | Convention alternative to the attribute: marks the operation `deprecated: true` and appends the tag's trailing text to the description. Lowest precedence — a `#[\Deprecated]` / `#[Deprecated]` attribute (method, then class) wins. |
 
 ## Field-enrichment attributes
 
