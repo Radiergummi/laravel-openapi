@@ -349,6 +349,37 @@ Drop the scoping check to apply the extension to every operation. For
 document-level or schema-level extensions, use `transformDocument()` and
 `transformSchema()`. See [Extensions](extensions.md).
 
+## Reshape the operationId
+
+operationIds default to the route name (`api.v1.projects.index`); the
+`operation_id_strategy` config key switches between `route-name` and
+`method-path`. To reshape them beyond those two presets — e.g. strip a
+versioned `api.v{N}.` route-name prefix so a generated client reads
+`projects.index` rather than `api.v1.projects.index` — register an operation
+transformer at boot. `OperationContext` exposes the route, so any
+route-derived rule works:
+
+```php
+// AppServiceProvider::boot()
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
+use Radiergummi\OpenApi\Extensions\OperationContext;
+
+OpenApiExtensions::transformOperation(
+    static function (OA\Operation $operation, OperationContext $context): void {
+        $routeName = $context->descriptor->route->getName();
+
+        if ($routeName !== null && preg_match('/^api\.v\d+\./', $routeName)) {
+            $operation->operationId = preg_replace('/^api\.v\d+\./', '', $routeName);
+        }
+    },
+);
+```
+
+Keep the result within the codegen-safe identifier shape — the
+`operation.id-invalid-chars` lint rule flags violations, and
+`lint.style.operation_id_case` enforces the casing convention.
+
 ## Suppress a lint finding
 
 ```php
