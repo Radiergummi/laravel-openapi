@@ -8,6 +8,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
+use Radiergummi\OpenApi\Attributes\Deprecated;
 use Radiergummi\OpenApi\Attributes\Example;
 use Radiergummi\OpenApi\Attributes\ExternalDocs;
 use Radiergummi\OpenApi\Attributes\Header;
@@ -36,6 +37,23 @@ class AuthoringFixtureController extends Controller
 
     #[Security(['admin', 'projects'])]
     public function scopedAction(): array
+    {
+        return [];
+    }
+
+    /**
+     * @deprecated Use createdResponseAction() instead.
+     */
+    public function deprecatedViaDocBlockAction(): array
+    {
+        return [];
+    }
+
+    /**
+     * @deprecated Doc reason.
+     */
+    #[Deprecated(reason: 'Attribute reason.')]
+    public function deprecatedViaAttributeAndDocBlockAction(): array
     {
         return [];
     }

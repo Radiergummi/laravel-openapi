@@ -31,6 +31,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
@@ -60,6 +61,7 @@ final readonly class OperationBuilder
         private SecurityExtractor $securityExtractor,
         private ExampleFileLoader $fileLoader,
         private ResolverFaultBoundary $faultBoundary,
+        private DocBlockParser $docBlockParser,
         /**
          * @var list<RefSchemaResolver>
          */
@@ -583,18 +585,23 @@ final readonly class OperationBuilder
     {
         $source = $this->firstDeprecatedAttribute($descriptor);
 
-        if ($source === null) {
-            return null;
+        if ($source !== null) {
+            $instance = $source->newInstance();
+
+            if ($instance instanceof DeprecatedAttribute) {
+                return $instance->reason ?? '';
+            }
+
+            // PHP 8.4 native \Deprecated.
+            return $instance->message ?? '';
         }
 
-        $instance = $source->newInstance();
+        // Lowest precedence: the plain `@deprecated` PHPDoc tag on the action.
+        $comment = $descriptor->actionReflector?->getDocComment();
 
-        if ($instance instanceof DeprecatedAttribute) {
-            return $instance->reason ?? '';
-        }
-
-        // PHP 8.4 native \Deprecated.
-        return $instance->message ?? '';
+        return $comment !== false && $comment !== null
+            ? $this->docBlockParser->parse($comment)->deprecation()
+            : null;
     }
 
     /**

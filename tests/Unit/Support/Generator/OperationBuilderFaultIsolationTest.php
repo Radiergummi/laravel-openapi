@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
 use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
@@ -40,6 +41,7 @@ function builderWithResolvers(
         securityExtractor: app(SecurityExtractor::class),
         fileLoader: app(ExampleFileLoader::class),
         faultBoundary: $boundary,
+        docBlockParser: app(DocBlockParser::class),
         queryParameterResolvers: $queryParameterResolvers,
         primaryResponseResolvers: $primaryResponseResolvers,
     );
