@@ -102,6 +102,12 @@ final class FieldDescriptor
     public ?string $description = null;
 
     /**
+     * Example value for the field (e.g. supplied by a self-documenting custom rule). `null` means
+     * "not set" — distinct from a deliberate example, which `SelfDocumentingRule` cannot express.
+     */
+    public mixed $example = null;
+
+    /**
      * Copies set descriptor fields onto `$target`.
      *
      * Accepts any {@see OA\Schema} subclass (`OA\Property`, `OA\Items`, etc.) since they all share
@@ -157,6 +163,10 @@ final class FieldDescriptor
 
         if ($this->description !== null && ($overwrite || is_undefined($target->description))) {
             $target->description = $this->description;
+        }
+
+        if ($this->example !== null && ($overwrite || is_undefined($target->example))) {
+            $target->example = $this->example;
         }
 
         // Constraints — always write when non-null (type pass never sets these).

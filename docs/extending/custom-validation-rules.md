@@ -39,7 +39,7 @@ Rule self-documentation **fills gaps** — it does not overwrite a constraint al
 another rule on the same field. If a sibling rule (e.g. `'string'`) has already established
 `type: string`, `SelfDocumentingRule::documentation()` returning `type: 'string'` is a no-op for
 that field. The same applies to every other field (`format`, `pattern`, `enum`,
-`minLength`/`maxLength`, `minimum`/`maximum`).
+`minLength`/`maxLength`, `minimum`/`maximum`, `example`).
 
 `description`, however, is always appended rather than replaced, so a rule can add extra
 human-readable context alongside an already-derived description.
@@ -57,5 +57,6 @@ human-readable context alongside an already-derived description.
 | `maxLength` | `int\|null` | Maximum string length. |
 | `minimum` | `int\|float\|null` | Numeric minimum. |
 | `maximum` | `int\|float\|null` | Numeric maximum. |
+| `example` | `mixed` | A concrete example value (e.g. `'978-3-16-148410-0'`). Written only when no example is set yet. |
 
 `minItems` and `maxItems` are intentionally absent: array-typed custom rules are best served by combining the built-in `array` rule with `min`/`max`/`size` rules on the array field itself, rather than embedding array-length constraints inside a custom rule object.

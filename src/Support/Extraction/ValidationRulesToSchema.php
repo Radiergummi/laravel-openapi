@@ -1000,6 +1000,10 @@ final readonly class ValidationRulesToSchema
             $field->maximum = $doc->maximum;
         }
 
+        if ($doc->example !== null && $field->example === null) {
+            $field->example = $doc->example;
+        }
+
         if ($doc->description !== null) {
             $field->description = $field->description === null
                 ? $doc->description
