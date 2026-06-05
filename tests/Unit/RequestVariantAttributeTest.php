@@ -7,8 +7,8 @@ use Radiergummi\OpenApi\Attributes\RequestVariant;
 
 uses()->group('openapi');
 
-it('captures inline fields via the variadic', function (): void {
-    $variant = new RequestVariant('aws', fields: new RequestField('region', required: true));
+it('captures inline fields', function (): void {
+    $variant = new RequestVariant('aws', fields: [new RequestField('region', required: true)]);
 
     expect($variant->value)->toBe('aws')
         ->and($variant->schema)->toBeNull()
@@ -29,5 +29,5 @@ it('captures a class-string branch', function (): void {
 
 it('is malformed when neither or both branch forms are given', function (): void {
     expect((new RequestVariant('x'))->isMalformed())->toBeTrue()
-        ->and((new RequestVariant('x', schema: RequestField::class, fields: new RequestField('a')))->isMalformed())->toBeTrue();
+        ->and((new RequestVariant('x', schema: RequestField::class, fields: [new RequestField('a')]))->isMalformed())->toBeTrue();
 });

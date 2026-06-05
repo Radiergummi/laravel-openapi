@@ -17,8 +17,8 @@ use Radiergummi\OpenApi\Attributes\RequestVariant;
 class DiscriminatedRequestFixtureController extends Controller
 {
     #[RequestBody(discriminator: 'provider')]
-    #[RequestVariant('aws', null, new RequestField('region', required: true), new RequestField('access_key', required: true))]
-    #[RequestVariant('hetzner', null, new RequestField('api_token', required: true))]
+    #[RequestVariant('aws', fields: [new RequestField('region', required: true), new RequestField('access_key', required: true)])]
+    #[RequestVariant('hetzner', fields: [new RequestField('api_token', required: true)])]
     public function inline(Request $request): array
     {
         return [];

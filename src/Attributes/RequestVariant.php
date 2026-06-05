@@ -18,7 +18,7 @@ use function array_values;
  *
  * ```php
  * #[RequestBody(discriminator: 'provider')]
- * #[RequestVariant('aws', fields: new RequestField('region', required: true))]
+ * #[RequestVariant('aws', fields: [new RequestField('region', required: true)])]
  * #[RequestVariant('custom', schema: CustomProviderData::class)]
  * public function store(Request $request) { … }
  * ```
@@ -32,13 +32,14 @@ final readonly class RequestVariant
     public array $fields;
 
     /**
-     * @param non-empty-string  $value  The discriminator string clients send for this branch.
-     * @param null|class-string $schema A ref-resolvable class for this branch's schema.
+     * @param non-empty-string   $value  The discriminator string clients send for this branch.
+     * @param null|class-string  $schema A ref-resolvable class for this branch's schema.
+     * @param list<RequestField> $fields Inline fields describing this branch's shape.
      */
     public function __construct(
         public string $value,
         public ?string $schema = null,
-        RequestField ...$fields,
+        array $fields = [],
     ) {
         $this->fields = array_values($fields);
     }
