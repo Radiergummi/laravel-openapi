@@ -42,3 +42,25 @@ it('builds each inline branch as its own object component', function (): void {
         ->and($awsRef['required'])->toContain('region')
         ->and($awsRef['required'])->toContain('access_key');
 });
+
+it('resolves a class-string branch through the ref chain', function (): void {
+    Route::post('/oa-139/mixed', [DiscriminatedRequestFixtureController::class, 'mixed']);
+    $spec = generateSpec();
+
+    $schema = discriminatedBodySchema($spec, '/oa-139/mixed');
+
+    expect($schema['discriminator']['mapping']['custom'])->toBe('#/components/schemas/CircleData')
+        ->and($spec['components']['schemas'])->toHaveKey('CircleData');
+})->group('plugin:spatie-data');
+
+it('emits a finding and skips a variant whose sanitised key collides with an earlier variant', function (): void {
+    Route::post('/oa-139/colliding', [DiscriminatedRequestFixtureController::class, 'colliding']);
+    $spec = generateSpec();
+
+    $schema = discriminatedBodySchema($spec, '/oa-139/colliding');
+    $mappingKeys = array_keys($schema['discriminator']['mapping']);
+
+    // Only one of the two colliding variants should survive.
+    expect($mappingKeys)->toHaveCount(1)
+        ->and($schema['oneOf'])->toHaveCount(1);
+});

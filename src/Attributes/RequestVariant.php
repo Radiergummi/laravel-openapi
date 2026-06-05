@@ -33,11 +33,11 @@ final readonly class RequestVariant
 
     /**
      * @param non-empty-string   $value  The discriminator string clients send for this branch.
-     * @param null|class-string  $schema A ref-resolvable class for this branch's schema.
      * @param list<RequestField> $fields Inline fields describing this branch's shape.
      */
     public function __construct(
         public string $value,
+        /** @var null|class-string */
         public ?string $schema = null,
         array $fields = [],
     ) {

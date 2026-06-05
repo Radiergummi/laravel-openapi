@@ -37,12 +37,10 @@ use function ucfirst;
 final readonly class DiscriminatedRequestSchemaResolver implements RequestSchemaResolver
 {
     /**
-     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy chain (built at first use,
-     *                                                               consumed by the class-string branch path).
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy chain consulted for class-string branches.
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
-        // @phpstan-ignore property.onlyWritten (reserved for class-string branch resolution, added in a follow-up task)
         private Closure $refSchemaResolvers,
         private FindingsCollector $findings,
     ) {}
@@ -82,6 +80,9 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
 
         $seen = [];
 
+        // Tracks sanitised component keys produced this call to detect collisions.
+        $usedBranchKeys = [];
+
         foreach ($variants as $variant) {
             if (isset($seen[$variant->value])) {
                 $this->emit($descriptor, "duplicate #[RequestVariant] value '{$variant->value}'");
@@ -97,7 +98,26 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
                 continue;
             }
 
-            $ref = $this->buildInlineBranch($method, $discriminatorProperty, $variant);
+            if ($variant->schema !== null) {
+                $ref = $this->resolveClassRef($variant->schema);
+
+                if ($ref === null) {
+                    $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' schema '{$variant->schema}' is not resolvable to a component");
+
+                    continue;
+                }
+            } else {
+                $key = $this->branchKey($method, $variant->value);
+
+                if (isset($usedBranchKeys[$key])) {
+                    $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' produces a colliding component key after sanitising non-alphanumeric characters; use a value that is distinct once those are removed");
+
+                    continue;
+                }
+
+                $usedBranchKeys[$key] = true;
+                $ref = $this->buildInlineBranch($method, $discriminatorProperty, $variant, $key);
+            }
 
             $oneOf[] = new OA\Schema(['ref' => $ref]);
             $mapping[$variant->value] = $ref;
@@ -127,7 +147,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
      *
      * @throws InvalidArgumentException
      */
-    private function buildInlineBranch(ReflectionMethod $method, string $discriminatorProperty, RequestVariant $variant): string
+    private function buildInlineBranch(ReflectionMethod $method, string $discriminatorProperty, RequestVariant $variant, string $key): string
     {
         $fields = $variant->fields;
 
@@ -160,10 +180,25 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
             $schemaProps['required'] = $required;
         }
 
-        $key = $this->branchKey($method, $variant->value);
         $this->registry->registerNamed($key, new OA\Schema($schemaProps));
 
         return "#/components/schemas/{$key}";
+    }
+
+    /**
+     * Walks the ref-resolver chain and returns the first matching `$ref` string, or null.
+     *
+     * @param class-string $class
+     */
+    private function resolveClassRef(string $class): ?string
+    {
+        foreach (($this->refSchemaResolvers)() as $resolver) {
+            if ($resolver->canResolve($class)) {
+                return $resolver->resolveRef($class);
+            }
+        }
+
+        return null;
     }
 
     private function readRequestBody(ReflectionMethod $method): ?RequestBody
@@ -198,13 +233,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
             ruleId: 'request.discriminator-malformed',
             level: 2,
             message: $message,
-            location: new FindingLocation(
-                file: $descriptor->method?->getFileName() ?: null,
-                line: $descriptor->method?->getStartLine() ?: null,
-                routeName: $descriptor->route->getName(),
-                routeMethod: $descriptor->httpMethod,
-                routeUri: $descriptor->route->uri(),
-            ),
+            location: FindingLocation::fromDescriptor($descriptor),
             fixHint: 'Give each #[RequestVariant] a unique value and exactly one of schema/fields.',
         ));
     }
