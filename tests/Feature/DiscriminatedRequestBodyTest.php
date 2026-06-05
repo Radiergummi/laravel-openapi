@@ -87,3 +87,16 @@ it('lets an authored discriminator field win over injection', function (): void 
     expect($branchB['properties']['type']['description'])->toBe('Authored discriminator.')
         ->and($branchB['properties']['type'])->not->toHaveKey('enum');
 });
+
+it('emits the expected discriminated request-body shape', function (): void {
+    Route::post('/oa-139/inline', [DiscriminatedRequestFixtureController::class, 'inline']);
+    $schema = discriminatedBodySchema(generateSpec(), '/oa-139/inline');
+
+    expect($schema['discriminator'])->toBe([
+        'propertyName' => 'provider',
+        'mapping' => [
+            'aws' => '#/components/schemas/DiscriminatedRequestFixtureControllerInlineRequestAws',
+            'hetzner' => '#/components/schemas/DiscriminatedRequestFixtureControllerInlineRequestHetzner',
+        ],
+    ]);
+})->group('snapshot');
