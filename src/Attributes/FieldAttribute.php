@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Attributes;
 
 use BackedEnum;
+use InvalidArgumentException;
 use Radiergummi\OpenApi\Support\Attributes\DescriptionDirectives;
 use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 use Radiergummi\OpenApi\Support\Generator\SchemaDescriptor;
 
 use function array_values;
+use function is_a;
+use function is_int;
+use function is_string;
+use function sprintf;
 
 /**
  * Abstract base for the scope-specific field attributes.
@@ -27,20 +32,24 @@ use function array_values;
 abstract readonly class FieldAttribute
 {
     /**
-     * @param null|non-empty-string                               $title
-     * @param null|non-empty-string                               $description
-     * @param null|class-string|OpenApiPrimitiveType              $type
-     * @param null|non-empty-string                               $format
-     * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum
-     * @param null|int<0, max>                                    $minLength
-     * @param null|int<0, max>                                    $maxLength
-     * @param null|non-empty-string                               $pattern
-     * @param null|int<0, max>                                    $minItems
-     * @param null|int<0, max>                                    $maxItems
-     * @param bool                                                $conditional When true, the field is kept in
-     *                                                                         `properties` but removed from `required`
-     *                                                                         — used by response fields emitted via
-     *                                                                         `$this->when()` / `$this->whenLoaded()`.
+     * @param null|non-empty-string                                                        $title
+     * @param null|non-empty-string                                                        $description
+     * @param null|class-string|OpenApiPrimitiveType                                       $type
+     * @param null|non-empty-string                                                        $format
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        A list of
+     *                                                                                                  allowed values, or a backed-enum
+     *                                                                                                  class-string resolved to its cases.
+     * @param null|int<0, max>                                                             $minLength
+     * @param null|int<0, max>                                                             $maxLength
+     * @param null|non-empty-string                                                        $pattern
+     * @param null|int<0, max>                                                             $minItems
+     * @param null|int<0, max>                                                             $maxItems
+     * @param bool                                                                         $conditional When true, the field is kept in
+     *                                                                                                  `properties` but removed from `required`
+     *                                                                                                  — used by response fields emitted via
+     *                                                                                                  `$this->when()` / `$this->whenLoaded()`.
+     *
+     * @throws InvalidArgumentException When `$enum` is a string that is not a backed-enum class-string.
      */
     protected function __construct(
         public ?string $title = null,
@@ -51,7 +60,7 @@ abstract readonly class FieldAttribute
         public ?string $items = null,
         public ?bool $nullable = null,
         public mixed $default = null,
-        public array|FieldDefault|null $enum = FieldDefault::Unset,
+        array|string|FieldDefault|null $enum = FieldDefault::Unset,
         public int|float|null $minimum = null,
         public int|float|null $maximum = null,
         public int|float|null $exclusiveMinimum = null,
@@ -66,7 +75,25 @@ abstract readonly class FieldAttribute
         public ?bool $readOnly = null,
         public ?bool $writeOnly = null,
         public bool $conditional = false,
-    ) {}
+    ) {
+        // A backed-enum class-string is resolved to its cases here, so every downstream reader
+        // (descriptor, lint rules) sees a uniform value list rather than a bare class name.
+        if (is_string($enum)) {
+            if (!is_a($enum, BackedEnum::class, true)) {
+                throw new InvalidArgumentException(sprintf(
+                    'enum: expects an array of values or a backed-enum class-string, got "%s".',
+                    $enum,
+                ));
+            }
+
+            $this->enum = $enum::cases();
+        } else {
+            $this->enum = $enum;
+        }
+    }
+
+    /** @var null|array<int, BackedEnum|int|string>|FieldDefault */
+    public array|FieldDefault|null $enum;
 
     /**
      * Returns the explicit `example:` argument, or `null` when the author did not pass one.
@@ -109,11 +136,19 @@ abstract readonly class FieldAttribute
             default => array_values($this->enum),
         };
 
+        // Infer the scalar type from a resolved backed-enum list when the author left it unset, so
+        // a class-string enum carries the correct `string`/`integer` type without a redundant `type:`.
+        $type = $this->type;
+
+        if ($type === null && isset($enum[0]) && $enum[0] instanceof BackedEnum) {
+            $type = is_int($enum[0]->value) ? 'integer' : 'string';
+        }
+
         return new SchemaDescriptor(
             title: $this->title,
             description: $parsed->cleanDescription,
             example: $example,
-            type: $this->type,
+            type: $type,
             format: $this->format,
             items: $this->items,
             nullable: $this->nullable,

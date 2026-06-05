@@ -22,17 +22,19 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 final readonly class QueryParam extends FieldAttribute
 {
     /**
-     * @param non-empty-string                                    $name
-     * @param null|non-empty-string                               $title
-     * @param null|non-empty-string                               $description
-     * @param null|OpenApiPrimitiveType                           $type
-     * @param null|non-empty-string                               $format
-     * @param null|array<int, BackedEnum|int|string>|FieldDefault $enum        Allowed values; renders as a dropdown.
-     * @param null|int<0, max>                                    $minLength
-     * @param null|int<0, max>                                    $maxLength
-     * @param null|non-empty-string                               $pattern
-     * @param null|int<0, max>                                    $minItems
-     * @param null|int<0, max>                                    $maxItems
+     * @param non-empty-string                                                             $name
+     * @param null|non-empty-string                                                        $title
+     * @param null|non-empty-string                                                        $description
+     * @param null|OpenApiPrimitiveType                                                    $type
+     * @param null|non-empty-string                                                        $format
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        Allowed values, or a
+     *                                                                                                  backed-enum class-string; renders as a
+     *                                                                                                  dropdown.
+     * @param null|int<0, max>                                                             $minLength
+     * @param null|int<0, max>                                                             $maxLength
+     * @param null|non-empty-string                                                        $pattern
+     * @param null|int<0, max>                                                             $minItems
+     * @param null|int<0, max>                                                             $maxItems
      */
     public function __construct(
         public string $name,
@@ -46,7 +48,7 @@ final readonly class QueryParam extends FieldAttribute
         ?string $items = null,
         ?bool $nullable = null,
         mixed $default = null,
-        array|FieldDefault|null $enum = FieldDefault::Unset,
+        array|string|FieldDefault|null $enum = FieldDefault::Unset,
         int|float|null $minimum = null,
         int|float|null $maximum = null,
         int|float|null $exclusiveMinimum = null,
