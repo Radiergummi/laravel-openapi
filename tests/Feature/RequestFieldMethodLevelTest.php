@@ -24,9 +24,11 @@ it('builds a request body schema from method-level #[RequestField] attributes', 
     $schema = $this->spec['components']['schemas'][$key] ?? [];
 
     expect($schema['type'])->toBe('object')
-        ->and($schema['properties'])->toHaveKeys(['domain', 'php_version'])
+        ->and($schema['properties'])->toHaveKeys(['domain', 'php_version', 'aliases'])
         ->and($schema['properties']['domain']['type'])->toBe('string')
         ->and($schema['properties']['domain']['format'])->toBe('hostname')
         ->and($schema['properties']['php_version']['default'])->toBe('8.4')
+        ->and($schema['properties']['aliases']['type'])->toBe('array')
+        ->and($schema['properties']['aliases']['items']['type'])->toBe('string')
         ->and($schema['required'])->toBe(['domain']);
 });
