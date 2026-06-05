@@ -64,3 +64,26 @@ it('emits a finding and skips a variant whose sanitised key collides with an ear
     expect($mappingKeys)->toHaveCount(1)
         ->and($schema['oneOf'])->toHaveCount(1);
 });
+
+it('auto-injects the discriminator property as a single-value enum string', function (): void {
+    Route::post('/oa-139/injection', [DiscriminatedRequestFixtureController::class, 'injection']);
+    $spec = generateSpec();
+
+    $mapping = discriminatedBodySchema($spec, '/oa-139/injection')['discriminator']['mapping'];
+    $branchA = $spec['components']['schemas'][substr((string) $mapping['a'], strlen('#/components/schemas/'))];
+
+    expect($branchA['properties']['type']['type'])->toBe('string')
+        ->and($branchA['properties']['type']['enum'])->toBe(['a'])
+        ->and($branchA['required'])->toContain('type');
+});
+
+it('lets an authored discriminator field win over injection', function (): void {
+    Route::post('/oa-139/injection', [DiscriminatedRequestFixtureController::class, 'injection']);
+    $spec = generateSpec();
+
+    $mapping = discriminatedBodySchema($spec, '/oa-139/injection')['discriminator']['mapping'];
+    $branchB = $spec['components']['schemas'][substr((string) $mapping['b'], strlen('#/components/schemas/'))];
+
+    expect($branchB['properties']['type']['description'])->toBe('Authored discriminator.')
+        ->and($branchB['properties']['type'])->not->toHaveKey('enum');
+});

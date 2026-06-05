@@ -40,4 +40,12 @@ class DiscriminatedRequestFixtureController extends Controller
     {
         return [];
     }
+
+    #[RequestBody(discriminator: 'type')]
+    #[RequestVariant('a', fields: [new RequestField('only_a', required: true)])]
+    #[RequestVariant('b', fields: [new RequestField('type', description: 'Authored discriminator.'), new RequestField('only_b')])]
+    public function injection(Request $request): array
+    {
+        return [];
+    }
 }
