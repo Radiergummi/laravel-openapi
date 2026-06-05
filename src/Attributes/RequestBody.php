@@ -17,10 +17,13 @@ final readonly class RequestBody
 {
     /**
      * @param null|non-empty-string $description
+     * @param null|non-empty-string $discriminator Discriminator property name; switches the body
+     *                                             to a `oneOf` of `#[RequestVariant]` branches.
      */
     public function __construct(
         public ?string $description = null,
         public ?bool $required = null,
         public ?MediaType $mediaType = null,
+        public ?string $discriminator = null,
     ) {}
 }
