@@ -74,13 +74,6 @@ final class ComponentSchemaRegistry
      */
     private array $compiledFields = [];
     /**
-     * Per-class map of field-name → items FieldDescriptor, derived from `foo.*` validation rules.
-     * Null means "not yet computed"; an empty array means "computed, no wildcard rules found".
-     *
-     * @var array<class-string, array<string, FieldDescriptor>>
-     */
-    private array $compiledItemsFields = [];
-    /**
      * Whether the FormRequest class has any file fields, computed once during schema building.
      * Null means "not yet computed".
      *
@@ -404,29 +397,6 @@ final class ComponentSchemaRegistry
     public function setCompiledFields(string $class, array $fields): void
     {
         $this->compiledFields[$class] = $fields;
-    }
-
-    /**
-     * Returns the items-field map derived from `foo.*` wildcard validation rules.
-     *
-     * Null means not yet computed; an empty array means computed, but no wildcard rules are found.
-     *
-     * @param class-string $class
-     *
-     * @return null|array<string, FieldDescriptor>
-     */
-    public function compiledItemsFields(string $class): ?array
-    {
-        return $this->compiledItemsFields[$class] ?? null;
-    }
-
-    /**
-     * @param class-string                   $class
-     * @param array<string, FieldDescriptor> $fields
-     */
-    public function setCompiledItemsFields(string $class, array $fields): void
-    {
-        $this->compiledItemsFields[$class] = $fields;
     }
 
     /**

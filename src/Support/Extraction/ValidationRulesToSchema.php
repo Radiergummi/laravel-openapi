@@ -40,7 +40,6 @@ use function preg_match;
 use function preg_replace;
 use function sprintf;
 use function str_contains;
-use function str_ends_with;
 use function str_getcsv;
 use function str_replace;
 use function strpbrk;
@@ -48,7 +47,6 @@ use function strpos;
 use function strrpos;
 use function strtolower;
 use function substr;
-use function substr_count;
 use function trim;
 
 use const PHP_EOL;
@@ -114,21 +112,22 @@ final readonly class ValidationRulesToSchema
     /**
      * Normalizes the given rules into a format suitable for {@see self::process()}.
      *
+     * Dotted keys (`address.city`) and wildcard keys (`items.*.name`) are assembled into nested
+     * object/array descriptors of arbitrary depth: a plain segment becomes a nested object
+     * property, a `*` segment an array element. A bare `*` key maps to `additionalProperties`.
+     *
      * @param array<string, array<int, mixed>|string> $rules
      *
      * @return array{
      *     fields: array<string, FieldDescriptor>,
-     *     itemsFields: array<string, FieldDescriptor>,
-     *     additionalPropertiesField: ?FieldDescriptor,
-     *     hasDottedKeys: bool
+     *     additionalPropertiesField: ?FieldDescriptor
      * }
      */
     public function process(array $rules, ?string $sourceClass = null): array
     {
-        $fields = [];
-        $itemsFields = [];
+        /** @var array<string, RuleTreeNode> $rootChildren */
+        $rootChildren = [];
         $additionalPropertiesField = null;
-        $hasDottedKeys = false;
 
         foreach ($rules as $field => $fieldRules) {
             // A field's ruleset may be a bare Rule object (`'x' => new SomeRule`) rather than a
@@ -143,9 +142,8 @@ final readonly class ValidationRulesToSchema
             // Schema's `additionalProperties` rather than emitting a property literally named
             // `*` (which is OAS-meaningless and trips downstream lint rules).
             if ($field === '*') {
-                $normalized = $this->normalizeRules($fieldRules);
                 $additionalPropertiesField = $this->mapRules(
-                    $normalized,
+                    $this->normalizeRules($fieldRules),
                     $field,
                     $sourceClass,
                 );
@@ -153,38 +151,97 @@ final readonly class ValidationRulesToSchema
                 continue;
             }
 
-            if (!str_contains($field, '.')) {
-                $normalized = $this->normalizeRules($fieldRules);
-                $fields[$field] = $this->mapRules(
-                    $normalized,
-                    $field,
-                    $sourceClass,
-                );
+            $this->insertPath($rootChildren, explode('.', $field), $fieldRules);
+        }
 
-                continue;
-            }
+        $fields = [];
 
-            $hasDottedKeys = true;
-
-            // One level of nesting: `foo.*` rules populate the parent field's items.
-            // Deeper paths (foo.*.bar) are not yet supported and are silently dropped.
-            if (substr_count($field, '.') === 1 && str_ends_with($field, '.*')) {
-                $parent = substr($field, 0, -2);
-                $normalized = $this->normalizeRules($fieldRules);
-                $itemsFields[$parent] = $this->mapRules(
-                    $normalized,
-                    $parent,
-                    $sourceClass,
-                );
-            }
+        foreach ($rootChildren as $name => $node) {
+            $fields[$name] = $this->nodeToDescriptor($node, $name, $sourceClass);
         }
 
         return [
             'fields' => $fields,
-            'itemsFields' => $itemsFields,
             'additionalPropertiesField' => $additionalPropertiesField,
-            'hasDottedKeys' => $hasDottedKeys,
         ];
+    }
+
+    /**
+     * Walks a dotted/wildcard path into the intermediate {@see RuleTreeNode} tree, creating or
+     * reusing nodes so sibling paths (`address.city` + `address.zip`) merge onto shared parents.
+     *
+     * @param array<string, RuleTreeNode> $children the current object level (by reference)
+     * @param list<string>                $segments remaining path segments
+     * @param array<int, mixed>|string    $rules    the path's raw rule list
+     */
+    private function insertPath(array &$children, array $segments, string|array $rules): void
+    {
+        $segment = array_shift($segments);
+
+        if ($segment === null || $segment === '*') {
+            return;
+        }
+
+        $node = $children[$segment] ??= new RuleTreeNode();
+
+        if ($segments === []) {
+            $node->ownRules = array_merge($node->ownRules, $this->normalizeRules($rules));
+
+            return;
+        }
+
+        if ($segments[0] === '*') {
+            // `$segment` is an array; descend into its element node.
+            array_shift($segments);
+            $node->items ??= new RuleTreeNode();
+
+            if ($segments === []) {
+                // `foo.*` — the element itself carries these rules.
+                $node->items->ownRules = array_merge(
+                    $node->items->ownRules,
+                    $this->normalizeRules($rules),
+                );
+
+                return;
+            }
+
+            // `foo.*.bar…` — the element is an object; recurse into its children.
+            $this->insertPath($node->items->children, $segments, $rules);
+
+            return;
+        }
+
+        // Plain nested object — recurse into this node's children.
+        $this->insertPath($node->children, $segments, $rules);
+    }
+
+    /**
+     * Converts an intermediate {@see RuleTreeNode} into a {@see FieldDescriptor}, recursing into
+     * nested object properties and array elements. A node with children is an `object`; a node
+     * with an element is an `array` (unless its own rules already set a type).
+     */
+    private function nodeToDescriptor(RuleTreeNode $node, string $name, ?string $sourceClass): FieldDescriptor
+    {
+        $descriptor = $this->mapRules($node->ownRules, $name, $sourceClass);
+
+        if ($node->children !== []) {
+            $descriptor->type ??= 'object';
+
+            $properties = [];
+
+            foreach ($node->children as $childName => $childNode) {
+                $properties[$childName] = $this->nodeToDescriptor($childNode, $childName, $sourceClass);
+            }
+
+            $descriptor->properties = $properties;
+        }
+
+        if ($node->items !== null) {
+            $descriptor->type ??= 'array';
+            $descriptor->items = $this->nodeToDescriptor($node->items, $name, $sourceClass);
+        }
+
+        return $descriptor;
     }
 
     /**

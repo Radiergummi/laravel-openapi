@@ -29,8 +29,9 @@ Check, in order:
    supported but carry only what a closure can declare (no `@throws`, often
    no return type).
 3. No configured `RouteFilter` excludes it. Bundled filters skip Nova,
-   Telescope, Ignition, and (when installed) Laravel Passport routes.
-   Inspect `config/openapi.filters`.
+   Telescope, Ignition, Horizon, Pulse, and (when installed) Laravel Passport,
+   Cashier, and the broadcasting channel-auth routes. Inspect
+   `config/openapi.filters`.
 4. The action carries no applicable `#[OpenApi\Hide]`. If
    `openapi.visibility.default = 'hidden'`, it must carry an applicable
    `#[OpenApi\Expose]`.

@@ -28,7 +28,7 @@ this page is the at-a-glance summary.
 | `visibility` | `default` accepts `'public'` (every route documented unless `#[Hide]`) or `'hidden'` (every route excluded unless `#[Expose]`). See [Recipes → Switch between public-default and hidden-default visibility](recipes.md#switch-between-public-default-and-hidden-default-visibility). |
 | `overrides` | Spec-only per-route operation field overrides, keyed by route name or URI glob. See [Operation overrides](#operation-overrides) below. |
 | `routes` | Spec/playground route registration. See below. |
-| `filters` | Route-exclusion filters. Ships with filters that exclude the library's own spec/playground routes plus routes from Nova, Telescope, Ignition, and (when installed) Passport. Remove `SkipSelfRoutes` to document the library's `/api/openapi.yaml` and `/api/docs` endpoints in your spec. |
+| `filters` | Route-exclusion filters. Ships with filters that exclude the library's own spec/playground routes plus routes from Nova, Telescope, Ignition, Horizon, Pulse, and (when installed) Passport, Cashier, and the broadcasting channel-auth endpoints. Remove `SkipSelfRoutes` to document the library's `/api/openapi.yaml` and `/api/docs` endpoints in your spec. |
 
 ## Exception-response precedence
 

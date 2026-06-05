@@ -135,9 +135,7 @@ final readonly class SchemaFromFormRequest
 
         $result = $this->rulesMapper->process($rules, sourceClass: $formRequestClass);
         $fieldMap = $result['fields'];
-        $itemsMap = $result['itemsFields'];
         $additionalPropertiesField = $result['additionalPropertiesField'];
-        $hasDotted = $result['hasDottedKeys'];
 
         $this->registry->setHasFileFields(
             $formRequestClass,
@@ -151,9 +149,6 @@ final readonly class SchemaFromFormRequest
 
         /** @var list<string> $required */
         $required = [];
-
-        /** @var array<string, OA\Property> $propertiesByName */
-        $propertiesByName = [];
 
         foreach ($fieldMap as $fieldName => $descriptor) {
             $property = $this->buildProperty($fieldName, $descriptor);
@@ -184,41 +179,9 @@ final readonly class SchemaFromFormRequest
             }
 
             $properties[] = $property;
-            $propertiesByName[$fieldName] = $property;
 
             if ($descriptor->required) {
                 $required[] = $fieldName;
-            }
-        }
-
-        foreach ($itemsMap as $fieldName => $itemsDescriptor) {
-            $prop = $propertiesByName[$fieldName] ?? null;
-
-            if ($prop === null) {
-                // Bare-wildcard rule like `attachments.* => 'file'` without a separately-declared
-                // `attachments` rule. Laravel does not require the parent to be declared; synthesise
-                // a `type: array` parent so the items schema isn't silently lost.
-                $prop = new OA\Property(['property' => $fieldName, 'type' => 'array']);
-                $properties[] = $prop;
-                $propertiesByName[$fieldName] = $prop;
-            }
-
-            $items = new OA\Items([]);
-            $itemsDescriptor->applyTo($items);
-
-            // When the property is expressed as oneOf (nullable array wrapped by NullableSchema),
-            // items must go onto the type:'array' inner schema — placing them on the outer wrapper
-            // triggers swagger-php's "OA\Items() parent type must be array" check.
-            if (is_array($prop->oneOf)) {
-                foreach ($prop->oneOf as $branch) {
-                    if ($branch instanceof OA\Schema && $branch->type === 'array') {
-                        $branch->items = $items;
-
-                        break;
-                    }
-                }
-            } else {
-                $prop->items = $items;
             }
         }
 
@@ -235,13 +198,6 @@ final readonly class SchemaFromFormRequest
             $additionalProperties = new OA\AdditionalProperties([]);
             $additionalPropertiesField->applyTo($additionalProperties);
             $schemaProps['additionalProperties'] = $additionalProperties;
-        }
-
-        if ($hasDotted) {
-            $schemaProps['description'] = sprintf(
-                '%s: some nested fields were skipped (dotted-key rules are not yet modelled).',
-                $basename,
-            );
         }
 
         return new OA\Schema($schemaProps);

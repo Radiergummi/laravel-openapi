@@ -2,6 +2,8 @@
 .cache/
 .claude/settings.local.json
 .claude/worktrees/
+.claude/workflows/
+.claude/scheduled_tasks.lock
 vendor/
 docs/superpowers/
 docs/internal/

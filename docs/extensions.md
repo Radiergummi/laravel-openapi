@@ -112,5 +112,6 @@ Event::listen(static function (SpecGenerationCompleted $event): void {
 ```
 
 `RouteSkipped` fires for every exclusion: bundled vendor skippers (Telescope,
-Nova, Ignition, Passport), user-configured `RouteFilter`s, spec membership
-decisions, and visibility attributes. Any excluded route emits an event.
+Nova, Ignition, Passport, Horizon, Pulse, Cashier, broadcasting channel-auth),
+user-configured `RouteFilter`s, spec membership decisions, and visibility
+attributes. Any excluded route emits an event.
