@@ -88,6 +88,15 @@ it('lets an authored discriminator field win over injection', function (): void 
         ->and($branchB['properties']['type'])->not->toHaveKey('enum');
 });
 
+it('does not let a branch key collide with the wrapper key', function (): void {
+    Route::post('/oa-139/wrapper-collision', [DiscriminatedRequestFixtureController::class, 'wrapperCollision']);
+    $schema = discriminatedBodySchema(generateSpec(), '/oa-139/wrapper-collision');
+
+    expect($schema)->toHaveKey('oneOf')
+        ->and($schema)->toHaveKey('discriminator')
+        ->and(array_keys($schema['discriminator']['mapping']))->toBe(['ok']);
+});
+
 it('emits the expected discriminated request-body shape', function (): void {
     Route::post('/oa-139/inline', [DiscriminatedRequestFixtureController::class, 'inline']);
     $schema = discriminatedBodySchema(generateSpec(), '/oa-139/inline');

@@ -71,4 +71,12 @@ class DiscriminatedRequestFixtureController extends Controller
     {
         return [];
     }
+
+    #[RequestBody(discriminator: 'kind')]
+    #[RequestVariant('body', fields: [new RequestField('x', required: true)])] // branch key collides with the wrapper key
+    #[RequestVariant('ok', fields: [new RequestField('y', required: true)])]
+    public function wrapperCollision(Request $request): array
+    {
+        return [];
+    }
 }

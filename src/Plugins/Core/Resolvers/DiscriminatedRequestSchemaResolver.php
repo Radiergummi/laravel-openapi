@@ -80,8 +80,11 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
 
         $seen = [];
 
-        // Tracks sanitised component keys produced this call to detect collisions.
-        $usedBranchKeys = [];
+        $wrapperKey = $this->wrapperKey($method);
+
+        // Seed with the wrapper key so any branch that would produce the same component key is
+        // detected as a collision and emits a finding instead of silently clobbering the wrapper.
+        $usedBranchKeys = [$wrapperKey => true];
 
         foreach ($variants as $variant) {
             if (isset($seen[$variant->value])) {
@@ -127,7 +130,6 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
             return null;
         }
 
-        $wrapperKey = $this->wrapperKey($method);
         $this->registry->registerNamed($wrapperKey, new OA\Schema([
             'oneOf' => $oneOf,
             'discriminator' => new OA\Discriminator([
