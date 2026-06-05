@@ -11,8 +11,8 @@ use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
  * describe the rule without knowing its internals.
  *
  * Every field is optional. Fields left `null` do not modify the {@see FieldDescriptor} they are
- * applied to. Type / format / pattern / enum / minLength / maxLength / minimum / maximum are
- * written only when the descriptor has no value yet, so rule self-documentation cannot clobber
+ * applied to. Type / format / pattern / enum / minLength / maxLength / minimum / maximum / example
+ * are written only when the descriptor has no value yet, so rule self-documentation cannot clobber
  * a constraint already established by a sibling rule. {@see $description} is appended to any
  * pre-existing description rather than overwriting it.
  */
@@ -31,5 +31,6 @@ final readonly class RuleDocumentation
         public ?int $maxLength = null,
         public int|float|null $minimum = null,
         public int|float|null $maximum = null,
+        public mixed $example = null,
     ) {}
 }

@@ -171,3 +171,40 @@ it('leaves multipleOf undefined when the descriptor does not set it', function (
 });
 
 // endregion
+
+// region example wiring (#41)
+
+it('writes a non-null example onto the target schema', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'string';
+    $descriptor->example = 'ABC-123';
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->example)->toBe('ABC-123');
+});
+
+it('leaves example undefined when the descriptor does not set it', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'string';
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect(isUndefined($target->example))->toBeTrue();
+});
+
+it('does not clobber an existing target example when merging', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->example = 'from-rule';
+
+    $target = new OA\Schema([]);
+    $target->example = 'from-type-pass';
+
+    $descriptor->applyTo($target, overwrite: false);
+
+    expect($target->example)->toBe('from-type-pass');
+});
+
+// endregion

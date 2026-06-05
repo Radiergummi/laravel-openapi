@@ -85,3 +85,36 @@ it('appends descriptions across multiple self-documenting rules', function (): v
         ->and($result['fields']['thing']->description)
         ->toContain('Second.');
 });
+
+final class FakeExampleRule implements SelfDocumentingRule
+{
+    public function __construct(private readonly mixed $example) {}
+
+    public function documentation(): RuleDocumentation
+    {
+        return new RuleDocumentation(example: $this->example);
+    }
+}
+
+it('applies a self-documenting rule example to the field descriptor', function (): void {
+    $collector = new ArrayFindingsCollector();
+    $mapper = new ValidationRulesToSchema($collector);
+
+    $result = $mapper->process([
+        'code' => ['required', new FakeExampleRule('ABC-123')],
+    ]);
+
+    expect($result['fields']['code']->example)->toBe('ABC-123');
+    expect($collector->all())->toBeEmpty();
+});
+
+it('does not overwrite a sibling rule\'s already-set example', function (): void {
+    $collector = new ArrayFindingsCollector();
+    $mapper = new ValidationRulesToSchema($collector);
+
+    $result = $mapper->process([
+        'code' => [new FakeExampleRule('first'), new FakeExampleRule('second')],
+    ]);
+
+    expect($result['fields']['code']->example)->toBe('first');
+});
