@@ -3,6 +3,15 @@
 
 declare(strict_types=1);
 
+require_once dirname(__DIR__, 4) . '/vendor/autoload.php';
+
+use PhpParser\Node;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\CloningVisitor;
+use PhpParser\NodeVisitorAbstract;
+use PhpParser\ParserFactory;
+use PhpParser\PrettyPrinter;
+
 /**
  * survey-harvest-docs <app>
  *
@@ -118,8 +127,172 @@ function surveyHarvestPlan(array $published, array $generated, array $routeMap, 
     return $edits;
 }
 
-// CLI orchestration is wired in the next task (assemble → route:list → plan → apply).
+/** Build a fully-qualified attribute node from a planned {name,args}. */
+function survey_attributeNode(array $planned): Node\AttributeGroup
+{
+    $fqcn = 'Radiergummi\\OpenApi\\Attributes\\' . $planned['name'];
+    $args = [];
+
+    foreach ($planned['args'] as $key => $value) {
+        $expr = is_int($value)
+            ? new Node\Scalar\Int_($value)
+            : new Node\Scalar\String_((string) $value);
+        $args[] = is_string($key)
+            ? new Node\Arg($expr, false, false, [], new Node\Identifier($key))
+            : new Node\Arg($expr);
+    }
+
+    return new Node\AttributeGroup([new Node\Attribute(new Node\Name\FullyQualified($fqcn), $args)]);
+}
+
+/**
+ * Insert attributes onto one method, format-preserving. Skips an attribute class
+ * already present on that method. Returns the number of attributes added.
+ */
+function surveyApplyAttributes(string $file, string $method, array $attributes): int
+{
+    $code = (string) file_get_contents($file);
+    $parser = (new ParserFactory())->createForNewestSupportedVersion();
+    $oldStmts = $parser->parse($code);
+    $oldTokens = $parser->getTokens();
+
+    $newStmts = (new NodeTraverser(new CloningVisitor()))->traverse($oldStmts);
+
+    $added = 0;
+    $visitor = new class ($method, $attributes, $added) extends NodeVisitorAbstract {
+        public function __construct(private string $method, private array $attributes, public int &$added) {}
+
+        public function enterNode(Node $node): null
+        {
+            if (!$node instanceof Node\Stmt\ClassMethod || $node->name->toString() !== $this->method) {
+                return null;
+            }
+
+            $present = [];
+
+            foreach ($node->attrGroups as $group) {
+                foreach ($group->attrs as $attr) {
+                    $present[$attr->name->getLast()] = true;
+                }
+            }
+
+            $new = [];
+
+            foreach ($this->attributes as $planned) {
+                // Tag/QueryParam may repeat; Summary/Description are single.
+                if (in_array($planned['name'], ['Summary', 'Description'], true) && isset($present[$planned['name']])) {
+                    continue;
+                }
+
+                $new[] = survey_attributeNode($planned);
+                $this->added++;
+            }
+
+            $node->attrGroups = array_merge($new, $node->attrGroups);
+
+            return null;
+        }
+    };
+
+    $newStmts = (new NodeTraverser($visitor))->traverse($newStmts);
+
+    if ($visitor->added > 0) {
+        $printed = (new PrettyPrinter\Standard())->printFormatPreserving($newStmts, $oldStmts, $oldTokens);
+        file_put_contents($file, $printed);
+    }
+
+    return $visitor->added;
+}
+
+/** Normalised "METHOD /uri" => {file, method} from `route:list --json`. */
+function survey_routeMap(string $repoDir): array
+{
+    $json = (string) shell_exec('cd ' . escapeshellarg($repoDir) . ' && php artisan route:list --json 2>/dev/null');
+    $routes = json_decode($json, true);
+    $map = [];
+
+    foreach (is_array($routes) ? $routes : [] as $route) {
+        $action = (string) ($route['action'] ?? '');
+
+        if (!str_contains($action, '@')) {
+            continue; // skip closures / invokables without @method
+        }
+
+        [$fqcn, $method] = explode('@', $action, 2);
+        $relative = str_replace('\\', '/', preg_replace('/^App\\\\/', 'app/', $fqcn)) . '.php';
+
+        foreach (explode('|', (string) ($route['method'] ?? '')) as $verb) {
+            $verb = strtoupper(trim($verb));
+
+            if (in_array($verb, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+                $uri = '/' . ltrim((string) ($route['uri'] ?? ''), '/');
+                $map[$verb . ' ' . survey_normalisePath($uri)] = ['file' => $relative, 'method' => $method];
+            }
+        }
+    }
+
+    return $map;
+}
+
 if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__FILE__)) {
-    fwrite(STDERR, "survey-harvest-docs: applier not yet wired (see Task 6)\n");
-    exit(3);
+    $app = $argv[1] ?? null;
+    $ws = getenv('WS') ?: null;
+
+    if ($app === null || $ws === null) {
+        fwrite(STDERR, "usage: WS=… survey-harvest-docs <app>\n");
+        exit(2);
+    }
+
+    $repoDir = "$ws/apps/$app/repo";
+    $appDir = "$ws/apps/$app";
+    $corpus = json_decode((string) file_get_contents(dirname(__DIR__, 4) . '/tools/survey/corpus.json'), true);
+    $entry = null;
+
+    foreach ($corpus['apps'] ?? [] as $candidate) {
+        if ($candidate['name'] === $app) {
+            $entry = $candidate;
+
+            break;
+        }
+    }
+
+    if ($entry === null) {
+        fwrite(STDERR, "unknown app: $app\n");
+        exit(2);
+    }
+
+    $prefix = $entry['apiPrefix'] ?? '/api';
+    $publishedSpec = $entry['publishedSpec'] ?? null;
+
+    if ($publishedSpec === null) {
+        echo json_encode(['harvested' => 0, 'byFile' => [], 'note' => 'no published spec']) . "\n";
+        exit(0);
+    }
+
+    require_once __DIR__ . '/survey-assemble-spec';
+    $published = surveyAssembleSpec("$repoDir/$publishedSpec");
+    $generated = json_decode((string) @file_get_contents("$appDir/generated-spec.json"), true) ?: ['paths' => []];
+    $routeMap = survey_routeMap($repoDir);
+
+    $edits = surveyHarvestPlan($published, $generated, $routeMap, $prefix);
+
+    $byFile = [];
+
+    foreach ($edits as $edit) {
+        $target = "$repoDir/{$edit['file']}";
+
+        if (!is_file($target)) {
+            fwrite(STDERR, "skip (missing): {$edit['file']}\n");
+
+            continue;
+        }
+
+        $count = surveyApplyAttributes($target, $edit['method'], $edit['attributes']);
+
+        if ($count > 0) {
+            $byFile[$edit['file']] = ($byFile[$edit['file']] ?? 0) + $count;
+        }
+    }
+
+    echo json_encode(['harvested' => array_sum($byFile), 'byFile' => $byFile], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
 }
