@@ -1,0 +1,49 @@
+#!/usr/bin/env php
+<?php
+
+// survey-attr-sigs <Attr...> — print __construct signatures of authoring attributes.
+declare(strict_types=1);
+
+require_once dirname(__DIR__, 4) . '/vendor/autoload.php';
+
+/** @return list<string> candidate FQCNs for a short attribute name (core + plugins). */
+function survey_attributeCandidates(string $name): array
+{
+    $base = 'Radiergummi\\OpenApi\\';
+    $candidates = [$base . 'Attributes\\' . $name];
+
+    foreach (glob(dirname(__DIR__, 4) . '/src/Plugins/*/Attributes') ?: [] as $dir) {
+        $plugin = basename(dirname($dir));
+        $candidates[] = $base . 'Plugins\\' . $plugin . '\\Attributes\\' . $name;
+    }
+
+    return $candidates;
+}
+
+foreach (array_slice($argv, 1) as $name) {
+    $fqcn = null;
+
+    foreach (survey_attributeCandidates($name) as $candidate) {
+        if (class_exists($candidate)) {
+            $fqcn = $candidate;
+
+            break;
+        }
+    }
+
+    if ($fqcn === null) {
+        fwrite(STDERR, "unknown attribute: $name\n");
+
+        continue;
+    }
+
+    $ctor = (new ReflectionClass($fqcn))->getConstructor();
+    $params = [];
+
+    foreach ($ctor?->getParameters() ?? [] as $p) {
+        $type = $p->getType() instanceof ReflectionNamedType ? $p->getType()->getName() . ' ' : '';
+        $params[] = $type . '$' . $p->getName() . ($p->isOptional() ? ' = …' : '');
+    }
+
+    echo "#[$name(" . implode(', ', $params) . ")]\n";
+}

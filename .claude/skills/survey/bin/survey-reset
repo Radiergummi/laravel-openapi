@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# survey-reset <app> — discard annotation scratch; restore the pinned baseline tree.
+set -uo pipefail
+WS="${WS:?set WS}"; app="${1:?usage: survey-reset <app>}"
+repo="$WS/apps/$app/repo"
+sha=$(php -r '$c=json_decode(file_get_contents(getenv("LIB")."/tools/survey/corpus.json"),true);foreach($c["apps"] as $a)if($a["name"]===$argv[1])echo $a["sha"];' "$app")
+git -C "$repo" reset --hard "$sha" >/dev/null
+echo "reset $app to $sha"
