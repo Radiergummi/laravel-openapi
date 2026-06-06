@@ -1,0 +1,12 @@
+# Per-run scratch must never be committed. Cloned apps, generated specs, logs,
+# runbooks, comparison reports, and the scorecard are local-only artifacts of a
+# run — they live in the external $WS workspace, but ignore them here too in case
+# anyone points $WS inside the repo tree.
+apps/
+*/generated-spec.json
+*/generate.log
+*/lint.json
+*/lint.log
+*/runbook.md
+*/comparison*.md
+SCORECARD.md
