@@ -1,0 +1,42 @@
+name: survey
+
+# Milestone/release-gated — never per-PR. Cloning + bootstrapping the real-app
+# corpus takes minutes-to-tens-of-minutes; run it on demand. Some apps may record
+# blocked-compat (real-app install quirks) — that is captured as data, not a failure.
+# The job's value is the deterministic metrics artifact, not a green/red gate.
+on:
+  workflow_dispatch:
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: laravel-openapi
+          persist-credentials: false
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
+        with:
+          php-version: '8.4'
+          extensions: mbstring, sqlite3, dom, curl, intl, bcmath
+          coverage: none
+      - name: Install library deps
+        working-directory: laravel-openapi
+        run: composer install --no-interaction --no-progress
+      - name: Run the corpus
+        env:
+          WS: ${{ github.workspace }}/ws
+          LIB: ${{ github.workspace }}/laravel-openapi
+        run: |
+          mkdir -p "$WS/apps"
+          laravel-openapi/tools/survey/corpus.sh
+      - name: Upload metrics + manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: survey-results
+          path: |
+            ${{ github.workspace }}/ws/results.json
+            ${{ github.workspace }}/ws/manifest.json
