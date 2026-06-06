@@ -7,6 +7,9 @@ namespace Radiergummi\OpenApi\Support\Routing;
 use BackedEnum;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\CreatesRegularExpressionRouteConstraints;
 use ReflectionClass;
 use ReflectionParameter;
@@ -20,7 +23,9 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Throwable;
 
 use function array_map;
+use function class_uses_recursive;
 use function explode;
+use function in_array;
 use function is_subclass_of;
 use function preg_match;
 use function str_contains;
@@ -70,7 +75,7 @@ final readonly class UriParameterResolver
 
         [$resolvedConstraint, $whereKind] = $this->resolveConstraint($whereConstraint);
 
-        [$modelClass, $routeKeyName] = $this->resolveModelBinding($innerType);
+        [$modelClass, $routeKeyName, $modelPrimaryKey] = $this->resolveModelBinding($innerType);
         $enumCases = $this->resolveEnumCases($innerType);
 
         return new UriParameterDescriptor(
@@ -83,6 +88,7 @@ final readonly class UriParameterResolver
             routeKeyName: $routeKeyName,
             enumCases: $enumCases,
             bindingField: $bindingField,
+            modelPrimaryKey: $modelPrimaryKey,
         );
     }
 
@@ -167,22 +173,22 @@ final readonly class UriParameterResolver
      * `BackedEnumType` extends `ObjectType` in symfony/type-info — check it first to avoid treating
      * an enum as a model binding.
      *
-     * @return array{class-string, string}|array{null, null}
+     * @return array{class-string, string, ?ModelPrimaryKey}|array{null, null, null}
      */
     private function resolveModelBinding(Type $innerType): array
     {
         if ($innerType instanceof BackedEnumType) {
-            return [null, null];
+            return [null, null, null];
         }
 
         if (!$innerType instanceof ObjectType) {
-            return [null, null];
+            return [null, null, null];
         }
 
         $className = $innerType->getClassName();
 
         if (!is_subclass_of($className, UrlRoutable::class)) {
-            return [null, null];
+            return [null, null, null];
         }
 
         // Bypass the constructor: bound models may declare required constructor
@@ -190,11 +196,47 @@ final readonly class UriParameterResolver
         try {
             $instance = new ReflectionClass($className)->newInstanceWithoutConstructor();
             $routeKeyName = $instance->getRouteKeyName();
+
+            // Only Eloquent models expose key metadata; other UrlRoutables stay untyped.
+            $modelPrimaryKey = $instance instanceof Model
+                ? $this->resolveModelPrimaryKey($instance, $className)
+                : null;
         } catch (Throwable) {
-            return [null, null];
+            return [null, null, null];
         }
 
-        return [$className, $routeKeyName];
+        return [$className, $routeKeyName, $modelPrimaryKey];
+    }
+
+    /**
+     * Reads a model's primary-key metadata via reflection: its column name plus the JSON-Schema
+     * type and format the key resolves against.
+     *
+     * `HasUuids` / `HasUlids` are detected by trait rather than via `getKeyType()`, because that
+     * method's unique-id branch depends on an `usesUniqueIds` flag set only by the model
+     * constructor — which {@see resolveModelBinding} deliberately bypasses. For plain models
+     * `getKeyType()` reads the `$keyType` property default, which is reliable without the
+     * constructor.
+     *
+     * @param class-string $className
+     */
+    private function resolveModelPrimaryKey(Model $instance, string $className): ModelPrimaryKey
+    {
+        $traits = class_uses_recursive($className);
+        $keyName = $instance->getKeyName();
+
+        if (in_array(HasUuids::class, $traits, true)) {
+            return new ModelPrimaryKey($keyName, 'string', 'uuid');
+        }
+
+        // ULID keys are strings, but there is no standard OpenAPI format for them.
+        if (in_array(HasUlids::class, $traits, true)) {
+            return new ModelPrimaryKey($keyName, 'string', null);
+        }
+
+        $type = $instance->getKeyType() === 'int' ? 'integer' : 'string';
+
+        return new ModelPrimaryKey($keyName, $type, null);
     }
 
     /**

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Routing\UrlRoutable;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\UlidArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\UuidArticle;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('routing', 'openapi');
@@ -106,4 +109,49 @@ it('leaves the binding field null when none is bound', function (): void {
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
     expect($descriptor->bindingField)->toBeNull();
+});
+
+it('captures integer primary-key metadata for an int-keyed model', function (): void {
+    $param = reflectFunctionParameter(static function (Article $article): void {}, 'article');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
+
+    expect($descriptor->modelPrimaryKey)->not->toBeNull()
+        ->and($descriptor->modelPrimaryKey->name)->toBe('id')
+        ->and($descriptor->modelPrimaryKey->type)->toBe('integer')
+        ->and($descriptor->modelPrimaryKey->format)->toBeNull();
+});
+
+it('captures uuid primary-key metadata for a HasUuids model', function (): void {
+    $param = reflectFunctionParameter(static function (UuidArticle $article): void {}, 'article');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
+
+    expect($descriptor->modelPrimaryKey)->not->toBeNull()
+        ->and($descriptor->modelPrimaryKey->name)->toBe('id')
+        ->and($descriptor->modelPrimaryKey->type)->toBe('string')
+        ->and($descriptor->modelPrimaryKey->format)->toBe('uuid');
+});
+
+it('captures string primary-key metadata without a format for a HasUlids model', function (): void {
+    $param = reflectFunctionParameter(static function (UlidArticle $article): void {}, 'article');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
+
+    expect($descriptor->modelPrimaryKey)->not->toBeNull()
+        ->and($descriptor->modelPrimaryKey->name)->toBe('id')
+        ->and($descriptor->modelPrimaryKey->type)->toBe('string')
+        ->and($descriptor->modelPrimaryKey->format)->toBeNull();
+});
+
+it('leaves primary-key metadata null for a non-Eloquent routable', function (): void {
+    $param = reflectFunctionParameter(
+        static function (RoutableWithRequiredCtorArg $thing): void {},
+        'thing',
+    );
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
+
+    expect($descriptor->modelClass)->toBe(RoutableWithRequiredCtorArg::class)
+        ->and($descriptor->modelPrimaryKey)->toBeNull();
 });

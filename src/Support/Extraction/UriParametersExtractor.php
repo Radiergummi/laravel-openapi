@@ -101,6 +101,8 @@ final readonly class UriParametersExtractor
         OA\Schema $schema,
         UriParameterDescriptor $descriptor,
     ): OA\Schema {
+        // An explicit route `where*` constraint is the author's stated intent and wins. Only when
+        // none is present (whereKind === null) do we fall back to the bound model's key metadata.
         match ($descriptor->whereKind) {
             WhereKind::Uuid => $schema->format = 'uuid',
             WhereKind::Number => $schema->type = 'integer',
@@ -110,10 +112,40 @@ final readonly class UriParametersExtractor
             WhereKind::Custom => $descriptor->whereConstraint !== null
                 ? ($schema->pattern = $descriptor->whereConstraint)
                 : null,
-            null => null,
+            null => $this->applyModelPrimaryKeyType($schema, $descriptor),
         };
 
         return $schema;
+    }
+
+    /**
+     * Types a model-bound parameter from the bound model's primary-key metadata. The key type
+     * describes the model's primary key, so it is only applied when the route actually binds via
+     * that key — not via a custom `{param:field}` segment or an overridden `getRouteKeyName()`.
+     */
+    private function applyModelPrimaryKeyType(
+        OA\Schema $schema,
+        UriParameterDescriptor $descriptor,
+    ): null {
+        $primaryKey = $descriptor->modelPrimaryKey;
+
+        if ($primaryKey === null) {
+            return null;
+        }
+
+        $effectiveKey = $descriptor->bindingField ?? $descriptor->routeKeyName;
+
+        if ($effectiveKey !== $primaryKey->name) {
+            return null;
+        }
+
+        $schema->type = $primaryKey->type;
+
+        if ($primaryKey->format !== null) {
+            $schema->format = $primaryKey->format;
+        }
+
+        return null;
     }
 
     /**
