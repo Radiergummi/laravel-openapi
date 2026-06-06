@@ -51,6 +51,20 @@ paths=$(php -r '
   echo is_array($j["paths"] ?? null) ? count($j["paths"]) : "?";
 ' "$appdir/generated-spec.json" 2>/dev/null)
 
+# Route count (best-effort; deprecation noise dropped). Data for routesIntrospected.
+routes=$(php artisan route:list --json 2>/dev/null \
+  | php -r '$j=json_decode((string)stream_get_contents(STDIN),true); echo is_array($j)?count($j):0;' 2>/dev/null)
+routes="${routes:-0}"
+
+gen_stderr=false
+if [[ -s "$appdir/generate.log" ]]; then gen_stderr=true; fi
+
+# Machine-readable run record consumed by metrics.php.
+php -r '
+  $r = ["generateExit"=>(int)$argv[1],"lintExit"=>(int)$argv[2],"generateStderr"=>$argv[3]==="true","bootOutcome"=>$argv[4],"routesIntrospected"=>(int)$argv[5]];
+  echo json_encode($r, JSON_PRETTY_PRINT);
+' "$gen_exit" "$lint_exit" "$gen_stderr" "${BOOT_OUTCOME:-booted}" "$routes" > "$appdir/run.json"
+
 echo "$name: gen_exit=$gen_exit lint_exit=$lint_exit paths=$paths"
 echo "  spec:  $appdir/generated-spec.json"
 echo "  logs:  $appdir/generate.log  $appdir/lint.json  $appdir/lint.log"
