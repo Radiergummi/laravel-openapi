@@ -60,7 +60,7 @@ class LintCommand extends Command
         {--path= : Restrict to routes matching this URI glob}
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the repository default branch)}
         {--no-suppress : Ignore #[IgnoreLint] attributes}
-        {--no-spec-validation : Skip the OAS 3.1 meta-schema validation (the spec.invalid rule); faster on large specs}
+        {--no-validate : Skip the OAS 3.1 meta-schema validation (the spec.invalid rule); faster on large specs}
         {--list : Print the rule catalog instead of linting}
         {--fix : Apply fixable findings to the source, then report the rest}
         {--check : Report whether --fix would change anything, without writing (CI-safe)}
@@ -241,7 +241,7 @@ class LintCommand extends Command
             diffEnabled: $this->input->hasParameterOption('--diff'),
             diffRef: is_string($diffRef) && $diffRef !== '' ? $diffRef : null,
             applySuppressions: !$this->option('no-suppress'),
-            validateSpec: !$this->option('no-spec-validation'),
+            validateSpec: !$this->option('no-validate'),
             spec: $this->option('spec') ?: null,
         );
     }

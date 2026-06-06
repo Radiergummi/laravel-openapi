@@ -37,7 +37,7 @@ final readonly class LintOptions
      *                                           Pre-build rules always run regardless.
      * @param bool            $validateSpec      Whether the OAS 3.1 meta-schema validation
      *                                           (`spec.invalid`) runs. False corresponds to
-     *                                           --no-spec-validation on the CLI; the rule is
+     *                                           --no-validate on the CLI; the rule is
      *                                           otherwise non-suppressible.
      */
     public function __construct(

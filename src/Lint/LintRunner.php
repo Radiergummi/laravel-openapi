@@ -205,9 +205,6 @@ final readonly class LintRunner
 
         $rules = $this->registry->forLevel($level, only: $only, skip: $skip);
 
-        // --no-spec-validation drops the (otherwise non-suppressible) OAS meta-schema validation.
-        // This is a deliberate, explicit opt-out — distinct from --skip / disabled_rules, which
-        // cannot disable spec.invalid (see resolveSkip()).
         if (!$options->validateSpec) {
             $rules = array_values(array_filter(
                 $rules,

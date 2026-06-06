@@ -92,7 +92,7 @@ it('runs meta-schema validation by default (spec.invalid fires on an invalid doc
     ])->assertExitCode(1);
 });
 
-it('skips meta-schema validation when --no-spec-validation is passed', function (): void {
+it('skips meta-schema validation when --no-validate is passed', function (): void {
     corruptLintedSpec();
 
     // With the meta-schema pass skipped, spec.invalid never runs — the clean path has no other
@@ -101,7 +101,7 @@ it('skips meta-schema validation when --no-spec-validation is passed', function 
         '--level' => 0,
         '--path' => 'lint-fixtures/clean*',
         '--format' => 'json',
-        '--no-spec-validation' => true,
+        '--no-validate' => true,
     ])->assertExitCode(0);
 });
 

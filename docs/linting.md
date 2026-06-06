@@ -117,7 +117,7 @@ Scope follows the annotated symbol:
 > `spec.invalid` can never be suppressed via `#[IgnoreLint]`, `--skip`, or
 > `lint.disabled_rules`. To skip the OAS 3.1 meta-schema validation entirely —
 > it is the single most expensive rule on large specs — pass the dedicated
-> `--no-spec-validation` flag. (`--no-suppress` instead ignores all
+> `--no-validate` flag. (`--no-suppress` instead ignores all
 > `#[IgnoreLint]` directives.)
 
 Meta-rules enforce directive hygiene:
