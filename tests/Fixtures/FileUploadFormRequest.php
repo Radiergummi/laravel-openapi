@@ -8,8 +8,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
 
 /**
- * Fixture FormRequest with a file rule — used to verify multipart detection in
- * {@see SchemaFromFormRequest}.
+ * Fixture FormRequest covering all four file-upload rule forms — used to verify multipart
+ * detection and binary-field mapping in {@see SchemaFromFormRequest}.
  */
 class FileUploadFormRequest extends FormRequest
 {
@@ -17,6 +17,9 @@ class FileUploadFormRequest extends FormRequest
     {
         return [
             'attachment' => ['required', 'file'],
+            'avatar'     => ['required', 'image'],
+            'document'   => ['required', 'mimes:pdf,doc'],
+            'banner'     => ['required', 'dimensions:min_width=100,min_height=100'],
             'label'      => ['required', 'string', 'max:100'],
         ];
     }
