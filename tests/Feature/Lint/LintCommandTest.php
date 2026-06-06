@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Lint\SuppressionCollector;
@@ -25,6 +27,22 @@ beforeEach(function (): void {
     Route::get('lint-fixtures/response-empty', [ResponseEmptyController::class, 'index'])->name('lint.response-empty');
     Route::get('lint-fixtures/suppressed-response-empty', [SuppressedResponseEmptyController::class, 'index'])->name('lint.suppressed-response-empty');
 });
+
+afterEach(function (): void {
+    OpenApiExtensions::flush();
+});
+
+/**
+ * Registers a document transformer that sets `openapi` to a value the OAS 3.1 meta-schema's
+ * version pattern rejects, so the generated spec fails validation and the (level-0) spec.invalid
+ * rule fires.
+ */
+function corruptLintedSpec(): void
+{
+    OpenApiExtensions::transformDocument(static function (OA\OpenApi $document): void {
+        $document->openapi = 'not-a-valid-version';
+    });
+}
 
 it('exits 0 when clean controller is the only route', function (): void {
     $this->artisan('openapi:lint', [
@@ -60,6 +78,31 @@ it('--no-suppress disables directives', function (): void {
         '--format' => 'json',
         '--no-suppress' => true,
     ])->assertExitCode(1);
+});
+
+it('runs meta-schema validation by default (spec.invalid fires on an invalid document)', function (): void {
+    corruptLintedSpec();
+
+    // The clean path emits no level-0 findings normally (exit 0); the dropped `info` makes
+    // spec.invalid (level 0) fire, so the run exits 1.
+    $this->artisan('openapi:lint', [
+        '--level' => 0,
+        '--path' => 'lint-fixtures/clean*',
+        '--format' => 'json',
+    ])->assertExitCode(1);
+});
+
+it('skips meta-schema validation when --no-spec-validation is passed', function (): void {
+    corruptLintedSpec();
+
+    // With the meta-schema pass skipped, spec.invalid never runs — the clean path has no other
+    // level-0 findings, so the run exits 0 despite the invalid document.
+    $this->artisan('openapi:lint', [
+        '--level' => 0,
+        '--path' => 'lint-fixtures/clean*',
+        '--format' => 'json',
+        '--no-spec-validation' => true,
+    ])->assertExitCode(0);
 });
 
 it('uses config lint level when --level is not passed', function (): void {

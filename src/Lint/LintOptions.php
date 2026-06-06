@@ -35,6 +35,10 @@ final readonly class LintOptions
      * @param ?string         $spec              Restrict per-spec rules to one named spec. Null
      *                                           runs them against every spec in SpecRegistry.
      *                                           Pre-build rules always run regardless.
+     * @param bool            $validateSpec      Whether the OAS 3.1 meta-schema validation
+     *                                           (`spec.invalid`) runs. False corresponds to
+     *                                           --no-spec-validation on the CLI; the rule is
+     *                                           otherwise non-suppressible.
      */
     public function __construct(
         public int|string|null $level = null,
@@ -44,6 +48,7 @@ final readonly class LintOptions
         public bool $diffEnabled = false,
         public ?string $diffRef = null,
         public bool $applySuppressions = true,
+        public bool $validateSpec = true,
         public ?string $spec = null,
     ) {}
 }
