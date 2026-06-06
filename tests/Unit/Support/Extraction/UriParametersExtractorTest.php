@@ -8,6 +8,7 @@ use Radiergummi\OpenApi\Attributes\PathParam;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 
@@ -24,6 +25,7 @@ function stringDescriptor(string $name, bool $optional = false): UriParameterDes
         modelClass: null,
         routeKeyName: null,
         enumCases: null,
+        bindingField: null,
     );
 }
 
@@ -69,6 +71,42 @@ it('always emits required:true for optional path parameters per OAS 3.x §4.8.12
     expect($parameter->required)->toBeTrue()
         ->and($parameter->description)
         ->toBe('Optional in URL — the segment may be omitted when calling this route.');
+});
+
+it('describes a model binding by its custom field and class basename, not the FQCN', function (): void {
+    $descriptor = new UriParameterDescriptor(
+        name: 'post',
+        type: Type::builtin(TypeIdentifier::STRING),
+        optional: false,
+        whereConstraint: null,
+        whereKind: null,
+        modelClass: Article::class,
+        routeKeyName: 'id',
+        enumCases: null,
+        bindingField: 'slug',
+    );
+
+    [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+
+    expect($parameter->description)->toBe('Bound by slug of Article.');
+});
+
+it('falls back to the route key name (still by basename) without a custom field', function (): void {
+    $descriptor = new UriParameterDescriptor(
+        name: 'post',
+        type: Type::builtin(TypeIdentifier::STRING),
+        optional: false,
+        whereConstraint: null,
+        whereKind: null,
+        modelClass: Article::class,
+        routeKeyName: 'uuid',
+        enumCases: null,
+        bindingField: null,
+    );
+
+    [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+
+    expect($parameter->description)->toBe('Bound by uuid of Article.');
 });
 
 it('appends the optional-in-URL note to an existing #[PathParam] description', function (): void {

@@ -50,12 +50,15 @@ final readonly class UriParameterResolver
     /**
      * @param null|string $whereConstraint Raw regex from `$route->wheres[]`, or null when no
      *                                     constraint is registered on the route.
+     * @param null|string $bindingField    Custom binding field from a `{param:field}` route segment
+     *                                     (e.g. `slug`), or null when the parameter has no custom key.
      *
      * @throws UnsupportedException When symfony/type-info cannot resolve the reflection type.
      */
     public function resolve(
         ReflectionParameter $parameter,
         ?string $whereConstraint,
+        ?string $bindingField = null,
     ): UriParameterDescriptor {
         $type = $this->resolveType($parameter);
         $optional = $type->isNullable();
@@ -79,6 +82,7 @@ final readonly class UriParameterResolver
             modelClass: $modelClass,
             routeKeyName: $routeKeyName,
             enumCases: $enumCases,
+            bindingField: $bindingField,
         );
     }
 

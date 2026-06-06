@@ -171,6 +171,15 @@ final class ActionDescriptor
     }
 
     /**
+     * Returns the custom binding field for the given parameter name (the `field` in a
+     * `{param:field}` route segment), or null when the parameter has no custom key.
+     */
+    public function bindingFieldFor(string $parameterName): ?string
+    {
+        return $this->route->bindingFieldFor($parameterName);
+    }
+
+    /**
      * @return list<ReflectionParameter>
      */
     private function resolveUriParameters(): array

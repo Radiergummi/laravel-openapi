@@ -18,6 +18,8 @@ final readonly class UriParameterDescriptor
      * @param null|class-string $modelClass      For `UrlRoutable` bindings — the fully-qualified model class name.
      * @param null|string       $routeKeyName    For model bindings — the route key (e.g. `uuid`, `id`, `_id`).
      * @param null|list<string> $enumCases       For `BackedEnum` types — the string/int case values as strings.
+     * @param null|string       $bindingField    Custom binding field from the route's `{param:field}` syntax (e.g.
+     *                                           `slug`); overrides the model's default route key name when present.
      */
     public function __construct(
         public string $name,
@@ -28,5 +30,6 @@ final readonly class UriParameterDescriptor
         public ?string $modelClass,
         public ?string $routeKeyName,
         public ?array $enumCases,
+        public ?string $bindingField,
     ) {}
 }
