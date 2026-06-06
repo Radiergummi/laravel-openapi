@@ -277,16 +277,16 @@ it('reads info, servers, and tags from config', function (): void {
         ]);
 });
 
-// OAPI — deriveTag treats 'Auth' as a real domain segment, not structural noise
+// OAPI — the tag is derived from the controller class name (Controller suffix stripped, pluralised)
 
-it('derives the Auth tag for controllers nested under an Auth namespace segment', function (): void {
+it('derives the operation tag from the controller class name', function (): void {
     Route::get('/oa-fixture/auth-only', [AuthFixtureController::class, 'index']);
 
     $spec = generateSpec();
 
     $tags = $spec['paths']['/oa-fixture/auth-only']['get']['tags'] ?? [];
 
-    expect($tags)->toContain('Auth');
+    expect($tags)->toContain('AuthFixtures');
 });
 
 // Malformed #[Example] / #[ResponseExample] — generation must not abort
