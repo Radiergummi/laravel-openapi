@@ -6,7 +6,7 @@ source.
 
 | Aspect | Source |
 |---|---|
-| Tag | Last meaningful segment of the controller's namespace. Skips generic segments (`Controllers`, `Http`, `App`, `Internal`, `External`, `Global`, `V0`, …) and the controller class itself. |
+| Tag | The controller's short class name with a trailing `Controller` stripped and the remainder pluralised (`PostController` → `Posts`). For closure/controllerless routes, the StudlyCased last segment of the route-group prefix (`prefix('webhooks')` → `Webhooks`); failing that, `General`. |
 | Summary | First paragraph of the method's PHPDoc, or `#[Summary]` / `#[Operation(summary: …)]`. |
 | Description | Remaining paragraphs of the method's PHPDoc (markdown permitted), or `#[Description]` / `#[Operation(description: …)]`. |
 | `operationId` | Route name (sanitised to a codegen-safe identifier — `:`/`{}` and other disallowed characters become `_`, while `.`/`-`/`_` are kept), or `{method}_{sanitized_path}`. |
@@ -52,7 +52,7 @@ final class FlightController
 
 produces an operation with:
 
-- `tags: [Flights]` from `#[Tag]` (or, without it, the `Flights` namespace segment).
+- `tags: [Flights]` from the `FlightController` class name (the explicit `#[Tag('Flights')]` here is redundant with the derived tag and dedupes away).
 - `summary: Show a single flight.` from the first docblock paragraph.
 - `description: Returns the full flight envelope including aircraft and crew.` from the remaining paragraphs.
 - `operationId: flights.show` from the route name.
@@ -63,7 +63,7 @@ produces an operation with:
 - A 403 response from `scope:flights:read`.
 - A security requirement for the `flights:read` scope.
 
-`#[Tag]` is optional if the namespace-derived tag is acceptable; no other
+`#[Tag]` is optional if the controller-derived tag is acceptable; no other
 attributes are required here.
 
 ## Path parameter types

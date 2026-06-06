@@ -13,7 +13,7 @@ use function is_string;
 use function sprintf;
 
 /**
- * Adds an OpenAPI tag to an operation in addition to the namespace-derived set. Use for purely
+ * Adds an OpenAPI tag to an operation in addition to the controller-derived set. Use for purely
  * additive tagging — to replace the auto-derived set entirely, use {@see Operation::$tags} with
  * `replace: true`. Class- and method-level entries merge; duplicates dedupe.
  *

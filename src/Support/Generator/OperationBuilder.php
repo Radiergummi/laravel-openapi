@@ -184,10 +184,10 @@ final readonly class OperationBuilder
 
         if ($operationOverride !== null) {
             $baseTags = match (true) {
-                // Explicit opt-in: discard namespace-derived tags.
+                // Explicit opt-in: discard controller-derived tags.
                 $operationOverride->tags !== null && $operationOverride->replace => $operationOverride->tags,
 
-                // Default: merge attribute tags with namespace-derived tags.
+                // Default: merge attribute tags with controller-derived tags.
                 $operationOverride->tags !== null => $this->mergeTags(
                     $defaultTags,
                     $operationOverride->tags,

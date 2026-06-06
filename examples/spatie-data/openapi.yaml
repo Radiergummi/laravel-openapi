@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - SpatieData
         - Flights
       summary: 'List flights.'
       description: 'Returns a page of flights as a Spatie `DataCollection` of {@see FlightData}.'
@@ -32,7 +31,6 @@ paths:
       security: []
     post:
       tags:
-        - SpatieData
         - Flights
       summary: 'Create a new flight.'
       description: "Validates the payload through {@see CreateFlightData} and returns the\npersisted flight wrapped in a {@see FlightData}."
@@ -58,7 +56,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - SpatieData
         - Flights
       summary: 'Show a single flight.'
       externalDocs:
@@ -89,7 +86,6 @@ paths:
       security: []
     delete:
       tags:
-        - SpatieData
         - Flights
       summary: 'Cancel a flight.'
       externalDocs:
@@ -111,7 +107,6 @@ paths:
       security: []
     patch:
       tags:
-        - SpatieData
         - Flights
       summary: 'Update an existing flight.'
       description: "Accepts a partial payload validated by {@see UpdateFlightData}; only the\nsupplied properties are persisted thanks to `Optional` unions."
@@ -145,7 +140,6 @@ paths:
   '/api/flights/{flight}/bookings':
     get:
       tags:
-        - SpatieData
         - Bookings
       summary: 'List bookings for a flight.'
       operationId: get_api_flights_flight_bookings
@@ -170,7 +164,6 @@ paths:
       security: []
     post:
       tags:
-        - SpatieData
         - Bookings
       summary: 'Create a new booking on a flight.'
       description: "Validates via {@see CreateBookingData} and enforces the 200-seat\ncapacity by raising {@see FlightOverbookedException} — the `@throws`\nannotation drives the 409 response through the exception-response map."
@@ -203,7 +196,6 @@ paths:
   '/api/bookings/{booking}':
     delete:
       tags:
-        - SpatieData
         - Bookings
       summary: 'Cancel a booking.'
       operationId: delete_api_bookings_booking_
