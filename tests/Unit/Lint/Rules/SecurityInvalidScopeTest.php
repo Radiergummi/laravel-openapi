@@ -2,10 +2,61 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
+use OpenApi\Context;
+use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\SecurityInvalidScope;
+use Radiergummi\OpenApi\Lint\Tree\ApiNode;
+use Radiergummi\OpenApi\Lint\TreeIndex;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
+
+/**
+ * A `LintContext` whose `rawSpec` declares security schemes with explicit types, so scope rules can
+ * resolve a requirement's scheme `type`. `OperationNodeFactory::emptyContext()` ships no
+ * securitySchemes; keep the spec-builder local rather than bloating the factory with rawSpec knobs.
+ *
+ * @param array<string, string> $schemeTypes      scheme name → OAS type (oauth2, http, apiKey, …)
+ * @param list<string>          $registeredScopes prepopulates `TreeIndex->registeredScopes`
+ */
+function makeScopeSchemeContext(array $schemeTypes, array $registeredScopes): LintContext
+{
+    $oaContext = new Context();
+    $schemes = [];
+
+    foreach ($schemeTypes as $name => $type) {
+        $schemes[] = new OA\SecurityScheme([
+            'securityScheme' => $name,
+            'type' => $type,
+            '_context' => $oaContext,
+        ]);
+    }
+
+    $components = new OA\Components(['_context' => $oaContext]);
+    $components->securitySchemes = $schemes;
+
+    $spec = new OA\OpenApi([
+        'openapi' => '3.1.0',
+        'info' => new OA\Info(['title' => 'Test', 'version' => '0.1', '_context' => $oaContext]),
+        'components' => $components,
+    ]);
+
+    return new LintContext(
+        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
+        index: new TreeIndex(
+            operationsByOperationId: [],
+            operationsByRouteKey: [],
+            componentsByName: [],
+            referencedComponents: [],
+            registeredScopes: $registeredScopes,
+            knownRuleIds: [],
+        ),
+        rawSpec: $spec,
+        actionDescriptors: [],
+        suppressions: [],
+    );
+}
 
 it('reports its id and level', function (): void {
     $rule = new SecurityInvalidScope(registeredScopes: []);
@@ -106,6 +157,44 @@ it('falls back to context index when no registered scopes passed to constructor'
         security: [['scheme' => 'oauth2', 'scopes' => ['unknown-scope']]],
     );
     $context = OperationNodeFactory::emptyContext(registeredScopes: ['known-scope']);
+
+    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+
+    expect($findings)->toHaveCount(1)->and($findings[0]->message)->toContain('unknown-scope');
+});
+
+it('does not flag Sanctum abilities on a non-oauth2 (http/bearer) scheme', function (): void {
+    // A hybrid Passport + Sanctum app: Passport scopes are registered, but the route authenticates
+    // via Sanctum, whose `abilities:` surface as scopes on the `http`/bearer `sanctum` scheme.
+    $rule = new SecurityInvalidScope();
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/posts',
+        operationId: 'posts.store',
+        responses: [],
+        security: [['scheme' => 'sanctum', 'scopes' => ['read', 'write']]],
+    );
+    $context = makeScopeSchemeContext(
+        schemeTypes: ['sanctum' => 'http', 'passport' => 'oauth2'],
+        registeredScopes: ['posts:read', 'posts:write'],
+    );
+
+    $findings = iterator_to_array($rule->checkOperation($operation, $context));
+
+    expect($findings)->toBe([]);
+});
+
+it('still flags an undefined scope on an oauth2 scheme', function (): void {
+    $rule = new SecurityInvalidScope();
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/posts',
+        operationId: 'posts.store',
+        responses: [],
+        security: [['scheme' => 'passport', 'scopes' => ['unknown-scope']]],
+    );
+    $context = makeScopeSchemeContext(
+        schemeTypes: ['passport' => 'oauth2'],
+        registeredScopes: ['known-scope'],
+    );
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
