@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - FormRequests
         - Flights
       summary: 'List flights.'
       description: "Returns a paginated collection of all known flights wrapped in the\nstandard JsonResource `{data, links, meta}` envelope."
@@ -38,7 +37,6 @@ paths:
       security: []
     post:
       tags:
-        - FormRequests
         - Flights
       summary: 'Create a new flight.'
       description: "Persists a new flight record from a typed FormRequest and returns the\ncreated resource. The 201 status is documented via #[Response] because\nthe auto-derived response is always 200."
@@ -76,7 +74,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - FormRequests
         - Flights
       summary: 'Show a single flight.'
       operationId: get_api_flights_flight_
@@ -108,7 +105,6 @@ paths:
       security: []
     delete:
       tags:
-        - FormRequests
         - Flights
       summary: 'Cancel a flight.'
       operationId: delete_api_flights_flight_
@@ -134,7 +130,6 @@ paths:
       security: []
     patch:
       tags:
-        - FormRequests
         - Flights
       summary: 'Update an existing flight.'
       description: 'Accepts a partial payload validated by UpdateFlightRequest.'
@@ -176,7 +171,6 @@ paths:
   '/api/flights/{flight}/bookings':
     get:
       tags:
-        - FormRequests
         - Bookings
       summary: 'List bookings for a flight.'
       operationId: get_api_flights_flight_bookings
@@ -203,7 +197,6 @@ paths:
       security: []
     post:
       tags:
-        - FormRequests
         - Bookings
       summary: 'Create a new booking on a flight.'
       description: "Validates via StoreBookingRequest and enforces the 200-seat capacity\nby raising FlightOverbookedException — the @throws annotation drives\nthe 409 response in the spec via the exception-response map configured\nin OpenApiConfig."
@@ -238,7 +231,6 @@ paths:
   '/api/bookings/{booking}':
     delete:
       tags:
-        - FormRequests
         - Bookings
       summary: 'Cancel a booking.'
       operationId: delete_api_bookings_booking_

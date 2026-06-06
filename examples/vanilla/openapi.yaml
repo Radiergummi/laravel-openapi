@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - Vanilla
         - Flights
       summary: 'List flights.'
       description: 'Returns a paginated list of all known flights.'
@@ -44,7 +43,6 @@ paths:
       security: []
     post:
       tags:
-        - Vanilla
         - Flights
       summary: 'Create a new flight.'
       description: "Persists a new flight record with the supplied schedule and status.\nReturns the created resource with its server-assigned UUID."
@@ -63,7 +61,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - Vanilla
         - Flights
       summary: 'Show a single flight.'
       operationId: flights.show
@@ -86,7 +83,6 @@ paths:
       security: []
     delete:
       tags:
-        - Vanilla
         - Flights
       operationId: delete_api_flights_flight_
       parameters:
@@ -104,7 +100,6 @@ paths:
       security: []
     patch:
       tags:
-        - Vanilla
         - Flights
       summary: 'Update an existing flight.'
       operationId: patch_api_flights_flight_
@@ -130,7 +125,6 @@ paths:
   '/api/flights/{flight}/bookings':
     get:
       tags:
-        - Vanilla
         - Bookings
       summary: 'List bookings for a flight.'
       operationId: get_api_flights_flight_bookings
@@ -155,7 +149,6 @@ paths:
       security: []
     post:
       tags:
-        - Vanilla
         - Bookings
       summary: 'Create a new booking on a flight.'
       operationId: post_api_flights_flight_bookings
@@ -183,7 +176,6 @@ paths:
   '/api/bookings/{booking}':
     delete:
       tags:
-        - Vanilla
         - Bookings
       summary: 'Cancel a booking.'
       operationId: delete_api_bookings_booking_
@@ -203,7 +195,7 @@ paths:
   /api/typed/flights:
     get:
       tags:
-        - Vanilla
+        - TypedFlights
         - Flights
       summary: 'List flights.'
       description: 'Returns all flights. The response schema is inferred from the Flight model.'
@@ -222,7 +214,7 @@ paths:
   '/api/typed/flights/{flight}':
     get:
       tags:
-        - Vanilla
+        - TypedFlights
         - Flights
       summary: 'Show a single flight.'
       operationId: get_api_typed_flights_flight_

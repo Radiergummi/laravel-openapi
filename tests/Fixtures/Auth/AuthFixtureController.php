@@ -7,10 +7,9 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\Auth;
 use Illuminate\Routing\Controller;
 
 /**
- * Minimal fixture controller living in an Auth namespace segment.
- *
- * Used to verify that deriveTag() treats 'Auth' as a domain segment rather than structural noise,
- * producing the tag 'Auth' instead of 'General'.
+ * Minimal fixture controller used to verify controller-class-name tag derivation: the
+ * `Controller` suffix is stripped and the remainder pluralised, so `AuthFixtureController`
+ * produces the tag `AuthFixtures`.
  */
 class AuthFixtureController extends Controller
 {

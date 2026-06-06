@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - Combined
         - Flights
       summary: 'List flights.'
       description: "Paginated list of flights with `spatie/laravel-query-builder` filters,\nsorts, and includes. Marked `#[PublicEndpoint]` because anonymous read\naccess is fine for the public catalogue."
@@ -83,7 +82,6 @@ paths:
       security: []
     post:
       tags:
-        - Combined
         - Flights
       summary: 'Create a new flight.'
       description: "Validates through {@see StoreFlightRequest} (FormRequest in), returns\n{@see FlightData} (Data out). The `#[Link]` advertises that the response\n`id` can be fed straight into the `flights.show` operation."
@@ -117,7 +115,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - Combined
         - Flights
       summary: 'Show a single flight.'
       description: "Public read endpoint. The response carries a curated example payload\nloaded from `examples/combined/example_payloads/flight.json` through\nthe `file:` argument of {@see ResponseExample}, demonstrating\n`ExampleFileLoader` integration."
@@ -146,7 +143,6 @@ paths:
       security: []
     delete:
       tags:
-        - Combined
         - Flights
       summary: 'Cancel a flight.'
       operationId: delete_api_flights_flight_
@@ -168,7 +164,6 @@ paths:
             - 'flights:write'
     patch:
       tags:
-        - Combined
         - Flights
       summary: 'Update an existing flight.'
       operationId: patch_api_flights_flight_
@@ -195,7 +190,6 @@ paths:
   '/api/flights/{flight}/bookings':
     get:
       tags:
-        - Combined
         - Bookings
       summary: 'List bookings for a flight.'
       operationId: get_api_flights_flight_bookings
@@ -220,7 +214,6 @@ paths:
       security: []
     post:
       tags:
-        - Combined
         - Bookings
       summary: 'Create a new booking on a flight.'
       description: "Validates via {@see StoreBookingRequest} and enforces the 200-seat\ncapacity by raising {@see FlightOverbookedException}."
@@ -258,7 +251,6 @@ paths:
   '/api/bookings/{booking}':
     delete:
       tags:
-        - Combined
         - Bookings
       summary: 'Cancel a booking.'
       operationId: delete_api_bookings_booking_
@@ -281,7 +273,6 @@ paths:
   '/api/bookings/{booking}/boarding-pass':
     post:
       tags:
-        - Combined
         - Bookings
       summary: 'Upload a boarding pass for a booking.'
       description: "The {@see UploadBoardingPassRequest} carries a `file` rule, which the\nFormRequest schema resolver maps onto a `multipart/form-data` request\nbody with a binary `image` field."
