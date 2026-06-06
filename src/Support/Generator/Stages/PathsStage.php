@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Extensions\OperationContext;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\TagDeriver;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use ReflectionException;
@@ -25,18 +26,12 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
 
 use function array_filter;
-use function array_reverse;
 use function array_values;
 use function assert;
 use function config;
 use function count;
-use function explode;
-use function in_array;
-use function preg_match;
 use function preg_replace;
-use function str_ends_with;
 use function strtolower;
-use function ucfirst;
 
 /**
  * Walks discovered routes, building `paths` and `webhooks` entries.
@@ -52,6 +47,7 @@ final readonly class PathsStage implements SpecStage
         private OperationBuilder $operationBuilder,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
+        private TagDeriver $tagDeriver = new TagDeriver(),
     ) {}
 
     /**
@@ -129,7 +125,7 @@ final readonly class PathsStage implements SpecStage
      */
     private function attachOperation(OA\PathItem $pathItem, ActionDescriptor $action, GenerationContext $context): void
     {
-        $operation = $this->operationBuilder->build($action, [$this->deriveTag($action)]);
+        $operation = $this->operationBuilder->build($action, [$this->tagDeriver->derive($action)]);
 
         foreach ($action->route->methods() as $routeMethod) {
             $method = HttpMethod::fromString($routeMethod) ?? HttpMethod::Get;
@@ -155,41 +151,6 @@ final readonly class PathsStage implements SpecStage
                 new OperationContext($action, $method),
             );
         }
-    }
-
-    /**
-     * Walks the FQCN in reverse and returns the first segment that is neither the controller class
-     * itself nor generic scaffolding (Http, App, Internal, External, Global, version segments
-     * like V0).
-     *
-     * Examples:
-     *   App\Http\Controllers\Internal\Projects\ProjectsController → Projects
-     *   App\Http\Controllers\External\V0\Companies\ExternalCompaniesController → Companies
-     *   App\Http\Controllers\Global\Auth\AuthController → Auth
-     *
-     * Falls back to "General" for closure routes (no controller available).
-     */
-    private function deriveTag(ActionDescriptor $descriptor): string
-    {
-        if ($descriptor->controller === null) {
-            return 'General';
-        }
-
-        $skipParts = ['Controllers', 'Http', 'App', 'Internal', 'External', 'Global'];
-
-        foreach (array_reverse(explode('\\', $descriptor->controller->getName())) as $part) {
-            if ($part === '' || str_ends_with($part, 'Controller')) {
-                continue;
-            }
-
-            if (preg_match('/^V\d+$/', $part) || in_array($part, $skipParts, strict: true)) {
-                continue;
-            }
-
-            return ucfirst($part);
-        }
-
-        return 'General';
     }
 
     /**

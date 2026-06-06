@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - Fractal
         - Flights
       summary: 'List flights.'
       description: "Returns a paginated collection wrapped in Fractal's `{data, meta.pagination}`\nenvelope."
@@ -31,7 +30,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - Fractal
         - Flights
       summary: 'Show a single flight.'
       operationId: get_api_flights_flight_

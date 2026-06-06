@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - QueryBuilder
         - Flights
       summary: 'List flights.'
       description: "Returns a paginated list of flights, filterable and sortable through the\n`spatie/laravel-query-builder` conventions documented by the\n`#[AllowedFilter]`, `#[AllowedSort]` and `#[AllowedInclude]` attributes."
@@ -91,7 +90,6 @@ paths:
       security: []
     post:
       tags:
-        - QueryBuilder
         - Flights
       summary: 'Create a new flight.'
       description: 'Persists a new flight record with the supplied schedule and status.'
@@ -110,7 +108,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - QueryBuilder
         - Flights
       summary: 'Show a single flight.'
       operationId: get_api_flights_flight_
@@ -133,7 +130,6 @@ paths:
       security: []
     delete:
       tags:
-        - QueryBuilder
         - Flights
       summary: 'Cancel a flight.'
       operationId: delete_api_flights_flight_
@@ -152,7 +148,6 @@ paths:
       security: []
     patch:
       tags:
-        - QueryBuilder
         - Flights
       summary: 'Update an existing flight.'
       operationId: patch_api_flights_flight_
@@ -178,7 +173,6 @@ paths:
   '/api/flights/{flight}/bookings':
     get:
       tags:
-        - QueryBuilder
         - Bookings
       summary: 'List bookings for a flight.'
       description: "Filterable by passenger name and sortable by creation timestamp via\n`spatie/laravel-query-builder`."
@@ -223,7 +217,6 @@ paths:
       security: []
     post:
       tags:
-        - QueryBuilder
         - Bookings
       summary: 'Create a new booking on a flight.'
       operationId: post_api_flights_flight_bookings
@@ -251,7 +244,6 @@ paths:
   '/api/bookings/{booking}':
     delete:
       tags:
-        - QueryBuilder
         - Bookings
       summary: 'Cancel a booking.'
       operationId: delete_api_bookings_booking_
