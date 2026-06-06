@@ -38,6 +38,30 @@ Check, in order:
 5. Run `php artisan openapi:clear`, then regenerate. A stale cache can mask
    new routes.
 
+## One route shows up as six near-identical operations
+
+The route is registered for **all HTTP verbs** — `Route::any(...)` or Spatie's
+`#[Any(...)]`. Such a route genuinely matches every method, so the generator
+emits one operation per verb: GET, POST, PUT, PATCH, DELETE, and OPTIONS (HEAD
+is dropped — it's implicit for GET). All six share the one built operation
+(same summary, body, responses) and differ only by `operationId`
+(`{route-name}.{method}`). This is correct: the document reflects what the
+route actually accepts.
+
+If the action only handles one verb (the common case for a webhook receiver
+`any`-routed by habit), narrow the route to match — this is also better routing
+hygiene:
+
+```php
+Route::post('api/git-hooks', GitHookController::class);   // not Route::any(...)
+// or, with Spatie route attributes:
+#[Post('api/git-hooks')]                                  // not #[Any(...)]
+```
+
+There is no per-verb suppression — the generator documents the route as
+registered. If a catch-all route should not appear at all, hide the whole route
+with `#[OpenApi\Hide]` (see [the visibility note above](#my-endpoint-doesnt-appear-in-the-generated-spec)).
+
 ## Request body is empty (`request.empty` lint finding)
 
 The action does not type-hint a request DTO the generator recognises. Either:
