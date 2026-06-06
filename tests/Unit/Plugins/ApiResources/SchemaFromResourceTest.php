@@ -138,6 +138,22 @@ it('resolves an array items class via an injected RefSchemaResolver', function (
         ->and($tags->items->ref)->toBe('#/components/schemas/SchemaNonResourceModel');
 });
 
+it('degrades an unresolvable array items class to a permissive object item', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    // No resolvers, and the items class is not a JsonResource, so the class-string
+    // resolves to no $ref and the items schema degrades to a permissive object.
+    $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaArrayExternalRefResource::class);
+
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
+    $tags = array_find($schema->properties, static fn(OA\Property $p): bool => $p->property === 'tags');
+
+    expect($tags->type)->toBe('array')
+        ->and($tags->items)->toBeInstanceOf(OA\Items::class)
+        ->and($tags->items->type)->toBe('object')
+        ->and(is_undefined($tags->items->ref))->toBeTrue();
+});
+
 it('still emits a scalar items type for a non-class array items', function (): void {
     $registry = new ComponentSchemaRegistry();
     $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaTeamResource::class);
