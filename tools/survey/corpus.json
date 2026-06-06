@@ -108,7 +108,7 @@
       "sha": "4e629ffe36cd696ccba6c6053d7e5c75922b014b",
       "apiPrefix": "/api",
       "php": "8.4",
-      "publishedSpec": null,
+      "publishedSpec": "public/api-docs/openapi",
       "bootstrap": "bootstrap/vito.sh"
     }
   ]

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# survey-capture-patch <app> — save the app-code diff as annotation.patch + print stat.
+set -uo pipefail
+WS="${WS:?set WS}"; app="${1:?usage: survey-capture-patch <app>}"
+repo="$WS/apps/$app/repo"; patch="$WS/apps/$app/annotation.patch"
+git -C "$repo" diff > "$patch"
+echo "patch=$patch"
+git -C "$repo" diff --stat | tail -1

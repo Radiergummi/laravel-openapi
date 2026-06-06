@@ -1,0 +1,68 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * survey-assemble-spec <dir-or-file>
+ *
+ * Merge a (possibly split) published OpenAPI spec into one document and print JSON.
+ * A directory is merged fragment-by-fragment (mirrors apps that serve an assembled
+ * spec, e.g. Vito's ApiDocsController). A single file is parsed and passed through.
+ */
+
+require_once dirname(__DIR__, 4) . '/vendor/autoload.php';
+
+use Symfony\Component\Yaml\Yaml;
+
+/** @return array<string,mixed> */
+function surveyAssembleSpec(string $path): array
+{
+    if (is_file($path)) {
+        $raw = (string) file_get_contents($path);
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : (array) Yaml::parse($raw);
+    }
+
+    $paths = [];
+    $components = ['securitySchemes' => [], 'schemas' => [], 'parameters' => [], 'responses' => []];
+
+    $files = glob(rtrim($path, '/') . '/*.yaml') ?: [];
+    sort($files);
+
+    foreach ($files as $file) {
+        $data = (array) Yaml::parse((string) file_get_contents($file));
+
+        if (is_array($data['paths'] ?? null)) {
+            $paths = array_merge($paths, $data['paths']);
+        }
+
+        foreach (array_keys($components) as $key) {
+            if (is_array($data['components'][$key] ?? null)) {
+                $components[$key] = array_merge($components[$key], $data['components'][$key]);
+            }
+        }
+    }
+
+    foreach ((glob(rtrim($path, '/') . '/schemas/*.yaml') ?: []) as $file) {
+        $data = (array) Yaml::parse((string) file_get_contents($file));
+
+        if (is_array($data['components']['schemas'] ?? null)) {
+            $components['schemas'] = array_merge($components['schemas'], $data['components']['schemas']);
+        }
+    }
+
+    return ['openapi' => '3.0.0', 'paths' => $paths, 'components' => array_filter($components)];
+}
+
+if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__FILE__)) {
+    $path = $argv[1] ?? null;
+
+    if ($path === null || !file_exists($path)) {
+        fwrite(STDERR, "usage: survey-assemble-spec <dir-or-file>\n");
+        exit(2);
+    }
+
+    echo json_encode(surveyAssembleSpec($path), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+}

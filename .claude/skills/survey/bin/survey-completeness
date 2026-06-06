@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# survey-completeness <app> — per-op completeness on the current generated spec.
+set -uo pipefail
+WS="${WS:?set WS}"; LIB="${LIB:?set LIB}"; app="${1:?usage: survey-completeness <app>}"
+prefix=$(php -r '$c=json_decode(file_get_contents(getenv("LIB")."/tools/survey/corpus.json"),true);foreach($c["apps"] as $a)if($a["name"]===$argv[1])echo $a["apiPrefix"];' "$app")
+php "$LIB/tools/survey/completeness.php" "$WS/apps/$app/generated-spec.json" --prefix="$prefix"

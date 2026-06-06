@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# survey-unpin-library <app> — restore the app's vendor symlink saved by survey-pin-library.
+set -uo pipefail
+WS="${WS:?set WS}"; app="${1:?usage: survey-unpin-library <app>}"
+link="$WS/apps/$app/repo/vendor/radiergummi/laravel-openapi"
+save="$WS/apps/$app/.vendor-link-orig"
+if [[ -s "$save" ]]; then
+  orig=$(cat "$save"); rm -f "$link"; ln -s "$orig" "$link"; rm -f "$save"
+  echo "restored $app vendor -> $orig"
+else
+  echo "no saved link for $app (nothing to restore)"
+fi

@@ -18,6 +18,8 @@ parameters:
         - tests
     scanFiles:
         - tools/survey/metrics.php
+        - .claude/skills/survey/bin/survey-assemble-spec
+        - .claude/skills/survey/bin/survey-harvest-docs
     excludePaths:
         # RuleTestCase data fixtures carry intentional attribute misuse for the PHPStan rules to
         # catch; they are analysed by the rule tests in isolation, not the main pass.
