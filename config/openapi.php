@@ -134,6 +134,7 @@ return [
     | derived from a route's middleware stack:
     | - `auth` → emits 401 when `auth:api` / `auth` middleware is present.
     | - `scope` → emits 403 when one or more `scope:*` / `scopes:*` middleware is present.
+    | - `can` → emits 403 when a `can:*` authorization middleware is present.
     | - `throttle` → emits 429 when any `throttle*` middleware is present.
     |
     | A middleware-derived response is only added for status codes no
@@ -154,6 +155,11 @@ return [
             // No canonical scope exception ships with Laravel core; Passport's
             // MissingScopeException is the conventional choice when Passport is installed.
             // 'exception' => \Laravel\Passport\Exceptions\MissingScopeException::class,
+        ],
+        'can' => [
+            'status'      => 403,
+            'description' => 'Forbidden',
+            'exception'   => AuthorizationException::class,
         ],
         'throttle' => [
             'status'      => 429,

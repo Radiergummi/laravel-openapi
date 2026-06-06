@@ -7,6 +7,9 @@ namespace Radiergummi\OpenApi\Support\Routing;
 use BackedEnum;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Routing\CreatesRegularExpressionRouteConstraints;
 use ReflectionClass;
 use ReflectionParameter;
@@ -20,7 +23,9 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 use Throwable;
 
 use function array_map;
+use function class_uses_recursive;
 use function explode;
+use function in_array;
 use function is_subclass_of;
 use function preg_match;
 use function str_contains;
@@ -50,12 +55,15 @@ final readonly class UriParameterResolver
     /**
      * @param null|string $whereConstraint Raw regex from `$route->wheres[]`, or null when no
      *                                     constraint is registered on the route.
+     * @param null|string $bindingField    Custom binding field from a `{param:field}` route segment
+     *                                     (e.g. `slug`), or null when the parameter has no custom key.
      *
      * @throws UnsupportedException When symfony/type-info cannot resolve the reflection type.
      */
     public function resolve(
         ReflectionParameter $parameter,
         ?string $whereConstraint,
+        ?string $bindingField = null,
     ): UriParameterDescriptor {
         $type = $this->resolveType($parameter);
         $optional = $type->isNullable();
@@ -67,7 +75,7 @@ final readonly class UriParameterResolver
 
         [$resolvedConstraint, $whereKind] = $this->resolveConstraint($whereConstraint);
 
-        [$modelClass, $routeKeyName] = $this->resolveModelBinding($innerType);
+        $modelBinding = $this->resolveModelBinding($innerType, $bindingField);
         $enumCases = $this->resolveEnumCases($innerType);
 
         return new UriParameterDescriptor(
@@ -76,9 +84,8 @@ final readonly class UriParameterResolver
             optional: $optional,
             whereConstraint: $resolvedConstraint,
             whereKind: $whereKind,
-            modelClass: $modelClass,
-            routeKeyName: $routeKeyName,
             enumCases: $enumCases,
+            modelBinding: $modelBinding,
         );
     }
 
@@ -160,37 +167,76 @@ final readonly class UriParameterResolver
     }
 
     /**
+     * Resolves a route-model-bound parameter into a single {@see RouteModelBinding}: the bound
+     * model, the key the route binds against (a `{param:field}` segment overrides the model's
+     * `getRouteKeyName()`), and — only when that key is the model's own primary key — the type and
+     * format the key carries.
+     *
      * `BackedEnumType` extends `ObjectType` in symfony/type-info — check it first to avoid treating
      * an enum as a model binding.
-     *
-     * @return array{class-string, string}|array{null, null}
      */
-    private function resolveModelBinding(Type $innerType): array
+    private function resolveModelBinding(Type $innerType, ?string $bindingField): ?RouteModelBinding
     {
         if ($innerType instanceof BackedEnumType) {
-            return [null, null];
+            return null;
         }
 
         if (!$innerType instanceof ObjectType) {
-            return [null, null];
+            return null;
         }
 
         $className = $innerType->getClassName();
 
         if (!is_subclass_of($className, UrlRoutable::class)) {
-            return [null, null];
+            return null;
         }
 
         // Bypass the constructor: bound models may declare required constructor
         // arguments, and the route key name never depends on constructor state.
         try {
             $instance = new ReflectionClass($className)->newInstanceWithoutConstructor();
-            $routeKeyName = $instance->getRouteKeyName();
+            $key = $bindingField ?? $instance->getRouteKeyName();
+
+            // Type the key only when the route binds by the model's own primary key — a custom
+            // field (or an overridden route key) describes a different column we cannot type here.
+            // Non-Eloquent UrlRoutables expose no key metadata, so they stay untyped too.
+            [$type, $format] = $instance instanceof Model && $key === $instance->getKeyName()
+                ? $this->resolveKeyType($instance, $className)
+                : [null, null];
         } catch (Throwable) {
-            return [null, null];
+            return null;
         }
 
-        return [$className, $routeKeyName];
+        return new RouteModelBinding($className, $key, $type, $format);
+    }
+
+    /**
+     * Reads the JSON-Schema type and format a model's primary key resolves against.
+     *
+     * `HasUuids` / `HasUlids` are detected by trait rather than via `getKeyType()`, because that
+     * method's unique-id branch depends on an `usesUniqueIds` flag set only by the model
+     * constructor — which {@see resolveModelBinding} deliberately bypasses. For plain models
+     * `getKeyType()` reads the `$keyType` property default, which is reliable without the
+     * constructor.
+     *
+     * @param class-string $className
+     *
+     * @return array{string, ?string} The JSON-Schema type and optional format.
+     */
+    private function resolveKeyType(Model $instance, string $className): array
+    {
+        $traits = class_uses_recursive($className);
+
+        if (in_array(HasUuids::class, $traits, true)) {
+            return ['string', 'uuid'];
+        }
+
+        // ULID keys are strings, but there is no standard OpenAPI format for them.
+        if (in_array(HasUlids::class, $traits, true)) {
+            return ['string', null];
+        }
+
+        return [$instance->getKeyType() === 'int' ? 'integer' : 'string', null];
     }
 
     /**

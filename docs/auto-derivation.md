@@ -6,15 +6,15 @@ source.
 
 | Aspect | Source |
 |---|---|
-| Tag | Last meaningful segment of the controller's namespace. Skips generic segments (`Controllers`, `Http`, `App`, `Internal`, `External`, `Global`, `V0`, …) and the controller class itself. |
+| Tag | The controller's short class name with a trailing `Controller` stripped and the remainder pluralised (`PostController` → `Posts`). For closure/controllerless routes, the StudlyCased last segment of the route-group prefix (`prefix('webhooks')` → `Webhooks`); failing that, `General`. |
 | Summary | First paragraph of the method's PHPDoc, or `#[Summary]` / `#[Operation(summary: …)]`. |
 | Description | Remaining paragraphs of the method's PHPDoc (markdown permitted), or `#[Description]` / `#[Operation(description: …)]`. |
 | `operationId` | Route name (sanitised to a codegen-safe identifier — `:`/`{}` and other disallowed characters become `_`, while `.`/`-`/`_` are kept), or `{method}_{sanitized_path}`. |
-| Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. |
+| Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. A custom-key binding (`/posts/{post:slug}`, including scoped-nested `{parent}/{child:field}`) emits the standard `{post}` template segment and notes the bound field in the description (`Bound by slug of Post.`). |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema (fields declared via `#[ResourceField]`). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). |
 | Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
-| Error responses | `@throws ExceptionClass` → status codes; `auth`/`scope`/`throttle` middleware → 401 / 403 / 429. |
+| Error responses | `@throws ExceptionClass` → status codes; a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware → 401 / 403 / 403 / 429. |
 | Validation constraints | `Data::rules()` and Spatie validation attributes → `maxLength`, `minLength`, `pattern`, `enum`, `format`, `minimum`/`maximum`, `minItems`/`maxItems`. |
 
 Use an authoring attribute when convention can't produce what you need. See
@@ -52,7 +52,7 @@ final class FlightController
 
 produces an operation with:
 
-- `tags: [Flights]` from `#[Tag]` (or, without it, the `Flights` namespace segment).
+- `tags: [Flights]` from the `FlightController` class name (the explicit `#[Tag('Flights')]` here is redundant with the derived tag and dedupes away).
 - `summary: Show a single flight.` from the first docblock paragraph.
 - `description: Returns the full flight envelope including aircraft and crew.` from the remaining paragraphs.
 - `operationId: flights.show` from the route name.
@@ -63,8 +63,39 @@ produces an operation with:
 - A 403 response from `scope:flights:read`.
 - A security requirement for the `flights:read` scope.
 
-`#[Tag]` is optional if the namespace-derived tag is acceptable; no other
+`#[Tag]` is optional if the controller-derived tag is acceptable; no other
 attributes are required here.
+
+## Path parameter types
+
+A route-model-bound segment is typed from the key Laravel resolves it against,
+so `/flights/{flight}` on `show(Flight $flight)` emits a typed parameter rather
+than a bare `string`. The type and format are resolved in this order:
+
+1. **An explicit route constraint wins.** `->whereNumber('flight')` →
+   `type: integer`; `->whereUuid('flight')` → `string` + `format: uuid`;
+   `->whereIn(...)` → an `enum`; any other `->where(...)` regex → `pattern`.
+   These are the author's stated intent.
+2. **Otherwise the bound model's key.** With no route constraint, the key type
+   is read by reflection from the model: an integer key (`getKeyType()`) →
+   `type: integer`; a `HasUuids` model → `string` + `format: uuid`; a `HasUlids`
+   model → `string` (ULID has no standard OpenAPI format); any other string key →
+   `string`.
+3. **Otherwise a bare `string`** — the default for an unbound `{segment}` or a
+   non-Eloquent `UrlRoutable`.
+
+The model-key step applies only when the route binds via that model's primary
+key. A custom-key binding (`/posts/{post:slug}`) or an overridden
+`getRouteKeyName()` resolves against a different column whose type the model's
+key metadata does not describe, so those stay `string` (and the bound field is
+still named in the description — `Bound by slug of Post.`). A `#[PathParam]`
+attribute is the escape hatch for anything reflection cannot reach.
+
+A segment type-hinted as a backed enum (implicit enum binding — `show(Status
+$status)`) carries the enum's cases as the parameter's allowed values, with the
+backing type following the enum: a string-backed enum → `type: string` with the
+case strings, an int-backed enum → `type: integer` with the case integers. No
+route constraint is needed; the cases are the segment's complete valid set.
 
 ## Eloquent model response schemas
 

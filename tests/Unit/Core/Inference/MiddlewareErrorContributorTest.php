@@ -61,6 +61,22 @@ it('returns a 403 descriptor when scope middleware is present and scope is confi
 
 // endregion
 
+// region can middleware
+
+it('returns a 403 descriptor when can middleware is present and can is configured', function (): void {
+    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+        'can' => ['status' => 403, 'description' => 'Forbidden'],
+    ]);
+
+    $result = $contributor->contribute(ActionDescriptorFactory::withMiddleware(['can:update,article']));
+
+    expect($result)->toHaveCount(1);
+    expect($result[0]->status)->toBe(403);
+    expect($result[0]->description)->toBe('Forbidden');
+});
+
+// endregion
+
 // region throttle middleware
 
 it('returns a 429 descriptor when throttle middleware is present and throttle is configured', function (): void {

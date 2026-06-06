@@ -11,7 +11,6 @@ paths:
   /api/flights:
     get:
       tags:
-        - ApiResources
         - Flights
       summary: 'List flights.'
       description: "Returns a paginated collection of all known flights wrapped in the\nstandard JsonResource `{data, links, meta}` envelope."
@@ -32,7 +31,6 @@ paths:
   '/api/flights/{flight}':
     get:
       tags:
-        - ApiResources
         - Flights
       summary: 'Show a single flight.'
       operationId: get_api_flights_flight_

@@ -9,12 +9,14 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\SchemaDescriptor;
+use Radiergummi\OpenApi\Support\Routing\RouteModelBinding;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\WhereKind;
 use ReflectionAttribute;
 use ReflectionParameter;
 
 use function array_map;
+use function class_basename;
 use function sprintf;
 
 /**
@@ -100,6 +102,8 @@ final readonly class UriParametersExtractor
         OA\Schema $schema,
         UriParameterDescriptor $descriptor,
     ): OA\Schema {
+        // An explicit route `where*` constraint is the author's stated intent and wins. Only when
+        // none is present (whereKind === null) do we fall back to the bound model's key metadata.
         match ($descriptor->whereKind) {
             WhereKind::Uuid => $schema->format = 'uuid',
             WhereKind::Number => $schema->type = 'integer',
@@ -109,10 +113,32 @@ final readonly class UriParametersExtractor
             WhereKind::Custom => $descriptor->whereConstraint !== null
                 ? ($schema->pattern = $descriptor->whereConstraint)
                 : null,
-            null => null,
+            null => $this->applyModelBindingType($schema, $descriptor->modelBinding),
         };
 
         return $schema;
+    }
+
+    /**
+     * Types a model-bound parameter from its binding metadata. The resolver populates the key
+     * type/format only when the route binds by the model's typed primary key, so it is applied
+     * unconditionally here — a custom `{param:field}` or non-Eloquent binding carries a null type.
+     */
+    private function applyModelBindingType(
+        OA\Schema $schema,
+        ?RouteModelBinding $binding,
+    ): null {
+        if ($binding?->type === null) {
+            return null;
+        }
+
+        $schema->type = $binding->type;
+
+        if ($binding->format !== null) {
+            $schema->format = $binding->format;
+        }
+
+        return null;
     }
 
     /**
@@ -135,11 +161,13 @@ final readonly class UriParametersExtractor
 
     private function buildDescription(UriParameterDescriptor $descriptor): string
     {
-        if ($descriptor->modelClass !== null && $descriptor->routeKeyName !== null) {
+        if ($descriptor->modelBinding !== null) {
+            // Render the model by its short class name — the FQCN is an internal source detail that
+            // should not leak into a public spec.
             return sprintf(
                 'Bound by %s of %s.',
-                $descriptor->routeKeyName,
-                $descriptor->modelClass,
+                $descriptor->modelBinding->key,
+                class_basename($descriptor->modelBinding->modelClass),
             );
         }
 
