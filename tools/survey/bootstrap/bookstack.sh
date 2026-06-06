@@ -12,5 +12,5 @@ composer config platform.php 8.4.0
 
 composer install --no-interaction --no-progress
 survey_scaffold_env
-survey_link_library
+survey_link_library || survey_blocked "library require failed (see composer output)"
 survey_publish_config

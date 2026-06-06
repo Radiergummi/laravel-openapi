@@ -32,7 +32,7 @@ if [[ ! -d "$repodir" ]]; then
   exit 2
 fi
 
-cd "$repodir"
+cd "$repodir" || { echo "cd failed: $repodir" >&2; exit 2; }
 
 # Generate to stdout so we can redirect; stderr (incl. --explain, crashes) is
 # captured separately. Do not abort on non-zero — a crash is data.
@@ -59,11 +59,14 @@ routes="${routes:-0}"
 gen_stderr=false
 if [[ -s "$appdir/generate.log" ]]; then gen_stderr=true; fi
 
+# Derive boot outcome from file written by corpus.sh; fall back for standalone use.
+boot_outcome=$(cat "$appdir/boot_outcome" 2>/dev/null || echo "booted")
+
 # Machine-readable run record consumed by metrics.php.
 php -r '
   $r = ["generateExit"=>(int)$argv[1],"lintExit"=>(int)$argv[2],"generateStderr"=>$argv[3]==="true","bootOutcome"=>$argv[4],"routesIntrospected"=>(int)$argv[5]];
   echo json_encode($r, JSON_PRETTY_PRINT);
-' "$gen_exit" "$lint_exit" "$gen_stderr" "${BOOT_OUTCOME:-booted}" "$routes" > "$appdir/run.json"
+' "$gen_exit" "$lint_exit" "$gen_stderr" "$boot_outcome" "$routes" > "$appdir/run.json"
 
 echo "$name: gen_exit=$gen_exit lint_exit=$lint_exit paths=$paths"
 echo "  spec:  $appdir/generated-spec.json"

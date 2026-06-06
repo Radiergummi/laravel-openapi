@@ -10,3 +10,6 @@ apps/
 */runbook.md
 */comparison*.md
 SCORECARD.md
+results.json
+manifest.json
+*/boot_outcome

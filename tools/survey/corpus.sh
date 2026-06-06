@@ -25,6 +25,8 @@ while IFS= read -r name; do
   [[ -n "$only" && "$name" != "$only" ]] && continue
 
   # Read this app's pin + bootstrap from the corpus.
+  # php field is for manifest/provenance; the runner uses the PATH php (caller puts php@8.4 on PATH).
+  # shellcheck disable=SC2034
   read -r repo ref sha prefix php boot published < <(php -r '
     $c=json_decode(file_get_contents($argv[1]),true);
     foreach($c["apps"] as $a){ if($a["name"]===$argv[2]){
@@ -42,7 +44,9 @@ while IFS= read -r name; do
   # Pin exactly (setup.sh shallow-clones a branch; enforce the SHA when present).
   git -C "$repodir" rev-parse HEAD | grep -q "^$sha" || echo "  warn: HEAD != pinned SHA ($sha)"
 
-  ( cd "$repodir" && WS="$WS" LIB="$LIB" bash "$HARNESS/$boot" ) || echo "  bootstrap returned non-zero (recorded)"
+  echo "booted" > "$appdir/boot_outcome"
+  ( cd "$repodir" && WS="$WS" LIB="$LIB" BOOT_OUTCOME_FILE="$appdir/boot_outcome" bash "$HARNESS/$boot" ) \
+    || echo "  bootstrap returned non-zero (recorded)"
 
   WS="$WS" "$HARNESS/run.sh" "$name" || true
 

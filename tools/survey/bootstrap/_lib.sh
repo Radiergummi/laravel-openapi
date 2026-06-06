@@ -26,10 +26,10 @@ survey_publish_config() {
   php artisan vendor:publish --tag=openapi-config --no-interaction 2>/dev/null || true
 }
 
-# Record a blocked app: write BOOT_OUTCOME so run.sh/metrics record it as data.
-# Usage: survey_blocked "<reason>"
+# Record a blocked app: write the outcome to BOOT_OUTCOME_FILE so run.sh records
+# it as data. (export can't cross the bootstrap subshell back to the runner.)
 survey_blocked() {
   echo "BLOCKED: $1" >&2
-  export BOOT_OUTCOME="blocked-compat"
+  [[ -n "${BOOT_OUTCOME_FILE:-}" ]] && echo "blocked-compat" > "$BOOT_OUTCOME_FILE"
   return 0
 }
