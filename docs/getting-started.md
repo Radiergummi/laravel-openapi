@@ -58,7 +58,7 @@ from controller signatures and PHPDoc, and writes an OpenAPI 3.1 YAML file to
 
 | Command / Route | Purpose |
 |---|---|
-| `php artisan openapi:generate` | Regenerate the YAML. Pass a spec name to target one spec; `--output=path` overrides the destination (`-` for stdout); `--format=json` emits JSON. |
+| `php artisan openapi:generate` | Regenerate the YAML. Pass a spec name to target one spec; `--output=path` overrides the destination (`-` for stdout); `--format=json` emits JSON; `--no-validate` skips the swagger-php validation pass (faster). |
 | `php artisan openapi:lint` | Report documentation gaps. |
 | `php artisan openapi:clear` | Drop the cached spec. |
 | `php artisan openapi:diff:config` | Show drift between your published `config/openapi.php` and the package default — flags added keys (`+`), removed keys (`-`), and changed default values (`~`). |

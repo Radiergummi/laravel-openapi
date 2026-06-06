@@ -242,11 +242,13 @@ components:
         destination:
           type: string
         departs_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
+          format: date-time
+          example: '2023-05-02T16:58:02Z'
         arrives_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
+          format: date-time
+          example: '2025-09-08T16:22:00Z'
         status:
           type: string
           example: scheduled
@@ -286,15 +288,13 @@ components:
           maxLength: 3
           minLength: 3
         departs_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
-          format: date
-          example: '2023-05-02'
+          format: date-time
+          example: '2023-05-02T16:58:02Z'
         arrives_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
-          format: date
-          example: '2025-09-08'
+          format: date-time
+          example: '2025-09-08T16:22:00Z'
         status:
           type: string
           example: scheduled
@@ -321,11 +321,13 @@ components:
           maxLength: 3
           minLength: 3
         departs_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
+          format: date-time
+          example: '2023-05-02T16:58:02Z'
         arrives_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
+          format: date-time
+          example: '2025-09-08T16:22:00Z'
         status:
           type: string
           example: scheduled
@@ -355,8 +357,9 @@ components:
         seat:
           type: string
         created_at:
-          description: 'Unmapped object type: DateTimeInterface'
           type: string
+          format: date-time
+          example: '2025-04-22T16:48:05Z'
       type: object
     CreateBookingData:
       required:
