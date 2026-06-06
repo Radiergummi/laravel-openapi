@@ -1,0 +1,125 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * survey-harvest-docs <app>
+ *
+ * Deterministic doc-harvest pre-pass: transcribe Summary/Description/Tag (+ deduped
+ * QueryParam) from an app's published spec onto the matching controller methods.
+ * Pure planning (surveyHarvestPlan) is separated from source application for testing.
+ */
+function survey_normalisePath(string $path): string
+{
+    return preg_replace('/\{[^}]+\}/', '{}', $path) ?? $path;
+}
+
+/** Query-param names already declared on a generated operation. */
+function survey_generatedQueryParams(array $op): array
+{
+    $names = [];
+
+    foreach (($op['parameters'] ?? []) as $parameter) {
+        if (($parameter['in'] ?? null) === 'query' && isset($parameter['name'])) {
+            $names[(string) $parameter['name']] = true;
+        }
+    }
+
+    return $names;
+}
+
+/**
+ * @return list<array{file:string,method:string,attributes:list<array{name:string,args:array<int|string,mixed>}>}>
+ */
+function surveyHarvestPlan(array $published, array $generated, array $routeMap, string $prefix): array
+{
+    $verbs = ['get', 'post', 'put', 'patch', 'delete'];
+    $edits = [];
+
+    $generatedIndex = [];
+
+    foreach (($generated['paths'] ?? []) as $genPath => $genMethods) {
+        if (!is_array($genMethods)) {
+            continue;
+        }
+
+        foreach ($genMethods as $genVerb => $genOp) {
+            $genVerb = strtolower((string) $genVerb);
+
+            if (in_array($genVerb, $verbs, true) && is_array($genOp)) {
+                $generatedIndex[strtoupper($genVerb) . ' ' . survey_normalisePath((string) $genPath)] = $genOp;
+            }
+        }
+    }
+
+    foreach (($published['paths'] ?? []) as $path => $methods) {
+        if (!is_array($methods) || !str_starts_with((string) $path, $prefix)) {
+            continue;
+        }
+
+        foreach ($methods as $verb => $pubOp) {
+            $verb = strtolower((string) $verb);
+
+            if (!in_array($verb, $verbs, true) || !is_array($pubOp)) {
+                continue;
+            }
+
+            $key = strtoupper($verb) . ' ' . survey_normalisePath((string) $path);
+            $genOp = $generatedIndex[$key] ?? null;
+
+            if (!is_array($genOp) || !isset($routeMap[$key])) {
+                continue; // must exist in our spec AND resolve to a controller method
+            }
+
+            $attributes = [];
+
+            if (is_string($pubOp['summary'] ?? null) && $pubOp['summary'] !== '') {
+                $attributes[] = ['name' => 'Summary', 'args' => [$pubOp['summary']]];
+            }
+
+            if (is_string($pubOp['description'] ?? null) && $pubOp['description'] !== '') {
+                $attributes[] = ['name' => 'Description', 'args' => [$pubOp['description']]];
+            }
+
+            foreach (($pubOp['tags'] ?? []) as $tag) {
+                $attributes[] = ['name' => 'Tag', 'args' => [(string) $tag]];
+            }
+
+            $existing = survey_generatedQueryParams($genOp);
+
+            foreach (($pubOp['parameters'] ?? []) as $parameter) {
+                if (($parameter['in'] ?? null) !== 'query' || !isset($parameter['name'])) {
+                    continue;
+                }
+
+                $name = (string) $parameter['name'];
+
+                if (isset($existing[$name])) {
+                    continue; // convention already declares it — avoid queryparam.duplicate
+                }
+
+                $args = ['name' => $name];
+                $type = $parameter['schema']['type'] ?? null;
+
+                if (is_string($type)) {
+                    $args['type'] = $type;
+                }
+
+                $attributes[] = ['name' => 'QueryParam', 'args' => $args];
+            }
+
+            if ($attributes !== []) {
+                $edits[] = ['file' => $routeMap[$key]['file'], 'method' => $routeMap[$key]['method'], 'attributes' => $attributes];
+            }
+        }
+    }
+
+    return $edits;
+}
+
+// CLI orchestration is wired in the next task (assemble → route:list → plan → apply).
+if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__FILE__)) {
+    fwrite(STDERR, "survey-harvest-docs: applier not yet wired (see Task 6)\n");
+    exit(3);
+}
