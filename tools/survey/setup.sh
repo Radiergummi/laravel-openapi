@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # setup.sh <app-name> <repo-url> <ref>
 #
-# Clones an OSS Laravel app into the standard dogfooding layout and stamps a
+# Clones an OSS Laravel app into the standard survey layout and stamps a
 # runbook. Does NOT run the app's bootstrap (composer install, key:generate,
 # migrations) — that is the time-boxed manual work, app-specific by nature.
 #
 # Requires WS to point at an EXTERNAL scratch workspace (never inside this repo
-# or any app checkout). See tools/dogfood/README.md.
+# or any app checkout). See tools/survey/README.md.
 #
 # Layout produced:
 #   $WS/apps/<app-name>/repo/        the clone, at <ref>
 #   $WS/apps/<app-name>/runbook.md   copied from the template, SHA stamped
 set -euo pipefail
 
-WS="${WS:?set WS to your external dogfood workspace dir (see tools/dogfood/README.md)}"
+WS="${WS:?set WS to your external survey workspace dir (see tools/survey/README.md)}"
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPS="$WS/apps"
 

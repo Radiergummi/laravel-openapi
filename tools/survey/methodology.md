@@ -90,6 +90,35 @@ Read the exact constructor signatures from the app's vendored package
 (`<repo>/vendor/radiergummi/laravel-openapi/src/...`) at annotation time — don't
 guess.
 
+## Baseline metrics (definitions)
+
+`metrics.php` computes a deterministic, spec/lint-derived metrics record for each
+app. The numbers in `$WS/results.json` come exclusively from this function — never
+from an LLM or manual inspection. Inputs are the three artifact files that
+`run.sh` writes (`generated-spec.json`, `lint.json`, `run.json`) and the `apiPrefix`
+from `corpus.json`. All fields are reproducible: re-running with the same artifacts
+and prefix yields identical output.
+
+| Field | Definition |
+|-------|------------|
+| `paths` | Number of distinct path items in `spec.paths`. |
+| `operations` | Total operations across all verbs (`get post put patch delete`) in all paths. |
+| `apiOperations` | Operations whose path starts with `apiPrefix`. All per-operation metrics below are scoped to this set. |
+| `responseSchemas` | API operations with a **substantive** 2xx response. Substantive means the 2xx content schema, resolved through `$ref` hops and a single-key `{data:…}` envelope, carries ≥1 property, OR is a scalar/array/`additionalProperties` type, OR is an explicit no-content 2xx (no `content` key). An empty object does not count. |
+| `requestBodies` | API operations that have a request body with a schema in at least one media type. |
+| `maxRequestProperties` | Largest property count across all request-body schemas (following one `$ref` hop). |
+| `componentSchemas` | Number of entries in `spec.components.schemas`. |
+| `completenessPercent` | `round(100 × complete / apiOperations, 1)`. An operation is complete when it has a substantive 2xx response AND, for `post`/`put`/`patch`, also a request body. |
+| `lintFindings.total` | Total number of findings in `lint.json`. |
+| `lintFindings.byLevel` | Map of `level → count` across all findings. |
+| `lintFindings.byRule` | Map of `rule_id → count` across all findings. |
+| `crash.generateExit` | Exit code of `openapi:generate`. |
+| `crash.lintExit` | Exit code of `openapi:lint`. |
+| `crash.generateStderr` | Whether `openapi:generate` produced any stderr output. |
+| `crash.bootOutcome` | Bootstrap outcome written by the bootstrap script: `ok`, `blocked-compat`, or `unknown`. |
+| `crash.routesIntrospected` | Number of routes seen by the generator, if captured; `null` otherwise. |
+| `coverage` | Only present when the corpus entry provides a `publishedSpec`. Compares path×method keys (with `{param}` collapsed to `{}`) between the generated spec and the published one. Contains: `publishedOps` (keys in their spec), `ours` (keys in our spec), `intersection` (keys present in both), `covPercent` (`round(100 × intersection / publishedOps, 1)`). |
+
 ## The short version (a new app)
 
 1. Clone + boot the app (sqlite, no real services); link the package via a

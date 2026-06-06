@@ -15,7 +15,7 @@
 # corrupts --output=-.
 set -uo pipefail
 
-WS="${WS:?set WS to your external dogfood workspace dir (see tools/dogfood/README.md)}"
+WS="${WS:?set WS to your external survey workspace dir (see tools/survey/README.md)}"
 APPS="$WS/apps"
 
 if [[ $# -ne 1 ]]; then
@@ -32,7 +32,7 @@ if [[ ! -d "$repodir" ]]; then
   exit 2
 fi
 
-cd "$repodir"
+cd "$repodir" || { echo "cd failed: $repodir" >&2; exit 2; }
 
 # Generate to stdout so we can redirect; stderr (incl. --explain, crashes) is
 # captured separately. Do not abort on non-zero — a crash is data.
@@ -50,6 +50,23 @@ paths=$(php -r '
   $j = is_file($f) ? json_decode((string) file_get_contents($f), true) : null;
   echo is_array($j["paths"] ?? null) ? count($j["paths"]) : "?";
 ' "$appdir/generated-spec.json" 2>/dev/null)
+
+# Route count (best-effort; deprecation noise dropped). Data for routesIntrospected.
+routes=$(php artisan route:list --json 2>/dev/null \
+  | php -r '$j=json_decode((string)stream_get_contents(STDIN),true); echo is_array($j)?count($j):0;' 2>/dev/null)
+routes="${routes:-0}"
+
+gen_stderr=false
+if [[ -s "$appdir/generate.log" ]]; then gen_stderr=true; fi
+
+# Derive boot outcome from file written by corpus.sh; fall back for standalone use.
+boot_outcome=$(cat "$appdir/boot_outcome" 2>/dev/null || echo "booted")
+
+# Machine-readable run record consumed by metrics.php.
+php -r '
+  $r = ["generateExit"=>(int)$argv[1],"lintExit"=>(int)$argv[2],"generateStderr"=>$argv[3]==="true","bootOutcome"=>$argv[4],"routesIntrospected"=>(int)$argv[5]];
+  echo json_encode($r, JSON_PRETTY_PRINT);
+' "$gen_exit" "$lint_exit" "$gen_stderr" "$boot_outcome" "$routes" > "$appdir/run.json"
 
 echo "$name: gen_exit=$gen_exit lint_exit=$lint_exit paths=$paths"
 echo "  spec:  $appdir/generated-spec.json"

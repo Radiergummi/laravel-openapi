@@ -96,7 +96,8 @@
             "@examples:fractal",
             "@examples:query-builder",
             "@examples:combined"
-        ]
+        ],
+        "survey": "tools/survey/corpus.sh"
     },
     "config": {
         "sort-packages": true,

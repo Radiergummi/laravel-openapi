@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "level": 1,
+  "exit_code": 1,
+  "findings": [
+    { "rule_id": "response.no-error", "level": 1, "message": "a", "location": {} },
+    { "rule_id": "response.no-error", "level": 1, "message": "b", "location": {} },
+    { "rule_id": "operation.summary-missing", "level": 1, "message": "c", "location": {} }
+  ]
+}
