@@ -60,7 +60,7 @@ It transcribes Summary/Description/Tag (+ deduped QueryParam) from the published
 const afterHarvest = await measure('after-harvest', 'Harvest')
 
 phase('Plan')
-const plan = await workflow({ scriptPath: '.claude/skills/survey/fullspec-analysis.js' },
+const plan = await workflow({ scriptPath: `${LIB}/.claude/skills/survey/fullspec-analysis.js` },
   { repoPath: REPO, apiPrefix: PREFIX, phpBin: '/opt/homebrew/opt/php@8.4/bin/php' })
 
 phase('Apply')
