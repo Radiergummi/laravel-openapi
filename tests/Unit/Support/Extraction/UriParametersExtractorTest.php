@@ -10,6 +10,8 @@ use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Routing\ModelPrimaryKey;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\WhereKind;
+use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
+use Radiergummi\OpenApi\Tests\Fixtures\Enums\PriorityLevel;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\TypeIdentifier;
@@ -222,4 +224,45 @@ it('appends the optional-in-URL note to an existing #[PathParam] description', f
         ->and($parameter->description)->toBe(
             'The trailing segment. Optional in URL — the segment may be omitted when calling this route.',
         );
+});
+
+/**
+ * Builds an enum-bound descriptor, mirroring what `UriParameterResolver` produces for a path
+ * segment type-hinted as a `BackedEnum` (no route-level `where`/`whereIn` constraint).
+ *
+ * @param class-string<BackedEnum> $enum
+ * @param list<string>             $cases
+ */
+function enumDescriptor(string $enum, array $cases): UriParameterDescriptor
+{
+    return new UriParameterDescriptor(
+        name: 'status',
+        type: Type::enum($enum),
+        optional: false,
+        whereConstraint: null,
+        whereKind: null,
+        modelClass: null,
+        routeKeyName: null,
+        enumCases: $cases,
+        bindingField: null,
+        modelPrimaryKey: null,
+    );
+}
+
+it('surfaces a string-backed enum binding as a string enum, without a where constraint', function (): void {
+    $descriptor = enumDescriptor(ArticleStatus::class, ['draft', 'published']);
+
+    [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+
+    expect($parameter->schema->type)->toBe('string')
+        ->and($parameter->schema->enum)->toBe(['draft', 'published']);
+});
+
+it('surfaces an int-backed enum binding as an integer enum, without a where constraint', function (): void {
+    $descriptor = enumDescriptor(PriorityLevel::class, ['1', '2', '3']);
+
+    [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+
+    expect($parameter->schema->type)->toBe('integer')
+        ->and($parameter->schema->enum)->toBe([1, 2, 3]);
 });

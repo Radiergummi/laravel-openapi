@@ -91,6 +91,12 @@ key metadata does not describe, so those stay `string` (and the bound field is
 still named in the description — `Bound by slug of Post.`). A `#[PathParam]`
 attribute is the escape hatch for anything reflection cannot reach.
 
+A segment type-hinted as a backed enum (implicit enum binding — `show(Status
+$status)`) carries the enum's cases as the parameter's allowed values, with the
+backing type following the enum: a string-backed enum → `type: string` with the
+case strings, an int-backed enum → `type: integer` with the case integers. No
+route constraint is needed; the cases are the segment's complete valid set.
+
 ## Eloquent model response schemas
 
 When a controller action's return type is an Eloquent `Model` subclass, the

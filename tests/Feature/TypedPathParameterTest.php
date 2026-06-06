@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UuidArticle;
 
@@ -48,4 +49,13 @@ it('keeps a custom-key binding a bare string, not the primary key type', functio
 
     expect($schema['type'])->toBe('string')
         ->and($schema)->not->toHaveKey('format');
+});
+
+it('types an enum-backed binding with the enum cases (#24)', function (): void {
+    Route::get('/articles/{status}', static fn(ArticleStatus $status): array => []);
+
+    $schema = pathParameterSchema(generateSpec(), '/articles/{status}', 'status');
+
+    expect($schema['type'])->toBe('string')
+        ->and($schema['enum'])->toBe(['draft', 'published']);
 });
