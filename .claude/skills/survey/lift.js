@@ -61,7 +61,7 @@ const afterHarvest = await measure('after-harvest', 'Harvest')
 
 phase('Plan')
 const plan = await workflow({ scriptPath: '.claude/skills/survey/fullspec-analysis.js' },
-  { repoPath: REPO, apiPrefix: PREFIX })
+  { repoPath: REPO, apiPrefix: PREFIX, phpBin: '/opt/homebrew/opt/php@8.4/bin/php' })
 
 phase('Apply')
 const applySchema = { type: 'object', additionalProperties: false,
