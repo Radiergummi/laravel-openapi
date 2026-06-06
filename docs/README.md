@@ -20,6 +20,7 @@ New to the package? Read [Getting started](getting-started.md), then
 | [Multi-spec](multi-spec.md) | Multiple OpenAPI documents from one app. |
 | [Configuration](config.md) | `config/openapi.php` keys. |
 | [Troubleshooting](troubleshooting.md) | Symptom index. |
+| [Field report](field-report.md) | How the generator performed against eleven real-world OSS Laravel apps. |
 
 ## Extending
 

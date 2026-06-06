@@ -289,6 +289,7 @@ Index: [`docs/README.md`](docs/README.md).
 - [Linting](docs/linting.md): `openapi:lint`, rule catalog.
 - [Configuration](docs/config.md): config keys.
 - [Troubleshooting](docs/troubleshooting.md): symptom index.
+- [Field report](docs/field-report.md): how it performed against eleven real-world OSS apps.
 - [Plugin authoring](docs/plugin-authoring.md): write a plugin.
 - [Architecture](docs/architecture.md): generation pipeline internals.
 
