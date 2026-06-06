@@ -46,7 +46,8 @@ class GenerateCommand extends Command
         {spec? : Name of the spec to generate. Omit to generate every defined spec.}
         {--output= : Override output path. Requires a single spec target. Use "-" for stdout.}
         {--format=yaml : Output format: yaml or json.}
-        {--explain : Print one (route × spec) decision line per route on stderr.}';
+        {--explain : Print one (route × spec) decision line per route on stderr.}
+        {--no-validate : Skip the swagger-php validation pass (faster; the document is machine-built and normally valid).}';
 
     protected $description = 'Generate an OpenAPI 3.1 document from the application\'s route definitions';
 
@@ -67,6 +68,7 @@ class GenerateCommand extends Command
         $specName = $this->argument('spec');
         $outputOverride = $this->option('output');
         $explain = (bool) $this->option('explain');
+        $validate = !(bool) $this->option('no-validate');
         $format = (string) $this->option('format');
 
         if (!in_array($format, self::SUPPORTED_FORMATS, true)) {
@@ -90,7 +92,7 @@ class GenerateCommand extends Command
         foreach ($targets as $spec) {
             $document = $orchestrator->generateOne($spec->name, app()->environment());
 
-            if (!$this->validate($document)) {
+            if ($validate && !$this->validate($document)) {
                 return self::FAILURE;
             }
 
