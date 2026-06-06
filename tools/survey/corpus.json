@@ -1,0 +1,115 @@
+{
+  "library": { "repo": "https://github.com/Radiergummi/laravel-openapi" },
+  "apps": [
+    {
+      "name": "AdvisingApp",
+      "repo": "https://github.com/canyongbs/advisingapp",
+      "ref": "1.126.2",
+      "sha": "db14561e795fe409a4b7346a1e26cfb2154f3f12",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/advisingapp.sh"
+    },
+    {
+      "name": "AureusERP",
+      "repo": "https://github.com/aureuserp/aureuserp",
+      "ref": "v1.4.0",
+      "sha": "04171950b2911583ad018cb7d5e5dc73de9306ba",
+      "apiPrefix": "/admin/api/v1",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/aureuserp.sh"
+    },
+    {
+      "name": "Bagisto",
+      "repo": "https://github.com/bagisto/bagisto",
+      "ref": "v2.4.4",
+      "sha": "681cc121b5ef206ced824667506e02d47c92af95",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/bagisto.sh"
+    },
+    {
+      "name": "BookStack",
+      "repo": "https://github.com/BookStackApp/BookStack",
+      "ref": "v26.05",
+      "sha": "4aa629a354e9752e209b786820d854e90dea3d15",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/bookstack.sh"
+    },
+    {
+      "name": "Coolify",
+      "repo": "https://github.com/coollabsio/coolify",
+      "ref": "v4.1.1",
+      "sha": "5a27427cad54e98c21a691a08077c20f94f84f73",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": "openapi.json",
+      "bootstrap": "bootstrap/coolify.sh"
+    },
+    {
+      "name": "InvoiceNinja",
+      "repo": "https://github.com/invoiceninja/invoiceninja",
+      "ref": "v5.13.22",
+      "sha": "8e7f96b5fb462ffabf53d79f3d891c829d566e32",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": "openapi/api-docs.yaml",
+      "bootstrap": "bootstrap/invoiceninja.sh"
+    },
+    {
+      "name": "Koel",
+      "repo": "https://github.com/koel/koel",
+      "ref": "v9.5.0",
+      "sha": "b2e9a34ad1288c564e5a0ceecbf03486abbd4abb",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": "api-docs/api.yaml",
+      "bootstrap": "bootstrap/koel.sh"
+    },
+    {
+      "name": "Lychee",
+      "repo": "https://github.com/LycheeOrg/Lychee",
+      "ref": "v7.5.4",
+      "sha": "9ec2bfd3928ae6262df88051520acc83b4a5b5e0",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/lychee.sh"
+    },
+    {
+      "name": "Pelican",
+      "repo": "https://github.com/pelican-dev/panel",
+      "ref": "v1.0.0-beta34",
+      "sha": "38620a95f4c304e5310f41d54b1e3d822f69e082",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/pelican.sh"
+    },
+    {
+      "name": "SpeedtestTracker",
+      "repo": "https://github.com/alexjustesen/speedtest-tracker",
+      "ref": "v1.14.3",
+      "sha": "3a3bb188d9909cc447bf89d059869cfd7c43aa74",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": "openapi.json",
+      "bootstrap": "bootstrap/speedtesttracker.sh"
+    },
+    {
+      "name": "Vito",
+      "repo": "https://github.com/vitodeploy/vito",
+      "ref": "3.22.0",
+      "sha": "4e629ffe36cd696ccba6c6053d7e5c75922b014b",
+      "apiPrefix": "/api",
+      "php": "8.4",
+      "publishedSpec": null,
+      "bootstrap": "bootstrap/vito.sh"
+    }
+  ]
+}
