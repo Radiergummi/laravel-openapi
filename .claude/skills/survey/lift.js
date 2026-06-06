@@ -7,14 +7,17 @@ export const meta = {
   ],
 }
 
-const APP = args?.app
+// The Workflow runtime may deliver `args` as a JSON string; normalise to an object.
+const ARGS = typeof args === 'string' ? JSON.parse(args) : (args ?? {})
+
+const APP = ARGS?.app
 if (!APP) throw new Error('survey-lift requires args.app (e.g. {app:"Vito"})')
-const WS = args?.ws
+const WS = ARGS?.ws
 if (!WS) throw new Error('survey-lift requires args.ws (absolute dogfood workspace, e.g. "/Users/.../laravel-openapi-dogfood")')
-const LIB = args?.lib
+const LIB = ARGS?.lib
 if (!LIB) throw new Error('survey-lift requires args.lib (absolute library/worktree checkout root)')
-const REPO = args?.repoPath ?? `${WS}/apps/${APP}/repo`
-const PREFIX = args?.apiPrefix ?? '/api'
+const REPO = ARGS?.repoPath ?? `${WS}/apps/${APP}/repo`
+const PREFIX = ARGS?.apiPrefix ?? '/api'
 const BIN = `${LIB}/.claude/skills/survey/bin`
 
 // Workflow subagents run fresh shells that do NOT inherit exported env. Bake the
