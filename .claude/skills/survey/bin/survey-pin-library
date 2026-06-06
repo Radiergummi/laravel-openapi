@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# survey-pin-library <app> — point the app's vendor symlink at $LIB (the stable library under test),
+# saving the original target so survey-unpin-library can restore it. Isolates a run from an
+# actively-edited main checkout (whose mid-refactor state would corrupt measurements).
+set -uo pipefail
+WS="${WS:?set WS}"; LIB="${LIB:?set LIB}"; app="${1:?usage: survey-pin-library <app>}"
+link="$WS/apps/$app/repo/vendor/radiergummi/laravel-openapi"
+save="$WS/apps/$app/.vendor-link-orig"
+[[ -e "$save" ]] || readlink "$link" > "$save"
+rm -f "$link"; ln -s "$LIB" "$link"
+echo "pinned $app vendor -> $LIB"

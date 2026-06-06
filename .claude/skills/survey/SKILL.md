@@ -26,6 +26,8 @@ Invariants: the library is the system under test — **never modified** (annotat
 ## bin/ helpers (agent operations)
 | Helper | Role |
 |--------|------|
+| `survey-pin-library <app>` | point the app's vendor symlink at `$LIB` (stable library under test); save the original |
+| `survey-unpin-library <app>` | restore the vendor symlink saved by `survey-pin-library` |
 | `survey-reset <app>` | discard annotation scratch; restore the pinned baseline tree |
 | `survey-generate <app>` | `openapi:generate` → `generated-spec.json` (+ gen_exit) |
 | `survey-completeness <app>` | per-op completeness on the current spec |

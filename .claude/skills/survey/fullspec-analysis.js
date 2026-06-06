@@ -154,4 +154,7 @@ return {
   sharedResourceNote: synth.sharedResourceNote,
   planMarkdown: synth.planMarkdown,
   perDomain: analyses.map(a => ({ domain: a.domain, resource: a.resourceClass, ops: a.ops?.length || 0, attrs: a.attributesToAdd?.length || 0, gaps: a.gaps?.length || 0, toArrayReadable: a.toArrayReadable })),
+  // Full per-domain analyses, keyed by domain — lets a consumer (lift.js) hand each apply agent
+  // ONLY its own domain's pre-computed attribute list instead of re-deriving from the whole plan.
+  domainAnalyses: Object.fromEntries(analyses.map(a => [a.domain, a])),
 }
