@@ -114,8 +114,11 @@ Scope follows the annotated symbol:
   the Data-class property.
 
 > [!WARNING]
-> `spec.invalid` can never be suppressed. Run with `--no-suppress` to ignore
-> all directives.
+> `spec.invalid` can never be suppressed via `#[IgnoreLint]`, `--skip`, or
+> `lint.disabled_rules`. To skip the OAS 3.1 meta-schema validation entirely —
+> it is the single most expensive rule on large specs — pass the dedicated
+> `--no-validate` flag. (`--no-suppress` instead ignores all
+> `#[IgnoreLint]` directives.)
 
 Meta-rules enforce directive hygiene:
 
