@@ -205,6 +205,13 @@ final readonly class LintRunner
 
         $rules = $this->registry->forLevel($level, only: $only, skip: $skip);
 
+        if (!$options->validateSpec) {
+            $rules = array_values(array_filter(
+                $rules,
+                static fn(Rule $rule): bool => $rule->id() !== RuleRegistry::EXEMPT_RULE_ID,
+            ));
+        }
+
         // endregion
 
         // region Pre-build phase — runs once, findings carry spec: null
