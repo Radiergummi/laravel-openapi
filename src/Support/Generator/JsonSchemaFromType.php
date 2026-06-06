@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use BackedEnum;
-use Carbon\Carbon;
-use Carbon\CarbonImmutable;
-use DateTime;
-use DateTimeImmutable;
+use DateTimeInterface;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
@@ -187,11 +184,9 @@ final readonly class JsonSchemaFromType
     {
         $className = $type->getClassName();
 
-        if (is_a($className, DateTime::class, allow_string: true)
-            || is_a($className, DateTimeImmutable::class, allow_string: true)
-            || is_a($className, Carbon::class, allow_string: true)
-            || is_a($className, CarbonImmutable::class, allow_string: true)
-        ) {
+        // DateTimeInterface covers DateTime, DateTimeImmutable, Carbon, and CarbonImmutable,
+        // as well as properties typed against the interface itself.
+        if (is_a($className, DateTimeInterface::class, allow_string: true)) {
             return new OA\Schema(['type' => 'string', 'format' => 'date-time']);
         }
 
