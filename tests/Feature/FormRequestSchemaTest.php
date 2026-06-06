@@ -97,6 +97,26 @@ it('emits file field as type=string format=binary in multipart schema', function
         ->and($attachment['format'])->toBe('binary');
 });
 
+it('maps every file-upload rule form (file, image, mimes, dimensions) to a binary field', function (): void {
+    Route::post('/oa-fixture/file-upload', [FileUploadFixtureController::class, 'upload']);
+
+    $spec = generateSpec();
+
+    $body       = $spec['paths']['/oa-fixture/file-upload']['post']['requestBody'];
+    $schemaName = schemaNameFromRef($body['content']['multipart/form-data']['schema']['$ref']);
+    $props      = $spec['components']['schemas'][$schemaName]['properties'];
+
+    // attachment=file, avatar=image, document=mimes:, banner=dimensions: — all binary uploads.
+    foreach (['attachment', 'avatar', 'document', 'banner'] as $field) {
+        expect($props[$field]['type'])->toBe('string')
+            ->and($props[$field]['format'])->toBe('binary');
+    }
+
+    // A plain string field stays a non-binary string.
+    expect($props['label']['type'])->toBe('string')
+        ->and($props['label'])->not->toHaveKey('format');
+});
+
 // endregion
 
 // region Runtime-state stubbing
