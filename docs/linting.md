@@ -114,8 +114,11 @@ Scope follows the annotated symbol:
   the Data-class property.
 
 > [!WARNING]
-> `spec.invalid` can never be suppressed. Run with `--no-suppress` to ignore
-> all directives.
+> `spec.invalid` can never be suppressed via `#[IgnoreLint]`, `--skip`, or
+> `lint.disabled_rules`. To skip the OAS 3.1 meta-schema validation entirely —
+> it is the single most expensive rule on large specs — pass the dedicated
+> `--no-validate` flag. (`--no-suppress` instead ignores all
+> `#[IgnoreLint]` directives.)
 
 Meta-rules enforce directive hygiene:
 
@@ -322,6 +325,7 @@ plugin-registered rules.
 | `operation.description-missing` | 2 | Operation has no description (beyond the summary). |
 | `parameter.description-missing` | 2 | Parameter has no description. |
 | `request-body.description-missing` | 2 | requestBody has no description. |
+| `request.discriminator-malformed` | 2 | `#[RequestBody(discriminator:)]` is configured incorrectly — a `#[RequestVariant]` has neither/both of `schema`/`fields`, a duplicate value, an unresolvable class-string, or a colliding sanitised key. |
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
 | `request-body.schema-degraded` | 1 | A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules. |
 | `errors.resolver-failed` | 2 | A registered `ErrorResponseResolver` threw while building an error response; the extractor caught the throw and the chain continued, but the offending resolver should be fixed. |

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Symfony\Component\Console\Command\Command;
 
@@ -13,8 +15,27 @@ function generateCommandTmpPath(string $suffix = 'yaml'): string
     return sys_get_temp_dir() . '/laravel-openapi-generate-' . uniqid('', true) . '.' . $suffix;
 }
 
+/**
+ * Registers a document transformer that injects an items-less array schema — a shape swagger-php's
+ * validation pass rejects — so a test can assert the pass fires (or is skipped).
+ */
+function corruptGeneratedDocument(): void
+{
+    OpenApiExtensions::transformDocument(static function (OA\OpenApi $document): void {
+        $document->components = new OA\Components(['schemas' => [
+            new OA\Schema(['schema' => 'CorruptArray', 'type' => 'object', 'properties' => [
+                new OA\Property(['property' => 'tags', 'type' => 'array']),
+            ]]),
+        ]]);
+    });
+}
+
 beforeEach(function (): void {
     Route::get('/generate-fixture', [CleanController::class, 'list'])->name('generate.fixture');
+});
+
+afterEach(function (): void {
+    OpenApiExtensions::flush();
 });
 
 it('writes the configured output path on success', function (): void {
@@ -221,4 +242,46 @@ it('--output= is rejected when generating multiple specs', function (): void {
     $this->artisan('openapi:generate', ['--output' => '/tmp/x.yaml'])
         ->expectsOutputToContain('--output= requires a single spec target')
         ->assertFailed();
+});
+
+it('runs the validation pass by default, rejecting an invalid document', function (): void {
+    $path = generateCommandTmpPath();
+    config(['openapi.output_path' => $path]);
+    corruptGeneratedDocument();
+
+    // swagger-php's validate() emits an E_USER_WARNING for the items-less array; PHPUnit escalates
+    // that to an ErrorException — itself proof the validation pass executed. (In a real CLI run the
+    // pass returns false and the command prints "OpenAPI validation failed" and exits FAILURE.)
+    expect(fn(): int => $this->artisan('openapi:generate')->run())->toThrow(ErrorException::class);
+
+    expect(file_exists($path))->toBeFalse();
+
+    @unlink($path);
+});
+
+it('skips the validation pass and writes the document when --no-validate is passed', function (): void {
+    $path = generateCommandTmpPath();
+    config(['openapi.output_path' => $path]);
+    corruptGeneratedDocument();
+
+    // With the pass skipped, the invalid document never reaches validate() — no warning, no failure.
+    $this->artisan('openapi:generate', ['--no-validate' => true])
+        ->assertExitCode(Command::SUCCESS);
+
+    expect(file_exists($path))->toBeTrue();
+
+    @unlink($path);
+});
+
+it('still writes a valid document when --no-validate is passed', function (): void {
+    $path = generateCommandTmpPath();
+    config(['openapi.output_path' => $path]);
+
+    $this->artisan('openapi:generate', ['--no-validate' => true])
+        ->assertExitCode(Command::SUCCESS);
+
+    expect(file_exists($path))->toBeTrue()
+        ->and(file_get_contents($path))->toStartWith('openapi:');
+
+    @unlink($path);
 });
