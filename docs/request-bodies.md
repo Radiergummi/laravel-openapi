@@ -164,6 +164,37 @@ rule's *presence* (validation requires this field to be one of an enumeration)
 is. To supply enum values for documentation, author `#[RequestField(enum: [...])]`
 or `#[RequestField(example: ...)]` on the FormRequest's `PARAM_*` constant.
 
+### Boundary: runtime-assembled enum sets
+
+A literal `Rule::in(['a', 'b'])` enumerates fine. What the generator cannot
+enumerate is a set **assembled at runtime** from a source that is empty or
+unavailable when the app boots for generation:
+
+```php
+Rule::in(array_keys(config('core.server_providers'))) // registered lazily by a service provider
+Rule::in($server->getSshUsers())                       // queried from a model / the database
+```
+
+The first reads a config key that another package's service provider populates
+at boot — at generation time it is still empty, so the rule resolves to
+`Rule::in([])` and no `enum` is emitted. The second derives its values from a
+runtime model instance that does not exist at generation time. (Ordinary
+*static* config files are different: `config(...)` is a real call at generation
+time, so a key whose values live in a committed config file does resolve.)
+
+This is an inherent inference boundary, not a gap to close. Hardcoding the
+values into `#[RequestField(enum: [...])]` would just drift from the runtime
+source — the exact smell the attributes exist to avoid. The honest expression
+is a plain `string` with a description naming where the values come from:
+
+```php
+#[RequestField('provider', type: 'string', description: "One of the configured server providers (`config('core.server_providers')`).")]
+```
+
+There is deliberately no attribute that names a config key to read at
+generation time: the constraining set is empty at rest, so such a lever would
+enumerate nothing for exactly the cases that need it.
+
 ### Limitation: branching on runtime state
 
 If `rules()` switches on runtime state — e.g. `if ($this->user()->isAdmin()) { … }`
