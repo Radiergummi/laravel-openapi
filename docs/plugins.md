@@ -61,6 +61,20 @@ For a field whose type is another resource, pass its class-string as `type`:
 class ProjectResource extends JsonResource { … }
 ```
 
+For a field that is a **collection** of another resource, keep `type: 'array'`
+and pass the item resource's class-string as `items`. It resolves to
+`items: { $ref: … }` (and registers the item resource as a component), exactly
+like a single nested `type:`:
+
+```php
+#[ResourceField('members', type: 'array', items: UserResource::class, description: 'Project members.')]
+class ProjectResource extends JsonResource { … }
+```
+
+A scalar `items` (e.g. `items: 'string'`) is unchanged — it stays
+`items: { type: string }`. An `items` class-string that no resolver recognises
+degrades to a permissive `items: { type: object }`.
+
 ### Collection endpoints
 
 For collection endpoints returning `JsonResponse` or an untyped value, name
