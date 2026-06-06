@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# survey-generate <app> — openapi:generate -> generated-spec.json (PHP 8.4 on PATH).
+# survey-generate <app> — openapi:generate -> generated-spec.json + openapi:lint -> lint.json (PHP 8.4 on PATH).
 set -uo pipefail
 WS="${WS:?set WS}"; app="${1:?usage: survey-generate <app>}"
 repo="$WS/apps/$app/repo"; out="$WS/apps/$app/generated-spec.json"; err="$WS/apps/$app/generate.log"
+lint="$WS/apps/$app/lint.json"; lintlog="$WS/apps/$app/lint.log"
 ( cd "$repo" && php artisan openapi:generate --output=- --format=json ) > "$out" 2> "$err"
 ex=$?
-echo "gen_exit=$ex  spec=$out"
+# Refresh lint.json too so metrics.php sees the live lint findings (a crash is data, not fatal).
+( cd "$repo" && php artisan openapi:lint --format=json ) > "$lint" 2> "$lintlog"
+lex=$?
+echo "gen_exit=$ex  lint_exit=$lex  spec=$out"
 [[ -s "$err" ]] && { echo "  stderr:"; tail -3 "$err"; }
 exit 0
