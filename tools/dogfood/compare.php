@@ -17,7 +17,6 @@ declare(strict_types=1);
  * LIB defaults to this repository (the tool ships inside it); override the LIB
  * env var to point at a different library checkout.
  */
-
 $LIB = getenv('LIB') ?: dirname(__DIR__, 2);
 require $LIB . '/vendor/autoload.php';
 
@@ -41,6 +40,7 @@ function load(string $path): array
 
     if ($trimmed !== '' && ($trimmed[0] === '{' || $trimmed[0] === '[')) {
         $decoded = json_decode($raw, true);
+
         if (is_array($decoded)) {
             return $decoded;
         }
@@ -53,6 +53,7 @@ function load(string $path): array
  * Flatten a spec into a set of normalised "METHOD path" operation keys.
  *
  * @param array<string,mixed> $spec
+ *
  * @return array<string,string> normalised key => original "METHOD path" label
  */
 function operations(array $spec): array
@@ -108,7 +109,7 @@ $cov = count($pubKeys) > 0
 /** @param list<string> $keys */
 function section(string $heading, array $keys): string
 {
-    $body = $keys ? implode("\n", array_map(static fn ($k) => "- $k", $keys)) : '_none_';
+    $body = $keys ? implode("\n", array_map(static fn($k) => "- $k", $keys)) : '_none_';
 
     return "## {$heading}\n\n{$body}\n";
 }
