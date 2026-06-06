@@ -8,6 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\RouteModelBindingErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ValidationErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\Lint\RequestBodySchemaDegraded;
@@ -53,12 +54,14 @@ final class CorePlugin implements Plugin
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
 
         // Error-response inference contributors; the registration order is important: Throws
-        // first (most specific), Middleware second, Validation last (most implicit). The stage that
-        // drives these contributors is registered by BaselineRegistration so plugins that only
-        // contribute contributors can work without depending on Core.
+        // first (most specific), then the convention-derived ones (Middleware, Validation,
+        // route-model binding), which emit distinct statuses an explicit @throws would otherwise
+        // win. The stage that drives these contributors is registered by BaselineRegistration so
+        // plugins that only contribute contributors can work without depending on Core.
         $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
+        $registry->addErrorResponseContributor(RouteModelBindingErrorContributor::class);
 
         // Register FormRequest so SuppressionCollector descends into its #[IgnoreLint] attributes
         // via the param-walk path (fromDataParameter checks against registered payload classes).

@@ -54,7 +54,7 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
             ),
         );
 
-        foreach (['auth', 'scope', 'throttle'] as $kind) {
+        foreach (['auth', 'scope', 'can', 'throttle'] as $kind) {
             if (!isset($this->middlewareMap[$kind])) {
                 continue;
             }
@@ -62,6 +62,7 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
             $detected = match ($kind) {
                 'auth' => $this->hasAuthMiddleware($middleware),
                 'scope' => $this->hasScopeMiddleware($middleware),
+                'can' => $this->hasCanMiddleware($middleware),
                 'throttle' => $this->hasThrottleMiddleware($middleware),
             };
 
@@ -91,6 +92,17 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
             static fn(string $entry): bool
                 => str_starts_with($entry, 'scope:')
                 || str_starts_with($entry, 'scopes:'),
+        );
+    }
+
+    /**
+     * @param list<string> $middleware
+     */
+    private function hasCanMiddleware(array $middleware): bool
+    {
+        return array_any(
+            $middleware,
+            static fn(string $entry): bool => str_starts_with($entry, 'can:'),
         );
     }
 
