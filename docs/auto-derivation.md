@@ -66,6 +66,37 @@ produces an operation with:
 `#[Tag]` is optional if the controller-derived tag is acceptable; no other
 attributes are required here.
 
+## Path parameter types
+
+A route-model-bound segment is typed from the key Laravel resolves it against,
+so `/flights/{flight}` on `show(Flight $flight)` emits a typed parameter rather
+than a bare `string`. The type and format are resolved in this order:
+
+1. **An explicit route constraint wins.** `->whereNumber('flight')` →
+   `type: integer`; `->whereUuid('flight')` → `string` + `format: uuid`;
+   `->whereIn(...)` → an `enum`; any other `->where(...)` regex → `pattern`.
+   These are the author's stated intent.
+2. **Otherwise the bound model's key.** With no route constraint, the key type
+   is read by reflection from the model: an integer key (`getKeyType()`) →
+   `type: integer`; a `HasUuids` model → `string` + `format: uuid`; a `HasUlids`
+   model → `string` (ULID has no standard OpenAPI format); any other string key →
+   `string`.
+3. **Otherwise a bare `string`** — the default for an unbound `{segment}` or a
+   non-Eloquent `UrlRoutable`.
+
+The model-key step applies only when the route binds via that model's primary
+key. A custom-key binding (`/posts/{post:slug}`) or an overridden
+`getRouteKeyName()` resolves against a different column whose type the model's
+key metadata does not describe, so those stay `string` (and the bound field is
+still named in the description — `Bound by slug of Post.`). A `#[PathParam]`
+attribute is the escape hatch for anything reflection cannot reach.
+
+A segment type-hinted as a backed enum (implicit enum binding — `show(Status
+$status)`) carries the enum's cases as the parameter's allowed values, with the
+backing type following the enum: a string-backed enum → `type: string` with the
+case strings, an int-backed enum → `type: integer` with the case integers. No
+route constraint is needed; the cases are the segment's complete valid set.
+
 ## Eloquent model response schemas
 
 When a controller action's return type is an Eloquent `Model` subclass, the
