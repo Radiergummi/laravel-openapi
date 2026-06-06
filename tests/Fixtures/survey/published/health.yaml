@@ -1,0 +1,8 @@
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      description: Check API health status
+      tags: [Health]
+      responses:
+        '200': { description: OK }
