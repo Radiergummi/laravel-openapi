@@ -30,9 +30,7 @@ php artisan package:discover --ansi 2>/dev/null || true
 # Friction: spatie/laravel-data <4.23 pulls reflection-docblock ^5 which conflicts with the
 # library's transitive floor. laravel-data 4.23+ resolves the conflict; Pelican's constraint
 # allows ^4.22, so bump to ^4.23.
-composer config repositories.laravel-openapi path "$LIB" >/dev/null
-composer require "radiergummi/laravel-openapi:@dev" "spatie/laravel-data:^4.23" \
-  --no-interaction -W \
+survey_link_library "spatie/laravel-data:^4.23" -W \
   || survey_blocked "library require failed (see composer output)"
 
 survey_publish_config

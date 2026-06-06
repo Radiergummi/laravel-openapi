@@ -11,8 +11,9 @@ composer install --no-interaction --no-progress --ignore-platform-req=ext-mailpa
 survey_scaffold_env
 
 # Friction: two pgsql connections (landlord + tenant) hardcoded in config/database.php.
-# Rewrite both to sqlite so artisan boots without a running DB.
-sed -i '' "s/'driver' => 'pgsql'/'driver' => 'sqlite'/g" config/database.php 2>/dev/null || true
+# Rewrite both to sqlite so artisan boots without a running DB. (PHP edit, not
+# `sed -i ''` — the empty-suffix form is macOS-only and silently no-ops on GNU sed/CI.)
+php -r '$f="config/database.php"; if(is_file($f)){file_put_contents($f, str_replace("\x27driver\x27 => \x27pgsql\x27", "\x27driver\x27 => \x27sqlite\x27", (string)file_get_contents($f)));}'
 
 {
   echo "DB_CONNECTION=landlord"
@@ -28,8 +29,7 @@ sed -i '' "s/'driver' => 'pgsql'/'driver' => 'sqlite'/g" config/database.php 2>/
 } >> .env
 
 # Library require also needs --ignore-platform-req=ext-mailparse (composer re-checks platform on require).
-composer config repositories.laravel-openapi path "$LIB" >/dev/null
-composer require "radiergummi/laravel-openapi:@dev" --no-interaction --ignore-platform-req=ext-mailparse \
+survey_link_library --ignore-platform-req=ext-mailparse \
   || survey_blocked "library require failed (see composer output)"
 
 survey_publish_config

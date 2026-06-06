@@ -45,8 +45,10 @@ while IFS= read -r name; do
   git -C "$repodir" rev-parse HEAD | grep -q "^$sha" || echo "  warn: HEAD != pinned SHA ($sha)"
 
   echo "booted" > "$appdir/boot_outcome"
+  # A non-zero bootstrap exit that never reached survey_blocked still means the app
+  # didn't come up — record it as blocked-compat so the outcome isn't left "booted".
   ( cd "$repodir" && WS="$WS" LIB="$LIB" BOOT_OUTCOME_FILE="$appdir/boot_outcome" bash "$HARNESS/$boot" ) \
-    || echo "  bootstrap returned non-zero (recorded)"
+    || { echo "  bootstrap exited non-zero — recording blocked-compat"; echo "blocked-compat" > "$appdir/boot_outcome"; }
 
   WS="$WS" "$HARNESS/run.sh" "$name" || true
 

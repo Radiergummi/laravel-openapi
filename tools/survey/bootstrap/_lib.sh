@@ -8,9 +8,12 @@ set -uo pipefail
 LIB="${LIB:?set LIB to the laravel-openapi checkout under test}"
 
 # Link the library under test via a composer path repo and require it as @dev.
+# Extra args ($@) are forwarded to `composer require` — pass per-app flags
+# (--ignore-platform-req=…, --no-scripts) or extra packages here so the path-repo
+# registration always happens (forgetting it is a silent "library not found" trap).
 survey_link_library() {
   composer config repositories.laravel-openapi path "$LIB" >/dev/null
-  composer require "radiergummi/laravel-openapi:@dev" --no-interaction
+  composer require "radiergummi/laravel-openapi:@dev" "$@" --no-interaction
 }
 
 # Prepare a minimal runnable env: .env, app key, sqlite. App-specific configs are

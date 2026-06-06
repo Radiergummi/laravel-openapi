@@ -23,8 +23,7 @@ survey_scaffold_env
 # Library require also needs --ignore-platform-req=ext-imagick.
 # The prior type-resolver ^1 / reflection-docblock conflict is resolved in the current library
 # (no longer requires phpdocumentor/reflection-docblock at all).
-composer config repositories.laravel-openapi path "$LIB" >/dev/null
-composer require "radiergummi/laravel-openapi:@dev" --no-interaction --ignore-platform-req=ext-imagick \
+survey_link_library --ignore-platform-req=ext-imagick \
   || survey_blocked "library require failed (see composer output)"
 
 survey_publish_config

@@ -22,8 +22,7 @@ survey_scaffold_env
 # SpeedtestTracker pins zircote/swagger-php ^5.8.3 in prod. The library supports
 # ^5.8 || ^6.1.2, so composer picks 5.x; both constraints are satisfied.
 # Use --no-scripts to skip boost:update post-install hook (app-side, exits non-zero when Boost not set up).
-composer config repositories.laravel-openapi path "$LIB" >/dev/null
-composer require "radiergummi/laravel-openapi:@dev" --no-interaction --no-scripts \
+survey_link_library --no-scripts \
   || survey_blocked "library require failed (see composer output)"
 
 php artisan package:discover --ansi 2>/dev/null || true

@@ -275,6 +275,12 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
             require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
             $published = (array) Symfony\Component\Yaml\Yaml::parse($raw);
         }
+
+        // Empty/unparseable specs decode to []; treat as "no published spec" so the
+        // coverage block is omitted rather than emitting a misleading coverage 0%.
+        if (!isset($published['paths'])) {
+            $published = null;
+        }
     }
 
     echo json_encode(surveyMetrics($spec, $lint, $run, $prefix, $published), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
