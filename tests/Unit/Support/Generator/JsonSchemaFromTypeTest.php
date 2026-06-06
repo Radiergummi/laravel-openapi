@@ -2,15 +2,42 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
 use Symfony\Component\TypeInfo\Type\BuiltinType;
 use Symfony\Component\TypeInfo\Type\EnumType;
 use Symfony\Component\TypeInfo\Type\NullableType;
+use Symfony\Component\TypeInfo\Type\ObjectType;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 
 uses()->group('openapi');
+
+// region #148: DateTimeInterface and its implementations map to string/date-time
+
+it('maps a property typed against DateTimeInterface to string/date-time', function (): void {
+    $schema = new JsonSchemaFromType(new NullLogger())
+        ->fromType(new ObjectType(DateTimeInterface::class));
+
+    expect($schema->type)->toBe('string')
+        ->and($schema->format)->toBe('date-time')
+        ->and($schema->description)->not->toContain('Unmapped object type');
+});
+
+it('maps a concrete date class to string/date-time', function (string $className): void {
+    $schema = new JsonSchemaFromType(new NullLogger())
+        ->fromType(new ObjectType($className));
+
+    expect($schema->type)->toBe('string')
+        ->and($schema->format)->toBe('date-time');
+})->with([
+    DateTime::class,
+    DateTimeImmutable::class,
+    CarbonImmutable::class,
+]);
+
+// endregion
 
 it('describes a unit enum using only the short class name, not the FQCN', function (): void {
     $schema = new JsonSchemaFromType(new NullLogger())
