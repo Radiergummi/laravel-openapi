@@ -434,7 +434,7 @@ final readonly class ValidationRulesToSchema
             'numeric', 'decimal' => $field->type = 'number',
             'boolean', 'bool' => $field->type = 'boolean',
             'array' => $field->type = 'array',
-            'file', 'image' => $this->applyFile($field),
+            'file', 'image', 'mimes', 'mimetypes' => $this->applyFile($field),
             'email' => $this->applyEmail($field),
             'url', 'active_url' => $this->applyUrl($field),
             'uuid' => $this->applyUuid($field),

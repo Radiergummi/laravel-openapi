@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\SecuritySchemeTypes;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 
@@ -41,7 +42,15 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
             return;
         }
 
+        $schemeTypes = SecuritySchemeTypes::fromSpec($context->rawSpec);
+
         foreach ($operation->security as $requirement) {
+            // Only oauth2/oidc schemes carry a scope registry. Skip non-scope-bearing schemes
+            // (e.g. Sanctum's http/bearer scheme, whose abilities surface as scopes).
+            if (!$schemeTypes->carriesScopes($requirement['scheme'])) {
+                continue;
+            }
+
             $scopeList = $requirement['scopes'];
 
             if (count($scopeList) === 1 && $scopeList[0] === '*') {
