@@ -73,7 +73,7 @@ function substantive($s, array $c, array $seen = []): bool
             return substantive($p['data'], $c, $seen);
         }
 
-return true;
+        return true;
     }
 
     // A string-keyed map (additionalProperties) is a real payload — e.g. region/plan slug->label maps.
@@ -121,7 +121,7 @@ foreach (($spec['paths'] ?? []) as $path => $ms) {
                 }
             }
 
-return false;
+            return false;
         })($op['requestBody']['content']);
         $hasResp = false;
 
@@ -152,15 +152,15 @@ return false;
             $complete++;
         }
 
-if (!$hasResp) {
+        if (!$hasResp) {
             $noResp++;
         }
 
-if ($needsBody && !$hasBody) {
+        if ($needsBody && !$hasBody) {
             $noBody++;
         }
 
-if (!$hasSec) {
+        if (!$hasSec) {
             $noSec++;
         }
 

@@ -135,6 +135,19 @@ final readonly class SchemaFromResource
         $property = new OA\Property(['property' => $field->name]);
         $field->descriptor()->applyTo($property);
 
+        // array-of-$ref: a class-string `items:` on an array field resolves to `items: { $ref }`
+        // via the same resolver chain as `type:`. The descriptor above already set `type: array`
+        // plus any min/max/unique constraints and a scalar `items` placeholder — only the items
+        // schema is overridden here. An unresolvable class degrades to a permissive object item,
+        // symmetric with the single-ref `type: object` fallback above.
+        if ($type === 'array' && $field->items !== null && class_exists($field->items)) {
+            $ref = $this->resolveClassRef($field->items);
+
+            $property->items = $ref !== null
+                ? new OA\Items(['ref' => $ref])
+                : new OA\Items(['type' => 'object']);
+        }
+
         return $property;
     }
 
