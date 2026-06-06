@@ -15,7 +15,7 @@
 # corrupts --output=-.
 set -uo pipefail
 
-WS="${WS:?set WS to your external dogfood workspace dir (see tools/dogfood/README.md)}"
+WS="${WS:?set WS to your external survey workspace dir (see tools/survey/README.md)}"
 APPS="$WS/apps"
 
 if [[ $# -ne 1 ]]; then

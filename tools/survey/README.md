@@ -1,4 +1,4 @@
-# Dogfooding harness
+# Survey harness
 
 Tooling for running `radiergummi/laravel-openapi` against real Laravel
 applications, to measure robustness and coverage and to drive an app to a
@@ -16,7 +16,7 @@ The harness operates on an **external scratch workspace** — never inside this
 repo or any app's checkout. Set `WS` to it:
 
 ```bash
-export WS="$HOME/dogfood-workspace"   # external, your choice
+export WS="$HOME/survey-workspace"   # external, your choice
 ```
 
 ```
