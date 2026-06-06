@@ -1,0 +1,25 @@
+{
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/users": {
+      "get": {
+        "responses": { "200": { "content": { "application/json": { "schema": {
+          "type": "object", "properties": { "data": { "$ref": "#/components/schemas/User" } }
+        } } } } }
+      },
+      "post": {
+        "requestBody": { "content": { "application/json": { "schema": {
+          "type": "object", "properties": { "name": { "type": "string" }, "email": { "type": "string" } }
+        } } } },
+        "responses": { "201": { "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } } } }
+      }
+    },
+    "/api/empty": {
+      "get": { "responses": { "200": { "content": { "application/json": { "schema": {
+        "type": "object", "properties": { "data": { "type": "object" } }
+      } } } } } }
+    },
+    "/web": { "get": { "responses": { "200": { "content": { "text/html": { "schema": { "type": "string" } } } } } } }
+  },
+  "components": { "schemas": { "User": { "type": "object", "properties": { "id": { "type": "integer" }, "name": { "type": "string" } } } } }
+}
