@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Plugins\Core\Lint\RuleInvalidEnumValue;
 use Radiergummi\OpenApi\Plugins\Core\Lint\RuleUnknown;
 use Radiergummi\OpenApi\Plugins\Core\Lint\ThrowsUnmapped;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
@@ -44,6 +45,7 @@ final class CorePlugin implements Plugin
 
     public function register(OpenApiRegistry $registry): void
     {
+        $registry->addRequestSchemaResolver(DiscriminatedRequestSchemaResolver::class);
         $registry->addRequestSchemaResolver(RequestFieldRequestSchemaResolver::class);
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);

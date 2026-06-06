@@ -10,11 +10,13 @@ use Radiergummi\OpenApi\Attributes\RequestBody;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Plugins\Core\Support\RequestFieldObjectBuilder;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
 use ReflectionMethod;
 
+use function array_map;
 use function ucfirst;
 
 /**
@@ -47,27 +49,12 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
             return null;
         }
 
-        /** @var list<OA\Property> $properties */
-        $properties = [];
+        $fields = array_map(
+            static fn($attribute): RequestField => $attribute->newInstance(),
+            $attributes,
+        );
 
-        /** @var list<string> $required */
-        $required = [];
-
-        foreach ($attributes as $attribute) {
-            $field = $attribute->newInstance();
-
-            if ($field->name === null || $field->name === '') {
-                continue;
-            }
-
-            $property = new OA\Property(['property' => $field->name]);
-            $field->descriptor()->applyTo($property);
-            $properties[] = $property;
-
-            if ($field->required === true) {
-                $required[] = $field->name;
-            }
-        }
+        [$properties, $required] = RequestFieldObjectBuilder::propertiesAndRequired($fields);
 
         if ($properties === []) {
             return null;

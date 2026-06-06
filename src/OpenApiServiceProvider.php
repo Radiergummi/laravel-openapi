@@ -405,6 +405,37 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
+            Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver::class,
+            static function (Container $app): Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                $resolversFactory = static function () use ($app, $registry): array {
+                    /** @var null|list<RefSchemaResolver> $cache */
+                    static $cache = null;
+
+                    if ($cache !== null) {
+                        return $cache;
+                    }
+
+                    /** @var list<RefSchemaResolver> $resolvers */
+                    $resolvers = [];
+
+                    foreach ($registry->refSchemaResolvers as $class) {
+                        $resolvers[] = $app->make($class);
+                    }
+
+                    return $cache = $resolvers;
+                };
+
+                return new Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    refSchemaResolvers: $resolversFactory,
+                    findings: $app->make(FindingsCollector::class),
+                );
+            },
+        );
+
+        $this->app->scoped(
             Support\Extraction\RequestBodyExtractor::class,
             static function (Container $app): Support\Extraction\RequestBodyExtractor {
                 $registry = $app->make(OpenApiRegistry::class);

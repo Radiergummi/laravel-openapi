@@ -322,6 +322,7 @@ plugin-registered rules.
 | `operation.description-missing` | 2 | Operation has no description (beyond the summary). |
 | `parameter.description-missing` | 2 | Parameter has no description. |
 | `request-body.description-missing` | 2 | requestBody has no description. |
+| `request.discriminator-malformed` | 2 | `#[RequestBody(discriminator:)]` is configured incorrectly — a `#[RequestVariant]` has neither/both of `schema`/`fields`, a duplicate value, an unresolvable class-string, or a colliding sanitised key. |
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
 | `request-body.schema-degraded` | 1 | A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules. |
 | `errors.resolver-failed` | 2 | A registered `ErrorResponseResolver` threw while building an error response; the extractor caught the throw and the chain continued, but the offending resolver should be fixed. |

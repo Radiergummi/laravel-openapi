@@ -24,7 +24,8 @@ Attach to controller classes or methods.
 | `Description` | class, method | no | Same as `#[Summary]` but for the long-form description. On a Data / JsonResource class it sets the component schema's `description`. |
 | `Tag` | class, method | yes | Add a tag to the already-derived set (merge, not replace). |
 | `QueryParam` | class, method | yes | Document an ad-hoc query string parameter. Each instance defines one parameter. |
-| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (e.g. `multipart/form-data`). |
+| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (e.g. `multipart/form-data`). Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
+| `RequestVariant` | method | yes | Declare one branch of a discriminated request body. Requires `#[RequestBody(discriminator: '…')]` on the same method. See [Discriminated request bodies](#discriminated-request-bodies). |
 | `ResponseResource` | class, method | no | Explicit response-resource class for the 200 response. `collection: true/false` overrides envelope detection; `null` auto-detects. |
 | `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. |
 | `Example` | method | yes | Named example payload for the request body. |
@@ -97,6 +98,39 @@ Explicit attribute arguments (`example:`, `enum:`) always beat directives — in
 explicit value is `null`, which is the conventional way to suppress directive-derived values from
 a single field. Directive lines are stripped from the rendered description; when multiple
 `@example` / `@enum` directives appear, the last one wins.
+
+### Discriminated request bodies
+
+When an action validates a plain `Request` and the body shape depends on a discriminator field
+(e.g. `provider` or `type`), use `#[RequestBody(discriminator: '…')]` together with one
+repeatable `#[RequestVariant]` per branch to emit a `oneOf` + `discriminator` body:
+
+```php
+#[RequestBody(discriminator: 'provider')]
+#[RequestVariant('aws', fields: [new RequestField('region', required: true)])]
+#[RequestVariant('hetzner', fields: [new RequestField('api_token', required: true)])]
+#[RequestVariant('custom', schema: CustomProviderData::class)]
+public function store(Request $request) { … }
+```
+
+Each `#[RequestVariant]` supplies exactly one of:
+
+- **`fields: [new RequestField(…), …]`** — inline fields describing the branch's shape (array form, not variadic).
+- **`schema: SomeClass::class`** — a class-string the ref-resolver chain can build (a Spatie Data
+  class or API Resource; not a FormRequest).
+
+**Inline branches** — the discriminator property (`provider` above) is auto-injected into each
+inline branch as a required `string` whose `enum` is restricted to that branch's value. To
+override (e.g. to attach a description), declare a `#[RequestField]` with the same name in that
+branch — the explicit field wins.
+
+**Class-string branches** — the variant emits an opaque `$ref` to the resolved component schema.
+The class must already declare the discriminator property; a missing discriminator property is
+reported by the `discriminator.invalid-mapping` lint rule.
+
+Malformed usage (a `discriminator:` with no `#[RequestVariant]` at all, a variant with neither or
+both of `schema`/`fields`, a duplicate `value`, an unresolvable class-string, or a colliding
+sanitised key) is reported as `request.discriminator-malformed`.
 
 ## Exception-level attribute
 
