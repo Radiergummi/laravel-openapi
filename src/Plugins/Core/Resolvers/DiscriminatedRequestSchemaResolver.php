@@ -113,13 +113,13 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
                 $key = $this->branchKey($method, $variant->value);
 
                 if (isset($usedBranchKeys[$key])) {
-                    $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' produces a colliding component key after sanitising non-alphanumeric characters; use a value that is distinct once those are removed");
+                    $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' maps to a component key that collides with another variant or the request-body wrapper; use a value that stays distinct after non-alphanumeric characters are removed");
 
                     continue;
                 }
 
                 $usedBranchKeys[$key] = true;
-                $ref = $this->buildInlineBranch($method, $discriminatorProperty, $variant, $key);
+                $ref = $this->buildInlineBranch($discriminatorProperty, $variant, $key);
             }
 
             $oneOf[] = new OA\Schema(['ref' => $ref]);
@@ -149,7 +149,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
      *
      * @throws InvalidArgumentException
      */
-    private function buildInlineBranch(ReflectionMethod $method, string $discriminatorProperty, RequestVariant $variant, string $key): string
+    private function buildInlineBranch(string $discriminatorProperty, RequestVariant $variant, string $key): string
     {
         $fields = $variant->fields;
 
@@ -184,7 +184,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
 
         $this->registry->registerNamed($key, new OA\Schema($schemaProps));
 
-        return "#/components/schemas/{$key}";
+        return $this->registry->qualifyKey($key);
     }
 
     /**
