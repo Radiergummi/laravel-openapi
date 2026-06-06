@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Attributes\RequestBody;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Attributes\RequestVariant;
 use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\CircleData;
+use Radiergummi\OpenApi\Tests\Fixtures\Discriminator\RectangleData;
 
 /**
  * Fixture — discriminated request bodies. Routes are wired in
@@ -76,6 +77,20 @@ class DiscriminatedRequestFixtureController extends Controller
     #[RequestVariant('body', fields: [new RequestField('x', required: true)])] // branch key collides with the wrapper key
     #[RequestVariant('ok', fields: [new RequestField('y', required: true)])]
     public function wrapperCollision(Request $request): array
+    {
+        return [];
+    }
+
+    #[RequestBody(discriminator: 'provider')]
+    public function noVariants(Request $request): array // discriminator set, but no #[RequestVariant]
+    {
+        return [];
+    }
+
+    #[RequestBody(discriminator: 'shape')]
+    #[RequestVariant('circle', schema: CircleData::class)]
+    #[RequestVariant('rectangle', schema: RectangleData::class)]
+    public function multiClass(Request $request): array
     {
         return [];
     }

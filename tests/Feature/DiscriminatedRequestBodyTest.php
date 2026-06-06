@@ -97,6 +97,19 @@ it('does not let a branch key collide with the wrapper key', function (): void {
         ->and(array_keys($schema['discriminator']['mapping']))->toBe(['ok']);
 });
 
+it('resolves multiple class-string branches through the ref chain', function (): void {
+    Route::post('/oa-139/multi-class', [DiscriminatedRequestFixtureController::class, 'multiClass']);
+    $spec = generateSpec();
+
+    $schema = discriminatedBodySchema($spec, '/oa-139/multi-class');
+
+    expect($schema['discriminator']['mapping'])->toBe([
+        'circle' => '#/components/schemas/CircleData',
+        'rectangle' => '#/components/schemas/RectangleData',
+    ])
+        ->and($spec['components']['schemas'])->toHaveKeys(['CircleData', 'RectangleData']);
+})->group('plugin:spatie-data');
+
 it('emits the expected discriminated request-body shape', function (): void {
     Route::post('/oa-139/inline', [DiscriminatedRequestFixtureController::class, 'inline']);
     $schema = discriminatedBodySchema(generateSpec(), '/oa-139/inline');

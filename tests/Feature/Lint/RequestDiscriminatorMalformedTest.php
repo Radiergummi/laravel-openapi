@@ -67,6 +67,24 @@ it('emits request.discriminator-malformed for an unresolvable class-string schem
     expect($messages)->toContain("#[RequestVariant] 'weird' schema 'DateTimeImmutable' is not resolvable to a component");
 });
 
+it('emits request.discriminator-malformed when a discriminator is set but no variant is declared', function (): void {
+    Route::post('/oa-139/no-variants', [DiscriminatedRequestFixtureController::class, 'noVariants'])->name('oa-139.no-variants');
+
+    $collector = new ArrayFindingsCollector();
+    $this->app->forgetScopedInstances();
+    $this->app->instance(FindingsCollector::class, $collector);
+
+    $this->app->make(OpenApiGenerator::class)
+        ->generate($this->app->make(SpecRegistry::class)->default(), 'testing');
+
+    $messages = collect($collector->all())
+        ->filter(static fn(Finding $f): bool => $f->ruleId === 'request.discriminator-malformed')
+        ->map(static fn(Finding $f): string => $f->message)
+        ->all();
+
+    expect($messages)->toContain('discriminator is set but no #[RequestVariant] is declared');
+});
+
 it('emits request.discriminator-malformed when a sanitised branch key collides', function (): void {
     Route::post('/oa-139/colliding', [DiscriminatedRequestFixtureController::class, 'colliding'])->name('oa-139.colliding');
 
