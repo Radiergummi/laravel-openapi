@@ -87,3 +87,23 @@ it('degrades gracefully when route key name resolution throws', function (): voi
     expect($descriptor->modelClass)->toBeNull()
         ->and($descriptor->routeKeyName)->toBeNull();
 });
+
+it('carries the custom binding field onto the descriptor', function (): void {
+    $param = reflectFunctionParameter(
+        static function (RoutableWithRequiredCtorArg $post): void {},
+        'post',
+    );
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null, bindingField: 'slug');
+
+    expect($descriptor->bindingField)->toBe('slug')
+        ->and($descriptor->modelClass)->toBe(RoutableWithRequiredCtorArg::class);
+});
+
+it('leaves the binding field null when none is bound', function (): void {
+    $param = reflectFunctionParameter(static function (string $id): void {}, 'id');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null);
+
+    expect($descriptor->bindingField)->toBeNull();
+});

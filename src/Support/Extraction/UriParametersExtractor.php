@@ -15,6 +15,7 @@ use ReflectionAttribute;
 use ReflectionParameter;
 
 use function array_map;
+use function class_basename;
 use function sprintf;
 
 /**
@@ -136,10 +137,13 @@ final readonly class UriParametersExtractor
     private function buildDescription(UriParameterDescriptor $descriptor): string
     {
         if ($descriptor->modelClass !== null && $descriptor->routeKeyName !== null) {
+            // A custom `{param:field}` binding overrides the model's default route key. Render the
+            // model by its short class name — the FQCN is an internal source detail that should not
+            // leak into a public spec.
             return sprintf(
                 'Bound by %s of %s.',
-                $descriptor->routeKeyName,
-                $descriptor->modelClass,
+                $descriptor->bindingField ?? $descriptor->routeKeyName,
+                class_basename($descriptor->modelClass),
             );
         }
 

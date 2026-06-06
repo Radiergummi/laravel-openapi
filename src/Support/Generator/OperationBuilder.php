@@ -101,6 +101,7 @@ final readonly class OperationBuilder
                         $this->uriResolver->resolve(
                             $parameter,
                             $action->constraintFor($parameter->getName()),
+                            $action->bindingFieldFor($parameter->getName()),
                         ),
                         $parameter,
                     ],
