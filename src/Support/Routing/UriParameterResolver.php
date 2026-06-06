@@ -75,7 +75,7 @@ final readonly class UriParameterResolver
 
         [$resolvedConstraint, $whereKind] = $this->resolveConstraint($whereConstraint);
 
-        [$modelClass, $routeKeyName, $modelPrimaryKey] = $this->resolveModelBinding($innerType);
+        $modelBinding = $this->resolveModelBinding($innerType, $bindingField);
         $enumCases = $this->resolveEnumCases($innerType);
 
         return new UriParameterDescriptor(
@@ -84,11 +84,8 @@ final readonly class UriParameterResolver
             optional: $optional,
             whereConstraint: $resolvedConstraint,
             whereKind: $whereKind,
-            modelClass: $modelClass,
-            routeKeyName: $routeKeyName,
             enumCases: $enumCases,
-            bindingField: $bindingField,
-            modelPrimaryKey: $modelPrimaryKey,
+            modelBinding: $modelBinding,
         );
     }
 
@@ -170,47 +167,51 @@ final readonly class UriParameterResolver
     }
 
     /**
+     * Resolves a route-model-bound parameter into a single {@see RouteModelBinding}: the bound
+     * model, the key the route binds against (a `{param:field}` segment overrides the model's
+     * `getRouteKeyName()`), and — only when that key is the model's own primary key — the type and
+     * format the key carries.
+     *
      * `BackedEnumType` extends `ObjectType` in symfony/type-info — check it first to avoid treating
      * an enum as a model binding.
-     *
-     * @return array{class-string, string, ?ModelPrimaryKey}|array{null, null, null}
      */
-    private function resolveModelBinding(Type $innerType): array
+    private function resolveModelBinding(Type $innerType, ?string $bindingField): ?RouteModelBinding
     {
         if ($innerType instanceof BackedEnumType) {
-            return [null, null, null];
+            return null;
         }
 
         if (!$innerType instanceof ObjectType) {
-            return [null, null, null];
+            return null;
         }
 
         $className = $innerType->getClassName();
 
         if (!is_subclass_of($className, UrlRoutable::class)) {
-            return [null, null, null];
+            return null;
         }
 
         // Bypass the constructor: bound models may declare required constructor
         // arguments, and the route key name never depends on constructor state.
         try {
             $instance = new ReflectionClass($className)->newInstanceWithoutConstructor();
-            $routeKeyName = $instance->getRouteKeyName();
+            $key = $bindingField ?? $instance->getRouteKeyName();
 
-            // Only Eloquent models expose key metadata; other UrlRoutables stay untyped.
-            $modelPrimaryKey = $instance instanceof Model
-                ? $this->resolveModelPrimaryKey($instance, $className)
-                : null;
+            // Type the key only when the route binds by the model's own primary key — a custom
+            // field (or an overridden route key) describes a different column we cannot type here.
+            // Non-Eloquent UrlRoutables expose no key metadata, so they stay untyped too.
+            [$type, $format] = $instance instanceof Model && $key === $instance->getKeyName()
+                ? $this->resolveKeyType($instance, $className)
+                : [null, null];
         } catch (Throwable) {
-            return [null, null, null];
+            return null;
         }
 
-        return [$className, $routeKeyName, $modelPrimaryKey];
+        return new RouteModelBinding($className, $key, $type, $format);
     }
 
     /**
-     * Reads a model's primary-key metadata via reflection: its column name plus the JSON-Schema
-     * type and format the key resolves against.
+     * Reads the JSON-Schema type and format a model's primary key resolves against.
      *
      * `HasUuids` / `HasUlids` are detected by trait rather than via `getKeyType()`, because that
      * method's unique-id branch depends on an `usesUniqueIds` flag set only by the model
@@ -219,24 +220,23 @@ final readonly class UriParameterResolver
      * constructor.
      *
      * @param class-string $className
+     *
+     * @return array{string, ?string} The JSON-Schema type and optional format.
      */
-    private function resolveModelPrimaryKey(Model $instance, string $className): ModelPrimaryKey
+    private function resolveKeyType(Model $instance, string $className): array
     {
         $traits = class_uses_recursive($className);
-        $keyName = $instance->getKeyName();
 
         if (in_array(HasUuids::class, $traits, true)) {
-            return new ModelPrimaryKey($keyName, 'string', 'uuid');
+            return ['string', 'uuid'];
         }
 
         // ULID keys are strings, but there is no standard OpenAPI format for them.
         if (in_array(HasUlids::class, $traits, true)) {
-            return new ModelPrimaryKey($keyName, 'string', null);
+            return ['string', null];
         }
 
-        $type = $instance->getKeyType() === 'int' ? 'integer' : 'string';
-
-        return new ModelPrimaryKey($keyName, $type, null);
+        return [$instance->getKeyType() === 'int' ? 'integer' : 'string', null];
     }
 
     /**

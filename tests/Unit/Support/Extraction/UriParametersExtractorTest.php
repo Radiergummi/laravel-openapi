@@ -7,7 +7,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Attributes\PathParam;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Support\Routing\ModelPrimaryKey;
+use Radiergummi\OpenApi\Support\Routing\RouteModelBinding;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\WhereKind;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
@@ -26,22 +26,17 @@ function stringDescriptor(string $name, bool $optional = false): UriParameterDes
         optional: $optional,
         whereConstraint: null,
         whereKind: null,
-        modelClass: null,
-        routeKeyName: null,
         enumCases: null,
-        bindingField: null,
-        modelPrimaryKey: null,
+        modelBinding: null,
     );
 }
 
 /**
- * Builds a model-bound descriptor for the given primary-key metadata, mirroring what
- * `UriParameterResolver` produces for an Eloquent route-model binding.
+ * Builds a model-bound descriptor for the given binding, mirroring what `UriParameterResolver`
+ * produces for an Eloquent route-model binding.
  */
 function boundDescriptor(
-    ModelPrimaryKey $modelPrimaryKey,
-    string $routeKeyName = 'id',
-    ?string $bindingField = null,
+    RouteModelBinding $modelBinding,
     ?WhereKind $whereKind = null,
 ): UriParameterDescriptor {
     return new UriParameterDescriptor(
@@ -50,11 +45,8 @@ function boundDescriptor(
         optional: false,
         whereConstraint: null,
         whereKind: $whereKind,
-        modelClass: Article::class,
-        routeKeyName: $routeKeyName,
         enumCases: null,
-        bindingField: $bindingField,
-        modelPrimaryKey: $modelPrimaryKey,
+        modelBinding: $modelBinding,
     );
 }
 
@@ -109,11 +101,8 @@ it('describes a model binding by its custom field and class basename, not the FQ
         optional: false,
         whereConstraint: null,
         whereKind: null,
-        modelClass: Article::class,
-        routeKeyName: 'id',
         enumCases: null,
-        bindingField: 'slug',
-        modelPrimaryKey: null,
+        modelBinding: new RouteModelBinding(Article::class, 'slug', null, null),
     );
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
@@ -128,11 +117,8 @@ it('falls back to the route key name (still by basename) without a custom field'
         optional: false,
         whereConstraint: null,
         whereKind: null,
-        modelClass: Article::class,
-        routeKeyName: 'uuid',
         enumCases: null,
-        bindingField: null,
-        modelPrimaryKey: null,
+        modelBinding: new RouteModelBinding(Article::class, 'uuid', null, null),
     );
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
@@ -141,7 +127,7 @@ it('falls back to the route key name (still by basename) without a custom field'
 });
 
 it('types an int-keyed model binding as integer', function (): void {
-    $descriptor = boundDescriptor(new ModelPrimaryKey('id', 'integer', null));
+    $descriptor = boundDescriptor(new RouteModelBinding(Article::class, 'id', 'integer', null));
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
@@ -150,7 +136,7 @@ it('types an int-keyed model binding as integer', function (): void {
 });
 
 it('types a uuid-keyed model binding as string with format uuid', function (): void {
-    $descriptor = boundDescriptor(new ModelPrimaryKey('id', 'string', 'uuid'));
+    $descriptor = boundDescriptor(new RouteModelBinding(Article::class, 'id', 'string', 'uuid'));
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
@@ -159,7 +145,7 @@ it('types a uuid-keyed model binding as string with format uuid', function (): v
 });
 
 it('types a string-keyed model binding as a bare string', function (): void {
-    $descriptor = boundDescriptor(new ModelPrimaryKey('id', 'string', null));
+    $descriptor = boundDescriptor(new RouteModelBinding(Article::class, 'id', 'string', null));
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
@@ -167,13 +153,12 @@ it('types a string-keyed model binding as a bare string', function (): void {
         ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
 });
 
-it('does not apply the primary-key type to a custom binding field', function (): void {
-    // {article:slug} binds by `slug`, not the int primary key `id` — so the int type must
-    // not leak onto the slug parameter.
-    $descriptor = boundDescriptor(
-        new ModelPrimaryKey('id', 'integer', null),
-        bindingField: 'slug',
-    );
+it('leaves the schema untouched when the binding key carries no type', function (): void {
+    // The resolver only types a binding when it resolves by the model's typed primary key; a
+    // custom `{article:slug}` field (or a non-Eloquent routable) yields a null type, which must
+    // leave the parameter's PHP-derived string type to stand. The PK-vs-key decision itself is
+    // covered in UriParameterResolverTest.
+    $descriptor = boundDescriptor(new RouteModelBinding(Article::class, 'slug', null, null));
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
@@ -181,25 +166,11 @@ it('does not apply the primary-key type to a custom binding field', function ():
         ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
 });
 
-it('does not apply the primary-key type when the route key is not the primary key', function (): void {
-    // A model overriding getRouteKeyName() to `slug` while keeping an int `id` PK: the PK type
-    // describes `id`, not `slug`, so it must not be applied.
-    $descriptor = boundDescriptor(
-        new ModelPrimaryKey('id', 'integer', null),
-        routeKeyName: 'slug',
-    );
-
-    [$parameter] = $this->extractor->extract([[$descriptor, null]]);
-
-    expect($parameter->schema->type)->toBe('string')
-        ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
-});
-
-it('lets an explicit where constraint win over model primary-key metadata', function (): void {
+it('lets an explicit where constraint win over model binding metadata', function (): void {
     // whereNumber() (WhereKind::Number) is the author's stated intent and must win even when the
     // model's key metadata says string+uuid.
     $descriptor = boundDescriptor(
-        new ModelPrimaryKey('id', 'string', 'uuid'),
+        new RouteModelBinding(Article::class, 'id', 'string', 'uuid'),
         whereKind: WhereKind::Number,
     );
 
@@ -241,11 +212,8 @@ function enumDescriptor(string $enum, array $cases): UriParameterDescriptor
         optional: false,
         whereConstraint: null,
         whereKind: null,
-        modelClass: null,
-        routeKeyName: null,
         enumCases: $cases,
-        bindingField: null,
-        modelPrimaryKey: null,
+        modelBinding: null,
     );
 }
 

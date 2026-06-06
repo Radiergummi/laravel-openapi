@@ -75,8 +75,9 @@ it('resolves a bound model whose constructor requires arguments', function (): v
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->modelClass)->toBe(RoutableWithRequiredCtorArg::class)
-        ->and($descriptor->routeKeyName)->toBe('slug');
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->modelClass)->toBe(RoutableWithRequiredCtorArg::class)
+        ->and($descriptor->modelBinding->key)->toBe('slug');
 });
 
 it('degrades gracefully when route key name resolution throws', function (): void {
@@ -87,11 +88,10 @@ it('degrades gracefully when route key name resolution throws', function (): voi
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->modelClass)->toBeNull()
-        ->and($descriptor->routeKeyName)->toBeNull();
+    expect($descriptor->modelBinding)->toBeNull();
 });
 
-it('carries the custom binding field onto the descriptor', function (): void {
+it('binds by the custom field when one is supplied', function (): void {
     $param = reflectFunctionParameter(
         static function (RoutableWithRequiredCtorArg $post): void {},
         'post',
@@ -99,52 +99,67 @@ it('carries the custom binding field onto the descriptor', function (): void {
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null, bindingField: 'slug');
 
-    expect($descriptor->bindingField)->toBe('slug')
-        ->and($descriptor->modelClass)->toBe(RoutableWithRequiredCtorArg::class);
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->key)->toBe('slug')
+        ->and($descriptor->modelBinding->modelClass)->toBe(RoutableWithRequiredCtorArg::class);
 });
 
-it('leaves the binding field null when none is bound', function (): void {
+it('leaves the binding null for a non-routable parameter', function (): void {
     $param = reflectFunctionParameter(static function (string $id): void {}, 'id');
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->bindingField)->toBeNull();
+    expect($descriptor->modelBinding)->toBeNull();
 });
 
-it('captures integer primary-key metadata for an int-keyed model', function (): void {
+it('types the binding as integer for an int-keyed model', function (): void {
     $param = reflectFunctionParameter(static function (Article $article): void {}, 'article');
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->modelPrimaryKey)->not->toBeNull()
-        ->and($descriptor->modelPrimaryKey->name)->toBe('id')
-        ->and($descriptor->modelPrimaryKey->type)->toBe('integer')
-        ->and($descriptor->modelPrimaryKey->format)->toBeNull();
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->key)->toBe('id')
+        ->and($descriptor->modelBinding->type)->toBe('integer')
+        ->and($descriptor->modelBinding->format)->toBeNull();
 });
 
-it('captures uuid primary-key metadata for a HasUuids model', function (): void {
+it('types the binding as string+uuid for a HasUuids model', function (): void {
     $param = reflectFunctionParameter(static function (UuidArticle $article): void {}, 'article');
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->modelPrimaryKey)->not->toBeNull()
-        ->and($descriptor->modelPrimaryKey->name)->toBe('id')
-        ->and($descriptor->modelPrimaryKey->type)->toBe('string')
-        ->and($descriptor->modelPrimaryKey->format)->toBe('uuid');
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->key)->toBe('id')
+        ->and($descriptor->modelBinding->type)->toBe('string')
+        ->and($descriptor->modelBinding->format)->toBe('uuid');
 });
 
-it('captures string primary-key metadata without a format for a HasUlids model', function (): void {
+it('types the binding as a bare string for a HasUlids model', function (): void {
     $param = reflectFunctionParameter(static function (UlidArticle $article): void {}, 'article');
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->modelPrimaryKey)->not->toBeNull()
-        ->and($descriptor->modelPrimaryKey->name)->toBe('id')
-        ->and($descriptor->modelPrimaryKey->type)->toBe('string')
-        ->and($descriptor->modelPrimaryKey->format)->toBeNull();
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->key)->toBe('id')
+        ->and($descriptor->modelBinding->type)->toBe('string')
+        ->and($descriptor->modelBinding->format)->toBeNull();
 });
 
-it('leaves primary-key metadata null for a non-Eloquent routable', function (): void {
+it('does not type the key when the route binds by a non-primary-key field', function (): void {
+    // {article:slug} binds Article by `slug`, not its int primary key `id` — so the key carries
+    // no type and the parameter keeps its PHP-derived string type. This decision lives in the
+    // resolver: the extractor only ever applies a type the resolver has already vetted.
+    $param = reflectFunctionParameter(static function (Article $article): void {}, 'article');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: null, bindingField: 'slug');
+
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->key)->toBe('slug')
+        ->and($descriptor->modelBinding->type)->toBeNull()
+        ->and($descriptor->modelBinding->format)->toBeNull();
+});
+
+it('leaves the key type null for a non-Eloquent routable', function (): void {
     $param = reflectFunctionParameter(
         static function (RoutableWithRequiredCtorArg $thing): void {},
         'thing',
@@ -152,6 +167,7 @@ it('leaves primary-key metadata null for a non-Eloquent routable', function (): 
 
     $descriptor = $this->resolver->resolve($param, whereConstraint: null);
 
-    expect($descriptor->modelClass)->toBe(RoutableWithRequiredCtorArg::class)
-        ->and($descriptor->modelPrimaryKey)->toBeNull();
+    expect($descriptor->modelBinding)->not->toBeNull()
+        ->and($descriptor->modelBinding->modelClass)->toBe(RoutableWithRequiredCtorArg::class)
+        ->and($descriptor->modelBinding->type)->toBeNull();
 });

@@ -9,6 +9,7 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\SchemaDescriptor;
+use Radiergummi\OpenApi\Support\Routing\RouteModelBinding;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\WhereKind;
 use ReflectionAttribute;
@@ -112,37 +113,29 @@ final readonly class UriParametersExtractor
             WhereKind::Custom => $descriptor->whereConstraint !== null
                 ? ($schema->pattern = $descriptor->whereConstraint)
                 : null,
-            null => $this->applyModelPrimaryKeyType($schema, $descriptor),
+            null => $this->applyModelBindingType($schema, $descriptor->modelBinding),
         };
 
         return $schema;
     }
 
     /**
-     * Types a model-bound parameter from the bound model's primary-key metadata. The key type
-     * describes the model's primary key, so it is only applied when the route actually binds via
-     * that key — not via a custom `{param:field}` segment or an overridden `getRouteKeyName()`.
+     * Types a model-bound parameter from its binding metadata. The resolver populates the key
+     * type/format only when the route binds by the model's typed primary key, so it is applied
+     * unconditionally here — a custom `{param:field}` or non-Eloquent binding carries a null type.
      */
-    private function applyModelPrimaryKeyType(
+    private function applyModelBindingType(
         OA\Schema $schema,
-        UriParameterDescriptor $descriptor,
+        ?RouteModelBinding $binding,
     ): null {
-        $primaryKey = $descriptor->modelPrimaryKey;
-
-        if ($primaryKey === null) {
+        if ($binding?->type === null) {
             return null;
         }
 
-        $effectiveKey = $descriptor->bindingField ?? $descriptor->routeKeyName;
+        $schema->type = $binding->type;
 
-        if ($effectiveKey !== $primaryKey->name) {
-            return null;
-        }
-
-        $schema->type = $primaryKey->type;
-
-        if ($primaryKey->format !== null) {
-            $schema->format = $primaryKey->format;
+        if ($binding->format !== null) {
+            $schema->format = $binding->format;
         }
 
         return null;
@@ -168,14 +161,13 @@ final readonly class UriParametersExtractor
 
     private function buildDescription(UriParameterDescriptor $descriptor): string
     {
-        if ($descriptor->modelClass !== null && $descriptor->routeKeyName !== null) {
-            // A custom `{param:field}` binding overrides the model's default route key. Render the
-            // model by its short class name — the FQCN is an internal source detail that should not
-            // leak into a public spec.
+        if ($descriptor->modelBinding !== null) {
+            // Render the model by its short class name — the FQCN is an internal source detail that
+            // should not leak into a public spec.
             return sprintf(
                 'Bound by %s of %s.',
-                $descriptor->bindingField ?? $descriptor->routeKeyName,
-                class_basename($descriptor->modelClass),
+                $descriptor->modelBinding->key,
+                class_basename($descriptor->modelBinding->modelClass),
             );
         }
 
