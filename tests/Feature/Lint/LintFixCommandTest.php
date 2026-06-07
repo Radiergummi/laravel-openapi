@@ -22,7 +22,7 @@ it('--check exits 1 on a pending fix and writes nothing', function (): void {
     $this->artisan('openapi:lint', [
         '--check' => true,
         '--only' => 'link.duplicate-name',
-        '--path' => 'lint-fixtures/fix-link*',
+        '--uri' => 'lint-fixtures/fix-link*',
         '--format' => 'json',
     ])->assertExitCode(1);
 
@@ -37,7 +37,7 @@ it('--fix removes the duplicate attribute and exits 0', function (): void {
         $this->artisan('openapi:lint', [
             '--fix' => true,
             '--only' => 'link.duplicate-name',
-            '--path' => 'lint-fixtures/fix-link*',
+            '--uri' => 'lint-fixtures/fix-link*',
             '--format' => 'json',
         ])->assertExitCode(0);
 

@@ -24,7 +24,7 @@ beforeEach(function (): void {
 it('returns LintResult with exit code 0 for a clean route', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(
         level: 0,
-        path: 'lint-runner/clean*',
+        uriGlob: 'lint-runner/clean*',
     ));
 
     expect($result)->toBeInstanceOf(LintResult::class)
@@ -36,7 +36,7 @@ it('returns LintResult with exit code 0 for a clean route', function (): void {
 it('returns exit code 1 and non-empty findings for a broken route', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(
         level: 2,
-        path: 'lint-runner/broken*',
+        uriGlob: 'lint-runner/broken*',
     ));
 
     expect($result->exitCode)->toBe(1)
@@ -46,7 +46,7 @@ it('returns exit code 1 and non-empty findings for a broken route', function ():
 it('honours --no-suppress by surfacing findings hidden by an #[IgnoreLint] attribute', function (): void {
     $withSuppressions = app(LintRunner::class)->run(new LintOptions(
         level: 2,
-        path: 'lint-runner/suppressed*',
+        uriGlob: 'lint-runner/suppressed*',
         applySuppressions: true,
     ));
 
@@ -56,7 +56,7 @@ it('honours --no-suppress by surfacing findings hidden by an #[IgnoreLint] attri
 
     $withoutSuppressions = app(LintRunner::class)->run(new LintOptions(
         level: 2,
-        path: 'lint-runner/suppressed*',
+        uriGlob: 'lint-runner/suppressed*',
         applySuppressions: false,
     ));
 
@@ -68,7 +68,7 @@ it('falls back to the configured lint level when LintOptions.level is null', fun
 
     // BrokenController emits summary.missing at level 2 — exit 1 only when level resolves to 2.
     $result = app(LintRunner::class)->run(new LintOptions(
-        path: 'lint-runner/broken*',
+        uriGlob: 'lint-runner/broken*',
     ));
 
     expect($result->level)->toBe(2)
@@ -82,7 +82,7 @@ it('restricts findings to the --only allowlist (CLI only, no config)', function 
     // is the single ruleId we asked for, or none at all).
     $unrestricted = app(LintRunner::class)->run(new LintOptions(
         level: 2,
-        path: 'lint-runner/broken*',
+        uriGlob: 'lint-runner/broken*',
     ));
 
     $emittedIds = array_values(array_unique(
@@ -96,7 +96,7 @@ it('restricts findings to the --only allowlist (CLI only, no config)', function 
     $restricted = app(LintRunner::class)->run(new LintOptions(
         level: 2,
         only: [$emittedIds[0]],
-        path: 'lint-runner/broken*',
+        uriGlob: 'lint-runner/broken*',
     ));
 
     $restrictedIds = array_values(array_unique(
@@ -109,7 +109,7 @@ it('restricts findings to the --only allowlist (CLI only, no config)', function 
 it('merges --skip with config disabled_rules and respects the merged denylist', function (): void {
     $baseline = app(LintRunner::class)->run(new LintOptions(
         level: 2,
-        path: 'lint-runner/broken*',
+        uriGlob: 'lint-runner/broken*',
     ));
 
     // Capture the rule IDs actually emitted so the test is robust against rule-ID
@@ -128,7 +128,7 @@ it('merges --skip with config disabled_rules and respects the merged denylist', 
 
     $silenced = app(LintRunner::class)->run(new LintOptions(
         level: 2,
-        path: 'lint-runner/broken*',
+        uriGlob: 'lint-runner/broken*',
     ));
 
     expect($silenced->exitCode)->toBe(0);
@@ -139,7 +139,7 @@ it('resolves --level=max to the rule registry maxLevel', function (): void {
 
     $result = app(LintRunner::class)->run(new LintOptions(
         level: 'max',
-        path: 'lint-runner/clean*',
+        uriGlob: 'lint-runner/clean*',
     ));
 
     expect($result->level)->toBe($registry->maxLevel());

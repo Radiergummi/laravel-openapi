@@ -24,7 +24,7 @@ it('reports an unconditional Hide+Expose conflict', function (): void {
     $this->artisan('openapi:lint', [
         '--level' => 1,
         '--only' => 'visibility.hide-expose-conflict',
-        '--path' => 'lint-fixtures/visibility/both',
+        '--uri' => 'lint-fixtures/visibility/both',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -35,7 +35,7 @@ it('reports a Hide+Expose conflict that overlaps in the current env', function (
     $this->artisan('openapi:lint', [
         '--level' => 1,
         '--only' => 'visibility.hide-expose-conflict',
-        '--path' => 'lint-fixtures/visibility/overlap',
+        '--uri' => 'lint-fixtures/visibility/overlap',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -46,7 +46,7 @@ it('does not report when Hide and Expose env scopes are disjoint in the current 
     $this->artisan('openapi:lint', [
         '--level' => 1,
         '--only' => 'visibility.hide-expose-conflict',
-        '--path' => 'lint-fixtures/visibility/disjoint',
+        '--uri' => 'lint-fixtures/visibility/disjoint',
         '--format' => 'json',
     ])->assertExitCode(0);
 });

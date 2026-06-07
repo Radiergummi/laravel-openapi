@@ -181,7 +181,7 @@ it('dispatches LintFindingEmitted for findings emitted during a lint run', funct
     $captured = captureEvents(LintFindingEmitted::class, static function (): void {
         app(LintRunner::class)->run(new LintOptions(
             level: 2,
-            path: 'lint-runner/broken*',
+            uriGlob: 'lint-runner/broken*',
         ));
     });
 

@@ -46,13 +46,22 @@ php artisan openapi:lint --only=summary.missing,operation.description-missing
 php artisan openapi:lint --skip=tags.no-description
 
 # Restrict to routes matching a URI glob
-php artisan openapi:lint --path='api/v0/projects*'
+php artisan openapi:lint --uri='api/v0/projects*'
 
-# Restrict to routes touched since the merge-base with develop
+# Restrict to routes affected by specific source files (repeatable)
+php artisan openapi:lint --path=app/Http/Controllers/ProjectController.php
+
+# Restrict to routes touched since the merge-base with the default branch
 php artisan openapi:lint --diff
 
 # Restrict to routes touched since a specific git ref
 php artisan openapi:lint --diff=main
+
+# Restrict to routes touched by staged changes (the pre-commit scope)
+php artisan openapi:lint --diff=staged
+
+# …or by any uncommitted work-tree edits
+php artisan openapi:lint --diff=working
 
 # Ignore all #[IgnoreLint] suppressions
 php artisan openapi:lint --no-suppress
@@ -79,8 +88,9 @@ php artisan openapi:lint --fix
 php artisan openapi:lint --check
 ```
 
-`--fix` and `--check` compose with `--only`, `--skip`, `--level`, `--path`, and
-`--spec`, so you can scope a fix run to one rule or one slice of routes. Exit
+`--fix` and `--check` compose with `--only`, `--skip`, `--level`, the route
+scoping flags (`--uri`, `--path`, `--diff`), and `--spec`, so you can scope a fix
+run to one rule or one slice of routes. Exit
 codes follow the usual convention: `0` when nothing remains (or nothing was
 pending, for `--check`), `1` when unfixed findings remain or a fix is pending.
 

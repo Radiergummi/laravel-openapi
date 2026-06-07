@@ -22,7 +22,7 @@ it('flags unconditional #[Expose] in public-default mode', function (): void {
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--only' => 'visibility.attribute-no-op',
-        '--path' => 'lint-fixtures/visibility-noop/expose-public',
+        '--uri' => 'lint-fixtures/visibility-noop/expose-public',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -33,7 +33,7 @@ it('does not flag env-scoped #[Expose] in public-default mode', function (): voi
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--only' => 'visibility.attribute-no-op',
-        '--path' => 'lint-fixtures/visibility-noop/expose-staging',
+        '--uri' => 'lint-fixtures/visibility-noop/expose-staging',
         '--format' => 'json',
     ])->assertExitCode(0);
 });
@@ -46,7 +46,7 @@ it('flags unconditional #[Hide] in hidden-default mode', function (): void {
     $this->artisan('openapi:lint', [
         '--level' => 2,
         '--only' => 'visibility.attribute-no-op',
-        '--path' => 'lint-fixtures/visibility-noop/hide-hidden',
+        '--uri' => 'lint-fixtures/visibility-noop/hide-hidden',
         '--format' => 'json',
     ])->assertExitCode(1);
 });

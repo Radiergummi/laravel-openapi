@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Lint\LintOptions;
@@ -47,7 +48,7 @@ function corruptLintedSpec(): void
 it('exits 0 when clean controller is the only route', function (): void {
     $this->artisan('openapi:lint', [
         '--level' => 0,
-        '--path' => 'lint-fixtures/clean*',
+        '--uri' => 'lint-fixtures/clean*',
         '--format' => 'json',
     ])->assertExitCode(0);
 });
@@ -55,7 +56,7 @@ it('exits 0 when clean controller is the only route', function (): void {
 it('exits 1 when broken controller has findings', function (): void {
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/broken*',
+        '--uri' => 'lint-fixtures/broken*',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -65,7 +66,7 @@ it('respects suppression directives', function (): void {
     // the only finding that would fire at this level. Exit 0 proves suppression works.
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/suppressed-response-empty',
+        '--uri' => 'lint-fixtures/suppressed-response-empty',
         '--format' => 'json',
     ])->assertExitCode(0);
 });
@@ -74,7 +75,7 @@ it('--no-suppress disables directives', function (): void {
     // With suppression disabled, response.success-empty-body (level 2) surfaces — exit 1.
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/suppressed-response-empty',
+        '--uri' => 'lint-fixtures/suppressed-response-empty',
         '--format' => 'json',
         '--no-suppress' => true,
     ])->assertExitCode(1);
@@ -87,7 +88,7 @@ it('runs meta-schema validation by default (spec.invalid fires on an invalid doc
     // spec.invalid (level 0) fire, so the run exits 1.
     $this->artisan('openapi:lint', [
         '--level' => 0,
-        '--path' => 'lint-fixtures/clean*',
+        '--uri' => 'lint-fixtures/clean*',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -99,7 +100,7 @@ it('skips meta-schema validation when --no-validate is passed', function (): voi
     // level-0 findings, so the run exits 0 despite the invalid document.
     $this->artisan('openapi:lint', [
         '--level' => 0,
-        '--path' => 'lint-fixtures/clean*',
+        '--uri' => 'lint-fixtures/clean*',
         '--format' => 'json',
         '--no-validate' => true,
     ])->assertExitCode(0);
@@ -111,7 +112,7 @@ it('uses config lint level when --level is not passed', function (): void {
     // BrokenController has no summary — summary.missing fires at level 2.
     // Without the config default this would exit 0 (level 0 misses level-2 rules).
     $this->artisan('openapi:lint', [
-        '--path' => 'lint-fixtures/broken*',
+        '--uri' => 'lint-fixtures/broken*',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -124,14 +125,14 @@ it('config disabled_rules suppresses a rule without --skip on CLI', function ():
     // Verify the pipeline is live on a route that is clean at level 0.
     $this->artisan('openapi:lint', [
         '--level' => 0,
-        '--path' => 'lint-fixtures/clean*',
+        '--uri' => 'lint-fixtures/clean*',
         '--format' => 'json',
     ])->assertExitCode(0);
 
     // ResponseEmptyController exits 0 once response.success-empty-body is disabled.
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/response-empty',
+        '--uri' => 'lint-fixtures/response-empty',
         '--format' => 'json',
     ])->assertExitCode(0);
 });
@@ -143,14 +144,14 @@ it('severity_overrides remaps a finding level so it is excluded at the original 
 
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/response-empty',
+        '--uri' => 'lint-fixtures/response-empty',
         '--format' => 'json',
     ])->assertExitCode(0);
 
     // At level 4 the remapped finding is within threshold again — exit 1.
     $this->artisan('openapi:lint', [
         '--level' => 4,
-        '--path' => 'lint-fixtures/response-empty',
+        '--uri' => 'lint-fixtures/response-empty',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
@@ -211,7 +212,7 @@ it('tags per-spec findings with the spec name', function (): void {
     $result = app(LintRunner::class)
         ->run(new LintOptions(
             level: 2,
-            path: 'lint-fixtures/broken*',
+            uriGlob: 'lint-fixtures/broken*',
         ));
 
     $specs = array_unique(array_map(static fn($f) => $f->spec, $result->findings));
@@ -230,7 +231,7 @@ it('--spec= restricts per-spec rules to the named spec', function (): void {
 
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path'  => 'lint-fixtures/broken*',
+        '--uri'  => 'lint-fixtures/broken*',
         '--spec'  => 'default',
         '--format' => 'json',
     ])->assertExitCode(1); // findings exist in default spec
@@ -251,7 +252,7 @@ it('pre-build rules run regardless of --spec= narrowing', function (): void {
     $result = app(LintRunner::class)
         ->run(new LintOptions(
             level: 3,
-            path: 'lint-fixtures/clean*',
+            uriGlob: 'lint-fixtures/clean*',
             spec: 'default',
         ));
 
@@ -265,10 +266,10 @@ it('pre-build rules run regardless of --spec= narrowing', function (): void {
         ->and(array_values($orphans)[0]->spec)->toBeNull(); // pre-build findings carry no spec tag
 })->group('openapi', 'lint');
 
-it('--path filter scopes extractor-emitted findings, not just tree-walk findings', function (): void {
+it('--uri filter scopes extractor-emitted findings, not just tree-walk findings', function (): void {
     // CleanController::list as POST triggers request.empty (no body schema). The lint-fixtures/clean
     // GET route registered in beforeEach is untouched. Without filtering both POSTs would emit
-    // request.empty; with --path='lint-fixtures/clean*' the leak route's finding must drop.
+    // request.empty; with --uri='lint-fixtures/clean*' the leak route's finding must drop.
     Route::post('leak-fixtures/excluded', [CleanController::class, 'list'])->name('leak.excluded');
 
     $unfiltered = app(LintRunner::class)->run(new LintOptions(level: 2));
@@ -279,7 +280,7 @@ it('--path filter scopes extractor-emitted findings, not just tree-walk findings
     );
     expect($leakFindings)->not->toBeEmpty();
 
-    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, path: 'lint-fixtures/clean*'));
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'lint-fixtures/clean*'));
     $leakedAfterFilter = array_filter(
         $filtered->findings,
         static fn($f) => $f->location->routeUri === 'leak-fixtures/excluded',
@@ -287,10 +288,10 @@ it('--path filter scopes extractor-emitted findings, not just tree-walk findings
     expect($leakedAfterFilter)->toBeEmpty();
 });
 
-it('--path filter scopes extractor findings that carry no routeUri', function (): void {
+it('--uri filter scopes extractor findings that carry no routeUri', function (): void {
     // UnknownRuleController injects a FormRequest with an un-introspectable Rule, so generation
     // emits a route-scoped `rule.unknown` finding for it — historically with no routeUri. The
-    // clean GET route from beforeEach never produces rule.unknown, so with --path scoped to the
+    // clean GET route from beforeEach never produces rule.unknown, so with --uri scoped to the
     // clean route, any surviving rule.unknown is a leak from the excluded route.
     Route::post('leak-fixtures/unknown-rule', [UnknownRuleController::class, 'store'])->name('leak.unknown-rule');
 
@@ -301,7 +302,7 @@ it('--path filter scopes extractor findings that carry no routeUri', function ()
     );
     expect($unknownRuleFindings)->not->toBeEmpty();
 
-    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, path: 'lint-fixtures/clean*'));
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'lint-fixtures/clean*'));
     $leaked = array_filter(
         $filtered->findings,
         static fn($f) => $f->ruleId === 'rule.unknown',
@@ -309,14 +310,14 @@ it('--path filter scopes extractor findings that carry no routeUri', function ()
     expect($leaked)->toBeEmpty();
 });
 
-it('--path keeps a schema finding when an in-scope route shares the schema', function (): void {
+it('--uri keeps a schema finding when an in-scope route shares the schema', function (): void {
     // The same FormRequest backs an in-scope and an out-of-scope route. Its rule.unknown finding
     // is schema-keyed (no routeUri) and must stay visible: the in-scope route references the
     // schema, so scoping must not silently drop a finding that belongs to the requested slice.
     Route::post('shared-fixtures/in-scope', [UnknownRuleController::class, 'store'])->name('shared.in-scope');
     Route::post('shared-fixtures/out-scope', [UnknownRuleController::class, 'store'])->name('shared.out-scope');
 
-    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, path: 'shared-fixtures/in-scope'));
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'shared-fixtures/in-scope'));
     $kept = array_filter(
         $filtered->findings,
         static fn($f) => $f->ruleId === 'rule.unknown',
@@ -331,7 +332,7 @@ it('cannot disable spec.invalid via config disabled_rules', function (): void {
     // findings at level 0 — exit 0 proves the pipeline runs normally.
     $this->artisan('openapi:lint', [
         '--level' => 0,
-        '--path' => 'lint-fixtures/clean*',
+        '--uri' => 'lint-fixtures/clean*',
         '--format' => 'json',
     ])->assertExitCode(0);
 
@@ -340,7 +341,42 @@ it('cannot disable spec.invalid via config disabled_rules', function (): void {
     // live and disabled_rules did not inadvertently disable other rules.
     $this->artisan('openapi:lint', [
         '--level' => 2,
-        '--path' => 'lint-fixtures/broken*',
+        '--uri' => 'lint-fixtures/broken*',
         '--format' => 'json',
     ])->assertExitCode(1);
 });
+
+// region --path file scoping
+
+it('--path scopes by source file, keeping only routes whose file is listed', function (): void {
+    $brokenFile = Str::after((string) (new ReflectionMethod(BrokenController::class, 'stream'))->getFileName(), base_path() . '/');
+
+    // Only the broken controller's file is listed → only its route is linted → its findings fire.
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--path' => [$brokenFile],
+        '--format' => 'json',
+    ])->assertExitCode(1);
+});
+
+it('--path drops findings from routes whose source file is not listed', function (): void {
+    $cleanFile = Str::after((string) (new ReflectionMethod(CleanController::class, 'list'))->getFileName(), base_path() . '/');
+
+    // Unscoped, the broken route emits findings at level 2.
+    $unfiltered = app(LintRunner::class)->run(new LintOptions(level: 2));
+    $brokenFindings = array_filter(
+        $unfiltered->findings,
+        static fn($f) => $f->location->routeUri === '/lint-fixtures/broken/stream',
+    );
+    expect($brokenFindings)->not->toBeEmpty();
+
+    // Scoped to the clean controller's file only → the broken route is dropped, its findings gone.
+    $filtered = app(LintRunner::class)->run(new LintOptions(level: 2, files: [$cleanFile]));
+    $leaked = array_filter(
+        $filtered->findings,
+        static fn($f) => $f->location->routeUri === '/lint-fixtures/broken/stream',
+    );
+    expect($leaked)->toBeEmpty();
+});
+
+// endregion
