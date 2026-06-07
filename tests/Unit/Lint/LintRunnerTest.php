@@ -232,6 +232,18 @@ it('activates the gate from config when no CLI flag is passed', function (): voi
     expect($result->exitCode)->toBe(1);
 });
 
+it('activates the max-findings gate from config when no CLI flag is passed', function (): void {
+    config(['openapi.lint.max_findings' => 0]);
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+    ));
+
+    expect($result->findings)->not->toBe([])
+        ->and($result->exitCode)->toBe(1);
+});
+
 it('treats an empty scope as 100% coverage under a gate', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(
         level: 2,
