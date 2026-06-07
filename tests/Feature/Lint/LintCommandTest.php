@@ -386,6 +386,15 @@ it('--path drops findings from routes whose source file is not listed', function
 
 // region coverage rendering + gates
 
+it('rejects a non-numeric min-coverage value', function (): void {
+    // The artisan test harness propagates the thrown InvalidArgumentException rather than
+    // converting it to an exit code, so assert on the throw directly.
+    expect(fn(): int => $this->artisan('openapi:lint', [
+        '--uri' => 'lint-fixtures/broken*',
+        '--min-coverage' => 'abc',
+    ])->run())->toThrow(InvalidArgumentException::class, 'Invalid --min-coverage value: abc');
+});
+
 it('prints a coverage summary line in cli format', function (): void {
     // Both substrings live on the single Coverage line; the artisan output matcher registers a
     // separate doWrite expectation per substring, so render directly and assert on the buffer.

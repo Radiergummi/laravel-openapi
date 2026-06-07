@@ -40,6 +40,7 @@ use function count;
 use function explode;
 use function getenv;
 use function implode;
+use function is_numeric;
 use function is_string;
 use function sprintf;
 
@@ -229,6 +230,9 @@ class LintCommand extends Command
             );
     }
 
+    /**
+     * @throws InvalidArgumentException
+     */
     private function buildOptions(): LintOptions
     {
         $uriGlob = $this->option('uri');
@@ -250,18 +254,44 @@ class LintCommand extends Command
         );
     }
 
+    /**
+     * @throws InvalidArgumentException
+     */
     private function parseFloatOption(string $name): ?float
     {
         $raw = $this->option($name);
 
-        return is_string($raw) && $raw !== '' ? (float) $raw : null;
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        if (!is_numeric($raw)) {
+            throw new InvalidArgumentException(
+                sprintf('Invalid --%s value: %s. Expected a number.', $name, $raw),
+            );
+        }
+
+        return (float) $raw;
     }
 
+    /**
+     * @throws InvalidArgumentException
+     */
     private function parseIntOption(string $name): ?int
     {
         $raw = $this->option($name);
 
-        return is_string($raw) && $raw !== '' ? (int) $raw : null;
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        if (!is_numeric($raw)) {
+            throw new InvalidArgumentException(
+                sprintf('Invalid --%s value: %s. Expected a number.', $name, $raw),
+            );
+        }
+
+        return (int) $raw;
     }
 
     /**

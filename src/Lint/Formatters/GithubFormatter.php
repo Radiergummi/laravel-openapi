@@ -38,12 +38,16 @@ final class GithubFormatter implements Formatter
         }
 
         if ($coverage !== null) {
+            $suffix = $coverage->unattributedFindings > 0
+                ? sprintf(', %d unattributed', $coverage->unattributedFindings)
+                : '';
+
             $output->writeln(sprintf(
-                '::notice title=OpenAPI coverage::%.2f%% (%d/%d operations), %d unattributed',
+                '::notice title=OpenAPI coverage::%.2f%% (%d/%d operations)%s',
                 $coverage->coveragePercent,
                 $coverage->coveredOperations,
                 $coverage->totalOperations,
-                $coverage->unattributedFindings,
+                $suffix,
             ));
         }
     }
