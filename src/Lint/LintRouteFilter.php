@@ -22,19 +22,17 @@ use function base_path;
 use function config_path;
 use function explode;
 use function fnmatch;
-use function implode;
 use function in_array;
 use function is_string;
-use function sprintf;
 use function str_contains;
 use function trim;
 
 use const PHP_EOL;
 
 /**
- * Filters the discovered route set for {@see LintRunner} using --path glob and --diff git
- * detection. Extracted from {@see LintCommand} so the filter is unit-testable; the runner uses
- * it via composition.
+ * Filters the discovered route set for {@see LintRunner} using the --uri glob and the file-based
+ * --path / --diff scope. Extracted from {@see LintCommand} so the filter is unit-testable; the
+ * runner uses it via composition.
  *
  * The default-branch detection delegates to git itself:
  *  1. `git symbolic-ref refs/remotes/origin/HEAD` — the value `git clone` sets to the upstream
@@ -42,8 +40,8 @@ use const PHP_EOL;
  *  2. The first existing local branch among `main`, `master`, `trunk`.
  *  3. Fallback: `HEAD~1`.
  *
- * Consumers can supply an explicit ref via {@see LintOptions::$diffRef}; the detection runs
- * only when --diff is requested without a value.
+ * Consumers supply the scope via a {@see DiffScope} on {@see LintOptions::$diff}; the default-ref
+ * detection runs only for a {@see DiffMode::Ref} scope whose ref is null.
  */
 #[Scoped]
 class LintRouteFilter
@@ -59,6 +57,7 @@ class LintRouteFilter
      * @param list<ActionDescriptor> $descriptors
      * @param list<string>           $files       Explicit source files (`--path`), absolute or
      *                                            base-relative; normalised to base-relative here.
+     * @param ?DiffScope             $diff        The `--diff` scope, or null when not requested.
      *
      * @return list<ActionDescriptor>
      *
@@ -68,7 +67,7 @@ class LintRouteFilter
      * @throws ProcessTimedOutException
      * @throws RuntimeException
      */
-    public function filter(array $descriptors, ?string $uriGlob, array $files, bool $diffEnabled, ?string $diffRef): array
+    public function filter(array $descriptors, ?string $uriGlob, array $files, ?DiffScope $diff): array
     {
         $descriptors = $this->dropClosureAndVendorRoutes($descriptors);
 
@@ -82,18 +81,14 @@ class LintRouteFilter
             );
         }
 
-        if ($files === [] && !$diffEnabled) {
+        if ($files === [] && $diff === null) {
             return $descriptors;
         }
 
         $changedFiles = array_map($this->normaliseToBaseRelative(...), $files);
 
-        if ($diffEnabled) {
-            $ref = $diffRef === null || $diffRef === ''
-                ? $this->resolveDefaultDiffRef()
-                : $diffRef;
-
-            $changedFiles = [...$changedFiles, ...$this->changedFilesSince($ref)];
+        if ($diff !== null) {
+            $changedFiles = [...$changedFiles, ...$this->changedFilesSince($this->resolveRef($diff))];
         }
 
         if (!$this->infraTouched($changedFiles)) {
@@ -117,6 +112,25 @@ class LintRouteFilter
     private function normaliseToBaseRelative(string $file): string
     {
         return Str::after($file, base_path() . '/');
+    }
+
+    /**
+     * Resolve a `Ref`-mode scope with no ref to a concrete merge-base ref, so {@see diffCommand}
+     * stays a pure mode→argv mapping. Work-tree modes and explicit refs pass through unchanged.
+     *
+     * @throws LogicException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws RuntimeException
+     */
+    private function resolveRef(DiffScope $diff): DiffScope
+    {
+        if ($diff->mode === DiffMode::Ref && ($diff->ref === null || $diff->ref === '')) {
+            return new DiffScope(DiffMode::Ref, $this->resolveDefaultDiffRef());
+        }
+
+        return $diff;
     }
 
     /**
@@ -234,9 +248,9 @@ class LintRouteFilter
      * @throws ProcessTimedOutException
      * @throws RuntimeException
      */
-    protected function changedFilesSince(string $ref): array
+    protected function changedFilesSince(DiffScope $diff): array
     {
-        $process = new Process($this->diffCommand($ref));
+        $process = new Process($this->diffCommand($diff));
         $process->run();
 
         return array_values(
@@ -245,18 +259,17 @@ class LintRouteFilter
     }
 
     /**
-     * The git argv for a given diff ref. The `working`/`staged` sentinels select uncommitted
-     * edits instead of a committed-vs-ref diff: `working` ≈ everything dirty in the work tree
-     * (--diff=working), `staged` ≈ the index only (--diff=staged, the pre-commit scope).
+     * The git argv for a diff scope. `WorkingTree`/`StagedIndex` select uncommitted edits; `Ref`
+     * diffs `<ref>...HEAD` and expects a concrete ref (see {@see resolveRef}).
      *
      * @return list<string>
      */
-    protected function diffCommand(string $ref): array
+    protected function diffCommand(DiffScope $diff): array
     {
-        return match ($ref) {
-            'working' => ['git', 'diff', '--name-only', 'HEAD'],
-            'staged' => ['git', 'diff', '--cached', '--name-only'],
-            default => ['git', 'diff', '--name-only', $ref . '...HEAD'],
+        return match ($diff->mode) {
+            DiffMode::WorkingTree => ['git', 'diff', '--name-only', 'HEAD'],
+            DiffMode::StagedIndex => ['git', 'diff', '--cached', '--name-only'],
+            DiffMode::Ref => ['git', 'diff', '--name-only', $diff->ref . '...HEAD'],
         };
     }
 
@@ -289,47 +302,5 @@ class LintRouteFilter
         }
 
         return in_array($this->normaliseToBaseRelative($controllerFile), $changedFiles, true);
-    }
-
-    /**
-     * Build the OpenApiGenerator filter list that restricts generation to the filtered route
-     * set. Returns include filters (closure returning true means "skip this descriptor"). The
-     * vendor/closure exclusion always applies; the URI allowlist is layered on top when --path
-     * or --diff narrowed the descriptor list.
-     *
-     * @param list<ActionDescriptor> $descriptors
-     *
-     * @return list<callable(ActionDescriptor): bool>
-     */
-    public function buildGeneratorFilters(array $descriptors, ?string $path, bool $diffEnabled): array
-    {
-        $filters = [];
-
-        $filters[] = static fn(ActionDescriptor $descriptor): bool
-            => self::isVendorOrUnresolvable($descriptor);
-
-        if ((is_string($path) && $path !== '') || $diffEnabled) {
-            $allowed = [];
-
-            foreach ($descriptors as $descriptor) {
-                $key = sprintf(
-                    '%s|%s',
-                    $descriptor->route->uri(),
-                    implode(',', $descriptor->route->methods()),
-                );
-                $allowed[$key] = true;
-            }
-
-            $filters[] = static fn(ActionDescriptor $descriptor): bool
-                => !isset(
-                    $allowed[sprintf(
-                        '%s|%s',
-                        $descriptor->route->uri(),
-                        implode(',', $descriptor->route->methods()),
-                    )],
-                );
-        }
-
-        return $filters;
     }
 }

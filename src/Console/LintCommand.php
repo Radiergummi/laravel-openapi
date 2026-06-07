@@ -8,6 +8,8 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use JsonException;
+use Radiergummi\OpenApi\Lint\DiffMode;
+use Radiergummi\OpenApi\Lint\DiffScope;
 use Radiergummi\OpenApi\Lint\Fix\FixRunner;
 use Radiergummi\OpenApi\Lint\Fix\FixRunResult;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
@@ -227,7 +229,6 @@ class LintCommand extends Command
     private function buildOptions(): LintOptions
     {
         $uriGlob = $this->option('uri');
-        $diffRef = $this->option('diff');
 
         return new LintOptions(
             level: $this->input->hasParameterOption('--level')
@@ -237,15 +238,35 @@ class LintCommand extends Command
             skip: $this->parseList($this->option('skip')),
             uriGlob: is_string($uriGlob) && $uriGlob !== '' ? $uriGlob : null,
             files: $this->parseFiles($this->option('path')),
-            // --diff is value-optional: a bare `--diff` yields a null value but is still
-            // "requested" and must trigger default-ref resolution. option() alone can't tell
-            // bare-flag from absent, so check the raw input here.
-            diffEnabled: $this->input->hasParameterOption('--diff'),
-            diffRef: is_string($diffRef) && $diffRef !== '' ? $diffRef : null,
+            diff: $this->resolveDiffScope(),
             applySuppressions: !$this->option('no-suppress'),
             validateSpec: !$this->option('no-validate'),
             spec: $this->option('spec') ?: null,
         );
+    }
+
+    /**
+     * Map the value-optional `--diff` flag to a {@see DiffScope}, or null when it was not passed.
+     * `--diff=staged` / `--diff=working` select the work-tree modes; any other value is a ref, and
+     * a bare `--diff` is a ref-mode scope with a null ref (deferring to the merge-base default).
+     * `option()` alone can't distinguish a bare flag from an absent one, so the raw input decides.
+     */
+    private function resolveDiffScope(): ?DiffScope
+    {
+        if (!$this->input->hasParameterOption('--diff')) {
+            return null;
+        }
+
+        $value = $this->option('diff');
+
+        return match ($value) {
+            'staged' => new DiffScope(DiffMode::StagedIndex),
+            'working' => new DiffScope(DiffMode::WorkingTree),
+            default => new DiffScope(
+                DiffMode::Ref,
+                is_string($value) && $value !== '' ? $value : null,
+            ),
+        };
     }
 
     /**

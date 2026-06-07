@@ -29,13 +29,10 @@ final readonly class LintOptions
      *                                           is resolved to its affected routes + reachable
      *                                           schemas via the same mechanism as --diff. Empty
      *                                           disables.
-     * @param bool            $diffEnabled       True when --diff was passed (even without a
-     *                                           value); the runner then computes the default
-     *                                           ref if $diffRef is null.
-     * @param ?string         $diffRef           Explicit git ref for --diff, or the sentinel
-     *                                           'working' (uncommitted work-tree edits) /
-     *                                           'staged' (the index only). Null with
-     *                                           $diffEnabled = true triggers default resolution.
+     * @param ?DiffScope      $diff              The requested --diff scope, or null when --diff
+     *                                           was not passed. A bare --diff is a `Ref`-mode
+     *                                           scope with a null ref (deferring to the
+     *                                           merge-base default).
      * @param bool            $applySuppressions Whether `#[IgnoreLint]` directives are honoured.
      *                                           False corresponds to --no-suppress on the CLI.
      * @param ?string         $spec              Restrict per-spec rules to one named spec. Null
@@ -52,10 +49,18 @@ final readonly class LintOptions
         public array $skip = [],
         public ?string $uriGlob = null,
         public array $files = [],
-        public bool $diffEnabled = false,
-        public ?string $diffRef = null,
+        public ?DiffScope $diff = null,
         public bool $applySuppressions = true,
         public bool $validateSpec = true,
         public ?string $spec = null,
     ) {}
+
+    /**
+     * Whether any route-scoping flag (`--uri`, `--path`, or `--diff`) narrowed the linted route
+     * set, so callers know to compute the in-scope URI set for finding scoping.
+     */
+    public function isScoped(): bool
+    {
+        return $this->uriGlob !== null || $this->files !== [] || $this->diff !== null;
+    }
 }

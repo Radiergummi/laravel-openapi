@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Str;
+use Radiergummi\OpenApi\Lint\DiffMode;
+use Radiergummi\OpenApi\Lint\DiffScope;
 use Radiergummi\OpenApi\Lint\LintRouteFilter;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
@@ -19,15 +21,15 @@ uses()->group('openapi', 'lint');
  * --diff. Pass `null` to make the test fail loudly if the default resolution path runs (used to
  * assert an explicit ref bypasses it).
  *
- * The returned object exposes `$capturedRef` — the last ref passed to `changedFilesSince()` — so
- * tests can assert which ref was consulted.
+ * The returned object exposes `$capturedDiff` — the last scope passed to `changedFilesSince()`
+ * (null when it was never called) — so tests can assert which scope was consulted.
  *
  * @param list<string> $diffFiles
  */
 function makeStubFilter(?string $defaultRef, array $diffFiles): LintRouteFilter
 {
     return new class ($defaultRef, $diffFiles) extends LintRouteFilter {
-        public ?string $capturedRef = null;
+        public ?DiffScope $capturedDiff = null;
 
         /**
          * @param list<string> $changedFiles
@@ -46,9 +48,9 @@ function makeStubFilter(?string $defaultRef, array $diffFiles): LintRouteFilter
             return $this->stubDefaultRef;
         }
 
-        protected function changedFilesSince(string $ref): array
+        protected function changedFilesSince(DiffScope $diff): array
         {
-            $this->capturedRef = $ref;
+            $this->capturedDiff = $diff;
 
             return $this->changedFiles;
         }
@@ -72,8 +74,7 @@ it('does not filter when --diff is disabled', function (): void {
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [],
-        diffEnabled: false,
-        diffRef: null,
+        diff: null,
     );
 
     expect($filtered)->toHaveCount(2);
@@ -94,8 +95,7 @@ it('keeps only descriptors whose controller file appears in the diff', function 
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [],
-        diffEnabled: true,
-        diffRef: null,
+        diff: new DiffScope(),
     );
 
     expect($filtered)->toHaveCount(1)
@@ -117,16 +117,15 @@ it('uses an explicit --diff=ref instead of resolving the default ref', function 
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [],
-        diffEnabled: true,
-        diffRef: 'abc123',
+        diff: new DiffScope(DiffMode::Ref, 'abc123'),
     );
 
-    expect($filter->capturedRef)->toBe('abc123')
+    expect($filter->capturedDiff?->ref)->toBe('abc123')
         ->and($filtered)->toHaveCount(1)
         ->and($filtered[0]->controller?->getName())->toBe(CleanController::class);
 });
 
-it('passes the staged sentinel ref through for --diff=staged', function (): void {
+it('passes the staged scope through for --diff=staged', function (): void {
     $clean = ActionDescriptorFactory::forControllerMethod(CleanController::class, 'list');
     $broken = ActionDescriptorFactory::forControllerMethod(BrokenController::class, 'stream');
 
@@ -141,16 +140,15 @@ it('passes the staged sentinel ref through for --diff=staged', function (): void
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [],
-        diffEnabled: true,
-        diffRef: 'staged',
+        diff: new DiffScope(DiffMode::StagedIndex),
     );
 
-    expect($filter->capturedRef)->toBe('staged')
+    expect($filter->capturedDiff?->mode)->toBe(DiffMode::StagedIndex)
         ->and($filtered)->toHaveCount(1)
         ->and($filtered[0]->controller?->getName())->toBe(BrokenController::class);
 });
 
-it('passes the working sentinel ref through for --diff=working', function (): void {
+it('passes the working-tree scope through for --diff=working', function (): void {
     $clean = ActionDescriptorFactory::forControllerMethod(CleanController::class, 'list');
 
     $filter = makeStubFilter(defaultRef: null, diffFiles: []);
@@ -159,11 +157,10 @@ it('passes the working sentinel ref through for --diff=working', function (): vo
         descriptors: [$clean],
         uriGlob: null,
         files: [],
-        diffEnabled: true,
-        diffRef: 'working',
+        diff: new DiffScope(DiffMode::WorkingTree),
     );
 
-    expect($filter->capturedRef)->toBe('working');
+    expect($filter->capturedDiff?->mode)->toBe(DiffMode::WorkingTree);
 });
 
 it('preserves every descriptor when the openapi config file is in the diff', function (): void {
@@ -181,8 +178,7 @@ it('preserves every descriptor when the openapi config file is in the diff', fun
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [],
-        diffEnabled: true,
-        diffRef: null,
+        diff: new DiffScope(),
     );
 
     expect($filtered)->toHaveCount(2);
@@ -192,23 +188,23 @@ it('preserves every descriptor when the openapi config file is in the diff', fun
 
 // region diff command selection
 
-it('builds the right git command for each --diff mode', function (string $ref, array $expected): void {
+it('builds the right git command for each --diff mode', function (DiffScope $diff, array $expected): void {
     $filter = new class () extends LintRouteFilter {
         /**
          * @return list<string>
          */
-        public function exposeDiffCommand(string $ref): array
+        public function exposeDiffCommand(DiffScope $diff): array
         {
-            return $this->diffCommand($ref);
+            return $this->diffCommand($diff);
         }
     };
 
-    expect($filter->exposeDiffCommand($ref))->toBe($expected);
+    expect($filter->exposeDiffCommand($diff))->toBe($expected);
 })->with([
-    'staged'  => ['staged', ['git', 'diff', '--cached', '--name-only']],
-    'working' => ['working', ['git', 'diff', '--name-only', 'HEAD']],
-    'ref'     => ['main', ['git', 'diff', '--name-only', 'main...HEAD']],
-    'sha'     => ['abc123', ['git', 'diff', '--name-only', 'abc123...HEAD']],
+    'staged'  => [new DiffScope(DiffMode::StagedIndex), ['git', 'diff', '--cached', '--name-only']],
+    'working' => [new DiffScope(DiffMode::WorkingTree), ['git', 'diff', '--name-only', 'HEAD']],
+    'ref'     => [new DiffScope(DiffMode::Ref, 'main'), ['git', 'diff', '--name-only', 'main...HEAD']],
+    'sha'     => [new DiffScope(DiffMode::Ref, 'abc123'), ['git', 'diff', '--name-only', 'abc123...HEAD']],
 ]);
 
 // endregion
@@ -228,11 +224,10 @@ it('keeps only descriptors whose controller file appears in the --path file list
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [relativeFromBasePath($brokenFile)],
-        diffEnabled: false,
-        diffRef: null,
+        diff: null,
     );
 
-    expect($filter->capturedRef)->toBeNull()
+    expect($filter->capturedDiff)->toBeNull()
         ->and($filtered)->toHaveCount(1)
         ->and($filtered[0]->controller?->getName())->toBe(BrokenController::class);
 });
@@ -249,8 +244,7 @@ it('normalises absolute --path file values to base-relative form', function (): 
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [$brokenFile], // absolute path, as a shell would expand it
-        diffEnabled: false,
-        diffRef: null,
+        diff: null,
     );
 
     expect($filtered)->toHaveCount(1)
@@ -274,8 +268,7 @@ it('unions --path files with --diff changes', function (): void {
         descriptors: [$clean, $broken],
         uriGlob: null,
         files: [relativeFromBasePath($brokenFile)],
-        diffEnabled: true,
-        diffRef: null,
+        diff: new DiffScope(),
     );
 
     expect($filtered)->toHaveCount(2);
@@ -293,8 +286,7 @@ it('keeps only descriptors whose route URI matches the --uri glob', function ():
         descriptors: [$posts, $users],
         uriGlob: 'posts*',
         files: [],
-        diffEnabled: false,
-        diffRef: null,
+        diff: null,
     );
 
     expect($filtered)->toHaveCount(1)
@@ -314,8 +306,7 @@ it('combines the --uri glob with a --path file list', function (): void {
         descriptors: [$posts, $postsComments],
         uriGlob: 'posts*',
         files: [relativeFromBasePath($brokenFile)],
-        diffEnabled: false,
-        diffRef: null,
+        diff: null,
     );
 
     expect($filtered)->toHaveCount(1)
