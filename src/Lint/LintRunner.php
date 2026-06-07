@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint;
 
+use Composer\InstalledVersions;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Container\Container;
@@ -15,6 +16,7 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
+use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Tree\SpecTreeBuilder;
 use Radiergummi\OpenApi\Lint\Tree\SpecTreeWalker;
 use Radiergummi\OpenApi\Lint\Visitors\RouteRule;
@@ -42,6 +44,7 @@ use function array_pop;
 use function array_unique;
 use function array_values;
 use function class_exists;
+use function count;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -75,11 +78,15 @@ use function Radiergummi\OpenApi\is_undefined;
 final readonly class LintRunner
 {
     /**
-     * @param null|list<string> $enabledRules    `openapi.lint.enabled_rules` — null when unset
-     *                                           (distinct from `[]`, which means "all disabled").
-     * @param list<string>      $disabledRules   `openapi.lint.disabled_rules`.
-     * @param int|string        $configuredLevel `openapi.lint.level` — numeric or the literal
-     *                                           string `"max"`.
+     * @param null|list<string> $enabledRules          `openapi.lint.enabled_rules` — null when unset
+     *                                                 (distinct from `[]`, which means "all disabled").
+     * @param list<string>      $disabledRules         `openapi.lint.disabled_rules`.
+     * @param int|string        $configuredLevel       `openapi.lint.level` — numeric or the literal
+     *                                                 string `"max"`.
+     * @param ?float            $configuredMinCoverage `openapi.lint.min_coverage` — gate floor, null
+     *                                                 when unset.
+     * @param ?int              $configuredMaxFindings `openapi.lint.max_findings` — gate budget, null
+     *                                                 when unset.
      */
     public function __construct(
         private Container $container,
@@ -98,6 +105,10 @@ final readonly class LintRunner
         private array $disabledRules = [],
         #[Config('openapi.lint.level', 0)]
         private int|string $configuredLevel = 0,
+        #[Config('openapi.lint.min_coverage')]
+        private ?float $configuredMinCoverage = null,
+        #[Config('openapi.lint.max_findings')]
+        private ?int $configuredMaxFindings = null,
     ) {}
 
     /**
@@ -231,6 +242,11 @@ final readonly class LintRunner
         $descriptorDirectives = $this->suppressionCollector->collect($descriptors);
         $suppressionsAll = $descriptorDirectives;
 
+        // Operation key => tag list, accumulated across every target spec. Feeds the coverage
+        // calculator. Built from the same in-scope tree the walk uses, so it honours --path/--diff.
+        /** @var array<string, list<string>> $operationTags */
+        $operationTags = [];
+
         foreach ($targets as $spec) {
             // Bind a spec-local collector BEFORE generateOne so stage-emitted findings
             // (e.g. ValidationRulesToSchema, ErrorResponseInferenceStage) land alongside the
@@ -267,7 +283,7 @@ final readonly class LintRunner
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
 
-            $this->walkSpec(
+            $operations = $this->walkSpec(
                 $document,
                 $descriptors,
                 $rules,
@@ -278,6 +294,27 @@ final readonly class LintRunner
                 $skip,
                 componentClassMap: $classMap,
             );
+
+            foreach ($operations as $operation) {
+                // Scope the coverage denominator the same way findings are scoped: when a route
+                // filter is active, an out-of-scope operation must not count. walkSpec already
+                // restricts $document->paths when $descriptors is non-empty, but an empty match
+                // (e.g. a glob that hits nothing) leaves every operation in $api->operations, so
+                // gate the URI explicitly here.
+                if ($allowedRouteUris !== null && !isset($allowedRouteUris[ltrim($operation->pathUri, '/')])) {
+                    continue;
+                }
+
+                $key = CoverageCalculator::operationKey(
+                    $spec->name,
+                    $operation->method,
+                    $operation->pathUri,
+                );
+
+                if ($key !== null) {
+                    $operationTags[$key] = $operation->tags;
+                }
+            }
 
             foreach ($specLocal->all() as $finding) {
                 $emit->emit($finding->withSpec($spec->name));
@@ -345,9 +382,19 @@ final readonly class LintRunner
 
         // endregion
 
-        $exitCode = $findings === [] ? 0 : 1;
+        $coverage = new CoverageCalculator()->calculate(
+            $operationTags,
+            $findings,
+            $level,
+            $this->generatorVersion(),
+        );
 
-        return new LintResult($findings, $level, $exitCode);
+        return new LintResult(
+            $findings,
+            $level,
+            $this->resolveExitCode($findings, $coverage, $options),
+            $coverage,
+        );
     }
 
     /**
@@ -409,6 +456,48 @@ final readonly class LintRunner
     }
 
     /**
+     * Exit code for the run. With no coverage gate configured the legacy rule applies (any finding
+     * → 1). When a gate is active (--min-coverage / --max-findings, from CLI or config) the gate
+     * replaces that rule: non-zero only when coverage is below the floor or findings exceed the
+     * budget — findings alone no longer fail.
+     *
+     * @param list<Finding> $findings
+     */
+    private function resolveExitCode(array $findings, CoverageSummary $coverage, LintOptions $options): int
+    {
+        $minCoverage = $options->minCoverage ?? $this->configuredMinCoverage;
+        $maxFindings = $options->maxFindings ?? $this->configuredMaxFindings;
+
+        if ($minCoverage === null && $maxFindings === null) {
+            return $findings === [] ? 0 : 1;
+        }
+
+        if ($minCoverage !== null && $coverage->coveragePercent < $minCoverage) {
+            return 1;
+        }
+
+        if ($maxFindings !== null && count($findings) > $maxFindings) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    /**
+     * The installed generator version, stamped into the coverage report so cross-version coverage
+     * deltas are recognised as non-comparable. Falls back to 'dev' when the package is not resolvable
+     * as a Composer dependency.
+     */
+    private function generatorVersion(): string
+    {
+        if (!InstalledVersions::isInstalled('radiergummi/laravel-openapi')) {
+            return 'dev';
+        }
+
+        return InstalledVersions::getPrettyVersion('radiergummi/laravel-openapi') ?? 'dev';
+    }
+
+    /**
      * Run the tree walk, RouteRule pass, and MetaSuppressionStale for one spec.
      *
      * The caller is responsible for binding {@see $specLocal} as the active
@@ -423,6 +512,8 @@ final readonly class LintRunner
      * @param list<string>                $skip
      * @param array<string, class-string> $componentClassMap
      *
+     * @return list<OperationNode> the in-scope operations walked
+     *
      * @throws \LogicException
      */
     private function walkSpec(
@@ -435,7 +526,7 @@ final readonly class LintRunner
         array $only,
         array $skip,
         array $componentClassMap = [],
-    ): void {
+    ): array {
         // region Tree walk
 
         $staleChecker = new MetaSuppressionStale();
@@ -517,6 +608,8 @@ final readonly class LintRunner
             }
         }
         // endregion
+
+        return $api->operations;
     }
 
     /**

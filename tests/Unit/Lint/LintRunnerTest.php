@@ -144,3 +144,102 @@ it('resolves --level=max to the rule registry maxLevel', function (): void {
 
     expect($result->level)->toBe($registry->maxLevel());
 });
+
+it('attaches a coverage summary to the result', function (): void {
+    // The clean fixture is only finding-free at level 0; at level >= 1 it emits response rules.
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 0,
+        uriGlob: 'lint-runner/clean*',
+    ));
+
+    expect($result->coverage)->not->toBeNull()
+        ->and($result->coverage->totalOperations)->toBe(1)
+        ->and($result->coverage->coveredOperations)->toBe(1)
+        ->and($result->coverage->coveragePercent)->toBe(100.00)
+        ->and($result->coverage->generatorVersion)->toBeString()->not->toBe('');
+});
+
+it('reports reduced coverage for a broken route', function (): void {
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+    ));
+
+    expect($result->coverage->totalOperations)->toBe(1)
+        ->and($result->coverage->coveredOperations)->toBe(0)
+        ->and($result->coverage->coveragePercent)->toBe(0.00);
+});
+
+it('keeps legacy exit semantics when no gate is configured', function (): void {
+    $broken = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+    ));
+
+    expect($broken->exitCode)->toBe(1);
+});
+
+it('passes the min-coverage gate when coverage meets the threshold despite findings', function (): void {
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+        minCoverage: 0.0,
+    ));
+
+    expect($result->findings)->not->toBe([])
+        ->and($result->exitCode)->toBe(0);
+});
+
+it('fails the min-coverage gate when coverage is below the threshold', function (): void {
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+        minCoverage: 100.0,
+    ));
+
+    expect($result->exitCode)->toBe(1);
+});
+
+it('fails the max-findings gate when the finding count exceeds the budget', function (): void {
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+        maxFindings: 0,
+    ));
+
+    expect($result->exitCode)->toBe(1);
+});
+
+it('passes a generous max-findings gate even with findings present', function (): void {
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+        maxFindings: 999,
+    ));
+
+    expect($result->findings)->not->toBe([])
+        ->and($result->exitCode)->toBe(0);
+});
+
+it('activates the gate from config when no CLI flag is passed', function (): void {
+    config(['openapi.lint.min_coverage' => 100]);
+
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/broken*',
+    ));
+
+    expect($result->exitCode)->toBe(1);
+});
+
+it('treats an empty scope as 100% coverage under a gate', function (): void {
+    $result = app(LintRunner::class)->run(new LintOptions(
+        level: 2,
+        uriGlob: 'lint-runner/does-not-exist*',
+        minCoverage: 100.0,
+    ));
+
+    expect($result->coverage->totalOperations)->toBe(0)
+        ->and($result->coverage->coveragePercent)->toBe(100.00)
+        ->and($result->exitCode)->toBe(0);
+});
