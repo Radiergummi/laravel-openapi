@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use Override;
+use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function implode;
 use function rtrim;
+use function sprintf;
 use function str_replace;
 
 final class GithubFormatter implements Formatter
@@ -24,10 +26,25 @@ final class GithubFormatter implements Formatter
      * @param list<Finding> $findings
      */
     #[Override]
-    public function render(array $findings, int $level, int $exitCode, OutputInterface $output): void
-    {
+    public function render(
+        array $findings,
+        int $level,
+        int $exitCode,
+        OutputInterface $output,
+        ?CoverageSummary $coverage = null,
+    ): void {
         foreach ($findings as $finding) {
             $output->writeln($this->formatCommand($finding));
+        }
+
+        if ($coverage !== null) {
+            $output->writeln(sprintf(
+                '::notice title=OpenAPI coverage::%.2f%% (%d/%d operations), %d unattributed',
+                $coverage->coveragePercent,
+                $coverage->coveredOperations,
+                $coverage->totalOperations,
+                $coverage->unattributedFindings,
+            ));
         }
     }
 

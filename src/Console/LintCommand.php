@@ -67,7 +67,9 @@ class LintCommand extends Command
         {--list : Print the rule catalog instead of linting}
         {--fix : Apply fixable findings to the source, then report the rest}
         {--check : Report whether --fix would change anything, without writing (CI-safe)}
-        {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}';
+        {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}
+        {--min-coverage= : Fail when documentation coverage % falls below this threshold (gate-driven exit)}
+        {--max-findings= : Fail when the in-scope finding count exceeds this budget}';
 
     protected $description = 'Lint OpenAPI documentation gaps across the API surface';
 
@@ -104,6 +106,7 @@ class LintCommand extends Command
             $result->level,
             $result->exitCode,
             $this->output->getOutput(),
+            $result->coverage,
         );
 
         return $result->exitCode;
@@ -242,7 +245,23 @@ class LintCommand extends Command
             applySuppressions: !$this->option('no-suppress'),
             validateSpec: !$this->option('no-validate'),
             spec: $this->option('spec') ?: null,
+            minCoverage: $this->parseFloatOption('min-coverage'),
+            maxFindings: $this->parseIntOption('max-findings'),
         );
+    }
+
+    private function parseFloatOption(string $name): ?float
+    {
+        $raw = $this->option($name);
+
+        return is_string($raw) && $raw !== '' ? (float) $raw : null;
+    }
+
+    private function parseIntOption(string $name): ?int
+    {
+        $raw = $this->option($name);
+
+        return is_string($raw) && $raw !== '' ? (int) $raw : null;
     }
 
     /**

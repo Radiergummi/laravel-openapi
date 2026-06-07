@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
+use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
+use Radiergummi\OpenApi\Lint\Formatters\JsonFormatter;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Lint\SuppressionCollector;
@@ -17,6 +19,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\SuppressedResponseEmptyController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\UnknownRuleController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 uses()->group('openapi', 'lint');
 
@@ -377,6 +380,78 @@ it('--path drops findings from routes whose source file is not listed', function
         static fn($f) => $f->location->routeUri === '/lint-fixtures/broken/stream',
     );
     expect($leaked)->toBeEmpty();
+});
+
+// endregion
+
+// region coverage rendering + gates
+
+it('prints a coverage summary line in cli format', function (): void {
+    // Both substrings live on the single Coverage line; the artisan output matcher registers a
+    // separate doWrite expectation per substring, so render directly and assert on the buffer.
+    $result = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'lint-fixtures/broken*'));
+
+    $output = new BufferedOutput();
+    app(CliFormatter::class)->render(
+        $result->findings,
+        $result->level,
+        $result->exitCode,
+        $output,
+        $result->coverage,
+    );
+    $rendered = $output->fetch();
+
+    expect($rendered)->toContain('Coverage:')
+        ->and($rendered)->toContain('operations');
+});
+
+it('emits a coverage block in json format', function (): void {
+    // The JSON document is written in a single writeln, so chained expectsOutputToContain
+    // calls can't all match it (each registers a separate doWrite expectation). Render
+    // directly and assert against the captured payload instead.
+    $result = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'lint-fixtures/broken*'));
+
+    $output = new BufferedOutput();
+    app(JsonFormatter::class)->render(
+        $result->findings,
+        $result->level,
+        $result->exitCode,
+        $output,
+        $result->coverage,
+    );
+    $json = $output->fetch();
+
+    expect($json)->toContain('"coverage"')
+        ->and($json)->toContain('"generator_version"')
+        ->and($json)->toContain('"coverage_percent"');
+});
+
+it('exits zero under a satisfied min-coverage gate even with findings', function (): void {
+    // broken route → 0% coverage; a 0% floor is always met → exit 0 despite findings.
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--uri' => 'lint-fixtures/broken*',
+        '--min-coverage' => '0',
+        '--format' => 'json',
+    ])->assertExitCode(0);
+});
+
+it('exits non-zero when min-coverage is not met', function (): void {
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--uri' => 'lint-fixtures/broken*',
+        '--min-coverage' => '100',
+        '--format' => 'json',
+    ])->assertExitCode(1);
+});
+
+it('exits non-zero when the finding count exceeds max-findings', function (): void {
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--uri' => 'lint-fixtures/broken*',
+        '--max-findings' => '0',
+        '--format' => 'json',
+    ])->assertExitCode(1);
 });
 
 // endregion
