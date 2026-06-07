@@ -837,19 +837,6 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Resolves the operation summary across attribute scopes and the docblock.
-     *
-     * Precedence:
-     *   1. action-level `#[Summary]`
-     *   2. action-level `#[Operation(summary: …)]`
-     *   3. action docblock
-     *   4. class-level `#[Summary]`
-     *   5. class-level `#[Operation(summary: …)]`
-     *
-     * The "action" is the controller method, the `__invoke` method of a single-action controller,
-     * or a route closure — all reached uniformly via {@see ActionDescriptor::$actionReflector}.
-     */
-    /**
      * Consults registered operation-convention resolvers, first non-null wins.
      */
     private function resolveConvention(ActionDescriptor $descriptor): ?OperationConvention
@@ -886,6 +873,20 @@ final readonly class OperationBuilder
         return $response;
     }
 
+    /**
+     * Resolves the operation summary across attribute scopes, the docblock, and the convention.
+     *
+     * Precedence:
+     *   1. action-level `#[Summary]`
+     *   2. action-level `#[Operation(summary: …)]`
+     *   3. action docblock
+     *   4. class-level `#[Summary]`
+     *   5. class-level `#[Operation(summary: …)]`
+     *   6. convention-derived default summary
+     *
+     * The "action" is the controller method, the `__invoke` method of a single-action controller,
+     * or a route closure — all reached uniformly via {@see ActionDescriptor::$actionReflector}.
+     */
     private function resolveSummary(ActionDescriptor $descriptor, ?OperationConvention $convention): ?string
     {
         $methodAttr = $this->readScopedSummary(
