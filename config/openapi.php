@@ -331,6 +331,14 @@ return [
         // `spec.invalid` is exempt and cannot be remapped.
         'severity_overrides' => [],
 
+        // Documentation-coverage gate. When either value is non-null, `openapi:lint` becomes
+        // gate-driven: it exits non-zero only when coverage drops below `min_coverage` or the
+        // in-scope finding count exceeds `max_findings` — findings alone no longer fail the
+        // command. CLI flags (--min-coverage / --max-findings) override these. Null disables the
+        // respective gate. Coverage is operation-level (route × verb) and binary.
+        'min_coverage' => null,
+        'max_findings' => null,
+
         // Project style conventions consumed by convention rules.
         'style' => [
             // operationId casing: 'dot' | 'kebab' | 'snake' | 'camel' | 'pascal' | 'train' | 'screaming_snake'
