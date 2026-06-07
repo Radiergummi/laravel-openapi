@@ -18,6 +18,7 @@ use Override;
  * non-comparable (the shifting-denominator footgun).
  *
  * @internal
+ *
  * @implements Arrayable<string, mixed>
  */
 final readonly class CoverageSummary implements Arrayable, JsonSerializable
@@ -32,6 +33,9 @@ final readonly class CoverageSummary implements Arrayable, JsonSerializable
         public int $coveredOperations,
         public float $coveragePercent,
         public int $unattributedFindings,
+        /**
+         * @var list<array{tag: string, total: int, covered: int, percent: float}>
+         */
         public array $perTag,
     ) {}
 

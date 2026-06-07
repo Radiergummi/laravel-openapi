@@ -127,3 +127,13 @@ it('rounds the coverage percent to two decimals', function (): void {
 
     expect($summary->coveragePercent)->toBe(66.67);
 });
+
+it('matches a finding whose URI has a leading slash to an operation key without one', function (): void {
+    [$k, $t] = op('default', HttpMethod::Get, 'users');          // no slash
+    $finding = findingOn('default', HttpMethod::Get, '/users');  // leading slash
+
+    $summary = new CoverageCalculator()->calculate([$k => $t], [$finding], 1, 'dev');
+
+    expect($summary->coveredOperations)->toBe(0)
+        ->and($summary->unattributedFindings)->toBe(0);
+});
