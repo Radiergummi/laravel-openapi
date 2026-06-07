@@ -140,6 +140,9 @@ php artisan openapi:lint --min-coverage=90
 php artisan openapi:lint --diff --min-coverage=100
 ```
 
+The coverage gate is evaluated only by a plain lint run — it does **not** apply to `--fix` / `--check`
+runs, whose exit code reflects the fix outcome. Run `openapi:lint` without `--fix` to gate on coverage.
+
 > **Cross-version comparability.** The coverage report stamps the generator version
 > (`generator_version`). The documentable-unit set shifts both when routes change *and* when
 > inference improves, so a version bump can move the percentage with no app change — treat

@@ -133,7 +133,16 @@ class LintCommand extends Command
     private function runFix(FixRunner $fixRunner): int
     {
         $dryRun = (bool) $this->option('check');
-        $outcome = $fixRunner->run($this->buildOptions(), $dryRun);
+        $options = $this->buildOptions();
+
+        if ($options->minCoverage !== null || $options->maxFindings !== null) {
+            $this->warn(
+                'The coverage gate (--min-coverage / --max-findings) is not evaluated under --fix/--check. '
+                . 'Run `openapi:lint` without --fix to gate on coverage.',
+            );
+        }
+
+        $outcome = $fixRunner->run($options, $dryRun);
 
         $this->renderFixSummary($outcome, $dryRun);
 
@@ -249,9 +258,41 @@ class LintCommand extends Command
             applySuppressions: !$this->option('no-suppress'),
             validateSpec: !$this->option('no-validate'),
             spec: $this->option('spec') ?: null,
-            minCoverage: $this->parseFloatOption('min-coverage'),
-            maxFindings: $this->parseIntOption('max-findings'),
+            minCoverage: $this->parseMinCoverage(),
+            maxFindings: $this->parseMaxFindings(),
         );
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function parseMinCoverage(): ?float
+    {
+        $value = $this->parseFloatOption('min-coverage');
+
+        if ($value !== null && ($value < 0.0 || $value > 100.0)) {
+            throw new InvalidArgumentException(
+                sprintf('Invalid --min-coverage value: %s. Expected a percentage between 0 and 100.', $value),
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function parseMaxFindings(): ?int
+    {
+        $value = $this->parseIntOption('max-findings');
+
+        if ($value !== null && $value < 0) {
+            throw new InvalidArgumentException(
+                sprintf('Invalid --max-findings value: %d. Expected a non-negative integer.', $value),
+            );
+        }
+
+        return $value;
     }
 
     /**

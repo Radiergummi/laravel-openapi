@@ -24,8 +24,9 @@ final readonly class LintResult
      * @param int              $exitCode Process exit code. With no coverage gate: 0 when $findings is
      *                                   empty, 1 otherwise. With a gate active: 0 unless coverage is
      *                                   below the floor or the finding count exceeds the budget.
-     * @param ?CoverageSummary $coverage The documentation-coverage summary, or null when not computed
-     *                                   (e.g. the --fix path).
+     * @param ?CoverageSummary $coverage The documentation-coverage summary. Always computed by
+     *                                   LintRunner::run(); null only when a caller constructs a
+     *                                   result without it (the --fix/--check path discards it).
      */
     public function __construct(
         public array $findings,

@@ -476,4 +476,18 @@ it('exits non-zero when the finding count exceeds max-findings', function (): vo
     ])->assertExitCode(1);
 });
 
+it('rejects an out-of-range min-coverage value', function (): void {
+    expect(fn(): int => $this->artisan('openapi:lint', [
+        '--uri' => 'lint-fixtures/broken*',
+        '--min-coverage' => '110',
+    ])->run())->toThrow(InvalidArgumentException::class, 'Invalid --min-coverage value: 110');
+});
+
+it('rejects a negative max-findings value', function (): void {
+    expect(fn(): int => $this->artisan('openapi:lint', [
+        '--uri' => 'lint-fixtures/broken*',
+        '--max-findings' => '-1',
+    ])->run())->toThrow(InvalidArgumentException::class, 'Invalid --max-findings value: -1');
+});
+
 // endregion
