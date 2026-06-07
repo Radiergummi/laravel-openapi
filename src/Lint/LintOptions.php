@@ -42,6 +42,12 @@ final readonly class LintOptions
      *                                           (`spec.invalid`) runs. False corresponds to
      *                                           --no-validate on the CLI; the rule is
      *                                           otherwise non-suppressible.
+     * @param ?float          $minCoverage       Minimum coverage percentage gate (--min-coverage).
+     *                                           Null falls back to `openapi.lint.min_coverage`.
+     *                                           When the resolved value is non-null the command is
+     *                                           gate-driven (see {@see LintRunner}).
+     * @param ?int            $maxFindings       Maximum allowed finding count (--max-findings).
+     *                                           Null falls back to `openapi.lint.max_findings`.
      */
     public function __construct(
         public int|string|null $level = null,
@@ -53,6 +59,8 @@ final readonly class LintOptions
         public bool $applySuppressions = true,
         public bool $validateSpec = true,
         public ?string $spec = null,
+        public ?float $minCoverage = null,
+        public ?int $maxFindings = null,
     ) {}
 
     /**
