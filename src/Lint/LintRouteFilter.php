@@ -49,12 +49,16 @@ use const PHP_EOL;
 class LintRouteFilter
 {
     /**
-     * Apply both filters in order: --path (glob match against route URI) and --diff (descriptor
-     * is affected by a file change since the diff ref). When --diff resolves to a list of
-     * changed files that includes the published OpenAPI config, every route is preserved
-     * because a config change can affect every operation's output.
+     * Apply the scoping filters in order: --uri (glob match against route URI), then the
+     * file-based scope formed by --path (an explicit file list) unioned with --diff (files
+     * changed since the diff ref). Both file sources feed the same descriptor-affected check, so
+     * `--path Foo.php` is the manual form of `--diff`'s changed-file list. When the resulting
+     * changed-file set includes the published OpenAPI config, every route is preserved because a
+     * config change can affect every operation's output.
      *
      * @param list<ActionDescriptor> $descriptors
+     * @param list<string>           $files       Explicit source files (`--path`), absolute or
+     *                                            base-relative; normalised to base-relative here.
      *
      * @return list<ActionDescriptor>
      *
@@ -64,39 +68,55 @@ class LintRouteFilter
      * @throws ProcessTimedOutException
      * @throws RuntimeException
      */
-    public function filter(array $descriptors, ?string $path, bool $diffEnabled, ?string $diffRef): array
+    public function filter(array $descriptors, ?string $uriGlob, array $files, bool $diffEnabled, ?string $diffRef): array
     {
         $descriptors = $this->dropClosureAndVendorRoutes($descriptors);
 
-        if (is_string($path) && $path !== '') {
+        if (is_string($uriGlob) && $uriGlob !== '') {
             $descriptors = array_values(
                 array_filter(
                     $descriptors,
                     static fn(ActionDescriptor $descriptor): bool
-                        => fnmatch($path, $descriptor->route->uri()),
+                        => fnmatch($uriGlob, $descriptor->route->uri()),
                 ),
             );
         }
+
+        if ($files === [] && !$diffEnabled) {
+            return $descriptors;
+        }
+
+        $changedFiles = array_map($this->normaliseToBaseRelative(...), $files);
 
         if ($diffEnabled) {
             $ref = $diffRef === null || $diffRef === ''
                 ? $this->resolveDefaultDiffRef()
                 : $diffRef;
 
-            $changedFiles = $this->changedFilesSince($ref);
+            $changedFiles = [...$changedFiles, ...$this->changedFilesSince($ref)];
+        }
 
-            if (!$this->infraTouched($changedFiles)) {
-                $descriptors = array_values(
-                    array_filter(
-                        $descriptors,
-                        fn(ActionDescriptor $descriptor): bool
-                            => $this->descriptorAffectedByChanges($descriptor, $changedFiles),
-                    ),
-                );
-            }
+        if (!$this->infraTouched($changedFiles)) {
+            $descriptors = array_values(
+                array_filter(
+                    $descriptors,
+                    fn(ActionDescriptor $descriptor): bool
+                        => $this->descriptorAffectedByChanges($descriptor, $changedFiles),
+                ),
+            );
         }
 
         return $descriptors;
+    }
+
+    /**
+     * Normalise a CLI-supplied `--path` value to the base-relative form `git diff --name-only`
+     * emits, so explicit files and diff-derived files compare identically. Absolute paths under
+     * the project root are made relative; values already relative pass through unchanged.
+     */
+    private function normaliseToBaseRelative(string $file): string
+    {
+        return Str::after($file, base_path() . '/');
     }
 
     /**
@@ -216,12 +236,28 @@ class LintRouteFilter
      */
     protected function changedFilesSince(string $ref): array
     {
-        $process = new Process(['git', 'diff', '--name-only', $ref . '...HEAD']);
+        $process = new Process($this->diffCommand($ref));
         $process->run();
 
         return array_values(
             array_filter(array_map(trim(...), explode(PHP_EOL, $process->getOutput()))),
         );
+    }
+
+    /**
+     * The git argv for a given diff ref. The `working`/`staged` sentinels select uncommitted
+     * edits instead of a committed-vs-ref diff: `working` ≈ everything dirty in the work tree
+     * (--diff=working), `staged` ≈ the index only (--diff=staged, the pre-commit scope).
+     *
+     * @return list<string>
+     */
+    protected function diffCommand(string $ref): array
+    {
+        return match ($ref) {
+            'working' => ['git', 'diff', '--name-only', 'HEAD'],
+            'staged' => ['git', 'diff', '--cached', '--name-only'],
+            default => ['git', 'diff', '--name-only', $ref . '...HEAD'],
+        };
     }
 
     /**

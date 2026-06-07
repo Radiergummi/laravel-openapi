@@ -57,8 +57,9 @@ class LintCommand extends Command
         {--format= : Output format (cli|json|github|markdown; auto-detected by default)}
         {--only= : Restrict to listed rule IDs (comma-separated)}
         {--skip= : Restrict to listed rule IDs to exclude (comma-separated)}
-        {--path= : Restrict to routes matching this URI glob}
-        {--diff= : Restrict to routes touched since git-ref (default: merge-base with the repository default branch)}
+        {--uri= : Restrict to routes whose URI matches this glob}
+        {--path=* : Restrict to routes affected by these source files (repeatable; pre-commit hooks pass $STAGED_FILES)}
+        {--diff= : Restrict to routes touched since git-ref (default: merge-base with the default branch; "staged" = index, "working" = work tree)}
         {--no-suppress : Ignore #[IgnoreLint] attributes}
         {--no-validate : Skip the OAS 3.1 meta-schema validation (the spec.invalid rule); faster on large specs}
         {--list : Print the rule catalog instead of linting}
@@ -225,7 +226,7 @@ class LintCommand extends Command
 
     private function buildOptions(): LintOptions
     {
-        $path = $this->option('path');
+        $uriGlob = $this->option('uri');
         $diffRef = $this->option('diff');
 
         return new LintOptions(
@@ -234,7 +235,8 @@ class LintCommand extends Command
                 : null,
             only: $this->parseList($this->option('only')),
             skip: $this->parseList($this->option('skip')),
-            path: is_string($path) && $path !== '' ? $path : null,
+            uriGlob: is_string($uriGlob) && $uriGlob !== '' ? $uriGlob : null,
+            files: $this->parseFiles($this->option('path')),
             // --diff is value-optional: a bare `--diff` yields a null value but is still
             // "requested" and must trigger default-ref resolution. option() alone can't tell
             // bare-flag from absent, so check the raw input here.
@@ -257,6 +259,25 @@ class LintCommand extends Command
 
         return array_values(
             array_filter(array_map(trim(...), explode(',', $raw))),
+        );
+    }
+
+    /**
+     * Normalise the repeatable `--path=*` option into a clean file list. Symfony yields an array
+     * of strings (or an empty array when absent); drop blanks and trim each entry.
+     *
+     * @return list<string>
+     */
+    private function parseFiles(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        return array_values(
+            array_filter(
+                array_map(trim(...), array_filter($raw, is_string(...))),
+            ),
         );
     }
 

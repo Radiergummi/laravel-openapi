@@ -23,12 +23,18 @@ final readonly class LintOptions
      *                                           `openapi.lint.enabled_rules`.
      * @param list<string>    $skip              Rule-ID denylist from the CLI. Merged with
      *                                           `openapi.lint.disabled_rules`.
-     * @param ?string         $path              URI glob; only routes matching this pattern are
-     *                                           linted. Null disables.
+     * @param ?string         $uriGlob           URI glob (--uri); only routes matching this
+     *                                           pattern are linted. Null disables.
+     * @param list<string>    $files             Explicit source files (--path, repeatable); each
+     *                                           is resolved to its affected routes + reachable
+     *                                           schemas via the same mechanism as --diff. Empty
+     *                                           disables.
      * @param bool            $diffEnabled       True when --diff was passed (even without a
      *                                           value); the runner then computes the default
      *                                           ref if $diffRef is null.
-     * @param ?string         $diffRef           Explicit git ref for --diff. Null and
+     * @param ?string         $diffRef           Explicit git ref for --diff, or the sentinel
+     *                                           'working' (uncommitted work-tree edits) /
+     *                                           'staged' (the index only). Null with
      *                                           $diffEnabled = true triggers default resolution.
      * @param bool            $applySuppressions Whether `#[IgnoreLint]` directives are honoured.
      *                                           False corresponds to --no-suppress on the CLI.
@@ -44,7 +50,8 @@ final readonly class LintOptions
         public int|string|null $level = null,
         public array $only = [],
         public array $skip = [],
-        public ?string $path = null,
+        public ?string $uriGlob = null,
+        public array $files = [],
         public bool $diffEnabled = false,
         public ?string $diffRef = null,
         public bool $applySuppressions = true,
