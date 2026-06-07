@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\ResourceConventionResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
@@ -52,6 +53,7 @@ final class CorePlugin implements Plugin
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
+        $registry->addOperationConventionResolver(ResourceConventionResolver::class);
 
         // Error-response inference contributors; the registration order is important: Throws
         // first (most specific), then the convention-derived ones (Middleware, Validation,

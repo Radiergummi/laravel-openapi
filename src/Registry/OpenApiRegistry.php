@@ -8,6 +8,7 @@ use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Contracts\Registry\OperationConventionResolver;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
@@ -54,6 +55,17 @@ final class OpenApiRegistry
      * @var list<class-string<PrimaryResponseResolver>>
      */
     public private(set) array $primaryResponseResolvers = [];
+
+    /**
+     * All registered operation convention resolvers.
+     *
+     * Operation convention resolvers derive conventional operation defaults — a success status
+     * code and/or a default summary — from a route's Tier-0 signals (resourceful action name,
+     * HTTP verb, controller name).
+     *
+     * @var list<class-string<OperationConventionResolver>>
+     */
+    public private(set) array $operationConventionResolvers = [];
 
     /**
      * All registered payload classes.
@@ -141,6 +153,18 @@ final class OpenApiRegistry
     {
         if (!in_array($class, $this->primaryResponseResolvers, strict: true)) {
             $this->primaryResponseResolvers[] = $class;
+        }
+    }
+
+    /**
+     * Add an operation convention resolver to the registry.
+     *
+     * @param class-string<OperationConventionResolver> $class
+     */
+    public function addOperationConventionResolver(string $class): void
+    {
+        if (!in_array($class, $this->operationConventionResolvers, strict: true)) {
+            $this->operationConventionResolvers[] = $class;
         }
     }
 
