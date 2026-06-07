@@ -268,7 +268,7 @@ class LintRouteFilter
      */
     private function infraTouched(array $changedFiles): bool
     {
-        $configPath = Str::after(config_path('openapi.php'), base_path() . '/');
+        $configPath = $this->normaliseToBaseRelative(config_path('openapi.php'));
 
         return in_array($configPath, $changedFiles, true);
     }
@@ -288,7 +288,7 @@ class LintRouteFilter
             return false;
         }
 
-        return in_array(Str::after($controllerFile, base_path() . '/'), $changedFiles, true);
+        return in_array($this->normaliseToBaseRelative($controllerFile), $changedFiles, true);
     }
 
     /**

@@ -257,9 +257,7 @@ class LintCommand extends Command
             return [];
         }
 
-        return array_values(
-            array_filter(array_map(trim(...), explode(',', $raw))),
-        );
+        return $this->trimDropEmpty(explode(',', $raw));
     }
 
     /**
@@ -274,10 +272,20 @@ class LintCommand extends Command
             return [];
         }
 
+        return $this->trimDropEmpty(array_filter($raw, is_string(...)));
+    }
+
+    /**
+     * Trim each entry and drop the empties, reindexed.
+     *
+     * @param array<string> $items
+     *
+     * @return list<string>
+     */
+    private function trimDropEmpty(array $items): array
+    {
         return array_values(
-            array_filter(
-                array_map(trim(...), array_filter($raw, is_string(...))),
-            ),
+            array_filter(array_map(trim(...), $items)),
         );
     }
 
