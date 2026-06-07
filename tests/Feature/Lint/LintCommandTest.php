@@ -426,6 +426,19 @@ it('emits a coverage block in json format', function (): void {
         ->and($json)->toContain('"coverage_percent"');
 });
 
+it('renders the coverage block through the lint command', function (): void {
+    // Single substring → one doWrite matcher → works through the artisan output mock. Proves the
+    // command threads $result->coverage into the formatter (the BufferedOutput tests above bypass
+    // the command and so cannot catch a regression in that wiring).
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--uri' => 'lint-fixtures/broken*',
+        '--format' => 'json',
+    ])
+        ->expectsOutputToContain('"coverage"')
+        ->assertExitCode(1);
+});
+
 it('exits zero under a satisfied min-coverage gate even with findings', function (): void {
     // broken route → 0% coverage; a 0% floor is always met → exit 0 despite findings.
     $this->artisan('openapi:lint', [
