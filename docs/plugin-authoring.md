@@ -35,6 +35,7 @@ instances are resolved from the container when the pipeline runs.
 |---|---|---|
 | `addErrorResponseContributor(string $class)` | An inference source for error responses; called per operation, returns `ErrorDescriptor`s | `ErrorResponseContributor` |
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
+| `addOperationConventionResolver(string $class)` | A convention-derived success status code and/or default summary, from the route's Tier-0 signals | `OperationConventionResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
 | `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
 | `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
@@ -71,6 +72,15 @@ The resolver interfaces live in `src/Contracts/Registry/`:
   `ActionDescriptor`. Used for `?filter[…]`, `?include`, `?sort`, paging.
 - **`PrimaryResponseResolver`**: resolve the 2xx response schema from the
   return type or attributes.
+- **`OperationConventionResolver`**: given an `ActionDescriptor`, derive
+  conventional operation defaults — a success status code and/or a default
+  summary — from Tier-0 signals (action name, route verb, controller name),
+  returning an `OperationConvention` (or null). The defaults sit at the lowest
+  precedence: an explicit `#[Response]`/`#[Summary]`/`#[Operation]` attribute or
+  a DocComment always wins. The status is applied on top of whatever body a
+  `PrimaryResponseResolver` produced. Bundled by Core:
+  `ResourceConventionResolver` (the `index`/`show`/`store`/`update`/`destroy`
+  convention).
 - **`ErrorResponseResolver`**: given an `ErrorDescriptor`, decide whether
   it handles the error-response schema and produce an `ErrorResponse` (or null).
   Used for error envelopes (RFC 7807, JSON:API, etc.) on 4xx/5xx responses.
@@ -110,7 +120,8 @@ order and uses the first that claims the input.
 > [!NOTE]
 > **Fault isolation is centralized — resolvers needn't self-isolate.** Every
 > `PrimaryResponseResolver`, `RequestSchemaResolver`, `QueryParameterResolver`,
-> and `RefSchemaResolver` call is wrapped at its pipeline seam: a thrown
+> `RefSchemaResolver`, and `OperationConventionResolver` call is wrapped at its
+> pipeline seam: a thrown
 > `Exception` (including yours) is logged with the route and resolver class,
 > that resolver is skipped for the route, and the rest of the document still
 > generates. So you don't need a defensive `try`/`catch` for robustness — let a

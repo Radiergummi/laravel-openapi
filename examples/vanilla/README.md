@@ -8,8 +8,13 @@ FormRequest/Data class is doing it for you.
 Notice in `openapi.yaml`:
 
 - `flights.show` has its operationId overridden via `#[Operation(operationId: 'flights.show')]`.
-- `DELETE /flights/{flight}` uses `#[IgnoreLint('operation.summary-missing', reason: ...)]`
-  to demonstrate suppression-with-reason against a deliberately missing docblock summary.
+- `DELETE /flights/{flight}` gets a `Delete Flight` summary derived from the resource
+  convention — resourceful CRUD actions (`index`/`show`/`store`/`update`/`destroy`) earn a
+  default summary and their conventional success code (`store` → `201`, `destroy` → `204`)
+  for free.
+- `GET /flights/{flight}/manifest` uses `#[IgnoreLint('operation.summary-missing', reason: ...)]`
+  to demonstrate suppression-with-reason against a deliberately missing summary — on a custom
+  (non-resourceful) action, since CRUD actions now get a convention summary.
 - `@throws ModelNotFoundException` becomes a `404` response on each per-id endpoint
   (`show`, `update`, `destroy`, `bookings.index`); `@throws FlightOverbookedException`
   on `BookingController::store` becomes a `409` via the exception-response map.

@@ -222,6 +222,36 @@ class Post extends Model
   separately (tracked as [#98](https://github.com/radiergummi/laravel-openapi/issues/98));
   the model schema and the resource schema are currently independent.
 
+## Resource action conventions
+
+Resourceful controller actions have entirely predictable semantics, so the
+generator derives their success status code and a default summary from the
+action name and route verb alone — no body parsing.
+
+An action method named `index`, `show`, `store`, `update`, or `destroy`, reached
+by its conventional verb, maps to its idiomatic success code and summary:
+
+| Action | Verb | Status | Summary |
+|---|---|---|---|
+| `index` | `GET` | `200` | `List {Plural}` |
+| `show` | `GET` | `200` | `Show {Singular}` |
+| `store` | `POST` | `201 Created` | `Create {Singular}` |
+| `update` | `PUT`/`PATCH` | `200` | `Update {Singular}` |
+| `destroy` | `DELETE` | `204 No Content` (body-less) | `Delete {Singular}` |
+
+The resource noun is taken from the controller's short name (`PostController` →
+`Post`), the same source as the derived tag, and pluralised for `index`. Detection is action-name-plus-verb, so it covers
+hand-written resourceful routes — `Route::post('/flights', [FlightController::class,
+'store'])` — not only `Route::apiResource(...)`.
+
+The status **layers on top of** whatever body a response resolver produced: a
+`store` returning a model keeps its schema, just at `201`. The verb gate means a
+method named `store` reached by `GET` is left untouched.
+
+This sits at the lowest precedence — an explicit `#[Response]` (2xx),
+`#[Summary]` / `#[Operation]` attribute, or a DocComment summary always wins over
+the convention.
+
 ## What if convention isn't enough?
 
 Authoring attributes live in `Radiergummi\OpenApi\Attributes`. Pick the

@@ -23,6 +23,8 @@ use Radiergummi\OpenApi\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Attributes\Tag as TagAttribute;
+use Radiergummi\OpenApi\Contracts\Registry\OperationConvention;
+use Radiergummi\OpenApi\Contracts\Registry\OperationConventionResolver;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
@@ -74,6 +76,10 @@ final readonly class OperationBuilder
          * @var list<PrimaryResponseResolver>
          */
         private array $primaryResponseResolvers = [],
+        /**
+         * @var list<OperationConventionResolver>
+         */
+        private array $operationConventionResolvers = [],
     ) {}
 
     /** @return list<OA\SecurityScheme> */
@@ -143,6 +149,8 @@ final readonly class OperationBuilder
             }
         }
 
+        $convention = $this->resolveConvention($action);
+
         $operationOverride = $this->readOperationAttribute($action);
         $additionalTags = $this->readTagAttributes($action);
         $additionalResponses = $this->readResponseAttributes($action);
@@ -171,6 +179,13 @@ final readonly class OperationBuilder
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
 
+        // Apply the resource convention's success status, unless an explicit #[Response(2xx)]
+        // already claimed the primary response. This layers on top of whatever body a resolver
+        // produced — a `store` returning a model keeps its schema, just at 201.
+        if ($primaryOverride === null && $convention?->successStatusCode !== null) {
+            $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
+        }
+
         // Primary 2xx first, then explicit non-2xx #[Response] attributes. Inferred error
         // responses are appended later by ErrorResponseInferenceStage, which itself skips any
         // status already declared here.
@@ -179,7 +194,7 @@ final readonly class OperationBuilder
         $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
-        $summary = $this->resolveSummary($action);
+        $summary = $this->resolveSummary($action, $convention);
         $description = $this->resolveDescription($action);
 
         if ($operationOverride !== null) {
@@ -834,7 +849,44 @@ final readonly class OperationBuilder
      * The "action" is the controller method, the `__invoke` method of a single-action controller,
      * or a route closure — all reached uniformly via {@see ActionDescriptor::$actionReflector}.
      */
-    private function resolveSummary(ActionDescriptor $descriptor): ?string
+    /**
+     * Consults registered operation-convention resolvers, first non-null wins.
+     */
+    private function resolveConvention(ActionDescriptor $descriptor): ?OperationConvention
+    {
+        foreach ($this->operationConventionResolvers as $conventionResolver) {
+            $convention = $this->faultBoundary->isolate(
+                $conventionResolver::class,
+                $descriptor,
+                fn(): ?OperationConvention => $conventionResolver->resolve($descriptor),
+            );
+
+            if ($convention !== null) {
+                return $convention;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Returns the primary response carrying the convention-derived status code and reason phrase.
+     * A 204 carries no body by definition, so any resolved content is discarded in favour of a
+     * fresh body-less response.
+     */
+    private function applyConventionStatus(OA\Response $response, int $statusCode): OA\Response
+    {
+        if ($statusCode === 204) {
+            return new OA\Response(['response' => '204', 'description' => 'No Content']);
+        }
+
+        $response->response = (string) $statusCode;
+        $response->description = $statusCode === 201 ? 'Created' : 'OK';
+
+        return $response;
+    }
+
+    private function resolveSummary(ActionDescriptor $descriptor, ?OperationConvention $convention): ?string
     {
         $methodAttr = $this->readScopedSummary(
             $descriptor->actionAttributes(SummaryAttribute::class),
@@ -845,7 +897,7 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
 
-        return $methodAttr ?? $descriptor->summary ?? $classAttr;
+        return $methodAttr ?? $descriptor->summary ?? $classAttr ?? $convention?->summary;
     }
 
     /**

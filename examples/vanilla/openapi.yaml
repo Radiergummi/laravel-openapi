@@ -84,6 +84,7 @@ paths:
     delete:
       tags:
         - Flights
+      summary: 'Delete Flight'
       operationId: delete_api_flights_flight_
       parameters:
         -
@@ -121,6 +122,28 @@ paths:
           $ref: '#/components/responses/NotFound'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+      security: []
+  '/api/flights/{flight}/manifest':
+    get:
+      tags:
+        - Flights
+      operationId: get_api_flights_flight_manifest
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The flight manifest'
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
       security: []
   '/api/flights/{flight}/bookings':
     get:

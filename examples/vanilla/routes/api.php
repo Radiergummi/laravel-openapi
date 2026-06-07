@@ -12,6 +12,7 @@ Route::get('/flights/{flight}', [FlightController::class, 'show']);
 Route::post('/flights', [FlightController::class, 'store']);
 Route::patch('/flights/{flight}', [FlightController::class, 'update']);
 Route::delete('/flights/{flight}', [FlightController::class, 'destroy']);
+Route::get('/flights/{flight}/manifest', [FlightController::class, 'manifest']);
 
 Route::get('/flights/{flight}/bookings', [BookingController::class, 'index']);
 Route::post('/flights/{flight}/bookings', [BookingController::class, 'store']);
