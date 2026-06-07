@@ -165,9 +165,9 @@ final readonly class LintRunner
 
         $descriptors = $this->routeFilter->filter(
             descriptors: $descriptors,
-            path: $options->path,
-            diffEnabled: $options->diffEnabled,
-            diffRef: $options->diffRef,
+            uriGlob: $options->uriGlob,
+            files: $options->files,
+            diff: $options->diff,
         );
 
         // When --path or --diff narrows the route set, build the allowed-URI set up front so
@@ -186,7 +186,7 @@ final readonly class LintRunner
         $allowedSchemaClasses = [];
         $allComponentClasses = [];
 
-        if ($options->path !== null || $options->diffEnabled) {
+        if ($options->isScoped()) {
             $allowedRouteUris = self::descriptorUriSet($descriptors);
         }
 

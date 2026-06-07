@@ -18,7 +18,7 @@ it('suppresses field.name-naming-inconsistent findings on a FormRequest with a c
     $withoutSuppress = app(LintRunner::class)->run(new LintOptions(
         level: 3,
         only: ['field.name-naming-inconsistent'],
-        path: 'ignore-lint/form-request*',
+        uriGlob: 'ignore-lint/form-request*',
         applySuppressions: false,
     ));
 
@@ -27,7 +27,7 @@ it('suppresses field.name-naming-inconsistent findings on a FormRequest with a c
     $withSuppress = app(LintRunner::class)->run(new LintOptions(
         level: 3,
         only: ['field.name-naming-inconsistent'],
-        path: 'ignore-lint/form-request*',
+        uriGlob: 'ignore-lint/form-request*',
         applySuppressions: true,
     ));
 
@@ -39,7 +39,7 @@ it('suppresses field.name-naming-inconsistent findings on a JsonResource with a 
     $withoutSuppress = app(LintRunner::class)->run(new LintOptions(
         level: 3,
         only: ['field.name-naming-inconsistent'],
-        path: 'ignore-lint/json-resource*',
+        uriGlob: 'ignore-lint/json-resource*',
         applySuppressions: false,
     ));
 
@@ -48,7 +48,7 @@ it('suppresses field.name-naming-inconsistent findings on a JsonResource with a 
     $withSuppress = app(LintRunner::class)->run(new LintOptions(
         level: 3,
         only: ['field.name-naming-inconsistent'],
-        path: 'ignore-lint/json-resource*',
+        uriGlob: 'ignore-lint/json-resource*',
         applySuppressions: true,
     ));
 
