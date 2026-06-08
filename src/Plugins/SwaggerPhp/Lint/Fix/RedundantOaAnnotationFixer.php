@@ -9,7 +9,6 @@ use PhpParser\Node\Attribute;
 use PhpParser\Node\AttributeGroup;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
-use PhpParser\NodeFinder;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
@@ -48,9 +47,6 @@ use const PHP_EOL;
  */
 final readonly class RedundantOaAnnotationFixer implements Fixer
 {
-    /** swagger-php's PHP-attribute namespace. */
-    private const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
-
     public function __construct(
         private DocblockAnnotationRemover $docblockRemover = new DocblockAnnotationRemover(),
     ) {}
@@ -106,14 +102,9 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
      */
     private function removeAttributes(Finding $finding, string $class, string $file, FixContext $context): array
     {
-        $classNode = new NodeFinder()->findFirst(
-            $context->ast($file),
-            static fn(Node $node): bool
-                => $node instanceof ClassLike
-                && $node->namespacedName?->toString() === $class,
-        );
+        $classNode = $context->classNode($file, $class);
 
-        if (!$classNode instanceof ClassLike) {
+        if ($classNode === null) {
             return [];
         }
 
@@ -121,9 +112,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
         $fixes = [];
 
         foreach ($this->attributeGroups($classNode) as $group) {
-            $operation = $this->removeOaFromGroup($source, $group);
-
-            if ($operation !== null) {
+            foreach ($this->removeOaFromGroup($source, $group) as $operation) {
                 $fixes[] = new Fix(
                     file: $file,
                     description: "Remove redundant #[OA\\*] schema attribute on {$class}",
@@ -181,11 +170,15 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     }
 
     /**
-     * Build the edit that strips the swagger-php attributes from one group. When every attribute in
+     * Build the edits that strip the swagger-php attributes from one group. When every attribute in
      * the group is an `#[OA\*]` one and it occupies whole lines, the lines are removed; otherwise
-     * the OA attributes are excised byte-precisely, comma and all, leaving the rest of the group.
+     * each contiguous run of OA attributes is excised byte-precisely, comma and all, leaving the
+     * rest of the group. (There is no re-lint pass, so a mixed group with several OA attributes must
+     * be cleared in this one go — see {@see \Radiergummi\OpenApi\Lint\Fix\FixRunner}.)
+     *
+     * @return list<ModifyAttribute|RemoveLines>
      */
-    private function removeOaFromGroup(string $source, AttributeGroup $group): RemoveLines|ModifyAttribute|null
+    private function removeOaFromGroup(string $source, AttributeGroup $group): array
     {
         $oaIndices = [];
 
@@ -196,7 +189,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
         }
 
         if ($oaIndices === []) {
-            return null;
+            return [];
         }
 
         if (count($oaIndices) === count($group->attrs)) {
@@ -204,26 +197,44 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
             $end = $group->getEndFilePos() + 1;
 
             if ($this->occupiesWholeLines($source, $start, $end)) {
-                return new RemoveLines($group->getStartLine(), $group->getEndLine());
+                return [new RemoveLines($group->getStartLine(), $group->getEndLine())];
             }
 
-            return new ModifyAttribute($start, $end, '');
+            return [new ModifyAttribute($start, $end, '')];
         }
 
-        // Mixed group: excise the single OA attribute plus an adjacent comma. (Multiple OA
-        // attributes in a mixed group are uncommon; the first is handled and re-runs catch the rest.)
-        $index = $oaIndices[0];
-        $node = $group->attrs[$index];
+        // Mixed group: excise each maximal run of consecutive OA attributes, comma and all. Runs are
+        // separated by surviving (non-OA) attributes, so their spans never overlap. A run with an
+        // attribute after it takes the trailing comma (`OA, `); a run at the group's tail takes the
+        // leading comma (`, OA`).
+        $attrs = $group->attrs;
+        $count = count($attrs);
+        $total = count($oaIndices);
+        $operations = [];
+        $cursor = 0;
 
-        if ($index > 0) {
-            $start = $group->attrs[$index - 1]->getEndFilePos() + 1;
-            $end = $node->getEndFilePos() + 1;
-        } else {
-            $start = $node->getStartFilePos();
-            $end = $group->attrs[$index + 1]->getStartFilePos();
+        while ($cursor < $total) {
+            $runStart = $oaIndices[$cursor];
+            $runEnd = $runStart;
+
+            while ($cursor + 1 < $total && $oaIndices[$cursor + 1] === $runEnd + 1) {
+                $runEnd = $oaIndices[++$cursor];
+            }
+
+            $cursor++;
+
+            if ($runEnd < $count - 1) {
+                $start = $attrs[$runStart]->getStartFilePos();
+                $end = $attrs[$runEnd + 1]->getStartFilePos();
+            } else {
+                $start = $attrs[$runStart - 1]->getEndFilePos() + 1;
+                $end = $attrs[$runEnd]->getEndFilePos() + 1;
+            }
+
+            $operations[] = new ModifyAttribute($start, $end, '');
         }
 
-        return new ModifyAttribute($start, $end, '');
+        return $operations;
     }
 
     private function isOaAttribute(Attribute $attr): bool
@@ -231,7 +242,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
         $resolved = $attr->name->getAttribute('resolvedName');
         $name = $resolved instanceof Node\Name ? $resolved->toString() : $attr->name->toString();
 
-        return str_starts_with($name, self::ATTRIBUTE_NAMESPACE);
+        return str_starts_with($name, OaRedundantWithInference::ATTRIBUTE_NAMESPACE);
     }
 
     /**

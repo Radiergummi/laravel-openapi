@@ -53,7 +53,7 @@ use function str_starts_with;
 final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule
 {
     /** swagger-php's PHP-attribute namespace (`#[OA\Schema]` etc.), distinct from `@OA` docblocks. */
-    private const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
+    public const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
 
     public const string CONTEXT_SHAPE = 'oaAnnotationShape';
 

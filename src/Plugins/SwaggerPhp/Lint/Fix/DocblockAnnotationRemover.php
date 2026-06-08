@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix;
 
-use PhpParser\Node;
-use PhpParser\Node\Stmt\ClassLike;
-use PhpParser\NodeFinder;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
@@ -39,14 +36,9 @@ final readonly class DocblockAnnotationRemover
      */
     public function remove(Finding $finding, string $class, string $file, FixContext $context): array
     {
-        $classNode = new NodeFinder()->findFirst(
-            $context->ast($file),
-            static fn(Node $node): bool
-                => $node instanceof ClassLike
-                && $node->namespacedName?->toString() === $class,
-        );
+        $classNode = $context->classNode($file, $class);
 
-        if (!$classNode instanceof ClassLike) {
+        if ($classNode === null) {
             return [];
         }
 
