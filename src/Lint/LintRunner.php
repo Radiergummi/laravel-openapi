@@ -294,10 +294,13 @@ final readonly class LintRunner
 
             // Build the inference-only view for the migration family, at this safe boundary (after
             // the lint document and its class map are captured as locals, before the walk). The
-            // orchestrator owns the scoped-state reset; no rule re-enters the pipeline.
-            $inferenceSchemas = $inferenceExcludedStages !== []
-                ? $this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages)->schemasByClass
-                : [];
+            // orchestrator owns the scoped-state reset; no rule re-enters the pipeline. The same
+            // control document feeds both the schema-level and operation-level redundancy rules.
+            $inference = $inferenceExcludedStages !== []
+                ? $this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages)
+                : null;
+            $inferenceSchemas = $inference !== null ? $inference->schemasByClass : [];
+            $inferenceOperations = $inference !== null ? self::indexOperationsByKey($inference->document) : [];
 
             $operations = $this->walkSpec(
                 $document,
@@ -310,6 +313,7 @@ final readonly class LintRunner
                 $skip,
                 componentClassMap: $classMap,
                 inferenceSchemasByClass: $inferenceSchemas,
+                inferenceOperationsByKey: $inferenceOperations,
             );
 
             foreach ($operations as $operation) {
@@ -530,6 +534,30 @@ final readonly class LintRunner
         return array_values(array_unique($stages));
     }
 
+    /**
+     * Index a control document's operations by "{method} {uri}" (method lower-cased, URI without a
+     * leading slash), the lookup key {@see LintContext::$inferenceOperationsByKey} exposes so an
+     * operation-level migration rule can find the inference-only counterpart of the route it walks.
+     *
+     * @return array<string, OA\Operation>
+     */
+    private static function indexOperationsByKey(OA\OpenApi $document): array
+    {
+        $operations = [];
+
+        foreach (is_array($document->paths) ? $document->paths : [] as $pathItem) {
+            if (!is_string($pathItem->path)) {
+                continue;
+            }
+
+            foreach ($pathItem->operations() as $operation) {
+                $operations[$operation->method . ' ' . ltrim($pathItem->path, '/')] = $operation;
+            }
+        }
+
+        return $operations;
+    }
+
     private function resolveLevel(LintOptions $options): int
     {
         $raw = $options->level ?? $this->configuredLevel;
@@ -596,6 +624,7 @@ final readonly class LintRunner
      * @param list<string>                   $skip
      * @param array<string, class-string>    $componentClassMap
      * @param array<class-string, OA\Schema> $inferenceSchemasByClass
+     * @param array<string, OA\Operation>    $inferenceOperationsByKey
      *
      * @return list<OperationNode> the in-scope operations walked
      *
@@ -612,6 +641,7 @@ final readonly class LintRunner
         array $skip,
         array $componentClassMap = [],
         array $inferenceSchemasByClass = [],
+        array $inferenceOperationsByKey = [],
     ): array {
         // region Tree walk
 
@@ -654,6 +684,7 @@ final readonly class LintRunner
             suppressions: $suppressions,
             payloadClasses: $this->openApiRegistry->payloadClasses,
             inferenceSchemasByClass: $inferenceSchemasByClass,
+            inferenceOperationsByKey: $inferenceOperationsByKey,
         );
 
         $walker = new SpecTreeWalker($rules);

@@ -62,7 +62,12 @@ final readonly class SchemaEquivalence
             return false;
         }
 
-        if (array_is_list($narrower)) {
+        // Compare as an unordered value-collection when either side is a list. swagger-php
+        // serialises keyed collections like `content` (by media type) and `responses` (by status)
+        // as a list on one side and a keyed map on the other; the key is redundant with a property
+        // on each element, so matching by value is correct. Only when *both* sides are keyed maps do
+        // keys carry meaning (a schema's `properties`, keyed by property name).
+        if (array_is_list($narrower) || array_is_list($broader)) {
             foreach ($narrower as $narrowerElement) {
                 foreach ($broader as $broaderElement) {
                     if ($this->contains($broaderElement, $narrowerElement)) {
@@ -121,10 +126,12 @@ final readonly class SchemaEquivalence
                 continue;
             }
 
-            // The component name is an implementation detail of the serialized document, not part
-            // of what the schema describes; comparison is provenance-based (by source class), so a
-            // differing authored vs inferred name must not affect the verdict.
-            if ($key === 'schema') {
+            // On an `OA\Schema`, the `schema` property is the component *name* — an implementation
+            // detail of the serialized document, not part of what the schema describes; comparison
+            // is provenance-based (by source class), so a differing authored vs inferred name must
+            // not affect the verdict. On other annotations (`OA\MediaType`, `OA\Parameter`) the
+            // `schema` property is the nested schema itself, which must be compared.
+            if ($key === 'schema' && $annotation instanceof OA\Schema) {
                 continue;
             }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp;
 
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
@@ -24,8 +25,10 @@ final class SwaggerPhpPlugin implements Plugin
     {
         $registry->addStage(HarvestAuthoredAnnotationsStage::class);
 
-        // A `migration.*` cleanup rule (level 4): flags hand-authored annotations the generator now
-        // reproduces on its own. Surface with `openapi:lint --only 'migration.*'`.
+        // `migration.*` cleanup rules (level 4): flag hand-authored annotations the generator now
+        // reproduces on its own — class-level `#[OA\Schema]` and operation-level `@OA` annotations.
+        // Surface with `openapi:lint --only 'migration.*'`.
         $registry->addRule(OaRedundantWithInference::class);
+        $registry->addRule(OaRedundantOperationWithInference::class);
     }
 }

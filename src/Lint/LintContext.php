@@ -17,23 +17,32 @@ final readonly class LintContext
     /**
      * @param list<ActionDescriptor>         $actionDescriptors
      * @param list<SuppressionDirective>     $suppressions
-     * @param list<class-string>             $payloadClasses          Base types whose subtypes Core
-     *                                                                treats as request payloads.
-     * @param array<class-string, OA\Schema> $inferenceSchemasByClass Inference-only component schema
-     *                                                                per source class, for rules
-     *                                                                comparing authored annotations
-     *                                                                against inference (the
-     *                                                                migration family, via
-     *                                                                {@see NeedsInferenceDocument}).
-     *                                                                Built once per spec by the
-     *                                                                runner; empty unless an active
-     *                                                                rule asked for it.
-     * @param ReflectionAttributeCache       $reflectionCache         Per-walk cache for sibling
-     *                                                                rules to share `getAttributes()`
-     *                                                                results and {@see ReflectionClass}
-     *                                                                instances. A fresh cache per
-     *                                                                context keeps the lifecycle tied
-     *                                                                to one walk.
+     * @param list<class-string>             $payloadClasses           Base types whose subtypes Core
+     *                                                                 treats as request payloads.
+     * @param array<class-string, OA\Schema> $inferenceSchemasByClass  Inference-only component schema
+     *                                                                 per source class, for rules
+     *                                                                 comparing authored annotations
+     *                                                                 against inference (the
+     *                                                                 migration family, via
+     *                                                                 {@see NeedsInferenceDocument}).
+     *                                                                 Built once per spec by the
+     *                                                                 runner; empty unless an active
+     *                                                                 rule asked for it.
+     * @param array<string, OA\Operation>    $inferenceOperationsByKey Inference-only operation per
+     *                                                                 "{method} {uri}" key (method
+     *                                                                 lower-cased, URI without a
+     *                                                                 leading slash), the
+     *                                                                 operation-level counterpart of
+     *                                                                 {@see $inferenceSchemasByClass}.
+     *                                                                 Built from the same control
+     *                                                                 document; empty unless an active
+     *                                                                 rule asked for it.
+     * @param ReflectionAttributeCache       $reflectionCache          Per-walk cache for sibling
+     *                                                                 rules to share `getAttributes()`
+     *                                                                 results and {@see ReflectionClass}
+     *                                                                 instances. A fresh cache per
+     *                                                                 context keeps the lifecycle tied
+     *                                                                 to one walk.
      */
     public function __construct(
         public ApiNode $api,
@@ -43,6 +52,7 @@ final readonly class LintContext
         public array $suppressions,
         public array $payloadClasses = [],
         public array $inferenceSchemasByClass = [],
+        public array $inferenceOperationsByKey = [],
         public ReflectionAttributeCache $reflectionCache = new ReflectionAttributeCache(),
     ) {}
 
