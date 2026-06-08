@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use Override;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LinterSummary;
 use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
@@ -63,6 +64,7 @@ final class CliFormatter implements Formatter
         int $level,
         int $exitCode,
         OutputInterface $output,
+        ?CoverageSummary $coverage = null,
     ): void {
         [$preBuild, $perSpec] = $this->partitionFindings($findings);
 
@@ -86,6 +88,30 @@ final class CliFormatter implements Formatter
         }
 
         $this->renderSummary(new LinterSummary($findings, $level), $output);
+
+        if ($coverage !== null) {
+            $this->renderCoverage($coverage, $output);
+        }
+    }
+
+    private function renderCoverage(CoverageSummary $coverage, OutputInterface $output): void
+    {
+        $line = sprintf(
+            ' Coverage: %.2f%% (%d/%d operations)',
+            $coverage->coveragePercent,
+            $coverage->coveredOperations,
+            $coverage->totalOperations,
+        );
+
+        if ($coverage->unattributedFindings > 0) {
+            $line .= sprintf(
+                ' · %d unattributed finding%s',
+                $coverage->unattributedFindings,
+                $coverage->unattributedFindings === 1 ? '' : 's',
+            );
+        }
+
+        $output->writeln([$line, '']);
     }
 
     /**

@@ -104,6 +104,50 @@ Currently fixable (all removals of a redundant or no-op attribute):
 `tag.duplicate`, `queryparam.duplicate`, `response.duplicate-status`,
 `link.duplicate-name`, and `field.no-effect`.
 
+## Documentation-coverage gate
+
+`openapi:lint` derives a **documentation-coverage** metric from its findings: the share of API
+operations (route × verb) that are lint-clean at the active level.
+
+```
+covered operations / total operations
+```
+
+Every run prints the metric — a one-line summary in `cli` output, a `coverage` block in `json`,
+and a `::notice` in `github` output. Operations are counted from the in-scope route set, so the
+metric respects `--uri`, `--path`, and `--diff`. With no in-scope operations (e.g. a `--diff` with
+no API changes) coverage is reported as `100%`.
+
+Findings that cannot be attributed to a single operation (schema-level, configuration-level) are
+reported separately as *unattributed findings* and do not lower the percentage.
+
+### Gating CI
+
+Two flags turn the metric into a gate. When either is set (via flag or the `openapi.lint`
+config), the command becomes **gate-driven**: it exits non-zero only when the gate is breached —
+findings on their own no longer fail it.
+
+| Flag | Config key | Effect |
+| --- | --- | --- |
+| `--min-coverage=<pct>` | `lint.min_coverage` | Fail when coverage falls below `<pct>`. |
+| `--max-findings=<n>` | `lint.max_findings` | Fail when the finding count exceeds `<n>`. |
+
+```bash
+# Whole-suite gate
+php artisan openapi:lint --min-coverage=90
+
+# Patch coverage: only the operations this PR touched must be clean
+php artisan openapi:lint --diff --min-coverage=100
+```
+
+The coverage gate is evaluated only by a plain lint run — it does **not** apply to `--fix` / `--check`
+runs, whose exit code reflects the fix outcome. Run `openapi:lint` without `--fix` to gate on coverage.
+
+> **Cross-version comparability.** The coverage report stamps the generator version
+> (`generator_version`). The documentable-unit set shifts both when routes change *and* when
+> inference improves, so a version bump can move the percentage with no app change — treat
+> coverage deltas across generator versions as non-comparable.
+
 ## Suppress a finding
 
 Use the `#[OpenApi\IgnoreLint]` attribute. Each instance suppresses exactly
