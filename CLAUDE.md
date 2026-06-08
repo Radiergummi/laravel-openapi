@@ -91,14 +91,16 @@ pipeline registered by `BaselineRegistration` — see Registry and plugins):
 ### Registry and plugins
 
 `OpenApiRegistry` (in `Registry\`) is the extension point. The **entire stage order lives in one
-place** — the `OpenApiServiceProvider` registry factory closure — as a single top-to-bottom
-sequence of `addStage` calls: pre-plugin baseline stages (`RootStage` → `PathsStage` →
-`ErrorResponseInferenceStage`), then each plugin in `config/openapi.plugins` order (starting with
-`Plugins\Core\CorePlugin`), then post-plugin stages (`ComponentsStage` flush → `SecurityStage` →
-`OverridesStage` → `TransformersStage`). The closure then registers lint rules
-(`BaselineRegistration::registerRules()` + `config/openapi.lint.rules`) and finally calls
-`OpenApiRegistry::seal()`. A plugin implements `Contracts\Registry\Plugin` and registers resolvers,
-extractors, error-response factories, payload class markers, lint rules, and additional
+place** — `Support\Generator\BaselineRegistration::assemble()` — as a single top-to-bottom sequence
+of `addStage` calls: pre-plugin baseline stages (`RootStage` → `PathsStage` →
+`ErrorResponseInferenceStage`), then each plugin in the given order (Core first), then post-plugin
+stages (`ComponentsStage` flush → `SecurityStage` → `OverridesStage` → `TransformersStage`); it then
+registers the baseline + `config/openapi.lint.rules` lint rules and the error-envelope resolver, and
+finally calls `OpenApiRegistry::seal()`. `assemble()` stays plugin-agnostic (it lives in `Support\`):
+the `OpenApiServiceProvider` registry factory closure owns only the Laravel/config glue and passes
+the plugin list (`[CorePlugin::class, ...config('openapi.plugins')]`), config rules, and resolved
+envelope class in as **class-strings**. A plugin implements `Contracts\Registry\Plugin` and registers
+resolvers, extractors, error-response factories, payload class markers, lint rules, and additional
 `SpecStage`s. `FormRequest` request bodies are handled by Core directly; Spatie Data classes are
 handled by the SpatieData plugin.
 
@@ -109,7 +111,7 @@ contributor and gets dedup + schema-transformer dispatch — no direct `$documen
 `SpecPipeline` is a **pure executor**: it loops `registry->stages` and applies each, nothing else.
 The terminal precedence `baseline+plugin stages → OverridesStage (config escape hatch) →
 TransformersStage (user code)` is now **positional**, not structural — it holds because all
-registration funnels through the factory closure before the terminal `addStage` calls, and `seal()`
+registration funnels through `assemble()` before the terminal `addStage` calls, and `seal()`
 enforces that funnel by rejecting out-of-band `addX()` on the built registry
 (`RegistrySealedException`, marked unchecked in `phpstan.neon`).
 

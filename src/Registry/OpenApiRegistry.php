@@ -23,12 +23,12 @@ use function in_array;
  * contributions, then `config` extras are appended. Entries are class-strings; instances are
  * resolved from the container when consumed.
  *
- * Once the service provider has finished assembling the registry it calls {@see seal()}: the
- * registry is build-once, then read-only. Sealing makes that the *enforced* invariant the stage
- * pipeline's ordering relies on — every legitimate registration funnels through the factory
- * closure before the seal, so an out-of-band `addX()` on the resolved singleton (e.g. from a
- * service provider booting later) fails loudly instead of silently appending past the terminal
- * stages.
+ * Once {@see \Radiergummi\OpenApi\Support\Generator\BaselineRegistration::assemble()} has finished
+ * building the registry it calls {@see seal()}: the registry is build-once, then read-only. Sealing
+ * makes that the *enforced* invariant the stage pipeline's ordering relies on — every legitimate
+ * registration funnels through `assemble()` before the seal, so an out-of-band `addX()` on the
+ * resolved singleton (e.g. from a service provider booting later) fails loudly instead of silently
+ * appending past the terminal stages.
  */
 final class OpenApiRegistry
 {
@@ -251,9 +251,12 @@ final class OpenApiRegistry
      * Stages are applied in registration order, so the order of calls to this method matters.
      *
      * @param class-string<SpecStage> $class
+     *
+     * @noinspection PhpDocMissingThrowsInspection
      */
     public function addStage(string $class): void
     {
+        /** @noinspection PhpUnhandledExceptionInspection */
         $this->guardSealed();
 
         if (!in_array($class, $this->stages, strict: true)) {
@@ -277,9 +280,9 @@ final class OpenApiRegistry
     /**
      * Throws when the registry has been sealed.
      *
-     * @internal
-     *
      * @throws RegistrySealedException
+     *
+     * @internal
      */
     private function guardSealed(): void
     {

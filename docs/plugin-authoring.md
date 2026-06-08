@@ -82,8 +82,8 @@ The resolver interfaces live in `src/Contracts/Registry/`:
   schema registrations on `ComponentSchemaRegistry` must be idempotent (guard
   with `hasKey()` / `isRegisteredOrReserved()`).
 - **`SpecStage`** (`src/Contracts/Generator/`): one step in the OpenAPI
-  document assembly pipeline. The whole stage order lives in one place — the
-  `OpenApiServiceProvider` registry factory closure — as a single top-to-bottom
+  document assembly pipeline. The whole stage order lives in one place —
+  `BaselineRegistration::assemble()` — as a single top-to-bottom
   sequence: the pre-plugin baseline stages (`RootStage`, `PathsStage`,
   `ErrorResponseInferenceStage`), then every plugin's stages in registration
   order, then the post-plugin stages (`ComponentsStage` flush, `SecurityStage`,
