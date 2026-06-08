@@ -186,6 +186,7 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerSpatieDataPlugin();
         $this->registerApiResourcesPlugin();
         $this->registerFractalPlugin();
+        $this->registerSwaggerPhpPlugin();
         $this->registerGenerator();
     }
 
@@ -596,6 +597,27 @@ class OpenApiServiceProvider extends ServiceProvider
                     refSchemaResolvers: $resolversFactory,
                 );
             },
+        );
+    }
+
+    /**
+     * Binds the SwaggerPhp plugin services.
+     *
+     * The scanner runs swagger-php over the host app once per generation, so it is scoped (the
+     * per-run scan is shared across stages and reset between Octane requests). Its scan path is an
+     * internal default — the app directory — not user config; tests rebind this to a fixture
+     * directory. swagger-php is a hard dependency, so the binding is always registered; the plugin
+     * stays inert until listed in `config/openapi.plugins`.
+     */
+    private function registerSwaggerPhpPlugin(): void
+    {
+        $this->app->scoped(
+            Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner::class,
+            static fn(Container $app): Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner
+                => new Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner(
+                    [app_path()],
+                    $app->make(LoggerInterface::class),
+                ),
         );
     }
 

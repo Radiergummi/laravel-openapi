@@ -15,7 +15,7 @@ New to the package? Read [Getting started](getting-started.md), then
 | [Request bodies](request-bodies.md) | `FormRequest` vs Spatie Data; validation-rule → schema mapping. |
 | [Attributes](attributes.md) | Escape-hatch catalog. |
 | [Recipes](recipes.md) | Short snippets for streaming, multipart, polymorphism, links, operationIds, and security schemes. |
-| [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal. |
+| [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal, SwaggerPhp. |
 | [Linting](linting.md) | `openapi:lint`, severity levels, rule catalog, `#[IgnoreLint]`. |
 | [Multi-spec](multi-spec.md) | Multiple OpenAPI documents from one app. |
 | [Configuration](config.md) | `config/openapi.php` keys. |
