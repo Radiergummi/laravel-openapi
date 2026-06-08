@@ -26,8 +26,6 @@ use function class_exists;
 use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
-use function str_contains;
-use function str_starts_with;
 
 /**
  * Flags a hand-authored `#[OA\Schema]` / `@OA\Schema` annotation on a class whose component schema
@@ -56,9 +54,6 @@ use function str_starts_with;
  */
 final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule, NeedsInferenceDocument
 {
-    /** swagger-php's PHP-attribute namespace (`#[OA\Schema]` etc.), distinct from `@OA` docblocks. */
-    public const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
-
     public const string CONTEXT_SHAPE = 'oaAnnotationShape';
 
     public function __construct(
@@ -106,7 +101,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             return;
         }
 
-        $shape = $this->shapeFor($class);
+        $shape = AuthoredSchemaShape::detect(new ReflectionClass($class));
 
         if ($shape === null) {
             return;
@@ -126,33 +121,6 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
                 self::CONTEXT_SHAPE => $shape->value,
             ],
         );
-    }
-
-    /**
-     * Whether the authored schema on the class came from `#[OA\*]` attributes or an `@OA` docblock,
-     * or null when neither is present (so we never propose an edit we can't locate).
-     *
-     * @param class-string $class
-     *
-     * @throws ReflectionException
-     */
-    private function shapeFor(string $class): ?AuthoredSchemaShape
-    {
-        $reflection = new ReflectionClass($class);
-
-        foreach ($reflection->getAttributes() as $attribute) {
-            if (str_starts_with($attribute->getName(), self::ATTRIBUTE_NAMESPACE)) {
-                return AuthoredSchemaShape::Attribute;
-            }
-        }
-
-        $docComment = $reflection->getDocComment();
-
-        if ($docComment !== false && str_contains($docComment, '@OA\\')) {
-            return AuthoredSchemaShape::Docblock;
-        }
-
-        return null;
     }
 
     #[Override]

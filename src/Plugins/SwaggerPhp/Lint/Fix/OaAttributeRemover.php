@@ -9,7 +9,7 @@ use PhpParser\Node\Attribute;
 use PhpParser\Node\AttributeGroup;
 use Radiergummi\OpenApi\Lint\Fix\ModifyAttribute;
 use Radiergummi\OpenApi\Lint\Fix\RemoveLines;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
 
 use function count;
 use function str_starts_with;
@@ -102,7 +102,7 @@ final readonly class OaAttributeRemover
         $resolved = $attr->name->getAttribute('resolvedName');
         $name = $resolved instanceof Node\Name ? $resolved->toString() : $attr->name->toString();
 
-        return str_starts_with($name, OaRedundantWithInference::ATTRIBUTE_NAMESPACE);
+        return str_starts_with($name, AuthoredSchemaShape::ATTRIBUTE_NAMESPACE);
     }
 
     /**

@@ -27,11 +27,8 @@ use ReflectionMethod;
 use function class_exists;
 use function in_array;
 use function is_array;
-use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
-use function str_contains;
-use function str_starts_with;
 
 /**
  * Flags a hand-authored operation-level swagger-php annotation — an `@OA\Get`/`@OA\Post`/… docblock
@@ -44,11 +41,12 @@ use function str_starts_with;
  * ({@see AuthoredAnnotationScanner::operationForMethod()}) is compared against inference's operation
  * for the *same route* in the inference-only view the runner builds and hands in via
  * {@see LintContext::$inferenceOperationsByKey}. It fires only when inference reproduces everything
- * the author contributed: each authored field the harvester merges — `summary` / `description` /
- * `operationId` / `tags` (by equality) and `responses` / `parameters` / `requestBody` (by
- * {@see SchemaEquivalence::subsumes()}) — is present and at least as rich in the inferred operation.
- * A `description` inference cannot derive, or a response shape that exists only at runtime, keeps the
- * annotation load-bearing, so it stays.
+ * the author contributed, field by field: `summary` / `description` / `operationId` / `tags` by
+ * equality, and `responses` / `parameters` / `requestBody` by {@see SchemaEquivalence::subsumes()}.
+ * The harvester merges only the metadata and `responses`; `parameters` / `requestBody` are checked
+ * too as a conservative guard, so an annotation documenting a parameter or body inference cannot
+ * reproduce is kept rather than silently dropped. A `description` inference cannot derive, or a
+ * response shape that exists only at runtime, likewise keeps the annotation load-bearing.
  *
  * Removing an operation annotation cannot dangle a `$ref`: an operation defines no reusable component
  * another annotation could reference. The one referencing case — an `@OA\Response(ref="…")` pointing
@@ -92,7 +90,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             return;
         }
 
-        $key = $operation->method->value . ' ' . ltrim($operation->pathUri, '/');
+        $key = LintContext::operationKey($operation->method->value, $operation->pathUri);
         $inferred = $context->inferenceOperationsByKey[$key] ?? null;
 
         // Inference produces no operation for this route: the annotation is load-bearing — keep it.
@@ -105,7 +103,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             return;
         }
 
-        $shape = $this->shapeFor($controller, $method);
+        $shape = AuthoredSchemaShape::detect(new ReflectionMethod($controller, $method));
 
         if ($shape === null) {
             return;
@@ -227,33 +225,6 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
         }
 
         return false;
-    }
-
-    /**
-     * Whether the controller method's authored operation annotation is an `#[OA\*]` attribute or an
-     * `@OA` docblock, or null when neither is present (so we never propose an edit we can't locate).
-     *
-     * @param class-string $class
-     *
-     * @throws ReflectionException
-     */
-    private function shapeFor(string $class, string $method): ?AuthoredSchemaShape
-    {
-        $reflection = new ReflectionMethod($class, $method);
-
-        foreach ($reflection->getAttributes() as $attribute) {
-            if (str_starts_with($attribute->getName(), OaRedundantWithInference::ATTRIBUTE_NAMESPACE)) {
-                return AuthoredSchemaShape::Attribute;
-            }
-        }
-
-        $docComment = $reflection->getDocComment();
-
-        if ($docComment !== false && str_contains($docComment, '@OA\\')) {
-            return AuthoredSchemaShape::Docblock;
-        }
-
-        return null;
     }
 
     #[Override]

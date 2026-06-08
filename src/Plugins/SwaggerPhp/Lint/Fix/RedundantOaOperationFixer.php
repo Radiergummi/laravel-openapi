@@ -10,10 +10,7 @@ use Radiergummi\OpenApi\Lint\Fix\FixContext;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
-use ReflectionClass;
-use ReflectionException;
 
-use function class_exists;
 use function is_string;
 
 /**
@@ -33,6 +30,8 @@ use function is_string;
  */
 final readonly class RedundantOaOperationFixer implements Fixer
 {
+    use ResolvesDeclaringFile;
+
     public function __construct(
         private DocblockAnnotationRemover $docblockRemover = new DocblockAnnotationRemover(),
         private OaAttributeRemover $attributeRemover = new OaAttributeRemover(),
@@ -62,27 +61,6 @@ final readonly class RedundantOaOperationFixer implements Fixer
             AuthoredSchemaShape::Docblock => $this->docblockRemover->removeForMethod($finding, $class, $method, $file, $context),
             AuthoredSchemaShape::Attribute => $this->removeAttributes($finding, $class, $method, $file, $context),
         };
-    }
-
-    /**
-     * The file declaring the class, or null when it cannot be reflected.
-     *
-     * `$class` originates from finding context, so it is untrusted; reflection throwing on a bad
-     * name is caught.
-     */
-    private function fileFor(string $class): ?string
-    {
-        if (!class_exists($class)) {
-            return null;
-        }
-
-        try {
-            $file = new ReflectionClass($class)->getFileName();
-        } catch (ReflectionException) {
-            return null;
-        }
-
-        return $file ?: null;
     }
 
     /**

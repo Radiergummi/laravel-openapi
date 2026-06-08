@@ -11,6 +11,8 @@ use ReflectionClass;
 
 use function array_any;
 use function is_a;
+use function ltrim;
+use function strtolower;
 
 final readonly class LintContext
 {
@@ -69,5 +71,15 @@ final readonly class LintContext
             $this->payloadClasses,
             static fn(string $base): bool => is_a($class, $base, allow_string: true),
         );
+    }
+
+    /**
+     * The lookup key into {@see $inferenceOperationsByKey}: the HTTP method lower-cased, a space,
+     * and the URI without a leading slash. The single definition of the convention, shared by the
+     * runner that builds the index and the rules that read it, so the two cannot drift.
+     */
+    public static function operationKey(string $method, string $uri): string
+    {
+        return strtolower($method) . ' ' . ltrim($uri, '/');
     }
 }

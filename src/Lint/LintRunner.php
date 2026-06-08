@@ -551,7 +551,7 @@ final readonly class LintRunner
             }
 
             foreach ($pathItem->operations() as $operation) {
-                $operations[$operation->method . ' ' . ltrim($pathItem->path, '/')] = $operation;
+                $operations[LintContext::operationKey($operation->method, $pathItem->path)] = $operation;
             }
         }
 
