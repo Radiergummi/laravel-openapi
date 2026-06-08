@@ -16,24 +16,26 @@ use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
 
 /**
- * Runs swagger-php's own analyser over a set of source paths once, harvesting the
- * hand-authored `#[OA\Schema]` / `@OA\Schema` definitions and operation-level `@OA`
- * annotations a host app already wrote.
+ * Runs swagger-php's own analyzer over a set of source paths once, harvesting the hand-authored
+ * `#[OA\Schema]` / `@OA\Schema` definitions and operation-level `@OA` annotations a host app
+ * already wrote.
  *
- * The scan is lazy and memoised: the first lookup triggers a single `Generator::generate()`
- * pass, after which all queries are served from the built indexes. A failing or empty scan
- * degrades to empty indexes rather than throwing (Tier-0 graceful degradation).
+ * The scan is lazy and memoised: the first lookup triggers a single `Generator::generate()` pass,
+ * after which all queries are served from the built indexes. A failing or empty scan degrades to
+ * empty indexes rather than throwing (Tier-0 graceful degradation).
  *
  * @internal
  */
 final class AuthoredAnnotationScanner
 {
+    private bool $scanned = false;
+
     /**
      * Authored component schemas keyed by their authored schema name.
      *
-     * @var null|array<string, Schema>
+     * @var array<string, Schema>
      */
-    private ?array $schemasByName = null;
+    private array $schemasByName = [];
 
     /**
      * Authored component schemas keyed by their declaring class (FQCN, no leading slash).
@@ -80,13 +82,12 @@ final class AuthoredAnnotationScanner
 
     private function scan(): void
     {
-        if ($this->schemasByName !== null) {
+        if ($this->scanned) {
             return;
         }
 
-        $this->schemasByName = [];
-
         $document = $this->generate();
+        $this->scanned = true;
 
         if ($document === null) {
             return;
@@ -99,10 +100,11 @@ final class AuthoredAnnotationScanner
     private function generate(): ?OpenApi
     {
         try {
-            return (new Generator($this->logger))->generate($this->scanPaths, validate: false);
+            return new Generator($this->logger)
+                ->generate($this->scanPaths, validate: false);
         } catch (Throwable $exception) {
             $this->logger->warning(
-                'Failed to scan for authored swagger-php annotations: ' . $exception->getMessage(),
+                "Failed to scan for authored swagger-php annotations: {$exception->getMessage()}",
             );
 
             return null;
@@ -111,7 +113,11 @@ final class AuthoredAnnotationScanner
 
     private function indexSchemas(OpenApi $document): void
     {
-        if (!is_defined($document->components) || !is_array($document->components->schemas)) {
+        /** @noinspection NotOptimalIfConditionsInspection */
+        if (
+            !is_defined($document->components)
+            || !is_array($document->components->schemas)
+        ) {
             return;
         }
 
@@ -153,7 +159,7 @@ final class AuthoredAnnotationScanner
     }
 
     /**
-     * Resolve the fully-qualified declaring class of an annotation to a leading-slash-free FQCN.
+     * Resolve the fully qualified declaring class of an annotation to a leading-slash-free FQCN.
      */
     private function declaringClass(Schema|Operation $annotation): ?string
     {
@@ -165,6 +171,6 @@ final class AuthoredAnnotationScanner
 
     private function methodKey(string $class, string $method): string
     {
-        return ltrim($class, '\\') . '::' . $method;
+        return sprintf('%s::%s', ltrim($class, '\\'), $method);
     }
 }
