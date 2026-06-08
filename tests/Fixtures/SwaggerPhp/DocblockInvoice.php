@@ -15,6 +15,12 @@ use OpenApi\Annotations as OA;
  *
  *     @OA\Property(property="id", type="integer"),
  *     @OA\Property(property="amount", type="number", format="float"),
+ *     @OA\Property(
+ *         property="lines",
+ *         type="array",
+ *
+ *         @OA\Items(ref="#/components/schemas/InvoiceLine"),
+ *     ),
  * )
  */
 class DocblockInvoice {}
