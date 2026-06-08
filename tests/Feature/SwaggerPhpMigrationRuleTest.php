@@ -151,3 +151,59 @@ it('does not flag an annotation inference cannot reproduce', function (): void {
     expect(migrationFindingClasses($result))
         ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer::class);
 });
+
+it('does not flag a class that has no authored annotation', function (): void {
+    // Inference produces a schema for PlainStructData, but there is nothing authored to remove.
+    Route::get('/plain', [RedundantAnnotationController::class, 'plain']);
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect(migrationFindingClasses($result))
+        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\PlainStructData::class);
+});
+
+it('keeps an annotation carrying a description inference cannot derive', function (): void {
+    // Inference reproduces the shape but not the human-written description, so it does not subsume
+    // the authored schema — the annotation stays.
+    Route::get('/load-bearing', [RedundantAnnotationController::class, 'loadBearing']);
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect(migrationFindingClasses($result))
+        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\LoadBearingAttributeData::class);
+});
+
+it('does not flag a schema another authored annotation still references by name', function (): void {
+    // RefParentData's authored schema $refs RefChild; removing RefChild's annotation would dangle
+    // that reference, so the rule must leave it in place.
+    Route::get('/ref-parent', [RedundantAnnotationController::class, 'refParent']);
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect(migrationFindingClasses($result))
+        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RefChildData::class);
+});
+
+it('expands a family glob configured in openapi.lint.enabled_rules', function (): void {
+    // The config-side allowlist (not just CLI --only) must expand `migration.*` to the family.
+    migrationRuleSetup();
+    config()->set('openapi.lint.enabled_rules', ['migration.*']);
+
+    $result = app(LintRunner::class)->run(new LintOptions());
+
+    expect(migrationFindingClasses($result))
+        ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData::class);
+});
+
+it('exposes its fixer and human-readable description', function (): void {
+    migrationRuleSetup();
+
+    $rule = app(\Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference::class);
+
+    expect($rule->fixer())
+        ->toBeInstanceOf(\Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer::class)
+        ->and($rule->description())->toContain('inference');
+});

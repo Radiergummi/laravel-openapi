@@ -21,4 +21,19 @@ class RedundantAnnotationController
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function plain(): PlainStructData
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function loadBearing(): LoadBearingAttributeData
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function refParent(): RefParentData
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }

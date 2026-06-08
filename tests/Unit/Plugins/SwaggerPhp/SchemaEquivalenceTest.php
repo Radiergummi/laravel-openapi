@@ -92,3 +92,19 @@ it('treats null against a present annotation as not subsumed', function (): void
     expect(schemaEquivalence()->subsumes(null, new OA\Schema(['type' => 'string'])))->toBeFalse()
         ->and(schemaEquivalence()->subsumes(null, null))->toBeTrue();
 });
+
+it('does not subsume when a required member is absent from the broader side', function (): void {
+    // List containment: the narrower `required` carries a member ('email') no broader element matches.
+    $broader = new OA\Schema(['type' => 'object', 'required' => ['id']]);
+    $narrower = new OA\Schema(['type' => 'object', 'required' => ['id', 'email']]);
+
+    expect(schemaEquivalence()->subsumes($broader, $narrower))->toBeFalse();
+});
+
+it('drops UNDEFINED elements inside a list before comparing', function (): void {
+    // A list with an UNDEFINED hole still subsumes once normalized down to its defined members.
+    $broader = new OA\Schema(['type' => 'string', 'enum' => ['a', 'b']]);
+    $narrower = new OA\Schema(['type' => 'string', 'enum' => ['a', OpenApi\Generator::UNDEFINED, 'b']]);
+
+    expect(schemaEquivalence()->subsumes($broader, $narrower))->toBeTrue();
+});
