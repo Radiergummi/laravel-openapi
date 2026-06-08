@@ -14,7 +14,6 @@ use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Console\LintCommand;
-use Radiergummi\OpenApi\Contracts\Lint\MigrationRule;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -46,6 +45,7 @@ use function array_unique;
 use function array_values;
 use function class_exists;
 use function count;
+use function fnmatch;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -55,6 +55,7 @@ use function preg_match;
 use function property_exists;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
+use function str_contains;
 
 /**
  * Orchestrates one lint run against the application's routes.
@@ -215,43 +216,13 @@ final readonly class LintRunner
             $level = max($level, $this->registry->maxLevel());
         }
 
-        // Migration rules are selected explicitly below (under --migrate), so keep them out of the
-        // level-based set: they trigger a second, inference-only generation and must stay inert on
-        // ordinary runs regardless of their configured level.
-        $rules = array_values(array_filter(
-            $this->registry->forLevel($level, only: $only, skip: $skip),
-            static fn(Rule $rule): bool => !$rule instanceof MigrationRule,
-        ));
+        $rules = $this->registry->forLevel($level, only: $only, skip: $skip);
 
         if (!$options->validateSpec) {
             $rules = array_values(array_filter(
                 $rules,
                 static fn(Rule $rule): bool => $rule->id() !== RuleRegistry::EXEMPT_RULE_ID,
             ));
-        }
-
-        // Under --migrate the migration rules run regardless of the severity preset (the user
-        // explicitly asked for them), honouring only --only/--skip. Their IDs are tracked so their
-        // findings bypass the level filter below, the way spec.invalid does.
-        $migrationRuleIds = [];
-
-        if ($options->migrate) {
-            foreach ($this->registry->all() as $rule) {
-                if (!$rule instanceof MigrationRule) {
-                    continue;
-                }
-
-                if ($only !== [] && !in_array($rule->id(), $only, true)) {
-                    continue;
-                }
-
-                if (in_array($rule->id(), $skip, true)) {
-                    continue;
-                }
-
-                $rules[] = $rule;
-                $migrationRuleIds[$rule->id()] = true;
-            }
         }
 
         // endregion
@@ -408,10 +379,7 @@ final readonly class LintRunner
         $findings = array_values(
             array_filter(
                 $findings,
-                // Migration findings bypass the level preset (like spec.invalid): the user opted
-                // into them via --migrate, so they surface regardless of their configured severity.
-                static fn(Finding $finding): bool
-                    => $finding->level <= $level || isset($migrationRuleIds[$finding->ruleId]),
+                static fn(Finding $finding): bool => $finding->level <= $level,
             ),
         );
 
@@ -446,18 +414,22 @@ final readonly class LintRunner
      */
     private function resolveOnly(array $cli): array
     {
+        $cli = $this->expandRulePatterns($cli);
+
         if ($this->enabledRules === null) {
             return $cli;
         }
+
+        $enabled = $this->expandRulePatterns($this->enabledRules);
 
         return $cli !== []
             ? array_values(
                 array_filter(
                     $cli,
-                    fn(string $id): bool => in_array($id, $this->enabledRules, true),
+                    static fn(string $id): bool => in_array($id, $enabled, true),
                 ),
             )
-            : array_values($this->enabledRules);
+            : $enabled;
     }
 
     /**
@@ -471,7 +443,10 @@ final readonly class LintRunner
      */
     private function resolveSkip(array $cli): array
     {
-        $merged = array_values(array_unique(array_merge($cli, $this->disabledRules)));
+        $merged = array_values(array_unique(array_merge(
+            $this->expandRulePatterns($cli),
+            $this->expandRulePatterns($this->disabledRules),
+        )));
 
         return array_values(
             array_filter(
@@ -479,6 +454,44 @@ final readonly class LintRunner
                 static fn(string $id): bool => $id !== RuleRegistry::EXEMPT_RULE_ID,
             ),
         );
+    }
+
+    /**
+     * Expand `*`-globbed rule-ID patterns against the registered rule IDs, so a family pattern like
+     * `migration.*` selects every rule in that family. Non-glob entries pass through verbatim
+     * (an unknown exact ID still matches nothing, as before); a glob that matches no registered
+     * rule is kept literally, so it too matches nothing rather than collapsing to "no filter".
+     *
+     * @param list<string> $patterns
+     *
+     * @return list<string>
+     */
+    private function expandRulePatterns(array $patterns): array
+    {
+        if ($patterns === []) {
+            return [];
+        }
+
+        $known = $this->registry->knownIds();
+        $expanded = [];
+
+        foreach ($patterns as $pattern) {
+            if (!str_contains($pattern, '*')) {
+                $expanded[] = $pattern;
+
+                continue;
+            }
+
+            $matches = array_values(array_filter(
+                $known,
+                static fn(string $id): bool => fnmatch($pattern, $id),
+            ));
+
+            // Keep the literal pattern when nothing matches so it still constrains to "no rules".
+            $expanded = [...$expanded, ...($matches !== [] ? $matches : [$pattern])];
+        }
+
+        return array_values(array_unique($expanded));
     }
 
     private function resolveLevel(LintOptions $options): int

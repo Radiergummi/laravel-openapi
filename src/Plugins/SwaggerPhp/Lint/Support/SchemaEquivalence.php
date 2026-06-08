@@ -10,11 +10,8 @@ use function array_is_list;
 use function array_key_exists;
 use function array_values;
 use function get_object_vars;
-use function json_encode;
-use function ksort;
 use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
-use function usort;
 
 /**
  * Decides whether one swagger-php annotation subtree is structurally **contained in** another, by
@@ -134,8 +131,6 @@ final readonly class SchemaEquivalence
             $normalized[$key] = $this->normalize($value);
         }
 
-        ksort($normalized);
-
         return $normalized;
     }
 
@@ -157,19 +152,8 @@ final readonly class SchemaEquivalence
             $normalized[$key] = $this->normalize($element);
         }
 
-        if ($wasList) {
-            $normalized = array_values($normalized);
-            usort(
-                $normalized,
-                static fn(mixed $a, mixed $b): int
-                    => (json_encode($a) ?: '') <=> (json_encode($b) ?: ''),
-            );
-
-            return $normalized;
-        }
-
-        ksort($normalized);
-
-        return $normalized;
+        // Re-key a list so dropping an UNDEFINED element keeps it a list; `contains()` matches both
+        // lists and maps order-insensitively, so no canonical ordering is needed here.
+        return $wasList ? array_values($normalized) : $normalized;
     }
 }

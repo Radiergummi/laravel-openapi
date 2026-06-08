@@ -288,8 +288,8 @@ public function show(string $id): Aircraft { … }
 Harvesting keeps your annotations working, but the goal is usually to delete the
 ones inference now reproduces on its own. The plugin registers a migration lint
 rule, `migration.oa-redundant-with-inference`, for exactly that — run
-`php artisan openapi:lint --migrate` to find redundant `#[OA\Schema]` / `@OA\Schema`
-blocks and `--migrate --fix` to remove them. See
-[Linting → Migration mode](linting.md#migration-mode---migrate).
+`php artisan openapi:lint --only 'migration.*'` to find redundant `#[OA\Schema]` /
+`@OA\Schema` blocks and add `--fix` to remove them. See
+[Linting → Migration rules](linting.md#migration-rules-migration).
 
 Worked endpoint: [`examples/swagger-php/`](../examples/swagger-php/).

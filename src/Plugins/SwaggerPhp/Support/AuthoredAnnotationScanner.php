@@ -10,14 +10,14 @@ use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Schema;
 use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Lint\AnnotationWalker;
 use Throwable;
 
-use function get_object_vars;
 use function is_array;
 use function is_string;
 use function ltrim;
+use function property_exists;
 use function Radiergummi\OpenApi\is_defined;
-use function str_starts_with;
 
 /**
  * Runs swagger-php's own analyzer over a set of source paths once, harvesting the hand-authored
@@ -119,35 +119,15 @@ final class AuthoredAnnotationScanner
      */
     private function referencesRef(AbstractAnnotation $node, string $target): bool
     {
-        foreach (get_object_vars($node) as $key => $value) {
-            if (str_starts_with($key, '_')) {
-                continue;
+        $found = false;
+
+        AnnotationWalker::walk($node, static function (AbstractAnnotation $annotation) use ($target, &$found): void {
+            if (property_exists($annotation, 'ref') && is_string($annotation->ref) && $annotation->ref === $target) {
+                $found = true;
             }
+        });
 
-            if ($key === 'ref' && is_string($value) && $value === $target) {
-                return true;
-            }
-
-            if ($value instanceof AbstractAnnotation) {
-                if ($this->referencesRef($value, $target)) {
-                    return true;
-                }
-
-                continue;
-            }
-
-            if (!is_array($value)) {
-                continue;
-            }
-
-            foreach ($value as $item) {
-                if ($item instanceof AbstractAnnotation && $this->referencesRef($item, $target)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return $found;
     }
 
     private function scan(): void

@@ -24,8 +24,8 @@ final class SwaggerPhpPlugin implements Plugin
     {
         $registry->addStage(HarvestAuthoredAnnotationsStage::class);
 
-        // Gated behind `openapi:lint --migrate`; flags hand-authored annotations the generator now
-        // reproduces on its own.
+        // A `migration.*` cleanup rule (level 4): flags hand-authored annotations the generator now
+        // reproduces on its own. Surface with `openapi:lint --only 'migration.*'`.
         $registry->addRule(OaRedundantWithInference::class);
     }
 }

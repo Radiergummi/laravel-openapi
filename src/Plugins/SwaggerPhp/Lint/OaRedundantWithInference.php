@@ -7,7 +7,6 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use Override;
-use Radiergummi\OpenApi\Contracts\Lint\MigrationRule;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
@@ -44,12 +43,14 @@ use function str_starts_with;
  * A schema another surviving authored annotation still `$ref`s by name is never flagged, so the fix
  * cannot leave a dangling reference.
  *
- * Registered only by the (off-by-default) swagger-php plugin and gated behind `openapi:lint
- * --migrate`, since deciding redundancy requires a second, inference-only generation.
+ * Registered only by the (off-by-default) swagger-php plugin. As a `migration.*` rule it sits at
+ * the cleanup tier (level 4), so it stays off ordinary runs — and its second, inference-only
+ * generation stays unpaid — until explicitly requested (`openapi:lint --only 'migration.*'`) or run
+ * at a high level; disable the family with `--skip 'migration.*'`.
  *
  * @internal
  */
-final class OaRedundantWithInference implements Rule, MigrationRule, ComponentSchemaRule, FixableRule
+final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule
 {
     /** swagger-php's PHP-attribute namespace (`#[OA\Schema]` etc.), distinct from `@OA` docblocks. */
     private const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';

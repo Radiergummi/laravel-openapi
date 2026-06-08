@@ -58,8 +58,8 @@ class LintCommand extends Command
     protected $signature = 'openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
         {--format= : Output format (cli|json|github|markdown; auto-detected by default)}
-        {--only= : Restrict to listed rule IDs (comma-separated)}
-        {--skip= : Restrict to listed rule IDs to exclude (comma-separated)}
+        {--only= : Restrict to listed rule IDs (comma-separated; `*` globs a family, e.g. migration.*)}
+        {--skip= : Restrict to listed rule IDs to exclude (comma-separated; `*` globs a family, e.g. migration.*)}
         {--uri= : Restrict to routes whose URI matches this glob}
         {--path=* : Restrict to routes affected by these source files (repeatable; pre-commit hooks pass $STAGED_FILES)}
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the default branch; "staged" = index, "working" = work tree)}
@@ -68,7 +68,6 @@ class LintCommand extends Command
         {--list : Print the rule catalog instead of linting}
         {--fix : Apply fixable findings to the source, then report the rest}
         {--check : Report whether --fix would change anything, without writing (CI-safe)}
-        {--migrate : Run migration rules (e.g. flag hand-authored annotations inference now reproduces); triggers a second, inference-only generation}
         {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}
         {--min-coverage= : Fail when documentation coverage % falls below this threshold (gate-driven exit)}
         {--max-findings= : Fail when the in-scope finding count exceeds this budget}';
@@ -261,7 +260,6 @@ class LintCommand extends Command
             spec: $this->option('spec') ?: null,
             minCoverage: $this->parseMinCoverage(),
             maxFindings: $this->parseMaxFindings(),
-            migrate: (bool) $this->option('migrate'),
         );
     }
 

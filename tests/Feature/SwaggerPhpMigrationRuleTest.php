@@ -101,28 +101,38 @@ it('leaves the affected operations unchanged once the redundant annotations are 
         ->toBe(responseRefFor($harvested, 'redundant-docblock'));
 });
 
-it('flags an attribute-shape annotation inference reproduces, under --migrate', function (): void {
+it('flags an attribute-shape annotation inference reproduces, under --only migration.*', function (): void {
     migrationRuleSetup();
 
-    $result = app(LintRunner::class)->run(new LintOptions(migrate: true));
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
         ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData::class);
 });
 
-it('flags a docblock-shape annotation inference reproduces, under --migrate', function (): void {
+it('flags a docblock-shape annotation inference reproduces, under --only migration.*', function (): void {
     migrationRuleSetup();
 
-    $result = app(LintRunner::class)->run(new LintOptions(migrate: true));
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
         ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantDocblockData::class);
 });
 
-it('stays inert without --migrate', function (): void {
+it('stays off an ordinary (default-level) lint run', function (): void {
+    // Migration rules are level 4 (cleanup tier), so a default-level lint never runs them — the
+    // expensive inference-only generation stays unpaid until explicitly requested.
     migrationRuleSetup();
 
-    $result = app(LintRunner::class)->run(new LintOptions(level: 'max'));
+    $result = app(LintRunner::class)->run(new LintOptions());
+
+    expect(migrationFindingClasses($result))->toBe([]);
+});
+
+it('is disabled as a family by --skip migration.*', function (): void {
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(level: 'max', skip: ['migration.*']));
 
     expect(migrationFindingClasses($result))->toBe([]);
 });
@@ -133,7 +143,7 @@ it('does not flag an annotation inference cannot reproduce', function (): void {
     Route::get('/servers/{id}', [ServerController::class, 'show']);
     migrationRuleSetup();
 
-    $result = app(LintRunner::class)->run(new LintOptions(migrate: true));
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
         ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer::class);
