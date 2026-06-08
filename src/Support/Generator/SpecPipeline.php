@@ -13,8 +13,6 @@ use OpenApi\Generator;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
-use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use ReflectionException;
 use RuntimeException;
@@ -24,14 +22,13 @@ use UnexpectedValueException;
 use function assert;
 
 /**
- * Assembles the OpenAPI document by running ordered stages against a shared {@see OpenApi}.
+ * Assembles the OpenAPI document by running the registered stages against a shared {@see OpenApi}.
  *
- * Stages are resolved from {@see OpenApiRegistry::$stages} in registration order — core stages
- * (registered by {@see \Radiergummi\OpenApi\Plugins\Core\CorePlugin::register()}) come
- * first, plugin stages follow. {@see OverridesStage} then applies the config-driven override
- * escape hatch (so it beats plugin and convention values), and {@see TransformersStage} runs last
- * as a fixed terminal step so a user-registered document transformer sees the fully assembled spec
- * and retains the final word. Both terminal steps are always loaded, independent of any plugin.
+ * A pure executor: it resolves every stage from {@see OpenApiRegistry::$stages} and applies it in
+ * registration order. The order — pre-plugin stages, plugin stages, then the post-plugin flush and
+ * terminal override/transformer stages — is established in one place, the
+ * {@see \Radiergummi\OpenApi\OpenApiServiceProvider} registry factory closure; this class holds no
+ * stages of its own.
  *
  * Pins swagger-php's {@see Context} to OpenAPI 3.1 for the duration of the run so nullable
  * type unions (`type: ['…','null']`) serialise as 3.1 unions instead of the 3.0 `nullable: true`
@@ -46,8 +43,6 @@ final readonly class SpecPipeline
     public function __construct(
         private OpenApiRegistry $registry,
         private Container $container,
-        private OverridesStage $overridesStage,
-        private TransformersStage $transformersStage,
     ) {}
 
     /**
@@ -71,9 +66,6 @@ final readonly class SpecPipeline
                 assert($stage instanceof SpecStage);
                 $stage->apply($document, $context);
             }
-
-            $this->overridesStage->apply($document, $context);
-            $this->transformersStage->apply($document, $context);
 
             return $document;
         } finally {

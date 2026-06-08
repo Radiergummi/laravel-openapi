@@ -22,9 +22,20 @@ use function in_array;
  * Built once at boot: core registers its built-ins, each enabled plugin registers its
  * contributions, then `config` extras are appended. Entries are class-strings; instances are
  * resolved from the container when consumed.
+ *
+ * Once the service provider has finished assembling the registry it calls {@see seal()}: the
+ * registry is build-once, then read-only. Sealing makes that the *enforced* invariant the stage
+ * pipeline's ordering relies on — every legitimate registration funnels through the factory
+ * closure before the seal, so an out-of-band `addX()` on the resolved singleton (e.g. from a
+ * service provider booting later) fails loudly instead of silently appending past the terminal
+ * stages.
  */
 final class OpenApiRegistry
 {
+    /**
+     * Whether {@see seal()} has been called. Once true, every `addX()` method throws.
+     */
+    private bool $sealed = false;
     /**
      * All registered request schema resolvers.
      *
@@ -115,6 +126,8 @@ final class OpenApiRegistry
      */
     public function addRequestSchemaResolver(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->requestSchemaResolvers, strict: true)) {
             $this->requestSchemaResolvers[] = $class;
         }
@@ -127,6 +140,8 @@ final class OpenApiRegistry
      */
     public function addRefSchemaResolver(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->refSchemaResolvers, strict: true)) {
             $this->refSchemaResolvers[] = $class;
         }
@@ -139,6 +154,8 @@ final class OpenApiRegistry
      */
     public function addQueryParameterResolver(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->queryParameterResolvers, strict: true)) {
             $this->queryParameterResolvers[] = $class;
         }
@@ -151,6 +168,8 @@ final class OpenApiRegistry
      */
     public function addPrimaryResponseResolver(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->primaryResponseResolvers, strict: true)) {
             $this->primaryResponseResolvers[] = $class;
         }
@@ -163,6 +182,8 @@ final class OpenApiRegistry
      */
     public function addOperationConventionResolver(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->operationConventionResolvers, strict: true)) {
             $this->operationConventionResolvers[] = $class;
         }
@@ -175,6 +196,8 @@ final class OpenApiRegistry
      */
     public function addPayloadClass(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->payloadClasses, strict: true)) {
             $this->payloadClasses[] = $class;
         }
@@ -187,6 +210,8 @@ final class OpenApiRegistry
      */
     public function addErrorResponseResolver(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->errorResponseResolvers, strict: true)) {
             $this->errorResponseResolvers[] = $class;
         }
@@ -199,6 +224,8 @@ final class OpenApiRegistry
      */
     public function addErrorResponseContributor(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->errorResponseContributors, strict: true)) {
             $this->errorResponseContributors[] = $class;
         }
@@ -211,6 +238,8 @@ final class OpenApiRegistry
      */
     public function addRule(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->rules, strict: true)) {
             $this->rules[] = $class;
         }
@@ -225,8 +254,41 @@ final class OpenApiRegistry
      */
     public function addStage(string $class): void
     {
+        $this->guardSealed();
+
         if (!in_array($class, $this->stages, strict: true)) {
             $this->stages[] = $class;
+        }
+    }
+
+    /**
+     * Seals the registry against further registration.
+     *
+     * Called once by the service provider after the factory closure has assembled every baseline,
+     * plugin, and config contribution. Idempotent. After this, any `addX()` throws.
+     *
+     * @internal
+     */
+    public function seal(): void
+    {
+        $this->sealed = true;
+    }
+
+    /**
+     * Throws when the registry has been sealed.
+     *
+     * @internal
+     *
+     * @throws RegistrySealedException
+     */
+    private function guardSealed(): void
+    {
+        if ($this->sealed) {
+            throw new RegistrySealedException(
+                'The OpenApiRegistry is sealed and no longer accepts registrations. Register '
+                . 'stages, resolvers, and rules from a Plugin listed in config(\'openapi.plugins\') '
+                . '— the factory closure is the only window in which the registry accepts writes.',
+            );
         }
     }
 }

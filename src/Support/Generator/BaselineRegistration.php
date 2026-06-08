@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Lint\Rules\ActionMissingReturnType;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
@@ -105,33 +104,19 @@ use Radiergummi\OpenApi\Lint\Rules\VisibilityAttributeNoOp;
 use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\WebhookNameDuplicate;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
-use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
-use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
-use Radiergummi\OpenApi\Support\Generator\Stages\PathsStage;
-use Radiergummi\OpenApi\Support\Generator\Stages\RootStage;
-use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
 
 /**
- * Registers the library's baseline pipeline stages — the generator infrastructure that runs
- * regardless of which plugins (Core or otherwise) are enabled.
+ * Registers the library's baseline lint rules — the rules that ship regardless of which plugins
+ * (Core or otherwise) are enabled.
  *
- * Runs first, before {@see \Radiergummi\OpenApi\Plugins\Core\CorePlugin} and any user-configured
- * plugins. Stage order is important:
+ * The baseline stage pipeline that surrounds the plugin loop (`RootStage` → `PathsStage` →
+ * `ErrorResponseInferenceStage` → plugin stages → `ComponentsStage` → `SecurityStage` → terminal
+ * `OverridesStage`/`TransformersStage`) is ordered in one place — the
+ * {@see \Radiergummi\OpenApi\OpenApiServiceProvider} registry factory closure — so stage order is
+ * read top-to-bottom there, not split across registrars.
  *
- * 1. {@see RootStage} — populate document root (info, servers, tags, security schemes).
- * 2. {@see PathsStage} — assemble operation objects per route.
- * 3. {@see ErrorResponseInferenceStage} — drive registered {@see ErrorResponseContributor}s + the
- *    {@see ErrorResponseResolver} chain, writing inferred 4xx/5xx responses into operations.
- *    Must run after paths exist (it reads them) but before {@see ComponentsStage} flushes named
- *    response components into the document.
- * 4. {@see ComponentsStage} — flush component schemas/responses into the assembled document.
- * 5. {@see SecurityStage} — finalise top-level security requirements.
- *
- * Plugins that only contribute {@see ErrorResponseContributor}s (the most common case for new
- * envelope shapes) can therefore work without re-registering or re-implementing this pipeline.
- *
- * Also registers the lint rules whose findings are emitted by baseline stages — currently
- * `errors.resolver-failed`, emitted by {@see ErrorResponseInferenceStage} when an
+ * The rules registered here include those whose findings are emitted by baseline stages — e.g.
+ * `errors.resolver-failed`, emitted by `ErrorResponseInferenceStage` when an
  * {@see ErrorResponseResolver} throws. Tying these rule registrations to the baseline avoids the
  * "Core was disabled and now my suppression annotation trips meta.unknown-rule" failure mode.
  *
@@ -260,14 +245,8 @@ final class BaselineRegistration
         OverridesUnused::class,
     ];
 
-    public static function register(OpenApiRegistry $registry): void
+    public static function registerRules(OpenApiRegistry $registry): void
     {
-        $registry->addStage(RootStage::class);
-        $registry->addStage(PathsStage::class);
-        $registry->addStage(ErrorResponseInferenceStage::class);
-        $registry->addStage(ComponentsStage::class);
-        $registry->addStage(SecurityStage::class);
-
         foreach (self::RULES as $rule) {
             $registry->addRule($rule);
         }

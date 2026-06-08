@@ -7,6 +7,7 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DanglingController;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\InvoiceController;
@@ -17,7 +18,7 @@ uses()->group('openapi');
 
 // region Helpers
 
-function harvestStage(?LoggerInterface $logger = null): HarvestAuthoredAnnotationsStage
+function harvestStage(ComponentSchemaRegistry $schemaRegistry, ?LoggerInterface $logger = null): HarvestAuthoredAnnotationsStage
 {
     $logger ??= recordingLogger();
     $scanner = new AuthoredAnnotationScanner(
@@ -25,7 +26,7 @@ function harvestStage(?LoggerInterface $logger = null): HarvestAuthoredAnnotatio
         $logger,
     );
 
-    return new HarvestAuthoredAnnotationsStage($scanner, $logger);
+    return new HarvestAuthoredAnnotationsStage($scanner, $schemaRegistry, $logger);
 }
 
 function harvestSpec(): SpecDefinition
@@ -53,15 +54,11 @@ function harvestDoc(OA\Operation $operation): OA\OpenApi
 }
 
 /**
- * @return list<string> The component schema names registered on the document.
+ * @return list<string> The component schema names the harvester registered into the shared pool.
  */
-function harvestSchemaNames(OA\OpenApi $doc): array
+function harvestSchemaNames(ComponentSchemaRegistry $schemaRegistry): array
 {
-    if (!$doc->components instanceof OA\Components || !is_array($doc->components->schemas)) {
-        return [];
-    }
-
-    return array_map(static fn(OA\Schema $s): string => $s->schema, $doc->components->schemas);
+    return array_map(static fn(OA\Schema $s): string => $s->schema, $schemaRegistry->all());
 }
 
 /**
@@ -96,10 +93,11 @@ it('attaches a $ref response when the return type carries an authored schema', f
     $ctx = new GenerationContext(harvestSpec(), 'testing');
     $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(ServerController::class, 'show'));
 
-    harvestStage()->apply($doc, $ctx);
+    $schemaRegistry = new ComponentSchemaRegistry();
+    harvestStage($schemaRegistry)->apply($doc, $ctx);
 
     expect(harvestPrimaryRef($operation))->toBe('#/components/schemas/Server')
-        ->and(harvestSchemaNames($doc))->toContain('Server');
+        ->and(harvestSchemaNames($schemaRegistry))->toContain('Server');
 });
 
 // endregion
@@ -117,10 +115,11 @@ it('merges an authored operation response and registers its schemas transitively
     $ctx = new GenerationContext(harvestSpec(), 'testing');
     $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(InvoiceController::class, 'show'));
 
-    harvestStage()->apply($doc, $ctx);
+    $schemaRegistry = new ComponentSchemaRegistry();
+    harvestStage($schemaRegistry)->apply($doc, $ctx);
 
     expect(harvestPrimaryRef($operation))->toBe('#/components/schemas/Invoice')
-        ->and(harvestSchemaNames($doc))->toContain('Invoice')->toContain('InvoiceLine');
+        ->and(harvestSchemaNames($schemaRegistry))->toContain('Invoice')->toContain('InvoiceLine');
 
     // Pre-existing inferred responses for other statuses survive the merge.
     $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $operation->responses);
@@ -142,10 +141,11 @@ it('skips an authored response with an unresolvable ref and logs it', function (
     $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(DanglingController::class, 'index'));
 
     $logger = recordingLogger();
-    harvestStage($logger)->apply($doc, $ctx);
+    $schemaRegistry = new ComponentSchemaRegistry();
+    harvestStage($schemaRegistry, $logger)->apply($doc, $ctx);
 
     expect(harvestPrimaryRef($operation))->toBeNull()
-        ->and(harvestSchemaNames($doc))->not->toContain('DoesNotExist');
+        ->and(harvestSchemaNames($schemaRegistry))->not->toContain('DoesNotExist');
 
     $messages = array_map(static fn(array $r): string => $r['message'], $logger->records);
     expect(implode("\n", $messages))->toContain('DoesNotExist');
@@ -160,10 +160,11 @@ it('leaves an operation untouched when it has no bound action', function (): voi
     $doc = harvestDoc($operation);
     $ctx = new GenerationContext(harvestSpec(), 'testing');
 
-    harvestStage()->apply($doc, $ctx);
+    $schemaRegistry = new ComponentSchemaRegistry();
+    harvestStage($schemaRegistry)->apply($doc, $ctx);
 
     expect(harvestPrimaryRef($operation))->toBeNull()
-        ->and(harvestSchemaNames($doc))->toBe([]);
+        ->and(harvestSchemaNames($schemaRegistry))->toBe([]);
 });
 
 // endregion
@@ -181,10 +182,11 @@ it('does not overwrite a 200 that already has a response body', function (): voi
     $ctx = new GenerationContext(harvestSpec(), 'testing');
     $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(ServerController::class, 'show'));
 
-    harvestStage()->apply($doc, $ctx);
+    $schemaRegistry = new ComponentSchemaRegistry();
+    harvestStage($schemaRegistry)->apply($doc, $ctx);
 
     expect(harvestPrimaryRef($operation))->toBeNull()
-        ->and(harvestSchemaNames($doc))->toBe([]);
+        ->and(harvestSchemaNames($schemaRegistry))->toBe([]);
 });
 
 // endregion
@@ -201,7 +203,7 @@ it('keeps the inferred summary when the authored operation declares none', funct
     $ctx = new GenerationContext(harvestSpec(), 'testing');
     $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(DanglingController::class, 'index'));
 
-    harvestStage()->apply($doc, $ctx);
+    harvestStage(new ComponentSchemaRegistry())->apply($doc, $ctx);
 
     expect($operation->summary)->toBe('Inferred summary.');
 });
@@ -217,7 +219,7 @@ it('fills an existing non-200 success response instead of adding a second 200', 
     $ctx = new GenerationContext(harvestSpec(), 'testing');
     $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(ServerController::class, 'show'));
 
-    harvestStage()->apply($doc, $ctx);
+    harvestStage(new ComponentSchemaRegistry())->apply($doc, $ctx);
 
     $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $operation->responses);
 

@@ -41,7 +41,13 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
+use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\PathsStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\RootStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
@@ -250,7 +256,16 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): OpenApiRegistry {
                 $registry = new OpenApiRegistry();
 
-                BaselineRegistration::register($registry);
+                // The stage pipeline order is this list of addStage() calls, top to bottom. It is
+                // the single place that order is expressed. Pre-plugin stages build the operation
+                // skeleton and emit contributions; plugins then mutate operations and contribute
+                // schemas; post-plugin stages flush the accumulated components and finalise. The
+                // flush (ComponentsStage) deliberately runs *after* the plugin loop so late
+                // contributors (e.g. the SwaggerPhp harvester) register schemas like any other.
+                $registry->addStage(RootStage::class);
+                $registry->addStage(PathsStage::class);
+                $registry->addStage(ErrorResponseInferenceStage::class);
+
                 $plugins = [CorePlugin::class, ...config('openapi.plugins', [])];
 
                 foreach ($plugins as $pluginClass) {
@@ -258,6 +273,17 @@ class OpenApiServiceProvider extends ServiceProvider
                     assert($plugin instanceof Plugin);
                     $plugin->register($registry);
                 }
+
+                $registry->addStage(ComponentsStage::class);
+                $registry->addStage(SecurityStage::class);
+
+                // Terminal stages: the config-driven override escape hatch beats plugin/convention
+                // values, then user-registered document transformers get the final word. Appended
+                // last so they run after every baseline and plugin stage.
+                $registry->addStage(OverridesStage::class);
+                $registry->addStage(TransformersStage::class);
+
+                BaselineRegistration::registerRules($registry);
 
                 foreach (config('openapi.lint.rules', []) as $ruleClass) {
                     $registry->addRule($ruleClass);
@@ -268,6 +294,9 @@ class OpenApiServiceProvider extends ServiceProvider
                         (string) config('openapi.error_envelope', 'none'),
                     ),
                 );
+
+                // Build-once, then read-only: no further registration is accepted out-of-band.
+                $registry->seal();
 
                 return $registry;
             },

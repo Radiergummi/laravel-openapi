@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionNamedType;
 
 use function array_unique;
@@ -38,9 +39,12 @@ use function substr;
  *  - when the return type resolves to a class carrying an authored `#[OA\Schema]` / `@OA\Schema`
  *    and the operation has no response body yet, attaches that schema as the `200` body.
  *
- * Every referenced authored schema is registered into the document's components, transitively and
- * under its exact authored name. A response referencing a schema that cannot be resolved is skipped
- * and logged rather than emitted as a dangling `$ref`.
+ * Every referenced authored schema is registered into the shared {@see ComponentSchemaRegistry}
+ * (transitively, under its exact authored name via {@see ComponentSchemaRegistry::registerNamed()}),
+ * so the post-plugin `ComponentsStage` flush picks them up like any other contributor's schemas — no
+ * direct document writes, O(1) dedup, and schema-transformer dispatch for free. A response
+ * referencing a schema that cannot be resolved is skipped and logged rather than emitted as a
+ * dangling `$ref`.
  *
  * @internal
  */
@@ -49,6 +53,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
 {
     public function __construct(
         private AuthoredAnnotationScanner $scanner,
+        private ComponentSchemaRegistry $schemaRegistry,
         private LoggerInterface $logger,
     ) {}
 
@@ -56,31 +61,31 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         if (is_array($document->paths)) {
-            $this->harvestContainers($document->paths, $document, $context);
+            $this->harvestContainers($document->paths, $context);
         }
 
         if (is_array($document->webhooks)) {
-            $this->harvestContainers($document->webhooks, $document, $context);
+            $this->harvestContainers($document->webhooks, $context);
         }
     }
 
     /**
      * @param array<OA\PathItem|OA\Webhook> $containers
      */
-    private function harvestContainers(array $containers, OA\OpenApi $document, GenerationContext $context): void
+    private function harvestContainers(array $containers, GenerationContext $context): void
     {
         foreach ($containers as $container) {
             foreach (HttpMethod::cases() as $method) {
                 $operation = $container->{$method->value} ?? Generator::UNDEFINED;
 
                 if ($operation instanceof OA\Operation) {
-                    $this->harvest($operation, $document, $context);
+                    $this->harvest($operation, $context);
                 }
             }
         }
     }
 
-    private function harvest(OA\Operation $operation, OA\OpenApi $document, GenerationContext $context): void
+    private function harvest(OA\Operation $operation, GenerationContext $context): void
     {
         $action = $context->actionFor($operation);
 
@@ -96,12 +101,12 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             : null;
 
         if ($authoredOperation !== null) {
-            $this->mergeAuthoredOperation($operation, $authoredOperation, $document);
+            $this->mergeAuthoredOperation($operation, $authoredOperation);
 
             return;
         }
 
-        $this->applyReturnTypeSchema($operation, $action, $document);
+        $this->applyReturnTypeSchema($operation, $action);
     }
 
     /**
@@ -112,7 +117,6 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     private function mergeAuthoredOperation(
         OA\Operation $operation,
         OA\Operation $authored,
-        OA\OpenApi $document,
     ): void {
         $this->copyAuthoredMetadata($operation, $authored);
 
@@ -146,7 +150,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             }
 
             foreach ($schemas as $schema) {
-                $this->registerSchema($document, $schema);
+                $this->registerSchema($schema);
             }
 
             $byStatus[(string) $authoredResponse->response] = $authoredResponse;
@@ -189,7 +193,6 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     private function applyReturnTypeSchema(
         OA\Operation $operation,
         ActionDescriptor $action,
-        OA\OpenApi $document,
     ): void {
         $returnClass = $this->singleReturnClass($action);
 
@@ -209,7 +212,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             return;
         }
 
-        $this->registerSchema($document, $schema);
+        $this->registerSchema($schema);
 
         $content = [
             MediaType::Json->schema(new OA\Schema(['ref' => '#/components/schemas/' . $schema->schema])),
@@ -256,39 +259,39 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Registers an authored schema into the document components under its authored name, then
-     * recurses into the schemas it references. Deduplication by name doubles as the cycle guard.
+     * Registers an authored schema into the shared {@see ComponentSchemaRegistry} under its authored
+     * name, then recurses into the schemas it references. The registry's name-keyed idempotency
+     * provides O(1) dedup and doubles as the cycle guard; the post-plugin `ComponentsStage` flush
+     * writes the accumulated schemas into the document.
      */
-    private function registerSchema(OA\OpenApi $document, OA\Schema $schema): void
+    private function registerSchema(OA\Schema $schema): void
     {
         if (!is_defined($schema->schema)) {
             return;
         }
 
-        $components = $this->components($document);
+        $name = $schema->schema;
 
-        foreach ($components->schemas as $existing) {
-            if ($existing->schema === $schema->schema) {
-                return;
-            }
+        if ($this->schemaRegistry->hasKey($name)) {
+            return;
         }
 
-        $components->schemas[] = $schema;
+        $this->schemaRegistry->registerNamed($name, $schema);
 
-        foreach ($this->collectRefNames($schema) as $name) {
-            $nested = $this->scanner->schemaForName($name);
+        foreach ($this->collectRefNames($schema) as $referenced) {
+            $nested = $this->scanner->schemaForName($referenced);
 
             if ($nested === null) {
                 $this->logger->warning(sprintf(
                     'SwaggerPhp harvester: schema "%s" references unknown schema "%s".',
-                    $schema->schema,
                     $name,
+                    $referenced,
                 ));
 
                 continue;
             }
 
-            $this->registerSchema($document, $nested);
+            $this->registerSchema($nested);
         }
     }
 
@@ -407,18 +410,5 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         $position = strrpos($ref, '/');
 
         return $position === false ? null : substr($ref, $position + 1);
-    }
-
-    private function components(OA\OpenApi $document): OA\Components
-    {
-        if (!$document->components instanceof OA\Components) {
-            $document->components = new OA\Components([]);
-        }
-
-        if (!is_array($document->components->schemas)) {
-            $document->components->schemas = [];
-        }
-
-        return $document->components;
     }
 }
