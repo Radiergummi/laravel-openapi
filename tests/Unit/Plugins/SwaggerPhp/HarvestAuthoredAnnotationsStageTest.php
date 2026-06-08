@@ -65,12 +65,12 @@ function harvestSchemaNames(OA\OpenApi $doc): array
 }
 
 /**
- * Pulls the `$ref` out of an operation's primary (200) JSON response body, or null.
+ * Pulls the `$ref` out of the JSON response body for a given status (default `200`), or null.
  */
-function harvestPrimaryRef(OA\Operation $operation): ?string
+function harvestPrimaryRef(OA\Operation $operation, string $status = '200'): ?string
 {
     foreach (is_array($operation->responses) ? $operation->responses : [] as $response) {
-        if ((string) $response->response !== '200' || !is_array($response->content)) {
+        if ((string) $response->response !== $status || !is_array($response->content)) {
             continue;
         }
 
@@ -185,6 +185,44 @@ it('does not overwrite a 200 that already has a response body', function (): voi
 
     expect(harvestPrimaryRef($operation))->toBeNull()
         ->and(harvestSchemaNames($doc))->toBe([]);
+});
+
+// endregion
+
+// region Case 6: An authored operation that declares no summary keeps the inferred one
+
+it('keeps the inferred summary when the authored operation declares none', function (): void {
+    // DanglingController's @OA\Get sets no summary/operationId.
+    $operation = new OA\Get([
+        'summary' => 'Inferred summary.',
+        'responses' => [new OA\Response(['response' => '200', 'description' => 'OK'])],
+    ]);
+    $doc = harvestDoc($operation);
+    $ctx = new GenerationContext(harvestSpec(), 'testing');
+    $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(DanglingController::class, 'index'));
+
+    harvestStage()->apply($doc, $ctx);
+
+    expect($operation->summary)->toBe('Inferred summary.');
+});
+
+// endregion
+
+// region Case 7: The return-type schema fills an existing non-200 success, no second success code
+
+it('fills an existing non-200 success response instead of adding a second 200', function (): void {
+    // A `store`-style operation whose convention success is 201 (body-less).
+    $operation = new OA\Get(['responses' => [new OA\Response(['response' => '201', 'description' => 'Created'])]]);
+    $doc = harvestDoc($operation);
+    $ctx = new GenerationContext(harvestSpec(), 'testing');
+    $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(ServerController::class, 'show'));
+
+    harvestStage()->apply($doc, $ctx);
+
+    $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $operation->responses);
+
+    expect($statuses)->toBe(['201'])
+        ->and(harvestPrimaryRef($operation, '201'))->toBe('#/components/schemas/Server');
 });
 
 // endregion

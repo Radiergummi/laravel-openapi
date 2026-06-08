@@ -124,7 +124,7 @@ final class AuthoredAnnotationScanner
                 $this->schemasByName[$schema->schema] = $schema;
             }
 
-            $class = $this->declaringClass($schema->_context?->class, $schema);
+            $class = $this->declaringClass($schema);
 
             if ($class !== null) {
                 $this->schemasByClass[$class] = $schema;
@@ -140,7 +140,7 @@ final class AuthoredAnnotationScanner
 
         foreach ($document->paths as $path) {
             foreach ($path->operations() as $operation) {
-                $class = $this->declaringClass($operation->_context?->class, $operation);
+                $class = $this->declaringClass($operation);
                 $method = $operation->_context?->method;
 
                 if ($class === null || $method === null) {
@@ -155,9 +155,10 @@ final class AuthoredAnnotationScanner
     /**
      * Resolve the fully-qualified declaring class of an annotation to a leading-slash-free FQCN.
      */
-    private function declaringClass(?string $source, Schema|Operation $annotation): ?string
+    private function declaringClass(Schema|Operation $annotation): ?string
     {
-        $fullyQualified = $annotation->_context?->fullyQualifiedName($source);
+        $context = $annotation->_context;
+        $fullyQualified = $context?->fullyQualifiedName($context->class);
 
         return $fullyQualified === null ? null : ltrim($fullyQualified, '\\');
     }

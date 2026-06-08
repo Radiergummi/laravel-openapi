@@ -55,11 +55,21 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        if (!is_array($document->paths)) {
-            return;
+        if (is_array($document->paths)) {
+            $this->harvestContainers($document->paths, $document, $context);
         }
 
-        foreach ($document->paths as $container) {
+        if (is_array($document->webhooks)) {
+            $this->harvestContainers($document->webhooks, $document, $context);
+        }
+    }
+
+    /**
+     * @param array<OA\PathItem|OA\Webhook> $containers
+     */
+    private function harvestContainers(array $containers, OA\OpenApi $document, GenerationContext $context): void
+    {
+        foreach ($containers as $container) {
             foreach (HttpMethod::cases() as $method) {
                 $operation = $container->{$method->value} ?? Generator::UNDEFINED;
 
@@ -113,6 +123,22 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         $byStatus = $this->responsesByStatus($operation);
 
         foreach ($authored->responses as $authoredResponse) {
+            if (!is_defined($authoredResponse->response)) {
+                continue;
+            }
+
+            // An `@OA\Response(ref="#/components/responses/X")` points at a response component this
+            // stage does not harvest; merging it verbatim would emit a dangling `$ref`. Skip + log.
+            if (is_defined($authoredResponse->ref)) {
+                $this->logger->warning(sprintf(
+                    'SwaggerPhp harvester: authored response "%s" is a $ref to a response component, '
+                    . 'which is not harvested; skipping.',
+                    (string) $authoredResponse->response,
+                ));
+
+                continue;
+            }
+
             $schemas = $this->resolveReferencedSchemas($authoredResponse);
 
             if ($schemas === null) {
@@ -131,14 +157,19 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
 
     /**
      * Adopts the authored operation's prose and identity. The authored annotation is the source of
-     * truth for the operation it describes, so its summary/description replace the library's
-     * docblock-derived values outright (an `@OA` docblock would otherwise leak the raw annotation
-     * text into them); operationId and tags are taken only when the author set them.
+     * truth for the operation it describes, so each field the author set replaces the library's
+     * inferred value; fields the author left unset keep whatever the library inferred (an authored
+     * `@OA` operation that documents only responses must not erase the route's docblock summary).
      */
     private function copyAuthoredMetadata(OA\Operation $operation, OA\Operation $authored): void
     {
-        $operation->summary = $authored->summary;
-        $operation->description = $authored->description;
+        if (is_defined($authored->summary)) {
+            $operation->summary = $authored->summary;
+        }
+
+        if (is_defined($authored->description)) {
+            $operation->description = $authored->description;
+        }
 
         if (is_defined($authored->operationId)) {
             $operation->operationId = $authored->operationId;
@@ -150,8 +181,10 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Attaches an authored schema as the 200 body when the typed return resolves to one and the
-     * operation does not already carry a response body for 200.
+     * Attaches an authored schema as the operation's success body when the typed return resolves to
+     * one. The schema fills the existing primary 2xx response (e.g. a convention `201 Created`) when
+     * that response has no body yet; only when there is no success response at all is a `200` added,
+     * so the operation never ends up with two success codes.
      */
     private function applyReturnTypeSchema(
         OA\Operation $operation,
@@ -166,22 +199,32 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
 
         $schema = $this->scanner->schemaForClass($returnClass);
 
-        if ($schema === null || !is_string($schema->schema) || !$this->primaryIsEmpty($operation)) {
+        if ($schema === null || !is_defined($schema->schema)) {
+            return;
+        }
+
+        $primary = $this->primarySuccessResponse($operation);
+
+        if ($primary !== null && is_array($primary->content) && $primary->content !== []) {
             return;
         }
 
         $this->registerSchema($document, $schema);
 
-        $byStatus = $this->responsesByStatus($operation);
-        $byStatus['200'] = new OA\Response([
-            'response' => '200',
-            'description' => 'OK',
-            'content' => [
-                MediaType::Json->schema(new OA\Schema(['ref' => '#/components/schemas/' . $schema->schema])),
-            ],
-        ]);
+        $content = [
+            MediaType::Json->schema(new OA\Schema(['ref' => '#/components/schemas/' . $schema->schema])),
+        ];
 
-        $operation->responses = array_values($byStatus);
+        if ($primary !== null) {
+            $primary->content = $content;
+
+            return;
+        }
+
+        $operation->responses = [
+            ...is_array($operation->responses) ? $operation->responses : [],
+            new OA\Response(['response' => '200', 'description' => 'OK', 'content' => $content]),
+        ];
     }
 
     /**
@@ -218,7 +261,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
      */
     private function registerSchema(OA\OpenApi $document, OA\Schema $schema): void
     {
-        if (!is_string($schema->schema)) {
+        if (!is_defined($schema->schema)) {
             return;
         }
 
@@ -263,15 +306,21 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         return $byStatus;
     }
 
-    private function primaryIsEmpty(OA\Operation $operation): bool
+    /**
+     * The operation's primary success response — the first declared `2xx` — or null when it
+     * declares none yet.
+     */
+    private function primarySuccessResponse(OA\Operation $operation): ?OA\Response
     {
         foreach (is_array($operation->responses) ? $operation->responses : [] as $response) {
-            if ((string) $response->response === '200' && is_array($response->content) && $response->content !== []) {
-                return false;
+            $status = (int) (string) $response->response;
+
+            if ($status >= 200 && $status < 300) {
+                return $response;
             }
         }
 
-        return true;
+        return null;
     }
 
     private function singleReturnClass(ActionDescriptor $action): ?string
