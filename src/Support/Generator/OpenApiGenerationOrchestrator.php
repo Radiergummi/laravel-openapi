@@ -71,23 +71,8 @@ final readonly class OpenApiGenerationOrchestrator
      */
     private function generateForSpec(SpecDefinition $spec, string $environment): OA\OpenApi
     {
-        // forgetScopedInstances() wipes every scoped binding including any explicit
-        // FindingsCollector override the caller installed (e.g. LintRunner pins an
-        // ArrayFindingsCollector to capture extractor-emitted findings). Preserve and restore it so
-        // callers don't silently lose findings emitted during generation.
-        $collector = $this->container->resolved(FindingsCollector::class)
-            ? $this->container->make(FindingsCollector::class)
-            : null;
-
-        $this->container->forgetScopedInstances();
-
-        if ($collector !== null) {
-            $this->container->instance(FindingsCollector::class, $collector);
-        }
-
-        return $this->container->make(OpenApiGenerator::class)->generate(
-            $spec,
-            $environment,
+        return $this->withFreshScopedState(
+            fn(): OA\OpenApi => $this->container->make(OpenApiGenerator::class)->generate($spec, $environment),
         );
     }
 
@@ -121,9 +106,7 @@ final readonly class OpenApiGenerationOrchestrator
      * This is the "what would inference produce without these contributions?" oracle the lint layer
      * uses to decide annotation redundancy. It runs the pipeline directly (no lifecycle events — a
      * control run is not a real generation) and discards its generation findings through a throwaway
-     * collector, restoring the caller's collector afterward. Fresh scoped state is taken via
-     * {@see Container::forgetScopedInstances()}, exactly as {@see generateForSpec()} does, so a prior
-     * in-scope generation's accumulated components cannot leak in.
+     * collector ({@see withFreshScopedState()}).
      *
      * @param list<class-string<SpecStage>> $excludedStages
      *
@@ -141,28 +124,67 @@ final readonly class OpenApiGenerationOrchestrator
     ): InferenceOnlyGeneration {
         $spec = $this->registry->get($specName);
 
+        return $this->withFreshScopedState(
+            function () use ($spec, $excludedStages, $environment): InferenceOnlyGeneration {
+                $document = $this->container->make(SpecPipeline::class)
+                    ->withoutStage(...$excludedStages)
+                    ->run($spec, $environment ?? $this->environment);
+
+                // The pipeline repopulated the scoped registry during the run; re-resolve it to read
+                // the class → component-name map this control produced.
+                $schemasByClass = $this->indexSchemasByClass(
+                    $document,
+                    $this->container->make(ComponentSchemaRegistry::class)->componentClassMap(),
+                );
+
+                return new InferenceOnlyGeneration($document, $schemasByClass);
+            },
+            discardFindings: true,
+        );
+    }
+
+    /**
+     * Run `$generate` against fresh scoped state: a {@see Container::forgetScopedInstances()} reset so
+     * per-run state in {@see ComponentSchemaRegistry} / {@see ExampleFileLoader} can't leak across
+     * generations.
+     *
+     * That reset also wipes any explicit {@see FindingsCollector} the caller pinned (e.g. LintRunner
+     * binds an {@see ArrayFindingsCollector} to capture extractor-emitted findings), so it is captured
+     * and restored. With `$discardFindings`, a throwaway collector receives the run's findings instead
+     * — for control runs whose findings must not reach the caller.
+     *
+     * @template T
+     *
+     * @param callable(): T $generate
+     *
+     * @return T
+     *
+     * @throws BindingResolutionException
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws UnsupportedException
+     */
+    private function withFreshScopedState(callable $generate, bool $discardFindings = false): mixed
+    {
         $collector = $this->container->resolved(FindingsCollector::class)
             ? $this->container->make(FindingsCollector::class)
             : null;
 
         $this->container->forgetScopedInstances();
-        $this->container->instance(FindingsCollector::class, new ArrayFindingsCollector());
+
+        $active = $discardFindings ? new ArrayFindingsCollector() : $collector;
+
+        if ($active !== null) {
+            $this->container->instance(FindingsCollector::class, $active);
+        }
 
         try {
-            $document = $this->container->make(SpecPipeline::class)
-                ->withoutStage(...$excludedStages)
-                ->run($spec, $environment ?? $this->environment);
-
-            // The pipeline repopulated the scoped registry during the run; re-resolve it to read the
-            // class → component-name map this control produced.
-            $schemasByClass = $this->indexSchemasByClass(
-                $document,
-                $this->container->make(ComponentSchemaRegistry::class)->componentClassMap(),
-            );
-
-            return new InferenceOnlyGeneration($document, $schemasByClass);
+            return $generate();
         } finally {
-            $this->container->forgetInstance(FindingsCollector::class);
+            if ($discardFindings) {
+                $this->container->forgetInstance(FindingsCollector::class);
+            }
 
             if ($collector !== null) {
                 $this->container->instance(FindingsCollector::class, $collector);
