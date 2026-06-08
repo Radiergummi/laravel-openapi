@@ -61,9 +61,12 @@ use function is_a;
 use function sprintf;
 
 /**
- * The pipeline is registered as `scoped` so Octane resets it between requests — {@see ComponentSchemaRegistry}
- * and {@see ExampleFileLoader} carry mutable per-run state that would otherwise corrupt concurrent runs.
- * To re-run generation within a single scope (e.g. tests), call `$app->forgetScopedInstances()` first.
+ * OpenAPI Service Provider
+ *
+ * The pipeline is registered as `scoped `, so Octane resets it between requests —
+ * {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} carry mutable per-run state that
+ * would otherwise corrupt concurrent runs. To re-run generation within a single scope (e.g. tests),
+ * call `$app->forgetScopedInstances()` first.
  *
  * Classes with fully container-resolvable constructors carry `#[Scoped]` and self-register;
  * this provider only contains bindings that need explicit closures.
