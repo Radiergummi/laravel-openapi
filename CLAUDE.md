@@ -90,23 +90,30 @@ pipeline registered by `BaselineRegistration` — see Registry and plugins):
 
 ### Registry and plugins
 
-`OpenApiRegistry` (in `Registry\`) is the extension point.
-`Support\Generator\BaselineRegistration::register()` runs first — it adds the load-bearing
-stage pipeline (`RootStage` → `PathsStage` → `ErrorResponseInferenceStage` → `ComponentsStage`
-→ `SecurityStage`) and the library-wide lint rules. Then each plugin in `config/openapi.plugins`
-order runs, starting with `Plugins\Core\CorePlugin` (registers `FormRequestRequestSchemaResolver`,
-`CoreQueryParameterResolver`, `PaginatorResponseResolver`, and the core lint rules); finally any
-`config/openapi.lint.rules` extras. A plugin implements `Contracts\Registry\Plugin` and registers
-resolvers, extractors, error-response factories, payload class markers, lint rules, and
-additional `SpecStage`s. `FormRequest` request bodies are handled by Core directly; Spatie Data
-classes are handled by the SpatieData plugin.
+`OpenApiRegistry` (in `Registry\`) is the extension point. The **entire stage order lives in one
+place** — `Support\Generator\BaselineRegistration::assemble()` — as a single top-to-bottom sequence
+of `addStage` calls: pre-plugin baseline stages (`RootStage` → `PathsStage` →
+`ErrorResponseInferenceStage`), then each plugin in the given order (Core first), then post-plugin
+stages (`ComponentsStage` flush → `SecurityStage` → `OverridesStage` → `TransformersStage`); it then
+registers the baseline + `config/openapi.lint.rules` lint rules and the error-envelope resolver, and
+finally calls `OpenApiRegistry::seal()`. `assemble()` stays plugin-agnostic (it lives in `Support\`):
+the `OpenApiServiceProvider` registry factory closure owns only the Laravel/config glue and passes
+the plugin list (`[CorePlugin::class, ...config('openapi.plugins')]`), config rules, and resolved
+envelope class in as **class-strings**. A plugin implements `Contracts\Registry\Plugin` and registers
+resolvers, extractors, error-response factories, payload class markers, lint rules, and additional
+`SpecStage`s. `FormRequest` request bodies are handled by Core directly; Spatie Data classes are
+handled by the SpatieData plugin.
 
-Beyond the registry-ordered stages, `SpecPipeline::run()` appends two **fixed terminal steps** it
-holds as direct dependencies (not via `addStage`): `OverridesStage` then `TransformersStage`. This
-encodes the precedence `baseline+plugin stages → OverridesStage (config escape hatch) →
-TransformersStage (user code)`. A stage that must run after *all* registered/plugin stages
-regardless of registration order belongs here, injected into `SpecPipeline`, not in
-`BaselineRegistration` (which runs first) or a plugin.
+The `ComponentsStage` **flush runs after the plugin loop**, so a late stage that contributes
+schemas (e.g. the SwaggerPhp harvester) registers them on `ComponentSchemaRegistry` like any other
+contributor and gets dedup + schema-transformer dispatch — no direct `$document->components` writes.
+
+`SpecPipeline` is a **pure executor**: it loops `registry->stages` and applies each, nothing else.
+The terminal precedence `baseline+plugin stages → OverridesStage (config escape hatch) →
+TransformersStage (user code)` is now **positional**, not structural — it holds because all
+registration funnels through `assemble()` before the terminal `addStage` calls, and `seal()`
+enforces that funnel by rejecting out-of-band `addX()` on the built registry
+(`RegistrySealedException`, marked unchecked in `phpstan.neon`).
 
 ### Lint subsystem (`src/Lint/`)
 

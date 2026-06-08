@@ -41,7 +41,7 @@ instances are resolved from the container when the pipeline runs.
 | `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g. a DTO or resource) | `RefSchemaResolver` |
 | `addRequestSchemaResolver(string $class)` | A request-body schema builder | `RequestSchemaResolver` |
 | `addRule(string $class)` | A lint rule | `Lint\Rules\Rule` + one or more visitor interfaces |
-| `addStage(string $class)` | A document-level pipeline stage, run after all core stages and before the terminal transformer stage | `Contracts\Generator\SpecStage` |
+| `addStage(string $class)` | A document-level pipeline stage. Plugin stages run after the pre-plugin baseline stages and before the post-plugin flush + terminal stages (see `SpecStage` below) | `Contracts\Generator\SpecStage` |
 
 Getters (`errorResponseContributors()`, `errorResponseResolvers()`,
 `payloadClasses()`, `primaryResponseResolvers()`, `queryParameterResolvers()`,
@@ -82,15 +82,23 @@ The resolver interfaces live in `src/Contracts/Registry/`:
   schema registrations on `ComponentSchemaRegistry` must be idempotent (guard
   with `hasKey()` / `isRegisteredOrReserved()`).
 - **`SpecStage`** (`src/Contracts/Generator/`): one step in the OpenAPI
-  document assembly pipeline. The core ships five stages — `RootStage`,
-  `PathsStage`, `ComponentsStage`, `SecurityStage`, then a terminal
-  `TransformersStage`. Plugin-registered stages run between the core stages
-  and the terminal one, in registration order. A stage receives the shared
-  `OA\OpenApi` document and a `GenerationContext` and mutates the document in
-  place. **Merge, don't replace** any field that earlier stages may have
-  written: in particular, `$doc->components` is shared between
-  `ComponentsStage`, `SecurityStage`, and any plugin stage that wants to add
-  schemas. Always read-modify-write:
+  document assembly pipeline. The whole stage order lives in one place —
+  `BaselineRegistration::assemble()` — as a single top-to-bottom
+  sequence: the pre-plugin baseline stages (`RootStage`, `PathsStage`,
+  `ErrorResponseInferenceStage`), then every plugin's stages in registration
+  order, then the post-plugin stages (`ComponentsStage` flush, `SecurityStage`,
+  and the terminal `OverridesStage` → `TransformersStage`). A stage receives the
+  shared `OA\OpenApi` document and a `GenerationContext` and mutates it in place.
+
+  Because the `ComponentsStage` flush runs **after** plugin stages, a plugin
+  stage that contributes schemas should register them on the shared
+  `ComponentSchemaRegistry` (`register()` / `registerNamed()`) and let the flush
+  write them — that gets idempotent dedup and schema-transformer dispatch for
+  free, and is how the SwaggerPhp harvester works. Only reach for a direct
+  `$doc->components` write in a stage that runs after the flush, and then
+  **merge, don't replace** — `$doc->components` is shared with `SecurityStage`,
+  so assigning a fresh `new OA\Components([...])` discards the `securitySchemes`
+  it wrote. Read-modify-write instead:
   ```php
   $components = $doc->components instanceof OA\Components
       ? $doc->components
@@ -99,9 +107,6 @@ The resolver interfaces live in `src/Contracts/Registry/`:
   $components->schemas = array_merge($existing, $mySchemas);
   $doc->components = $components;
   ```
-  Assigning a fresh `new OA\Components([...])` discards `securitySchemes`
-  that `SecurityStage` already wrote. The same caution applies to any field
-  another stage touches.
 
 Each resolver pairs a "can I handle this?" predicate with a "produce the
 result" method. The pipeline iterates registered resolvers in registration

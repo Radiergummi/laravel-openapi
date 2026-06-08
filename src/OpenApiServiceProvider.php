@@ -16,7 +16,6 @@ use Radiergummi\OpenApi\Console\GenerateCommand;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Console\WhyCommand;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Http\DocsController;
@@ -62,9 +61,12 @@ use function is_a;
 use function sprintf;
 
 /**
- * The pipeline is registered as `scoped` so Octane resets it between requests — {@see ComponentSchemaRegistry}
- * and {@see ExampleFileLoader} carry mutable per-run state that would otherwise corrupt concurrent runs.
- * To re-run generation within a single scope (e.g. tests), call `$app->forgetScopedInstances()` first.
+ * OpenAPI Service Provider
+ *
+ * The pipeline is registered as `scoped `, so Octane resets it between requests —
+ * {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} carry mutable per-run state that
+ * would otherwise corrupt concurrent runs. To re-run generation within a single scope (e.g. tests),
+ * call `$app->forgetScopedInstances()` first.
  *
  * Classes with fully container-resolvable constructors carry `#[Scoped]` and self-register;
  * this provider only contains bindings that need explicit closures.
@@ -245,32 +247,20 @@ class OpenApiServiceProvider extends ServiceProvider
             ),
         );
 
+        // BaselineRegistration::assemble() owns the ordered stage pipeline + rules + sealing. The
+        // provider supplies only the Laravel/config-derived inputs (the plugin list — Core first —,
+        // the config lint rules, and the resolved error-envelope class), keeping the plugin-agnostic
+        // assembly in Support while the plugin references stay here.
         $this->app->scoped(
             OpenApiRegistry::class,
-            static function (Container $app): OpenApiRegistry {
-                $registry = new OpenApiRegistry();
-
-                BaselineRegistration::register($registry);
-                $plugins = [CorePlugin::class, ...config('openapi.plugins', [])];
-
-                foreach ($plugins as $pluginClass) {
-                    $plugin = $app->make($pluginClass);
-                    assert($plugin instanceof Plugin);
-                    $plugin->register($registry);
-                }
-
-                foreach (config('openapi.lint.rules', []) as $ruleClass) {
-                    $registry->addRule($ruleClass);
-                }
-
-                $registry->addErrorResponseResolver(
-                    OpenApiServiceProvider::resolveErrorEnvelopeClass(
-                        (string) config('openapi.error_envelope', 'none'),
-                    ),
-                );
-
-                return $registry;
-            },
+            static fn(Container $app): OpenApiRegistry => BaselineRegistration::assemble(
+                $app,
+                plugins: [CorePlugin::class, ...config('openapi.plugins', [])],
+                configRules: config('openapi.lint.rules', []),
+                errorEnvelopeResolver: OpenApiServiceProvider::resolveErrorEnvelopeClass(
+                    (string) config('openapi.error_envelope', 'none'),
+                ),
+            ),
         );
 
         $this->app->scoped(

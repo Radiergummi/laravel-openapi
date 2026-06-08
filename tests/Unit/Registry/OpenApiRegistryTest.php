@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Registry;
 
+use LogicException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
@@ -27,6 +28,25 @@ it('returns an empty array when no stages have been registered', function (): vo
     $registry = new OpenApiRegistry();
 
     expect($registry->stages)->toBe([]);
+});
+
+it('rejects registration after the registry is sealed', function (): void {
+    $registry = new OpenApiRegistry();
+    $registry->addStage(FirstRegistryStage::class);
+    $registry->seal();
+
+    expect(fn() => $registry->addStage(SecondRegistryStage::class))
+        ->toThrow(LogicException::class, 'sealed')
+        ->and(fn() => $registry->addPayloadClass(FirstRegistryStage::class))
+        ->toThrow(LogicException::class, 'sealed')
+        ->and($registry->stages)->toBe([FirstRegistryStage::class]);
+});
+
+it('treats sealing as idempotent', function (): void {
+    $registry = new OpenApiRegistry();
+    $registry->seal();
+
+    expect(fn() => $registry->seal())->not->toThrow(LogicException::class);
 });
 
 class FirstRegistryStage implements SpecStage

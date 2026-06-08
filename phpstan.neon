@@ -10,6 +10,11 @@ parameters:
     checkUninitializedProperties: true
     checkDynamicProperties: true
     exceptions:
+        # Sealing the registry after the factory closure is a hard invariant; reaching this
+        # exception is a programming error (out-of-band registration), not a recoverable path, so
+        # it is unchecked and does not leak into the Plugin::register() throws contract.
+        uncheckedExceptionClasses:
+            - Radiergummi\OpenApi\Registry\RegistrySealedException
         check:
             missingCheckedExceptionInThrows: true
 

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Generator;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Container\Container;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
-use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
+use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Lint\Rules\ActionMissingReturnType;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
@@ -107,31 +109,28 @@ use Radiergummi\OpenApi\Lint\Rules\WebhookNameDuplicate;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\PathsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\RootStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
+use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 
 /**
- * Registers the library's baseline pipeline stages — the generator infrastructure that runs
- * regardless of which plugins (Core or otherwise) are enabled.
+ * Assembles the {@see OpenApiRegistry}: the ordered stage pipeline, the baseline lint rules, and
+ * the configured error-envelope resolver, then seals it.
  *
- * Runs first, before {@see \Radiergummi\OpenApi\Plugins\Core\CorePlugin} and any user-configured
- * plugins. Stage order is important:
+ * The stage order is the single top-to-bottom sequence in {@see assemble()}: pre-plugin baseline
+ * stages (`RootStage` → `PathsStage` → `ErrorResponseInferenceStage`), then each plugin in the
+ * given order, then post-plugin stages (`ComponentsStage` flush → `SecurityStage` → terminal
+ * `OverridesStage` → `TransformersStage`). That is the one place stage order is expressed.
  *
- * 1. {@see RootStage} — populate document root (info, servers, tags, security schemes).
- * 2. {@see PathsStage} — assemble operation objects per route.
- * 3. {@see ErrorResponseInferenceStage} — drive registered {@see ErrorResponseContributor}s + the
- *    {@see ErrorResponseResolver} chain, writing inferred 4xx/5xx responses into operations.
- *    Must run after paths exist (it reads them) but before {@see ComponentsStage} flushes named
- *    response components into the document.
- * 4. {@see ComponentsStage} — flush component schemas/responses into the assembled document.
- * 5. {@see SecurityStage} — finalise top-level security requirements.
+ * This class lives in `Support` and must stay plugin-agnostic, so the plugin list and envelope
+ * resolver arrive as class-strings from {@see \Radiergummi\OpenApi\OpenApiServiceProvider} (which
+ * owns the Laravel/config glue): assembly iterates the {@see Plugin} contract without ever
+ * referencing a concrete plugin.
  *
- * Plugins that only contribute {@see ErrorResponseContributor}s (the most common case for new
- * envelope shapes) can therefore work without re-registering or re-implementing this pipeline.
- *
- * Also registers the lint rules whose findings are emitted by baseline stages — currently
- * `errors.resolver-failed`, emitted by {@see ErrorResponseInferenceStage} when an
+ * The baseline rules include those whose findings are emitted by baseline stages — e.g.
+ * `errors.resolver-failed`, emitted by `ErrorResponseInferenceStage` when an
  * {@see ErrorResponseResolver} throws. Tying these rule registrations to the baseline avoids the
  * "Core was disabled and now my suppression annotation trips meta.unknown-rule" failure mode.
  *
@@ -260,14 +259,61 @@ final class BaselineRegistration
         OverridesUnused::class,
     ];
 
-    public static function register(OpenApiRegistry $registry): void
-    {
+    /**
+     * Builds, populates, and seals the registry.
+     *
+     * The body is the authoritative stage order, read top-to-bottom. The plugin list and envelope
+     * resolver are passed in as class-strings, so this class never references a concrete plugin.
+     *
+     * @param array<class-string<Plugin>>         $plugins
+     * @param array<class-string<Rule>>           $configRules
+     * @param class-string<ErrorResponseResolver> $errorEnvelopeResolver
+     *
+     * @throws BindingResolutionException when a plugin class cannot be resolved from the container
+     */
+    public static function assemble(
+        Container $container,
+        array $plugins,
+        array $configRules,
+        string $errorEnvelopeResolver,
+    ): OpenApiRegistry {
+        $registry = new OpenApiRegistry();
+
+        // Pre-plugin baseline stages: build the operation skeleton and emit contributions.
         $registry->addStage(RootStage::class);
         $registry->addStage(PathsStage::class);
         $registry->addStage(ErrorResponseInferenceStage::class);
+
+        // Plugins mutate operations and contribute schemas, in the order given.
+        foreach ($plugins as $pluginClass) {
+            $container->make($pluginClass)->register($registry);
+        }
+
+        // Post-plugin stages: the ComponentsStage flush runs *after* the plugin loop, so late
+        // contributors register schemas like any other. The two terminal stages run last; the
+        // config-driven override escape hatch beats plugin and convention values, then
+        // user-registered document transformers get the final word.
         $registry->addStage(ComponentsStage::class);
         $registry->addStage(SecurityStage::class);
+        $registry->addStage(OverridesStage::class);
+        $registry->addStage(TransformersStage::class);
 
+        self::registerRules($registry);
+
+        foreach ($configRules as $ruleClass) {
+            $registry->addRule($ruleClass);
+        }
+
+        $registry->addErrorResponseResolver($errorEnvelopeResolver);
+
+        // Build-once, then read-only: no further registration is accepted out-of-band.
+        $registry->seal();
+
+        return $registry;
+    }
+
+    private static function registerRules(OpenApiRegistry $registry): void
+    {
         foreach (self::RULES as $rule) {
             $registry->addRule($rule);
         }
