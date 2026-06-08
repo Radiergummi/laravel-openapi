@@ -58,8 +58,8 @@ class LintCommand extends Command
     protected $signature = 'openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
         {--format= : Output format (cli|json|github|markdown; auto-detected by default)}
-        {--only= : Restrict to listed rule IDs (comma-separated)}
-        {--skip= : Restrict to listed rule IDs to exclude (comma-separated)}
+        {--only= : Restrict to listed rule IDs (comma-separated; `*` globs a family, e.g. migration.*)}
+        {--skip= : Restrict to listed rule IDs to exclude (comma-separated; `*` globs a family, e.g. migration.*)}
         {--uri= : Restrict to routes whose URI matches this glob}
         {--path=* : Restrict to routes affected by these source files (repeatable; pre-commit hooks pass $STAGED_FILES)}
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the default branch; "staged" = index, "working" = work tree)}

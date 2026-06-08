@@ -45,6 +45,10 @@ php artisan openapi:lint --only=summary.missing,operation.description-missing
 # Exclude rules
 php artisan openapi:lint --skip=tags.no-description
 
+# Target or exclude a whole rule family with a glob
+php artisan openapi:lint --only='migration.*'
+php artisan openapi:lint --skip='parameter.*'
+
 # Restrict to routes matching a URI glob
 php artisan openapi:lint --uri='api/v0/projects*'
 
@@ -147,6 +151,37 @@ runs, whose exit code reflects the fix outcome. Run `openapi:lint` without `--fi
 > (`generator_version`). The documentable-unit set shifts both when routes change *and* when
 > inference improves, so a version bump can move the percentage with no app change — treat
 > coverage deltas across generator versions as non-comparable.
+
+## Migration rules (`migration.*`)
+
+When you enable the [SwaggerPhp plugin](plugins.md#swaggerphp) to harvest an app's
+hand-authored `#[OA\*]` / `@OA` annotations, the natural next step is to delete the ones
+inference now reproduces on its own. The **`migration.*`** rule family finds them. They sit at the
+cleanup tier (level 4), so they never run on an ordinary lint; the family glob makes them easy to
+run on demand or switch off:
+
+```bash
+php artisan openapi:lint --only 'migration.*'          # report redundant annotations only
+php artisan openapi:lint --only 'migration.*' --fix     # …and remove them
+php artisan openapi:lint --level 4 --skip 'migration.*'  # a level-4 audit without them
+```
+
+(`--only` and `--skip` accept a `*` glob that expands to every rule in a family — see
+[Commands](#commands).)
+
+`migration.oa-redundant-with-inference` flags a class whose authored `#[OA\Schema]` / `@OA\Schema`
+the generator already derives from its typed properties. The decision is **provenance-based**: the
+class's authored schema is compared, by source class, against what inference produces for the same
+class in a second, inference-only generation — it fires only when inference reproduces *everything*
+the annotation said (a description or `additionalProperties: false` inference can't derive keeps the
+annotation load-bearing, so it stays), and never when another surviving annotation still `$ref`s the
+schema. `--fix` removes the whole `#[OA\Schema]`+`#[OA\Property]` set, or the whole `@OA\Schema`
+docblock block.
+
+Deciding redundancy requires that second generation, which is why the family is parked at level 4:
+it stays unpaid on default-level runs. A high-level audit (`--level max`) with the plugin enabled
+*will* run it; `--skip 'migration.*'` opts back out. Removing an annotation may consolidate its
+component to inference's name; the documented API surface is preserved.
 
 ## Suppress a finding
 
@@ -421,6 +456,7 @@ plugin-registered rules.
 | `deprecated.no-replacement` | 4 | Deprecated operation/field has no x-replacement or suggested alternative. |
 | `deprecated.no-sunset-date` | 4 | Deprecated operation has no x-sunset date. |
 | `info.metadata-incomplete` | 4 | The document info is missing contact and/or license. |
+| `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |
 | `request-body.example-missing` | 4 | requestBody has no example. |
 | `response.example-missing` | 4 | Response media type has no example. |

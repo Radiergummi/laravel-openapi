@@ -6,6 +6,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Fix;
 
 use PhpParser\Node;
+use PhpParser\Node\Stmt\ClassLike;
+use PhpParser\NodeFinder;
 use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\Parser;
@@ -65,5 +67,22 @@ final class FixContext
         $traverser = new NodeTraverser(new NameResolver(options: ['replaceNodes' => false]));
 
         return $this->asts[$file] = $traverser->traverse($statements);
+    }
+
+    /**
+     * The {@see ClassLike} node for `$class` (a fully-qualified name) within `$file`, or null when
+     * the file holds no such declaration. Resolved against the name-annotated AST, so partial and
+     * fully-qualified declarations both match.
+     */
+    public function classNode(string $file, string $class): ?ClassLike
+    {
+        $node = new NodeFinder()->findFirst(
+            $this->ast($file),
+            static fn(Node $node): bool
+                => $node instanceof ClassLike
+                && $node->namespacedName?->toString() === $class,
+        );
+
+        return $node instanceof ClassLike ? $node : null;
     }
 }

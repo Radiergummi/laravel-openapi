@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Support;
 
+use OpenApi\Annotations\AbstractAnnotation;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Schema;
 use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Lint\AnnotationWalker;
 use Throwable;
 
 use function is_array;
+use function is_string;
 use function ltrim;
+use function property_exists;
 use function Radiergummi\OpenApi\is_defined;
 
 /**
@@ -78,6 +82,52 @@ final class AuthoredAnnotationScanner
         $this->scan();
 
         return $this->operationsByMethod[$this->methodKey($class, $method)] ?? null;
+    }
+
+    /**
+     * Whether the authored component schema named `$componentName` is referenced (via `$ref`) by
+     * any *other* authored annotation — another class's authored schema, or any authored operation.
+     * The schema declared by `$excludingClass` (the candidate for removal) is itself excluded.
+     *
+     * The migration removal rule uses this as its safety check: a schema another surviving authored
+     * annotation still points at must not be removed, or that reference would dangle.
+     */
+    public function isSchemaReferencedByOtherAuthored(string $componentName, string $excludingClass): bool
+    {
+        $this->scan();
+
+        $target = '#/components/schemas/' . $componentName;
+        $ownSchema = $this->schemasByClass[ltrim($excludingClass, '\\')] ?? null;
+
+        foreach ($this->schemasByName as $schema) {
+            if ($schema !== $ownSchema && $this->referencesRef($schema, $target)) {
+                return true;
+            }
+        }
+
+        foreach ($this->operationsByMethod as $operation) {
+            if ($this->referencesRef($operation, $target)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the `$ref` string `$target` appears anywhere in the annotation's object tree.
+     */
+    private function referencesRef(AbstractAnnotation $node, string $target): bool
+    {
+        $found = false;
+
+        AnnotationWalker::walk($node, static function (AbstractAnnotation $annotation) use ($target, &$found): void {
+            if (property_exists($annotation, 'ref') && is_string($annotation->ref) && $annotation->ref === $target) {
+                $found = true;
+            }
+        });
+
+        return $found;
     }
 
     private function scan(): void
