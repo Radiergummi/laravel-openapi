@@ -14,6 +14,8 @@ use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Console\LintCommand;
+use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -225,6 +227,11 @@ final readonly class LintRunner
             ));
         }
 
+        // Stages to exclude when building the inference-only control document for this run, unioned
+        // across every active rule that compares against inference (the migration family). Empty
+        // when no such rule is active, so the control generation stays unbuilt and unpaid.
+        $inferenceExcludedStages = $this->inferenceExcludedStages($rules);
+
         // endregion
 
         // region Pre-build phase — runs once, findings carry spec: null
@@ -285,6 +292,13 @@ final readonly class LintRunner
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
 
+            // Build the inference-only view for the migration family, at this safe boundary (after
+            // the lint document and its class map are captured as locals, before the walk). The
+            // orchestrator owns the scoped-state reset; no rule re-enters the pipeline.
+            $inferenceSchemas = $inferenceExcludedStages !== []
+                ? $this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages)->schemasByClass
+                : [];
+
             $operations = $this->walkSpec(
                 $document,
                 $descriptors,
@@ -295,7 +309,7 @@ final readonly class LintRunner
                 $only,
                 $skip,
                 componentClassMap: $classMap,
-                specName: $spec->name,
+                inferenceSchemasByClass: $inferenceSchemas,
             );
 
             foreach ($operations as $operation) {
@@ -494,6 +508,28 @@ final readonly class LintRunner
         return array_values(array_unique($expanded));
     }
 
+    /**
+     * The union of stages to exclude when building the inference-only control document, gathered
+     * from every active rule that declares it compares against inference. Empty when no such rule is
+     * active — the signal for the per-spec loop to skip the control generation entirely.
+     *
+     * @param list<Rule> $rules
+     *
+     * @return list<class-string<SpecStage>>
+     */
+    private function inferenceExcludedStages(array $rules): array
+    {
+        $stages = [];
+
+        foreach ($rules as $rule) {
+            if ($rule instanceof NeedsInferenceDocument) {
+                $stages = [...$stages, ...$rule->excludedStages()];
+            }
+        }
+
+        return array_values(array_unique($stages));
+    }
+
     private function resolveLevel(LintOptions $options): int
     {
         $raw = $options->level ?? $this->configuredLevel;
@@ -553,12 +589,13 @@ final readonly class LintRunner
      * bucket as the tree-walk findings; this method only emits into the bucket and leaves draining
      * to the caller.
      *
-     * @param list<Rule>                  $rules
-     * @param list<ActionDescriptor>      $descriptors
-     * @param list<SuppressionDirective>  $suppressions
-     * @param list<string>                $only
-     * @param list<string>                $skip
-     * @param array<string, class-string> $componentClassMap
+     * @param list<Rule>                     $rules
+     * @param list<ActionDescriptor>         $descriptors
+     * @param list<SuppressionDirective>     $suppressions
+     * @param list<string>                   $only
+     * @param list<string>                   $skip
+     * @param array<string, class-string>    $componentClassMap
+     * @param array<class-string, OA\Schema> $inferenceSchemasByClass
      *
      * @return list<OperationNode> the in-scope operations walked
      *
@@ -574,7 +611,7 @@ final readonly class LintRunner
         array $only,
         array $skip,
         array $componentClassMap = [],
-        ?string $specName = null,
+        array $inferenceSchemasByClass = [],
     ): array {
         // region Tree walk
 
@@ -616,7 +653,7 @@ final readonly class LintRunner
             actionDescriptors: $descriptors,
             suppressions: $suppressions,
             payloadClasses: $this->openApiRegistry->payloadClasses,
-            specName: $specName,
+            inferenceSchemasByClass: $inferenceSchemasByClass,
         );
 
         $walker = new SpecTreeWalker($rules);

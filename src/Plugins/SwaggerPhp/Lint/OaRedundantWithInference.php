@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
-use InvalidArgumentException;
 use Override;
+use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
@@ -16,13 +16,14 @@ use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\InferenceControlDocument;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use ReflectionClass;
 use ReflectionException;
 
 use function class_exists;
+use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 use function str_contains;
@@ -35,22 +36,25 @@ use function str_starts_with;
  *
  * The verdict is provenance-based, not name-based: the class's authored schema (from the
  * {@see AuthoredAnnotationScanner}) is compared against inference's schema for the *same class* in
- * an {@see InferenceControlDocument}, ignoring whatever names either side serializes to. It fires
- * only when inference **subsumes** the authored schema — reproduces everything the author wrote and
- * possibly more (a synthesised example, a discovered property). A description or restriction
- * inference cannot derive keeps the annotation load-bearing, so it stays.
+ * the inference-only view the runner builds and hands in via
+ * {@see LintContext::$inferenceSchemasByClass}, ignoring whatever names either side serializes to.
+ * It fires only when inference **subsumes** the authored schema — reproduces everything the author
+ * wrote and possibly more (a synthesised example, a discovered property). A description or
+ * restriction inference cannot derive keeps the annotation load-bearing, so it stays.
  *
  * A schema another surviving authored annotation still `$ref`s by name is never flagged, so the fix
  * cannot leave a dangling reference.
  *
- * Registered only by the (off-by-default) swagger-php plugin. As a `migration.*` rule it sits at
- * the cleanup tier (level 4), so it stays off ordinary runs — and its second, inference-only
- * generation stays unpaid — until explicitly requested (`openapi:lint --only 'migration.*'`) or run
+ * The rule declares {@see NeedsInferenceDocument} so the runner builds that inference-only view once
+ * per spec, at a safe boundary, only when the rule is active — the rule never drives generation
+ * itself. Registered only by the (off-by-default) swagger-php plugin. As a `migration.*` rule it
+ * sits at the cleanup tier (level 4), so it stays off ordinary runs — and the inference-only
+ * generation stays unbuilt — until explicitly requested (`openapi:lint --only 'migration.*'`) or run
  * at a high level; disable the family with `--skip 'migration.*'`.
  *
  * @internal
  */
-final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule
+final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule, NeedsInferenceDocument
 {
     /** swagger-php's PHP-attribute namespace (`#[OA\Schema]` etc.), distinct from `@OA` docblocks. */
     public const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
@@ -59,15 +63,12 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
 
     public function __construct(
         private readonly AuthoredAnnotationScanner $scanner,
-        private readonly InferenceControlDocument $control,
         private readonly SchemaEquivalence $equivalence,
     ) {}
 
     /**
      * @return iterable<Finding>
      *
-     * @throws BindingResolutionException
-     * @throws InvalidArgumentException
      * @throws ReflectionException
      */
     #[Override]
@@ -75,8 +76,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     {
         $class = $componentSchema->sourceClass;
 
-        // No source class, or no spec to build the control against: we cannot decide redundancy.
-        if ($class === null || $context->specName === null || !class_exists($class)) {
+        if ($class === null || !class_exists($class)) {
             return;
         }
 
@@ -86,7 +86,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             return;
         }
 
-        $inferred = $this->control->schemaForClass($context->specName, $class);
+        $inferred = $context->inferenceSchemasByClass[ltrim($class, '\\')] ?? null;
 
         // Inference produces no schema for this class: the annotation is load-bearing — keep it.
         if ($inferred === null) {
@@ -159,6 +159,18 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     public function fixer(): Fixer
     {
         return new RedundantOaAnnotationFixer();
+    }
+
+    /**
+     * The inference-only view this rule compares against is the document with the authored-annotation
+     * harvest excluded — i.e. pure inference, no harvested schemas.
+     *
+     * @return list<class-string<SpecStage>>
+     */
+    #[Override]
+    public function excludedStages(): array
+    {
+        return [HarvestAuthoredAnnotationsStage::class];
     }
 
     #[Override]

@@ -15,22 +15,25 @@ use function is_a;
 final readonly class LintContext
 {
     /**
-     * @param list<ActionDescriptor>     $actionDescriptors
-     * @param list<SuppressionDirective> $suppressions
-     * @param list<class-string>         $payloadClasses    Base types whose subtypes Core treats
-     *                                                      as request payloads.
-     * @param ?string                    $specName          The name of the spec currently being
-     *                                                      walked, or null when the caller did not
-     *                                                      supply one. Rules that re-derive
-     *                                                      per-spec generation state (e.g. a
-     *                                                      migration rule building an
-     *                                                      inference-only control document) key off
-     *                                                      this.
-     * @param ReflectionAttributeCache   $reflectionCache   Per-walk cache for sibling rules to
-     *                                                      share `getAttributes()` results and
-     *                                                      {@see ReflectionClass} instances. A
-     *                                                      fresh cache per context keeps the
-     *                                                      lifecycle tied to one walk.
+     * @param list<ActionDescriptor>         $actionDescriptors
+     * @param list<SuppressionDirective>     $suppressions
+     * @param list<class-string>             $payloadClasses          Base types whose subtypes Core
+     *                                                                treats as request payloads.
+     * @param array<class-string, OA\Schema> $inferenceSchemasByClass Inference-only component schema
+     *                                                                per source class, for rules
+     *                                                                comparing authored annotations
+     *                                                                against inference (the
+     *                                                                migration family, via
+     *                                                                {@see NeedsInferenceDocument}).
+     *                                                                Built once per spec by the
+     *                                                                runner; empty unless an active
+     *                                                                rule asked for it.
+     * @param ReflectionAttributeCache       $reflectionCache         Per-walk cache for sibling
+     *                                                                rules to share `getAttributes()`
+     *                                                                results and {@see ReflectionClass}
+     *                                                                instances. A fresh cache per
+     *                                                                context keeps the lifecycle tied
+     *                                                                to one walk.
      */
     public function __construct(
         public ApiNode $api,
@@ -39,7 +42,7 @@ final readonly class LintContext
         public array $actionDescriptors,
         public array $suppressions,
         public array $payloadClasses = [],
-        public ?string $specName = null,
+        public array $inferenceSchemasByClass = [],
         public ReflectionAttributeCache $reflectionCache = new ReflectionAttributeCache(),
     ) {}
 

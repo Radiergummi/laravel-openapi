@@ -10,9 +10,10 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\InferenceControlDocument;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAnnotationController;
@@ -91,7 +92,9 @@ it('leaves the affected operations unchanged once the redundant annotations are 
     migrationRuleSetup();
 
     $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
-    $control = app(InferenceControlDocument::class)->forSpec('default', 'testing');
+    $control = app(OpenApiGenerationOrchestrator::class)
+        ->inferenceOnly('default', [HarvestAuthoredAnnotationsStage::class], 'testing')
+        ->document;
 
     expect(responseRefFor($control, 'redundant-attribute'))
         ->not->toBeNull()
