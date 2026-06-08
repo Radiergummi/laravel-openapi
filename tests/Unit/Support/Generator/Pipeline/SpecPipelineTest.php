@@ -10,8 +10,6 @@ use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Generator\SpecPipeline;
-use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
-use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use stdClass;
 
@@ -21,7 +19,7 @@ afterEach(function (): void {
     OpenApiExtensions::flush();
 });
 
-it('runs registry stages in registration order, then the terminal stage', function (): void {
+it('runs registered stages in registration order', function (): void {
     $log = new stdClass();
     $log->entries = [];
 
@@ -43,21 +41,12 @@ it('runs registry stages in registration order, then the terminal stage', functi
     app()->bind(StageB::class, fn() => $make('b'));
     app()->bind(StageC::class, fn() => $make('c'));
 
-    OpenApiExtensions::transformDocument(static function (OpenApi $doc) use ($log): void {
-        $log->entries[] = 'terminal';
-    });
-
-    $pipeline = new SpecPipeline(
-        registry: $registry,
-        container: app(),
-        overridesStage: app(OverridesStage::class),
-        transformersStage: app(TransformersStage::class),
-    );
+    $pipeline = new SpecPipeline(registry: $registry, container: app());
 
     $spec = app(SpecRegistry::class)->default();
     $pipeline->run($spec, 'testing');
 
-    expect($log->entries)->toBe(['a', 'b', 'c', 'terminal']);
+    expect($log->entries)->toBe(['a', 'b', 'c']);
 });
 
 class StageA implements SpecStage

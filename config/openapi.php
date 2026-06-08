@@ -493,6 +493,12 @@ return [
         // `composer require spatie/laravel-fractal` (which depends on league/fractal).
         // Uncomment to enable:
         // \Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin::class,
+
+        // Harvests hand-authored swagger-php annotations (`#[OA\Schema]` / `@OA\Schema` and
+        // operation-level `@OA`) into the generated document. Harvesting `@OA` PHPDoc annotations
+        // additionally requires `composer require doctrine/annotations` (`#[OA\*]` attributes work
+        // without it). Uncomment to enable:
+        // \Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin::class,
     ],
 
     /*

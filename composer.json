@@ -22,6 +22,7 @@
         "zircote/swagger-php": "^5.8 || ^6.1.2"
     },
     "require-dev": {
+        "doctrine/annotations": "^2.0",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^v3.9.6",
         "laravel/passport": "^13.7.5",
@@ -37,6 +38,7 @@
         "spatie/laravel-query-builder": "^7.3.0"
     },
     "suggest": {
+        "doctrine/annotations": "Enables the SwaggerPhpPlugin to harvest `@OA` PHPDoc annotations (in addition to `#[OA\\*]` attributes, which work without it) (^2.0).",
         "phpstan/extension-installer": "Auto-registers the bundled PHPStan rules that validate this package's attributes at edit time. Without it, include `vendor/radiergummi/laravel-openapi/extension.neon` in your phpstan.neon manually.",
         "fakerphp/faker": "Enables auto-generated examples for fields without an authored example. Already installed in any project shipping model factories.",
         "laravel/passport": "Enables OAuth scope-coverage validation in `openapi:lint` (^13.0).",
@@ -61,6 +63,7 @@
             "Examples\\ApiResources\\": "examples/api-resources/",
             "Examples\\Fractal\\": "examples/fractal/",
             "Examples\\QueryBuilder\\": "examples/query-builder/",
+            "Examples\\SwaggerPhp\\": "examples/swagger-php/",
             "Examples\\Combined\\": "examples/combined/"
         }
     },
@@ -87,6 +90,7 @@
         "examples:api-resources": "@php examples/generate.php api-resources",
         "examples:fractal": "@php examples/generate.php fractal",
         "examples:query-builder": "@php examples/generate.php query-builder",
+        "examples:swagger-php": "@php examples/generate.php swagger-php",
         "examples:combined": "@php examples/generate.php combined",
         "examples": [
             "@examples:vanilla",
@@ -95,6 +99,7 @@
             "@examples:api-resources",
             "@examples:fractal",
             "@examples:query-builder",
+            "@examples:swagger-php",
             "@examples:combined"
         ],
         "survey": "tools/survey/corpus.sh"

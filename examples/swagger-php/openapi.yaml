@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: 'Flights API – SwaggerPhp Example'
+  description: "Sample API used to demonstrate radiergummi/laravel-openapi's SwaggerPhp integration."
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost'
+    description: 'Current environment'
+paths:
+  '/api/aircraft/{aircraft}':
+    get:
+      tags:
+        - Aircraft
+        - SwaggerPhp
+      summary: 'Show an aircraft.'
+      description: "The library infers the operation from the route and PHPDoc; the harvester supplies the\nresponse body from the `#[OA\\Schema]` attribute on the returned Aircraft model."
+      operationId: get_api_aircraft_aircraft_
+      parameters:
+        -
+          name: aircraft
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aircraft'
+      security: []
+  '/api/crew/{id}':
+    get:
+      tags:
+        - SwaggerPhp
+      summary: 'Show a crew member.'
+      description: 'Returns the crew member identified by the given id.'
+      operationId: showCrew
+      parameters:
+        -
+          name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 'The crew member.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Crew'
+      security: []
+components:
+  schemas:
+    Aircraft:
+      description: 'A registered aircraft.'
+      required:
+        - id
+        - registration
+      properties:
+        id:
+          description: 'Unique aircraft identifier.'
+          type: integer
+          example: 42
+        registration:
+          description: 'Tail registration number.'
+          type: string
+          example: D-AIMA
+        seats:
+          description: 'Total passenger seats.'
+          type: integer
+          example: 853
+      type: object
+    Crew:
+      description: 'A crew member assigned to flights.'
+      required:
+        - id
+        - name
+      properties:
+        id:
+          description: 'Unique crew identifier.'
+          type: integer
+          example: 7
+        name:
+          description: 'Full name.'
+          type: string
+          example: 'Jane Roe'
+        role:
+          description: 'Assigned role.'
+          type: string
+          example: Captain
+      type: object
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: 'OAuth 2.0 Authorization Code flow for interactive users.'
+      flows:
+        authorizationCode:
+          authorizationUrl: 'http://localhost/oauth/authorize'
+          tokenUrl: 'http://localhost/oauth/token'
+          refreshUrl: 'http://localhost/oauth/token/refresh'
+          scopes: {}
+    oauth2ClientCredentials:
+      type: oauth2
+      description: 'OAuth 2.0 Client Credentials flow for machine users (server-to-server).'
+      flows:
+        clientCredentials:
+          tokenUrl: 'http://localhost/oauth/token'
+          scopes: {}
+tags:
+  -
+    name: SwaggerPhp
+    description: 'Example flavor: SwaggerPhp'
+  -
+    name: Flights
+    description: 'Operations on flights'
+  -
+    name: Bookings
+    description: 'Operations on flight bookings'

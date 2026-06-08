@@ -103,9 +103,16 @@ interface Plugin
 ```
 
 Plugins are listed in `config/openapi.plugins` and resolved from the container.
-`CoreRegistration::register()` runs first (registering
-`FormRequestRequestSchemaResolver` and all core lint rules), then each plugin
-in declaration order, then any `config/openapi.lint.rules` extras.
+`BaselineRegistration::assemble()` assembles everything in one place: it adds the
+pre-plugin baseline stages, runs each plugin's `register()` in declaration order
+(starting with `CorePlugin`), then adds the post-plugin stages (the
+`ComponentsStage` flush, `SecurityStage`, and the terminal `OverridesStage` →
+`TransformersStage`), registers the baseline and `config/openapi.lint.rules` lint
+rules, and finally **seals** the registry so no further registration is accepted
+out-of-band. The `OpenApiServiceProvider` factory closure owns only the
+Laravel/config glue and passes the plugin list, config rules, and resolved
+error-envelope class into `assemble()` as class-strings, keeping that assembly
+plugin-agnostic.
 
 For the registry surface and a worked plugin example, see
 [Plugin authoring](plugin-authoring.md).
