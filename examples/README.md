@@ -12,6 +12,7 @@ it — that's the showcase.
 | [`api-resources/`](api-resources/) | Laravel `JsonResource` responses isolated from any input layer — `#[ResourceField]` declarations on the resource class, paginated collection envelope, `#[ResponseResource]`. |
 | [`fractal/`](fractal/)             | `league/fractal` transformers with `#[FractalResponse]` and class-level `#[TransformerField]`, paginated and single-item envelopes. |
 | [`query-builder/`](query-builder/) | `spatie/laravel-query-builder` filter/sort/include parameters via `#[AllowedFilter]`, `#[AllowedSort]`, `#[AllowedInclude]`. |
+| [`swagger-php/`](swagger-php/)     | Hand-authored swagger-php annotations harvested into the spec — a `#[OA\Schema]` attribute model and an `@OA\Get` / `@OA\Schema` PHPDoc-annotated controller (the `SwaggerPhp` plugin). |
 | [`combined/`](combined/)           | The realistic mix: FormRequest + Data + QueryBuilder, plus `#[Security]`, `#[PublicEndpoint]`, `#[Link]`, `#[Hide]`, multipart uploads, and `file:` example payloads. |
 
 ## Running

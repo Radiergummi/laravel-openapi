@@ -10,6 +10,7 @@ use Examples\FormRequests\ExampleServiceProvider as FormRequests;
 use Examples\Fractal\ExampleServiceProvider as Fractal;
 use Examples\QueryBuilder\ExampleServiceProvider as QueryBuilder;
 use Examples\SpatieData\ExampleServiceProvider as SpatieData;
+use Examples\SwaggerPhp\ExampleServiceProvider as SwaggerPhp;
 use Examples\Vanilla\ExampleServiceProvider as Vanilla;
 
 /**
@@ -32,6 +33,7 @@ final class Flavors
             'api-resources' => ApiResources::class,
             'fractal'       => Fractal::class,
             'query-builder' => QueryBuilder::class,
+            'swagger-php'   => SwaggerPhp::class,
             'combined'      => Combined::class,
         ];
     }

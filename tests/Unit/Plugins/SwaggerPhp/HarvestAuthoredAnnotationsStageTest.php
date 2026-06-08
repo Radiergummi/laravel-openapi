@@ -125,6 +125,10 @@ it('merges an authored operation response and registers its schemas transitively
     // Pre-existing inferred responses for other statuses survive the merge.
     $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $operation->responses);
     expect($statuses)->toContain('500');
+
+    // The authored operation is the source of truth for its own prose/metadata.
+    expect($operation->summary)->toBe('Show an invoice.')
+        ->and($operation->operationId)->toBe('showInvoice');
 });
 
 // endregion

@@ -63,6 +63,7 @@
             "Examples\\ApiResources\\": "examples/api-resources/",
             "Examples\\Fractal\\": "examples/fractal/",
             "Examples\\QueryBuilder\\": "examples/query-builder/",
+            "Examples\\SwaggerPhp\\": "examples/swagger-php/",
             "Examples\\Combined\\": "examples/combined/"
         }
     },
@@ -89,6 +90,7 @@
         "examples:api-resources": "@php examples/generate.php api-resources",
         "examples:fractal": "@php examples/generate.php fractal",
         "examples:query-builder": "@php examples/generate.php query-builder",
+        "examples:swagger-php": "@php examples/generate.php swagger-php",
         "examples:combined": "@php examples/generate.php combined",
         "examples": [
             "@examples:vanilla",
@@ -97,6 +99,7 @@
             "@examples:api-resources",
             "@examples:fractal",
             "@examples:query-builder",
+            "@examples:swagger-php",
             "@examples:combined"
         ],
         "survey": "tools/survey/corpus.sh"

@@ -21,6 +21,7 @@ use function array_unique;
 use function array_values;
 use function is_array;
 use function is_string;
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 use function str_starts_with;
 use function strrpos;
@@ -85,7 +86,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             : null;
 
         if ($authoredOperation !== null) {
-            $this->mergeAuthoredResponses($operation, $authoredOperation, $document);
+            $this->mergeAuthoredOperation($operation, $authoredOperation, $document);
 
             return;
         }
@@ -94,14 +95,17 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Copies the authored operation's responses onto the generated operation, authored winning per
-     * status. A response whose referenced schemas cannot all be resolved is skipped and logged.
+     * Copies the authored operation's prose/metadata and responses onto the generated operation.
+     * Responses merge per status, authored winning; a response whose referenced schemas cannot all
+     * be resolved is skipped and logged.
      */
-    private function mergeAuthoredResponses(
+    private function mergeAuthoredOperation(
         OA\Operation $operation,
         OA\Operation $authored,
         OA\OpenApi $document,
     ): void {
+        $this->copyAuthoredMetadata($operation, $authored);
+
         if (!is_array($authored->responses)) {
             return;
         }
@@ -123,6 +127,26 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         }
 
         $operation->responses = array_values($byStatus);
+    }
+
+    /**
+     * Adopts the authored operation's prose and identity. The authored annotation is the source of
+     * truth for the operation it describes, so its summary/description replace the library's
+     * docblock-derived values outright (an `@OA` docblock would otherwise leak the raw annotation
+     * text into them); operationId and tags are taken only when the author set them.
+     */
+    private function copyAuthoredMetadata(OA\Operation $operation, OA\Operation $authored): void
+    {
+        $operation->summary = $authored->summary;
+        $operation->description = $authored->description;
+
+        if (is_defined($authored->operationId)) {
+            $operation->operationId = $authored->operationId;
+        }
+
+        if (is_defined($authored->tags)) {
+            $operation->tags = $authored->tags;
+        }
     }
 
     /**

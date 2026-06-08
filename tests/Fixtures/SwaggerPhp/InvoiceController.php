@@ -15,6 +15,8 @@ class InvoiceController
     /**
      * @OA\Get(
      *     path="/invoices/{id}",
+     *     summary="Show an invoice.",
+     *     operationId="showInvoice",
      *
      *     @OA\Response(
      *         response=200,

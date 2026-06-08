@@ -1,7 +1,7 @@
 # Plugins
 
 A plugin registers resolvers, extractors, and lint rules for a specific
-package or convention. Four plugins ship with the package:
+package or convention. Five plugins ship with the package:
 
 | Plugin | Default | Requires | Documents |
 |---|---|---|---|
@@ -9,6 +9,7 @@ package or convention. Four plugins ship with the package:
 | [`ApiResources`](#apiresources) | enabled | Laravel core | `JsonResource` / `ResourceCollection` responses |
 | [`QueryBuilder`](#querybuilder) | disabled | `spatie/laravel-query-builder` | `filter[]` / `sort` / `include` query parameters |
 | [`Fractal`](#fractal) | disabled | `league/fractal` | Fractal transformer responses |
+| [`SwaggerPhp`](#swaggerphp) | disabled | swagger-php (bundled); `doctrine/annotations` for PHPDoc | Hand-authored `#[OA\*]` / `@OA` annotations |
 
 `FormRequest` request bodies are supported natively. No plugin required.
 
@@ -222,3 +223,64 @@ Lint rules:
 > `fractal.response-unbound` is opt-in. The `fractal()` helper and
 > `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies, and
 > the generator does not read method bodies.
+
+## SwaggerPhp
+
+Harvests the swagger-php annotations an app already wrote — `#[OA\Schema]` /
+`@OA\Schema` definitions on models and operation-level `@OA` annotations on
+controllers — and merges the resulting schemas and response bodies into the
+generated document. For an app already documented for L5-Swagger / swagger-php,
+this recovers response schemas the library would otherwise have no way to infer.
+There is no inference risk: the schemas are authored by the developer.
+
+### Enable
+
+1. The swagger-php library is already a dependency. To harvest `@OA` **PHPDoc**
+   annotations (not just `#[OA\*]` attributes), also
+   `composer require doctrine/annotations`.
+2. Uncomment `SwaggerPhpPlugin::class` under `plugins` in `config/openapi.php`.
+
+The plugin scans `app_path()` for authored annotations once per generation.
+
+### What it does
+
+The library still owns the operation skeleton it infers from your routes
+(path, HTTP method, parameters, security). The harvester contributes only
+schemas and response bodies on top:
+
+- A model carrying `#[OA\Schema]` / `@OA\Schema` is registered as a component
+  under its **authored schema name**. When a controller action returns that
+  class and has no response body yet, the schema becomes its `200` body.
+- An operation-level `@OA\Get` / `@OA\Post` / … on a controller method
+  contributes its `@OA\Response`s to the matching operation — authored wins per
+  status code, and the inferred responses for other statuses are kept. The
+  authored `summary` / `description` / `operationId` / `tags` are adopted too
+  (the annotation is the source of truth for the operation it describes).
+
+Referenced schemas are pulled in transitively under their authored names. A
+response that references a schema the scan cannot find is skipped and logged,
+rather than emitted as a dangling `$ref`.
+
+```php
+use OpenApi\Attributes as OA;
+
+#[OA\Schema(schema: 'Aircraft', required: ['id'])]
+final class Aircraft
+{
+    #[OA\Property(property: 'id', type: 'integer')]
+    public int $id = 0;
+}
+```
+
+```php
+// returns Aircraft -> 200 body becomes $ref: '#/components/schemas/Aircraft'
+public function show(string $id): Aircraft { … }
+```
+
+> [!NOTE]
+> `@OA` **PHPDoc** annotations are parsed only when `doctrine/annotations` is
+> installed (an optional swagger-php dependency). `#[OA\*]` **attributes** are
+> harvested without it. Scanning the application directory adds to generation
+> time, which is why the plugin is off by default.
+
+Worked endpoint: [`examples/swagger-php/`](../examples/swagger-php/).
