@@ -629,6 +629,10 @@ class OpenApiServiceProvider extends ServiceProvider
                         static fn(string $class) => $app->make($class),
                         $registry->primaryResponseResolvers,
                     ),
+                    operationConventionResolvers: array_map(
+                        static fn(string $class) => $app->make($class),
+                        $registry->operationConventionResolvers,
+                    ),
                 );
             },
         );

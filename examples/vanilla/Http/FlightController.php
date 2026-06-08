@@ -112,7 +112,6 @@ final class FlightController
     /**
      * @throws ModelNotFoundException When the flight does not exist.
      */
-    #[IgnoreLint('operation.summary-missing', reason: 'Showcasing #[IgnoreLint]: this endpoint deliberately omits the docblock summary so the demo can demonstrate suppression-with-reason.')]
     #[Response(status: 204, description: 'The flight was cancelled')]
     public function destroy(string $flight): JsonResponse
     {
@@ -120,5 +119,20 @@ final class FlightController
         $model->delete();
 
         return new JsonResponse(null, 204);
+    }
+
+    /**
+     * @throws ModelNotFoundException When the flight does not exist.
+     */
+    #[IgnoreLint('operation.summary-missing', reason: 'Showcasing #[IgnoreLint]: this custom (non-resourceful) endpoint deliberately omits a summary so the demo can demonstrate suppression-with-reason. Resourceful CRUD actions now get a default summary from convention, so a non-CRUD action hosts this demo.')]
+    #[Response(status: 200, description: 'The flight manifest', schema: ['type' => 'object'])]
+    public function manifest(string $flight): JsonResponse
+    {
+        $model = Flight::query()->findOrFail($flight);
+
+        return new JsonResponse([
+            'flight' => $model->getKey(),
+            'passengers' => [],
+        ]);
     }
 }

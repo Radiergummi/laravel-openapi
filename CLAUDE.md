@@ -58,10 +58,6 @@ The codebase splits into four namespaces:
 - `Contracts\` — public extension surface (interfaces like `Plugin`,
   `RequestSchemaResolver`, `RefSchemaResolver`, `QueryParameterResolver`,
   `PrimaryResponseResolver`, `ErrorResponseResolver`, `SpecStage`, `RouteFilter`).
-- `Core\` — the **Core Plugin**: bundled extraction/processing strategies
-  (FormRequest extractor, error-envelope strategies, paginator response resolver,
-  standard-response extractor, default query-parameter resolver, route
-  introspection). Registers itself as `Core\CorePlugin`.
 - `Support\` — internal infrastructure (generator pipeline + stages, spec
   resolution, inclusion evaluator, visibility resolver, extraction primitives —
   including the plugin-agnostic `Support\Extraction\ValidationRulesToSchema`
@@ -71,10 +67,13 @@ The codebase splits into four namespaces:
   `Support\Types\TypeNodeResolver`, built on `phpstan/phpdoc-parser` +
   `symfony/type-info` — the `phpdocumentor`/`reflection-docblock` stack was dropped.
   Treat as `@internal`; not a stable extension point.
-- `Plugins\` — bundled third-party convention plugins. Four ship: **SpatieData**
-  and **ApiResources** are enabled by default in `config/openapi.plugins`;
-  **QueryBuilder** and **Fractal** are present but commented out (each requires
-  opting into a third-party package).
+- `Plugins\` — bundled plugins. Five ship: **Core** (`Plugins\Core\`) is the
+  **Core Plugin** — bundled extraction/processing strategies (FormRequest extractor,
+  error-envelope strategies, paginator response resolver, standard-response extractor,
+  default query-parameter resolver, route introspection); registers itself as
+  `Plugins\Core\CorePlugin`. **SpatieData** and **ApiResources** are enabled by
+  default in `config/openapi.plugins`; **QueryBuilder** and **Fractal** are present
+  but commented out (each requires opting into a third-party package).
 
 ### Generation pipeline
 
@@ -95,7 +94,7 @@ pipeline registered by `BaselineRegistration` — see Registry and plugins):
 `Support\Generator\BaselineRegistration::register()` runs first — it adds the load-bearing
 stage pipeline (`RootStage` → `PathsStage` → `ErrorResponseInferenceStage` → `ComponentsStage`
 → `SecurityStage`) and the library-wide lint rules. Then each plugin in `config/openapi.plugins`
-order runs, starting with `Core\CorePlugin` (registers `FormRequestRequestSchemaResolver`,
+order runs, starting with `Plugins\Core\CorePlugin` (registers `FormRequestRequestSchemaResolver`,
 `CoreQueryParameterResolver`, `PaginatorResponseResolver`, and the core lint rules); finally any
 `config/openapi.lint.rules` extras. A plugin implements `Contracts\Registry\Plugin` and registers
 resolvers, extractors, error-response factories, payload class markers, lint rules, and
@@ -127,9 +126,9 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 ## Conventions
 
 - Every PHP file has a strict-types declaration.
-- `src/Core/`, `src/Support/`, and `src/Contracts/` must not depend on any plugin or
-  third-party convention package — plugin-specific code belongs in `src/Plugins/`.
-- `src/Core/` holds **only concrete strategies** that participate in the Core Plugin
+- `src/Support/` and `src/Contracts/` must not depend on any plugin or third-party convention
+  package — plugin-specific code belongs in `src/Plugins/`.
+- `src/Plugins/Core/` holds **only concrete strategies** that participate in the Core Plugin
   (extractors, envelope strategies, the default query-parameter resolver, route
   introspection, etc.). Infrastructure shared across plugins goes in `src/Support/`.
 - **The Core Plugin exists only to understand vanilla Laravel code patterns** (FormRequests,
@@ -137,7 +136,7 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
   just without the smarts to read those structures. So config-driven, plugin-agnostic
   infrastructure (e.g. the `openapi.overrides` escape hatch and its lint rules) belongs in the
   general package (`src/Support/`, `src/Lint/Rules/`, registered by `BaselineRegistration` or
-  `SpecPipeline`), **never** in `src/Core/` or gated behind a plugin.
+  `SpecPipeline`), **never** in `src/Plugins/Core/` or gated behind a plugin.
 - The lint rule catalog in `docs/linting.md` (between the `lint-rule-catalog` markers) is
   hand-maintained — add a row when you add a rule. `openapi:lint --list` is the live source.
 - Classes intended only for internal use (not part of the documented extension
