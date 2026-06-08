@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 
 use function assert;
+use function in_array;
 
 /**
  * Runs the registered stages against a shared {@see OpenApi} document, in registration order.
@@ -30,10 +31,28 @@ final readonly class SpecPipeline
 {
     public const string VERSION = OpenApi::VERSION_3_1_0;
 
+    /**
+     * @param array<class-string<SpecStage>> $excludedStages Stages to skip on this run; autowired
+     *                                                       as `[]` for the container-managed
+     *                                                       instance.
+     */
     public function __construct(
         private OpenApiRegistry $registry,
         private Container $container,
+        private array $excludedStages = [],
     ) {}
+
+    /**
+     * A copy of this pipeline that skips the given stages on {@see run()}, leaving the registry
+     * untouched. Used to build an inference-only control document by excluding a single
+     * schema-contributing stage; see the swagger-php migration rules.
+     *
+     * @param class-string<SpecStage> ...$stages
+     */
+    public function withoutStage(string ...$stages): self
+    {
+        return new self($this->registry, $this->container, [...$this->excludedStages, ...$stages]);
+    }
 
     /**
      * Runs the pipeline against the given spec.
@@ -52,6 +71,10 @@ final readonly class SpecPipeline
             $context = new GenerationContext($spec, $environment);
 
             foreach ($this->registry->stages as $stageClass) {
+                if (in_array($stageClass, $this->excludedStages, true)) {
+                    continue;
+                }
+
                 $stage = $this->container->make($stageClass);
                 assert($stage instanceof SpecStage);
                 $stage->apply($document, $context);

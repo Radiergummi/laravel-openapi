@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Support;
 
+use OpenApi\Annotations\AbstractAnnotation;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Schema;
@@ -11,9 +12,12 @@ use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
+use function get_object_vars;
 use function is_array;
+use function is_string;
 use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
+use function str_starts_with;
 
 /**
  * Runs swagger-php's own analyzer over a set of source paths once, harvesting the hand-authored
@@ -78,6 +82,72 @@ final class AuthoredAnnotationScanner
         $this->scan();
 
         return $this->operationsByMethod[$this->methodKey($class, $method)] ?? null;
+    }
+
+    /**
+     * Whether the authored component schema named `$componentName` is referenced (via `$ref`) by
+     * any *other* authored annotation — another class's authored schema, or any authored operation.
+     * The schema declared by `$excludingClass` (the candidate for removal) is itself excluded.
+     *
+     * The migration removal rule uses this as its safety check: a schema another surviving authored
+     * annotation still points at must not be removed, or that reference would dangle.
+     */
+    public function isSchemaReferencedByOtherAuthored(string $componentName, string $excludingClass): bool
+    {
+        $this->scan();
+
+        $target = '#/components/schemas/' . $componentName;
+        $ownSchema = $this->schemasByClass[ltrim($excludingClass, '\\')] ?? null;
+
+        foreach ($this->schemasByName as $schema) {
+            if ($schema !== $ownSchema && $this->referencesRef($schema, $target)) {
+                return true;
+            }
+        }
+
+        foreach ($this->operationsByMethod as $operation) {
+            if ($this->referencesRef($operation, $target)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the `$ref` string `$target` appears anywhere in the annotation's object tree.
+     */
+    private function referencesRef(AbstractAnnotation $node, string $target): bool
+    {
+        foreach (get_object_vars($node) as $key => $value) {
+            if (str_starts_with($key, '_')) {
+                continue;
+            }
+
+            if ($key === 'ref' && is_string($value) && $value === $target) {
+                return true;
+            }
+
+            if ($value instanceof AbstractAnnotation) {
+                if ($this->referencesRef($value, $target)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (!is_array($value)) {
+                continue;
+            }
+
+            foreach ($value as $item) {
+                if ($item instanceof AbstractAnnotation && $this->referencesRef($item, $target)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function scan(): void

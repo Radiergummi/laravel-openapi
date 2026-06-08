@@ -19,6 +19,13 @@ final readonly class LintContext
      * @param list<SuppressionDirective> $suppressions
      * @param list<class-string>         $payloadClasses    Base types whose subtypes Core treats
      *                                                      as request payloads.
+     * @param ?string                    $specName          The name of the spec currently being
+     *                                                      walked, or null when the caller did not
+     *                                                      supply one. Rules that re-derive
+     *                                                      per-spec generation state (e.g. a
+     *                                                      migration rule building an
+     *                                                      inference-only control document) key off
+     *                                                      this.
      * @param ReflectionAttributeCache   $reflectionCache   Per-walk cache for sibling rules to
      *                                                      share `getAttributes()` results and
      *                                                      {@see ReflectionClass} instances. A
@@ -32,6 +39,7 @@ final readonly class LintContext
         public array $actionDescriptors,
         public array $suppressions,
         public array $payloadClasses = [],
+        public ?string $specName = null,
         public ReflectionAttributeCache $reflectionCache = new ReflectionAttributeCache(),
     ) {}
 

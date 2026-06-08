@@ -1,0 +1,140 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Tests\Feature;
+
+use Illuminate\Support\Facades\Route;
+use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintResult;
+use Radiergummi\OpenApi\Lint\LintRunner;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\InferenceControlDocument;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAnnotationController;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\ServerController;
+
+uses()->group('openapi', 'plugin:spatie-data');
+
+// region Helpers
+
+function migrationRuleSetup(): void
+{
+    Route::get('/redundant-attribute', [RedundantAnnotationController::class, 'attribute']);
+    Route::get('/redundant-docblock', [RedundantAnnotationController::class, 'docblock']);
+
+    config()->set('openapi.plugins', [...(array) config('openapi.plugins', []), SwaggerPhpPlugin::class]);
+
+    app()->scoped(
+        AuthoredAnnotationScanner::class,
+        static fn($app): AuthoredAnnotationScanner => new AuthoredAnnotationScanner(
+            [dirname(__DIR__) . '/Fixtures/SwaggerPhp'],
+            $app->make(LoggerInterface::class),
+        ),
+    );
+}
+
+/**
+ * @return list<string> the source classes flagged by the migration rule
+ */
+function migrationFindingClasses(LintResult $result): array
+{
+    $classes = [];
+
+    foreach ($result->findings as $finding) {
+        if ($finding->ruleId === 'migration.oa-redundant-with-inference') {
+            $classes[] = $finding->context['sourceClass'] ?? '(none)';
+        }
+    }
+
+    return $classes;
+}
+
+/**
+ * The 200 response JSON schema `$ref` for a path, or null.
+ */
+function responseRefFor(OA\OpenApi $document, string $needle): ?string
+{
+    foreach (is_array($document->paths) ? $document->paths : [] as $pathItem) {
+        if (!str_contains((string) $pathItem->path, $needle) || !$pathItem->get instanceof OA\Operation) {
+            continue;
+        }
+
+        foreach (is_array($pathItem->get->responses) ? $pathItem->get->responses : [] as $response) {
+            if ((string) $response->response !== '200' || !is_array($response->content)) {
+                continue;
+            }
+
+            foreach ($response->content as $mediaType) {
+                $ref = $mediaType->schema instanceof OA\Schema ? $mediaType->schema->ref : null;
+
+                if (is_string($ref) && str_starts_with($ref, '#/')) {
+                    return $ref;
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+// endregion
+
+it('leaves the affected operations unchanged once the redundant annotations are gone', function (): void {
+    // The "same API surface" invariant: removing the redundant annotations yields the
+    // inference-only control document, and the flagged operations' response schemas are identical
+    // between the harvested document and that control.
+    migrationRuleSetup();
+
+    $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
+    $control = app(InferenceControlDocument::class)->forSpec('default', 'testing');
+
+    expect(responseRefFor($control, 'redundant-attribute'))
+        ->not->toBeNull()
+        ->toBe(responseRefFor($harvested, 'redundant-attribute'))
+        ->and(responseRefFor($control, 'redundant-docblock'))
+        ->not->toBeNull()
+        ->toBe(responseRefFor($harvested, 'redundant-docblock'));
+});
+
+it('flags an attribute-shape annotation inference reproduces, under --migrate', function (): void {
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(migrate: true));
+
+    expect(migrationFindingClasses($result))
+        ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData::class);
+});
+
+it('flags a docblock-shape annotation inference reproduces, under --migrate', function (): void {
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(migrate: true));
+
+    expect(migrationFindingClasses($result))
+        ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantDocblockData::class);
+});
+
+it('stays inert without --migrate', function (): void {
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(level: 'max'));
+
+    expect(migrationFindingClasses($result))->toBe([]);
+});
+
+it('does not flag an annotation inference cannot reproduce', function (): void {
+    // AttributeServer is a plain class: inference produces no component schema for it, so its
+    // authored #[OA\Schema] is load-bearing and must not be flagged.
+    Route::get('/servers/{id}', [ServerController::class, 'show']);
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(migrate: true));
+
+    expect(migrationFindingClasses($result))
+        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer::class);
+});

@@ -148,6 +148,30 @@ runs, whose exit code reflects the fix outcome. Run `openapi:lint` without `--fi
 > inference improves, so a version bump can move the percentage with no app change — treat
 > coverage deltas across generator versions as non-comparable.
 
+## Migration mode (`--migrate`)
+
+When you enable the [SwaggerPhp plugin](plugins.md#swaggerphp) to harvest an app's
+hand-authored `#[OA\*]` / `@OA` annotations, the natural next step is to delete the ones
+inference now reproduces on its own. `--migrate` turns on the **migration rules** that find them:
+
+```bash
+php artisan openapi:lint --migrate          # report redundant annotations
+php artisan openapi:lint --migrate --fix     # …and remove them
+```
+
+`migration.oa-redundant-with-inference` flags a class whose authored `#[OA\Schema]` / `@OA\Schema`
+the generator already derives from its typed properties. The decision is **provenance-based**: the
+class's authored schema is compared, by source class, against what inference produces for the same
+class in a second, inference-only generation — it fires only when inference reproduces *everything*
+the annotation said (a description or `additionalProperties: false` inference can't derive keeps the
+annotation load-bearing, so it stays), and never when another surviving annotation still `$ref`s the
+schema. `--fix` removes the whole `#[OA\Schema]`+`#[OA\Property]` set, or the whole `@OA\Schema`
+docblock block.
+
+Because deciding redundancy requires that second generation, the migration rules are **off unless
+`--migrate` is passed** — they impose no cost on ordinary lint runs. Removing an annotation may
+consolidate its component to inference's name; the documented API surface is preserved.
+
 ## Suppress a finding
 
 Use the `#[OpenApi\IgnoreLint]` attribute. Each instance suppresses exactly
@@ -421,6 +445,7 @@ plugin-registered rules.
 | `deprecated.no-replacement` | 4 | Deprecated operation/field has no x-replacement or suggested alternative. |
 | `deprecated.no-sunset-date` | 4 | Deprecated operation has no x-sunset date. |
 | `info.metadata-incomplete` | 4 | The document info is missing contact and/or license. |
+| `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; runs only under `--migrate`.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |
 | `request-body.example-missing` | 4 | requestBody has no example. |
 | `response.example-missing` | 4 | Response media type has no example. |

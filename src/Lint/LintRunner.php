@@ -14,6 +14,7 @@ use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Console\LintCommand;
+use Radiergummi\OpenApi\Contracts\Lint\MigrationRule;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -214,13 +215,43 @@ final readonly class LintRunner
             $level = max($level, $this->registry->maxLevel());
         }
 
-        $rules = $this->registry->forLevel($level, only: $only, skip: $skip);
+        // Migration rules are selected explicitly below (under --migrate), so keep them out of the
+        // level-based set: they trigger a second, inference-only generation and must stay inert on
+        // ordinary runs regardless of their configured level.
+        $rules = array_values(array_filter(
+            $this->registry->forLevel($level, only: $only, skip: $skip),
+            static fn(Rule $rule): bool => !$rule instanceof MigrationRule,
+        ));
 
         if (!$options->validateSpec) {
             $rules = array_values(array_filter(
                 $rules,
                 static fn(Rule $rule): bool => $rule->id() !== RuleRegistry::EXEMPT_RULE_ID,
             ));
+        }
+
+        // Under --migrate the migration rules run regardless of the severity preset (the user
+        // explicitly asked for them), honouring only --only/--skip. Their IDs are tracked so their
+        // findings bypass the level filter below, the way spec.invalid does.
+        $migrationRuleIds = [];
+
+        if ($options->migrate) {
+            foreach ($this->registry->all() as $rule) {
+                if (!$rule instanceof MigrationRule) {
+                    continue;
+                }
+
+                if ($only !== [] && !in_array($rule->id(), $only, true)) {
+                    continue;
+                }
+
+                if (in_array($rule->id(), $skip, true)) {
+                    continue;
+                }
+
+                $rules[] = $rule;
+                $migrationRuleIds[$rule->id()] = true;
+            }
         }
 
         // endregion
@@ -293,6 +324,7 @@ final readonly class LintRunner
                 $only,
                 $skip,
                 componentClassMap: $classMap,
+                specName: $spec->name,
             );
 
             foreach ($operations as $operation) {
@@ -376,7 +408,10 @@ final readonly class LintRunner
         $findings = array_values(
             array_filter(
                 $findings,
-                static fn(Finding $finding): bool => $finding->level <= $level,
+                // Migration findings bypass the level preset (like spec.invalid): the user opted
+                // into them via --migrate, so they surface regardless of their configured severity.
+                static fn(Finding $finding): bool
+                    => $finding->level <= $level || isset($migrationRuleIds[$finding->ruleId]),
             ),
         );
 
@@ -526,6 +561,7 @@ final readonly class LintRunner
         array $only,
         array $skip,
         array $componentClassMap = [],
+        ?string $specName = null,
     ): array {
         // region Tree walk
 
@@ -567,6 +603,7 @@ final readonly class LintRunner
             actionDescriptors: $descriptors,
             suppressions: $suppressions,
             payloadClasses: $this->openApiRegistry->payloadClasses,
+            specName: $specName,
         );
 
         $walker = new SpecTreeWalker($rules);

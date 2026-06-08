@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp;
 
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
@@ -22,5 +23,9 @@ final class SwaggerPhpPlugin implements Plugin
     public function register(OpenApiRegistry $registry): void
     {
         $registry->addStage(HarvestAuthoredAnnotationsStage::class);
+
+        // Gated behind `openapi:lint --migrate`; flags hand-authored annotations the generator now
+        // reproduces on its own.
+        $registry->addRule(OaRedundantWithInference::class);
     }
 }

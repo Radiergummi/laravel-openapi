@@ -48,6 +48,11 @@ final readonly class LintOptions
      *                                           gate-driven (see {@see LintRunner}).
      * @param ?int            $maxFindings       Maximum allowed finding count (--max-findings).
      *                                           Null falls back to `openapi.lint.max_findings`.
+     * @param bool            $migrate           Whether migration rules
+     *                                           ({@see \Radiergummi\OpenApi\Contracts\Lint\MigrationRule})
+     *                                           run. False corresponds to omitting --migrate on
+     *                                           the CLI; these rules are inert otherwise because
+     *                                           they trigger a second, inference-only generation.
      */
     public function __construct(
         public int|string|null $level = null,
@@ -61,6 +66,7 @@ final readonly class LintOptions
         public ?string $spec = null,
         public ?float $minCoverage = null,
         public ?int $maxFindings = null,
+        public bool $migrate = false,
     ) {}
 
     /**

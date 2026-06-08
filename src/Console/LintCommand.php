@@ -68,6 +68,7 @@ class LintCommand extends Command
         {--list : Print the rule catalog instead of linting}
         {--fix : Apply fixable findings to the source, then report the rest}
         {--check : Report whether --fix would change anything, without writing (CI-safe)}
+        {--migrate : Run migration rules (e.g. flag hand-authored annotations inference now reproduces); triggers a second, inference-only generation}
         {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}
         {--min-coverage= : Fail when documentation coverage % falls below this threshold (gate-driven exit)}
         {--max-findings= : Fail when the in-scope finding count exceeds this budget}';
@@ -260,6 +261,7 @@ class LintCommand extends Command
             spec: $this->option('spec') ?: null,
             minCoverage: $this->parseMinCoverage(),
             maxFindings: $this->parseMaxFindings(),
+            migrate: (bool) $this->option('migrate'),
         );
     }
 

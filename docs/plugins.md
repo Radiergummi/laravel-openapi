@@ -283,4 +283,13 @@ public function show(string $id): Aircraft { … }
 > harvested without it. Scanning the application directory adds to generation
 > time, which is why the plugin is off by default.
 
+### Migrating off the annotations
+
+Harvesting keeps your annotations working, but the goal is usually to delete the
+ones inference now reproduces on its own. The plugin registers a migration lint
+rule, `migration.oa-redundant-with-inference`, for exactly that — run
+`php artisan openapi:lint --migrate` to find redundant `#[OA\Schema]` / `@OA\Schema`
+blocks and `--migrate --fix` to remove them. See
+[Linting → Migration mode](linting.md#migration-mode---migrate).
+
 Worked endpoint: [`examples/swagger-php/`](../examples/swagger-php/).
