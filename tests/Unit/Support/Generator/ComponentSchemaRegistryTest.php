@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\DuplicateSchemaNameException;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Bar\CreateData as BarCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Baz\Bar\CreateData as BazBarCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Domain\Data\Alpha\CreateData as AlphaCreateData;
@@ -12,6 +13,11 @@ use Radiergummi\OpenApi\Tests\Fixtures\Registry\Foo\Bar\CreateData as FooBarCrea
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Foo\CreateData as FooCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Projects\CreateData as ProjectsCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Qux\Bar\CreateData as QuxBarCreateData;
+use Radiergummi\OpenApi\Tests\Fixtures\Registry\SchemaName\DuplicateA;
+use Radiergummi\OpenApi\Tests\Fixtures\Registry\SchemaName\DuplicateB;
+use Radiergummi\OpenApi\Tests\Fixtures\Registry\SchemaName\PinsPlain;
+use Radiergummi\OpenApi\Tests\Fixtures\Registry\SchemaName\Plain;
+use Radiergummi\OpenApi\Tests\Fixtures\Registry\SchemaName\Renamed;
 
 uses()->group('openapi');
 
@@ -215,6 +221,50 @@ it('exposes isInProgress() so plugin code can detect re-entrant builds', functio
 
     expect($observed)->toBeTrue()
         ->and($registry->isInProgress(stdClass::class))->toBeFalse();
+});
+
+// endregion
+
+// region #[SchemaName] — explicit component key override
+
+it('uses the explicit #[SchemaName] instead of the derived basename', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $key = $registry->reserveKey(Renamed::class);
+
+    expect($key)->toBe('PublicContract');
+});
+
+it('reuses the same explicit key on repeated calls for the same class', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $first  = $registry->reserveKey(Renamed::class);
+    $second = $registry->reserveKey(Renamed::class);
+
+    expect($first)->toBe('PublicContract')
+        ->and($second)->toBe('PublicContract');
+});
+
+it('lets an explicit name win the bare string, disambiguating a later derived collision', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $pinned  = $registry->reserveKey(PinsPlain::class);
+    $derived = $registry->reserveKey(Plain::class);
+
+    expect($pinned)->toBe('Plain')
+        ->and($derived)->not->toBe('Plain');
+});
+
+it('throws when two distinct classes declare the same explicit #[SchemaName]', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->reserveKey(DuplicateA::class);
+
+    expect(static fn(): string => $registry->reserveKey(DuplicateB::class))
+        ->toThrow(
+            DuplicateSchemaNameException::class,
+            'Shared',
+        );
 });
 
 // endregion
