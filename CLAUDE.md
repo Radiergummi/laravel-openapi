@@ -34,7 +34,13 @@ Feature and bug work is tracked in **GitHub Issues**, not in `docs/` spec/plan f
 Specs live in issue descriptions; implementation plans live in **draft-PR descriptions**.
 Planning issues carry the `spec` label and sit on the **Roadmap** project, bucketed into the
 `v1.0` / `v1.1` / `v1.2` milestones; the economic-sensibility tier and affected area are labels
-(`tier-0/1/2`, `area:*`).
+(`tier-0/1/2`, `area:*`). The full label catalog (so you needn't re-query `gh label list` per PR):
+
+- **Kind:** `bug`, `spec` (planning issue).
+- **Tier:** `tier-0` (reflection & signatures), `tier-1` (bounded AST whitelist), `tier-2` (refused).
+- **Area:** `area:core` (extraction/pipeline), `area:lint`, `area:plugins`, `area:requests`,
+  `area:params` (query/path/header), `area:responses`, `area:cli`, `area:security`,
+  `area:multi-spec`, `area:survey`.
 
 Start each work session by opening a **draft PR**:
 
