@@ -10,7 +10,7 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaOperationFixer;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
@@ -141,6 +141,6 @@ it('exposes its fixer and human-readable description', function (): void {
     $rule = app(OaRedundantOperationWithInference::class);
 
     expect($rule->fixer())
-        ->toBeInstanceOf(RedundantOaOperationFixer::class)
+        ->toBeInstanceOf(RedundantOaAnnotationFixer::class)
         ->and($rule->description())->toContain('inference');
 });

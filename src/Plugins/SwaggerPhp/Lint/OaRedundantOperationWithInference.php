@@ -17,8 +17,8 @@ use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaOperationFixer;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
@@ -32,39 +32,27 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Flags a hand-authored operation-level swagger-php annotation — an `@OA\Get`/`@OA\Post`/… docblock
- * or `#[OA\Get]`/`#[OA\Response]`/… attribute on a controller method — whose contribution the
- * generator now reproduces on its own, so it can be deleted as the codebase moves onto inference.
- * The operation-level counterpart of {@see OaRedundantWithInference} (which handles class-level
- * `#[OA\Schema]` definitions).
+ * Flags a hand-authored operation-level swagger-php annotation — an `@OA\Get`/… docblock or
+ * `#[OA\Get]`/`#[OA\Response]`/… attribute on a controller method — that the generator now
+ * reproduces on its own. The operation-level counterpart of {@see OaRedundantWithInference}.
  *
- * The verdict mirrors the schema rule's: the operation the harvester read for this controller method
- * ({@see AuthoredAnnotationScanner::operationForMethod()}) is compared against inference's operation
- * for the *same route* in the inference-only view the runner builds and hands in via
- * {@see InferenceView::operationForRoute()}. It fires only when inference reproduces everything
- * the author contributed, field by field: `summary` / `description` / `operationId` / `tags` by
- * equality, and `responses` / `parameters` / `requestBody` by {@see SchemaEquivalence::subsumes()}.
- * The harvester merges only the metadata and `responses`; `parameters` / `requestBody` are checked
- * too as a conservative guard, so an annotation documenting a parameter or body inference cannot
- * reproduce is kept rather than silently dropped. A `description` inference cannot derive, or a
- * response shape that exists only at runtime, likewise keeps the annotation load-bearing.
+ * The operation the harvester read ({@see AuthoredAnnotationScanner::operationForMethod()}) is
+ * compared against inference's operation for the *same route* ({@see InferenceView::operationForRoute()}).
+ * It fires only when inference reproduces everything the author contributed: `summary` /
+ * `description` / `operationId` / `tags` by equality, and `responses` / `parameters` / `requestBody`
+ * by {@see SchemaEquivalence::subsumes()}. `parameters` / `requestBody` are checked as a conservative
+ * guard even though the harvester merges only metadata and `responses`, so an annotation documenting
+ * something inference cannot reproduce is kept rather than silently dropped. An `@OA\Response(ref=…)`
+ * pointing at a response component the harvester never merges is treated as not reproducible, so the
+ * operation is kept.
  *
- * Removing an operation annotation cannot dangle a `$ref`: an operation defines no reusable component
- * another annotation could reference. The one referencing case — an `@OA\Response(ref="…")` pointing
- * at a response component the harvester never merges — is treated as not reproducible, so such an
- * operation is kept rather than removed.
- *
- * Like the schema rule it declares {@see NeedsInferenceDocument} (sharing the same inference-only
- * control document), is registered only by the off-by-default swagger-php plugin, and sits at the
- * `migration.*` cleanup tier (level 4) so it stays off ordinary runs until requested
- * (`openapi:lint --only 'migration.*'`).
+ * Like the schema rule, declares {@see NeedsInferenceDocument}, is registered only by the
+ * off-by-default swagger-php plugin, and sits at the `migration.*` cleanup tier (level 4).
  *
  * @internal
  */
 final class OaRedundantOperationWithInference implements Rule, OperationRule, FixableRule, NeedsInferenceDocument
 {
-    public const string CONTEXT_SHAPE = 'oaOperationShape';
-
     public function __construct(
         private readonly AuthoredAnnotationScanner $scanner,
         private readonly SchemaEquivalence $equivalence,
@@ -103,7 +91,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             return;
         }
 
-        $shape = AuthoredSchemaShape::detect(new ReflectionMethod($controller, $method));
+        $shape = AuthoredAnnotationShape::detect(new ReflectionMethod($controller, $method));
 
         if ($shape === null) {
             return;
@@ -114,7 +102,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             level: $this->level(),
             message: sprintf(
                 'The %s on %s::%s restates an operation the generator already infers; it can be removed.',
-                $shape === AuthoredSchemaShape::Docblock ? '@OA operation docblock' : '#[OA\*] operation attribute',
+                $shape === AuthoredAnnotationShape::Docblock ? '@OA operation docblock' : '#[OA\*] operation attribute',
                 $controller,
                 $method,
             ),
@@ -123,7 +111,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             context: [
                 Finding::CONTEXT_SOURCE_CLASS => $controller,
                 Finding::CONTEXT_SOURCE_MEMBER => $method,
-                self::CONTEXT_SHAPE => $shape->value,
+                AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
             ],
         );
     }
@@ -230,7 +218,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     #[Override]
     public function fixer(): Fixer
     {
-        return new RedundantOaOperationFixer();
+        return new RedundantOaAnnotationFixer();
     }
 
     /**

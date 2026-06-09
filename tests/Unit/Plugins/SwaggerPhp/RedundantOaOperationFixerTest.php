@@ -7,9 +7,8 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixApplicator;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaOperationFixer;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\OperationAnnotatedController;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\OperationAttributeController;
 
@@ -24,7 +23,7 @@ uses()->group('openapi', 'lint', 'fix');
  *
  * @return array{after: string, fixes: int}
  */
-function runRedundantOaOperationFixer(string $class, string $method, AuthoredSchemaShape $shape): array
+function runRedundantOaAnnotationFixer(string $class, string $method, AuthoredAnnotationShape $shape): array
 {
     $sourceFile = new ReflectionClass($class)->getFileName() ?: '';
     $before = file_get_contents($sourceFile) ?: '';
@@ -40,13 +39,13 @@ function runRedundantOaOperationFixer(string $class, string $method, AuthoredSch
         context: [
             Finding::CONTEXT_SOURCE_CLASS => $class,
             Finding::CONTEXT_SOURCE_MEMBER => $method,
-            OaRedundantOperationWithInference::CONTEXT_SHAPE => $shape->value,
+            AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
         ],
     );
 
     $remapped = [];
 
-    foreach (new RedundantOaOperationFixer()->fix($finding, new FixContext()) as $fix) {
+    foreach (new RedundantOaAnnotationFixer()->fix($finding, new FixContext()) as $fix) {
         $remapped[] = new Fix($temp, $fix->description, $fix->ruleId, $fix->operation);
     }
 
@@ -59,7 +58,7 @@ function runRedundantOaOperationFixer(string $class, string $method, AuthoredSch
 }
 
 it('removes the whole @OA\Get docblock from a controller method, leaving siblings intact', function (): void {
-    $result = runRedundantOaOperationFixer(OperationAnnotatedController::class, 'redundant', AuthoredSchemaShape::Docblock);
+    $result = runRedundantOaAnnotationFixer(OperationAnnotatedController::class, 'redundant', AuthoredAnnotationShape::Docblock);
 
     expect($result['fixes'])->toBe(1)
         ->and($result['after'])
@@ -72,7 +71,7 @@ it('removes the whole @OA\Get docblock from a controller method, leaving sibling
 });
 
 it('removes the #[OA\*] operation attributes from a controller method', function (): void {
-    $result = runRedundantOaOperationFixer(OperationAttributeController::class, 'redundant', AuthoredSchemaShape::Attribute);
+    $result = runRedundantOaAnnotationFixer(OperationAttributeController::class, 'redundant', AuthoredAnnotationShape::Attribute);
 
     expect($result['fixes'])->toBe(2)
         ->and($result['after'])
@@ -88,5 +87,5 @@ it('yields nothing when the finding context lacks the source class, member, or s
         message: 'fixture',
     );
 
-    expect(iterator_to_array(new RedundantOaOperationFixer()->fix($finding, new FixContext())))->toBe([]);
+    expect(iterator_to_array(new RedundantOaAnnotationFixer()->fix($finding, new FixContext())))->toBe([]);
 });

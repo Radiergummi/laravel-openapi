@@ -11,16 +11,19 @@ use function str_contains;
 use function str_starts_with;
 
 /**
- * How an authored swagger-php annotation was written — as `#[OA\*]` PHP attributes or as an `@OA`
- * PHPDoc block. The migration removal fixers need this to pick the right edit: attributes are
- * removed via the AST, docblock blocks via line-based comment surgery.
+ * How an authored `@OA` annotation was written — as `#[OA\*]` PHP attributes or as an `@OA` PHPDoc
+ * block. The migration fixers need this to pick the right edit: attributes via the AST, docblock
+ * blocks via line-based comment surgery.
  *
  * @internal
  */
-enum AuthoredSchemaShape: string
+enum AuthoredAnnotationShape: string
 {
     /** swagger-php's PHP-attribute namespace (`#[OA\Schema]` etc.), distinct from `@OA` docblocks. */
     public const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
+
+    /** Finding-context key a rule stores the detected shape under, for its fixer to read back. */
+    public const string FINDING_CONTEXT_KEY = 'oaAnnotationShape';
 
     case Attribute = 'attribute';
 

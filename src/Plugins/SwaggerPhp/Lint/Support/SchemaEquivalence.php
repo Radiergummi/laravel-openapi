@@ -18,21 +18,16 @@ use function str_starts_with;
  * reducing both to a canonical form and testing recursive containment.
  *
  * This is the redundancy test for the migration rules: an authored annotation is redundant when
- * inference reproduces *everything it says* — and inference is free to say *more*. Inference
- * routinely enriches a schema beyond what the author wrote (a synthesised `example`, a discovered
- * property, a derived `format`), so strict equality would almost never hold. Subsumption
+ * inference reproduces *everything it says* — and inference may say *more* (a synthesised `example`,
+ * a discovered property), so strict equality would almost never hold. Subsumption
  * (`authored ⊆ inferred`) is the sound test: removing an annotation fully contained in inference's
- * output cannot lose information. A genuine restriction the author added — `additionalProperties:
- * false`, a `description` inference cannot derive — is a key inference never emits, so containment
- * fails and the annotation is correctly kept.
+ * output loses nothing, while a genuine restriction the author added (`additionalProperties: false`,
+ * a `description` inference cannot derive) is a key inference never emits — containment fails and the
+ * annotation is correctly kept.
  *
- * The canonical form drops swagger-php's `Generator::UNDEFINED` sentinels and its internal
- * (`_`-prefixed) bookkeeping, and is order-insensitive on collections (`properties`, `required`,
- * `enum`, `allOf`, …) so declaration order never affects the verdict.
- *
- * `$ref`s are compared by their literal string; a differing target fails containment (the
- * conservative direction), so a redundancy verdict is never reached by following a reference we
- * cannot prove identical.
+ * The canonical form drops swagger-php's `UNDEFINED` sentinels and `_`-prefixed bookkeeping, and is
+ * order-insensitive on collections so declaration order never affects the verdict. `$ref`s are
+ * compared by literal string; a differing target fails containment (the conservative direction).
  *
  * @internal
  */

@@ -11,21 +11,22 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 
+use function array_values;
 use function is_string;
 
 /**
- * Removes a class's redundant swagger-php schema annotation, whichever shape it took.
+ * Removes a redundant swagger-php annotation, whichever shape it took and wherever it sits.
  *
- * For the **attribute** shape it deletes the class-level `#[OA\Schema]` group and every
- * `#[OA\*]` group on the class's properties (and promoted constructor parameters), delegating the
- * per-group edits to {@see OaAttributeRemover}. For the **docblock** shape it delegates to
- * {@see DocblockAnnotationRemover}.
+ * The finding's source member ({@see Finding::CONTEXT_SOURCE_MEMBER}) picks the target: absent for a
+ * class-level `#[OA\Schema]` / `@OA\Schema` (the class docblock, plus every `#[OA\*]` group on the
+ * class, its properties, and promoted constructor parameters); present for an operation annotation on
+ * a controller method (that method's docblock and `#[OA\*]` groups). Attribute edits go through
+ * {@see OaAttributeRemover}, docblock edits through {@see DocblockAnnotationRemover}.
  *
- * When reflection and the parsed source disagree, or the offending construct can't be located, the
- * fixer yields nothing and the finding is reported as unfixed.
+ * When the class can't be reflected or the construct can't be located, it yields nothing and the
+ * finding is reported as unfixed.
  *
  * @internal
  */
@@ -44,47 +45,59 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     public function fix(Finding $finding, FixContext $context): iterable
     {
         $class = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
-        $shapeValue = $finding->context[OaRedundantWithInference::CONTEXT_SHAPE] ?? null;
+        $member = $finding->context[Finding::CONTEXT_SOURCE_MEMBER] ?? null;
+        $shapeValue = $finding->context[AuthoredAnnotationShape::FINDING_CONTEXT_KEY] ?? null;
 
-        if (!is_string($class) || !is_string($shapeValue)) {
+        if (!is_string($class) || !is_string($shapeValue) || ($member !== null && !is_string($member))) {
             return [];
         }
 
-        $shape = AuthoredSchemaShape::tryFrom($shapeValue);
+        $shape = AuthoredAnnotationShape::tryFrom($shapeValue);
         $file = $this->fileFor($class);
+        $classNode = $file === null ? null : $context->classNode($file, $class);
 
-        if ($shape === null || $file === null) {
+        if ($shape === null || $file === null || $classNode === null) {
             return [];
         }
+
+        $methodNode = $member !== null ? $classNode->getMethod($member) : null;
+        $where = $member === null ? $class : "{$class}::{$member}";
 
         return match ($shape) {
-            AuthoredSchemaShape::Docblock => $this->docblockRemover->remove($finding, $class, $file, $context),
-            AuthoredSchemaShape::Attribute => $this->removeAttributes($finding, $class, $file, $context),
+            AuthoredAnnotationShape::Docblock => $this->docblockRemover->removeBlocks(
+                $member === null ? $classNode->getDocComment() : $methodNode?->getDocComment(),
+                $member === null
+                    ? "Remove redundant @OA\\Schema docblock annotation on {$where}"
+                    : "Remove redundant @OA operation docblock on {$where}",
+                $finding,
+                $file,
+                $context,
+            ),
+            AuthoredAnnotationShape::Attribute => $this->removeAttributes(
+                $member === null ? $this->classAttributeGroups($classNode) : $this->methodAttributeGroups($methodNode),
+                $member === null
+                    ? "Remove redundant #[OA\\*] schema attribute on {$where}"
+                    : "Remove redundant #[OA\\*] operation attribute on {$where}",
+                $finding,
+                $file,
+                $context,
+            ),
         };
     }
 
     /**
+     * @param list<AttributeGroup> $groups
+     *
      * @return list<Fix>
      */
-    private function removeAttributes(Finding $finding, string $class, string $file, FixContext $context): array
+    private function removeAttributes(array $groups, string $description, Finding $finding, string $file, FixContext $context): array
     {
-        $classNode = $context->classNode($file, $class);
-
-        if ($classNode === null) {
-            return [];
-        }
-
         $source = $context->source($file);
         $fixes = [];
 
-        foreach ($this->attributeGroups($classNode) as $group) {
+        foreach ($groups as $group) {
             foreach ($this->attributeRemover->fixesForGroup($source, $group) as $operation) {
-                $fixes[] = new Fix(
-                    file: $file,
-                    description: "Remove redundant #[OA\\*] schema attribute on {$class}",
-                    ruleId: $finding->ruleId,
-                    operation: $operation,
-                );
+                $fixes[] = new Fix($file, $description, $finding->ruleId, $operation);
             }
         }
 
@@ -92,12 +105,12 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     }
 
     /**
-     * Every attribute group declared on the class itself, on its properties, and on its promoted
-     * constructor parameters — the places an `#[OA\*]` schema annotation can sit.
+     * Every attribute group a class-level `#[OA\*]` schema annotation can sit on: the class itself,
+     * its properties, and its promoted constructor parameters.
      *
      * @return list<AttributeGroup>
      */
-    private function attributeGroups(ClassLike $class): array
+    private function classAttributeGroups(ClassLike $class): array
     {
         $groups = [];
 
@@ -111,7 +124,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
             }
         }
 
-        $constructor = $this->constructor($class);
+        $constructor = $class->getMethod('__construct');
 
         if ($constructor !== null) {
             foreach ($constructor->params as $param) {
@@ -124,14 +137,13 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
         return $groups;
     }
 
-    private function constructor(ClassLike $class): ?ClassMethod
+    /**
+     * The `#[OA\*]` attribute groups on a controller method, or none when the method node is absent.
+     *
+     * @return list<AttributeGroup>
+     */
+    private function methodAttributeGroups(?ClassMethod $method): array
     {
-        foreach ($class->getMethods() as $method) {
-            if ($method->name->toLowerString() === '__construct') {
-                return $method;
-            }
-        }
-
-        return null;
+        return $method === null ? [] : array_values($method->attrGroups);
     }
 }

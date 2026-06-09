@@ -20,64 +20,25 @@ use function trim;
 use const PHP_EOL;
 
 /**
- * Removes `@OA\…` annotation blocks from a PHPDoc docblock — a class's (the redundant `@OA\Schema`)
- * or a controller method's (the redundant operation `@OA\Get`/`@OA\Post`/… and any sibling blocks).
+ * Removes `@OA\…` annotation blocks from a PHPDoc docblock — a class's or a controller method's.
  *
- * `@OA` annotations live in comments, outside reflection's attribute model, so this fixer works on
- * physical lines: it locates the docblock, finds the contiguous span of every `@OA\…` annotation
- * (tracking parenthesis depth across lines, ignoring parens inside quoted strings so a
- * `description="see (note)"` doesn't unbalance it), and emits a {@see RemoveLines} per block. When
- * the annotations were the docblock's only meaningful content, the whole docblock is dropped; when
- * prose or other tags remain, only the annotation lines are removed.
+ * `@OA` annotations live in comments, outside reflection's attribute model, so this works on physical
+ * lines: it locates each contiguous `@OA\…` block (tracking parenthesis depth across lines, ignoring
+ * parens inside quoted strings so a `description="see (note)"` doesn't unbalance it) and emits a
+ * {@see RemoveLines} per block. When the annotations were the docblock's only meaningful content the
+ * whole docblock is dropped; when prose or other tags remain, only the annotation lines go.
  *
  * @internal
  */
 final readonly class DocblockAnnotationRemover
 {
     /**
-     * Remove the redundant `@OA\Schema` block from a class's docblock.
-     *
-     * @return list<Fix>
-     */
-    public function remove(Finding $finding, string $class, string $file, FixContext $context): array
-    {
-        return $this->removeFrom(
-            $context->classNode($file, $class)?->getDocComment(),
-            "Remove redundant @OA\\Schema docblock annotation on {$class}",
-            $finding,
-            $file,
-            $context,
-        );
-    }
-
-    /**
-     * Remove the redundant operation annotation(s) from a controller method's docblock.
-     *
-     * @return list<Fix>
-     */
-    public function removeForMethod(
-        Finding $finding,
-        string $class,
-        string $method,
-        string $file,
-        FixContext $context,
-    ): array {
-        return $this->removeFrom(
-            $context->classNode($file, $class)?->getMethod($method)?->getDocComment(),
-            "Remove redundant @OA operation docblock on {$class}::{$method}",
-            $finding,
-            $file,
-            $context,
-        );
-    }
-
-    /**
      * Emit the edits removing every `@OA\…` block from `$doc`: the whole docblock when nothing else
-     * meaningful remains, otherwise one {@see RemoveLines} per block.
+     * meaningful remains, otherwise one {@see RemoveLines} per block. A null `$doc` yields nothing.
      *
      * @return list<Fix>
      */
-    private function removeFrom(?Doc $doc, string $description, Finding $finding, string $file, FixContext $context): array
+    public function removeBlocks(?Doc $doc, string $description, Finding $finding, string $file, FixContext $context): array
     {
         if ($doc === null) {
             return [];
