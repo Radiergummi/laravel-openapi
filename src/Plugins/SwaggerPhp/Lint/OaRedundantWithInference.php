@@ -93,7 +93,6 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             $inferred,
             $this->comparator,
             new ReflectionClass($class),
-            $isLoadBearing,
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
                 ruleId: $this->id(),
                 level: $this->level(),
@@ -108,6 +107,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
                     AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
                 ],
             ),
+            $isLoadBearing,
         );
 
         if ($finding !== null) {

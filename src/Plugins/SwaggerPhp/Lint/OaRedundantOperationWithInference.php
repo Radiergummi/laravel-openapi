@@ -91,7 +91,6 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             $inferred,
             $this->comparator,
             new ReflectionMethod($controller, $method),
-            static fn(): bool => false,
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
                 ruleId: $this->id(),
                 level: $this->level(),

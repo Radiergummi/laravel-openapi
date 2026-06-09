@@ -34,12 +34,13 @@ final readonly class OaRedundancyEngine
      *
      * @param ReflectionClass<object>|ReflectionMethod     $reflector     locates the source bytes for
      *                                                                    shape detection
-     * @param (callable(): bool)                           $isLoadBearing extra keep-guard evaluated
-     *                                                                    only once subsumption holds
-     *                                                                    (e.g. the schema rule's
-     *                                                                    dangling-`$ref` check)
      * @param (callable(AuthoredAnnotationShape): Finding) $buildFinding  builds the finding from the
      *                                                                    detected annotation shape
+     * @param null|(callable(): bool)                      $isLoadBearing extra keep-guard evaluated
+     *                                                                    only once subsumption holds
+     *                                                                    (e.g. the schema rule's
+     *                                                                    dangling-`$ref` check); null
+     *                                                                    when the rule has no guard
      * @param list<OA\AbstractAnnotation>                  $candidate     replacement annotations to
      *                                                                    fold onto inference; ∅ =
      *                                                                    pure redundancy
@@ -49,8 +50,8 @@ final readonly class OaRedundancyEngine
         ?OA\AbstractAnnotation $inferred,
         OaRedundancyComparator $comparator,
         ReflectionClass|ReflectionMethod $reflector,
-        callable $isLoadBearing,
         callable $buildFinding,
+        ?callable $isLoadBearing = null,
         array $candidate = [],
     ): ?Finding {
         // Inference produces no counterpart for this construct: the annotation is load-bearing.
@@ -63,7 +64,7 @@ final readonly class OaRedundancyEngine
             return null;
         }
 
-        if ($isLoadBearing()) {
+        if ($isLoadBearing !== null && $isLoadBearing()) {
             return null;
         }
 
