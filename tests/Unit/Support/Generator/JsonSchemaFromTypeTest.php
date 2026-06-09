@@ -3,13 +3,17 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Tests\Fixtures\Internal\BillingAccount;
 use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
+use Ramsey\Uuid\UuidInterface;
 use Symfony\Component\TypeInfo\Type\BuiltinType;
 use Symfony\Component\TypeInfo\Type\EnumType;
 use Symfony\Component\TypeInfo\Type\NullableType;
 use Symfony\Component\TypeInfo\Type\ObjectType;
+use Symfony\Component\TypeInfo\Type\UnionType;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 
 uses()->group('openapi');
@@ -65,6 +69,59 @@ it('wraps a nullable object $ref in oneOf with a null sibling (Bug 1)', function
     $schema = new JsonSchemaFromType(new NullLogger())->fromType($type);
 
     expect($schema->type)->toBe(['integer', 'null']);
+});
+
+// endregion
+
+// region Object / union / builtin fallbacks
+
+it('renders an unmapped object type as a humanized resource name, never the FQCN', function (): void {
+    $schema = new JsonSchemaFromType(new NullLogger())
+        ->fromType(new ObjectType(BillingAccount::class));
+
+    expect($schema->type)->toBe('string')
+        ->and($schema->description)->toBe('Unmapped object type: Billing Account')
+        ->and($schema->description)->not->toContain('BillingAccount')
+        ->and($schema->description)->not->toContain('Internal')
+        ->and($schema->description)->not->toContain('Radiergummi');
+});
+
+it('maps a UuidInterface object to string / format: uuid', function (): void {
+    $schema = new JsonSchemaFromType(new NullLogger())
+        ->fromType(new ObjectType(UuidInterface::class));
+
+    expect($schema->type)->toBe('string')->and($schema->format)->toBe('uuid');
+});
+
+it('maps a union type to a oneOf of its members', function (): void {
+    $type = new UnionType(
+        new BuiltinType(TypeIdentifier::STRING),
+        new BuiltinType(TypeIdentifier::INT),
+    );
+    $schema = new JsonSchemaFromType(new NullLogger())->fromType($type);
+
+    $memberTypes = array_map(static fn(OA\Schema $member) => $member->type, $schema->oneOf);
+
+    expect($schema->oneOf)->toHaveCount(2)
+        ->and($memberTypes)->toContain('string')->toContain('integer');
+});
+
+it('maps builtin scalar types to their JSON Schema counterparts', function (TypeIdentifier $id, string $expected): void {
+    $schema = new JsonSchemaFromType(new NullLogger())->fromType(new BuiltinType($id));
+
+    expect($schema->type)->toBe($expected);
+})->with([
+    'float' => [TypeIdentifier::FLOAT, 'number'],
+    'bool'  => [TypeIdentifier::BOOL, 'boolean'],
+    'array' => [TypeIdentifier::ARRAY, 'array'],
+]);
+
+it('renders an unmapped builtin type as a string with a descriptive note', function (): void {
+    $schema = new JsonSchemaFromType(new NullLogger())
+        ->fromType(new BuiltinType(TypeIdentifier::OBJECT));
+
+    expect($schema->type)->toBe('string')
+        ->and($schema->description)->toBe('Unmapped builtin type: object');
 });
 
 // endregion
