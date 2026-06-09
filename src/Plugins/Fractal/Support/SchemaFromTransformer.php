@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\TransformerRefSchemaResolver;
+use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionClass;
 use ReflectionException;
@@ -119,22 +120,11 @@ final readonly class SchemaFromTransformer
         $type = $field->type;
 
         if ($type !== null && class_exists($type)) {
-            $ref = $this->resolveClassRef($type);
-
-            $property = $ref !== null
-                ? new OA\Property(['property' => $field->name, 'ref' => $ref])
-                : new OA\Property(['property' => $field->name, 'type' => 'object']);
-
-            // Route description through the field's descriptor so inline directives are stripped
-            // — matches the scalar branch below. Example/enum directives don't make sense on a
-            // `$ref` schema, so only the cleaned description is propagated.
-            $description = $field->descriptor()->description;
-
-            if ($description !== null) {
-                $property->description = $description;
-            }
-
-            return $property;
+            return FieldReferenceProperty::build(
+                $field->name,
+                $field->descriptor()->description,
+                $this->resolveClassRef($type),
+            );
         }
 
         $property = new OA\Property(['property' => $field->name]);
@@ -174,8 +164,6 @@ final readonly class SchemaFromTransformer
             ? $this->resolveClassRef($include->transformer)
             : null;
 
-        return $ref !== null
-            ? new OA\Property(['property' => $include->name, 'ref' => $ref])
-            : new OA\Property(['property' => $include->name, 'type' => 'object']);
+        return FieldReferenceProperty::build($include->name, null, $ref);
     }
 }

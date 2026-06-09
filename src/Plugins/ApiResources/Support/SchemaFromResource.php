@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver;
+use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionClass;
 use ReflectionException;
@@ -114,22 +115,11 @@ final readonly class SchemaFromResource
         $type = $field->type;
 
         if ($type !== null && class_exists($type)) {
-            $ref = $this->resolveClassRef($type);
-
-            $property = $ref !== null
-                ? new OA\Property(['property' => $field->name, 'ref' => $ref])
-                : new OA\Property(['property' => $field->name, 'type' => 'object']);
-
-            // Route description through the field's descriptor so inline directives are stripped
-            // — matches the scalar branch below. Example/enum directives don't make sense on a
-            // `$ref` schema, so only the cleaned description is propagated.
-            $description = $field->descriptor()->description;
-
-            if ($description !== null) {
-                $property->description = $description;
-            }
-
-            return $property;
+            return FieldReferenceProperty::build(
+                $field->name,
+                $field->descriptor()->description,
+                $this->resolveClassRef($type),
+            );
         }
 
         $property = new OA\Property(['property' => $field->name]);
