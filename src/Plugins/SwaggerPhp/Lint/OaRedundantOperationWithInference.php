@@ -13,6 +13,7 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule;
@@ -40,7 +41,7 @@ use function sprintf;
  * The verdict mirrors the schema rule's: the operation the harvester read for this controller method
  * ({@see AuthoredAnnotationScanner::operationForMethod()}) is compared against inference's operation
  * for the *same route* in the inference-only view the runner builds and hands in via
- * {@see LintContext::$inferenceOperationsByKey}. It fires only when inference reproduces everything
+ * {@see InferenceView::operationForRoute()}. It fires only when inference reproduces everything
  * the author contributed, field by field: `summary` / `description` / `operationId` / `tags` by
  * equality, and `responses` / `parameters` / `requestBody` by {@see SchemaEquivalence::subsumes()}.
  * The harvester merges only the metadata and `responses`; `parameters` / `requestBody` are checked
@@ -90,8 +91,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             return;
         }
 
-        $key = LintContext::operationKey($operation->method->value, $operation->pathUri);
-        $inferred = $context->inferenceOperationsByKey[$key] ?? null;
+        $inferred = $context->inference->operationForRoute($operation->method->value, $operation->pathUri);
 
         // Inference produces no operation for this route: the annotation is load-bearing — keep it.
         if ($inferred === null) {

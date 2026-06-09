@@ -297,10 +297,8 @@ final readonly class LintRunner
             // orchestrator owns the scoped-state reset; no rule re-enters the pipeline. The same
             // control document feeds both the schema-level and operation-level redundancy rules.
             $inference = $inferenceExcludedStages !== []
-                ? $this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages)
-                : null;
-            $inferenceSchemas = $inference !== null ? $inference->schemasByClass : [];
-            $inferenceOperations = $inference !== null ? self::indexOperationsByKey($inference->document) : [];
+                ? InferenceView::from($this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages))
+                : new InferenceView();
 
             $operations = $this->walkSpec(
                 $document,
@@ -312,8 +310,7 @@ final readonly class LintRunner
                 $only,
                 $skip,
                 componentClassMap: $classMap,
-                inferenceSchemasByClass: $inferenceSchemas,
-                inferenceOperationsByKey: $inferenceOperations,
+                inference: $inference,
             );
 
             foreach ($operations as $operation) {
@@ -534,30 +531,6 @@ final readonly class LintRunner
         return array_values(array_unique($stages));
     }
 
-    /**
-     * Index a control document's operations by "{method} {uri}" (method lower-cased, URI without a
-     * leading slash), the lookup key {@see LintContext::$inferenceOperationsByKey} exposes so an
-     * operation-level migration rule can find the inference-only counterpart of the route it walks.
-     *
-     * @return array<string, OA\Operation>
-     */
-    private static function indexOperationsByKey(OA\OpenApi $document): array
-    {
-        $operations = [];
-
-        foreach (is_array($document->paths) ? $document->paths : [] as $pathItem) {
-            if (!is_string($pathItem->path)) {
-                continue;
-            }
-
-            foreach ($pathItem->operations() as $operation) {
-                $operations[LintContext::operationKey($operation->method, $pathItem->path)] = $operation;
-            }
-        }
-
-        return $operations;
-    }
-
     private function resolveLevel(LintOptions $options): int
     {
         $raw = $options->level ?? $this->configuredLevel;
@@ -617,14 +590,12 @@ final readonly class LintRunner
      * bucket as the tree-walk findings; this method only emits into the bucket and leaves draining
      * to the caller.
      *
-     * @param list<Rule>                     $rules
-     * @param list<ActionDescriptor>         $descriptors
-     * @param list<SuppressionDirective>     $suppressions
-     * @param list<string>                   $only
-     * @param list<string>                   $skip
-     * @param array<string, class-string>    $componentClassMap
-     * @param array<class-string, OA\Schema> $inferenceSchemasByClass
-     * @param array<string, OA\Operation>    $inferenceOperationsByKey
+     * @param list<Rule>                  $rules
+     * @param list<ActionDescriptor>      $descriptors
+     * @param list<SuppressionDirective>  $suppressions
+     * @param list<string>                $only
+     * @param list<string>                $skip
+     * @param array<string, class-string> $componentClassMap
      *
      * @return list<OperationNode> the in-scope operations walked
      *
@@ -640,8 +611,7 @@ final readonly class LintRunner
         array $only,
         array $skip,
         array $componentClassMap = [],
-        array $inferenceSchemasByClass = [],
-        array $inferenceOperationsByKey = [],
+        InferenceView $inference = new InferenceView(),
     ): array {
         // region Tree walk
 
@@ -683,8 +653,7 @@ final readonly class LintRunner
             actionDescriptors: $descriptors,
             suppressions: $suppressions,
             payloadClasses: $this->openApiRegistry->payloadClasses,
-            inferenceSchemasByClass: $inferenceSchemasByClass,
-            inferenceOperationsByKey: $inferenceOperationsByKey,
+            inference: $inference,
         );
 
         $walker = new SpecTreeWalker($rules);

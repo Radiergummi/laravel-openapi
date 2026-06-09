@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule;
@@ -23,7 +24,6 @@ use ReflectionClass;
 use ReflectionException;
 
 use function class_exists;
-use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
@@ -35,7 +35,7 @@ use function sprintf;
  * The verdict is provenance-based, not name-based: the class's authored schema (from the
  * {@see AuthoredAnnotationScanner}) is compared against inference's schema for the *same class* in
  * the inference-only view the runner builds and hands in via
- * {@see LintContext::$inferenceSchemasByClass}, ignoring whatever names either side serializes to.
+ * {@see InferenceView::schemaForClass()}, ignoring whatever names either side serializes to.
  * It fires only when inference **subsumes** the authored schema — reproduces everything the author
  * wrote and possibly more (a synthesised example, a discovered property). A description or
  * restriction inference cannot derive keeps the annotation load-bearing, so it stays.
@@ -81,7 +81,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             return;
         }
 
-        $inferred = $context->inferenceSchemasByClass[ltrim($class, '\\')] ?? null;
+        $inferred = $context->inference->schemaForClass($class);
 
         // Inference produces no schema for this class: the annotation is load-bearing — keep it.
         if ($inferred === null) {
