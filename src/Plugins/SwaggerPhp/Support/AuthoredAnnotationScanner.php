@@ -9,6 +9,8 @@ use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Schema;
 use OpenApi\Generator;
+use OpenApi\Pipeline;
+use OpenApi\Processors\OperationId;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\AnnotationWalker;
 use Throwable;
@@ -151,6 +153,12 @@ final class AuthoredAnnotationScanner
     {
         try {
             return new Generator($this->logger)
+                // Drop the operation-id synthesiser: the scanner captures only what the host app
+                // actually authored, and a swagger-php-generated operation-id hash is not that. An
+                // author-written `operationId` is left untouched (the processor only fills in missing
+                // ones). This keeps the redundancy oracle from treating a synthesised id as authored
+                // content, and keeps the harvester from injecting hash ids the user never wrote.
+                ->withProcessorPipeline(static fn(Pipeline $pipeline): Pipeline => $pipeline->remove(OperationId::class))
                 ->generate($this->scanPaths, validate: false);
         } catch (Throwable $exception) {
             $this->logger->warning(

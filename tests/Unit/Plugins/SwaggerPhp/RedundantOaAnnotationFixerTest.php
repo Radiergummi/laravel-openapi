@@ -8,8 +8,7 @@ use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixApplicator;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredSchemaShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantBareSchemaDocblockData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantDocblockData;
@@ -31,7 +30,7 @@ uses()->group('openapi', 'lint', 'fix');
  *
  * @return array{after: string, fixes: int}
  */
-function runRedundantOaFixer(string $class, AuthoredSchemaShape $shape): array
+function runRedundantOaFixer(string $class, AuthoredAnnotationShape $shape): array
 {
     $sourceFile = new ReflectionClass($class)->getFileName() ?: '';
     $before = file_get_contents($sourceFile) ?: '';
@@ -46,7 +45,7 @@ function runRedundantOaFixer(string $class, AuthoredSchemaShape $shape): array
         location: new FindingLocation(file: $sourceFile),
         context: [
             Finding::CONTEXT_SOURCE_CLASS => $class,
-            OaRedundantWithInference::CONTEXT_SHAPE => $shape->value,
+            AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
         ],
     );
 
@@ -65,7 +64,7 @@ function runRedundantOaFixer(string $class, AuthoredSchemaShape $shape): array
 }
 
 it('removes the #[OA\Schema] and #[OA\Property] attributes from a Data class', function (): void {
-    $result = runRedundantOaFixer(RedundantAttributeData::class, AuthoredSchemaShape::Attribute);
+    $result = runRedundantOaFixer(RedundantAttributeData::class, AuthoredAnnotationShape::Attribute);
 
     expect($result['fixes'])->toBe(3)
         ->and($result['after'])->toBe(<<<'PHP'
@@ -91,7 +90,7 @@ it('removes the #[OA\Schema] and #[OA\Property] attributes from a Data class', f
 });
 
 it('excises every OA attribute from a mixed group, keeping the non-OA one', function (): void {
-    $result = runRedundantOaFixer(RedundantMixedAttributeData::class, AuthoredSchemaShape::Attribute);
+    $result = runRedundantOaFixer(RedundantMixedAttributeData::class, AuthoredAnnotationShape::Attribute);
 
     expect($result['fixes'])->toBe(2)
         ->and($result['after'])->toBe(<<<'PHP'
@@ -122,7 +121,7 @@ it('excises every OA attribute from a mixed group, keeping the non-OA one', func
 });
 
 it('removes the whole @OA\Schema docblock from a Data class', function (): void {
-    $result = runRedundantOaFixer(RedundantDocblockData::class, AuthoredSchemaShape::Docblock);
+    $result = runRedundantOaFixer(RedundantDocblockData::class, AuthoredAnnotationShape::Docblock);
 
     expect($result['fixes'])->toBe(1)
         ->and($result['after'])->toBe(<<<'PHP'
@@ -148,7 +147,7 @@ it('removes the whole @OA\Schema docblock from a Data class', function (): void 
 
 it('removes an OA attribute from a declared property on a constructor-less class', function (): void {
     // Exercises property attribute groups (not just promoted params) and the no-constructor path.
-    $result = runRedundantOaFixer(RedundantPlainPropertyData::class, AuthoredSchemaShape::Attribute);
+    $result = runRedundantOaFixer(RedundantPlainPropertyData::class, AuthoredAnnotationShape::Attribute);
 
     expect($result['fixes'])->toBe(2)
         ->and($result['after'])
@@ -159,7 +158,7 @@ it('removes an OA attribute from a declared property on a constructor-less class
 
 it('excises an OA run that precedes a surviving attribute, and skips OA-free groups', function (): void {
     // `name`: #[OA\Property, Marker] — OA run before the tail; `count`: #[Marker] — no OA to excise.
-    $result = runRedundantOaFixer(RedundantTrailingMarkerData::class, AuthoredSchemaShape::Attribute);
+    $result = runRedundantOaFixer(RedundantTrailingMarkerData::class, AuthoredAnnotationShape::Attribute);
 
     expect($result['fixes'])->toBe(2) // class #[OA\Schema] + the name property's #[OA\Property]
         ->and($result['after'])
@@ -170,7 +169,7 @@ it('excises an OA run that precedes a surviving attribute, and skips OA-free gro
 });
 
 it('excises an inline (not whole-line) all-OA attribute group byte-precisely', function (): void {
-    $result = runRedundantOaFixer(RedundantInlineData::class, AuthoredSchemaShape::Attribute);
+    $result = runRedundantOaFixer(RedundantInlineData::class, AuthoredAnnotationShape::Attribute);
 
     expect($result['fixes'])->toBe(2)
         ->and($result['after'])
@@ -180,7 +179,7 @@ it('excises an inline (not whole-line) all-OA attribute group byte-precisely', f
 });
 
 it('removes only the annotation block from a docblock that also holds prose', function (): void {
-    $result = runRedundantOaFixer(RedundantDocblockWithProseData::class, AuthoredSchemaShape::Docblock);
+    $result = runRedundantOaFixer(RedundantDocblockWithProseData::class, AuthoredAnnotationShape::Docblock);
 
     expect($result['fixes'])->toBe(1)
         ->and($result['after'])
@@ -190,7 +189,7 @@ it('removes only the annotation block from a docblock that also holds prose', fu
 });
 
 it('removes a parenthesis-less bare @OA\Schema docblock', function (): void {
-    $result = runRedundantOaFixer(RedundantBareSchemaDocblockData::class, AuthoredSchemaShape::Docblock);
+    $result = runRedundantOaFixer(RedundantBareSchemaDocblockData::class, AuthoredAnnotationShape::Docblock);
 
     expect($result['fixes'])->toBe(1)
         ->and($result['after'])->not->toContain('@OA\Schema');
@@ -213,7 +212,7 @@ it('yields nothing when the source class cannot be reflected', function (): void
         message: 'fixture',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\NoSuchClass',
-            OaRedundantWithInference::CONTEXT_SHAPE => AuthoredSchemaShape::Attribute->value,
+            AuthoredAnnotationShape::FINDING_CONTEXT_KEY => AuthoredAnnotationShape::Attribute->value,
         ],
     );
 
@@ -222,14 +221,14 @@ it('yields nothing when the source class cannot be reflected', function (): void
 
 it('yields nothing for a docblock-shape finding on a class without a docblock', function (): void {
     // RedundantAttributeData carries attributes, not a docblock — the docblock remover finds nothing.
-    $result = runRedundantOaFixer(RedundantAttributeData::class, AuthoredSchemaShape::Docblock);
+    $result = runRedundantOaFixer(RedundantAttributeData::class, AuthoredAnnotationShape::Docblock);
 
     expect($result['fixes'])->toBe(0);
 });
 
 it('yields nothing for a docblock-shape finding whose docblock has no @OA annotation', function (): void {
     // ServerController has a plain docblock with no @OA — the annotation block is never located.
-    $result = runRedundantOaFixer(ServerController::class, AuthoredSchemaShape::Docblock);
+    $result = runRedundantOaFixer(ServerController::class, AuthoredAnnotationShape::Docblock);
 
     expect($result['fixes'])->toBe(0);
 });

@@ -13,7 +13,7 @@ use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
  *
  * The runner builds that view once per spec, at a safe boundary (between generating the document
  * under lint and walking it), and hands it to the rule through
- * {@see \Radiergummi\OpenApi\Lint\LintContext::$inferenceSchemasByClass}. A rule must never drive
+ * {@see \Radiergummi\OpenApi\Lint\LintContext::$inference}. A rule must never drive
  * generation itself; declaring this capability is how it asks the runner to do it. The view is
  * built only when at least one active rule declares the need, so ordinary lint runs pay nothing.
  *

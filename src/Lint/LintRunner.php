@@ -294,10 +294,11 @@ final readonly class LintRunner
 
             // Build the inference-only view for the migration family, at this safe boundary (after
             // the lint document and its class map are captured as locals, before the walk). The
-            // orchestrator owns the scoped-state reset; no rule re-enters the pipeline.
-            $inferenceSchemas = $inferenceExcludedStages !== []
-                ? $this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages)->schemasByClass
-                : [];
+            // orchestrator owns the scoped-state reset; no rule re-enters the pipeline. The same
+            // control document feeds both the schema-level and operation-level redundancy rules.
+            $inference = $inferenceExcludedStages !== []
+                ? InferenceView::from($this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages))
+                : new InferenceView();
 
             $operations = $this->walkSpec(
                 $document,
@@ -309,7 +310,7 @@ final readonly class LintRunner
                 $only,
                 $skip,
                 componentClassMap: $classMap,
-                inferenceSchemasByClass: $inferenceSchemas,
+                inference: $inference,
             );
 
             foreach ($operations as $operation) {
@@ -589,13 +590,12 @@ final readonly class LintRunner
      * bucket as the tree-walk findings; this method only emits into the bucket and leaves draining
      * to the caller.
      *
-     * @param list<Rule>                     $rules
-     * @param list<ActionDescriptor>         $descriptors
-     * @param list<SuppressionDirective>     $suppressions
-     * @param list<string>                   $only
-     * @param list<string>                   $skip
-     * @param array<string, class-string>    $componentClassMap
-     * @param array<class-string, OA\Schema> $inferenceSchemasByClass
+     * @param list<Rule>                  $rules
+     * @param list<ActionDescriptor>      $descriptors
+     * @param list<SuppressionDirective>  $suppressions
+     * @param list<string>                $only
+     * @param list<string>                $skip
+     * @param array<string, class-string> $componentClassMap
      *
      * @return list<OperationNode> the in-scope operations walked
      *
@@ -611,7 +611,7 @@ final readonly class LintRunner
         array $only,
         array $skip,
         array $componentClassMap = [],
-        array $inferenceSchemasByClass = [],
+        InferenceView $inference = new InferenceView(),
     ): array {
         // region Tree walk
 
@@ -653,7 +653,7 @@ final readonly class LintRunner
             actionDescriptors: $descriptors,
             suppressions: $suppressions,
             payloadClasses: $this->openApiRegistry->payloadClasses,
-            inferenceSchemasByClass: $inferenceSchemasByClass,
+            inference: $inference,
         );
 
         $walker = new SpecTreeWalker($rules);

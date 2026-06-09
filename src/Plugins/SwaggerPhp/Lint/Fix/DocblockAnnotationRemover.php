@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix;
 
+use PhpParser\Comment\Doc;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
 use Radiergummi\OpenApi\Lint\Fix\RemoveLines;
 
+use function array_any;
 use function explode;
 use function ltrim;
 use function str_contains;
@@ -18,32 +20,26 @@ use function trim;
 use const PHP_EOL;
 
 /**
- * Removes an `@OA\Schema` block from a class's PHPDoc docblock.
+ * Removes `@OA\…` annotation blocks from a PHPDoc docblock — a class's or a controller method's.
  *
- * `@OA` annotations live in comments, outside reflection's attribute model, so this fixer works on
- * physical lines: it locates the class docblock, finds the contiguous span of the `@OA\…`
- * annotation (tracking parenthesis depth across lines, ignoring parens inside quoted strings so a
- * `description="see (note)"` doesn't unbalance it), and emits a {@see RemoveLines}. When the
- * annotation was the docblock's only meaningful content, the whole docblock is dropped; when prose
- * or other tags remain, only the annotation lines are removed.
+ * `@OA` annotations live in comments, outside reflection's attribute model, so this works on physical
+ * lines: it locates each contiguous `@OA\…` block (tracking parenthesis depth across lines, ignoring
+ * parens inside quoted strings so a `description="see (note)"` doesn't unbalance it) and emits a
+ * {@see RemoveLines} per block. When the annotations were the docblock's only meaningful content the
+ * whole docblock is dropped; when prose or other tags remain, only the annotation lines go.
  *
  * @internal
  */
 final readonly class DocblockAnnotationRemover
 {
     /**
+     * Emit the edits removing every `@OA\…` block from `$doc`: the whole docblock when nothing else
+     * meaningful remains, otherwise one {@see RemoveLines} per block. A null `$doc` yields nothing.
+     *
      * @return list<Fix>
      */
-    public function remove(Finding $finding, string $class, string $file, FixContext $context): array
+    public function removeBlocks(?Doc $doc, string $description, Finding $finding, string $file, FixContext $context): array
     {
-        $classNode = $context->classNode($file, $class);
-
-        if ($classNode === null) {
-            return [];
-        }
-
-        $doc = $classNode->getDocComment();
-
         if ($doc === null) {
             return [];
         }
@@ -52,41 +48,65 @@ final readonly class DocblockAnnotationRemover
         $docStart = $doc->getStartLine();
         $docEnd = $doc->getEndLine();
 
-        $block = $this->locateAnnotationBlock($lines, $docStart, $docEnd);
+        $blocks = $this->locateAnnotationBlocks($lines, $docStart, $docEnd);
 
-        if ($block === null) {
+        if ($blocks === []) {
             return [];
         }
 
-        [$blockStart, $blockEnd] = $block;
+        if (!$this->docblockHasOtherContent($lines, $docStart, $docEnd, $blocks)) {
+            return [new Fix($file, $description, $finding->ruleId, new RemoveLines($docStart, $docEnd))];
+        }
 
-        $operation = $this->docblockHasOtherContent($lines, $docStart, $docEnd, $blockStart, $blockEnd)
-            ? new RemoveLines($blockStart, $blockEnd)
-            : new RemoveLines($docStart, $docEnd);
+        $fixes = [];
 
-        return [
-            new Fix(
-                file: $file,
-                description: "Remove redundant @OA\\Schema docblock annotation on {$class}",
-                ruleId: $finding->ruleId,
-                operation: $operation,
-            ),
-        ];
+        foreach ($blocks as [$blockStart, $blockEnd]) {
+            $fixes[] = new Fix($file, $description, $finding->ruleId, new RemoveLines($blockStart, $blockEnd));
+        }
+
+        return $fixes;
     }
 
     /**
-     * The 1-based `[startLine, endLine]` of the `@OA\…` annotation within the docblock, or null
-     * when none is present. The end is where the annotation's outermost parenthesis closes.
+     * Every `@OA\…` annotation block in the docblock, as 1-based `[startLine, endLine]` spans, in
+     * source order; empty when none is present.
+     *
+     * @param list<string> $lines
+     *
+     * @return list<array{int, int}>
+     */
+    private function locateAnnotationBlocks(array $lines, int $docStart, int $docEnd): array
+    {
+        $blocks = [];
+        $cursor = $docStart;
+
+        while ($cursor <= $docEnd) {
+            $block = $this->locateAnnotationBlock($lines, $cursor, $docEnd);
+
+            if ($block === null) {
+                break;
+            }
+
+            $blocks[] = $block;
+            $cursor = $block[1] + 1;
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * The 1-based `[startLine, endLine]` of the first `@OA\…` annotation at or after `$from`, or
+     * null when none is present. The end is where the annotation's outermost parenthesis closes.
      *
      * @param list<string> $lines
      *
      * @return null|array{int, int}
      */
-    private function locateAnnotationBlock(array $lines, int $docStart, int $docEnd): ?array
+    private function locateAnnotationBlock(array $lines, int $from, int $docEnd): ?array
     {
         $blockStart = null;
 
-        for ($line = $docStart; $line <= $docEnd; $line++) {
+        for ($line = $from; $line <= $docEnd; $line++) {
             if (str_contains($lines[$line - 1] ?? '', '@OA\\')) {
                 $blockStart = $line;
 
@@ -150,19 +170,15 @@ final readonly class DocblockAnnotationRemover
 
     /**
      * Whether the docblock holds meaningful content (prose or other tags) outside the annotation
-     * block — in which case only the block is removed, not the whole comment.
+     * blocks — in which case only the blocks are removed, not the whole comment.
      *
-     * @param list<string> $lines
+     * @param list<string>          $lines
+     * @param list<array{int, int}> $blocks
      */
-    private function docblockHasOtherContent(
-        array $lines,
-        int $docStart,
-        int $docEnd,
-        int $blockStart,
-        int $blockEnd,
-    ): bool {
+    private function docblockHasOtherContent(array $lines, int $docStart, int $docEnd, array $blocks): bool
+    {
         for ($line = $docStart; $line <= $docEnd; $line++) {
-            if ($line >= $blockStart && $line <= $blockEnd) {
+            if (array_any($blocks, static fn(array $block): bool => $line >= $block[0] && $line <= $block[1])) {
                 continue;
             }
 
