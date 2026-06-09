@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support;
 
+use LogicException;
 use OpenApi\Annotations as OA;
 
 use function in_array;
@@ -24,8 +25,10 @@ use function Radiergummi\OpenApi\is_defined;
  * reproducible, so the operation is kept.
  *
  * Operation-level *replaceability* (a non-empty candidate) is future work; the candidate-replacement
- * seam is proven at schema level by {@see SchemaSubsumption}. This comparator honours only the empty
- * candidate (pure redundancy) and reproduces the operation rule's prior behaviour exactly.
+ * seam is proven at schema level by {@see SchemaSubsumption}. This comparator implements only the
+ * empty-candidate (pure redundancy) case and reproduces the operation rule's prior behaviour exactly;
+ * it **throws** on a non-empty candidate rather than silently dropping it and returning a wrong
+ * verdict, so #122 part 2 gets a clear signal to implement the operation-level fold.
  *
  * @internal
  */
@@ -35,9 +38,18 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
 
     /**
      * @param list<OA\AbstractAnnotation> $candidate
+     *
+     * @throws LogicException when a non-empty candidate is passed (operation-level fold not implemented)
      */
     public function subsumes(OA\AbstractAnnotation $inferred, OA\AbstractAnnotation $authored, array $candidate = []): bool
     {
+        if ($candidate !== []) {
+            throw new LogicException(
+                'Operation-level candidate-replacement is not implemented; #122 part 2 must fold the candidate '
+                . 'onto the inferred operation before comparing.',
+            );
+        }
+
         if (!$inferred instanceof OA\Operation || !$authored instanceof OA\Operation) {
             return false;
         }

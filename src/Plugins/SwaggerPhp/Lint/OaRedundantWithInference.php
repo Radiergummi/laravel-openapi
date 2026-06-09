@@ -92,7 +92,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             $authored,
             $inferred,
             $this->comparator,
-            new ReflectionClass($class),
+            fn(): ReflectionClass => new ReflectionClass($class),
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
                 ruleId: $this->id(),
                 level: $this->level(),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support;
 
+use Closure;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Lint\Finding;
 use ReflectionClass;
@@ -32,24 +33,27 @@ final readonly class OaRedundancyEngine
      * load-bearing — inference produced no counterpart, does not reproduce it, an extra guard keeps
      * it, or its shape cannot be located for the fixer.
      *
-     * @param ReflectionClass<object>|ReflectionMethod     $reflector     locates the source bytes for
-     *                                                                    shape detection
-     * @param (callable(AuthoredAnnotationShape): Finding) $buildFinding  builds the finding from the
-     *                                                                    detected annotation shape
-     * @param null|(callable(): bool)                      $isLoadBearing extra keep-guard evaluated
-     *                                                                    only once subsumption holds
-     *                                                                    (e.g. the schema rule's
-     *                                                                    dangling-`$ref` check); null
-     *                                                                    when the rule has no guard
-     * @param list<OA\AbstractAnnotation>                  $candidate     replacement annotations to
-     *                                                                    fold onto inference; ∅ =
-     *                                                                    pure redundancy
+     * @param Closure(): (ReflectionClass<object>|ReflectionMethod) $reflector     locates the source
+     *                                                                             bytes for shape detection;
+     *                                                                             a thunk so reflection is
+     *                                                                             deferred until subsumption
+     *                                                                             holds (not built per node)
+     * @param (callable(AuthoredAnnotationShape): Finding)          $buildFinding  builds the finding from the
+     *                                                                             detected annotation shape
+     * @param null|(callable(): bool)                               $isLoadBearing extra keep-guard evaluated
+     *                                                                             only once subsumption holds
+     *                                                                             (e.g. the schema rule's
+     *                                                                             dangling-`$ref` check); null
+     *                                                                             when the rule has no guard
+     * @param list<OA\AbstractAnnotation>                           $candidate     replacement annotations to
+     *                                                                             fold onto inference; ∅ =
+     *                                                                             pure redundancy
      */
     public function evaluate(
         OA\AbstractAnnotation $authored,
         ?OA\AbstractAnnotation $inferred,
         OaRedundancyComparator $comparator,
-        ReflectionClass|ReflectionMethod $reflector,
+        Closure $reflector,
         callable $buildFinding,
         ?callable $isLoadBearing = null,
         array $candidate = [],
@@ -68,7 +72,7 @@ final readonly class OaRedundancyEngine
             return null;
         }
 
-        $shape = AuthoredAnnotationShape::detect($reflector);
+        $shape = AuthoredAnnotationShape::detect($reflector());
 
         if ($shape === null) {
             return null;
