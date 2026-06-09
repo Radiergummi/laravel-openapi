@@ -14,7 +14,6 @@ use Radiergummi\OpenApi\Lint\Visitors\RouteRule;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 use function array_filter;
-use function in_array;
 use function sprintf;
 
 /**
@@ -38,21 +37,15 @@ final class HideExposeConflict implements Rule, RouteRule
     {
         $env = app()->environment();
 
-        $hides = $this->collectInstances($descriptor, Hide::class);
-        $exposes = $this->collectInstances($descriptor, Expose::class);
+        $hides = $descriptor->attributeInstances(Hide::class);
+        $exposes = $descriptor->attributeInstances(Expose::class);
 
         if ($hides === [] || $exposes === []) {
             return;
         }
 
-        $hideMatches = array_filter(
-            $hides,
-            fn(Hide $hide): bool => $this->scopeMatches($hide->only, $hide->except, $env),
-        );
-        $exposeMatches = array_filter(
-            $exposes,
-            fn(Expose $expose): bool => $this->scopeMatches($expose->only, $expose->except, $env),
-        );
+        $hideMatches = array_filter($hides, fn(Hide $hide): bool => $hide->appliesIn($env));
+        $exposeMatches = array_filter($exposes, fn(Expose $expose): bool => $expose->appliesIn($env));
 
         if ($hideMatches === [] || $exposeMatches === []) {
             return;
@@ -67,45 +60,6 @@ final class HideExposeConflict implements Rule, RouteRule
             ),
             fixHint: 'Remove either #[Hide] or #[Expose], or narrow their `only`/`except` lists so they do not overlap in this environment.',
         );
-    }
-
-    /**
-     * @template T of object
-     *
-     * @param class-string<T> $class
-     *
-     * @return list<T>
-     */
-    private function collectInstances(ActionDescriptor $descriptor, string $class): array
-    {
-        $out = [];
-
-        foreach ($descriptor->actionAttributes($class) as $attribute) {
-            $out[] = $attribute->newInstance();
-        }
-
-        foreach ($descriptor->controllerAttributes($class) as $attribute) {
-            $out[] = $attribute->newInstance();
-        }
-
-        return $out;
-    }
-
-    /**
-     * @param null|list<string> $only
-     * @param null|list<string> $except
-     */
-    private function scopeMatches(?array $only, ?array $except, string $env): bool
-    {
-        if ($only === null && $except === null) {
-            return true;
-        }
-
-        if ($only !== null) {
-            return in_array($env, $only, true);
-        }
-
-        return !in_array($env, $except ?? [], true);
     }
 
     #[Override]

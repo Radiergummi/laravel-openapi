@@ -25,3 +25,20 @@ it('stores the except list', function (): void {
 it('throws LogicException when both only and except are supplied', function (): void {
     new Hide(only: ['production'], except: ['local']);
 })->throws(LogicException::class, '#[Hide]');
+
+it('applies in every environment when unscoped', function (): void {
+    expect((new Hide())->appliesIn('production'))->toBeTrue()
+        ->and((new Hide())->appliesIn('local'))->toBeTrue();
+});
+
+it('applies only in the listed environments with only', function (): void {
+    $hide = new Hide(only: ['production', 'staging']);
+    expect($hide->appliesIn('production'))->toBeTrue()
+        ->and($hide->appliesIn('local'))->toBeFalse();
+});
+
+it('applies everywhere but the listed environments with except', function (): void {
+    $hide = new Hide(except: ['local']);
+    expect($hide->appliesIn('production'))->toBeTrue()
+        ->and($hide->appliesIn('local'))->toBeFalse();
+});

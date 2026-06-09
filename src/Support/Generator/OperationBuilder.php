@@ -151,7 +151,8 @@ final readonly class OperationBuilder
 
         $convention = $this->resolveConvention($action);
 
-        $operationOverride = $this->readOperationAttribute($action);
+        $operationOverride = $this->readAttribute($action, OperationAttribute::class);
+        assert($operationOverride === null || $operationOverride instanceof OperationAttribute);
         $additionalTags = $this->readTagAttributes($action);
         $additionalResponses = $this->readResponseAttributes($action);
         $deprecation = $this->readDeprecation($action);
@@ -443,18 +444,6 @@ final readonly class OperationBuilder
         }
 
         return $out;
-    }
-
-    private function readOperationAttribute(ActionDescriptor $descriptor): ?OperationAttribute
-    {
-        $source = $descriptor->actionAttributes(OperationAttribute::class)[0]
-            ?? $descriptor->controllerAttributes(OperationAttribute::class)[0]
-            ?? null;
-
-        $instance = $source?->newInstance();
-        assert($instance === null || $instance instanceof OperationAttribute);
-
-        return $instance;
     }
 
     /** @return list<string> */

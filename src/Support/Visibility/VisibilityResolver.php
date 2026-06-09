@@ -9,8 +9,6 @@ use Illuminate\Container\Attributes\Scoped;
 use Radiergummi\OpenApi\Attributes\Expose;
 use Radiergummi\OpenApi\Attributes\Hide;
 
-use function in_array;
-
 /**
  * Decides whether a route should appear in the generated OpenAPI document.
  *
@@ -37,38 +35,14 @@ final readonly class VisibilityResolver
      */
     public function isVisible(array $hides, array $exposes, string $environment): bool
     {
-        if (array_any(
-            $hides,
-            fn(Hide $hide): bool => $this->scopeMatches($hide->only, $hide->except, $environment),
-        )) {
+        if (array_any($hides, fn(Hide $hide): bool => $hide->appliesIn($environment))) {
             return false;
         }
 
-        if (array_any(
-            $exposes,
-            fn(Expose $expose): bool => $this->scopeMatches($expose->only, $expose->except, $environment),
-        )) {
+        if (array_any($exposes, fn(Expose $expose): bool => $expose->appliesIn($environment))) {
             return true;
         }
 
         return $this->defaultMode === VisibilityMode::Public;
-    }
-
-    /**
-     * @param null|list<string> $only
-     * @param null|list<string> $except
-     */
-    private function scopeMatches(?array $only, ?array $except, string $environment): bool
-    {
-        if ($only === null && $except === null) {
-            return true;
-        }
-
-        if ($only !== null) {
-            return in_array($environment, $only, true);
-        }
-
-        // $except !== null by elimination
-        return !in_array($environment, $except ?? [], true);
     }
 }
