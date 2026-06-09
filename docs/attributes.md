@@ -132,6 +132,35 @@ Malformed usage (a `discriminator:` with no `#[RequestVariant]` at all, a varian
 both of `schema`/`fields`, a duplicate `value`, an unresolvable class-string, or a colliding
 sanitised key) is reported as `request.discriminator-malformed`.
 
+## Component schema attributes
+
+Attach to a class that becomes a reusable component schema (a Spatie `Data` class, an API
+Resource, a `FormRequest`, an Eloquent model).
+
+| Attribute | Target | Purpose |
+|---|---|---|
+| `SchemaName` | class | Override the component key the class maps to in `#/components/schemas/{key}`. |
+
+By default the key is derived from the class basename (disambiguated with namespace segments, or a
+short hash as a last resort). That key is a public, consumer-facing contract — it becomes the type
+name in generated clients — yet it tracks the PHP class name and location, so a rename or move
+silently changes it. Use `#[SchemaName]` as a scoped escape hatch: pin a name against refactors, or
+replace an ugly derived name.
+
+```php
+use Radiergummi\OpenApi\Attributes as OpenApi;
+
+#[OpenApi\SchemaName('CustomerProfile')]
+final class UserResource extends JsonResource { … }
+// → #/components/schemas/CustomerProfile, regardless of the class name
+```
+
+It is an override, not a thing to put on every class — naming a class the same as its basename only
+restates what derivation already produces. The name still goes through the `component_name_case`
+lint rule, so keep it consistent with the rest of the document (PascalCase by default). Two distinct
+classes declaring the same name is an unresolvable conflict: generation throws
+`DuplicateSchemaNameException`.
+
 ## Exception-level attribute
 
 Attach to an exception class to map it to a status code wherever the

@@ -7,16 +7,19 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use Closure;
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Attributes\SchemaName;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Extensions\SchemaContext;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
+use ReflectionClass;
 
 use function array_key_exists;
 use function array_pop;
 use function array_reverse;
 use function array_values;
 use function class_basename;
+use function class_exists;
 use function explode;
 use function md5;
 use function substr;
@@ -232,9 +235,27 @@ final class ComponentSchemaRegistry
      *
      * Namespace segments are concatenated directly (PascalCase): backslashes are stripped, not
      * replaced with dots, so the resulting key remains a single PascalCase identifier.
+     *
+     * A class may override all of this with {@see SchemaName}: the explicit name is used verbatim,
+     * skipping derivation. Two distinct classes claiming the same explicit name is an unresolvable
+     * conflict and throws {@see DuplicateSchemaNameException}.
      */
     private function deriveKey(string $className): string
     {
+        $explicit = $this->explicitSchemaName($className);
+
+        if ($explicit !== null) {
+            if ($this->isKeyTaken($explicit, $className)) {
+                throw DuplicateSchemaNameException::between(
+                    $explicit,
+                    $this->ownerLabel($explicit),
+                    $className,
+                );
+            }
+
+            return $explicit;
+        }
+
         $basename = class_basename($className);
 
         if (!$this->isKeyTaken($basename, $className)) {
@@ -275,6 +296,39 @@ final class ComponentSchemaRegistry
         $hash = substr(md5($className), 0, 6);
 
         return "{$prefix}{$basename}{$hash}";
+    }
+
+    /**
+     * Returns the name pinned by {@see SchemaName} on `$className`, or null when absent.
+     *
+     * `$className` need not be a loadable class — synthetic and not-yet-loaded names simply have no
+     * attribute and fall through to derivation.
+     */
+    private function explicitSchemaName(string $className): ?string
+    {
+        if (!class_exists($className)) {
+            return null;
+        }
+
+        $attributes = new ReflectionClass($className)->getAttributes(SchemaName::class);
+
+        if ($attributes === []) {
+            return null;
+        }
+
+        return $attributes[0]->newInstance()->name;
+    }
+
+    /**
+     * Human-readable owner of a taken key for {@see DuplicateSchemaNameException} messages. Keys
+     * reserved by {@see registerNamed()} carry the {@see NAMED_KEY_OWNER} sentinel, not a class.
+     */
+    private function ownerLabel(string $key): string
+    {
+        // Only ever called right after isKeyTaken() returned true, so the key is present.
+        $owner = $this->keyToClass[$key];
+
+        return $owner === self::NAMED_KEY_OWNER ? 'a reserved schema' : $owner;
     }
 
     private function isKeyTaken(string $key, string $forClass): bool

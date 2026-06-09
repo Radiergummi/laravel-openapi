@@ -18,21 +18,16 @@ use function str_starts_with;
  * reducing both to a canonical form and testing recursive containment.
  *
  * This is the redundancy test for the migration rules: an authored annotation is redundant when
- * inference reproduces *everything it says* — and inference is free to say *more*. Inference
- * routinely enriches a schema beyond what the author wrote (a synthesised `example`, a discovered
- * property, a derived `format`), so strict equality would almost never hold. Subsumption
+ * inference reproduces *everything it says* — and inference may say *more* (a synthesised `example`,
+ * a discovered property), so strict equality would almost never hold. Subsumption
  * (`authored ⊆ inferred`) is the sound test: removing an annotation fully contained in inference's
- * output cannot lose information. A genuine restriction the author added — `additionalProperties:
- * false`, a `description` inference cannot derive — is a key inference never emits, so containment
- * fails and the annotation is correctly kept.
+ * output loses nothing, while a genuine restriction the author added (`additionalProperties: false`,
+ * a `description` inference cannot derive) is a key inference never emits — containment fails and the
+ * annotation is correctly kept.
  *
- * The canonical form drops swagger-php's `Generator::UNDEFINED` sentinels and its internal
- * (`_`-prefixed) bookkeeping, and is order-insensitive on collections (`properties`, `required`,
- * `enum`, `allOf`, …) so declaration order never affects the verdict.
- *
- * `$ref`s are compared by their literal string; a differing target fails containment (the
- * conservative direction), so a redundancy verdict is never reached by following a reference we
- * cannot prove identical.
+ * The canonical form drops swagger-php's `UNDEFINED` sentinels and `_`-prefixed bookkeeping, and is
+ * order-insensitive on collections so declaration order never affects the verdict. `$ref`s are
+ * compared by literal string; a differing target fails containment (the conservative direction).
  *
  * @internal
  */
@@ -62,7 +57,12 @@ final readonly class SchemaEquivalence
             return false;
         }
 
-        if (array_is_list($narrower)) {
+        // Compare as an unordered value-collection when either side is a list. swagger-php
+        // serialises keyed collections like `content` (by media type) and `responses` (by status)
+        // as a list on one side and a keyed map on the other; the key is redundant with a property
+        // on each element, so matching by value is correct. Only when *both* sides are keyed maps do
+        // keys carry meaning (a schema's `properties`, keyed by property name).
+        if (array_is_list($narrower) || array_is_list($broader)) {
             foreach ($narrower as $narrowerElement) {
                 foreach ($broader as $broaderElement) {
                     if ($this->contains($broaderElement, $narrowerElement)) {
@@ -121,10 +121,12 @@ final readonly class SchemaEquivalence
                 continue;
             }
 
-            // The component name is an implementation detail of the serialized document, not part
-            // of what the schema describes; comparison is provenance-based (by source class), so a
-            // differing authored vs inferred name must not affect the verdict.
-            if ($key === 'schema') {
+            // On an `OA\Schema`, the `schema` property is the component *name* — an implementation
+            // detail of the serialized document, not part of what the schema describes; comparison
+            // is provenance-based (by source class), so a differing authored vs inferred name must
+            // not affect the verdict. On other annotations (`OA\MediaType`, `OA\Parameter`) the
+            // `schema` property is the nested schema itself, which must be compared.
+            if ($key === 'schema' && $annotation instanceof OA\Schema) {
                 continue;
             }
 

@@ -178,6 +178,15 @@ annotation load-bearing, so it stays), and never when another surviving annotati
 schema. `--fix` removes the whole `#[OA\Schema]`+`#[OA\Property]` set, or the whole `@OA\Schema`
 docblock block.
 
+`migration.oa-redundant-operation-with-inference` is the operation-level counterpart: it flags a
+controller method whose authored operation annotation — an `@OA\Get`/`@OA\Post`/… docblock or
+`#[OA\Get]`/`#[OA\Response]`/… attributes — the generator already reproduces. Each authored field
+the harvester merges (`summary` / `description` / `operationId` / `tags`, and the `responses` /
+`parameters` / `requestBody`) is compared against the matching operation in the same inference-only
+generation; it fires only when inference subsumes them all, so a human `description` or a runtime-only
+response shape keeps the annotation. `--fix` removes the whole `@OA` operation docblock, or every
+`#[OA\*]` attribute on the method.
+
 Deciding redundancy requires that second generation, which is why the family is parked at level 4:
 it stays unpaid on default-level runs. A high-level audit (`--level max`) with the plugin enabled
 *will* run it; `--skip 'migration.*'` opts back out. Removing an annotation may consolidate its
@@ -457,6 +466,7 @@ plugin-registered rules.
 | `deprecated.no-sunset-date` | 4 | Deprecated operation has no x-sunset date. |
 | `info.metadata-incomplete` | 4 | The document info is missing contact and/or license. |
 | `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
+| `migration.oa-redundant-operation-with-inference` | 4 | A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |
 | `request-body.example-missing` | 4 | requestBody has no example. |
 | `response.example-missing` | 4 | Response media type has no example. |
