@@ -163,27 +163,7 @@ final readonly class LintRunner
     ): LintResult {
         // region Descriptor collection + path/diff filtering
 
-        $descriptors = [];
-
-        // The introspector yields every Laravel route; vendor routes (Telescope, Nova, Passport,
-        // Ignition) and any user-configured filter rejects are discarded here so the pre-build
-        // rules and tree walk only see routes that could plausibly belong to a spec. Per-spec
-        // InclusionEvaluator::decide() still runs inside the generator and re-filters per
-        // (route × spec), so this is the single-pass equivalent.
-        foreach ($this->introspector->discover() as $descriptor) {
-            if (!$this->evaluator->passesGlobalFilters($descriptor)) {
-                continue;
-            }
-
-            $descriptors[] = $descriptor;
-        }
-
-        $descriptors = $this->routeFilter->filter(
-            descriptors: $descriptors,
-            uriGlob: $options->uriGlob,
-            files: $options->files,
-            diff: $options->diff,
-        );
+        $descriptors = $this->collectDescriptors($options);
 
         // When --path or --diff narrows the route set, build the allowed-URI set up front so
         // post-processing can drop findings emitted by generation stages (e.g. RequestBodyExtractor,
@@ -313,26 +293,10 @@ final readonly class LintRunner
                 inference: $inference,
             );
 
-            foreach ($operations as $operation) {
-                // Scope the coverage denominator the same way findings are scoped: when a route
-                // filter is active, an out-of-scope operation must not count. walkSpec already
-                // restricts $document->paths when $descriptors is non-empty, but an empty match
-                // (e.g. a glob that hits nothing) leaves every operation in $api->operations, so
-                // gate the URI explicitly here.
-                if ($allowedRouteUris !== null && !isset($allowedRouteUris[ltrim($operation->pathUri, '/')])) {
-                    continue;
-                }
-
-                $key = CoverageCalculator::operationKey(
-                    $spec->name,
-                    $operation->method,
-                    $operation->pathUri,
-                );
-
-                if ($key !== null) {
-                    $operationTags[$key] = $operation->tags;
-                }
-            }
+            $operationTags = [
+                ...$operationTags,
+                ...$this->collectOperationTags($operations, $allowedRouteUris, $spec->name),
+            ];
 
             foreach ($specLocal->all() as $finding) {
                 $emit->emit($finding->withSpec($spec->name));
@@ -343,7 +307,131 @@ final readonly class LintRunner
 
         // region Post-processing: overrides, --only/--skip, suppressions, level filter
 
-        $findings = $this->registry->applyOverrides($inner->all());
+        $findings = $this->filterFindings(
+            $inner->all(),
+            $options,
+            $level,
+            $only,
+            $skip,
+            $suppressionsAll,
+            $allowedRouteUris,
+            $allowedSchemaClasses,
+            $allComponentClasses,
+        );
+
+        // endregion
+
+        $coverage = new CoverageCalculator()->calculate(
+            $operationTags,
+            $findings,
+            $level,
+            $this->generatorVersion(),
+        );
+
+        return new LintResult(
+            $findings,
+            $level,
+            $this->resolveExitCode($findings, $coverage, $options),
+            $coverage,
+        );
+    }
+
+    /**
+     * Discover every Laravel route, drop global-filter rejects (vendor routes like Telescope, Nova,
+     * Passport, Ignition and any user-configured filter), then apply the --path/--files/--diff
+     * narrowing. Per-spec {@see InclusionEvaluator::decide()} still re-filters per (route × spec)
+     * inside the generator, so this is the single-pass equivalent.
+     *
+     * @return list<ActionDescriptor>
+     *
+     * @throws LogicException
+     * @throws ProcessRuntimeException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws ReflectionException
+     * @throws UnexpectedValueException
+     */
+    private function collectDescriptors(LintOptions $options): array
+    {
+        $descriptors = [];
+
+        foreach ($this->introspector->discover() as $descriptor) {
+            if (!$this->evaluator->passesGlobalFilters($descriptor)) {
+                continue;
+            }
+
+            $descriptors[] = $descriptor;
+        }
+
+        return $this->routeFilter->filter(
+            descriptors: $descriptors,
+            uriGlob: $options->uriGlob,
+            files: $options->files,
+            diff: $options->diff,
+        );
+    }
+
+    /**
+     * Map in-scope operations to their tag lists for the coverage denominator. When a route filter
+     * is active, an out-of-scope operation must not count: {@see walkSpec()} already restricts
+     * $document->paths when descriptors match, but an empty match (e.g. a glob that hits nothing)
+     * leaves every operation in place, so the URI is gated explicitly here.
+     *
+     * @param list<OperationNode>      $operations
+     * @param null|array<string, true> $allowedRouteUris
+     *
+     * @return array<string, list<string>>
+     */
+    private function collectOperationTags(array $operations, ?array $allowedRouteUris, string $specName): array
+    {
+        $operationTags = [];
+
+        foreach ($operations as $operation) {
+            if ($allowedRouteUris !== null && !isset($allowedRouteUris[ltrim($operation->pathUri, '/')])) {
+                continue;
+            }
+
+            $key = CoverageCalculator::operationKey(
+                $specName,
+                $operation->method,
+                $operation->pathUri,
+            );
+
+            if ($key !== null) {
+                $operationTags[$key] = $operation->tags;
+            }
+        }
+
+        return $operationTags;
+    }
+
+    /**
+     * Apply the post-walk finding pipeline: severity overrides, route/schema scope filtering (when
+     * --path/--diff is active), --only/--skip, suppressions, and the level cutoff.
+     *
+     * @param list<Finding>              $rawFindings
+     * @param list<string>               $only
+     * @param list<string>               $skip
+     * @param list<SuppressionDirective> $suppressionsAll
+     * @param null|array<string, true>   $allowedRouteUris
+     * @param array<string, true>        $allowedSchemaClasses
+     * @param array<string, true>        $allComponentClasses
+     *
+     * @return list<Finding>
+     */
+    private function filterFindings(
+        array $rawFindings,
+        LintOptions $options,
+        int $level,
+        array $only,
+        array $skip,
+        array $suppressionsAll,
+        ?array $allowedRouteUris,
+        array $allowedSchemaClasses,
+        array $allComponentClasses,
+    ): array {
+        $findings = $this->registry->applyOverrides($rawFindings);
 
         if ($allowedRouteUris !== null) {
             $findings = array_filter(
@@ -391,27 +479,11 @@ final readonly class LintRunner
             $findings = $this->applySuppressions(array_values($findings), $suppressionsAll);
         }
 
-        $findings = array_values(
+        return array_values(
             array_filter(
                 $findings,
                 static fn(Finding $finding): bool => $finding->level <= $level,
             ),
-        );
-
-        // endregion
-
-        $coverage = new CoverageCalculator()->calculate(
-            $operationTags,
-            $findings,
-            $level,
-            $this->generatorVersion(),
-        );
-
-        return new LintResult(
-            $findings,
-            $level,
-            $this->resolveExitCode($findings, $coverage, $options),
-            $coverage,
         );
     }
 
