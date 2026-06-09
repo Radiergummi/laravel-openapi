@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
-use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
@@ -19,6 +18,8 @@ use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OaRedundancyEngine;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OperationSubsumption;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
@@ -26,9 +27,6 @@ use ReflectionException;
 use ReflectionMethod;
 
 use function class_exists;
-use function in_array;
-use function is_array;
-use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -53,10 +51,17 @@ use function sprintf;
  */
 final class OaRedundantOperationWithInference implements Rule, OperationRule, FixableRule, NeedsInferenceDocument
 {
+    private readonly OaRedundancyEngine $engine;
+
+    private readonly OperationSubsumption $comparator;
+
     public function __construct(
         private readonly AuthoredAnnotationScanner $scanner,
-        private readonly SchemaEquivalence $equivalence,
-    ) {}
+        SchemaEquivalence $equivalence,
+    ) {
+        $this->engine = new OaRedundancyEngine();
+        $this->comparator = new OperationSubsumption($equivalence);
+    }
 
     /**
      * @return iterable<Finding>
@@ -81,138 +86,34 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
 
         $inferred = $context->inference->operationForRoute($operation->method->value, $operation->pathUri);
 
-        // Inference produces no operation for this route: the annotation is load-bearing — keep it.
-        if ($inferred === null) {
-            return;
-        }
-
-        // Fire only when inference reproduces everything the author contributed (and possibly more).
-        if (!$this->subsumesAuthoredOperation($inferred, $authored)) {
-            return;
-        }
-
-        $shape = AuthoredAnnotationShape::detect(new ReflectionMethod($controller, $method));
-
-        if ($shape === null) {
-            return;
-        }
-
-        yield new Finding(
-            ruleId: $this->id(),
-            level: $this->level(),
-            message: sprintf(
-                'The %s on %s::%s restates an operation the generator already infers; it can be removed.',
-                $shape === AuthoredAnnotationShape::Docblock ? '@OA operation docblock' : '#[OA\*] operation attribute',
-                $controller,
-                $method,
+        $finding = $this->engine->evaluate(
+            $authored,
+            $inferred,
+            $this->comparator,
+            new ReflectionMethod($controller, $method),
+            static fn(): bool => false,
+            fn(AuthoredAnnotationShape $shape): Finding => new Finding(
+                ruleId: $this->id(),
+                level: $this->level(),
+                message: sprintf(
+                    'The %s on %s::%s restates an operation the generator already infers; it can be removed.',
+                    $shape === AuthoredAnnotationShape::Docblock ? '@OA operation docblock' : '#[OA\*] operation attribute',
+                    $controller,
+                    $method,
+                ),
+                location: FindingLocation::fromOperation($operation),
+                fixHint: 'Remove the redundant swagger-php operation annotation; inference reproduces the same operation.',
+                context: [
+                    Finding::CONTEXT_SOURCE_CLASS => $controller,
+                    Finding::CONTEXT_SOURCE_MEMBER => $method,
+                    AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
+                ],
             ),
-            location: FindingLocation::fromOperation($operation),
-            fixHint: 'Remove the redundant swagger-php operation annotation; inference reproduces the same operation.',
-            context: [
-                Finding::CONTEXT_SOURCE_CLASS => $controller,
-                Finding::CONTEXT_SOURCE_MEMBER => $method,
-                AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
-            ],
         );
-    }
 
-    /**
-     * Whether the inferred operation reproduces every field the harvester merges from the authored
-     * one. Scalar metadata must match exactly; collections (`tags`) and schema-bearing members
-     * (`responses` / `parameters` / `requestBody`) must be subsumed by inference's. Routing identity
-     * (`path` / `method`) is not compared — both sides describe the same route by construction.
-     */
-    private function subsumesAuthoredOperation(OA\Operation $inferred, OA\Operation $authored): bool
-    {
-        foreach (['summary', 'description', 'operationId'] as $field) {
-            if (!is_defined($authored->{$field})) {
-                continue;
-            }
-
-            if (!is_defined($inferred->{$field}) || $authored->{$field} !== $inferred->{$field}) {
-                return false;
-            }
+        if ($finding !== null) {
+            yield $finding;
         }
-
-        if (is_defined($authored->tags) && is_array($authored->tags)) {
-            $inferredTags = is_array($inferred->tags) ? $inferred->tags : [];
-
-            foreach ($authored->tags as $tag) {
-                if (!in_array($tag, $inferredTags, true)) {
-                    return false;
-                }
-            }
-        }
-
-        if (is_defined($authored->parameters) && is_array($authored->parameters)) {
-            $inferredParameters = is_array($inferred->parameters) ? $inferred->parameters : [];
-
-            foreach ($authored->parameters as $parameter) {
-                if (!$this->anySubsumes($inferredParameters, $parameter)) {
-                    return false;
-                }
-            }
-        }
-
-        if (is_defined($authored->requestBody)) {
-            if (!is_defined($inferred->requestBody)
-                || !$this->equivalence->subsumes($inferred->requestBody, $authored->requestBody)
-            ) {
-                return false;
-            }
-        }
-
-        if (is_defined($authored->responses) && is_array($authored->responses)) {
-            $inferredResponses = is_array($inferred->responses) ? $inferred->responses : [];
-
-            foreach ($authored->responses as $response) {
-                if (!is_defined($response->response)) {
-                    continue;
-                }
-
-                // A response that is itself a `$ref` to a response component the harvester never
-                // merges cannot be reproduced by inference — keep the annotation.
-                if (is_defined($response->ref) || !$this->anySubsumesResponse($inferredResponses, $response)) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Whether some element of `$inferred` subsumes `$authored`.
-     *
-     * @param array<array-key, OA\AbstractAnnotation> $inferred
-     */
-    private function anySubsumes(array $inferred, OA\AbstractAnnotation $authored): bool
-    {
-        foreach ($inferred as $candidate) {
-            if ($this->equivalence->subsumes($candidate, $authored)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Whether the inferred response for the authored response's status subsumes it.
-     *
-     * @param array<array-key, OA\Response> $inferred
-     */
-    private function anySubsumesResponse(array $inferred, OA\Response $authored): bool
-    {
-        foreach ($inferred as $candidate) {
-            if ((string) $candidate->response === (string) $authored->response
-                && $this->equivalence->subsumes($candidate, $authored)
-            ) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     #[Override]
