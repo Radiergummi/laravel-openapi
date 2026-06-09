@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi;
 
+use Closure;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Route;
@@ -269,10 +270,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 $registry = $app->make(OpenApiRegistry::class);
 
                 return new RuleRegistry(
-                    array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->rules,
-                    ),
+                    self::makeAll($app, $registry->rules),
                     severityOverrides: (array) config('openapi.lint.severity_overrides', []),
                 );
             },
@@ -286,10 +284,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 $registry = $app->make(OpenApiRegistry::class);
 
                 return new ResponseRefUnresolvable(
-                    refSchemaResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers,
-                    ),
+                    refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
                 );
             },
         );
@@ -350,6 +345,67 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
+     * Instantiate each class-string through the container, preserving order. Centralises the
+     * resolver-list hydration repeated across the extractor and generator bindings.
+     *
+     * @template TInstance of object
+     *
+     * @param list<class-string<TInstance>> $classes
+     *
+     * @return list<TInstance>
+     *
+     * @throws BindingResolutionException
+     */
+    private static function makeAll(Container $app, array $classes): array
+    {
+        $instances = [];
+
+        foreach ($classes as $class) {
+            $instances[] = $app->make($class);
+        }
+
+        return $instances;
+    }
+
+    /**
+     * Build a memoised lazy factory over the registry's ref-schema resolver list, optionally
+     * skipping one resolver class — a plugin passes its own resolver to break the cross-plugin
+     * construction cycle (see {@see registerApiResourcesPlugin()} and {@see registerFractalPlugin()}).
+     * Resolution is deferred to first use so the container can finish constructing both sides; the
+     * result is cached per returned factory.
+     *
+     * @param null|class-string<RefSchemaResolver> $exclude
+     *
+     * @return Closure(): list<RefSchemaResolver>
+     */
+    private static function refSchemaResolverFactory(
+        Container $app,
+        OpenApiRegistry $registry,
+        ?string $exclude = null,
+    ): Closure {
+        /** @var null|list<RefSchemaResolver> $cache */
+        $cache = null;
+
+        return static function () use ($app, $registry, $exclude, &$cache) {
+            if ($cache !== null) {
+                return $cache;
+            }
+
+            $resolvers = [];
+
+            foreach ($registry->refSchemaResolvers as $class) {
+                if ($class === $exclude) {
+                    continue;
+                }
+
+                $resolvers[] = $app->make($class);
+            }
+
+            return $cache = $resolvers;
+        };
+    }
+
+    /**
      * Binds the schema registry and the operation-data extractors.
      */
     private function registerExtractors(): void
@@ -368,10 +424,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
                     schemaFactory: $app->make(PaginatorSchemaFactory::class),
                     logger: $app->make(LoggerInterface::class),
-                    refSchemaResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers,
-                    ),
+                    refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
                 );
             },
         );
@@ -400,27 +453,9 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                $resolversFactory = static function () use ($app, $registry): array {
-                    /** @var null|list<RefSchemaResolver> $cache */
-                    static $cache = null;
-
-                    if ($cache !== null) {
-                        return $cache;
-                    }
-
-                    /** @var list<RefSchemaResolver> $resolvers */
-                    $resolvers = [];
-
-                    foreach ($registry->refSchemaResolvers as $class) {
-                        $resolvers[] = $app->make($class);
-                    }
-
-                    return $cache = $resolvers;
-                };
-
                 return new Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver(
                     registry: $app->make(ComponentSchemaRegistry::class),
-                    refSchemaResolvers: $resolversFactory,
+                    refSchemaResolvers: self::refSchemaResolverFactory($app, $registry),
                     findings: $app->make(FindingsCollector::class),
                 );
             },
@@ -432,10 +467,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 $registry = $app->make(OpenApiRegistry::class);
 
                 return new Support\Extraction\RequestBodyExtractor(
-                    resolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->requestSchemaResolvers,
-                    ),
+                    resolvers: self::makeAll($app, $registry->requestSchemaResolvers),
                     findings: $app->make(FindingsCollector::class),
                     faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
                 );
@@ -448,14 +480,8 @@ class OpenApiServiceProvider extends ServiceProvider
                 $registry = $app->make(OpenApiRegistry::class);
 
                 return new ErrorResponseInferenceStage(
-                    contributors: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->errorResponseContributors,
-                    ),
-                    errorResponseResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->errorResponseResolvers,
-                    ),
+                    contributors: self::makeAll($app, $registry->errorResponseContributors),
+                    errorResponseResolvers: self::makeAll($app, $registry->errorResponseResolvers),
                     registry: $app->make(ComponentSchemaRegistry::class),
                     findings: $app->make(FindingsCollector::class),
                 );
@@ -510,32 +536,13 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): SchemaFromResource {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                /** @throws BindingResolutionException */
-                $resolversFactory = static function () use ($app, $registry): array {
-                    /** @var null|list<RefSchemaResolver> $cache */
-                    static $cache = null;
-
-                    if ($cache !== null) {
-                        return $cache;
-                    }
-
-                    /** @var list<RefSchemaResolver> $resolvers */
-                    $resolvers = [];
-
-                    foreach ($registry->refSchemaResolvers as $class) {
-                        if ($class === Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver::class) {
-                            continue;
-                        }
-
-                        $resolvers[] = $app->make($class);
-                    }
-
-                    return $cache = $resolvers;
-                };
-
                 return new SchemaFromResource(
                     registry: $app->make(ComponentSchemaRegistry::class),
-                    refSchemaResolvers: $resolversFactory,
+                    refSchemaResolvers: self::refSchemaResolverFactory(
+                        $app,
+                        $registry,
+                        Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver::class,
+                    ),
                 );
             },
         );
@@ -559,32 +566,13 @@ class OpenApiServiceProvider extends ServiceProvider
             static function (Container $app): SchemaFromTransformer {
                 $registry = $app->make(OpenApiRegistry::class);
 
-                /** @throws BindingResolutionException */
-                $resolversFactory = static function () use ($app, $registry): array {
-                    /** @var null|list<RefSchemaResolver> $cache */
-                    static $cache = null;
-
-                    if ($cache !== null) {
-                        return $cache;
-                    }
-
-                    /** @var list<RefSchemaResolver> $resolvers */
-                    $resolvers = [];
-
-                    foreach ($registry->refSchemaResolvers as $class) {
-                        if ($class === TransformerRefSchemaResolver::class) {
-                            continue;
-                        }
-
-                        $resolvers[] = $app->make($class);
-                    }
-
-                    return $cache = $resolvers;
-                };
-
                 return new SchemaFromTransformer(
                     registry: $app->make(ComponentSchemaRegistry::class),
-                    refSchemaResolvers: $resolversFactory,
+                    refSchemaResolvers: self::refSchemaResolverFactory(
+                        $app,
+                        $registry,
+                        TransformerRefSchemaResolver::class,
+                    ),
                 );
             },
         );
@@ -629,22 +617,10 @@ class OpenApiServiceProvider extends ServiceProvider
                     fileLoader: $app->make(ExampleFileLoader::class),
                     faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
                     docBlockParser: $app->make(DocBlockParser::class),
-                    refSchemaResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->refSchemaResolvers,
-                    ),
-                    queryParameterResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->queryParameterResolvers,
-                    ),
-                    primaryResponseResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->primaryResponseResolvers,
-                    ),
-                    operationConventionResolvers: array_map(
-                        static fn(string $class) => $app->make($class),
-                        $registry->operationConventionResolvers,
-                    ),
+                    refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
+                    queryParameterResolvers: self::makeAll($app, $registry->queryParameterResolvers),
+                    primaryResponseResolvers: self::makeAll($app, $registry->primaryResponseResolvers),
+                    operationConventionResolvers: self::makeAll($app, $registry->operationConventionResolvers),
                 );
             },
         );
