@@ -337,7 +337,7 @@ final class SpecTreeBuilder
             // `parameter.description-missing`, like the response-ref bug fixed in this class. The
             // generator never emits `components.parameters`/`$ref` parameters today (parameters are
             // always inlined), so no dereference is wired in. Add one here if that changes.
-            $examples = $this->buildExamplesFromParameter($param);
+            $examples = NodeFactory::examplesFromParameter($param);
             $node = new ParameterNode(
                 name: is_defined($param->name)
                     ? $param->name
@@ -361,50 +361,6 @@ final class SpecTreeBuilder
         }
 
         return $result;
-    }
-
-    /**
-     * Build examples from a parameter's `examples` array.
-     *
-     * @return list<ExampleNode>
-     */
-    private function buildExamplesFromParameter(OA\Parameter $param): array
-    {
-        // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
-        $examples = $param->examples ?? Generator::UNDEFINED;
-
-        if (!is_array($examples) || is_undefined($examples)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($examples as $example) {
-            if (is_undefined($example)) {
-                continue;
-            }
-
-            if ($example instanceof OA\Examples) {
-                $result[] = $this->buildExampleNode($example);
-            }
-        }
-
-        return $result;
-    }
-
-    private function buildExampleNode(OA\Examples $example): ExampleNode
-    {
-        return new ExampleNode(
-            name: is_defined($example->example)
-                ? $example->example
-                : null,
-            value: is_defined($example->value)
-                ? $example->value
-                : null,
-            summary: SchemaAccessor::undefinedToNull($example->summary),
-            description: SchemaAccessor::undefinedToNull($example->description),
-            raw: $example,
-        );
     }
 
     /**
@@ -435,7 +391,7 @@ final class SpecTreeBuilder
                 continue;
             }
 
-            $examples = $this->buildExamplesFromParameter($param);
+            $examples = NodeFactory::examplesFromParameter($param);
             // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
             $schema = $param->schema ?? null;
             $node = new QueryParameterNode(
@@ -518,7 +474,7 @@ final class SpecTreeBuilder
                             continue;
                         }
 
-                        $examples[] = $this->buildExampleNode($mediaTypeExample);
+                        $examples[] = NodeFactory::exampleNode($mediaTypeExample);
                     }
                 }
             }
@@ -584,7 +540,7 @@ final class SpecTreeBuilder
 
         foreach ($properties as $name => $property) {
             $children = $this->buildFields($property);
-            $examples = $this->buildExamplesFromSchema($property);
+            $examples = NodeFactory::examplesFromSchema($property);
 
             $field = new FieldNode(
                 name: $name,
@@ -714,35 +670,6 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Build examples from a schema's examples.
-     *
-     * @return list<ExampleNode>
-     */
-    private function buildExamplesFromSchema(OA\Schema $schema): array
-    {
-        // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
-        $examples = $schema->examples ?? Generator::UNDEFINED;
-
-        if (!is_array($examples) || is_undefined($examples)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($examples as $example) {
-            if (is_undefined($example)) {
-                continue;
-            }
-
-            if ($example instanceof OA\Examples) {
-                $result[] = $this->buildExampleNode($example);
-            }
-        }
-
-        return $result;
-    }
-
-    /**
      * @return list<ResponseNode>
      *
      * @throws LogicException
@@ -821,7 +748,7 @@ final class SpecTreeBuilder
                                 continue;
                             }
 
-                            $examples[] = $this->buildExampleNode($mediaTypeExample);
+                            $examples[] = NodeFactory::exampleNode($mediaTypeExample);
                         }
                     }
                 }
@@ -836,7 +763,7 @@ final class SpecTreeBuilder
                         continue;
                     }
 
-                    $headers[] = $this->buildHeader($header);
+                    $headers[] = NodeFactory::header($header);
                 }
             }
 
@@ -849,7 +776,7 @@ final class SpecTreeBuilder
                         continue;
                     }
 
-                    $links[] = $this->buildLink($link);
+                    $links[] = NodeFactory::link($link);
                 }
             }
 
@@ -908,50 +835,6 @@ final class SpecTreeBuilder
         }
 
         return SchemaAccessor::undefinedToNull($target->description);
-    }
-
-    private function buildHeader(OA\Header $header): HeaderNode
-    {
-        // Latent: a `$ref`'d header would carry no inline description and false-fire
-        // `header.description-missing`, mirroring the response-ref bug fixed in this class. The
-        // generator never emits `components.headers`/`$ref` headers today (headers are always
-        // inlined on responses), so no dereference is wired in. Add one here if that changes.
-        return new HeaderNode(
-            name: is_defined($header->header)
-                ? $header->header
-                : '(unknown)',
-            // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
-            schema: SchemaAccessor::extractSchemaType($header->schema ?? null),
-            description: SchemaAccessor::undefinedToNull($header->description),
-            required: is_defined($header->required)
-            && $header->required === true,
-            raw: $header,
-        );
-    }
-
-    private function buildLink(OA\Link $link): LinkNode
-    {
-        $parameters = [];
-        $oaParams = $link->parameters;
-
-        if (is_array($oaParams) && is_defined($oaParams)) {
-            foreach ($oaParams as $key => $value) {
-                if (is_string($key) && is_string($value)) {
-                    $parameters[$key] = $value;
-                }
-            }
-        }
-
-        return new LinkNode(
-            name: is_defined($link->link)
-                ? $link->link
-                : '(unnamed)',
-            operationId: SchemaAccessor::undefinedToNull($link->operationId),
-            operationRef: SchemaAccessor::undefinedToNull($link->operationRef),
-            parameters: $parameters,
-            description: SchemaAccessor::undefinedToNull($link->description),
-            raw: $link,
-        );
     }
 
     /**
