@@ -95,6 +95,29 @@ it('deep-merges per-spec `info` over root info', function (): void {
         ->and($info->description)->toBe('Root.');
 });
 
+it('#47: deep-merges nested `info` groups, preserving untouched siblings', function (): void {
+    $reg = makeRegistry(
+        rootConfig: ['info' => [
+            'title'   => 'API',
+            'version' => '1.0',
+            'contact' => ['name' => 'API Team', 'email' => 'team@example.com'],
+            'license' => ['name' => 'MIT'],
+        ]],
+        specs: ['v1' => ['info' => ['contact' => ['email' => 'v1@example.com']]]],
+    );
+
+    // Assert via the serialized form — what actually reaches the generated document — since
+    // swagger-php keeps the nested groups as arrays the OA\Info object type does not expose.
+    $info = json_decode((string) json_encode($reg->get('v1')->info), true);
+
+    // The overridden nested field changes…
+    expect($info['contact']['email'])->toBe('v1@example.com')
+        // …its sibling under the same group survives…
+        ->and($info['contact']['name'])->toBe('API Team')
+        // …and an unrelated nested group is untouched.
+        ->and($info['license']['name'])->toBe('MIT');
+});
+
 it('replaces servers wholesale per-spec', function (): void {
     $reg = makeRegistry(
         rootConfig: ['servers' => [['url' => 'https://root.example.com']]],
