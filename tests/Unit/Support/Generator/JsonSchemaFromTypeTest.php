@@ -39,12 +39,12 @@ it('maps a concrete date class to string/date-time', function (string $className
 
 // endregion
 
-it('describes a unit enum using only the short class name, not the FQCN', function (): void {
+it('describes a unit enum using a human-readable resource name, not the FQCN', function (): void {
     $schema = new JsonSchemaFromType(new NullLogger())
         ->fromType(new EnumType(UnitFixtureEnum::class));
 
     expect($schema->description)
-        ->toContain('UnitFixtureEnum')
+        ->toContain('Unit Fixture Enum')
         ->not->toContain('Tests\\Fixtures\\OpenApi\\UnitFixtureEnum');
 });
 

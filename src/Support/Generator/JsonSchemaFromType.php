@@ -29,6 +29,7 @@ use function is_a;
 use function is_int;
 use function ltrim;
 use function preg_replace;
+use function Radiergummi\OpenApi\class_resource_name;
 use function sprintf;
 use function str_starts_with;
 use function trim;
@@ -78,7 +79,7 @@ final readonly class JsonSchemaFromType
                 'type' => 'string',
                 'description' => sprintf(
                     'Values of unit enum %s are not representable as a JSON primitive.',
-                    class_basename($type->getClassName()),
+                    class_resource_name($type->getClassName()),
                 ),
             ]);
         }
@@ -203,7 +204,7 @@ final readonly class JsonSchemaFromType
 
         return new OA\Schema([
             'type' => 'string',
-            'description' => sprintf('Unmapped object type: %s', $className),
+            'description' => sprintf('Unmapped object type: %s', class_resource_name($className)),
         ]);
     }
 
