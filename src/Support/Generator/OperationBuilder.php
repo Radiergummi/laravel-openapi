@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use Deprecated as NativeDeprecated;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use Radiergummi\OpenApi\Attributes\BaseExample as BaseExampleAttribute;
 use Radiergummi\OpenApi\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
@@ -48,6 +49,8 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function assert;
+use function is_array;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Builds the property array {@see OpenApiGenerator} dispatches onto OA\Get/OA\Post/etc.
@@ -56,6 +59,13 @@ use function assert;
  */
 final readonly class OperationBuilder
 {
+    /**
+     * Vendor-extension key a primary-response resolver sets on its `OA\Response` to signal that the
+     * status was read explicitly from the controller body (not a default), so the resource
+     * convention defers to it (#240). Transient — stripped here before the response is emitted.
+     */
+    public const string EXPLICIT_STATUS_EXTENSION = 'laravel-openapi-explicit-status';
+
     public function __construct(
         private UriParameterResolver $uriResolver,
         private UriParametersExtractor $uriExtractor,
@@ -181,15 +191,21 @@ final readonly class OperationBuilder
             }
         }
 
+        // A resolver may flag that it read the status explicitly from the controller body; that
+        // status is ground truth the convention must not relabel (#240). Read and strip the
+        // transient marker before the response can reach the document.
+        $autoStatusIsExplicit = $this->takeExplicitStatusMarker($autoPrimaryResponse);
+
         $additionalResponses = $filteredAdditional;
         $primaryResponse = $primaryOverride
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
 
         // Apply the resource convention's success status, unless an explicit #[Response(2xx)]
-        // already claimed the primary response. This layers on top of whatever body a resolver
-        // produced — a `store` returning a model keeps its schema, just at 201.
-        if ($primaryOverride === null && $convention?->successStatusCode !== null) {
+        // already claimed the primary response or a resolver read the status from the body. This
+        // layers on top of whatever body a resolver produced — a `store` returning a model keeps
+        // its schema, just at 201 — but never overrides a status the author actually wrote.
+        if ($primaryOverride === null && !$autoStatusIsExplicit && $convention?->successStatusCode !== null) {
             $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
         }
 
@@ -796,6 +812,28 @@ final readonly class OperationBuilder
         }
 
         return null;
+    }
+
+    /**
+     * Reads and removes the {@see self::EXPLICIT_STATUS_EXTENSION} marker a primary-response
+     * resolver may set to claim it read the status from the controller body. The marker is
+     * transient and must never reach the serialized document, so it is always cleared.
+     */
+    private function takeExplicitStatusMarker(?OA\Response $response): bool
+    {
+        if ($response === null || is_undefined($response->x) || !is_array($response->x)) {
+            return false;
+        }
+
+        $explicit = ($response->x[self::EXPLICIT_STATUS_EXTENSION] ?? null) === true;
+
+        unset($response->x[self::EXPLICIT_STATUS_EXTENSION]);
+
+        if ($response->x === []) {
+            $response->x = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (swagger-php clears via the UNDEFINED sentinel)
+        }
+
+        return $explicit;
     }
 
     /**

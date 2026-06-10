@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
@@ -306,10 +307,18 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
+        // A status the author wrote in the call is ground truth, not a default; the resource
+        // convention must defer to it rather than relabel the body (#240). An absent status
+        // argument is the helper's own 200 default, which the convention may still override.
+        $statusIsExplicit = $this->argument($arguments, 'status', self::STATUS_ARGUMENT_POSITION) !== null;
+
         // A 204 must not carry a body — the runtime strips it (`Response::prepare()`), so the
         // literal body is not documented either.
         if ($status === 204) {
-            return new OA\Response(['response' => '204', 'description' => 'No Content']);
+            return $this->markStatusExplicit(
+                new OA\Response(['response' => '204', 'description' => 'No Content']),
+                $statusIsExplicit,
+            );
         }
 
         $definition = $this->bodyDefinition($dataArgument->value, $method);
@@ -318,11 +327,25 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        return new OA\Response([
+        return $this->markStatusExplicit(new OA\Response([
             'response' => (string) $status,
             'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
             'content' => [MediaType::Json->schema(SchemaFromArrayDefinition::build($definition))],
-        ]);
+        ]), $statusIsExplicit);
+    }
+
+    /**
+     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
+     * author-written status win over the resource convention. The marker never reaches the
+     * serialized document — OperationBuilder strips it.
+     */
+    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
+    {
+        if ($explicit) {
+            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
+        }
+
+        return $response;
     }
 
     /**

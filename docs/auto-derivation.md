@@ -273,9 +273,13 @@ becomes an array schema with its item type taken from the first element
 exactly as `json_encode` treats them), and a literal (or class-constant)
 `status` argument — positional or named, `response()->json($data, 201)` /
 `response()->json(data: [...], status: 201)` — becomes the response status.
-With no status argument the response documents as `200`. A literal `204`
-documents as `204 No Content` without a body schema — the runtime strips the
-body. When several calls match, a **returned** `json()` beats one only
+A status you wrote in the call wins over the resource-action
+[convention](#resource-action-conventions): a `store` returning
+`response()->json([...], 200)` documents `200`, not the convention's `201`.
+With no status argument the response documents as `200` and the convention
+still applies, so a conventional `store` with no explicit status is promoted to
+`201`. A literal `204` documents as `204 No Content` without a body schema — the
+runtime strips the body. When several calls match, a **returned** `json()` beats one only
 assigned to a variable; among returned calls, the first wins.
 
 Boundaries, by design (no dataflow analysis):
@@ -342,7 +346,9 @@ method named `store` reached by `GET` is left untouched.
 
 This sits at the lowest precedence — an explicit `#[Response]` (2xx),
 `#[Summary]` / `#[Operation]` attribute, or a DocComment summary always wins over
-the convention.
+the convention. The convention's **status** likewise defers to a status read
+from an inline [`response()->json([...], <status>)`](#inline-json-responses)
+call — a status the author actually wrote is honoured over the conventional one.
 
 ## What if convention isn't enough?
 
