@@ -75,7 +75,7 @@ code is never modified or committed — this is black-box.
 | `run.sh <name>` | Run `openapi:generate` + `openapi:lint` in the app; capture spec, logs, exit codes; print a scorecard line. A crash is captured as data, not aborted on. |
 | `compare.php <generated> <published>` | Path×method coverage of our spec vs an app's published one. Accepts JSON or YAML. Defaults `LIB` to this repo; override the `LIB` env var to point elsewhere. |
 | `completeness.php <generated> [--prefix=/api]` | Per-operation completeness scoreboard: request body (where the verb needs one) + substantive 2xx response, under an API prefix. The gate for the attribute-completion pass. |
-| `bootstrap/_lib.sh` | Shared bootstrap helpers sourced by every per-app script: `survey_link_library` (composer path repo + require), `survey_scaffold_env` (`.env`, sqlite, `key:generate`), `survey_publish_config` (publishes the package config), `survey_blocked` (records `blocked-compat` as data without aborting). |
+| `bootstrap/_lib.sh` | Shared bootstrap helpers sourced by every per-app script: `survey_link_library` (composer path repo + require, then asserts the vendor link actually resolves to `$LIB`), `survey_scaffold_env` (`.env`, sqlite, `key:generate`), `survey_publish_config` (publishes the package config), `survey_blocked` (records `blocked-compat` as data without aborting). |
 | `bootstrap/<name>.sh` | Per-app clean-clone → runnable. Sources `_lib.sh`, calls the shared scaffold functions, then applies any app-specific deltas (database driver, queue config, extra composer packages, etc.). |
 | `runbook-template.md` | Stamped per app by `setup.sh`. |
 
@@ -90,13 +90,22 @@ tools/survey/corpus.sh --only BookStack
 ```
 
 `corpus.sh` reads `corpus.json`, clones each app at its pinned SHA (via
-`setup.sh`), runs the per-app bootstrap, runs `run.sh`, and calls `metrics.php`.
-After iterating, it writes two files to `$WS`:
+`setup.sh`), resets any stale composer state the previous run left behind (so the
+library always relinks to the current `$LIB`), runs the per-app bootstrap, runs
+`run.sh`, and calls `metrics.php`. After iterating, it writes two files to `$WS`:
 
-- **`results.json`** — array of `{name, metrics}` objects, one per app.
-- **`manifest.json`** — provenance record: per-app pinned SHA + actual
-  on-disk HEAD SHA, library commit, and run timestamp. The manifest covers the
-  full corpus regardless of `--only`.
+- **`results.json`** — array of `{name, metrics}` objects, one per app. A full
+  run rewrites every entry; `--only <name>` **merges** — it replaces just that
+  app's entry and preserves the rest, so it is a safe backfill.
+- **`manifest.json`** — provenance record: per-app pinned SHA + actual on-disk
+  HEAD SHA + the library commit actually installed into that app's vendor, the
+  library commit under test, and a run timestamp. The manifest covers the full
+  corpus regardless of `--only`.
+
+A run holds an exclusive lock on `$WS` (`$WS/.survey.lock`): a second `corpus.sh`
+against the same workspace fails fast rather than racing on the shared aggregate
+and flipping each app's vendor link mid-generation. A stale lock left by a killed
+run is reclaimed automatically.
 
 CI exposure is a manually-dispatched `survey` workflow
 (`.github/workflows/survey.yml`), milestone-gated. It is never triggered per-PR.
