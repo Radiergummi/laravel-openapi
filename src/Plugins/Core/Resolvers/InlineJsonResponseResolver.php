@@ -1,0 +1,486 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
+
+use Illuminate\Container\Attributes\Scoped;
+use OpenApi\Annotations as OA;
+use PhpParser\Node;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Expr;
+use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\FuncCall;
+use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
+use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
+use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
+use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
+use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
+use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
+use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
+use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
+use ReflectionMethod;
+use ReflectionNamedType;
+use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
+
+use function array_is_list;
+use function function_exists;
+use function is_a;
+use function is_array;
+use function is_bool;
+use function is_float;
+use function is_int;
+use function is_string;
+use function sprintf;
+
+/**
+ * Infers the primary response from a literal `response()->json([...])` call in the controller
+ * method body — a Tier-1 bounded scan (epic #5, issue #14).
+ *
+ * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
+ * {@see ConditionalContextPolicy::SkipConditionalContexts}: a `response()->json()` that only runs
+ * conditionally is not the canonical success response (same reasoning as the inline-validation
+ * request scan, opposite of the abort scan). Only the global `response()` helper with zero
+ * arguments followed by `->json(...)` is matched; the `Response` facade and `new JsonResponse()`
+ * are out of scope by design.
+ *
+ * The `data` and `status` arguments resolve by position or by name against the helper signature
+ * `json($data = [], $status = 200, ...)`. A literal array body becomes an object/array schema:
+ * nested literal arrays recurse, literal scalars type their property, and a dynamic *value* under
+ * a literal key keeps the property with an unconstrained schema — dropping a response property
+ * would be silently wrong for spec consumers. A dynamic *key* (or spread) degrades the whole
+ * call. A literal (or class-constant) `status` becomes the response status; a non-literal status
+ * degrades the whole call — the body must not be documented under a guessed status.
+ *
+ * Degradation contract: a matched call that cannot be read statically is skipped with a
+ * generation-log note (`#[Response]` is the escape hatch); a method without any matching call is
+ * skipped silently, as is a body without shape information (`json()` / `json([])`). Explicit
+ * `#[Response(2xx)]` attributes win in `OperationBuilder`'s primary-override path — not
+ * re-implemented here. The return-type guard keeps the scan away from actions whose signature
+ * already carries schema information (a typed Model/Data/Resource/paginator return), so the
+ * Tier-0 resolvers stay authoritative regardless of chain order.
+ */
+#[Scoped]
+final readonly class InlineJsonResponseResolver implements PrimaryResponseResolver
+{
+    public const int STATEMENT_LIMIT = 10;
+
+    /**
+     * Positions in Laravel's `ResponseFactory::json($data = [], $status = 200, …)` signature,
+     * used to resolve arguments by position or by name.
+     */
+    private const int DATA_ARGUMENT_POSITION = 0;
+
+    private const int STATUS_ARGUMENT_POSITION = 1;
+
+    private StatementNodeFinder $statementNodeFinder;
+
+    public function __construct(
+        private MethodBodyScanner $scanner,
+        private LoggerInterface $logger,
+    ) {
+        $this->statementNodeFinder = new StatementNodeFinder();
+    }
+
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    {
+        $method = $descriptor->method;
+
+        if ($method === null || !$this->returnTypeAllowsBodyScan($method)) {
+            return null;
+        }
+
+        $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+
+        if ($statements === []) {
+            return null;
+        }
+
+        $call = $this->statementNodeFinder->findFirst(
+            $statements,
+            ConditionalContextPolicy::SkipConditionalContexts,
+            fn(Node $node): bool => $this->isJsonHelperCall($node),
+        );
+
+        if (!$call instanceof MethodCall) {
+            $conditionalCall = $this->statementNodeFinder->findFirst(
+                $statements,
+                ConditionalContextPolicy::IncludeConditionalContexts,
+                fn(Node $node): bool => $this->isJsonHelperCall($node),
+            );
+
+            if ($conditionalCall !== null) {
+                $this->note($method, 'only runs conditionally, so it is not the canonical success response');
+            }
+
+            return null;
+        }
+
+        return $this->responseFromCall($call, $method);
+    }
+
+    // region Call-shape matching
+
+    /**
+     * Whether the node is a `->json(...)` method call on a zero-argument `response()` helper
+     * call. `response('content')` returns a response, not the factory, so any argument
+     * disqualifies the receiver.
+     */
+    private function isJsonHelperCall(Node $node): bool
+    {
+        return $node instanceof MethodCall
+            && !$node->isFirstClassCallable()
+            && $node->name instanceof Identifier
+            && $node->name->toLowerString() === 'json'
+            && $this->isResponseHelperCall($node->var);
+    }
+
+    /**
+     * Names arrive resolved by the scanner's NameResolver pass. A fully-qualified name matches
+     * when it is the root-namespace helper itself (`\response`); an *unqualified* name in a
+     * namespaced file stays unresolved (PHP's runtime fallback), so it matches as Laravel's
+     * global helper — unless a same-namespace function of that name is actually defined, in
+     * which case PHP would call the user's function and we must not document it.
+     */
+    private function isResponseHelperCall(Expr $receiver): bool
+    {
+        if (
+            !$receiver instanceof FuncCall
+            || $receiver->isFirstClassCallable()
+            || !$receiver->name instanceof Name
+            || $receiver->name->toLowerString() !== 'response'
+            || $receiver->getArgs() !== []
+        ) {
+            return false;
+        }
+
+        if ($receiver->name->isFullyQualified()) {
+            return true;
+        }
+
+        $namespacedName = $receiver->name->getAttribute('namespacedName');
+
+        return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
+    }
+
+    // endregion
+
+    // region Response construction
+
+    private function responseFromCall(MethodCall $call, ReflectionMethod $method): ?OA\Response
+    {
+        $arguments = $call->getArgs();
+
+        foreach ($arguments as $argument) {
+            if ($argument->unpack) {
+                $this->note($method, 'spreads its arguments, so they cannot be read statically');
+
+                return null;
+            }
+        }
+
+        $dataArgument = $this->argument($arguments, 'data', self::DATA_ARGUMENT_POSITION);
+
+        // No data argument means an empty `[]` body — readable, but carrying no shape worth
+        // documenting. Silent by the found-but-unreadable convention: nothing is unreadable here.
+        if ($dataArgument === null) {
+            return null;
+        }
+
+        $status = $this->resolveStatus($arguments, $method);
+
+        if ($status === null) {
+            return null;
+        }
+
+        $definition = $this->bodyDefinition($dataArgument->value, $method);
+
+        if ($definition === null) {
+            return null;
+        }
+
+        return new OA\Response([
+            'response' => (string) $status,
+            'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
+            'content' => [MediaType::Json->schema(SchemaFromArrayDefinition::build($definition))],
+        ]);
+    }
+
+    /**
+     * The literal status argument, 200 when absent, or null (refusal) when present but not
+     * statically readable — documenting the body under a guessed status would be wrong.
+     *
+     * @param array<int, Arg> $arguments
+     */
+    private function resolveStatus(array $arguments, ReflectionMethod $method): ?int
+    {
+        $statusArgument = $this->argument($arguments, 'status', self::STATUS_ARGUMENT_POSITION);
+
+        if ($statusArgument === null) {
+            return 200;
+        }
+
+        try {
+            $status = AstLiteralEvaluator::evaluate($statusArgument->value);
+        } catch (NonLiteralValueException) {
+            $status = null;
+        }
+
+        if (!is_int($status)) {
+            $this->note($method, 'has no statically readable status code, so the body must not be documented under a guessed status');
+
+            return null;
+        }
+
+        return $status;
+    }
+
+    /**
+     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
+     *
+     * @param array<int, Arg> $arguments
+     */
+    private function argument(array $arguments, string $name, int $position): ?Arg
+    {
+        foreach ($arguments as $index => $argument) {
+            if ($argument->name === null ? $index === $position : $argument->name->toString() === $name) {
+                return $argument;
+            }
+        }
+
+        return null;
+    }
+
+    // endregion
+
+    // region Schema definitions
+
+    /**
+     * The plain schema-definition array for the `data` argument, or null when nothing is
+     * documentable: an empty literal (silent — no shape information) or a non-literal expression
+     * (noted — `$data` variables, model expressions, and `compact()` are Tier-2 dataflow and
+     * belong to the `#[Response]` attribute).
+     *
+     * @return null|array<string, mixed>
+     */
+    private function bodyDefinition(Expr $data, ReflectionMethod $method): ?array
+    {
+        if ($data instanceof Array_) {
+            if ($data->items === []) {
+                return null;
+            }
+
+            try {
+                return $this->definitionFromArrayNode($data);
+            } catch (NonLiteralValueException) {
+                $this->note($method, 'has an array literal whose structure (a key or spread entry) is not statically readable');
+
+                return null;
+            }
+        }
+
+        try {
+            $literal = AstLiteralEvaluator::evaluate($data);
+        } catch (NonLiteralValueException) {
+            $this->note($method, 'has no statically readable body');
+
+            return null;
+        }
+
+        // A literal scalar (`json('ok')`, `json(true)`) is a valid JSON document; `null` and an
+        // empty array carry no shape.
+        $definition = $this->definitionFromLiteralValue($literal);
+
+        return $definition === [] ? null : $definition;
+    }
+
+    /**
+     * Walks a literal array AST node into a schema definition. A dynamic value under a literal
+     * key — including a nested array that is itself unreadable — keeps the property with an
+     * unconstrained schema; a dynamic key, a spread entry, or a keyed/unkeyed mix throws and
+     * degrades the whole call.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws NonLiteralValueException
+     */
+    private function definitionFromArrayNode(Array_ $expression): array
+    {
+        /** @var array<string, array<string, mixed>> $properties */
+        $properties = [];
+
+        /** @var list<Expr> $elements */
+        $elements = [];
+
+        foreach ($expression->items as $item) {
+            if ($item->unpack) {
+                throw NonLiteralValueException::for($expression);
+            }
+
+            if ($item->key === null) {
+                $elements[] = $item->value;
+
+                continue;
+            }
+
+            $key = AstLiteralEvaluator::evaluate($item->key);
+
+            if (!is_int($key) && !is_string($key)) {
+                throw NonLiteralValueException::for($item->key);
+            }
+
+            $properties[(string) $key] = $this->valueDefinition($item->value);
+        }
+
+        // A keyed/unkeyed mix does not map onto one JSON shape.
+        if ($properties !== [] && $elements !== []) {
+            throw NonLiteralValueException::for($expression);
+        }
+
+        if ($elements !== []) {
+            return $this->listDefinition($elements);
+        }
+
+        return ['type' => 'object', 'properties' => $properties];
+    }
+
+    /**
+     * The definition for one property value: nested literal arrays recurse, literal scalars map
+     * to their JSON type, and anything dynamic stays as an unconstrained (empty) schema rather
+     * than dropping the property.
+     *
+     * @return array<string, mixed>
+     */
+    private function valueDefinition(Expr $value): array
+    {
+        if ($value instanceof Array_) {
+            if ($value->items === []) {
+                return ['type' => 'array'];
+            }
+
+            try {
+                return $this->definitionFromArrayNode($value);
+            } catch (NonLiteralValueException) {
+                return [];
+            }
+        }
+
+        try {
+            $literal = AstLiteralEvaluator::evaluate($value);
+        } catch (NonLiteralValueException) {
+            return [];
+        }
+
+        return $this->definitionFromLiteralValue($literal);
+    }
+
+    /**
+     * Items are derived from the first element; when a later element disagrees on type the items
+     * stay unconstrained — a heterogeneous literal list has no single item schema.
+     *
+     * @param list<Expr> $elements
+     *
+     * @return array<string, mixed>
+     */
+    private function listDefinition(array $elements): array
+    {
+        $definitions = [];
+
+        foreach ($elements as $element) {
+            $definitions[] = $this->valueDefinition($element);
+        }
+
+        $first = $definitions[0];
+
+        foreach ($definitions as $definition) {
+            if (($definition['type'] ?? null) !== ($first['type'] ?? null)) {
+                return ['type' => 'array'];
+            }
+        }
+
+        return $first === []
+            ? ['type' => 'array']
+            : ['type' => 'array', 'items' => $first];
+    }
+
+    /**
+     * Maps an already-evaluated literal (a scalar, or an array reached through a class constant)
+     * onto its schema definition. `null` and empty arrays yield an unconstrained definition.
+     *
+     * @return array<string, mixed>
+     */
+    private function definitionFromLiteralValue(mixed $literal): array
+    {
+        if (is_array($literal)) {
+            if ($literal === []) {
+                return [];
+            }
+
+            if (array_is_list($literal)) {
+                $first = $this->definitionFromLiteralValue($literal[0]);
+
+                return $first === [] ? ['type' => 'array'] : ['type' => 'array', 'items' => $first];
+            }
+
+            $properties = [];
+
+            foreach ($literal as $key => $value) {
+                $properties[(string) $key] = $this->definitionFromLiteralValue($value);
+            }
+
+            return ['type' => 'object', 'properties' => $properties];
+        }
+
+        return match (true) {
+            is_string($literal) => ['type' => 'string'],
+            is_bool($literal) => ['type' => 'boolean'],
+            is_int($literal) => ['type' => 'integer'],
+            is_float($literal) => ['type' => 'number'],
+            default => [],
+        };
+    }
+
+    // endregion
+
+    // region Guards & logging
+
+    /**
+     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
+     * HTTP response class (`JsonResponse` & friends). Any other named type — a Model, Data class,
+     * Resource, or paginator — is Tier-0 territory the signature resolvers own; union and
+     * intersection types are refused rather than arbitrated.
+     */
+    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
+    {
+        $returnType = $method->getReturnType();
+
+        if ($returnType === null) {
+            return true;
+        }
+
+        if (!$returnType instanceof ReflectionNamedType) {
+            return false;
+        }
+
+        return $returnType->isBuiltin()
+            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
+    }
+
+    private function note(ReflectionMethod $method, string $reason): void
+    {
+        $this->logger->notice(sprintf(
+            'response()->json() call in %s::%s %s; no response inferred. '
+            . 'Annotate the action with #[Response] to document it.',
+            $method->getDeclaringClass()->getName(),
+            $method->getName(),
+            $reason,
+        ));
+    }
+
+    // endregion
+}

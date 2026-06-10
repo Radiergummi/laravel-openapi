@@ -8,6 +8,26 @@ servers:
     url: 'http://localhost'
     description: 'Current environment'
 paths:
+  /api/status:
+    get:
+      tags:
+        - Statuses
+      summary: 'Service status.'
+      description: "Reports API liveness for uptime monitors. The response schema is inferred\nfrom the literal `response()->json([...])` body — no attribute needed."
+      operationId: get_api_status
+      parameters: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  status: { type: string }
+                  read_only: { type: boolean }
+                  incidents: { type: integer }
+                type: object
+      security: []
   /api/flights:
     get:
       tags:

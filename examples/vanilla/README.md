@@ -21,6 +21,9 @@ Notice in `openapi.yaml`:
 - The `abort_if(..., 409, 'Departed flights can no longer be cancelled.')` guard in
   `FlightController::destroy` becomes a `409` response inlined with the authored message —
   no attribute needed; contrast it with the shared `$ref` Conflict on `bookings.store`.
+- `GET /status` (`StatusController::show`) carries no attribute at all: its `200` schema —
+  `status: string`, `read_only: boolean`, `incidents: integer` — is inferred from the
+  literal `response()->json([...])` body.
 - `#[QueryParam('page', ...)]` and `#[QueryParam('per_page', ...)]` on `index`
   render as documented query parameters on `GET /flights` with their types,
   defaults, and bounds preserved.

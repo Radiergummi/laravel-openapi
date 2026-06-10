@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 use Examples\Vanilla\Http\BookingController;
 use Examples\Vanilla\Http\FlightController;
+use Examples\Vanilla\Http\StatusController;
 use Examples\Vanilla\Http\TypedFlightController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/status', [StatusController::class, 'show']);
 
 Route::get('/flights', [FlightController::class, 'index']);
 Route::get('/flights/{flight}', [FlightController::class, 'show']);
