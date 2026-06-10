@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use PhpParser\Node;
+use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
+use PhpParser\Node\Scalar\Int_;
 use PhpParser\Node\Stmt;
 use PhpParser\ParserFactory;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
@@ -179,6 +182,109 @@ it('finds a call inside a guarded closure under the inclusive policy', function 
     );
 
     expect($found)->not->toBeNull();
+});
+
+// endregion
+
+// region findAll
+
+/**
+ * @return list<FuncCall>
+ */
+function findAllAbortCalls(string $body, ConditionalContextPolicy $policy): array
+{
+    $nodes = new StatementNodeFinder()->findAll(
+        parseStatements($body),
+        $policy,
+        static fn(Node $node): bool => $node instanceof FuncCall
+            && $node->name instanceof Name
+            && $node->name->toLowerString() === 'abort',
+    );
+
+    $calls = [];
+
+    foreach ($nodes as $node) {
+        if ($node instanceof FuncCall) {
+            $calls[] = $node;
+        }
+    }
+
+    return $calls;
+}
+
+function abortStatusOf(FuncCall $call): ?int
+{
+    $status = $call->getArgs()[0]->value;
+
+    return $status instanceof Int_ ? $status->value : null;
+}
+
+it('returns every match in source order under the inclusive policy', function (): void {
+    $found = findAllAbortCalls(
+        <<<'PHP'
+        if ($user === null) {
+            abort(401);
+        }
+        abort_unless($user->isAdmin(), 403);
+        abort(404, "Not found");
+        PHP,
+        ConditionalContextPolicy::IncludeConditionalContexts,
+    );
+
+    expect($found)->toHaveCount(2)
+        ->and(abortStatusOf($found[0]))->toBe(401)
+        ->and(abortStatusOf($found[1]))->toBe(404);
+});
+
+it('descends into closures and match arms under the inclusive policy', function (): void {
+    $found = findAllAbortCalls(
+        <<<'PHP'
+        $result = DB::transaction(function () { abort(409); });
+        $value = match ($mode) { "strict" => abort(422), default => null };
+        PHP,
+        ConditionalContextPolicy::IncludeConditionalContexts,
+    );
+
+    expect($found)->toHaveCount(2);
+});
+
+it('returns an empty list when nothing matches', function (): void {
+    $found = findAllAbortCalls(
+        '$user = User::findOrFail($id);',
+        ConditionalContextPolicy::IncludeConditionalContexts,
+    );
+
+    expect($found)->toBe([]);
+});
+
+it('collects only straight-line matches under the skipping policy', function (): void {
+    $found = findAllAbortCalls(
+        <<<'PHP'
+        abort(403);
+        if ($missing) {
+            abort(404);
+        }
+        $value = $flag ? abort(409) : null;
+        abort(422);
+        PHP,
+        ConditionalContextPolicy::SkipConditionalContexts,
+    );
+
+    expect($found)->toHaveCount(2)
+        ->and(abortStatusOf($found[0]))->toBe(403)
+        ->and(abortStatusOf($found[1]))->toBe(422);
+});
+
+it('collects multiple matches within a single statement under the skipping policy', function (): void {
+    $found = new StatementNodeFinder()->findAll(
+        parseStatements('respond($request->validate(["a" => "required"]), $request->validate(["b" => "required"]));'),
+        ConditionalContextPolicy::SkipConditionalContexts,
+        static fn(Node $node): bool => $node instanceof MethodCall
+            && $node->name instanceof Identifier
+            && $node->name->toLowerString() === 'validate',
+    );
+
+    expect($found)->toHaveCount(2);
 });
 
 // endregion

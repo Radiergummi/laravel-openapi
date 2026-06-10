@@ -21,6 +21,7 @@ use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\NodeFinder;
 
+use function array_values;
 use function is_array;
 
 /**
@@ -81,6 +82,39 @@ final readonly class StatementNodeFinder
     }
 
     /**
+     * Returns every node (in source order) matching the predicate.
+     *
+     * @param list<Stmt>          $statements
+     * @param Closure(Node): bool $predicate
+     *
+     * @return list<Node>
+     */
+    public function findAll(array $statements, ConditionalContextPolicy $policy, Closure $predicate): array
+    {
+        if ($policy === ConditionalContextPolicy::IncludeConditionalContexts) {
+            return array_values($this->nodeFinder->find($statements, $predicate));
+        }
+
+        $found = [];
+
+        foreach ($statements as $statement) {
+            $expression = match (true) {
+                $statement instanceof Expression => $statement->expr,
+                $statement instanceof Return_ => $statement->expr,
+                default => null,
+            };
+
+            if ($expression === null) {
+                continue;
+            }
+
+            $this->collectUnconditional($expression, $predicate, $found);
+        }
+
+        return $found;
+    }
+
+    /**
      * Depth-first search that refuses to enter nodes opening a conditional context.
      *
      * @param Closure(Node): bool $predicate
@@ -113,6 +147,35 @@ final readonly class StatementNodeFinder
         }
 
         return null;
+    }
+
+    /**
+     * Depth-first collector mirroring {@see findFirstUnconditional}, accumulating every match
+     * instead of short-circuiting on the first.
+     *
+     * @param Closure(Node): bool $predicate
+     * @param list<Node>          $found
+     */
+    private function collectUnconditional(Node $node, Closure $predicate, array &$found): void
+    {
+        if ($this->opensConditionalContext($node)) {
+            return;
+        }
+
+        if ($predicate($node)) {
+            $found[] = $node;
+        }
+
+        foreach ($node->getSubNodeNames() as $subNodeName) {
+            /** @var mixed $children */
+            $children = $node->{$subNodeName};
+
+            foreach (is_array($children) ? $children : [$children] as $child) {
+                if ($child instanceof Node) {
+                    $this->collectUnconditional($child, $predicate, $found);
+                }
+            }
+        }
     }
 
     /**
