@@ -11,6 +11,7 @@ source.
 | Description | Remaining paragraphs of the method's PHPDoc (markdown permitted), or `#[Description]` / `#[Operation(description: …)]`. |
 | `operationId` | Route name (sanitised to a codegen-safe identifier — `:`/`{}` and other disallowed characters become `_`, while `.`/`-`/`_` are kept), or `{method}_{sanitized_path}`. |
 | Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. A custom-key binding (`/posts/{post:slug}`, including scoped-nested `{parent}/{child:field}`) emits the standard `{post}` template segment and notes the bound field in the description (`Bound by slug of Post.`). |
+| Query parameters | Request-accessor reads in the method body — `$request->query('sort')` / `input('q')` → `string`, `string('name')` / `integer('page')` / `boolean('active')` → their named type (bounded scan; see [Query parameters from the method body](#query-parameters-from-the-method-body)). On GET/HEAD routes, inline `validate()` keys become query parameters (name, schema, `required` from the rules) instead of a request body. `#[QueryParam]` attributes win for their name; other names compose. |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema (fields declared via `#[ResourceField]`). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). |
 | Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
@@ -317,6 +318,64 @@ Boundaries, by design (no dataflow analysis):
   primary-response **authoring attribute** — `#[ResponseResource]`,
   `#[FractalResponse]` — is never scanned, even though the resolver consuming
   the attribute runs later: explicit authoring always wins.
+
+## Query parameters from the method body
+
+Filter, sort, and search parameters are rarely declared in a typed request —
+they are pulled straight off the request inside the action. The generator
+scans the **first 10 top-level statements** of the method for five accessor
+shapes on the request and documents each read as a query parameter typed by
+the accessor:
+
+```php
+public function index(Request $request): JsonResponse
+{
+    $sort = $request->query('sort');          // → sort: string
+    $term = $request->input('q');             // → q: string
+    $name = $request->string('name');         // → name: string
+    $page = $request->integer('page');        // → page: integer
+    $active = $request->boolean('active');    // → active: boolean
+    // …
+}
+```
+
+The receiver must be the method's `Illuminate\Http\Request`(-subclass)-typed
+parameter or a zero-argument `request()` helper call — any other object with a
+same-named method (an Eloquent builder's `query()`, say) never matches. The
+parameter name is the first string-literal argument, positional or named
+(`key:`); a dotted key is documented in wire notation (`input('filter.name')`
+→ `filter[name]`). A literal default (`integer('per_page', 25)`) becomes the
+schema `default` when its type matches the accessor's. Unlike the body and
+response scans, a read inside an `if` branch or a `->when(…)` closure still
+counts — a read claims nothing beyond "this parameter is consumed".
+
+On **GET/HEAD** routes, inline `validate()` keys (see [Request bodies → Inline
+validation in the controller](request-bodies.md#inline-validation-in-the-controller))
+describe query parameters rather than a request body: each key becomes a
+parameter with its rule-derived schema, `required` from the rules, and a
+trailing `//` comment as its description. Nested keys map to the query-string
+wire format — `filter.name` → `filter[name]`, a scalar list (`ids` + `ids.*`)
+→ a repeatable `ids[]` with an array schema. An array of *objects*
+(`rows.*.price`) or a bare `*` rule has no honest parameter-name
+representation; those keys are dropped with a generation-log note.
+
+Boundaries, by design (no dataflow analysis):
+
+- Only the five accessors above are matched. `get()`, `has()`, `filled()`,
+  `date()`, `enum()`, `float()` and friends are not — use `#[QueryParam]`
+  where the idiom isn't covered.
+- `query()` is matched on **every verb** — it can only read the query string.
+  `input()` / `string()` / `integer()` / `boolean()` read the merged
+  body-plus-query input, so they count as query parameters only on GET/HEAD
+  routes; on body-carrying verbs they overwhelmingly mean body fields (which
+  the inline-validation scan already documents).
+- A non-literal parameter name (`$request->query($key)`) is never guessed at;
+  the read is skipped and the generation log notes the action.
+- When the same name is read twice, a typed accessor (`integer('page')`) beats
+  an untyped one (`query('page')`). On a GET route, `validate()` rules beat an
+  accessor read of the same name — they know `required` and the constraints.
+- An explicit `#[QueryParam]` wins **entirely** for its name (no merging);
+  parameters from different sources with different names compose.
 
 ## Resource action conventions
 

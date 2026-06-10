@@ -192,6 +192,19 @@ paths:
           required: true
           schema:
             type: string
+        -
+          name: seat
+          in: query
+          required: false
+          schema:
+            type: string
+        -
+          name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
       responses:
         '200':
           description: "The flight's bookings"

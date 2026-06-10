@@ -26,11 +26,22 @@ final class BookingController
         'type' => 'array',
         'items' => ['type' => 'object'],
     ])]
-    public function index(string $flight): JsonResponse
+    public function index(Request $request, string $flight): JsonResponse
     {
         $model = Flight::query()->findOrFail($flight);
 
-        return new JsonResponse($model->bookings()->orderBy('seat')->get()->all());
+        // Both reads are documented as query parameters straight from the accessor calls —
+        // no #[QueryParam] needed: `seat` as a string, `limit` as an integer with default 50.
+        $seat = $request->query('seat');
+        $limit = $request->integer('limit', 50);
+
+        $bookings = $model->bookings()
+            ->when($seat, fn($query, string $value) => $query->where('seat', $value))
+            ->orderBy('seat')
+            ->limit($limit)
+            ->get();
+
+        return new JsonResponse($bookings->all());
     }
 
     /**

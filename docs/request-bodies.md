@@ -164,9 +164,9 @@ on an instance created without running the constructor.
 Boundaries, by design (no dataflow analysis):
 
 - Only **write methods** (POST/PUT/PATCH) produce a request body this way. On
-  GET routes the scan stays off — today the keys are simply not documented;
-  routing them into query parameters is planned
-  ([#11](https://github.com/Radiergummi/laravel-openapi/issues/11)).
+  GET/HEAD routes the recovered keys become **query parameters** instead — see
+  [Auto-derivation → Query parameters from the method
+  body](auto-derivation.md#query-parameters-from-the-method-body).
 - Rules built dynamically — a local variable, `array_merge(...)`, a call with
   arguments — are never guessed at. The operation keeps its empty body and the
   generation log notes the action; document it with `#[RequestBody]` /

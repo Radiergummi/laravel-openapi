@@ -27,3 +27,7 @@ Notice in `openapi.yaml`:
 - `#[QueryParam('page', ...)]` and `#[QueryParam('per_page', ...)]` on `index`
   render as documented query parameters on `GET /flights` with their types,
   defaults, and bounds preserved.
+- `GET /flights/{flight}/bookings` (`BookingController::index`) carries no
+  `#[QueryParam]` at all: `seat` (string) and `limit` (integer, default `50`)
+  are inferred straight from the `$request->query('seat')` and
+  `$request->integer('limit', 50)` reads in the method body.
