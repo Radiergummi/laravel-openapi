@@ -40,6 +40,18 @@ it('documents the body under the literal status argument', function (): void {
         ->and($responses['201']['content']['application/json']['schema']['properties'])->toHaveKey('id');
 });
 
+it('keeps a partial literal property as an unconstrained schema end to end', function (): void {
+    Route::get('/oa-fixture/inline-json', [InlineJsonFixtureController::class, 'partialLiteral']);
+
+    $spec = generateSpec();
+    $properties = $spec['paths']['/oa-fixture/inline-json']['get']['responses']['200']
+        ['content']['application/json']['schema']['properties'];
+
+    expect($properties)->toHaveKeys(['logs', 'success'])
+        ->and($properties['logs'])->toBe([])
+        ->and($properties['success']['type'])->toBe('boolean');
+});
+
 it('resolves named data and status arguments', function (): void {
     Route::post('/oa-fixture/inline-json', [InlineJsonFixtureController::class, 'namedArguments']);
 
