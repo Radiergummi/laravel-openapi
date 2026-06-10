@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DocblockInvoice;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\InvoiceController;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpInheritance\TraitChainController;
 
 function makeScanner(?string $path = null): AuthoredAnnotationScanner
 {
@@ -67,4 +68,19 @@ it('degrades to empty indexes when the scan path does not exist', function (): v
 
     expect($scanner->schemaForName('Server'))->toBeNull()
         ->and($scanner->operationForMethod(InvoiceController::class, 'show'))->toBeNull();
+});
+
+it('returns null without reflecting when the route controller class does not exist', function (): void {
+    // The ancestry walk guards on class_exists() before reflecting.
+    expect(makeScanner()->operationForMethod('Radiergummi\\OpenApi\\Tests\\Does\\Not\\Exist', 'index'))->toBeNull();
+});
+
+it('matches an operation authored on a trait reached through a trait-of-trait chain', function (): void {
+    // TraitChainController uses InnerReportTrait both via OuterReportTrait and directly, so the
+    // scanner's trait collection recurses into the inner trait and dedups the second visit.
+    $operation = makeScanner(dirname(__DIR__, 3) . '/Fixtures/SwaggerPhpInheritance')
+        ->operationForMethod(TraitChainController::class, 'reportIndex');
+
+    expect($operation)->toBeInstanceOf(Operation::class)
+        ->and($operation->summary)->toBe('Authored in an inner trait');
 });
