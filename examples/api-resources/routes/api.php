@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use Examples\ApiResources\Http\BookingController;
 use Examples\ApiResources\Http\FlightController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/flights', [FlightController::class, 'index']);
 Route::get('/flights/{flight}', [FlightController::class, 'show']);
+Route::get('/bookings/{booking}', [BookingController::class, 'show']);

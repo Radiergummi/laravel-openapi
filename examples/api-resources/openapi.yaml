@@ -53,6 +53,32 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       security: []
+  '/api/bookings/{booking}':
+    get:
+      tags:
+        - Bookings
+      summary: 'Show a single booking.'
+      description: "The response schema is inferred entirely from `BookingResource::toArray()` —\nthe resource declares no `#[ResourceField]` attributes."
+      operationId: get_api_bookings_booking_
+      parameters:
+        -
+          name: booking
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { $ref: '#/components/schemas/BookingResource' }
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
 components:
   schemas:
     FlightResource:
@@ -102,6 +128,25 @@ components:
         aircraft_type:
           description: 'Aircraft model / type designator.'
           type: string
+      type: object
+    BookingResource:
+      required:
+        - id
+        - passenger_name
+        - seat
+        - created_at
+      properties:
+        id:
+          type: string
+        passenger_name:
+          type: string
+        seat:
+          type: string
+        flight:
+          $ref: '#/components/schemas/FlightResource'
+        created_at:
+          type: string
+          format: date-time
       type: object
   responses:
     NotFound:

@@ -43,8 +43,70 @@ Worked endpoint: [`examples/spatie-data/`](../examples/spatie-data/).
 ## ApiResources
 
 Controllers returning a typed `JsonResource` subclass are documented
-automatically. Declare the resource's fields with class-level
-`#[ResourceField]` attributes:
+automatically.
+
+### Inferred fields from `toArray()`
+
+When a resource's `toArray()` is a **single `return [...]` array literal** —
+the dominant shape in real apps — its keys become response properties without
+any annotation. Each value resolves best-effort:
+
+```php
+/** @mixin Booking */
+class BookingResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id'             => $this->id,             // model @property → string
+            'passenger_name' => $this->passenger_name, // model @property → string
+            'created_at'     => $this->created_at,     // model @property → date-time
+            'flight'         => new FlightResource($this->whenLoaded('flight')),
+            //                  ↳ $ref to FlightResource, optional (whenLoaded)
+        ];
+    }
+}
+```
+
+- `$this->field` / `$this->resource->field` resolve against the **wrapped
+  model's** metadata (`$casts`, `@property` / `@property-read` tags, typed
+  `$appends` accessors). The model is discovered from the resource's class
+  docblock: an `@mixin \App\Models\Booking` tag first, then a generic
+  `@extends BaseResource<Booking>`.
+- Literal scalars and arrays type themselves; nested literal arrays become
+  nested object/array schemas.
+- `new OtherResource(...)`, `OtherResource::make(...)`, and
+  `OtherResource::collection(...)` values become a `$ref` to the nested
+  resource's schema (an array of `$ref`s for `::collection`), cycle-guarded
+  for self-referencing resources.
+- `$this->when(...)` and `$this->whenLoaded(...)` mark the key **optional**
+  (kept in `properties`, omitted from `required`) and resolve their inner
+  value; a bare `whenLoaded('relation')` resolves the relation against the
+  model. `$this->whenCounted(...)` documents an optional `integer`; any other
+  `when*` wrapper keeps the key as an unconstrained optional property.
+- `$this->merge([...])` / `$this->mergeWhen(..., [...])` inline their literal
+  payload's keys at the top level (optional for `mergeWhen`); a non-literal
+  payload is skipped with a generation-log note.
+- Anything else (method calls, ternaries, fields the model does not know)
+  keeps its key with an **unconstrained schema** — a response property is
+  never silently dropped — and one summarising generation-log note per
+  resource lists the affected keys.
+
+A `toArray()` that is *not* a single straight-line array literal (early
+returns, `array_merge(...)`, a returned variable) degrades gracefully: with no
+declared fields the response falls back to the **wrapped model's schema** when
+the docblock names one, plus a generation-log note; otherwise the
+attribute-driven behaviour below applies. A resource that does not override
+`toArray()` at all (the passthrough case) documents as the wrapped model's
+schema directly — no empty `*Resource` component is created.
+
+### Declared fields with `#[ResourceField]`
+
+`#[ResourceField]` remains the escape hatch for anything the literal cannot
+express (a runtime-computed value, a human description) — and it **wins per
+field**: a declared field replaces the inferred one of the same name, while
+inferred fields it does not cover compose alongside. Declare fields with
+class-level attributes:
 
 ```php
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
@@ -90,8 +152,9 @@ Single responses wrap fields in `{ data: {…} }`; collection responses in
 `{ data: [{…}], links: {…}, meta: {…} }`.
 
 > [!NOTE]
-> Omitting `#[ResourceField]` triggers the `resource.fields-undeclared`
-> lint rule (level 1).
+> A resource whose schema would stay empty — no `#[ResourceField]`, no readable
+> `toArray()` literal, and no wrapped model to fall back to — triggers the
+> `resource.fields-undeclared` lint rule (level 1).
 
 Lint rules:
 

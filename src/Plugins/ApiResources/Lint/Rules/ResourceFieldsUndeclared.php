@@ -88,7 +88,8 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
                 $operation->pathUri,
                 $resourceClass,
             ),
-            fixHint: 'Declare each output key with a class-level #[ResourceField] on the resource.',
+            fixHint: 'Declare each output key with a class-level #[ResourceField] on the resource, '
+                . 'or add an @mixin model annotation the generator can resolve fields against.',
         );
     }
 
@@ -107,6 +108,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
     #[Override]
     public function description(): string
     {
-        return 'An API Resource used as a response declares no #[ResourceField] attributes.';
+        return 'An API Resource used as a response declares no #[ResourceField] attributes '
+            . 'and its shape cannot be inferred from toArray() or a wrapped model.';
     }
 }
