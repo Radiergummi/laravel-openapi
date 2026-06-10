@@ -23,6 +23,14 @@ enum MediaType: string
 
     case EventStream = 'text/event-stream';
 
+    case TextPlain = 'text/plain';
+
+    case TextHtml = 'text/html';
+
+    case Yaml = 'application/yaml';
+
+    case OctetStream = 'application/octet-stream';
+
     public function schema(?OA\Schema $withSchema = null): OA\MediaType
     {
         $properties = ['mediaType' => $this->value];
