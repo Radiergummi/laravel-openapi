@@ -139,16 +139,20 @@ query is required.
 
 ### Property sources and precedence
 
-The property set is the union of `$casts` keys, `$fillable`, `$appends`, and
-`@property`/`@property-read` names in the class docblock, filtered through
-`$hidden` (excluded) and `$visible` (when non-empty, acts as an allow-list).
+The property set is the union of `$casts` keys, `$fillable`, `$appends`,
+`@property`/`@property-read` names in the class docblock, and — when the model
+uses timestamps — the `created_at`/`updated_at` columns (respecting `CREATED_AT`
+/ `UPDATED_AT` renames; a `null` constant disables that column), filtered
+through `$hidden` (excluded) and `$visible` (when non-empty, acts as an
+allow-list).
 
 For each property, the type is resolved in this order:
 
-1. **`$casts`** — the cast value drives the schema type. `datetime` / `date` → `string` (format `date-time` / `date`); `decimal:N` → `string`; `array` / `json` / `object` / `collection` → object; a backed-enum class-string → a `$ref` to the [shared enum component](#shared-enum-components).
+1. **`$casts`** — the cast value drives the schema type. `datetime` / `date` → `string` (format `date-time` / `date`); `decimal:N` → `string`; a backed-enum class-string → a `$ref` to the [shared enum component](#shared-enum-components). The JSON casts `array` / `json` / `collection` document as a list (`type: array`, with typed `items` when the element is a scalar) when the column's `@property` tag is list-shaped — `list<T>`, `array<int, T>`, or `T[]`, one level deep — and as an object otherwise (map-shaped generics, no tag); the `object` cast is always an object.
 2. **`@property` / `@property-read` docblock** — scalar types (`int`, `bool`, `float`, `string`) are mapped directly; `?T` marks the property as nullable. A class type that is itself a `Model` subclass becomes a `$ref` to that model's component schema (built recursively; cycles are guarded). An **array-shape** type — `array{lat: float, lng: float}`, a nested `array{meta: array{…}}`, an optional key (`array{unit?: string}`, omitted from `required`), the list forms `list<array{…}>` / `array{…}[]`, or a string-keyed map `array<string, T>` (→ `additionalProperties`) — is resolved into the corresponding object/array schema rather than dropped to a bare `array`.
 3. **`$appends` accessor return type** — a legacy-style accessor (`getReadingTimeAttribute(): int`) contributes its return type for an appended attribute.
-4. **Unknown** — if none of the above supply a type, an unconstrained schema with no `type` is emitted.
+4. **Timestamp default** — a framework-managed timestamp column with no explicit cast or tag is typed `string` / format `date-time`, nullable (matching runtime: unsaved models and `NULL` columns carry no value).
+5. **Unknown** — if none of the above supply a type, an unconstrained schema with no `type` is emitted.
 
 ### `required`
 
@@ -208,6 +212,7 @@ Article:
     bio:          { type: [string, 'null'] }   # OAS 3.1 nullable idiom (the `nullable` keyword is gone)
     published:    { type: boolean }            # from $casts
     created_at:   { type: string, format: date-time }
+    updated_at:   { type: [string, 'null'], format: date-time }  # timestamp default — no tag or cast needed
     category:     { $ref: '#/components/schemas/Category' }  # Model relation, built recursively
     reading_time: { type: integer }            # from typed legacy accessor
 ```

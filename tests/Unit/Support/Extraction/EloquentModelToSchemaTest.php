@@ -188,6 +188,89 @@ it('wraps a nullable relation $ref in oneOf (OAS 3.1) rather than a dropped sibl
         ]);
 });
 
+it('types created_at/updated_at as nullable date-time when the model uses timestamps', function (): void {
+    $schema = buildModelSchema(Article::class);
+
+    expect(modelProperty($schema, 'created_at')->type)->toBe(['string', 'null'])
+        ->and(modelProperty($schema, 'created_at')->format)->toBe('date-time')
+        ->and(modelProperty($schema, 'updated_at')->type)->toBe(['string', 'null'])
+        ->and(modelProperty($schema, 'updated_at')->format)->toBe('date-time');
+});
+
+it('never marks default-typed timestamp columns required', function (): void {
+    $schema = readModelSchema(Article::class);
+
+    expect($schema['required'] ?? [])->not->toContain('created_at')
+        ->and($schema['required'] ?? [])->not->toContain('updated_at');
+});
+
+it('omits timestamp columns when $timestamps is disabled', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle::class);
+
+    expect($schema['properties'] ?? [])->not->toHaveKey('created_at')
+        ->and($schema['properties'] ?? [])->not->toHaveKey('updated_at');
+});
+
+it('respects renamed and disabled timestamp columns via the framework constants', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle::class);
+
+    expect($schema['properties'])->toHaveKey('creation_date')
+        ->and($schema['properties']['creation_date']['format'])->toBe('date-time')
+        ->and($schema['properties'])->not->toHaveKey('created_at')
+        ->and($schema['properties'] ?? [])->not->toHaveKey('updated_at');
+});
+
+it('lets an explicit @property tag or cast win over the timestamp default', function (): void {
+    $schema = buildModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\OverriddenTimestampsArticle::class);
+
+    // `@property Carbon $created_at` is non-nullable: plain string, required.
+    expect(modelProperty($schema, 'created_at')->type)->toBe('string')
+        ->and(modelProperty($schema, 'created_at')->format)->toBe('date-time')
+        // The explicit `date` cast beats the date-time default.
+        ->and(modelProperty($schema, 'updated_at')->type)->toBe('string')
+        ->and(modelProperty($schema, 'updated_at')->format)->toBe('date');
+
+    $required = json_decode(json_encode($schema), associative: true)['required'] ?? [];
+
+    expect($required)->toContain('created_at');
+});
+
+it('types array/json/collection casts as lists when the @property generic is list-shaped', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $properties = $schema['properties'];
+
+    expect($properties['aliases'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['flags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['ranks'])->toEqual(['type' => 'array', 'items' => ['type' => 'integer']]);
+});
+
+it('keeps map-shaped and untagged array casts as objects', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $properties = $schema['properties'];
+
+    expect($properties['options'])->toEqual(['type' => 'object'])
+        ->and($properties['meta'])->toEqual(['type' => 'object']);
+});
+
+it('keeps the object cast an object even when the tag is list-shaped', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+
+    expect($schema['properties']['settings'])->toEqual(['type' => 'object']);
+});
+
+it('finds the list shape through a nullable @property tag', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+
+    expect($schema['properties']['maybe_tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']]);
+});
+
+it('emits a bare array when the list element is not a scalar keyword', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+
+    expect($schema['properties']['milestones'])->toEqual(['type' => 'array']);
+});
+
 it('degrades to an unknown-shape schema for a non-instantiable model instead of throwing', function (): void {
     // Regression for #100: `new $modelClass()` on an abstract model throws an Error, which the
     // resolver fault boundary does not catch. The reader must guard instantiation and fall back.

@@ -63,6 +63,7 @@ final class EloquentModelToSchema
      *     fillable: list<string>,
      *     hidden: list<string>,
      *     visible: list<string>,
+     *     timestamps: list<string>,
      * }>
      */
     private array $metadataCache = [];
@@ -114,6 +115,7 @@ final class EloquentModelToSchema
         }
 
         $castString = $metadata['casts'][$propertyName] ?? null;
+        $tag = $metadata['propertyTags'][$propertyName] ?? null;
 
         if ($castString !== null) {
             if (enum_exists($castString) && is_a($castString, BackedEnum::class, allow_string: true)) {
@@ -123,11 +125,9 @@ final class EloquentModelToSchema
                 );
             }
 
-            return $this->castToProperty($propertyName, $castString)
+            return $this->castToProperty($propertyName, $castString, $tag?->type)
                 ?? new OA\Property(['property' => $propertyName]);
         }
-
-        $tag = $metadata['propertyTags'][$propertyName] ?? null;
 
         if ($tag !== null) {
             $property = $this->propertyFromTag($propertyName, $tag->type, $metadata['reflection']);
@@ -143,6 +143,12 @@ final class EloquentModelToSchema
             if ($property !== null) {
                 return $property;
             }
+        }
+
+        // Framework-managed timestamp columns carry no explicit metadata; type them below any
+        // explicit cast or tag, but above the untyped fallback.
+        if (in_array($propertyName, $metadata['timestamps'], strict: true)) {
+            return $this->timestampProperty($propertyName);
         }
 
         // The name is known to the model (tagged, appended, or fillable) but its type is not
@@ -177,6 +183,7 @@ final class EloquentModelToSchema
      *     fillable: list<string>,
      *     hidden: list<string>,
      *     visible: list<string>,
+     *     timestamps: list<string>,
      * }
      *
      * @throws ReflectionException
@@ -224,6 +231,16 @@ final class EloquentModelToSchema
             }
         }
 
+        $timestamps = [];
+
+        if ($model->usesTimestamps()) {
+            foreach ([$model->getCreatedAtColumn(), $model->getUpdatedAtColumn()] as $column) {
+                if ($column !== null) {
+                    $timestamps[] = $column;
+                }
+            }
+        }
+
         return $this->metadataCache[$modelClass] = [
             'reflection' => $reflection,
             'casts' => $model->getCasts(),
@@ -232,6 +249,7 @@ final class EloquentModelToSchema
             'fillable' => array_values($model->getFillable()),
             'hidden' => array_values($model->getHidden()),
             'visible' => array_values($model->getVisible()),
+            'timestamps' => $timestamps,
         ];
     }
 
@@ -255,6 +273,7 @@ final class EloquentModelToSchema
         $fillable = $metadata['fillable'];
         $appends = $metadata['appends'];
         $propertyTags = $metadata['propertyTags'];
+        $timestamps = $metadata['timestamps'];
 
         // Union of all known property names.
         $allNames = array_unique(
@@ -263,6 +282,7 @@ final class EloquentModelToSchema
                 $fillable,
                 $appends,
                 array_keys($propertyTags),
+                $timestamps,
             ),
         );
 
@@ -281,6 +301,7 @@ final class EloquentModelToSchema
 
         foreach ($names as $name) {
             $castString = $casts[$name] ?? null;
+            $tag = $propertyTags[$name] ?? null;
 
             if ($castString !== null) {
                 // Enum-class cast takes priority: reference the shared reusable enum component.
@@ -297,13 +318,11 @@ final class EloquentModelToSchema
                     continue;
                 }
 
-                $properties[] = $this->castToProperty($name, $castString)
+                $properties[] = $this->castToProperty($name, $castString, $tag?->type)
                     ?? new OA\Property(['property' => $name]);
 
                 continue;
             }
-
-            $tag = $propertyTags[$name] ?? null;
 
             if ($tag !== null) {
                 $property = $this->propertyFromTag($name, $tag->type, $reflection);
@@ -324,6 +343,14 @@ final class EloquentModelToSchema
 
                     continue;
                 }
+            }
+
+            // Framework-managed timestamp columns carry no explicit metadata; type them below
+            // any explicit cast or tag, but above the untyped fallback.
+            if (in_array($name, $timestamps, strict: true)) {
+                $properties[] = $this->timestampProperty($name);
+
+                continue;
             }
 
             $properties[] = new OA\Property(['property' => $name]);
@@ -484,10 +511,12 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Maps an Eloquent cast string to an OA\Property with the given name, or returns null when the
-     * cast type is not recognized.
+     * Maps an Eloquent cast string to an OA\Property with the given name, or returns null when
+     * the cast type is not recognised. For the JSON casts whose serialized shape is ambiguous
+     * (`array` / `json` / `collection`), the model's `@property` tag type — when present —
+     * disambiguates a list from a map ({@see jsonCastDefinition()}).
      */
-    private function castToProperty(string $name, string $cast): ?OA\Property
+    private function castToProperty(string $name, string $cast, ?TypeNode $declaredType = null): ?OA\Property
     {
         // Normalise: take the part before `:` (e.g. `decimal:2` → `decimal`) and lowercase.
         $normalised = strtolower(
@@ -509,8 +538,8 @@ final class EloquentModelToSchema
             'custom_datetime' => ['type' => 'string', 'format' => 'date-time'],
             'array',
             'json',
-            'object',
-            'collection' => ['type' => 'object'],
+            'collection' => $this->jsonCastDefinition($declaredType),
+            'object' => ['type' => 'object'],
             default => null,
         };
 
@@ -519,5 +548,45 @@ final class EloquentModelToSchema
         }
 
         return new OA\Property(['property' => $name, ...$definition]);
+    }
+
+    /**
+     * The schema definition for an `array` / `json` / `collection` cast: a list when the
+     * `@property` tag for the column is list-shaped (`list<T>`, `array<int, T>`, `T[]` — one
+     * level, no deep generic descent; `items` only when `T` is a scalar keyword), otherwise
+     * the conservative `object` default.
+     *
+     * @return array<string, mixed>
+     */
+    private function jsonCastDefinition(?TypeNode $declaredType): array
+    {
+        $elementNode = $declaredType === null
+            ? null
+            : $this->typeNodeResolver->listValueType($declaredType);
+
+        if ($elementNode === null) {
+            return ['type' => 'object'];
+        }
+
+        $definition = ['type' => 'array'];
+
+        if ($elementNode instanceof IdentifierTypeNode) {
+            $itemDefinition = $this->scalarKeywordToDefinition($elementNode->name);
+
+            if ($itemDefinition !== null) {
+                $definition['items'] = new OA\Items($itemDefinition);
+            }
+        }
+
+        return $definition;
+    }
+
+    /**
+     * The default property for a framework-managed timestamp column: nullable date-time, the
+     * runtime reality (unsaved models and NULL columns carry no value).
+     */
+    private function timestampProperty(string $name): OA\Property
+    {
+        return new OA\Property(['property' => $name, 'type' => ['string', 'null'], 'format' => 'date-time']);
     }
 }

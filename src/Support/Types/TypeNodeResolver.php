@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Types;
 
 use Illuminate\Container\Attributes\Scoped;
+use PHPStan\PhpDocParser\Ast\Type\ArrayTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\NullableTypeNode;
@@ -22,6 +23,8 @@ use Throwable;
 
 use function array_key_exists;
 use function array_key_last;
+use function count;
+use function in_array;
 use function ltrim;
 use function strtolower;
 
@@ -140,6 +143,41 @@ final class TypeNodeResolver
         }
 
         return $node;
+    }
+
+    /**
+     * The element type node of a type that denotes a JSON list — `list<T>`, `array<int, T>`,
+     * or `T[]` — descending one level only, after unwrapping a leading nullable. Returns null
+     * for map-shaped generics (`array<string, T>`), single-argument `array<T>` (key type
+     * unknown), and every other shape.
+     */
+    public function listValueType(TypeNode $node): ?TypeNode
+    {
+        $inner = $this->unwrapNullable($node);
+
+        if ($inner instanceof ArrayTypeNode) {
+            return $inner->type;
+        }
+
+        if (! $inner instanceof GenericTypeNode) {
+            return null;
+        }
+
+        $name = strtolower($inner->type->name);
+
+        if ($name === 'list' && count($inner->genericTypes) === 1) {
+            return $inner->genericTypes[0];
+        }
+
+        if ($name === 'array' && count($inner->genericTypes) === 2) {
+            $key = $inner->genericTypes[0];
+
+            if ($key instanceof IdentifierTypeNode && in_array(strtolower($key->name), ['int', 'integer'], strict: true)) {
+                return $inner->genericTypes[1];
+            }
+        }
+
+        return null;
     }
 
     /**

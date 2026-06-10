@@ -82,6 +82,34 @@ it('returns null for a property the model does not know', function (): void {
     expect(modelPropertyReader()->propertyFor(Article::class, 'nonexistent'))->toBeNull();
 });
 
+it('types a timestamp column the model declares no explicit metadata for', function (): void {
+    $property = modelPropertyReader()->propertyFor(Article::class, 'created_at');
+
+    expect($property)->not->toBeNull()
+        ->and($property->type)->toBe(['string', 'null'])
+        ->and($property->format)->toBe('date-time');
+});
+
+it('returns null for a timestamp column when $timestamps is disabled', function (): void {
+    $property = modelPropertyReader()->propertyFor(
+        \Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle::class,
+        'created_at',
+    );
+
+    expect($property)->toBeNull();
+});
+
+it('types a list-shaped array-cast property as an array of its element type', function (): void {
+    $property = modelPropertyReader()->propertyFor(
+        \Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class,
+        'aliases',
+    );
+
+    expect($property)->not->toBeNull()
+        ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
+        ->toEqual(['property' => 'aliases', 'type' => 'array', 'items' => ['type' => 'string']]);
+});
+
 it('memoises the model metadata across lookups', function (): void {
     $reader = modelPropertyReader();
 

@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
  * @property      Carbon        $published_at
  * @property      ArticleStatus $status
  * @property      ?string       $subtitle
+ * @property      list<string>  $tags
  * @property      string        $title
  * @property-read Author        $author
  * @property-read ?Author       $editor
@@ -30,6 +31,7 @@ class Article extends Model
     protected $casts = [
         'published_at' => 'datetime',
         'status' => ArticleStatus::class,
+        'tags' => 'array',
     ];
 
     /**
