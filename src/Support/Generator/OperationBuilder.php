@@ -114,7 +114,11 @@ final readonly class OperationBuilder
                 $action->uriParameters,
             ),
         );
-        $queryParams = [];
+        // Dedup across resolvers by (name, in): two resolvers emitting the same parameter would
+        // otherwise yield a duplicate, which is invalid OpenAPI. Resolvers run in plugin order
+        // (Core first), and a later resolver wins — a plugin's richer parameter replaces an
+        // earlier one of the same name.
+        $queryParamsByKey = [];
 
         foreach ($this->queryParameterResolvers as $queryResolver) {
             $resolved = $this->faultBoundary->isolate(
@@ -124,9 +128,11 @@ final readonly class OperationBuilder
             ) ?? [];
 
             foreach ($resolved as $param) {
-                $queryParams[] = $param;
+                $queryParamsByKey[$param->name . "\0" . $param->in] = $param;
             }
         }
+
+        $queryParams = array_values($queryParamsByKey);
 
         $security = $this->resolveSecurity($action);
         $headerParams = $this->readHeaderAttributes($action);

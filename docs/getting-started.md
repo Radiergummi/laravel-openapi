@@ -4,8 +4,7 @@
 
 - PHP 8.4+
 - Laravel 12 or 13
-- If you use [Spatie Laravel Data](plugins.md): `spatie/laravel-data` **≥ 4.23.0**
-  (see [Compatibility notes](#compatibility-notes)).
+- If you use [Spatie Laravel Data](plugins.md#spatiedata): `spatie/laravel-data` `^4.0`.
 
 ## Install
 
@@ -15,21 +14,9 @@ composer require radiergummi/laravel-openapi
 
 ### Compatibility notes
 
-The package floors a few spec-tooling dependencies at their current majors
-because they are load-bearing, not incidental:
-
-- **`spatie/laravel-data ≥ 4.23.0`** — only relevant if your app uses Spatie
-  Data. Versions `< 4.23` transitively require `phpdocumentor/reflection ^6`,
-  which pins `phpdocumentor/reflection-docblock` to `^5`; this package needs
-  `^6` (its `@return` generics parsing relies on `phpdocumentor/type-resolver
-  2.x`). If `composer require` fails with a `phpdocumentor/reflection-docblock`
-  conflict, run `composer update spatie/laravel-data` — 4.23 dropped the
-  transitive pin and resolves the conflict. The `^4.x` API is otherwise
-  unchanged.
-- **`zircote/swagger-php ^6`** — the linter walks swagger-php's 6.x annotation
-  object model directly. Apps that themselves embed `zircote/swagger-php ^5`
-  (e.g. to self-generate a spec from `#[OA\*]` attributes) cannot currently
-  install alongside this package; the two majors are mutually exclusive.
+- **`zircote/swagger-php ^5.8 || ^6.1.2`** — both the 5.x and 6.x lines are
+  supported; a dedicated CI job runs the suite against swagger-php 5.8, so an
+  app that embeds swagger-php itself installs fine on either major.
 - **`symfony/type-info ^7.3 || ^8.0`** — works on Laravel 12 (Symfony 7) and
   Laravel 13 without dragging in a newer Symfony major than your app already
   uses.
@@ -60,6 +47,7 @@ from controller signatures and PHPDoc, and writes an OpenAPI 3.1 YAML file to
 |---|---|
 | `php artisan openapi:generate` | Regenerate the YAML. Pass a spec name to target one spec; `--output=path` overrides the destination (`-` for stdout); `--format=json` emits JSON; `--no-validate` skips the swagger-php validation pass (faster). |
 | `php artisan openapi:lint` | Report documentation gaps. |
+| `php artisan openapi:why <route>` | Explain why a route is included in (or excluded from) each defined spec. Accepts a route name or URI substring; `--for-env=` overrides the environment for `#[Hide]`/`#[Expose]` evaluation. The first stop when a route doesn't appear. |
 | `php artisan openapi:clear` | Drop the cached spec. |
 | `php artisan openapi:diff:config` | Show drift between your published `config/openapi.php` and the package default — flags added keys (`+`), removed keys (`-`), and changed default values (`~`). |
 | `GET /api/openapi.yaml` | Serve the OpenAPI 3.1 YAML. |
@@ -77,27 +65,32 @@ To include them, remove `SkipSelfRoutes::class` from `config('openapi.filters')`
 
 ## A worked example
 
-```php
-use Spatie\LaravelData\Data;
-use Spatie\LaravelData\Attributes\Validation\Size;
+Plain Laravel — an Eloquent model and a typed controller return, no DTOs or
+extra packages:
 
-final class FlightData extends Data
+```php
+/**
+ * @property string $id
+ * @property string $number
+ * @property string $origin
+ * @property string $destination
+ * @property Carbon $departs_at
+ */
+final class Flight extends Model
 {
-    public function __construct(
-        public string $number,
-        #[Size(3)] public string $origin,
-        #[Size(3)] public string $destination,
-        public DateTimeInterface $departs_at,
-    ) {}
+    protected $casts = ['departs_at' => 'datetime'];
 }
 
-#[Tag('Flights')]
 final class FlightController
 {
-    /** Show a single flight. */
-    public function show(string $flight): FlightData
+    /**
+     * Show a single flight.
+     *
+     * @throws ModelNotFoundException
+     */
+    public function show(string $flight): Flight
     {
-        return FlightData::from(Flight::findOrFail($flight));
+        return Flight::findOrFail($flight);
     }
 }
 ```
@@ -105,17 +98,23 @@ final class FlightController
 `openapi:generate` produces an operation for `GET /flights/{flight}` with:
 
 - Summary `"Show a single flight."`, from the PHPDoc.
-- A `FlightData` component schema with `number`, `origin` (3 chars),
-  `destination` (3 chars), and `departs_at` (`string`, `date-time`).
-- A 404 response if the method's `@throws` lists `ModelNotFoundException`.
+- A `Flight` component schema with `id`, `number`, `origin`, `destination`, and
+  `departs_at` (`string`, `date-time` — from the `datetime` cast), derived from
+  the model's `@property` tags and `$casts`.
+- A 404 response, from the method's `@throws ModelNotFoundException`.
+- A `Flights` tag, derived from the controller name.
 - A security requirement if the route uses `auth:api` middleware.
 - Error response bodies from the configured envelope preset (`config('openapi.error_envelope')`): `none` (default, no body), `laravel`, `rfc7807`, or `json-api`. See [Recipes › Choosing an error envelope](recipes.md#choosing-an-error-envelope).
 
+For a typed request body, swap the model for a `FormRequest` or a Spatie Data
+class — see [Request bodies](request-bodies.md).
+
 ## Examples
 
-Five runnable apps live under [`examples/`](../examples/) (vanilla,
-FormRequest, Spatie Data, QueryBuilder, combined), each with its generated
-`openapi.yaml` snapshot.
+Eight runnable apps live under [`examples/`](../examples/) (vanilla,
+FormRequest, Spatie Data, API Resources, Fractal, QueryBuilder, swagger-php,
+and a combined app), each with its generated `openapi.yaml` snapshot. See
+[`examples/README.md`](../examples/README.md) for the matrix.
 
 ```bash
 composer examples           # regenerate every snapshot

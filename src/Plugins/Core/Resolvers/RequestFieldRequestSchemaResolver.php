@@ -66,7 +66,7 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
             $schemaProperties['required'] = $required;
         }
 
-        $key = $this->componentKey($method);
+        $key = $this->registry->reserveKey($this->syntheticName($method));
         $this->registry->registerNamed($key, new OA\Schema($schemaProperties));
 
         return new ResolvedSchema(
@@ -75,9 +75,19 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
         );
     }
 
-    private function componentKey(ReflectionMethod $method): string
+    /**
+     * Builds a namespace-qualified, class-like name for the synthetic request-body component
+     * (`{ControllerNamespace}\{ControllerShortName}{Method}Request`) and routes it through
+     * {@see ComponentSchemaRegistry::reserveKey()}. The bare basename is preferred, so the
+     * common case stays byte-stable; only when two same-short-name controllers in different
+     * namespaces collide does the registry disambiguate with a namespace segment.
+     */
+    private function syntheticName(ReflectionMethod $method): string
     {
-        return $method->getDeclaringClass()->getShortName() . ucfirst($method->getName()) . 'Request';
+        $declaringClass = $method->getDeclaringClass();
+        $basename = $declaringClass->getShortName() . ucfirst($method->getName()) . 'Request';
+
+        return $declaringClass->getNamespaceName() . '\\' . $basename;
     }
 
     private function mediaType(ReflectionMethod $method): MediaType

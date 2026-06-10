@@ -2,26 +2,30 @@
 
 For plugin authors and contributors. Library users don't need this page.
 
-The codebase splits into four namespaces with distinct roles:
+The codebase splits into three primary namespaces with distinct roles:
 
 - **`Contracts\`** — the public extension surface (interfaces like `Plugin`,
   `RequestSchemaResolver`, `RefSchemaResolver`, `QueryParameterResolver`,
   `PrimaryResponseResolver`, `ErrorResponseResolver`, `SpecStage`,
   `RouteFilter`). Implement these to extend the library.
-- **`Core\`** — the bundled **Core Plugin**: concrete extraction and
-  processing strategies that ship by default (FormRequest extractor,
-  error-envelope strategies, paginator response resolver, standard-response
-  extractor, the default query-parameter resolver, the Faker example
-  synthesiser, route introspection). It registers itself via
-  `Core\Registration` before any third-party plugin.
-- **`Support\`** — internal infrastructure used by Core and every plugin
-  (the generator pipeline, registry, spec resolution, inclusion evaluator,
-  visibility resolver, extraction primitives). Treat as `@internal`; not a
-  stable extension point.
-- **`Plugins\`** — third-party convention packages bundled with the library
-  (Spatie Data, API Resources, Fractal, QueryBuilder); see [Plugins](plugins.md).
+- **`Support\`** — internal infrastructure used by every plugin (the generator
+  pipeline, the registry and its assembly in
+  `Support\Generator\BaselineRegistration`, spec resolution, the inclusion
+  evaluator, the visibility resolver, extraction primitives, and the shared
+  Faker example synthesiser). Treat as `@internal`; not a stable extension
+  point.
+- **`Plugins\`** — the bundled plugins. **Core** (`Plugins\Core\CorePlugin`) is
+  the **Core Plugin**: the concrete strategies that understand vanilla Laravel
+  (FormRequest request-body extraction, paginator and Eloquent-model response
+  resolvers, the default query-parameter resolver, the `@throws` / middleware /
+  validation / route-model-binding error contributors, resourceful-action
+  conventions, route introspection). It is registered first, ahead of the
+  convention plugins (SpatieData, ApiResources, QueryBuilder, Fractal) and the
+  swagger-php harvester (SwaggerPhp). See [Plugins](plugins.md).
 
-The `Plugin` interface is public; see [Plugin authoring](plugin-authoring.md).
+The package stays functional with Core disabled — just without the smarts to
+read those vanilla patterns. The `Plugin` interface is public; see
+[Plugin authoring](plugin-authoring.md).
 
 ## Generation pipeline
 

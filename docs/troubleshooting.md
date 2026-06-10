@@ -203,25 +203,3 @@ Three options:
    project-wide.
 3. Use `#[OpenApi\IgnoreLint]` per-symbol with a `reason`. Stale suppressions
    are flagged by `meta.suppression-stale`.
-
-## `composer require` fails with a `phpdocumentor/reflection-docblock` conflict
-
-Symptom:
-
-```
-radiergummi/laravel-openapi … requires phpdocumentor/reflection-docblock ^6.0.3
--> found phpdocumentor/reflection-docblock[6.0.3] but these were not loaded,
-   likely because it conflicts with another require.
-```
-
-Cause: an installed package pins `reflection-docblock` to `^5`. The most common
-culprit is **`spatie/laravel-data < 4.23`**, which transitively requires
-`phpdocumentor/reflection ^6` (that, in turn, pins `reflection-docblock ^5`).
-This package needs `^6` — its `@return` generics parsing relies on
-`phpdocumentor/type-resolver 2.x`, which ships with `reflection-docblock 6.x`.
-
-Fix: `composer update spatie/laravel-data` (4.23.0 dropped the transitive pin and
-allows `reflection-docblock ^5.3 || ^6.0`). If something else holds the `^5` pin,
-find it with `composer why phpdocumentor/reflection-docblock` and upgrade that
-package. The library's own `^6` floor is load-bearing and is not wideable — see
-[Compatibility notes](getting-started.md#compatibility-notes).

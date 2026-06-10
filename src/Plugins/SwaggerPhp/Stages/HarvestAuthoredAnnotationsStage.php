@@ -13,6 +13,9 @@ use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Generator\GenerationContext;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\SchemaNameCollision;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
@@ -53,6 +56,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         private AuthoredAnnotationScanner $scanner,
         private ComponentSchemaRegistry $schemaRegistry,
         private LoggerInterface $logger,
+        private FindingsCollector $findings,
     ) {}
 
     #[Override]
@@ -261,6 +265,13 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
      * name, then recurses into the schemas it references. The registry's name-keyed idempotency
      * provides O(1) dedup and doubles as the cycle guard; the post-plugin `ComponentsStage` flush
      * writes the accumulated schemas into the document.
+     *
+     * When the authored name is already held by a *different* schema — a convention-derived
+     * component, or another authored schema — the registry is first-wins, so the authored
+     * definition is dropped and references to that name resolve to the existing schema. That
+     * collision is reported (a warning plus a `component.schema-name-collision` finding) rather than
+     * shadowing the spec silently. An identical re-registration of the same schema object (the
+     * transitive dedup path) is not a collision.
      */
     private function registerSchema(OA\Schema $schema): void
     {
@@ -270,7 +281,13 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
 
         $name = $schema->schema;
 
-        if ($this->schemaRegistry->hasKey($name)) {
+        $existing = $this->schemaRegistry->schemaForKey($name);
+
+        if ($existing !== null) {
+            if ($existing !== $schema) {
+                $this->reportSchemaNameCollision($name, $schema);
+            }
+
             return;
         }
 
@@ -291,6 +308,37 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
 
             $this->registerSchema($nested);
         }
+    }
+
+    /**
+     * Warns and emits a `component.schema-name-collision` finding when an authored schema's name is
+     * already held by a different component. The finding carries the authored declaring class (so a
+     * class-scoped `#[IgnoreLint]` can match) and the colliding name.
+     */
+    private function reportSchemaNameCollision(string $name, OA\Schema $authored): void
+    {
+        $message = sprintf(
+            'SwaggerPhp harvester: authored schema "%s" collides with a component already registered '
+            . 'under that name; keeping the existing component and dropping the authored definition.',
+            $name,
+        );
+
+        $this->logger->warning($message);
+
+        $context = [SchemaNameCollision::CONTEXT_SCHEMA => $name];
+        $declaringClass = $this->scanner->declaringClassOf($authored);
+
+        if ($declaringClass !== null) {
+            $context[Finding::CONTEXT_SOURCE_CLASS] = $declaringClass;
+        }
+
+        $this->findings->emit(new Finding(
+            ruleId: SchemaNameCollision::ID,
+            level: SchemaNameCollision::LEVEL,
+            message: $message,
+            fixHint: SchemaNameCollision::FIX_HINT,
+            context: $context,
+        ));
     }
 
     /**
