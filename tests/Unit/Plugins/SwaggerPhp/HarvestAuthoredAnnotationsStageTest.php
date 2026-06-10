@@ -5,6 +5,8 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Generator\GenerationContext;
+use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -18,15 +20,19 @@ uses()->group('openapi');
 
 // region Helpers
 
-function harvestStage(ComponentSchemaRegistry $schemaRegistry, ?LoggerInterface $logger = null): HarvestAuthoredAnnotationsStage
-{
+function harvestStage(
+    ComponentSchemaRegistry $schemaRegistry,
+    ?LoggerInterface $logger = null,
+    ?FindingsCollector $findings = null,
+): HarvestAuthoredAnnotationsStage {
     $logger ??= recordingLogger();
+    $findings ??= new ArrayFindingsCollector();
     $scanner = new AuthoredAnnotationScanner(
         [dirname(__DIR__, 3) . '/Fixtures/SwaggerPhp'],
         $logger,
     );
 
-    return new HarvestAuthoredAnnotationsStage($scanner, $schemaRegistry, $logger);
+    return new HarvestAuthoredAnnotationsStage($scanner, $schemaRegistry, $logger, $findings);
 }
 
 function harvestSpec(): SpecDefinition
@@ -225,6 +231,44 @@ it('fills an existing non-200 success response instead of adding a second 200', 
 
     expect($statuses)->toBe(['201'])
         ->and(harvestPrimaryRef($operation, '201'))->toBe('#/components/schemas/Server');
+});
+
+// endregion
+
+// region Case 8: Authored schema name collides with an existing component
+
+it('keeps the existing component and reports a finding when an authored schema name collides', function (): void {
+    $operation = new OA\Get(['responses' => [new OA\Response(['response' => '200', 'description' => 'OK'])]]);
+    $doc = harvestDoc($operation);
+    $ctx = new GenerationContext(harvestSpec(), 'testing');
+    $ctx->bindAction($operation, ActionDescriptorFactory::forControllerMethod(InvoiceController::class, 'show'));
+
+    // A convention-derived component already occupies the "Invoice" key with a different shape.
+    $schemaRegistry = new ComponentSchemaRegistry();
+    $convention = new OA\Schema([
+        'type' => 'object',
+        'properties' => [new OA\Property(['property' => 'id', 'type' => 'integer'])],
+    ]);
+    $schemaRegistry->register('App\\Data\\Invoice', $convention);
+
+    $findings = new ArrayFindingsCollector();
+    $logger = recordingLogger();
+    harvestStage($schemaRegistry, $logger, $findings)->apply($doc, $ctx);
+
+    // First-wins: the convention schema is retained, the authored Invoice did not overwrite it.
+    expect($schemaRegistry->schemaForKey('Invoice'))->toBe($convention);
+
+    // The collision is surfaced as a finding carrying the colliding name…
+    $collision = array_values(array_filter(
+        $findings->all(),
+        static fn($f): bool => $f->ruleId === 'component.schema-name-collision',
+    ));
+    expect($collision)->toHaveCount(1)
+        ->and($collision[0]->context['schema'])->toBe('Invoice');
+
+    // …and as a warning naming the schema.
+    $messages = array_map(static fn(array $r): string => $r['message'], $logger->records);
+    expect(implode("\n", $messages))->toContain('Invoice');
 });
 
 // endregion

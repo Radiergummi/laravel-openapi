@@ -116,6 +116,16 @@ final class ComponentSchemaRegistry
     }
 
     /**
+     * The schema registered under `$key`, or null when the key is unoccupied. Lets a contributor
+     * tell an idempotent re-registration of its own schema apart from a genuine name collision
+     * with a different schema already holding the key.
+     */
+    public function schemaForKey(string $key): ?OA\Schema
+    {
+        return $this->schemas[$key] ?? null;
+    }
+
+    /**
      * Registers a named response component under `components.responses`.
      *
      * This is idempotent: Later calls with the same key are no-ops.

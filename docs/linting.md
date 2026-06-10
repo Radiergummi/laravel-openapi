@@ -395,6 +395,7 @@ is enabled.
 | `spec.route-orphaned` | 0 | A route's #[Spec] list resolves to no defined specs. |
 | `spec.unknown-reference` | 0 | #[Spec] references a spec not declared in config. |
 | `webhook.name-duplicate` | 0 | Two webhooks share the same name. |
+| `component.schema-name-collision` | 1 | A hand-authored @OA\Schema collides with a convention-derived component of the same name; the authored definition was dropped and that name resolves to the convention schema. (SwaggerPhp plugin.) |
 | `externaldocs.invalid-url` | 1 | externalDocs.url is not a valid URL. |
 | `field.attribute-wrong-scope` | 1 | #[RequestField] on a URI parameter, or #[PathParam] on a Data-class property. |
 | `field.conflicting-type` | 1 | Field declares conflicting type and format values. |
