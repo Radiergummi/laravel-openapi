@@ -27,23 +27,18 @@ use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
+use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionMethod;
 use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
 use function array_filter;
-use function array_is_list;
-use function array_map;
 use function array_values;
 use function function_exists;
 use function in_array;
 use function is_a;
-use function is_array;
-use function is_bool;
-use function is_float;
 use function is_int;
-use function is_string;
 use function sprintf;
 use function strtolower;
 
@@ -414,7 +409,8 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      * The plain schema-definition array for the `data` argument, or null when nothing is
      * documentable: an empty literal (silent — no shape information) or a non-literal expression
      * (noted — `$data` variables, model expressions, and `compact()` are Tier-2 dataflow and
-     * belong to the `#[Response]` attribute).
+     * belong to the `#[Response]` attribute). The literal-walking rules live in the shared
+     * {@see SchemaDefinitionFromLiteral}.
      *
      * @return null|array<string, mixed>
      */
@@ -426,7 +422,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             }
 
             try {
-                return $this->definitionFromArrayNode($data);
+                return SchemaDefinitionFromLiteral::fromArrayNode($data);
             } catch (NonLiteralValueException) {
                 $this->note($method, 'has an array literal whose structure (a key or spread entry) is not statically readable');
 
@@ -444,161 +440,9 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         // A literal scalar (`json('ok')`, `json(true)`) is a valid JSON document; `null` and an
         // empty array carry no shape.
-        $definition = $this->definitionFromLiteralValue($literal);
+        $definition = SchemaDefinitionFromLiteral::fromLiteralValue($literal);
 
         return $definition === [] ? null : $definition;
-    }
-
-    /**
-     * Walks a literal array AST node into a schema definition. A dynamic value under a literal
-     * key — including a nested array that is itself unreadable — keeps the property with an
-     * unconstrained schema; a dynamic key, a spread entry, or a keyed/unkeyed mix throws and
-     * degrades the whole call.
-     *
-     * @return array<string, mixed>
-     *
-     * @throws NonLiteralValueException
-     */
-    private function definitionFromArrayNode(Array_ $expression): array
-    {
-        /** @var array<array<string, mixed>> $properties Definitions under PHP's native key coercion. */
-        $properties = [];
-
-        /** @var list<Expr> $elements */
-        $elements = [];
-
-        foreach ($expression->items as $item) {
-            if ($item->unpack) {
-                throw NonLiteralValueException::for($expression);
-            }
-
-            if ($item->key === null) {
-                $elements[] = $item->value;
-
-                continue;
-            }
-
-            $key = AstLiteralEvaluator::evaluate($item->key);
-
-            if (!is_int($key) && !is_string($key)) {
-                throw NonLiteralValueException::for($item->key);
-            }
-
-            $properties[$key] = $this->valueDefinition($item->value);
-        }
-
-        // A keyed/unkeyed mix does not map onto one JSON shape.
-        if ($properties !== [] && $elements !== []) {
-            throw NonLiteralValueException::for($expression);
-        }
-
-        if ($elements !== []) {
-            return $this->listDefinition(array_map($this->valueDefinition(...), $elements));
-        }
-
-        // Explicit sequential integer keys are a JSON array, exactly as `json_encode` treats
-        // them — the same `array_is_list` semantics as the evaluated-literal path.
-        if ($properties !== [] && array_is_list($properties)) {
-            return $this->listDefinition($properties);
-        }
-
-        $objectProperties = [];
-
-        foreach ($properties as $key => $definition) {
-            $objectProperties[(string) $key] = $definition;
-        }
-
-        return ['type' => 'object', 'properties' => $objectProperties];
-    }
-
-    /**
-     * The definition for one property value: nested literal arrays recurse, literal scalars map
-     * to their JSON type, and anything dynamic stays as an unconstrained (empty) schema rather
-     * than dropping the property.
-     *
-     * @return array<string, mixed>
-     */
-    private function valueDefinition(Expr $value): array
-    {
-        if ($value instanceof Array_) {
-            if ($value->items === []) {
-                return ['type' => 'array'];
-            }
-
-            try {
-                return $this->definitionFromArrayNode($value);
-            } catch (NonLiteralValueException) {
-                return [];
-            }
-        }
-
-        try {
-            $literal = AstLiteralEvaluator::evaluate($value);
-        } catch (NonLiteralValueException) {
-            return [];
-        }
-
-        return $this->definitionFromLiteralValue($literal);
-    }
-
-    /**
-     * Items are derived from the first element; when a later element disagrees on type the items
-     * stay unconstrained — a heterogeneous literal list has no single item schema.
-     *
-     * @param non-empty-list<array<string, mixed>> $definitions
-     *
-     * @return array<string, mixed>
-     */
-    private function listDefinition(array $definitions): array
-    {
-        $first = $definitions[0];
-
-        foreach ($definitions as $definition) {
-            if (($definition['type'] ?? null) !== ($first['type'] ?? null)) {
-                return ['type' => 'array'];
-            }
-        }
-
-        return $first === []
-            ? ['type' => 'array']
-            : ['type' => 'array', 'items' => $first];
-    }
-
-    /**
-     * Maps an already-evaluated literal (a scalar, or an array reached through a class constant)
-     * onto its schema definition. `null` and empty arrays yield an unconstrained definition.
-     *
-     * @return array<string, mixed>
-     */
-    private function definitionFromLiteralValue(mixed $literal): array
-    {
-        if (is_array($literal)) {
-            if ($literal === []) {
-                return [];
-            }
-
-            if (array_is_list($literal)) {
-                $first = $this->definitionFromLiteralValue($literal[0]);
-
-                return $first === [] ? ['type' => 'array'] : ['type' => 'array', 'items' => $first];
-            }
-
-            $properties = [];
-
-            foreach ($literal as $key => $value) {
-                $properties[(string) $key] = $this->definitionFromLiteralValue($value);
-            }
-
-            return ['type' => 'object', 'properties' => $properties];
-        }
-
-        return match (true) {
-            is_string($literal) => ['type' => 'string'],
-            is_bool($literal) => ['type' => 'boolean'],
-            is_int($literal) => ['type' => 'integer'],
-            is_float($literal) => ['type' => 'number'],
-            default => [],
-        };
     }
 
     // endregion
