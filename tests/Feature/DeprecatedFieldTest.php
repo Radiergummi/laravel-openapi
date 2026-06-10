@@ -47,7 +47,7 @@ function makeDeprecatedSchemaBuilder(?ComponentSchemaRegistry $registry = null):
     $registry ??= new ComponentSchemaRegistry();
 
     return new SchemaFromDataClass(
-        schemaFromType: new JsonSchemaFromType(new NullLogger()),
+        schemaFromType: new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry()),
         typeResolver: TypeResolver::create(),
         registry: $registry,
         payloadBuilder: new DataSyntheticPayloadBuilder(app(DataConfig::class)),

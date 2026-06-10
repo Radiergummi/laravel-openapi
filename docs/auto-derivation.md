@@ -92,10 +92,36 @@ still named in the description — `Bound by slug of Post.`). A `#[PathParam]`
 attribute is the escape hatch for anything reflection cannot reach.
 
 A segment type-hinted as a backed enum (implicit enum binding — `show(Status
-$status)`) carries the enum's cases as the parameter's allowed values, with the
-backing type following the enum: a string-backed enum → `type: string` with the
-case strings, an int-backed enum → `type: integer` with the case integers. No
-route constraint is needed; the cases are the segment's complete valid set.
+$status)`) references a shared enum component — `schema: {$ref:
+'#/components/schemas/Status'}` — whose definition carries the enum's cases as
+its allowed values, with the backing type following the enum: a string-backed
+enum → `type: string` with the case strings, an int-backed enum → `type:
+integer` with the case integers. No route constraint is needed; the cases are
+the segment's complete valid set. The component is shared — every reference to
+the same backed enum (cast, Data property, parameter, validation rule) points at
+one definition rather than re-inlining it. See [Shared enum
+components](#shared-enum-components).
+
+## Shared enum components
+
+A PHP `BackedEnum` is documented **once** as a reusable component under
+`#/components/schemas/{EnumName}` and referenced with a `$ref` everywhere it
+appears, rather than inlined per occurrence. The component carries `type`
+(`string` or `integer`, from the enum's backing type), the `enum` case list, and
+a Markdown description synthesised from per-case PHPDoc when present. The
+component name is the enum's class basename (subject to the usual
+disambiguation / `#[SchemaName]` rules).
+
+Every Tier-0 site that resolves a backed enum participates: an Eloquent `$casts`
+entry, a Spatie `Data` property, a typed path/query parameter, and a
+`Rule::enum(Status::class)` validation rule. A nullable enum is wrapped as
+`oneOf: [{$ref}, {type: 'null'}]` (OAS 3.1), since keywords alongside a `$ref`
+are ignored.
+
+The validation-rule form references the component only when it constrains the
+field to the enum's **full** case set. A `->only(...)` / `->except(...)` subset,
+or a unit (non-backed) enum, is not the canonical component, so it keeps an
+inline value list instead.
 
 ## Eloquent model response schemas
 
@@ -118,7 +144,7 @@ The property set is the union of `$casts` keys, `$fillable`, `$appends`, and
 
 For each property, the type is resolved in this order:
 
-1. **`$casts`** — the cast value drives the schema type. `datetime` / `date` → `string` (format `date-time` / `date`); `decimal:N` → `string`; `array` / `json` / `object` / `collection` → object; a backed-enum class-string → inline `enum` schema listing the enum's cases.
+1. **`$casts`** — the cast value drives the schema type. `datetime` / `date` → `string` (format `date-time` / `date`); `decimal:N` → `string`; `array` / `json` / `object` / `collection` → object; a backed-enum class-string → a `$ref` to the [shared enum component](#shared-enum-components).
 2. **`@property` / `@property-read` docblock** — scalar types (`int`, `bool`, `float`, `string`) are mapped directly; `?T` marks the property as nullable. A class type that is itself a `Model` subclass becomes a `$ref` to that model's component schema (built recursively; cycles are guarded).
 3. **`$appends` accessor return type** — a legacy-style accessor (`getReadingTimeAttribute(): int`) contributes its return type for an appended attribute.
 4. **Unknown** — if none of the above supply a type, an unconstrained schema with no `type` is emitted.

@@ -56,6 +56,13 @@ final class FieldDescriptor
     public ?array $enum = null;
 
     /**
+     * A `$ref` pointer (`#/components/schemas/…`) the field resolves to instead of an inline schema.
+     * Set when a `Rule::enum()` rule was promoted to a shared reusable enum component. When present,
+     * it takes precedence over inline type/enum keywords in {@see applyTo()}.
+     */
+    public ?string $ref = null;
+
+    /**
      * Minimum string length / numeric minimum / array minItems (string context).
      */
     public ?int $minLength = null;
@@ -143,6 +150,25 @@ final class FieldDescriptor
      */
     public function applyTo(OA\Schema $target, bool $overwrite = true): void
     {
+        // A `$ref` to a shared component (a promoted `Rule::enum()`) resolves the whole field: it
+        // replaces inline type/enum keywords. A nullable ref widens to `oneOf: [{$ref}, {null}]`,
+        // since keywords alongside `$ref` are ignored in OAS 3.1.
+        if ($this->ref !== null && ($overwrite || is_undefined($target->ref))) {
+            if ($this->nullable) {
+                $target->oneOf = [
+                    new OA\Schema(['ref' => $this->ref]),
+                    new OA\Schema(['type' => 'null']),
+                ];
+            } else {
+                $target->ref = $this->ref;
+            }
+
+            if ($this->description !== null && ($overwrite || is_undefined($target->description))) {
+                $target->description = $this->description;
+            }
+
+            return;
+        }
 
         // When merging (overwrite: false), skip type and nullable if the target already expresses
         // its type via oneOf/allOf/anyOf — those compositions were laid down by the type-resolution

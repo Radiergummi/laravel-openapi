@@ -48,6 +48,7 @@ final readonly class JsonSchemaFromType
 {
     public function __construct(
         private LoggerInterface $logger,
+        private ComponentSchemaRegistry $registry,
     ) {}
 
     public function fromType(Type $type): OA\Schema
@@ -70,7 +71,7 @@ final readonly class JsonSchemaFromType
             /** @var class-string<BackedEnum> $className */
             $className = $type->getClassName();
 
-            return $this->fromBackedEnumClass($className);
+            return $this->fromBackedEnumComponent($className);
         }
 
         if ($type instanceof EnumType) {
@@ -133,6 +134,34 @@ final readonly class JsonSchemaFromType
         }
 
         return new OA\Schema($props);
+    }
+
+    /**
+     * Promotes a backed enum to a single reusable component and returns a `$ref` schema pointing at
+     * it. Every reference to the same enum class resolves to one pooled definition rather than an
+     * inlined copy. The inline schema is built once by {@see fromBackedEnumClass()}.
+     *
+     * @param class-string<BackedEnum> $enumClass
+     */
+    public function fromBackedEnumComponent(string $enumClass): OA\Schema
+    {
+        return new OA\Schema(['ref' => $this->backedEnumComponentReference($enumClass)]);
+    }
+
+    /**
+     * Registers the backed enum's reusable component (idempotently) and returns the `$ref` pointer
+     * string to it — for callers that need the pointer rather than a wrapping {@see OA\Schema}.
+     *
+     * @param class-string<BackedEnum> $enumClass
+     */
+    public function backedEnumComponentReference(string $enumClass): string
+    {
+        $key = $this->registry->buildOnce(
+            $enumClass,
+            fn(): OA\Schema => $this->fromBackedEnumClass($enumClass),
+        );
+
+        return $this->registry->qualifyKey($key);
     }
 
     /**

@@ -51,11 +51,14 @@ it('keeps a custom-key binding a bare string, not the primary key type', functio
         ->and($schema)->not->toHaveKey('format');
 });
 
-it('types an enum-backed binding with the enum cases (#24)', function (): void {
+it('refs an enum-backed binding to a shared enum component (#24, #35)', function (): void {
     Route::get('/articles/{status}', static fn(ArticleStatus $status): array => []);
 
-    $schema = pathParameterSchema(generateSpec(), '/articles/{status}', 'status');
+    $doc = generateSpec();
+    $schema = pathParameterSchema($doc, '/articles/{status}', 'status');
+    $component = $doc['components']['schemas']['ArticleStatus'];
 
-    expect($schema['type'])->toBe('string')
-        ->and($schema['enum'])->toBe(['draft', 'published']);
+    expect($schema['$ref'])->toBe('#/components/schemas/ArticleStatus')
+        ->and($component['type'])->toBe('string')
+        ->and($component['enum'])->toBe(['draft', 'published']);
 });
