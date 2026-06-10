@@ -103,6 +103,17 @@ it('emits one descriptor per distinct abort call, in source order', function ():
         ->and($result[2]->description)->toBe('Order not found');
 });
 
+it('resolves a class-constant status on an imported, aliased class', function (): void {
+    $result = abortContributor()->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'classConstantStatus'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(403)
+        ->and($result[0]->description)->toBe('Cannot update a user prospect.')
+        ->and($result[0]->exceptionClass)->toBe(HttpException::class);
+});
+
 it('emits a literal 5xx abort as a server-error response', function (): void {
     $result = abortContributor()->contribute(
         abortActionDescriptor(AbortFixtureController::class, 'serverErrorAbort'),

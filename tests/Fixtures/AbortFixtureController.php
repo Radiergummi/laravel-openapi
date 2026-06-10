@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 use function redirect;
 
@@ -65,6 +66,12 @@ class AbortFixtureController extends Controller
     public function serverErrorAbort(): never
     {
         abort(500, 'Upstream failure');
+    }
+
+    // The Koel idiom (#227): the status as a class constant on an imported, aliased class.
+    public function classConstantStatus(): never
+    {
+        abort(SymfonyResponse::HTTP_FORBIDDEN, 'Cannot update a user prospect.');
     }
 
     // endregion

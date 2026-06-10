@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use PhpParser\Node\Expr;
 use PhpParser\Node\Stmt\Expression;
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\ParserFactory;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
@@ -25,6 +27,24 @@ function parseExpression(string $code): Expr
 function evaluateLiteral(string $code): mixed
 {
     return AstLiteralEvaluator::evaluate(parseExpression($code));
+}
+
+/**
+ * Evaluates the last statement of a snippet after a NameResolver pass — mirroring how the
+ * MethodBodyScanner hands expressions to the evaluator, so `use` imports and aliases resolve.
+ */
+function evaluateResolvedLiteral(string $code): mixed
+{
+    $statements = new ParserFactory()->createForNewestSupportedVersion()->parse("<?php {$code}");
+
+    assert($statements !== null);
+
+    $resolved = new NodeTraverser(new NameResolver())->traverse($statements);
+    $statement = end($resolved);
+
+    assert($statement instanceof Expression);
+
+    return AstLiteralEvaluator::evaluate($statement->expr);
 }
 
 // endregion
@@ -59,6 +79,50 @@ it('resolves ::class constants to the class-name string', function (): void {
 
 // endregion
 
+// region Class constants on loadable classes
+
+it('resolves a class constant on a fully-qualified loadable class', function (): void {
+    expect(evaluateLiteral('\Symfony\Component\HttpFoundation\Response::HTTP_FORBIDDEN'))->toBe(403);
+});
+
+it('resolves a class constant through an aliased import, as the NameResolver pass leaves it', function (): void {
+    $code = <<<'PHP'
+        use Symfony\Component\HttpFoundation\Response as HttpResponse;
+
+        HttpResponse::HTTP_NOT_FOUND;
+        PHP;
+
+    expect(evaluateResolvedLiteral($code))->toBe(404);
+});
+
+it('resolves a string class constant', function (): void {
+    expect(evaluateLiteral('\Radiergummi\OpenApi\Tests\Fixtures\LiteralConstantsFixture::MESSAGE'))
+        ->toBe('Cannot update a user prospect.');
+});
+
+it('resolves an array class constant whose values are all literals', function (): void {
+    expect(evaluateLiteral('\Radiergummi\OpenApi\Tests\Fixtures\LiteralConstantsFixture::NESTED_ARRAY'))
+        ->toBe(['a' => 1, 'b' => ['c' => true, 'd' => null]]);
+});
+
+it('resolves a constant on an interface', function (): void {
+    expect(evaluateLiteral('\DateTimeInterface::ATOM'))->toBe('Y-m-d\TH:i:sP');
+});
+
+it('rejects class-constant fetches that do not resolve to a compile-time literal', function (string $code): void {
+    evaluateLiteral($code);
+})->throws(NonLiteralValueException::class)->with([
+    'non-existent class' => ['\Vendor\Does\Not\Exist::SOMETHING'],
+    'undefined constant on a real class' => ['\Symfony\Component\HttpFoundation\Response::HTTP_NO_SUCH_STATUS'],
+    'enum case (an object, not a literal)' => ['\Radiergummi\OpenApi\Tests\Fixtures\StatusFixtureEnum::Draft'],
+    'array constant containing an enum case' => ['\Radiergummi\OpenApi\Tests\Fixtures\LiteralConstantsFixture::CONTAINS_ENUM_CASE'],
+    'unresolved self reference' => ['self::SOMETHING'],
+    'dynamic class expression' => ['$class::HTTP_FORBIDDEN'],
+    'dynamic constant name' => ['\Symfony\Component\HttpFoundation\Response::{$name}'],
+]);
+
+// endregion
+
 // region Rejection paths
 
 it('rejects non-literal expressions', function (string $code): void {
@@ -71,7 +135,7 @@ it('rejects non-literal expressions', function (string $code): void {
     'object instantiation' => ['new Enum(Status::class)'],
     'string concatenation' => ['"max:" . $limit'],
     'named constant' => ['SOME_CONSTANT'],
-    'non-class class constant' => ['Status::Draft'],
+    'constant on an unloadable class' => ['Status::Draft'],
     'spread element' => ['["a", ...$more]'],
     'by-ref element' => ['[&$entry]'],
     'negated string' => ['-"nope"'],

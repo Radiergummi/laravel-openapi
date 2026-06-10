@@ -68,6 +68,19 @@ it('uses trailing rule comments as field descriptions', function (): void {
         ->and($schema['properties']['email']['description'])->toBe('The contact address.');
 });
 
+it('resolves class-constant rules, both as a whole ruleset and as an array element', function (): void {
+    Route::post('/oa-fixture/constant-rules', [InlineValidationFixtureController::class, 'constantRules']);
+
+    $spec = generateSpec();
+    $schema = inlineValidationBodySchema($spec, '/oa-fixture/constant-rules', 'post');
+
+    expect($schema['properties'])->toHaveKeys(['title', 'status'])
+        ->and($schema['properties']['title']['type'])->toBe('string')
+        ->and($schema['properties']['title']['maxLength'])->toBe(120)
+        ->and($schema['properties']['status']['enum'])->toBe(['draft', 'published'])
+        ->and($schema['required'])->toContain('title', 'status');
+});
+
 it('emits multipart/form-data when an inline rule marks a file upload', function (): void {
     Route::post('/oa-fixture/avatar', [InlineValidationFixtureController::class, 'uploadAvatar']);
 

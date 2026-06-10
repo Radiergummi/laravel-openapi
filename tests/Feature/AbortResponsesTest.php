@@ -41,6 +41,16 @@ it('keeps route-authored messages inlined instead of poisoning the shared status
         ->and($spec['components']['responses']['Forbidden']['description'])->toBe('Forbidden');
 });
 
+it('emits the response for an abort with a class-constant status', function (): void {
+    Route::put('/oa-fixture/prospects', [AbortFixtureController::class, 'classConstantStatus']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/prospects']['put']['responses'];
+
+    expect($responses)->toHaveKey('403')
+        ->and($responses['403']['description'])->toBe('Cannot update a user prospect.');
+});
+
 it('emits a 404 with the abort message as description', function (): void {
     Route::delete('/oa-fixture/orders/abort', [AbortFixtureController::class, 'abortWithMessage']);
 
