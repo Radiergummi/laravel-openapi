@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use ReflectionMethod;
 
+use function array_filter;
 use function array_unique;
 use function array_values;
 use function implode;
@@ -41,7 +42,9 @@ use function sprintf;
  *     request body. Rules contribute schema (type, format, constraints) and `required`.
  *     Nested keys map to wire notation (`filter.name` → `filter[name]`, scalar `ids.*` →
  *     `ids[]`); shapes a parameter name cannot express honestly — arrays of objects, the bare
- *     `*` rule — are dropped with a generation-log note.
+ *     `*` rule — are dropped with a generation-log note. A DELETE route gets neither body nor
+ *     parameters from inline rules — the fields may live in either place — but leaves a
+ *     generation-log note instead of vanishing silently.
  *  3. **`#[QueryParam]` attributes** on the action and its enclosing class. An attribute wins
  *     entirely for its name; class-level entries are emitted first, method-level entries
  *     replace class-level ones on the same name.
@@ -114,12 +117,20 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
             }
         }
 
-        if ($scan->unreadableAccessors !== []) {
+        // The degrade note obeys the same verb discipline as the reads: on a body-carrying
+        // verb a non-literal input()/string()/integer()/boolean() name is a body read, not an
+        // undocumented query parameter — only query() notes on every verb.
+        $unreadableAccessors = array_values(array_filter(
+            $scan->unreadableAccessors,
+            static fn(string $accessor): bool => $bodylessVerb || $accessor === 'query',
+        ));
+
+        if ($unreadableAccessors !== []) {
             $this->logger->notice(sprintf(
                 'Request accessor read(s) in %s (%s) have a non-literal parameter name; those query '
                 . 'parameters are not documented. Annotate the action with #[QueryParam] to document them.',
                 $this->actionName($method),
-                implode(', ', array_unique($scan->unreadableAccessors)),
+                implode(', ', array_unique($unreadableAccessors)),
             ));
         }
 
@@ -149,8 +160,9 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     private function inlineValidationParameters(ActionDescriptor $descriptor): array
     {
         $method = $descriptor->method;
+        $bodylessVerb = in_array($descriptor->httpMethod, self::BODYLESS_METHODS, true);
 
-        if ($method === null || !in_array($descriptor->httpMethod, self::BODYLESS_METHODS, true)) {
+        if ($method === null || (!$bodylessVerb && $descriptor->httpMethod !== HttpMethod::Delete)) {
             return [];
         }
 
@@ -161,6 +173,20 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         }
 
         $actionName = $this->actionName($method);
+
+        if ($descriptor->httpMethod === HttpMethod::Delete) {
+            // DELETE sits between the verb gates by design: the body scan covers
+            // POST/PUT/PATCH, the hand-off covers GET/HEAD, and on DELETE the validated
+            // fields may legitimately live in either place — refusing to guess, but saying so.
+            $this->logger->notice(sprintf(
+                'Inline validation in %s is not documented: a DELETE route may carry the validated '
+                . 'fields in either the request body or the query string. Annotate the action with '
+                . '#[QueryParam] or #[RequestBody] to document them.',
+                $actionName,
+            ));
+
+            return [];
+        }
 
         if ($scan->rules === null) {
             $this->logger->notice(sprintf(

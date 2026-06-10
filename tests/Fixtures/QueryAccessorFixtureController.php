@@ -65,6 +65,16 @@ class QueryAccessorFixtureController extends Controller
         return new JsonResponse(['compact' => false]);
     }
 
+    public function capturedClosureRead(Request $request): JsonResponse
+    {
+        $captured = collect(['a'])->map(fn(string $item): mixed => $request->query('captured'));
+        $callback = function () use ($request): mixed {
+            return $request->input('used');
+        };
+
+        return new JsonResponse([$captured, $callback()]);
+    }
+
     public function duplicateReads(Request $request): JsonResponse
     {
         $pageString = $request->query('page');
@@ -130,6 +140,24 @@ class QueryAccessorFixtureController extends Controller
         $scoped = $request->query('status');
 
         return new JsonResponse([$scoped]);
+    }
+
+    public function shadowedClosureRead(Request $request): JsonResponse
+    {
+        $sort = $request->query('outer');
+
+        collect([])->each(function (Request $request): void {
+            $request->query('inner');
+        });
+
+        return new JsonResponse([$sort]);
+    }
+
+    public function nonLiteralTypedName(Request $request): JsonResponse
+    {
+        $value = $request->integer($this->dynamicKey());
+
+        return new JsonResponse([$value]);
     }
 
     // endregion

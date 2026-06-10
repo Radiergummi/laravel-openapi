@@ -166,7 +166,10 @@ Boundaries, by design (no dataflow analysis):
 - Only **write methods** (POST/PUT/PATCH) produce a request body this way. On
   GET/HEAD routes the recovered keys become **query parameters** instead — see
   [Auto-derivation → Query parameters from the method
-  body](auto-derivation.md#query-parameters-from-the-method-body).
+  body](auto-derivation.md#query-parameters-from-the-method-body). A DELETE
+  route gets neither: the validated fields may live in either place, so the
+  generator refuses to guess and notes the action in the generation log —
+  `#[QueryParam]` / `#[RequestBody]` document them explicitly.
 - Rules built dynamically — a local variable, `array_merge(...)`, a call with
   arguments — are never guessed at. The operation keeps its empty body and the
   generation log notes the action; document it with `#[RequestBody]` /

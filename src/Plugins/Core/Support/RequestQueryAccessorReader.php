@@ -8,16 +8,16 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Request;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\ArrowFunction;
+use PhpParser\Node\Expr\Closure as ClosureExpression;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
-use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
-use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionMethod;
 use ReflectionNamedType;
 
@@ -26,6 +26,7 @@ use function array_shift;
 use function explode;
 use function in_array;
 use function is_a;
+use function is_array;
 use function is_bool;
 use function is_int;
 use function is_string;
@@ -46,10 +47,12 @@ use function str_contains;
  * notation (`filter.name` → `filter[name]`). A literal default value (second argument or
  * `default:`) is kept when its PHP type matches the accessor's inferred type.
  *
- * Matching descends into conditional contexts ({@see ConditionalContextPolicy::IncludeConditionalContexts}):
- * unlike a request body, a read claims nothing beyond "this parameter is consumed" — a
- * `$request->boolean('active')` inside an `if` branch or a `->when(...)` closure is still a
- * read. No variable tracking, no cross-call dataflow (Tier 2 is refused, see epic #5).
+ * Matching descends into conditional contexts: unlike a request body, a read claims nothing
+ * beyond "this parameter is consumed" — a `$request->boolean('active')` inside an `if` branch
+ * or a `->when(...)` closure is still a read. A closure or arrow function whose own parameter
+ * list re-declares the receiver variable name shadows it: reads in that subtree are on a
+ * different object, so only the `request()` helper can match there. No variable tracking, no
+ * cross-call dataflow (Tier 2 is refused, see epic #5).
  *
  * @internal
  */
@@ -72,13 +75,9 @@ final readonly class RequestQueryAccessorReader
 
     private const array UNTYPED_ACCESSORS = ['query', 'input'];
 
-    private StatementNodeFinder $statementNodeFinder;
-
     public function __construct(
         private MethodBodyScanner $scanner,
-    ) {
-        $this->statementNodeFinder = new StatementNodeFinder();
-    }
+    ) {}
 
     public function read(ReflectionMethod $method): QueryAccessorScanResult
     {
@@ -90,11 +89,12 @@ final readonly class RequestQueryAccessorReader
 
         $requestParameterName = $this->requestParameterName($method);
 
-        $calls = $this->statementNodeFinder->findAll(
-            $statements,
-            ConditionalContextPolicy::IncludeConditionalContexts,
-            fn(Node $node): bool => $this->isAccessorCall($node, $requestParameterName),
-        );
+        /** @var list<MethodCall> $calls */
+        $calls = [];
+
+        foreach ($statements as $statement) {
+            $this->collectAccessorCalls($statement, $requestParameterName, $calls);
+        }
 
         /** @var list<QueryAccessorRead> $reads */
         $reads = [];
@@ -103,7 +103,6 @@ final readonly class RequestQueryAccessorReader
         $unreadableAccessors = [];
 
         foreach ($calls as $call) {
-            /** @var MethodCall $call */
             $accessor = $call->name instanceof Identifier ? $call->name->toLowerString() : '';
             $keyArgument = $this->argument($call->getArgs(), 0, 'key');
 
@@ -143,6 +142,59 @@ final readonly class RequestQueryAccessorReader
     }
 
     // region Call-shape matching
+
+    /**
+     * Depth-first, source-order collection of whitelisted accessor calls. Descends into every
+     * subtree, conditional contexts included; a closure or arrow function whose own parameter
+     * list re-declares the receiver variable name shadows it for its whole subtree — reads on
+     * the shadowing variable are a different request, only the `request()` helper still matches.
+     *
+     * @param list<MethodCall> $calls
+     */
+    private function collectAccessorCalls(Node $node, ?string $requestParameterName, array &$calls): void
+    {
+        if ($this->shadowsReceiver($node, $requestParameterName)) {
+            $requestParameterName = null;
+        }
+
+        if ($node instanceof MethodCall && $this->isAccessorCall($node, $requestParameterName)) {
+            $calls[] = $node;
+        }
+
+        foreach ($node->getSubNodeNames() as $subNodeName) {
+            /** @var mixed $children */
+            $children = $node->{$subNodeName};
+
+            foreach (is_array($children) ? $children : [$children] as $child) {
+                if ($child instanceof Node) {
+                    $this->collectAccessorCalls($child, $requestParameterName, $calls);
+                }
+            }
+        }
+    }
+
+    /**
+     * Whether the node opens a function scope that re-declares the receiver variable name.
+     * Closures capture only explicitly (`use` imports the outer variable, it does not shadow)
+     * and arrow functions capture implicitly, so the parameter list is the only shadow source.
+     */
+    private function shadowsReceiver(Node $node, ?string $requestParameterName): bool
+    {
+        if (
+            $requestParameterName === null
+            || (!$node instanceof ClosureExpression && !$node instanceof ArrowFunction)
+        ) {
+            return false;
+        }
+
+        foreach ($node->params as $parameter) {
+            if ($parameter->var instanceof Variable && $parameter->var->name === $requestParameterName) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Whether the node is a whitelisted accessor call on the request: the method's

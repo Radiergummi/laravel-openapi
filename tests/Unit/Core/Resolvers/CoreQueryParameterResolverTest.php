@@ -125,6 +125,13 @@ it('matches a read inside a conditional context — a read is a read', function 
         ->and(queryParameterNamed($parameters, 'compact')?->schema->type)->toBe('boolean');
 });
 
+it('matches reads on the captured receiver inside closures and arrow functions', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('capturedClosureRead'));
+
+    expect(queryParameterNames($parameters))->toBe(['captured', 'used']);
+});
+
 it('dedupes repeated reads of one name, preferring the typed accessor', function (): void {
     $parameters = makeCoreQueryParameterResolver()
         ->resolveQueryParameters(makeQueryAccessorDescriptor('duplicateReads'));
@@ -200,6 +207,42 @@ it('never matches a request-named variable that is not the Request parameter', f
     expect($parameters)->toBe([]);
 });
 
+it('never matches a read on a closure parameter that shadows the receiver name', function (): void {
+    // The inner closure re-declares $request — its reads belong to a different object.
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('shadowedClosureRead'));
+
+    expect(queryParameterNames($parameters))->toBe(['outer']);
+});
+
+it('gates the non-literal-name note by the same verb discipline as the reads', function (): void {
+    // POST + integer($dynamic): a body read on a body-carrying verb — no query parameter
+    // went undocumented, so no note.
+    $postLogger = recordingLogger();
+    makeCoreQueryParameterResolver($postLogger)
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('nonLiteralTypedName', 'POST'));
+
+    // GET + integer($dynamic): an eligible read with an unreadable name — the note fires.
+    $getLogger = recordingLogger();
+    makeCoreQueryParameterResolver($getLogger)
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('nonLiteralTypedName'));
+
+    // POST + query($dynamic): query() can only read the query string — the note fires on
+    // every verb.
+    $postQueryLogger = recordingLogger();
+    makeCoreQueryParameterResolver($postQueryLogger)
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('nonLiteralName', 'POST'));
+
+    $notesNonLiteralName = static fn(array $record): bool => str_contains(
+        $record['message'],
+        'non-literal parameter name',
+    );
+
+    expect($postLogger->records)->toBe([])
+        ->and(array_any($getLogger->records, $notesNonLiteralName))->toBeTrue()
+        ->and(array_any($postQueryLogger->records, $notesNonLiteralName))->toBeTrue();
+});
+
 // endregion
 
 // region #[QueryParam] precedence
@@ -242,6 +285,21 @@ it('does not route inline validate() keys into query parameters on a POST route'
         ->resolveQueryParameters(makeQueryAccessorDescriptor('search', 'POST'));
 
     expect($parameters)->toBe([]);
+});
+
+it('notes inline validate() on a DELETE route instead of dropping it silently', function (): void {
+    // DELETE sits between the verb gates: the body scan covers POST/PUT/PATCH, the hand-off
+    // covers GET/HEAD. The rules stay undocumented, but the generation log says so.
+    $logger = recordingLogger();
+    $parameters = makeCoreQueryParameterResolver($logger)
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('search', 'DELETE'));
+
+    expect($parameters)->toBe([])
+        ->and(array_any(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'DELETE')
+                && str_contains($record['message'], 'not documented'),
+        ))->toBeTrue();
 });
 
 it('maps nested and array rule keys to wire notation and drops object arrays with a note', function (): void {

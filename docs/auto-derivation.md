@@ -347,7 +347,10 @@ parameter name is the first string-literal argument, positional or named
 → `filter[name]`). A literal default (`integer('per_page', 25)`) becomes the
 schema `default` when its type matches the accessor's. Unlike the body and
 response scans, a read inside an `if` branch or a `->when(…)` closure still
-counts — a read claims nothing beyond "this parameter is consumed".
+counts — a read claims nothing beyond "this parameter is consumed". A closure
+or arrow function whose own parameter list re-declares the receiver name
+(`->each(function (Request $request) { … })`) shadows it: reads inside that
+subtree are on a different request and never match.
 
 On **GET/HEAD** routes, inline `validate()` keys (see [Request bodies → Inline
 validation in the controller](request-bodies.md#inline-validation-in-the-controller))
@@ -370,7 +373,13 @@ Boundaries, by design (no dataflow analysis):
   routes; on body-carrying verbs they overwhelmingly mean body fields (which
   the inline-validation scan already documents).
 - A non-literal parameter name (`$request->query($key)`) is never guessed at;
-  the read is skipped and the generation log notes the action.
+  the read is skipped and the generation log notes the action. The note obeys
+  the same verb discipline as the read itself — a non-literal `integer($key)`
+  on a POST route is a body read, not an undocumented query parameter.
+- Inline `validate()` on a **DELETE** route produces neither a request body
+  nor query parameters — DELETE may legitimately carry either, and the
+  generator refuses to guess. The generation log notes the action;
+  `#[QueryParam]` / `#[RequestBody]` are the explicit hatches.
 - When the same name is read twice, a typed accessor (`integer('page')`) beats
   an untyped one (`query('page')`). On a GET route, `validate()` rules beat an
   accessor read of the same name — they know `required` and the constraints.
