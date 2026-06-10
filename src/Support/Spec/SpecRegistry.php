@@ -11,7 +11,7 @@ use OpenApi\Annotations as OA;
 
 use function array_key_exists;
 use function array_map;
-use function array_merge;
+use function array_replace_recursive;
 use function array_values;
 use function is_array;
 use function sprintf;
@@ -112,8 +112,12 @@ final class SpecRegistry
      */
     private function buildSpec(string $name, array $overrides): SpecDefinition
     {
+        // Deep-merge so a per-spec override of a single nested field (e.g. `info.contact.email`)
+        // patches that field and leaves its siblings (`info.contact.name`, `info.license`) intact,
+        // rather than clobbering the whole nested group as a shallow `array_merge` would. Scoped to
+        // `info`; `servers`/`tags` are intentionally replaced wholesale above.
         $infoArray = is_array($overrides['info'] ?? null)
-            ? array_merge($this->rootInfo, $overrides['info'])
+            ? array_replace_recursive($this->rootInfo, $overrides['info'])
             : $this->rootInfo;
 
         $serversArray = is_array($overrides['servers'] ?? null) ? $overrides['servers'] : $this->rootServers;
