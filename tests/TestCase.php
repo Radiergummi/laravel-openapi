@@ -63,18 +63,32 @@ abstract class TestCase extends Orchestra
 
         $destination = base_path('tests/Fixtures/OpenApi/example_payloads');
 
-        if (
-            !is_dir($destination)
-            && !mkdir($destination, 0o777, true)
-            && !is_dir($destination)
-        ) {
-            throw new RuntimeException("Failed to create fixture destination: {$destination}");
+        // Under Pest's parallel runner many workers race this same path. Suppress the mkdir error
+        // (a worker that loses the race gets false even though the directory now exists), clear the
+        // per-process stat cache the recursive mkdir can leave stale, then re-check authoritatively.
+        if (!is_dir($destination)) {
+            @mkdir($destination, 0o777, true);
+            clearstatcache(true, $destination);
+
+            if (!is_dir($destination)) {
+                throw new RuntimeException("Failed to create fixture destination: {$destination}");
+            }
         }
 
         foreach ((array) glob($source . '/*') as $file) {
             $target = $destination . '/' . basename((string) $file);
 
-            if (!copy((string) $file, $target)) {
+            // Idempotent + atomic: skip a fixture already mirrored, and copy via a process-unique
+            // temp + rename so a concurrent worker never reads a half-written file.
+            if (is_file($target)) {
+                continue;
+            }
+
+            $temp = $target . '.' . getmypid() . '.tmp';
+
+            if (!copy((string) $file, $temp) || !rename($temp, $target)) {
+                @unlink($temp);
+
                 throw new RuntimeException("Failed to copy fixture {$file} -> {$target}");
             }
         }
