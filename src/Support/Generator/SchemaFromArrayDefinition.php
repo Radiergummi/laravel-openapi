@@ -40,6 +40,20 @@ final readonly class SchemaFromArrayDefinition
     }
 
     /**
+     * Builds a named `OA\Property` from a definition array — the same conversion as
+     * {@see build()}, hung onto a property node (`OA\Property` extends `OA\Schema`).
+     *
+     * @param array<string, mixed> $definition
+     */
+    public static function buildProperty(string $propertyName, array $definition): OA\Property
+    {
+        $property = new OA\Property(['property' => $propertyName]);
+        self::apply($property, $definition);
+
+        return $property;
+    }
+
+    /**
      * @param array<string, mixed> $definition
      */
     private static function apply(OA\Schema $node, array $definition): void

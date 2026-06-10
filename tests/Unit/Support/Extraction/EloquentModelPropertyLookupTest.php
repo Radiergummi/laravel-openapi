@@ -35,13 +35,15 @@ function modelPropertyReader(): EloquentModelToSchema
 /**
  * @return array<string, mixed>
  */
-function lookupProperty(string $name): ?array
+function lookupProperty(string $name): array
 {
     $property = modelPropertyReader()->propertyFor(Article::class, $name);
 
-    return $property === null
-        ? null
-        : json_decode(json_encode($property), associative: true);
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    /** @var array<string, mixed> */
+    return json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true);
 }
 
 it('types a cast property', function (): void {

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use function array_merge;
-use function array_values;
 use function count;
 
 /**
@@ -78,7 +77,7 @@ class ReturnLiteralFixture
         $h = 8;
         $i = 9;
         $j = 10;
-        $values = array_values([$a, $b, $c, $d, $e, $f, $g, $h, $i, $j]);
+        $values = [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 
         return ['count' => count($values)];
     }

@@ -8,8 +8,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Tests\Support\SchemaFromResourceFactory;
 
 use function array_find;
 use function Radiergummi\OpenApi\is_undefined;
@@ -38,7 +38,7 @@ class SchemaArrayExternalRefResource extends JsonResource {}
 
 it('builds an object schema from #[ResourceField] attributes', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaProjectResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [])->build(SchemaProjectResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
@@ -51,7 +51,7 @@ it('builds an object schema from #[ResourceField] attributes', function (): void
 
 it('omits conditional fields from required', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaProjectResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [])->build(SchemaProjectResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
@@ -61,7 +61,7 @@ it('omits conditional fields from required', function (): void {
 
 it('emits a $ref for a nested resource and registers it', function (): void {
     $registry = new ComponentSchemaRegistry();
-    new SchemaFromResource($registry, static fn(): array => [])->build(SchemaProjectResource::class);
+    SchemaFromResourceFactory::create($registry, static fn(): array => [])->build(SchemaProjectResource::class);
 
     $keys = array_map(static fn(OA\Schema $s): string => $s->schema, $registry->all());
     expect($keys)->toContain('SchemaOwnerResource');
@@ -84,7 +84,7 @@ it('resolves a non-resource field type via an injected RefSchemaResolver', funct
         }
     };
 
-    $key = new SchemaFromResource($registry, static fn(): array => [$stub])->build(SchemaWithExternalRefResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [$stub])->build(SchemaWithExternalRefResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
@@ -98,7 +98,7 @@ it('resolves a non-resource field type via an injected RefSchemaResolver', funct
 
 it('emits an array of $ref for a nested resource collection field', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaTeamResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [])->build(SchemaTeamResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $members = array_find($schema->properties, static fn(OA\Property $p): bool => $p->property === 'members');
@@ -128,7 +128,7 @@ it('resolves an array items class via an injected RefSchemaResolver', function (
         }
     };
 
-    $key = new SchemaFromResource($registry, static fn(): array => [$stub])->build(SchemaArrayExternalRefResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [$stub])->build(SchemaArrayExternalRefResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $tags = array_find($schema->properties, static fn(OA\Property $p): bool => $p->property === 'tags');
@@ -143,7 +143,7 @@ it('degrades an unresolvable array items class to a permissive object item', fun
 
     // No resolvers, and the items class is not a JsonResource, so the class-string
     // resolves to no $ref and the items schema degrades to a permissive object.
-    $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaArrayExternalRefResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [])->build(SchemaArrayExternalRefResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $tags = array_find($schema->properties, static fn(OA\Property $p): bool => $p->property === 'tags');
@@ -156,7 +156,7 @@ it('degrades an unresolvable array items class to a permissive object item', fun
 
 it('still emits a scalar items type for a non-class array items', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = new SchemaFromResource($registry, static fn(): array => [])->build(SchemaTeamResource::class);
+    $key = SchemaFromResourceFactory::create($registry, static fn(): array => [])->build(SchemaTeamResource::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $labels = array_find($schema->properties, static fn(OA\Property $p): bool => $p->property === 'labels');

@@ -543,6 +543,10 @@ class OpenApiServiceProvider extends ServiceProvider
                         $registry,
                         Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver::class,
                     ),
+                    toArrayReader: $app->make(Plugins\ApiResources\Support\ResourceToArrayReader::class),
+                    wrappedModelLocator: $app->make(Plugins\ApiResources\Support\WrappedModelLocator::class),
+                    modelToSchema: $app->make(Support\Extraction\EloquentModelToSchema::class),
+                    logger: $app->make(LoggerInterface::class),
                 );
             },
         );

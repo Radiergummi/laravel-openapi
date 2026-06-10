@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
+use Radiergummi\OpenApi\Tests\Support\SchemaFromResourceFactory;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -44,7 +45,7 @@ class AbstractSubclassReturnLintController
 it('flags a resource response whose class declares no #[ResourceField]', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(BareLintController::class, 'show', '/bare');
 
-    $rule = new ResourceFieldsUndeclared(new ResourceClassLocator());
+    $rule = new ResourceFieldsUndeclared(new ResourceClassLocator(), SchemaFromResourceFactory::toArrayReader(), SchemaFromResourceFactory::wrappedModelLocator());
     $node = OperationNodeFactory::forDescriptor($descriptor);
 
     $findings = iterator_to_array($rule->checkOperation($node, OperationNodeFactory::emptyContext()));
@@ -56,7 +57,7 @@ it('flags a resource response whose class declares no #[ResourceField]', functio
 it('does not fire when the action returns the abstract JsonResource base', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(AbstractReturnLintController::class, 'returnsAbstract', '/abstract');
 
-    $rule = new ResourceFieldsUndeclared(new ResourceClassLocator());
+    $rule = new ResourceFieldsUndeclared(new ResourceClassLocator(), SchemaFromResourceFactory::toArrayReader(), SchemaFromResourceFactory::wrappedModelLocator());
     $node = OperationNodeFactory::forDescriptor($descriptor);
 
     $findings = iterator_to_array($rule->checkOperation($node, OperationNodeFactory::emptyContext()));
@@ -67,7 +68,7 @@ it('does not fire when the action returns the abstract JsonResource base', funct
 it('does not fire when the action returns an abstract JsonResource subclass', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(AbstractSubclassReturnLintController::class, 'returnsAbstractSubclass', '/abstract-sub');
 
-    $rule = new ResourceFieldsUndeclared(new ResourceClassLocator());
+    $rule = new ResourceFieldsUndeclared(new ResourceClassLocator(), SchemaFromResourceFactory::toArrayReader(), SchemaFromResourceFactory::wrappedModelLocator());
     $node = OperationNodeFactory::forDescriptor($descriptor);
 
     $findings = iterator_to_array($rule->checkOperation($node, OperationNodeFactory::emptyContext()));

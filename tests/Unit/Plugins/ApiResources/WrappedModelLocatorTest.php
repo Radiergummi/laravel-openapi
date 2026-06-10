@@ -13,18 +13,25 @@ use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 
 uses()->group('openapi', 'plugin:api-resources');
 
+/**
+ * The app-side generic resource base larastan-style codebases declare.
+ *
+ * @template TModel of \Illuminate\Database\Eloquent\Model
+ */
+abstract class GenericBaseResource extends JsonResource {}
+
 /** @mixin Article */
 class MixinTaggedResource extends JsonResource {}
 
-/** @extends JsonResource<Article> */
-class ExtendsTaggedResource extends JsonResource {}
+/** @extends GenericBaseResource<Article> */
+class ExtendsTaggedResource extends GenericBaseResource {}
 
 /**
  * @mixin Author
  *
- * @extends JsonResource<Article>
+ * @extends GenericBaseResource<Article>
  */
-class BothTagsResource extends JsonResource {}
+class BothTagsResource extends GenericBaseResource {}
 
 /** @mixin DocBlockParser */
 class NonModelMixinResource extends JsonResource {}
