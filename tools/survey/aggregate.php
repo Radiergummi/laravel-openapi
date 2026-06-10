@@ -32,13 +32,8 @@ function surveyMergeResults(array $existing, array $fresh, array $orderNames): a
 {
     $byName = [];
 
-    foreach ($existing as $entry) {
-        if (isset($entry['name'])) {
-            $byName[$entry['name']] = $entry;
-        }
-    }
-
-    foreach ($fresh as $entry) {
+    // Existing first, then fresh — last write wins, so a fresh entry replaces its prior one.
+    foreach (array_merge($existing, $fresh) as $entry) {
         if (isset($entry['name'])) {
             $byName[$entry['name']] = $entry;
         }
