@@ -147,6 +147,9 @@ php artisan openapi:lint --diff --min-coverage=100
 The coverage gate is evaluated only by a plain lint run — it does **not** apply to `--fix` / `--check`
 runs, whose exit code reflects the fix outcome. Run `openapi:lint` without `--fix` to gate on coverage.
 
+See [CI integration](ci.md) for the runnable GitHub Actions, spec-drift, and pre-commit recipes that
+wrap these flags.
+
 > **Cross-version comparability.** The coverage report stamps the generator version
 > (`generator_version`). The documentable-unit set shifts both when routes change *and* when
 > inference improves, so a version bump can move the percentage with no app change — treat
@@ -350,16 +353,18 @@ out-of-range status codes at the call site.
 
 ## Adding a custom rule
 
-1. Implement `Radiergummi\OpenApi\Lint\Rules\Rule` and one or more
-   visitor interfaces from `Core/Lint/Rules/Visitors/`.
+1. Implement `Radiergummi\OpenApi\Contracts\Lint\Rule` and one or more
+   visitor interfaces from `Radiergummi\OpenApi\Lint\Visitors\`.
 2. Add the class to `config/openapi.lint.rules`, or register it from a plugin
    via `$registry->addRule(YourRule::class)`. See
    [Plugin authoring](plugin-authoring.md).
 
 ## Rule catalog
 
-Built-in rule IDs. Run `openapi:lint --list` for the live catalog including
-plugin-registered rules.
+Every rule ID, including the rules registered by bundled plugins (Core,
+SpatieData, ApiResources, Fractal, QueryBuilder, SwaggerPhp). `openapi:lint
+--list` is the live source — a plugin's rules are only active when that plugin
+is enabled.
 
 <!-- BEGIN: lint-rule-catalog -->
 | Rule ID | Level | Description |
@@ -393,6 +398,9 @@ plugin-registered rules.
 | `externaldocs.invalid-url` | 1 | externalDocs.url is not a valid URL. |
 | `field.attribute-wrong-scope` | 1 | #[RequestField] on a URI parameter, or #[PathParam] on a Data-class property. |
 | `field.conflicting-type` | 1 | Field declares conflicting type and format values. |
+| `fractal.duplicate-key` | 1 | A transformer declares the same output key in more than one #[TransformerField]/#[TransformerInclude]. (Fractal plugin.) |
+| `fractal.fields-undeclared` | 1 | A transformer bound via #[FractalResponse] declares no #[TransformerField] attributes. (Fractal plugin.) |
+| `fractal.transformer-class-missing` | 1 | A #[FractalResponse] names a transformer class that does not exist. (Fractal plugin.) |
 | `header.invalid-name` | 1 | Header name contains invalid characters. |
 | `link.invalid-operation` | 1 | Link references an operationId that doesn't exist in the document. |
 | `multipart.file-without-multipart` | 1 | Data class has a file property but the request body isn't multipart/form-data—produces an incorrect spec. |
@@ -405,6 +413,7 @@ plugin-registered rules.
 | `publicendpoint.contradicts-middleware` | 1 | #[PublicEndpoint] is present but the route has auth/scope middleware. |
 | `request-body.no-content` | 1 | A requestBody object has no media-type entries. |
 | `request-body.on-get-or-delete` | 1 | GET or DELETE operation has a request body. |
+| `request-body.schema-degraded` | 1 | A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules. |
 | `resource.fields-undeclared` | 1 | An API Resource used as a response declares no #[ResourceField] attributes. Skipped when the resolved resource class is the abstract `Illuminate\Http\Resources\Json\JsonResource` base or any abstract subclass — anonymous `Model::toResource()` returns are passed silently, with `resource.response-ambiguous` handling the "no concrete resource class" signal. |
 | `resource.response-ambiguous` | 1 | A resource collection response has no #[ResponseResource] naming its item class. |
 | `response.no-error` | 1 | Operation has no error responses (4xx/5xx). |
@@ -418,19 +427,22 @@ plugin-registered rules.
 | `visibility.hide-expose-conflict` | 1 | Route carries overlapping #[Hide] and #[Expose] in the current environment. |
 | `enum.values-undocumented` | 2 | Enum field has no description explaining the allowed values. |
 | `field.description-missing` | 2 | Schema property has no description. |
+| `fractal.include-transformer-missing` | 2 | A #[TransformerInclude] is declared without a transformer class. (Fractal plugin.) |
+| `fractal.response-unbound` | 2 | A method injects a Fractal Manager but declares no #[FractalResponse]. (Fractal plugin.) |
 | `header.description-missing` | 2 | Response header has no description. |
 | `info.description-missing` | 2 | The document info.description is empty. |
 | `operation.description-missing` | 2 | Operation has no description (beyond the summary). |
 | `parameter.description-missing` | 2 | Parameter has no description. |
+| `query-builder.params-undeclared` | 2 | A method injects a QueryBuilder but declares no allowed filter/sort/include attributes. (QueryBuilder plugin.) |
 | `request-body.description-missing` | 2 | requestBody has no description. |
 | `request.discriminator-malformed` | 2 | `#[RequestBody(discriminator:)]` is configured incorrectly — a `#[RequestVariant]` has neither/both of `schema`/`fields`, a duplicate value, an unresolvable class-string, or a colliding sanitised key. |
 | `request.empty` | 2 | POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest. |
-| `request-body.schema-degraded` | 1 | A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules. |
 | `errors.resolver-failed` | 2 | A registered `ErrorResponseResolver` threw while building an error response; the extractor caught the throw and the chain continued, but the offending resolver should be fixed. |
 | `resource.field-type-missing` | 2 | A #[ResourceField] is declared without a resolvable type. |
 | `response.no-success` | 2 | Operation has no 2xx response. |
 | `response.success-empty-body` | 2 | A 2xx response (other than 204/205/304) declares no body schema. Likely a void-return controller. |
 | `response.redirect-without-location` | 2 | 3xx response has no Location header. |
+| `rule.invalid-enum-value` | 2 | A SelfDocumentingRule returned a non-scalar enum value; the entry was dropped. (Core plugin.) |
 | `rule.unknown` | 2 | A Laravel validation Rule object cannot be mapped to a JSON Schema constraint and was dropped. |
 | `schema.description-missing` | 2 | Named component schema has no description. |
 | `summary.missing` | 2 | Operation has no summary. |
@@ -456,6 +468,7 @@ plugin-registered rules.
 | `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured `path_parameter_case` (path parameters) or `query_parameter_case` (query parameters) convention. |
 | `path.segment-naming-inconsistent` | 3 | URL path segment doesn't follow the configured path_segment_case convention. |
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |
+| `query-builder.filter-type-missing` | 3 | An #[AllowedFilter] is declared without an explicit value type. (QueryBuilder plugin.) |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
 | `spec.config-orphaned` | 3 | A configured spec has zero assigned routes after evaluation. |

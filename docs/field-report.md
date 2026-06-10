@@ -86,8 +86,8 @@ return.** Across all eleven apps it fell on a clean spectrum:
 
 **The honest takeaway, and the one sentence to remember:** *type your returns to the concrete
 class and you get response schemas for free; everything short of that gives you proportionally
-less.* This isn't a limitation we're hiding — it's the deliberate boundary described in
-[What it won't infer](../README.md#what-it-wont-infer), and the linter tells you exactly which
+less.* This isn't a limitation we're hiding — it's the deliberate boundary described under
+[Caveats](../README.md#caveats), and the linter tells you exactly which
 operations landed where.
 
 ## A note on accuracy

@@ -4,8 +4,17 @@
 attributes can't express. Register them from a service provider's `boot()`:
 
 ```php
+use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 
+public function boot(): void
+{
+    OpenApiExtensions::transformOperation(/* … */); // once per operation
+    OpenApiExtensions::transformSchema(/* … */);    // once per component schema
+    OpenApiExtensions::transformDocument(/* … */);  // once, on the whole document
+}
 ```
+
+Each hook is detailed below.
 
 > [!TIP]
 > Extensions are for project-specific behaviour. For logic that applies to

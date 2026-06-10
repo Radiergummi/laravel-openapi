@@ -42,6 +42,6 @@ New to the package? Read [Getting started](getting-started.md), then
 
 ## Worked examples
 
-Five runnable Laravel apps live under [`examples/`](../examples/). Each
+Eight runnable Laravel apps live under [`examples/`](../examples/). Each
 serves the same flights + bookings API in a different style. See
 [`examples/README.md`](../examples/README.md) for the matrix.

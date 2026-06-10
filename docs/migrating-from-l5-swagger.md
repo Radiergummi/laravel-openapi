@@ -53,7 +53,8 @@ your code; [Attributes](attributes.md) is the escape-hatch catalog.
 - **Edit-time validation.** Attribute arguments are checked by PHPStan at level 8 as you type,
   not at scan time.
 - **Plugins.** Bundled support for [Spatie Data, API Resources, Query Builder, and
-  Fractal](plugins.md) reads those libraries' own conventions.
+  Fractal](plugins.md) reads those libraries' own conventions — plus the
+  [SwaggerPhp](plugins.md#swaggerphp) harvester used in the migration below.
 
 ### Be honest about the floor
 

@@ -35,18 +35,22 @@ instances are resolved from the container when the pipeline runs.
 |---|---|---|
 | `addErrorResponseContributor(string $class)` | An inference source for error responses; called per operation, returns `ErrorDescriptor`s | `ErrorResponseContributor` |
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
+| `addOperationConventionResolver(string $class)` | An operation-level convention resolver (e.g. resourceful-action success codes and summaries derived from Tier-0 signals) | `OperationConventionResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
 | `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
 | `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
 | `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g. a DTO or resource) | `RefSchemaResolver` |
 | `addRequestSchemaResolver(string $class)` | A request-body schema builder | `RequestSchemaResolver` |
-| `addRule(string $class)` | A lint rule | `Lint\Rules\Rule` + one or more visitor interfaces |
+| `addRule(string $class)` | A lint rule | `Contracts\Lint\Rule` + one or more visitor interfaces |
 | `addStage(string $class)` | A document-level pipeline stage. Plugin stages run after the pre-plugin baseline stages and before the post-plugin flush + terminal stages (see `SpecStage` below) | `Contracts\Generator\SpecStage` |
 
-Getters (`errorResponseContributors()`, `errorResponseResolvers()`,
-`payloadClasses()`, `primaryResponseResolvers()`, `queryParameterResolvers()`,
-`refSchemaResolvers()`, `requestSchemaResolvers()`, `rules()`, `stages()`) are
-consumed by the generator and linter; plugin authors don't call them.
+The corresponding read sides (`$registry->errorResponseContributors`,
+`$registry->errorResponseResolvers`, `$registry->payloadClasses`,
+`$registry->primaryResponseResolvers`, `$registry->operationConventionResolvers`,
+`$registry->queryParameterResolvers`, `$registry->refSchemaResolvers`,
+`$registry->requestSchemaResolvers`, `$registry->rules`, `$registry->stages`)
+are `public private(set)` properties consumed by the generator and linter;
+plugin authors don't read them.
 
 ### Resolver interfaces
 
@@ -142,6 +146,7 @@ use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\MultipartFileWithoutMultipart;
 use Radiergummi\OpenApi\Plugins\SpatieData\Resolvers\DataClassRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\Resolvers\DataRefSchemaResolver;
+use Radiergummi\OpenApi\Plugins\SpatieData\Resolvers\DataResponseResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Spatie\LaravelData\Data;
 
@@ -149,8 +154,15 @@ final class SpatieDataPlugin implements Plugin
 {
     public function register(OpenApiRegistry $registry): void
     {
+        // Optional-dependency guard: ship enabled by default, no-op when the
+        // package isn't installed, so listing it imposes no runtime dependency.
+        if (!class_exists(Data::class)) {
+            return;
+        }
+
         $registry->addRequestSchemaResolver(DataClassRequestSchemaResolver::class);
         $registry->addRefSchemaResolver(DataRefSchemaResolver::class);
+        $registry->addPrimaryResponseResolver(DataResponseResolver::class);
         $registry->addPayloadClass(Data::class);
         $registry->addRule(MultipartFileWithoutMultipart::class);
         $registry->addRule(FieldAttributeWrongScope::class);
@@ -167,10 +179,17 @@ Line by line:
 - `addRefSchemaResolver(DataRefSchemaResolver::class)`: when a Data class is
   referenced from another schema (a nested DTO, a `#[Response(ref: …)]`),
   emit it as a `$ref` into `components.schemas`.
+- `addPrimaryResponseResolver(DataResponseResolver::class)`: when an action
+  returns a Data class (or a union of them), build its 200 response body.
 - `addPayloadClass(Data::class)`: mark `Spatie\LaravelData\Data` as a payload
   base so any subclass on an action signature is treated as a request body.
 - `addRule(...)`: register the two plugin-specific lint rules so they only
   run when the plugin is installed.
+
+The leading `class_exists(Data::class)` guard is the pattern for an
+optional-dependency plugin: it lets the plugin ship enabled by default in
+`config/openapi.plugins` while no-op'ing when the package isn't installed, so
+listing it imposes no runtime dependency.
 
 ## Building your own plugin
 
@@ -179,7 +198,7 @@ Line by line:
    mirror `DataClassRequestSchemaResolver` for a `RequestSchemaResolver`, or
    `DataRefSchemaResolver` for a `RefSchemaResolver`).
 2. Optionally write lint rules under `Lint/Rules/`, implementing
-   `Lint\Rules\Rule` plus the visitor interfaces they need.
+   `Contracts\Lint\Rule` plus the visitor interfaces they need.
 3. Write a `Plugin` class whose `register()` calls the matching
    `OpenApiRegistry` `add*` methods.
 4. Bind any services your resolvers need in a service provider (the bundled
@@ -195,8 +214,8 @@ envelopes) would register:
 - an `ErrorResponseResolver` (for the error envelope)
 - lint rules enforcing its conventions
 
-The SpatieData plugin exercises three of the seven hooks; the rest follow the
-same class-string registration pattern.
+The SpatieData plugin exercises five of the registry's ten `add*` hooks; the
+rest follow the same class-string registration pattern.
 
 > [!NOTE]
 > Plugin-specific lint rules should follow the package's
@@ -242,7 +261,7 @@ final readonly class JsonApiPrimaryResponseResolver
 }
 ```
 
-The container resolves it to `Plugins\ApiResources\ResourceClassLocator` — the
+The container resolves it to `Plugins\ApiResources\Support\ResourceClassLocator` — the
 binding lives in `OpenApiServiceProvider::register()` and is always-on,
 regardless of which plugins are enabled.
 

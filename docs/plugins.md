@@ -101,7 +101,7 @@ Lint rules:
 | `resource.response-ambiguous` | 1 |
 | `resource.field-type-missing` | 2 |
 
-Worked endpoint: [`examples/form-requests/`](../examples/form-requests/).
+Worked endpoint: [`examples/api-resources/`](../examples/api-resources/).
 
 ## QueryBuilder
 
@@ -286,10 +286,12 @@ public function show(string $id): Aircraft { … }
 ### Migrating off the annotations
 
 Harvesting keeps your annotations working, but the goal is usually to delete the
-ones inference now reproduces on its own. The plugin registers a migration lint
-rule, `migration.oa-redundant-with-inference`, for exactly that — run
-`php artisan openapi:lint --only 'migration.*'` to find redundant `#[OA\Schema]` /
-`@OA\Schema` blocks and add `--fix` to remove them. See
-[Linting → Migration rules](linting.md#migration-rules-migration).
+ones inference now reproduces on its own. The plugin registers the
+`migration.*` lint rules — `migration.oa-redundant-with-inference` (schemas) and
+`migration.oa-redundant-operation-with-inference` (operations) — for exactly
+that: run `php artisan openapi:lint --only 'migration.*'` to find the redundant
+`#[OA\*]` / `@OA` annotations and add `--fix` to remove them. See
+[Linting → Migration rules](linting.md#migration-rules-migration), and
+[Migrating from L5-Swagger](migrating-from-l5-swagger.md) for the end-to-end path.
 
 Worked endpoint: [`examples/swagger-php/`](../examples/swagger-php/).
