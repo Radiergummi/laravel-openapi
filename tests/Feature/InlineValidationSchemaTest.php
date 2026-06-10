@@ -6,7 +6,10 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Tests\Fixtures\InlineValidation\Admin\CouponController as AdminCouponController;
+use Radiergummi\OpenApi\Tests\Fixtures\InlineValidation\Shop\CouponController as ShopCouponController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineValidationFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\InlineValidationInvokableController;
 
 uses()->group('openapi');
 
@@ -88,6 +91,35 @@ it('emits a request body from a keyed rules() method — the BookStack idiom', f
 
     expect($schema['properties'])->toHaveKeys(['name', 'description'])
         ->and($schema['required'])->toBe(['name']);
+});
+
+// endregion
+
+// region Component keys
+
+it('disambiguates component keys for same-short-name controllers', function (): void {
+    Route::post('/oa-fixture/admin/coupon', [AdminCouponController::class, 'storeCoupon']);
+    Route::post('/oa-fixture/shop/coupon', [ShopCouponController::class, 'storeCoupon']);
+
+    $spec = generateSpec();
+    $adminSchema = inlineValidationBodySchema($spec, '/oa-fixture/admin/coupon', 'post');
+    $shopSchema = inlineValidationBodySchema($spec, '/oa-fixture/shop/coupon', 'post');
+
+    $adminReference = $spec['paths']['/oa-fixture/admin/coupon']['post']['requestBody']['content']['application/json']['schema']['$ref'];
+    $shopReference = $spec['paths']['/oa-fixture/shop/coupon']['post']['requestBody']['content']['application/json']['schema']['$ref'];
+
+    expect($adminReference)->not->toBe($shopReference)
+        ->and($adminSchema['properties'])->toHaveKeys(['code', 'discount'])
+        ->and($shopSchema['properties'])->toHaveKeys(['code', 'cart_id']);
+});
+
+it('omits the method segment from the component key of an invokable controller', function (): void {
+    Route::post('/oa-fixture/invokable', InlineValidationInvokableController::class);
+
+    $spec = generateSpec();
+    $reference = $spec['paths']['/oa-fixture/invokable']['post']['requestBody']['content']['application/json']['schema']['$ref'];
+
+    expect($reference)->toBe('#/components/schemas/InlineValidationInvokableControllerRequest');
 });
 
 // endregion

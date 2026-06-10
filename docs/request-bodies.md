@@ -128,7 +128,7 @@ of the action for exactly four call shapes:
 
 ```php
 $request->validate([...]);
-$this->validate($request, [...]);
+$this->validate($request, [...]); // also $this->validate(request(), [...])
 Validator::make($request->all(), [...]);
 Request::validate([...]); // the facade
 ```
@@ -164,15 +164,18 @@ on an instance created without running the constructor.
 Boundaries, by design (no dataflow analysis):
 
 - Only **write methods** (POST/PUT/PATCH) produce a request body this way. On
-  GET, inline-validate keys describe query parameters, not a body.
+  GET routes the scan stays off — today the keys are simply not documented;
+  routing them into query parameters is planned
+  ([#11](https://github.com/Radiergummi/laravel-openapi/issues/11)).
 - Rules built dynamically — a local variable, `array_merge(...)`, a call with
   arguments — are never guessed at. The operation keeps its empty body and the
   generation log notes the action; document it with `#[RequestBody]` /
   `#[RequestField]` instead. A single dynamic *entry* inside an otherwise
   literal rules array only drops that entry (a `Rule::unique(...)` object next
   to literal rules keeps the literal rest).
-- A `validate()` call inside an `if` branch, or past the first 10 statements,
-  is not picked up.
+- A `validate()` call that only runs conditionally — inside an `if` branch, a
+  ternary or `match` arm, a `&&` / `||` / `??` short-circuit, or a closure
+  body — is not picked up, nor is one past the first 10 statements.
 - An explicit `#[RequestBody]` / `#[RequestField]` always wins over the scan.
 
 ## Documenting a body field-by-field with `#[RequestField]`

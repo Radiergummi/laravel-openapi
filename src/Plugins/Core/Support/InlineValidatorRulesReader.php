@@ -10,18 +10,18 @@ use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayDimFetch;
+use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
-use PhpParser\Node\Stmt\Expression;
-use PhpParser\Node\Stmt\Return_;
-use PhpParser\NodeFinder;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
+use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
+use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -42,9 +42,14 @@ use function sprintf;
  * Scans the first {@see self::STATEMENT_LIMIT} top-level statements for exactly four call shapes:
  *
  *  1. `$request->validate([...])` — on the method's `Illuminate\Http\Request`-typed parameter
- *  2. `$this->validate($request, [...])`
+ *  2. `$this->validate($request, [...])` — the first argument must be that parameter or a
+ *     zero-argument `request()` helper call; an untyped variable could be anything
  *  3. `Validator::make($request->all(), [...])`
  *  4. `Request::validate([...])` (the facade)
+ *
+ * Matching is straight-line only ({@see ConditionalContextPolicy::SkipConditionalContexts}): a
+ * call that only runs conditionally — inside an `if` branch, a ternary or `match` arm, a
+ * short-circuit operand, or a closure body — is never treated as *the* request body.
  *
  * The rules argument may be an array literal (trailing `//` comments on its entries become field
  * descriptions), or a controller-declared `$this->rules` property / zero-argument `$this->rules()`
@@ -63,12 +68,12 @@ final readonly class InlineValidatorRulesReader
 
     private const string REQUEST_FACADE = 'Illuminate\Support\Facades\Request';
 
-    private NodeFinder $nodeFinder;
+    private StatementNodeFinder $statementNodeFinder;
 
     public function __construct(
         private MethodBodyScanner $scanner,
     ) {
-        $this->nodeFinder = new NodeFinder();
+        $this->statementNodeFinder = new StatementNodeFinder();
     }
 
     /**
@@ -84,32 +89,20 @@ final readonly class InlineValidatorRulesReader
         }
 
         $requestParameterName = $this->requestParameterName($method);
-        $rulesExpression = null;
 
-        foreach ($statements as $statement) {
-            // Only straight-line statements participate: a validate() inside an `if` branch is
-            // conditional, and reading it would be guessing.
-            $expression = match (true) {
-                $statement instanceof Expression => $statement->expr,
-                $statement instanceof Return_ => $statement->expr,
-                default => null,
-            };
+        // Straight-line statements only: a validate() that runs conditionally (an `if` branch,
+        // a ternary arm, a short-circuit, a closure body) would be a guess as the request body.
+        $call = $this->statementNodeFinder->findFirst(
+            $statements,
+            ConditionalContextPolicy::SkipConditionalContexts,
+            fn(Node $node): bool => $this->rulesArgumentOf($node, $requestParameterName) instanceof Expr,
+        );
 
-            if ($expression === null) {
-                continue;
-            }
-
-            $call = $this->nodeFinder->findFirst(
-                $expression,
-                fn(Node $node): bool => $this->rulesArgumentOf($node, $requestParameterName) instanceof Expr,
-            );
-
-            if ($call !== null) {
-                $rulesExpression = $this->rulesArgumentOf($call, $requestParameterName);
-
-                break;
-            }
+        if ($call === null) {
+            return null;
         }
+
+        $rulesExpression = $this->rulesArgumentOf($call, $requestParameterName);
 
         if ($rulesExpression === null) {
             return null;
@@ -148,8 +141,14 @@ final readonly class InlineValidatorRulesReader
                 return $arguments[0]->value;
             }
 
-            // Shape 2: $this->validate($request, [...])
-            if ($node->var->name === 'this' && isset($arguments[1])) {
+            // Shape 2: $this->validate($request, [...]) — only when argument 0 actually is the
+            // request (the typed parameter or a request() helper call); any other first argument
+            // makes this an unrelated helper that happens to be named validate().
+            if (
+                $node->var->name === 'this'
+                && isset($arguments[1])
+                && $this->isRequestArgument($arguments[0]->value, $requestParameterName)
+            ) {
                 return $arguments[1]->value;
             }
 
@@ -187,20 +186,40 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Matches a static-call class name against a facade: either it resolves to the facade FQCN
-     * (via import or alias), or it was written as the bare short name in a namespace where it
-     * does not resolve to anything else.
+     * Whether the first argument of a `$this->validate(...)` call is the request: either the
+     * method's `Illuminate\Http\Request`-typed parameter, or a zero-argument `request()` helper
+     * call (the Bagisto idiom, which needs no request parameter in the signature). An untyped
+     * variable is rejected — it could hold anything.
      */
-    private function facadeMatches(Name $class, string $facadeClass, string $shortName): bool
+    private function isRequestArgument(Expr $argument, ?string $requestParameterName): bool
     {
-        if ($class->toString() === $facadeClass) {
+        if (
+            $argument instanceof Variable
+            && is_string($argument->name)
+            && $requestParameterName !== null
+            && $argument->name === $requestParameterName
+        ) {
             return true;
         }
 
-        $originalName = $class->getAttribute('originalName');
-        $writtenName = $originalName instanceof Name ? $originalName->toString() : $class->toString();
+        return $argument instanceof FuncCall
+            && $argument->name instanceof Name
+            && $argument->name->toLowerString() === 'request'
+            && !$argument->isFirstClassCallable()
+            && $argument->getArgs() === [];
+    }
 
-        return $writtenName === $shortName;
+    /**
+     * Matches a static-call class name against a facade. The name must *resolve* (per the
+     * NameResolver pass) to either the facade FQCN itself — an import or alias — or to the bare
+     * root-namespace short name, which is Laravel's `Validator` / `Request` root alias. A short
+     * name an import explicitly binds to a different class therefore never matches.
+     */
+    private function facadeMatches(Name $class, string $facadeClass, string $shortName): bool
+    {
+        $resolved = $class->toString();
+
+        return $resolved === $facadeClass || $resolved === $shortName;
     }
 
     /**

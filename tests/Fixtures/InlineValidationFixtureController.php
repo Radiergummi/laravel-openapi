@@ -8,6 +8,7 @@ use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request as RequestFacade;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -79,6 +80,15 @@ class InlineValidationFixtureController extends Controller
         return new JsonResponse($data);
     }
 
+    public function viaRequestHelper(): JsonResponse
+    {
+        $data = $this->validate(request(), [
+            'locale' => 'required|string',
+        ]);
+
+        return new JsonResponse($data);
+    }
+
     // endregion
 
     // region Shape 3: Validator::make($request->all(), [...])
@@ -132,6 +142,37 @@ class InlineValidationFixtureController extends Controller
                 'description' => 'nullable|string',
             ],
         ];
+    }
+
+    // endregion
+
+    // region Conditional contexts (must not match)
+
+    public function conditionalTernary(Request $request): JsonResponse
+    {
+        $data = $request->isMethod('POST') ? $request->validate(['c' => 'required']) : [];
+
+        return new JsonResponse($data);
+    }
+
+    public function conditionalShortCircuit(Request $request): JsonResponse
+    {
+        $request->has('guard') && $request->validate(['d' => 'required']);
+
+        return new JsonResponse([]);
+    }
+
+    public function conditionalInsideClosure(Request $request): JsonResponse
+    {
+        $result = DB::transaction(function () use ($request): array {
+            if ($request->has('e')) {
+                return $request->validate(['e' => 'required']);
+            }
+
+            return [];
+        });
+
+        return new JsonResponse($result);
     }
 
     // endregion

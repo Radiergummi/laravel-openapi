@@ -176,8 +176,20 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
         return $descriptor->items !== null && $this->containsFileField($descriptor->items);
     }
 
+    /**
+     * Derives the component key through the registry's collision machinery: reserving a
+     * synthetic class-like name (`{ControllerNamespace}\{ControllerShortName}{Method}Request`)
+     * makes {@see ComponentSchemaRegistry::reserveKey()} disambiguate same-short-name
+     * controllers with namespace segments instead of silently sharing one schema. `__invoke`
+     * contributes no method segment (`AgentControllerRequest`, not `AgentController__invokeRequest`).
+     */
     private function componentKey(ReflectionMethod $method): string
     {
-        return $method->getDeclaringClass()->getShortName() . ucfirst($method->getName()) . 'Request';
+        $controller = $method->getDeclaringClass();
+        $methodSegment = $method->getName() === '__invoke' ? '' : ucfirst($method->getName());
+        $baseName = $controller->getShortName() . $methodSegment . 'Request';
+        $namespace = $controller->getNamespaceName();
+
+        return $this->registry->reserveKey($namespace === '' ? $baseName : "{$namespace}\\{$baseName}");
     }
 }

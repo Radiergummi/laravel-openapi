@@ -6,16 +6,22 @@ use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidationScanResult;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidatorRulesReader;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineValidationFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\InlineValidationImpostorController;
 
 uses()->group('openapi');
 
 // region Helpers
 
-function readInlineValidationRules(string $method): ?InlineValidationScanResult
-{
+/**
+ * @param class-string $controller
+ */
+function readInlineValidationRules(
+    string $method,
+    string $controller = InlineValidationFixtureController::class,
+): ?InlineValidationScanResult {
     $reader = new InlineValidatorRulesReader(new MethodBodyScanner());
 
-    return $reader->read(new ReflectionMethod(InlineValidationFixtureController::class, $method));
+    return $reader->read(new ReflectionMethod($controller, $method));
 }
 
 // endregion
@@ -54,6 +60,18 @@ it('recovers rules from $this->validate($request, [...])', function (): void {
     expect($result?->rules)->toBe(['title' => 'required|string']);
 });
 
+it('recovers rules from $this->validate(request(), [...]) — the Bagisto idiom', function (): void {
+    $result = readInlineValidationRules('viaRequestHelper');
+
+    expect($result?->rules)->toBe(['locale' => 'required|string']);
+});
+
+it('does not match a controller-own validate() helper taking non-request arguments', function (): void {
+    $result = readInlineValidationRules('viaOwnValidateHelper', InlineValidationImpostorController::class);
+
+    expect($result)->toBeNull();
+});
+
 // endregion
 
 // region Shape 3: Validator::make($request->all(), [...])
@@ -62,6 +80,12 @@ it('recovers rules from Validator::make(), including a chained ->validate()', fu
     $result = readInlineValidationRules('viaValidatorFacade');
 
     expect($result?->rules)->toBe(['amount' => 'required|numeric']);
+});
+
+it('does not match an imported non-facade Validator class', function (): void {
+    $result = readInlineValidationRules('viaImportedValidator', InlineValidationImpostorController::class);
+
+    expect($result)->toBeNull();
 });
 
 // endregion
@@ -94,6 +118,22 @@ it('resolves $this->rulesByAction()[key] — the BookStack idiom', function (): 
         'name' => ['required', 'string'],
         'description' => 'nullable|string',
     ]);
+});
+
+// endregion
+
+// region Conditional contexts (Tier boundary)
+
+it('does not match a validate() in a ternary arm', function (): void {
+    expect(readInlineValidationRules('conditionalTernary'))->toBeNull();
+});
+
+it('does not match a validate() behind a logical short-circuit', function (): void {
+    expect(readInlineValidationRules('conditionalShortCircuit'))->toBeNull();
+});
+
+it('does not match an if-guarded validate() inside a transaction closure', function (): void {
+    expect(readInlineValidationRules('conditionalInsideClosure'))->toBeNull();
 });
 
 // endregion
