@@ -211,7 +211,7 @@ final class AuthoredAnnotationScanner
                 $this->schemasByName[$schema->schema] = $schema;
             }
 
-            $class = $this->declaringClass($schema);
+            $class = $this->declaringClassOf($schema);
 
             if ($class !== null) {
                 $this->schemasByClass[$class] = $schema;
@@ -227,7 +227,7 @@ final class AuthoredAnnotationScanner
 
         foreach ($document->paths as $path) {
             foreach ($path->operations() as $operation) {
-                $class = $this->declaringClass($operation);
+                $class = $this->declaringClassOf($operation);
                 $method = $operation->_context?->method;
 
                 if ($class === null || $method === null) {
@@ -245,8 +245,11 @@ final class AuthoredAnnotationScanner
      * An annotation written inside a trait carries `_context->trait` (with `_context->class` null),
      * so a trait-declared `@OA` operation is indexed under the trait's name — which the ancestry
      * walk in {@see operationForMethod()} then resolves for a controller that uses the trait.
+     *
+     * Public so a consumer (e.g. the harvest stage attributing a finding to its source class) can
+     * reuse the scanner's single source of truth for this derivation rather than duplicate it.
      */
-    private function declaringClass(Schema|Operation $annotation): ?string
+    public function declaringClassOf(Schema|Operation $annotation): ?string
     {
         $context = $annotation->_context;
         $fullyQualified = $context?->fullyQualifiedName($context->class ?? $context->trait);

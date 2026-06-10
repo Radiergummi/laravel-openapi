@@ -26,7 +26,6 @@ use function array_unique;
 use function array_values;
 use function is_array;
 use function is_string;
-use function ltrim;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
@@ -327,7 +326,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         $this->logger->warning($message);
 
         $context = [SchemaNameCollision::CONTEXT_SCHEMA => $name];
-        $declaringClass = $this->authoredDeclaringClass($authored);
+        $declaringClass = $this->scanner->declaringClassOf($authored);
 
         if ($declaringClass !== null) {
             $context[Finding::CONTEXT_SOURCE_CLASS] = $declaringClass;
@@ -340,18 +339,6 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             fixHint: SchemaNameCollision::FIX_HINT,
             context: $context,
         ));
-    }
-
-    /**
-     * The leading-slash-free FQCN the authored schema is declared on, derived from swagger-php's
-     * `_context` (a `@OA\Schema` written on a class or trait), or null when unavailable.
-     */
-    private function authoredDeclaringClass(OA\Schema $schema): ?string
-    {
-        $annotationContext = $schema->_context;
-        $fullyQualified = $annotationContext?->fullyQualifiedName($annotationContext->class ?? $annotationContext->trait);
-
-        return $fullyQualified === null ? null : ltrim($fullyQualified, '\\');
     }
 
     /**
