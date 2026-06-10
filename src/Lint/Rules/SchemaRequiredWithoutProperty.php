@@ -12,11 +12,11 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRuleVisitor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function in_array;
 use function is_array;
 use function is_string;
-use function preg_match;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
@@ -154,11 +154,7 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
      */
     private function refToName(string $ref): ?string
     {
-        if (preg_match('~^#/components/schemas/(.+)$~', $ref, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
+        return ComponentReference::name($ref);
     }
 
     #[Override]

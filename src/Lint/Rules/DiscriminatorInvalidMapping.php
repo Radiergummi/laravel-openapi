@@ -14,14 +14,13 @@ use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRuleVisitor;
 use Radiergummi\OpenApi\Lint\Visitors\Finalizable;
 use Radiergummi\OpenApi\Lint\Visitors\Resettable;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function is_array;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 use function str_starts_with;
-use function strlen;
-use function substr;
 
 /**
  * Reports when a schema's `discriminator.mapping` references a schema that does not declare the
@@ -171,10 +170,10 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
      */
     private function resolveRefToSchemaName(string $ref): ?string
     {
-        $prefix = OA\Components::SCHEMA_REF;
+        $name = ComponentReference::name($ref);
 
-        if (str_starts_with($ref, $prefix)) {
-            return substr($ref, strlen($prefix));
+        if ($name !== null) {
+            return $name;
         }
 
         // Might be a plain schema name without $ref prefix

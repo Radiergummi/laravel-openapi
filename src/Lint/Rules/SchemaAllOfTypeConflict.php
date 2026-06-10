@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRuleVisitor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function count;
 use function implode;
@@ -45,7 +46,7 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
 
         yield from $this->checkSchema(
             $schema,
-            '#/components/schemas/' . $componentSchema->name,
+            ComponentReference::pointer($componentSchema->name),
             $componentSchema->name,
         );
     }

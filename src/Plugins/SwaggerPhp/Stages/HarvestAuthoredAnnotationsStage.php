@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionNamedType;
 
@@ -24,9 +25,6 @@ use function is_array;
 use function is_string;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
-use function str_starts_with;
-use function strrpos;
-use function substr;
 
 /**
  * Merges the hand-authored swagger-php annotations a host app already wrote into the generated
@@ -215,7 +213,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         $this->registerSchema($schema);
 
         $content = [
-            MediaType::Json->schema(new OA\Schema(['ref' => '#/components/schemas/' . $schema->schema])),
+            MediaType::Json->schema(new OA\Schema(['ref' => ComponentReference::pointer($schema->schema)])),
         ];
 
         if ($primary !== null) {
@@ -403,12 +401,6 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
 
     private function refName(string $ref): ?string
     {
-        if (!str_starts_with($ref, '#/components/schemas/')) {
-            return null;
-        }
-
-        $position = strrpos($ref, '/');
-
-        return $position === false ? null : substr($ref, $position + 1);
+        return ComponentReference::name($ref);
     }
 }

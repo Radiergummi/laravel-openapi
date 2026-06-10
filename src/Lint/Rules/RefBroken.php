@@ -14,9 +14,9 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Visitors\ApiRule as ApiRuleVisitor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function is_string;
-use function preg_match;
 use function property_exists;
 use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
@@ -91,12 +91,14 @@ final class RefBroken implements Rule, ApiRuleVisitor
      */
     private function refExists(string $ref, array $componentIndex): bool
     {
-        if (!preg_match('~^#/components/([^/]+)/(.+)$~', $ref, $matches)) {
+        $parsed = ComponentReference::parse($ref);
+
+        if ($parsed === null) {
             // Not a local component ref (could be external) – skip
             return true;
         }
 
-        [, $type, $name] = $matches;
+        ['type' => $type, 'name' => $name] = $parsed;
 
         // pathItems are not indexed as components (they live inline on
         // operations as callbacks), so skip ref validation for them rather

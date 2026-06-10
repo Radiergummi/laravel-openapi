@@ -8,9 +8,9 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function is_string;
-use function preg_match;
 use function property_exists;
 use function Radiergummi\OpenApi\is_undefined;
 use function strtoupper;
@@ -123,8 +123,10 @@ final readonly class TreeIndex
                 return;
             }
 
-            if (preg_match('~^#/components/([^/]+)/(.+)$~', $ref, $matches)) {
-                $keys[$matches[1] . '/' . $matches[2]] = true;
+            $parsed = ComponentReference::parse($ref);
+
+            if ($parsed !== null) {
+                $keys[$parsed['type'] . '/' . $parsed['name']] = true;
             }
         });
 

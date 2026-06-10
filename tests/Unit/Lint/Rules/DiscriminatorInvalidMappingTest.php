@@ -107,6 +107,20 @@ it('emits a finding when a mapped schema does not declare the discriminator prop
         ->and($findings[0]->message)->toContain('type');
 });
 
+it('resolves a bare schema-name mapping value (no $ref prefix)', function (): void {
+    // OpenAPI permits a discriminator mapping value to be a plain component name
+    // instead of a full `#/components/schemas/…` ref; that fallback must still resolve.
+    $findings = discriminatorInvalidMappingFindings(
+        propertyName: 'type',
+        mapping: ['dog' => 'Dog'],
+        schemas: ['Dog' => ['name']], // missing 'type'
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->message)->toContain('Dog')
+        ->and($findings[0]->message)->toContain('type');
+});
+
 it('emits a finding when a mapped schema does not exist', function (): void {
     $findings = discriminatorInvalidMappingFindings(
         propertyName: 'type',

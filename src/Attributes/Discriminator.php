@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Attributes;
 
 use Attribute;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use RuntimeException;
 
 /**
@@ -55,7 +56,7 @@ final readonly class Discriminator
             $key = $variantKeys[$variantClass] ?? throw new RuntimeException(
                 "Variant class '{$variantClass}' was not built before assemble().",
             );
-            $ref = "#/components/schemas/{$key}";
+            $ref = ComponentReference::pointer($key);
 
             $oneOf[] = new OA\Schema(['ref' => $ref]);
             $mappingRefs[$value] = $ref;
