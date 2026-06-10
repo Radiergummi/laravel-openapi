@@ -123,11 +123,11 @@ final readonly class JsonSchemaFromType
                     => $isInt
                     ? (int) $case->value
                     : (string) $case->value,
-                $enumClass::cases(),
+                $cases,
             ),
         ];
 
-        $caseDescription = $this->enumCaseDescription($enumClass);
+        $caseDescription = $this->enumCaseDescription($enumClass, $cases);
 
         if ($caseDescription !== null) {
             $props['description'] = $caseDescription;
@@ -171,12 +171,13 @@ final readonly class JsonSchemaFromType
      * Format: "- `value`: Summary line\n- `value2`: Summary line 2"
      *
      * @param class-string<BackedEnum> $enumClass
+     * @param list<BackedEnum>         $cases
      */
-    private function enumCaseDescription(string $enumClass): ?string
+    private function enumCaseDescription(string $enumClass, array $cases): ?string
     {
         $lines = [];
 
-        foreach ($enumClass::cases() as $case) {
+        foreach ($cases as $case) {
             $constant = new ReflectionEnumBackedCase($enumClass, $case->name);
             $doc = $constant->getDocComment();
 
