@@ -16,7 +16,9 @@ New to the package? Read [Getting started](getting-started.md), then
 | [Attributes](attributes.md) | Escape-hatch catalog. |
 | [Recipes](recipes.md) | Short snippets for streaming, multipart, polymorphism, links, operationIds, and security schemes. |
 | [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal, SwaggerPhp. |
+| [Migrating from L5-Swagger](migrating-from-l5-swagger.md) | Positioning vs annotation-driven swagger-php, and the end-to-end migration path. |
 | [Linting](linting.md) | `openapi:lint`, severity levels, rule catalog, `#[IgnoreLint]`. |
+| [CI integration](ci.md) | GitHub Actions, spec-drift check, and pre-commit / git-hook recipes. |
 | [Multi-spec](multi-spec.md) | Multiple OpenAPI documents from one app. |
 | [Configuration](config.md) | `config/openapi.php` keys. |
 | [Troubleshooting](troubleshooting.md) | Symptom index. |
