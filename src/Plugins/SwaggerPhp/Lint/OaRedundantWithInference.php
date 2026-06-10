@@ -17,7 +17,9 @@ use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OaRedundancyEngine;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaSubsumption;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use ReflectionClass;
@@ -47,10 +49,17 @@ use function sprintf;
  */
 final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule, NeedsInferenceDocument
 {
+    private readonly OaRedundancyEngine $engine;
+
+    private readonly SchemaSubsumption $comparator;
+
     public function __construct(
         private readonly AuthoredAnnotationScanner $scanner,
-        private readonly SchemaEquivalence $equivalence,
-    ) {}
+        SchemaEquivalence $equivalence,
+    ) {
+        $this->engine = new OaRedundancyEngine();
+        $this->comparator = new SchemaSubsumption($equivalence);
+    }
 
     /**
      * @return iterable<Finding>
@@ -74,44 +83,36 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
 
         $inferred = $context->inference->schemaForClass($class);
 
-        // Inference produces no schema for this class: the annotation is load-bearing — keep it.
-        if ($inferred === null) {
-            return;
-        }
-
-        // Fire only when inference reproduces everything the author wrote (and possibly more).
-        if (!$this->equivalence->subsumes($inferred, $authored)) {
-            return;
-        }
-
         // Removing a schema another surviving authored annotation still references by name would
         // dangle that reference.
-        if (is_defined($authored->schema)
-            && $this->scanner->isSchemaReferencedByOtherAuthored((string) $authored->schema, $class)
-        ) {
-            return;
-        }
+        $isLoadBearing = fn(): bool => is_defined($authored->schema)
+            && $this->scanner->isSchemaReferencedByOtherAuthored((string) $authored->schema, $class);
 
-        $shape = AuthoredAnnotationShape::detect(new ReflectionClass($class));
-
-        if ($shape === null) {
-            return;
-        }
-
-        yield new Finding(
-            ruleId: $this->id(),
-            level: $this->level(),
-            message: sprintf(
-                'The %s annotation on %s restates a schema the generator already infers; it can be removed.',
-                $shape === AuthoredAnnotationShape::Docblock ? '@OA\Schema docblock' : '#[OA\Schema] attribute',
-                $class,
+        $finding = $this->engine->evaluate(
+            $authored,
+            $inferred,
+            $this->comparator,
+            fn(): ReflectionClass => new ReflectionClass($class),
+            fn(AuthoredAnnotationShape $shape): Finding => new Finding(
+                ruleId: $this->id(),
+                level: $this->level(),
+                message: sprintf(
+                    'The %s annotation on %s restates a schema the generator already infers; it can be removed.',
+                    $shape === AuthoredAnnotationShape::Docblock ? '@OA\Schema docblock' : '#[OA\Schema] attribute',
+                    $class,
+                ),
+                fixHint: 'Remove the redundant swagger-php annotation; inference reproduces the same schema.',
+                context: [
+                    Finding::CONTEXT_SOURCE_CLASS => $class,
+                    AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
+                ],
             ),
-            fixHint: 'Remove the redundant swagger-php annotation; inference reproduces the same schema.',
-            context: [
-                Finding::CONTEXT_SOURCE_CLASS => $class,
-                AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
-            ],
+            $isLoadBearing,
         );
+
+        if ($finding !== null) {
+            yield $finding;
+        }
     }
 
     #[Override]
