@@ -15,6 +15,8 @@ final class LiteralConstantsFixture
 
     public const string STATUS_RULE = 'in:draft,published';
 
+    public const array BODY_RULES = ['required', 'string', 'max:5000'];
+
     public const array NESTED_ARRAY = ['a' => 1, 'b' => ['c' => true, 'd' => null]];
 
     public const array CONTAINS_ENUM_CASE = ['status' => StatusFixtureEnum::Draft];

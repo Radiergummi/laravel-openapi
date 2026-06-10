@@ -28,6 +28,8 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use Throwable;
 
+use function array_all;
+use function array_is_list;
 use function array_key_exists;
 use function array_values;
 use function is_a;
@@ -301,9 +303,11 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Evaluates one field's ruleset. A literal string (pipe syntax) passes through; an array
-     * keeps its literal elements and drops dynamic ones (e.g. `Rule::unique(...)`) — they refine
-     * validation, not the schema shape. A fully dynamic value returns null (field skipped).
+     * Evaluates one field's ruleset. A literal string (pipe syntax) passes through, and so does
+     * a class constant resolving to a string or to a list of strings (a whole-ruleset constant,
+     * `'title' => RuleSets::TITLE`); an array literal keeps its literal elements and drops
+     * dynamic ones (e.g. `Rule::unique(...)`) — they refine validation, not the schema shape.
+     * A fully dynamic value returns null (field skipped).
      *
      * @return null|array<int, mixed>|string
      */
@@ -316,7 +320,19 @@ final readonly class InlineValidatorRulesReader
                 return null;
             }
 
-            return is_string($evaluated) ? $evaluated : null;
+            if (is_string($evaluated)) {
+                return $evaluated;
+            }
+
+            if (
+                is_array($evaluated)
+                && array_is_list($evaluated)
+                && array_all($evaluated, static fn(mixed $element): bool => is_string($element))
+            ) {
+                return $evaluated;
+            }
+
+            return null;
         }
 
         $elements = [];

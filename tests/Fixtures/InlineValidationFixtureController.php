@@ -56,12 +56,14 @@ class InlineValidationFixtureController extends Controller
         return new JsonResponse($validated);
     }
 
-    // Class-constant rules (#227): a whole ruleset constant and a constant array element.
+    // Class-constant rules (#227): whole-ruleset constants (string and array) and a constant
+    // array element.
     public function constantRules(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'title' => LiteralConstantsFixture::TITLE_RULES,
             'status' => ['required', LiteralConstantsFixture::STATUS_RULE],
+            'body' => LiteralConstantsFixture::BODY_RULES,
         ]);
 
         return new JsonResponse($validated, 201);
