@@ -14,7 +14,10 @@ use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
+use PhpParser\Node\Stmt;
+use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -28,8 +31,12 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
+use function array_filter;
 use function array_is_list;
+use function array_map;
+use function array_values;
 use function function_exists;
+use function in_array;
 use function is_a;
 use function is_array;
 use function is_bool;
@@ -37,6 +44,7 @@ use function is_float;
 use function is_int;
 use function is_string;
 use function sprintf;
+use function strtolower;
 
 /**
  * Infers the primary response from a literal `response()->json([...])` call in the controller
@@ -45,7 +53,8 @@ use function sprintf;
  * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
  * {@see ConditionalContextPolicy::SkipConditionalContexts}: a `response()->json()` that only runs
  * conditionally is not the canonical success response (same reasoning as the inline-validation
- * request scan, opposite of the abort scan). Only the global `response()` helper with zero
+ * request scan, opposite of the abort scan). A *returned* `json()` beats one only assigned to a
+ * variable; among returned calls, the first wins. Only the global `response()` helper with zero
  * arguments followed by `->json(...)` is matched; the `Response` facade and `new JsonResponse()`
  * are out of scope by design.
  *
@@ -55,15 +64,23 @@ use function sprintf;
  * a literal key keeps the property with an unconstrained schema — dropping a response property
  * would be silently wrong for spec consumers. A dynamic *key* (or spread) degrades the whole
  * call. A literal (or class-constant) `status` becomes the response status; a non-literal status
- * degrades the whole call — the body must not be documented under a guessed status.
+ * degrades the whole call — the body must not be documented under a guessed status. Only a 2xx
+ * status may claim the primary response: a straight-line non-2xx literal (the guarded-success +
+ * terminal-error-fallback idiom) degrades with a note rather than evicting the operation's
+ * success response. A 204 documents without content — the runtime strips the body. A chained
+ * call that can change the response's status or body (`->setStatusCode(...)`, `->setData(...)`)
+ * degrades the call until those chains are read (#236); header/cookie chains stay matched.
  *
  * Degradation contract: a matched call that cannot be read statically is skipped with a
  * generation-log note (`#[Response]` is the escape hatch); a method without any matching call is
  * skipped silently, as is a body without shape information (`json()` / `json([])`). Explicit
  * `#[Response(2xx)]` attributes win in `OperationBuilder`'s primary-override path — not
- * re-implemented here. The return-type guard keeps the scan away from actions whose signature
- * already carries schema information (a typed Model/Data/Resource/paginator return), so the
- * Tier-0 resolvers stay authoritative regardless of chain order.
+ * re-implemented here — and an action carrying a {@see PrimaryResponseAuthoringAttribute}
+ * (`#[ResponseResource]`, `#[FractalResponse]`) is never scanned: the attribute's own resolver
+ * may sit later in the chain, and explicit authoring always wins. The return-type guard keeps
+ * the scan away from actions whose signature already carries schema information (a typed
+ * Model/Data/Resource/paginator return), so the Tier-0 resolvers stay authoritative regardless
+ * of chain order.
  */
 #[Scoped]
 final readonly class InlineJsonResponseResolver implements PrimaryResponseResolver
@@ -77,6 +94,14 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     private const int DATA_ARGUMENT_POSITION = 0;
 
     private const int STATUS_ARGUMENT_POSITION = 1;
+
+    /**
+     * Chained methods (lowercased) that cannot change the response's status or body — header and
+     * cookie decoration only. Any other chained call (`setStatusCode`, `setData`, `setNotModified`,
+     * …) may invalidate what the matched call promised, so it degrades the scan until #236 reads
+     * those chains.
+     */
+    private const array RESPONSE_PRESERVING_CHAIN_METHODS = ['header', 'withheaders', 'cookie', 'withcookie'];
 
     private StatementNodeFinder $statementNodeFinder;
 
@@ -95,17 +120,20 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
+        // An explicit authoring attribute always wins (epic #5). Its consuming resolver may sit
+        // later in the chain (#[ResponseResource] → ApiResources, #[FractalResponse] → Fractal),
+        // so the scan steps aside rather than claim a response the author already described.
+        if ($descriptor->declaresAttributeImplementing(PrimaryResponseAuthoringAttribute::class)) {
+            return null;
+        }
+
         $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
 
         if ($statements === []) {
             return null;
         }
 
-        $call = $this->statementNodeFinder->findFirst(
-            $statements,
-            ConditionalContextPolicy::SkipConditionalContexts,
-            fn(Node $node): bool => $this->isJsonHelperCall($node),
-        );
+        $call = $this->findJsonCall($statements);
 
         if (!$call instanceof MethodCall) {
             $conditionalCall = $this->statementNodeFinder->findFirst(
@@ -121,7 +149,41 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
+        if (!$this->chainPreservesResponse($statements, $call, $method)) {
+            return null;
+        }
+
         return $this->responseFromCall($call, $method);
+    }
+
+    /**
+     * The matched `response()->json(...)` call, preferring *returned* calls: a `return`ed json()
+     * is the response the action actually emits, while one assigned to a variable may never be.
+     * Among returned matches the first wins; without any, the first match anywhere in the
+     * scanned statements is taken.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function findJsonCall(array $statements): ?MethodCall
+    {
+        $returnStatements = array_values(array_filter(
+            $statements,
+            static fn(Stmt $statement): bool => $statement instanceof Return_,
+        ));
+
+        foreach ([$returnStatements, $statements] as $candidates) {
+            $call = $this->statementNodeFinder->findFirst(
+                $candidates,
+                ConditionalContextPolicy::SkipConditionalContexts,
+                fn(Node $node): bool => $this->isJsonHelperCall($node),
+            );
+
+            if ($call instanceof MethodCall) {
+                return $call;
+            }
+        }
+
+        return null;
     }
 
     // region Call-shape matching
@@ -168,6 +230,52 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
     }
 
+    /**
+     * Whether every method call chained onto the matched `json()` leaves the response's status
+     * and body untouched. Walks the chain outwards (`json(...)->header(...)->setStatusCode(...)`)
+     * and degrades with a note on the first non-whitelisted link.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function chainPreservesResponse(array $statements, MethodCall $call, ReflectionMethod $method): bool
+    {
+        $current = $call;
+
+        while (($parent = $this->chainParentOf($statements, $current)) !== null) {
+            $name = $parent->name instanceof Identifier ? $parent->name->toString() : null;
+
+            if ($name === null || !in_array(strtolower($name), self::RESPONSE_PRESERVING_CHAIN_METHODS, true)) {
+                $this->note($method, sprintf(
+                    'is chained into ->%s(), which may change the response status or body',
+                    $name ?? '{dynamic}',
+                ));
+
+                return false;
+            }
+
+            $current = $parent;
+        }
+
+        return true;
+    }
+
+    /**
+     * The method call whose receiver is exactly the given call (the next link outwards in a
+     * fluent chain), or null when the call is not chained into another method call.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function chainParentOf(array $statements, MethodCall $call): ?MethodCall
+    {
+        $parent = $this->statementNodeFinder->findFirst(
+            $statements,
+            ConditionalContextPolicy::IncludeConditionalContexts,
+            static fn(Node $node): bool => $node instanceof MethodCall && $node->var === $call,
+        );
+
+        return $parent instanceof MethodCall ? $parent : null;
+    }
+
     // endregion
 
     // region Response construction
@@ -198,6 +306,12 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
+        // A 204 must not carry a body — the runtime strips it (`Response::prepare()`), so the
+        // literal body is not documented either.
+        if ($status === 204) {
+            return new OA\Response(['response' => '204', 'description' => 'No Content']);
+        }
+
         $definition = $this->bodyDefinition($dataArgument->value, $method);
 
         if ($definition === null) {
@@ -213,7 +327,11 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
     /**
      * The literal status argument, 200 when absent, or null (refusal) when present but not
-     * statically readable — documenting the body under a guessed status would be wrong.
+     * statically readable — documenting the body under a guessed status would be wrong — or not
+     * a 2xx. Only a success status may claim the primary response: a straight-line non-2xx
+     * literal (`return response()->json(['message' => 'Unauthorized'], 403)` as the terminal
+     * fallback after a guarded success) is an error response, and taking it as primary would
+     * evict the operation's success response.
      *
      * @param array<int, Arg> $arguments
      */
@@ -233,6 +351,15 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         if (!is_int($status)) {
             $this->note($method, 'has no statically readable status code, so the body must not be documented under a guessed status');
+
+            return null;
+        }
+
+        if ($status < 200 || $status > 299) {
+            $this->note($method, sprintf(
+                'has a literal non-2xx status (%d) — an error response must not claim the primary response',
+                $status,
+            ));
 
             return null;
         }
@@ -311,7 +438,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      */
     private function definitionFromArrayNode(Array_ $expression): array
     {
-        /** @var array<string, array<string, mixed>> $properties */
+        /** @var array<array<string, mixed>> $properties Definitions under PHP's native key coercion. */
         $properties = [];
 
         /** @var list<Expr> $elements */
@@ -334,7 +461,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
                 throw NonLiteralValueException::for($item->key);
             }
 
-            $properties[(string) $key] = $this->valueDefinition($item->value);
+            $properties[$key] = $this->valueDefinition($item->value);
         }
 
         // A keyed/unkeyed mix does not map onto one JSON shape.
@@ -343,10 +470,22 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         if ($elements !== []) {
-            return $this->listDefinition($elements);
+            return $this->listDefinition(array_map($this->valueDefinition(...), $elements));
         }
 
-        return ['type' => 'object', 'properties' => $properties];
+        // Explicit sequential integer keys are a JSON array, exactly as `json_encode` treats
+        // them — the same `array_is_list` semantics as the evaluated-literal path.
+        if ($properties !== [] && array_is_list($properties)) {
+            return $this->listDefinition($properties);
+        }
+
+        $objectProperties = [];
+
+        foreach ($properties as $key => $definition) {
+            $objectProperties[(string) $key] = $definition;
+        }
+
+        return ['type' => 'object', 'properties' => $objectProperties];
     }
 
     /**
@@ -383,18 +522,12 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      * Items are derived from the first element; when a later element disagrees on type the items
      * stay unconstrained — a heterogeneous literal list has no single item schema.
      *
-     * @param list<Expr> $elements
+     * @param non-empty-list<array<string, mixed>> $definitions
      *
      * @return array<string, mixed>
      */
-    private function listDefinition(array $elements): array
+    private function listDefinition(array $definitions): array
     {
-        $definitions = [];
-
-        foreach ($elements as $element) {
-            $definitions[] = $this->valueDefinition($element);
-        }
-
         $first = $definitions[0];
 
         foreach ($definitions as $definition) {

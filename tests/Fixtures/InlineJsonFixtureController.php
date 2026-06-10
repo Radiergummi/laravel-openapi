@@ -63,6 +63,28 @@ class InlineJsonFixtureController extends Controller
         return response()->json(['cached' => true])->header('X-Cache', 'hit');
     }
 
+    public function statusMutatingChain(): JsonResponse
+    {
+        return response()->json(['created' => true])->setStatusCode(201);
+    }
+
+    public function integerKeyedList(): JsonResponse
+    {
+        return response()->json([0 => 'first', 1 => 'second']);
+    }
+
+    public function integerKeyedListConstant(): JsonResponse
+    {
+        return response()->json(LiteralConstantsFixture::LIST_WITH_EXPLICIT_INTEGER_KEYS);
+    }
+
+    public function assignedThenReturned(): JsonResponse
+    {
+        $preview = response()->json(['first' => true]);
+
+        return response()->json(['second' => true], 201);
+    }
+
     // endregion
 
     // region Status arguments
@@ -85,6 +107,30 @@ class InlineJsonFixtureController extends Controller
     public function dynamicStatus(Request $request): JsonResponse
     {
         return response()->json(['ok' => true], $request->integer('status'));
+    }
+
+    /**
+     * The pervasive guarded-success + terminal-error-fallback idiom (InvoiceNinja's
+     * `StripeController::verify` shape): the real success is conditional, the straight-line
+     * literal is an error. The 403 must not claim the operation's primary response.
+     */
+    public function guardedSuccessWithTerminalError(Request $request): JsonResponse
+    {
+        if ($request->has('admin')) {
+            return $this->buildFallback();
+        }
+
+        return response()->json(['message' => 'Unauthorized'], 403);
+    }
+
+    public function noContentStatus(): JsonResponse
+    {
+        return response()->json(['gone' => true], 204);
+    }
+
+    public function nonsenseStatus(): JsonResponse
+    {
+        return response()->json(['gone' => true], 999);
     }
 
     // endregion

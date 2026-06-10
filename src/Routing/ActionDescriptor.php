@@ -13,6 +13,8 @@ use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionParameter;
 
+use function array_keys;
+use function is_a;
 use function str_contains;
 
 /**
@@ -94,6 +96,31 @@ final class ActionDescriptor
         }
 
         return $instances;
+    }
+
+    /**
+     * Whether the action (or its controller class) declares any attribute whose class implements
+     * the given interface. Lets a resolver detect an authoring marker — e.g.
+     * `PrimaryResponseAuthoringAttribute` — without knowing the concrete attribute classes, which
+     * may live in plugins it must not depend on.
+     *
+     * @param class-string $interface
+     */
+    public function declaresAttributeImplementing(string $interface): bool
+    {
+        foreach ([$this->actionReflector, $this->controller] as $reflector) {
+            if ($reflector === null) {
+                continue;
+            }
+
+            foreach (array_keys($this->bucketFor($reflector)) as $attributeClass) {
+                if (is_a($attributeClass, $interface, true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

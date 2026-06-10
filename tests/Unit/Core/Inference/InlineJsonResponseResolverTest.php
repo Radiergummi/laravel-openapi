@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
 
 uses()->group('openapi');
 
@@ -20,11 +21,13 @@ function inlineJsonResolver(?LoggerInterface $logger = null): InlineJsonResponse
     return new InlineJsonResponseResolver(new MethodBodyScanner(), $logger ?? new NullLogger());
 }
 
-function inlineJsonActionDescriptor(string $method): ActionDescriptor
-{
-    /** @var class-string $controller */
-    $controller = InlineJsonFixtureController::class;
-
+/**
+ * @param class-string $controller
+ */
+function inlineJsonActionDescriptor(
+    string $method,
+    string $controller = InlineJsonFixtureController::class,
+): ActionDescriptor {
     return new ActionDescriptor(
         route: new Route(['GET'], '/test', static fn() => null),
         controller: new ReflectionClass($controller),
@@ -119,6 +122,47 @@ it('matches a json call wrapped in a further method chain', function (): void {
     expect(inlineJsonSchema($response)['properties'])->toHaveKey('cached');
 });
 
+it('refuses a json call chained into a status-mutating method and logs a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('statusMutatingChain'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('setStatusCode');
+});
+
+it('documents explicit sequential integer keys as a JSON array (AST path)', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('integerKeyedList'));
+
+    $schema = inlineJsonSchema($response);
+
+    expect($schema['type'])->toBe('array')
+        ->and($schema['items']['type'])->toBe('string')
+        ->and($schema)->not->toHaveKey('properties');
+});
+
+it('documents explicit sequential integer keys as a JSON array (evaluated class-constant path)', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('integerKeyedListConstant'),
+    );
+
+    $schema = inlineJsonSchema($response);
+
+    expect($schema['type'])->toBe('array')
+        ->and($schema['items']['type'])->toBe('string')
+        ->and($schema)->not->toHaveKey('properties');
+});
+
+it('prefers a returned json call over an earlier one only assigned to a variable', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('assignedThenReturned'));
+
+    expect($response->response)->toBe('201')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('second');
+});
+
 // endregion
 
 // region Status arguments
@@ -156,6 +200,45 @@ it('refuses the call and logs a note when the status argument is not literal', f
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
         ->and($logger->records[0]['message'])->toContain('status');
+});
+
+it('refuses a straight-line non-2xx literal so the success response is not evicted', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('guardedSuccessWithTerminalError'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('non-2xx')
+        ->and($logger->records[0]['message'])->toContain('403');
+});
+
+it('refuses a nonsense literal status via the 2xx guard', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('nonsenseStatus'));
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('999');
+});
+
+it('documents a 204 without a body schema', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContentStatus'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and($response->description)->toBe('No Content')
+        ->and($logger->records)->toBeEmpty();
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($response, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
 });
 
 // endregion
@@ -245,6 +328,28 @@ it('never scans an action whose return type already carries schema information',
 
     $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('typedReturnWithJsonBody'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toBeEmpty();
+});
+
+it('steps aside silently when the action carries a #[ResponseResource] authoring attribute', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('resourceAuthored', InlineJsonWithAttributeController::class),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toBeEmpty();
+});
+
+it('steps aside silently when the action carries a #[FractalResponse] authoring attribute', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('fractalAuthored', InlineJsonWithAttributeController::class),
     );
 
     expect($response)->toBeNull()

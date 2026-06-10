@@ -268,11 +268,15 @@ public function show(): JsonResponse
 ```
 
 Nested literal arrays recurse into nested object schemas, a literal list
-becomes an array schema with its item type taken from the first element, and a
-literal (or class-constant) `status` argument — positional or named,
-`response()->json($data, 201)` / `response()->json(data: [...], status: 201)` —
-becomes the response status. With no status argument the response documents as
-`200`.
+becomes an array schema with its item type taken from the first element
+(explicit sequential integer keys — `[0 => 'a', 1 => 'b']` — count as a list,
+exactly as `json_encode` treats them), and a literal (or class-constant)
+`status` argument — positional or named, `response()->json($data, 201)` /
+`response()->json(data: [...], status: 201)` — becomes the response status.
+With no status argument the response documents as `200`. A literal `204`
+documents as `204 No Content` without a body schema — the runtime strips the
+body. When several calls match, a **returned** `json()` beats one only
+assigned to a variable; among returned calls, the first wins.
 
 Boundaries, by design (no dataflow analysis):
 
@@ -288,13 +292,27 @@ Boundaries, by design (no dataflow analysis):
   with `#[Response]` instead.
 - A **non-literal status argument** also degrades the whole call: the body must
   not be documented under a guessed status.
+- Only a **2xx literal status** may claim the success response. A straight-line
+  non-2xx literal — the pervasive *guarded success + terminal error fallback*
+  idiom, `return response()->json(['message' => 'Unauthorized'], 403)` after a
+  conditional success — degrades with a log note instead of evicting the
+  operation's success response. (Routing such literals into the error-response
+  machinery, like `abort()` calls, is a tracked follow-up.)
+- A chained call that can **change the response's status or body** —
+  `->setStatusCode(201)`, `->setData(...)` — degrades the call rather than
+  documenting the body under the wrong status; header and cookie chains
+  (`->header(...)`, `->withHeaders(...)`, `->cookie(...)`) are harmless and
+  stay matched.
 - A `response()->json()` call that only runs **conditionally** — inside an `if`
   branch, a ternary or `match` arm, a short-circuit operand, or a closure
   body — is not treated as the canonical success response, nor is one past the
   first 10 statements.
 - A **schema-bearing return type** (a Model, Data class, Resource, or
   paginator) always wins over the scan, and so does an explicit
-  `#[Response]` attribute with a 2xx status.
+  `#[Response]` attribute with a 2xx status. An action carrying a
+  primary-response **authoring attribute** — `#[ResponseResource]`,
+  `#[FractalResponse]` — is never scanned, even though the resolver consuming
+  the attribute runs later: explicit authoring always wins.
 
 ## Resource action conventions
 

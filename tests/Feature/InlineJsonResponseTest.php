@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
 
@@ -13,6 +18,24 @@ use function array_any;
 use function str_contains;
 
 uses()->group('openapi');
+
+#[ResourceField('id', type: 'integer')]
+class InlineJsonProbeResource extends JsonResource {}
+
+class InlineJsonResourceAuthoredController extends Controller
+{
+    #[ResponseResource(InlineJsonProbeResource::class)]
+    public function show(): JsonResponse
+    {
+        return response()->json(['data' => $this->buildResource()]);
+    }
+
+    /** @return array<string, mixed> */
+    private function buildResource(): array
+    {
+        return [];
+    }
+}
 
 // region Inferred responses
 
@@ -85,6 +108,31 @@ it('prefers the typed return value over the body scan', function (): void {
 
     expect($schema['$ref'])->toBe('#/components/schemas/Article')
         ->and($schema)->not->toHaveKey('properties');
+});
+
+it('lets an explicit #[ResponseResource] win over the literal json envelope', function (): void {
+    Route::get('/oa-fixture/resource-authored', [InlineJsonResourceAuthoredController::class, 'show']);
+
+    $spec = generateSpec();
+    $schema = $spec['paths']['/oa-fixture/resource-authored']['get']['responses']['200']
+        ['content']['application/json']['schema'];
+
+    // The ApiResources resolver (later in the chain) consumes the attribute; the body scan must
+    // step aside instead of documenting the partial `{data: {}}` literal.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/InlineJsonProbeResource')
+        ->and($spec['components']['schemas'])->toHaveKey('InlineJsonProbeResource');
+});
+
+it('does not let a straight-line non-2xx literal evict the success response', function (): void {
+    Route::post('/oa-fixture/guarded', [InlineJsonFixtureController::class, 'guardedSuccessWithTerminalError']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/guarded']['post']['responses'];
+
+    // The guarded-success + terminal-403-fallback idiom: the operation keeps its (bare) success
+    // response; the error literal claims nothing.
+    expect($responses)->toHaveKey('200')
+        ->and($responses)->not->toHaveKey('403');
 });
 
 // endregion
