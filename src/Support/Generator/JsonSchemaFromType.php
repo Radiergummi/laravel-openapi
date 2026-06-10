@@ -48,6 +48,7 @@ final readonly class JsonSchemaFromType
 {
     public function __construct(
         private LoggerInterface $logger,
+        private ComponentSchemaRegistry $registry,
     ) {}
 
     public function fromType(Type $type): OA\Schema
@@ -70,7 +71,7 @@ final readonly class JsonSchemaFromType
             /** @var class-string<BackedEnum> $className */
             $className = $type->getClassName();
 
-            return $this->fromBackedEnumClass($className);
+            return $this->fromBackedEnumComponent($className);
         }
 
         if ($type instanceof EnumType) {
@@ -122,11 +123,11 @@ final readonly class JsonSchemaFromType
                     => $isInt
                     ? (int) $case->value
                     : (string) $case->value,
-                $enumClass::cases(),
+                $cases,
             ),
         ];
 
-        $caseDescription = $this->enumCaseDescription($enumClass);
+        $caseDescription = $this->enumCaseDescription($enumClass, $cases);
 
         if ($caseDescription !== null) {
             $props['description'] = $caseDescription;
@@ -136,18 +137,47 @@ final readonly class JsonSchemaFromType
     }
 
     /**
+     * Promotes a backed enum to a single reusable component and returns a `$ref` schema pointing at
+     * it. Every reference to the same enum class resolves to one pooled definition rather than an
+     * inlined copy. The inline schema is built once by {@see fromBackedEnumClass()}.
+     *
+     * @param class-string<BackedEnum> $enumClass
+     */
+    public function fromBackedEnumComponent(string $enumClass): OA\Schema
+    {
+        return new OA\Schema(['ref' => $this->backedEnumComponentReference($enumClass)]);
+    }
+
+    /**
+     * Registers the backed enum's reusable component (idempotently) and returns the `$ref` pointer
+     * string to it — for callers that need the pointer rather than a wrapping {@see OA\Schema}.
+     *
+     * @param class-string<BackedEnum> $enumClass
+     */
+    public function backedEnumComponentReference(string $enumClass): string
+    {
+        $key = $this->registry->buildOnce(
+            $enumClass,
+            fn(): OA\Schema => $this->fromBackedEnumClass($enumClass),
+        );
+
+        return $this->registry->qualifyKey($key);
+    }
+
+    /**
      * Reads per-case PHPDoc from a BackedEnum and returns a Markdown description listing each case
      * with its doc comment summary, or null when no case carries any documentation.
      *
      * Format: "- `value`: Summary line\n- `value2`: Summary line 2"
      *
      * @param class-string<BackedEnum> $enumClass
+     * @param list<BackedEnum>         $cases
      */
-    private function enumCaseDescription(string $enumClass): ?string
+    private function enumCaseDescription(string $enumClass, array $cases): ?string
     {
         $lines = [];
 
-        foreach ($enumClass::cases() as $case) {
+        foreach ($cases as $case) {
             $constant = new ReflectionEnumBackedCase($enumClass, $case->name);
             $doc = $constant->getDocComment();
 

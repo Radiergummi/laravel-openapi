@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Extraction;
 
+use BackedEnum;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Validation\Rules\Dimensions;
 use Illuminate\Validation\Rules\Email;
@@ -18,6 +19,9 @@ use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use ReflectionException;
+use ReflectionObject;
 
 use function array_key_exists;
 use function array_map;
@@ -26,9 +30,11 @@ use function array_pad;
 use function array_unique;
 use function array_values;
 use function count;
+use function enum_exists;
 use function explode;
 use function implode;
 use function in_array;
+use function is_a;
 use function is_array;
 use function is_float;
 use function is_int;
@@ -65,6 +71,7 @@ final readonly class ValidationRulesToSchema
 {
     public function __construct(
         private FindingsCollector $findings = new ArrayFindingsCollector(),
+        private ?JsonSchemaFromType $schemaFromType = null,
     ) {}
 
     /**
@@ -344,6 +351,18 @@ final readonly class ValidationRulesToSchema
         string $propertyName = '',
         ?string $sourceClass = null,
     ): void {
+        // A `Rule::enum()` over a backed enum's full case set resolves to the shared reusable enum
+        // component. only()/except() subsets and unit enums fall through to the inline value list.
+        if ($rule instanceof Enum) {
+            $reference = $this->backedEnumComponentReference($rule);
+
+            if ($reference !== null) {
+                $field->ref = $reference;
+
+                return;
+            }
+        }
+
         if ($rule instanceof In || $rule instanceof Enum || $rule instanceof Dimensions) {
             $string = (string) $rule;
 
@@ -416,6 +435,47 @@ final readonly class ValidationRulesToSchema
                 ],
             ),
         );
+    }
+
+    /**
+     * Registers (idempotently) and returns the shared component `$ref` for a `Rule::enum()` rule —
+     * but only when it constrains the field to a backed enum's FULL case set. Returns null for unit
+     * enums, `only()`/`except()` subsets (a subset is not the canonical component), or when no
+     * {@see JsonSchemaFromType} is wired (direct, container-less instantiation), in which case the
+     * caller falls back to the inline value list.
+     */
+    private function backedEnumComponentReference(Enum $rule): ?string
+    {
+        if ($this->schemaFromType === null) {
+            return null;
+        }
+
+        $reflection = new ReflectionObject($rule);
+
+        try {
+            $enumClass = $reflection->getProperty('type')->getValue($rule);
+
+            // only()/except() narrow the rule to a subset of cases — not the full shared component.
+            $only = $reflection->getProperty('only')->getValue($rule);
+            $except = $reflection->getProperty('except')->getValue($rule);
+        } catch (ReflectionException) {
+            // The rule's internals are not shaped as expected — fall back to the inline value list.
+            return null;
+        }
+
+        if (!is_string($enumClass)
+            || !enum_exists($enumClass)
+            || !is_a($enumClass, BackedEnum::class, allow_string: true)
+        ) {
+            return null;
+        }
+
+        if ($only !== [] || $except !== []) {
+            return null;
+        }
+
+        /** @var class-string<BackedEnum> $enumClass */
+        return $this->schemaFromType->backedEnumComponentReference($enumClass);
     }
 
     private function applyStringRule(

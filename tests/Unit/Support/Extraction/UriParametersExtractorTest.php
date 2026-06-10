@@ -6,6 +6,7 @@ use OpenApi\Generator;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Attributes\PathParam;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Routing\RouteModelBinding;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
@@ -51,7 +52,8 @@ function boundDescriptor(
 }
 
 beforeEach(function (): void {
-    $this->extractor = new UriParametersExtractor(new JsonSchemaFromType(new NullLogger()));
+    $this->registry = new ComponentSchemaRegistry();
+    $this->extractor = new UriParametersExtractor(new JsonSchemaFromType(new NullLogger(), $this->registry));
 });
 
 it('enriches a path parameter with description and example from #[PathParam]', function (): void {
@@ -217,20 +219,24 @@ function enumDescriptor(string $enum, array $cases): UriParameterDescriptor
     );
 }
 
-it('surfaces a string-backed enum binding as a string enum, without a where constraint', function (): void {
+it('refs a string-backed enum binding to a shared string-enum component, without a where constraint', function (): void {
     $descriptor = enumDescriptor(ArticleStatus::class, ['draft', 'published']);
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+    $component = json_decode(json_encode(collect($this->registry->all())->firstWhere('schema', 'ArticleStatus')), true);
 
-    expect($parameter->schema->type)->toBe('string')
-        ->and($parameter->schema->enum)->toBe(['draft', 'published']);
+    expect($parameter->schema->ref)->toBe('#/components/schemas/ArticleStatus')
+        ->and($component['type'])->toBe('string')
+        ->and($component['enum'])->toBe(['draft', 'published']);
 });
 
-it('surfaces an int-backed enum binding as an integer enum, without a where constraint', function (): void {
+it('refs an int-backed enum binding to a shared integer-enum component, without a where constraint', function (): void {
     $descriptor = enumDescriptor(PriorityLevel::class, ['1', '2', '3']);
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+    $component = json_decode(json_encode(collect($this->registry->all())->firstWhere('schema', 'PriorityLevel')), true);
 
-    expect($parameter->schema->type)->toBe('integer')
-        ->and($parameter->schema->enum)->toBe([1, 2, 3]);
+    expect($parameter->schema->ref)->toBe('#/components/schemas/PriorityLevel')
+        ->and($component['type'])->toBe('integer')
+        ->and($component['enum'])->toBe([1, 2, 3]);
 });

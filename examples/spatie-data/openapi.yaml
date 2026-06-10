@@ -214,6 +214,14 @@ paths:
       security: []
 components:
   schemas:
+    FlightStatus:
+      type: string
+      enum:
+        - scheduled
+        - boarding
+        - departed
+        - arrived
+        - cancelled
     FlightData:
       required:
         - id
@@ -242,14 +250,7 @@ components:
           format: date-time
           example: '2025-09-08T16:22:00Z'
         status:
-          type: string
-          example: scheduled
-          enum:
-            - scheduled
-            - boarding
-            - departed
-            - arrived
-            - cancelled
+          $ref: '#/components/schemas/FlightStatus'
         aircraft_type:
           type: string
         aircraft:
@@ -288,14 +289,7 @@ components:
           format: date-time
           example: '2025-09-08T16:22:00Z'
         status:
-          type: string
-          example: scheduled
-          enum:
-            - scheduled
-            - boarding
-            - departed
-            - arrived
-            - cancelled
+          $ref: '#/components/schemas/FlightStatus'
         aircraft_type:
           type: string
       type: object
@@ -321,14 +315,7 @@ components:
           format: date-time
           example: '2025-09-08T16:22:00Z'
         status:
-          type: string
-          example: scheduled
-          enum:
-            - scheduled
-            - boarding
-            - departed
-            - arrived
-            - cancelled
+          $ref: '#/components/schemas/FlightStatus'
         aircraft_type:
           type: string
       type: object

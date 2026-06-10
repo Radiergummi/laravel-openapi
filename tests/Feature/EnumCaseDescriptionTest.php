@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\StatusFixtureEnum;
-use Symfony\Component\TypeInfo\Type;
 
 // TODO(tracker §5): these tests call JsonSchemaFromType directly; rewrite to
 // drive openapi:generate against a route returning a response containing the enum.
@@ -15,8 +15,8 @@ use Symfony\Component\TypeInfo\Type;
 uses()->group('openapi');
 
 it('OAPI-034: BackedEnum with per-case PHPDoc produces a markdown description on the schema', function (): void {
-    $schemaFromType = new JsonSchemaFromType(new NullLogger());
-    $schema = $schemaFromType->fromType(Type::enum(StatusFixtureEnum::class));
+    $schemaFromType = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry());
+    $schema = $schemaFromType->fromBackedEnumClass(StatusFixtureEnum::class);
 
     expect($schema->description)->toBeString()
         ->and($schema->description)->toContain('active')
@@ -28,8 +28,8 @@ it('OAPI-034: BackedEnum with per-case PHPDoc produces a markdown description on
 });
 
 it('OAPI-034: each enum case description line starts with a backtick-quoted value', function (): void {
-    $schemaFromType = new JsonSchemaFromType(new NullLogger());
-    $schema = $schemaFromType->fromType(Type::enum(StatusFixtureEnum::class));
+    $schemaFromType = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry());
+    $schema = $schemaFromType->fromBackedEnumClass(StatusFixtureEnum::class);
 
     $lines = explode("\n", $schema->description);
 

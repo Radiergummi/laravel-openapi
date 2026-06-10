@@ -31,7 +31,7 @@ function buildModelSchema(string $modelClass): OA\Schema
 
     $reader = new EloquentModelToSchema(
         registry: $registry,
-        jsonSchemaFromType: new JsonSchemaFromType($logger),
+        jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
@@ -110,11 +110,27 @@ it('marks a cast-typed field required when its @property is non-nullable', funct
     expect($schema['required'] ?? [])->toContain('published_at');
 });
 
-it('maps an enum cast to an inline enum schema', function (): void {
-    $schema = readModelSchema(Article::class);
+it('maps an enum cast to a $ref into a shared reusable enum component', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $logger = new NullLogger();
 
-    expect($schema['properties']['status']['type'])->toBe('string')
-        ->and($schema['properties']['status']['enum'])->toBe(['draft', 'published']);
+    $reader = new EloquentModelToSchema(
+        registry: $registry,
+        jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
+        typeResolver: TypeResolver::create(),
+        typeNodeResolver: TypeNodeResolver::create(),
+        docBlockParser: DocBlockParser::create(),
+        logger: $logger,
+    );
+
+    $reader->build(Article::class);
+
+    $article = json_decode(json_encode(collect($registry->all())->firstWhere('schema', 'Article')), true);
+    $component = json_decode(json_encode(collect($registry->all())->firstWhere('schema', 'ArticleStatus')), true);
+
+    expect($article['properties']['status']['$ref'])->toBe('#/components/schemas/ArticleStatus')
+        ->and($component['type'])->toBe('string')
+        ->and($component['enum'])->toBe(['draft', 'published']);
 });
 
 it('types an $appends accessor from its return type', function (): void {
@@ -137,7 +153,7 @@ it('emits a $ref for a @property-read model relation and registers the nested co
 
     $reader = new EloquentModelToSchema(
         registry: $registry,
-        jsonSchemaFromType: new JsonSchemaFromType($logger),
+        jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),

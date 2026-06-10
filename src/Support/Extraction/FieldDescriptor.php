@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Extraction;
 
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 
 use function in_array;
 use function is_array;
@@ -54,6 +55,13 @@ final class FieldDescriptor
      * @var null|list<float|int|string> Enum values from `in:a,b,c`, `Rule::in()`, or `Rule::enum()`.
      */
     public ?array $enum = null;
+
+    /**
+     * A `$ref` pointer (`#/components/schemas/…`) the field resolves to instead of an inline schema.
+     * Set when a `Rule::enum()` rule was promoted to a shared reusable enum component. When present,
+     * it takes precedence over inline type/enum keywords in {@see applyTo()}.
+     */
+    public ?string $ref = null;
 
     /**
      * Minimum string length / numeric minimum / array minItems (string context).
@@ -143,6 +151,18 @@ final class FieldDescriptor
      */
     public function applyTo(OA\Schema $target, bool $overwrite = true): void
     {
+        // A `$ref` to a shared component (a promoted `Rule::enum()`) resolves the whole field: it
+        // replaces inline type/enum keywords. A nullable ref widens to `oneOf: [{$ref}, {null}]` via
+        // NullableSchema, since keywords alongside a `$ref` are ignored in OAS 3.1.
+        if ($this->ref !== null && ($overwrite || is_undefined($target->ref))) {
+            if ($this->nullable) {
+                $target->oneOf = NullableSchema::wrap(new OA\Schema(['ref' => $this->ref]))->oneOf;
+            } else {
+                $target->ref = $this->ref;
+            }
+
+            return;
+        }
 
         // When merging (overwrite: false), skip type and nullable if the target already expresses
         // its type via oneOf/allOf/anyOf — those compositions were laid down by the type-resolution

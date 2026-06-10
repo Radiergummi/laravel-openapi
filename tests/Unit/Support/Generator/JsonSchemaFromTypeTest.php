@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Carbon\CarbonImmutable;
 use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\Internal\BillingAccount;
 use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
@@ -21,7 +22,7 @@ uses()->group('openapi');
 // region #148: DateTimeInterface and its implementations map to string/date-time
 
 it('maps a property typed against DateTimeInterface to string/date-time', function (): void {
-    $schema = new JsonSchemaFromType(new NullLogger())
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())
         ->fromType(new ObjectType(DateTimeInterface::class));
 
     expect($schema->type)->toBe('string')
@@ -30,7 +31,7 @@ it('maps a property typed against DateTimeInterface to string/date-time', functi
 });
 
 it('maps a concrete date class to string/date-time', function (string $className): void {
-    $schema = new JsonSchemaFromType(new NullLogger())
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())
         ->fromType(new ObjectType($className));
 
     expect($schema->type)->toBe('string')
@@ -44,7 +45,7 @@ it('maps a concrete date class to string/date-time', function (string $className
 // endregion
 
 it('describes a unit enum using a human-readable resource name, not the FQCN', function (): void {
-    $schema = new JsonSchemaFromType(new NullLogger())
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())
         ->fromType(new EnumType(UnitFixtureEnum::class));
 
     expect($schema->description)
@@ -56,7 +57,7 @@ it('describes a unit enum using a human-readable resource name, not the FQCN', f
 
 it('emits type: [string, null] for NullableType(string) instead of nullable: true (Bug 1)', function (): void {
     $type   = new NullableType(new BuiltinType(TypeIdentifier::STRING));
-    $schema = new JsonSchemaFromType(new NullLogger())->fromType($type);
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())->fromType($type);
 
     expect($schema->type)->toBe(['string', 'null'])
         ->and($schema->nullable)->not->toBeTrue();
@@ -66,7 +67,7 @@ it('wraps a nullable object $ref in oneOf with a null sibling (Bug 1)', function
     // NullableType wrapping an object type that resolves to a $ref (e.g. DateTime → string/date-time,
     // but any BuiltinType works here to confirm the plain-type branch, not the $ref branch).
     $type   = new NullableType(new BuiltinType(TypeIdentifier::INT));
-    $schema = new JsonSchemaFromType(new NullLogger())->fromType($type);
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())->fromType($type);
 
     expect($schema->type)->toBe(['integer', 'null']);
 });
@@ -76,7 +77,7 @@ it('wraps a nullable object $ref in oneOf with a null sibling (Bug 1)', function
 // region Object / union / builtin fallbacks
 
 it('renders an unmapped object type as a humanized resource name, never the FQCN', function (): void {
-    $schema = new JsonSchemaFromType(new NullLogger())
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())
         ->fromType(new ObjectType(BillingAccount::class));
 
     expect($schema->type)->toBe('string')
@@ -87,7 +88,7 @@ it('renders an unmapped object type as a humanized resource name, never the FQCN
 });
 
 it('maps a UuidInterface object to string / format: uuid', function (): void {
-    $schema = new JsonSchemaFromType(new NullLogger())
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())
         ->fromType(new ObjectType(UuidInterface::class));
 
     expect($schema->type)->toBe('string')->and($schema->format)->toBe('uuid');
@@ -98,7 +99,7 @@ it('maps a union type to a oneOf of its members', function (): void {
         new BuiltinType(TypeIdentifier::STRING),
         new BuiltinType(TypeIdentifier::INT),
     );
-    $schema = new JsonSchemaFromType(new NullLogger())->fromType($type);
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())->fromType($type);
 
     $memberTypes = array_map(static fn(OA\Schema $member) => $member->type, $schema->oneOf);
 
@@ -107,7 +108,7 @@ it('maps a union type to a oneOf of its members', function (): void {
 });
 
 it('maps builtin scalar types to their JSON Schema counterparts', function (TypeIdentifier $id, string $expected): void {
-    $schema = new JsonSchemaFromType(new NullLogger())->fromType(new BuiltinType($id));
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())->fromType(new BuiltinType($id));
 
     expect($schema->type)->toBe($expected);
 })->with([
@@ -117,7 +118,7 @@ it('maps builtin scalar types to their JSON Schema counterparts', function (Type
 ]);
 
 it('renders an unmapped builtin type as a string with a descriptive note', function (): void {
-    $schema = new JsonSchemaFromType(new NullLogger())
+    $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())
         ->fromType(new BuiltinType(TypeIdentifier::OBJECT));
 
     expect($schema->type)->toBe('string')

@@ -17,6 +17,7 @@ use ReflectionParameter;
 
 use function array_map;
 use function Radiergummi\OpenApi\class_resource_name;
+use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
@@ -102,6 +103,12 @@ final readonly class UriParametersExtractor
         OA\Schema $schema,
         UriParameterDescriptor $descriptor,
     ): OA\Schema {
+        // A backed-enum parameter resolves to a `$ref` component; the enum already fully describes
+        // the value set, and inline keywords alongside a `$ref` are ignored in OAS 3.1.
+        if (is_defined($schema->ref)) {
+            return $schema;
+        }
+
         // An explicit route `where*` constraint is the author's stated intent and wins. Only when
         // none is present (whereKind === null) do we fall back to the bound model's key metadata.
         match ($descriptor->whereKind) {

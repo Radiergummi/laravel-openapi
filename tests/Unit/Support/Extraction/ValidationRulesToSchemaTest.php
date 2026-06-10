@@ -12,8 +12,11 @@ use Illuminate\Validation\Rules\In;
 use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rules\Unique;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 
 uses()->group('openapi');
 
@@ -504,6 +507,62 @@ it('honors except() on Rule::enum()', function (): void {
     $d    = field($this->mapper, [$rule]);
 
     expect($d->enum)->toBe(['draft', 'published']);
+});
+
+// endregion
+
+// region Rule::enum() → shared reusable component ($ref) — #35
+
+/** Builds a mapper wired to a registry so full-set backed enums are promoted to components. */
+function wiredMapper(ComponentSchemaRegistry $registry): ValidationRulesToSchema
+{
+    return new ValidationRulesToSchema(
+        schemaFromType: new JsonSchemaFromType(new NullLogger(), $registry),
+    );
+}
+
+it('promotes a full-set Rule::enum() to a shared component $ref when wired (#35)', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $d        = field(wiredMapper($registry), [new Enum(StringBackedFixtureEnum::class)]);
+
+    $component = json_decode(
+        json_encode(collect($registry->all())->firstWhere('schema', 'StringBackedFixtureEnum')),
+        true,
+    );
+
+    expect($d->ref)->toBe('#/components/schemas/StringBackedFixtureEnum')
+        ->and($d->enum)->toBeNull()
+        ->and($component['type'])->toBe('string')
+        ->and($component['enum'])->toBe(['draft', 'published', 'archived']);
+});
+
+it('keeps an only() subset inline rather than referencing the full component (#35)', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $rule     = Rule::enum(StringBackedFixtureEnum::class)->only([StringBackedFixtureEnum::Draft]);
+    $d        = field(wiredMapper($registry), [$rule]);
+
+    expect($d->ref)->toBeNull()
+        ->and($d->enum)->toBe(['draft'])
+        ->and($registry->all())->toBe([]);
+});
+
+it('keeps an except() subset inline rather than referencing the full component (#35)', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $rule     = Rule::enum(StringBackedFixtureEnum::class)->except([StringBackedFixtureEnum::Archived]);
+    $d        = field(wiredMapper($registry), [$rule]);
+
+    expect($d->ref)->toBeNull()
+        ->and($d->enum)->toBe(['draft', 'published'])
+        ->and($registry->all())->toBe([]);
+});
+
+it('keeps a unit enum inline — only backed enums become components (#35)', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $d        = field(wiredMapper($registry), [new Enum(UnitFixtureEnum::class)]);
+
+    expect($d->ref)->toBeNull()
+        ->and($d->enum)->toBe(['Alpha', 'Beta'])
+        ->and($registry->all())->toBe([]);
 });
 
 // endregion

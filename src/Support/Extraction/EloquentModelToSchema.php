@@ -146,9 +146,9 @@ final class EloquentModelToSchema
             $castString = $casts[$name] ?? null;
 
             if ($castString !== null) {
-                // Enum-class cast takes priority: produce an inline enum schema.
+                // Enum-class cast takes priority: reference the shared reusable enum component.
                 if (enum_exists($castString) && is_a($castString, BackedEnum::class, allow_string: true)) {
-                    $properties[] = $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromBackedEnumClass($castString));
+                    $properties[] = $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromBackedEnumComponent($castString));
 
                     continue;
                 }

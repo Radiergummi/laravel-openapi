@@ -18,7 +18,7 @@ validation.
 | Request-side support | Yes, always on | Yes, via the SpatieData plugin |
 | Response-side support | No. Return a typed resource (`JsonResource`) or use `#[ResponseResource]`. | Yes. Return a `Data`, `DataCollection<…>`, or paginated variant. |
 | Nested objects | Yes, via dotted/wildcard rule keys (`address.city`, `items.*.name`) → inline nested object/array schemas | Yes. Nested `Data` classes become nested component schemas via `$ref`. |
-| Enums | `Rule::in([...])` / `enum:` validation rule → `enum` | Native PHP enum property → `enum`; validation `Rule::in([...])` still works |
+| Enums | `Rule::in([...])` → inline `enum`; `Rule::enum(Status::class)` (full case set) → `$ref` to a [shared enum component](auto-derivation.md#shared-enum-components) | Native `BackedEnum` property → `$ref` to the shared enum component; `Rule::in([...])` still works |
 | Field-level enrichment | `#[RequestField]` on a `PARAM_*` class-constant whose value matches the field name | `#[RequestField]` on the promoted constructor parameter or property |
 | Transformations / computed properties | No. The generator reads signatures only — method bodies are not read. | The `Data` class can carry `Optional`-typed and computed properties. PATCH semantics are inferred from `Optional\|…\|null`. |
 | File / multipart | Detected from `file` / `image` / `File::…` validation rules | Same, plus a typed `UploadedFile` property is auto-detected |
@@ -69,7 +69,7 @@ final class FlightData extends Data
         #[OpenApi\RequestField(format: 'date-time', description: 'UTC departure time.')]
         public string $arrival,
 
-        public FlightStatus $status,            // PHP enum → schema enum
+        public FlightStatus $status,            // backed enum → shared component $ref
         public ?AircraftData $aircraft = null,  // nested Data → $ref
     ) {}
 
