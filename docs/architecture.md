@@ -48,6 +48,7 @@ Laravel routes                      │
                                                                     │
                                                                     ▼  ErrorResponseInferenceStage
                                     ┌── ErrorResponseContributor(s)   ← Core: ThrowsErrorContributor
+                                    │                                 ← Core: AbortErrorContributor
                                     │                                 ← Core: MiddlewareErrorContributor
                                     └──                               ← Core: ValidationErrorContributor
                                                                     │  (dedupes by status; explicit #[Response] wins)
