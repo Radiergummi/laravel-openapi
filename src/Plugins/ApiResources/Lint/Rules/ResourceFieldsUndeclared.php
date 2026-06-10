@@ -51,8 +51,12 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
             return;
         }
 
-        /** @var class-string $resourceClass */
         $resourceClass = $target->resourceClass;
+
+        // A wrapped-model target documents the model's schema; there is no resource to inspect.
+        if ($resourceClass === null) {
+            return;
+        }
 
         if (
             $resourceClass === JsonResource::class

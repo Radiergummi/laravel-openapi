@@ -26,7 +26,7 @@ class AmbiguousLintController
 it('flags a collection return type with no #[ResponseResource]', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(AmbiguousLintController::class, 'index', '/ambiguous');
 
-    $rule = new ResourceResponseAmbiguous(new ResourceClassLocator());
+    $rule = new ResourceResponseAmbiguous(ResourceClassLocator::create());
     $findings = iterator_to_array($rule->checkOperation(
         OperationNodeFactory::forDescriptor($descriptor),
         OperationNodeFactory::emptyContext(),

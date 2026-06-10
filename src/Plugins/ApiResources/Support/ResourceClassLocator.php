@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Support;
 use Illuminate\Http\Resources\Attributes\Collects;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
@@ -26,9 +27,24 @@ use function is_string;
  * {@see ResourceResponseResolver} (to build the response) and the ApiResources
  * lint rules (to flag undeclared/ambiguous resources) so resolution is defined
  * exactly once.
+ *
+ * Resolution is signature-first: `#[ResponseResource]` wins, then a concrete return type (or a
+ * collection type's `#[Collects]` / `$collects`). Only when the signature names a *base* resource
+ * type — a collection whose item class is undeclared, or exactly `JsonResource` — does the
+ * {@see ReturnExpressionResourceReader} read the method body's return expression (issue #108);
+ * its refusal keeps today's behaviour.
  */
 final readonly class ResourceClassLocator implements ResourceTargetLocator
 {
+    public function __construct(
+        private ReturnExpressionResourceReader $returnExpressionReader,
+    ) {}
+
+    public static function create(?LoggerInterface $logger = null): self
+    {
+        return new self(ReturnExpressionResourceReader::create($logger));
+    }
+
     public function locate(ActionDescriptor $descriptor): ?ResourceTarget
     {
         $reflector = $descriptor->actionReflector;
@@ -75,12 +91,38 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
             }
 
             // Collection return type with no #[ResponseResource], #[Collects], or
-            // $collects: the item class is not recoverable from the signature — ambiguous.
-            return new ResourceTarget(resourceClass: null, isCollection: true);
+            // $collects: the item class is not recoverable from the signature — the return
+            // expression is the last resort before reporting the endpoint as ambiguous.
+            return $this->locateFromReturnExpression($descriptor)
+                ?? new ResourceTarget(resourceClass: null, isCollection: true);
+        }
+
+        if ($name === JsonResource::class) {
+            // The base class itself carries no shape; only the return expression can name the
+            // concrete resource (or the wrapped model). Refusal keeps the base-class target —
+            // an empty placeholder schema, today's behaviour.
+            $bodyTarget = $this->locateFromReturnExpression($descriptor);
+
+            if ($bodyTarget !== null) {
+                return $bodyTarget;
+            }
         }
 
         /** @var class-string<JsonResource> $name */
         return new ResourceTarget(resourceClass: $name, isCollection: false);
+    }
+
+    /**
+     * The target resolved from the action's return expression (Tier-1; issue #108), or null for
+     * closure routes and refused bodies.
+     */
+    private function locateFromReturnExpression(ActionDescriptor $descriptor): ?ResourceTarget
+    {
+        if ($descriptor->method === null) {
+            return null;
+        }
+
+        return $this->returnExpressionReader->read($descriptor->method);
     }
 
     private function isCollectionType(?ReflectionType $returnType): bool
