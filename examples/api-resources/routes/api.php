@@ -8,4 +8,5 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/flights', [FlightController::class, 'index']);
 Route::get('/flights/{flight}', [FlightController::class, 'show']);
+Route::get('/bookings', [BookingController::class, 'index']);
 Route::get('/bookings/{booking}', [BookingController::class, 'show']);

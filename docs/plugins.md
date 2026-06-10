@@ -139,6 +139,52 @@ A scalar `items` (e.g. `items: 'string'`) is unchanged — it stays
 `items: { type: string }`. An `items` class-string that no resolver recognises
 degrades to a permissive `items: { type: object }`.
 
+### Resolving the resource from the return expression
+
+Many actions type their return as a **base** resource class — `JsonResource`, a
+bare `ResourceCollection`, or `AnonymousResourceCollection` — and name the
+concrete resource only in the method body. When the signature yields nothing
+concrete, the generator reads the method's **return expression** (a bounded scan
+of the first 10 statements; no dataflow):
+
+```php
+public function index(): AnonymousResourceCollection
+{
+    return ProjectResource::collection(Project::query()->paginate());
+}
+```
+
+resolves the item resource to `ProjectResource` — no annotation needed.
+Recognised shapes:
+
+- `X::collection(...)` → collection of `X`; `X::make(...)` / `new X(...)` → a
+  single `X`.
+- The two-statement form `$projects = X::collection(...); return $projects;`,
+  as long as the variable is assigned exactly once on the unconditional path.
+- `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal
+  class argument is decisive. A bare `$model->toResource()` works when `$model`
+  is a Model-typed parameter: the resource resolves through Laravel's own
+  convention (the model's `#[UseResource]` attribute, then the
+  `App\Http\Resources\{Model}Resource` guess).
+- `new JsonResource($model)` (the base class itself) wrapping a Model-typed
+  parameter documents the **wrapped model's schema** directly.
+- A `@return AnonymousResourceCollection<ProjectResource>` docblock generic is
+  honoured and **wins over the body** when both are present.
+- A `->additional(...)` chained onto a matched expression is ignored — the
+  resource class stays certain; the extra envelope keys are not modelled.
+
+The envelope follows the expression: a collection whose source visibly ends in a
+`paginate()` / `simplePaginate()` / `cursorPaginate()` call documents the
+`{data, links, meta}` envelope; any other collection source documents a plain
+`{data: [...]}` envelope — pagination meta is never guessed. (Signature- and
+attribute-resolved collections keep the paginated envelope, the dominant
+convention, since no body information is available for them.)
+
+Anything else — a conditional return, a variable of unknown origin, an
+unrecognised chained call, a receiver that would need dataflow — degrades to the
+previous behaviour with a generation-log note; `#[ResponseResource]` is the
+escape hatch and always wins.
+
 ### Collection endpoints
 
 For collection endpoints returning `JsonResponse` or an untyped value, name
