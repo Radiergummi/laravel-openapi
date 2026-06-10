@@ -453,28 +453,24 @@ final readonly class ValidationRulesToSchema
         $reflection = new ReflectionObject($rule);
 
         try {
-            if (!$reflection->hasProperty('type')) {
-                return null;
-            }
-
             $enumClass = $reflection->getProperty('type')->getValue($rule);
 
-            if (!is_string($enumClass)
-                || !enum_exists($enumClass)
-                || !is_a($enumClass, BackedEnum::class, allow_string: true)
-            ) {
-                return null;
-            }
-
             // only()/except() narrow the rule to a subset of cases — not the full shared component.
-            $only = $reflection->hasProperty('only') ? $reflection->getProperty('only')->getValue($rule) : [];
-            $except = $reflection->hasProperty('except') ? $reflection->getProperty('except')->getValue($rule) : [];
+            $only = $reflection->getProperty('only')->getValue($rule);
+            $except = $reflection->getProperty('except')->getValue($rule);
         } catch (ReflectionException) {
             // The rule's internals are not shaped as expected — fall back to the inline value list.
             return null;
         }
 
-        if (($only !== null && $only !== []) || ($except !== null && $except !== [])) {
+        if (!is_string($enumClass)
+            || !enum_exists($enumClass)
+            || !is_a($enumClass, BackedEnum::class, allow_string: true)
+        ) {
+            return null;
+        }
+
+        if ($only !== [] || $except !== []) {
             return null;
         }
 

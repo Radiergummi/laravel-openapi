@@ -546,6 +546,16 @@ it('keeps an only() subset inline rather than referencing the full component (#3
         ->and($registry->all())->toBe([]);
 });
 
+it('keeps an except() subset inline rather than referencing the full component (#35)', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $rule     = Rule::enum(StringBackedFixtureEnum::class)->except([StringBackedFixtureEnum::Archived]);
+    $d        = field(wiredMapper($registry), [$rule]);
+
+    expect($d->ref)->toBeNull()
+        ->and($d->enum)->toBe(['draft', 'published'])
+        ->and($registry->all())->toBe([]);
+});
+
 it('keeps a unit enum inline — only backed enums become components (#35)', function (): void {
     $registry = new ComponentSchemaRegistry();
     $d        = field(wiredMapper($registry), [new Enum(UnitFixtureEnum::class)]);

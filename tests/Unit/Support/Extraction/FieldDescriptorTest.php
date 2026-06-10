@@ -272,3 +272,31 @@ it('emits a deep array-of-object with a nested object property', function (): vo
 });
 
 // endregion
+
+// region $ref to a shared component (#35)
+
+it('applies a $ref, replacing inline schema keywords', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->ref = '#/components/schemas/Status';
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->ref)->toBe('#/components/schemas/Status')
+        ->and(isUndefined($target->type))->toBeTrue();
+});
+
+it('wraps a nullable $ref in oneOf: [{$ref}, {null}] per OAS 3.1', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->ref = '#/components/schemas/Status';
+    $descriptor->nullable = true;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect(isUndefined($target->ref))->toBeTrue()
+        ->and($target->oneOf[0]->ref)->toBe('#/components/schemas/Status')
+        ->and($target->oneOf[1]->type)->toBe('null');
+});
+
+// endregion

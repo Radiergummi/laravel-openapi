@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Extraction;
 
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 
 use function in_array;
 use function is_array;
@@ -151,20 +152,13 @@ final class FieldDescriptor
     public function applyTo(OA\Schema $target, bool $overwrite = true): void
     {
         // A `$ref` to a shared component (a promoted `Rule::enum()`) resolves the whole field: it
-        // replaces inline type/enum keywords. A nullable ref widens to `oneOf: [{$ref}, {null}]`,
-        // since keywords alongside `$ref` are ignored in OAS 3.1.
+        // replaces inline type/enum keywords. A nullable ref widens to `oneOf: [{$ref}, {null}]` via
+        // NullableSchema, since keywords alongside a `$ref` are ignored in OAS 3.1.
         if ($this->ref !== null && ($overwrite || is_undefined($target->ref))) {
             if ($this->nullable) {
-                $target->oneOf = [
-                    new OA\Schema(['ref' => $this->ref]),
-                    new OA\Schema(['type' => 'null']),
-                ];
+                $target->oneOf = NullableSchema::wrap(new OA\Schema(['ref' => $this->ref]))->oneOf;
             } else {
                 $target->ref = $this->ref;
-            }
-
-            if ($this->description !== null && ($overwrite || is_undefined($target->description))) {
-                $target->description = $this->description;
             }
 
             return;
