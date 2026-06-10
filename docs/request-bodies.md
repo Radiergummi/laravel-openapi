@@ -119,11 +119,68 @@ final class CreateFlightAction extends DomainAction
 
 `FlightData` is picked up as the request body for `store`.
 
+## Inline validation in the controller
+
+Controllers that validate a bare `Illuminate\Http\Request` inside the method
+body — instead of type-hinting a `FormRequest` or Data class — still get a
+request-body schema. The generator scans the **first 10 top-level statements**
+of the action for exactly four call shapes:
+
+```php
+$request->validate([...]);
+$this->validate($request, [...]);
+Validator::make($request->all(), [...]);
+Request::validate([...]); // the facade
+```
+
+The rules array goes through the same rule → schema mapping as a
+`FormRequest`'s `rules()`, so constraints, `required`, nested dotted/wildcard
+keys, and file-rule → `multipart/form-data` detection all apply. A trailing
+`//` comment on a rule entry becomes that field's description:
+
+```php
+public function store(Request $request): JsonResponse
+{
+    $validated = $request->validate([
+        'name'  => 'required|string|max:255', // The display name.
+        'email' => ['required', 'email'],     // The contact address.
+    ]);
+    // …
+}
+```
+
+Instead of an array literal, the rules argument may also reference rules
+declared on the controller itself — a `$rules` property or a zero-argument
+`rules()` method, optionally subscripted with a literal key:
+
+```php
+$data = $this->validate($request, $this->rules);
+$data = $this->validate($request, $this->rules()['create']);
+```
+
+The property is read via reflection (its default value); the method is invoked
+on an instance created without running the constructor.
+
+Boundaries, by design (no dataflow analysis):
+
+- Only **write methods** (POST/PUT/PATCH) produce a request body this way. On
+  GET, inline-validate keys describe query parameters, not a body.
+- Rules built dynamically — a local variable, `array_merge(...)`, a call with
+  arguments — are never guessed at. The operation keeps its empty body and the
+  generation log notes the action; document it with `#[RequestBody]` /
+  `#[RequestField]` instead. A single dynamic *entry* inside an otherwise
+  literal rules array only drops that entry (a `Rule::unique(...)` object next
+  to literal rules keeps the literal rest).
+- A `validate()` call inside an `if` branch, or past the first 10 statements,
+  is not picked up.
+- An explicit `#[RequestBody]` / `#[RequestField]` always wins over the scan.
+
 ## Documenting a body field-by-field with `#[RequestField]`
 
-When an action validates outside a `FormRequest`/Data class — a bare
-`Illuminate\Http\Request` whose input is validated inline or inside an
-Action/service — there is no type the generator can introspect. Document the body
+When an action validates outside a `FormRequest`/Data class and beyond the
+reach of the [inline-validation scan](#inline-validation-in-the-controller) —
+typically inside an Action/service — there is no type the generator can
+introspect. Document the body
 by stacking `#[RequestField]` on the action (repeatable); each one becomes a
 request-body property, and `required: true` fields populate the schema's
 `required` list. Pair it with `#[RequestBody]` for the description / media type.

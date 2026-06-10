@@ -19,6 +19,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineValidationRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\ResourceConventionResolver;
@@ -50,6 +51,10 @@ final class CorePlugin implements Plugin
         $registry->addRequestSchemaResolver(DiscriminatedRequestSchemaResolver::class);
         $registry->addRequestSchemaResolver(RequestFieldRequestSchemaResolver::class);
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
+
+        // Tier-1 body scan runs last in the chain (first non-null wins), so it only fires on a
+        // Tier-0 miss — actions whose signature carries no typed payload parameter.
+        $registry->addRequestSchemaResolver(InlineValidationRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);

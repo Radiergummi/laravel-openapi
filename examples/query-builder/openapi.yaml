@@ -95,6 +95,12 @@ paths:
       description: 'Persists a new flight record with the supplied schedule and status.'
       operationId: post_api_flights
       parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlightControllerStoreRequest'
       responses:
         '201':
           description: 'The created flight'
@@ -158,6 +164,12 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlightControllerUpdateRequest'
       responses:
         '200':
           description: 'The updated flight'
@@ -227,6 +239,12 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingControllerStoreRequest'
       responses:
         '201':
           description: 'The created booking'
@@ -261,6 +279,75 @@ paths:
           $ref: '#/components/responses/NotFound'
       security: []
 components:
+  schemas:
+    FlightControllerStoreRequest:
+      required:
+        - number
+        - origin
+        - destination
+        - departs_at
+        - arrives_at
+        - status
+        - aircraft_type
+      properties:
+        number:
+          type: string
+        origin:
+          type: string
+          maxLength: 3
+          minLength: 3
+        destination:
+          type: string
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          type: string
+          format: date
+          example: '2023-05-02'
+        arrives_at:
+          type: string
+          format: date
+          example: '2025-09-08'
+        status:
+          type: string
+        aircraft_type:
+          type: string
+      type: object
+    FlightControllerUpdateRequest:
+      properties:
+        number:
+          type: string
+        origin:
+          type: string
+          maxLength: 3
+          minLength: 3
+        destination:
+          type: string
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          type: string
+          format: date
+          example: '2023-05-02'
+        arrives_at:
+          type: string
+          format: date
+          example: '2025-09-08'
+        status:
+          type: string
+        aircraft_type:
+          type: string
+      type: object
+    BookingControllerStoreRequest:
+      required:
+        - passenger_name
+        - seat
+      properties:
+        passenger_name:
+          type: string
+        seat:
+          type: string
+      type: object
   responses:
     ValidationFailed:
       description: 'Validation failed'
