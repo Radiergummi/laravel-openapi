@@ -541,7 +541,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | The service provider mounts each route only when its toggle is enabled.
-    | `spec` serves the generated document; `playground` serves the Scalar UI.
+    | `spec` serves the generated document; `playground` serves the interactive
+    | API reference. The playground `renderer` chooses the UI: `scalar` (default)
+    | or `swagger-ui` — the latter for teams standardised on Swagger UI.
     |
     */
 
@@ -550,7 +552,11 @@ return [
         'prefix' => 'api',
         'middleware' => ['web'],
         'spec' => ['enabled' => true, 'uri' => 'openapi.yaml'],
-        'playground' => ['enabled' => env('APP_ENV') === 'local', 'uri' => 'docs'],
+        'playground' => [
+            'enabled' => env('APP_ENV') === 'local',
+            'uri' => 'docs',
+            'renderer' => 'scalar',
+        ],
     ],
 
     /*
