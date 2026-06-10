@@ -26,6 +26,7 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_diff;
 use function array_filter;
+use function array_key_exists;
 use function array_keys;
 use function array_merge;
 use function array_unique;
@@ -50,6 +51,22 @@ use function ucwords;
 #[Scoped]
 final readonly class EloquentModelToSchema
 {
+    /**
+     * Per-model metadata memo for {@see propertyFor()} and {@see schemaFor()}; null marks a
+     * non-instantiable model (warned once on first access).
+     *
+     * @var array<class-string<Model>, null|array{
+     *     reflection: ReflectionClass<Model>,
+     *     casts: array<string, string>,
+     *     propertyTags: array<string, PropertyTagValueNode>,
+     *     appends: list<string>,
+     *     fillable: list<string>,
+     *     hidden: list<string>,
+     *     visible: list<string>,
+     * }>
+     */
+    private array $metadataCache = [];
+
     public function __construct(
         private ComponentSchemaRegistry $registry,
         private JsonSchemaFromType $jsonSchemaFromType,
@@ -76,12 +93,100 @@ final readonly class EloquentModelToSchema
     }
 
     /**
+     * The schema for one model property by name — typed from `$casts`, a `@property` /
+     * `@property-read` tag, or an appended accessor, in that order — or null when the model
+     * carries no metadata under that name.
+     *
+     * Unlike {@see schemaFor()}, no `$hidden`/`$visible` filtering applies: those govern the
+     * *model's own* serialization, while a caller resolving a name it found elsewhere (a
+     * Resource `toArray()` key) has already decided the property is output.
+     *
      * @param class-string<Model> $modelClass
      *
      * @throws ReflectionException
      */
-    private function schemaFor(string $modelClass): OA\Schema
+    public function propertyFor(string $modelClass, string $propertyName): ?OA\Property
     {
+        $metadata = $this->metadataFor($modelClass);
+
+        if ($metadata === null) {
+            return null;
+        }
+
+        $castString = $metadata['casts'][$propertyName] ?? null;
+
+        if ($castString !== null) {
+            if (enum_exists($castString) && is_a($castString, BackedEnum::class, allow_string: true)) {
+                return $this->propertyFromSchema(
+                    $propertyName,
+                    $this->jsonSchemaFromType->fromBackedEnumClass($castString),
+                );
+            }
+
+            return $this->castToProperty($propertyName, $castString)
+                ?? new OA\Property(['property' => $propertyName]);
+        }
+
+        $tag = $metadata['propertyTags'][$propertyName] ?? null;
+
+        if ($tag !== null) {
+            $property = $this->propertyFromTag($propertyName, $tag->type, $metadata['reflection']);
+
+            if ($property !== null) {
+                return $property;
+            }
+        }
+
+        if (in_array($propertyName, $metadata['appends'], strict: true)) {
+            $property = $this->propertyFromAccessor($metadata['reflection'], $propertyName);
+
+            if ($property !== null) {
+                return $property;
+            }
+        }
+
+        // The name is known to the model (tagged, appended, or fillable) but its type is not
+        // derivable — an untyped property, the same fallback schemaFor() uses.
+        if (
+            $tag !== null
+            || in_array($propertyName, $metadata['appends'], strict: true)
+            || in_array($propertyName, $metadata['fillable'], strict: true)
+        ) {
+            return new OA\Property(['property' => $propertyName]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Gathers (and memoises) the reflection-level metadata for a model class, or null when the
+     * model is not instantiable.
+     *
+     * An abstract or otherwise non-instantiable model (reachable as a return type or a
+     * docblock relation annotation) would throw an Error from `new $modelClass()` — which the
+     * resolver fault boundary deliberately does not catch. Callers degrade gracefully instead,
+     * so one such model does not abort the whole generation run.
+     *
+     * @param class-string<Model> $modelClass
+     *
+     * @return null|array{
+     *     reflection: ReflectionClass<Model>,
+     *     casts: array<string, string>,
+     *     propertyTags: array<string, PropertyTagValueNode>,
+     *     appends: list<string>,
+     *     fillable: list<string>,
+     *     hidden: list<string>,
+     *     visible: list<string>,
+     * }
+     *
+     * @throws ReflectionException
+     */
+    private function metadataFor(string $modelClass): ?array
+    {
+        if (array_key_exists($modelClass, $this->metadataCache)) {
+            return $this->metadataCache[$modelClass];
+        }
+
         $reflection = new ReflectionClass($modelClass);
 
         // An abstract or otherwise non-instantiable model (reachable as a return type or a
@@ -93,15 +198,11 @@ final readonly class EloquentModelToSchema
                 'model' => $modelClass,
             ]);
 
-            return new OA\Schema(['type' => 'object']);
+            return $this->metadataCache[$modelClass] = null;
         }
 
         $model = new $modelClass();
-        $casts = $model->getCasts();
-        $hidden = $model->getHidden();
-        $visible = $model->getVisible();
-        $fillable = $model->getFillable();
-        $appends = $model->getAppends();
+
         $docComment = $reflection->getDocComment();
 
         /** @var array<string, PropertyTagValueNode> $propertyTags */
@@ -122,6 +223,38 @@ final readonly class EloquentModelToSchema
                 }
             }
         }
+
+        return $this->metadataCache[$modelClass] = [
+            'reflection' => $reflection,
+            'casts' => $model->getCasts(),
+            'propertyTags' => $propertyTags,
+            'appends' => array_values($model->getAppends()),
+            'fillable' => array_values($model->getFillable()),
+            'hidden' => array_values($model->getHidden()),
+            'visible' => array_values($model->getVisible()),
+        ];
+    }
+
+    /**
+     * @param class-string<Model> $modelClass
+     *
+     * @throws ReflectionException
+     */
+    private function schemaFor(string $modelClass): OA\Schema
+    {
+        $metadata = $this->metadataFor($modelClass);
+
+        if ($metadata === null) {
+            return new OA\Schema(['type' => 'object']);
+        }
+
+        $reflection = $metadata['reflection'];
+        $casts = $metadata['casts'];
+        $hidden = $metadata['hidden'];
+        $visible = $metadata['visible'];
+        $fillable = $metadata['fillable'];
+        $appends = $metadata['appends'];
+        $propertyTags = $metadata['propertyTags'];
 
         // Union of all known property names.
         $allNames = array_unique(
