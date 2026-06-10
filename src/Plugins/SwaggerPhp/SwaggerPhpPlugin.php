@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\SchemaNameCollision;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
@@ -30,5 +31,10 @@ final class SwaggerPhpPlugin implements Plugin
         // Surface with `openapi:lint --only 'migration.*'`.
         $registry->addRule(OaRedundantWithInference::class);
         $registry->addRule(OaRedundantOperationWithInference::class);
+
+        // Registration stub (level 1): the `component.schema-name-collision` finding is emitted at
+        // generation time by HarvestAuthoredAnnotationsStage; registering it here makes the ID known
+        // to `--list`, `#[IgnoreLint]`, and severity overrides.
+        $registry->addRule(SchemaNameCollision::class);
     }
 }

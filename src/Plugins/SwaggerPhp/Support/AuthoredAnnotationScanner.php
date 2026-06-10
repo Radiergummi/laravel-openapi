@@ -14,8 +14,12 @@ use OpenApi\Processors\OperationId;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\AnnotationWalker;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
+use ReflectionClass;
 use Throwable;
 
+use function array_keys;
+use function array_values;
+use function class_exists;
 use function is_array;
 use function is_string;
 use function ltrim;
@@ -84,7 +88,25 @@ final class AuthoredAnnotationScanner
     {
         $this->scan();
 
-        return $this->operationsByMethod[$this->methodKey($class, $method)] ?? null;
+        $exact = $this->operationsByMethod[$this->methodKey($class, $method)] ?? null;
+
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        // The route points at a subclass while the annotation was indexed under the parent class
+        // or trait that physically declares the method (swagger-php keys by `_context`). Walk the
+        // route controller's ancestry and retry the lookup against each declaring type; first match
+        // wins. The exact-match fast path above means the walk only runs on a genuine miss.
+        foreach ($this->declaringAncestry($class, $method) as $ancestor) {
+            $match = $this->operationsByMethod[$this->methodKey($ancestor, $method)] ?? null;
+
+            if ($match !== null) {
+                return $match;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -218,14 +240,88 @@ final class AuthoredAnnotationScanner
     }
 
     /**
-     * Resolve the fully qualified declaring class of an annotation to a leading-slash-free FQCN.
+     * Resolve the fully qualified declaring type of an annotation to a leading-slash-free FQCN.
+     *
+     * An annotation written inside a trait carries `_context->trait` (with `_context->class` null),
+     * so a trait-declared `@OA` operation is indexed under the trait's name — which the ancestry
+     * walk in {@see operationForMethod()} then resolves for a controller that uses the trait.
      */
     private function declaringClass(Schema|Operation $annotation): ?string
     {
         $context = $annotation->_context;
-        $fullyQualified = $context?->fullyQualifiedName($context->class);
+        $fullyQualified = $context?->fullyQualifiedName($context->class ?? $context->trait);
 
         return $fullyQualified === null ? null : ltrim($fullyQualified, '\\');
+    }
+
+    /**
+     * The route controller's parent classes and used traits (recursively) that declare `$method`,
+     * nearest-first. swagger-php indexes an authored operation under the class or trait that
+     * physically declares it; for an inherited handler the route's controller differs from that
+     * declaring type, so resolving the match means retrying the lookup against each ancestor.
+     *
+     * @return list<string>
+     */
+    private function declaringAncestry(string $class, string $method): array
+    {
+        if (!class_exists($class)) {
+            return [];
+        }
+
+        $reflection = new ReflectionClass($class);
+        $candidates = [];
+
+        for ($parent = $reflection->getParentClass(); $parent !== false; $parent = $parent->getParentClass()) {
+            if ($parent->hasMethod($method)) {
+                $candidates[$parent->getName()] = true;
+            }
+        }
+
+        foreach ($this->reachableTraits($reflection) as $trait) {
+            if ($trait->hasMethod($method)) {
+                $candidates[$trait->getName()] = true;
+            }
+        }
+
+        return array_keys($candidates);
+    }
+
+    /**
+     * Every trait reachable from `$class`: its own and its parents' traits, recursively into
+     * trait-of-trait.
+     *
+     * @param ReflectionClass<object> $class
+     *
+     * @return list<ReflectionClass<object>>
+     */
+    private function reachableTraits(ReflectionClass $class): array
+    {
+        $collected = [];
+
+        for ($current = $class; $current !== false; $current = $current->getParentClass()) {
+            foreach ($current->getTraits() as $trait) {
+                $this->collectTraits($trait, $collected);
+            }
+        }
+
+        return array_values($collected);
+    }
+
+    /**
+     * @param ReflectionClass<object>                $trait
+     * @param array<string, ReflectionClass<object>> $collected
+     */
+    private function collectTraits(ReflectionClass $trait, array &$collected): void
+    {
+        if (isset($collected[$trait->getName()])) {
+            return;
+        }
+
+        $collected[$trait->getName()] = $trait;
+
+        foreach ($trait->getTraits() as $nested) {
+            $this->collectTraits($nested, $collected);
+        }
     }
 
     private function methodKey(string $class, string $method): string
