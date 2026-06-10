@@ -198,7 +198,7 @@ Core handles `FormRequest` request bodies directly. Everything else ships as a p
 
 To add your own, implement the `Plugin` interface. See [Plugin authoring](docs/plugin-authoring.md).
 
-Five runnable flavors of a flights/bookings API (vanilla validation, FormRequest, Spatie Data, QueryBuilder, combined)
+Eight runnable flavors of a flights/bookings API (vanilla, FormRequest, Spatie Data, API Resources, Fractal, QueryBuilder, swagger-php, and a combined app)
 live under [`examples/`](examples/README.md) alongside their generated
 `openapi.yaml` snapshots.
 

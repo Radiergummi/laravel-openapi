@@ -140,7 +140,9 @@ validation rule, switches the request body to `multipart/form-data` with
 `format: binary` on the relevant field. For non-Data bodies:
 
 ```php
-#[OpenApi\RequestBody(description: 'Webhook payload', mediaType: 'application/x-www-form-urlencoded')]
+use Radiergummi\OpenApi\Enums\MediaType;
+
+#[OpenApi\RequestBody(description: 'Webhook payload', mediaType: MediaType::FormUrlEncoded)]
 public function webhook(Request $request): Response { … }
 ```
 
@@ -309,9 +311,11 @@ The route still exists. The generator extracts it normally and diverts it to
 `webhooks` in the spec.
 
 ```php
+use Radiergummi\OpenApi\Enums\MediaType;
+
 #[OpenApi\Webhook(name: 'stripe.webhook')]
 #[OpenApi\PublicEndpoint]
-#[OpenApi\RequestBody(description: 'Stripe event payload', mediaType: 'application/json')]
+#[OpenApi\RequestBody(description: 'Stripe event payload', mediaType: MediaType::Json)]
 public function handleWebhook(Request $request): Response { … }
 ```
 
@@ -422,8 +426,7 @@ Implement `ErrorResponseResolver` and point `error_envelope` at your class:
 
 ```php
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
-use Radiergummi\OpenApi\Support\Errors\{ErrorResponse};
-use Radiergummi\OpenApi\Errors\ErrorDescriptor;
+use Radiergummi\OpenApi\Errors\{ErrorDescriptor, ErrorResponse};
 
 final class MyEnvelope implements ErrorResponseResolver
 {
@@ -452,4 +455,5 @@ Contract notes for custom resolvers:
 'error_envelope' => App\OpenApi\MyEnvelope::class,
 ```
 
-> **Note:** This package documents your error shapes; it does not install a Laravel exception handler that emits them. The recipes cookbook for matching runtime handlers is separate.
+> [!NOTE]
+> This package documents your error shapes; it does not install a Laravel exception handler that emits them. The recipes cookbook for matching runtime handlers is separate.

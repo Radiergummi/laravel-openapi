@@ -1,0 +1,7 @@
+-   id: openapi-lint
+    name: OpenAPI documentation lint
+    description: Lint OpenAPI documentation gaps on staged changes
+    entry: php artisan openapi:lint --diff=staged
+    language: system
+    files: \.php$
+    pass_filenames: false

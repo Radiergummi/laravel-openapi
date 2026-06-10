@@ -89,8 +89,9 @@ pipeline registered by `BaselineRegistration` — see Registry and plugins):
 1. `RouteIntrospector` walks Laravel routes (after applying `RouteFilter`s), producing an
    `ActionDescriptor` per route. `DocCommentParser` extracts summary/description/`@throws`.
 2. `OperationBuilder` builds each operation by running every resolver/extractor registered in
-   the `OpenApiRegistry`: query-parameter resolvers, request-schema resolvers, primary-response
-   resolvers, `SecurityExtractor`, `StandardResponsesExtractor`, `UriParametersExtractor`.
+   the `OpenApiRegistry`: query-parameter resolvers, request-schema resolvers (`RequestBodyExtractor`),
+   primary-response resolvers, `SecurityExtractor`, and `UriParametersExtractor`. (Standard
+   error responses are inferred separately by the `ErrorResponseInferenceStage`, not here.)
 3. `ComponentSchemaRegistry` is the shared `$ref` pool for reusable Data-class schemas.
 4. `OpenApiGenerator` assembles the final OpenAPI 3.1 document (YAML or JSON).
 
