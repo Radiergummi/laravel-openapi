@@ -16,7 +16,7 @@ use ReflectionAttribute;
 use ReflectionParameter;
 
 use function array_map;
-use function class_basename;
+use function Radiergummi\OpenApi\class_resource_name;
 use function sprintf;
 
 /**
@@ -162,12 +162,12 @@ final readonly class UriParametersExtractor
     private function buildDescription(UriParameterDescriptor $descriptor): string
     {
         if ($descriptor->modelBinding !== null) {
-            // Render the model by its short class name — the FQCN is an internal source detail that
-            // should not leak into a public spec.
+            // Render the model by a human-readable resource name — the FQCN is an internal source
+            // detail that should not leak into a public spec.
             return sprintf(
                 'Bound by %s of %s.',
                 $descriptor->modelBinding->key,
-                class_basename($descriptor->modelBinding->modelClass),
+                class_resource_name($descriptor->modelBinding->modelClass),
             );
         }
 

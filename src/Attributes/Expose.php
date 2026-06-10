@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Attributes;
 
 use Attribute;
-use LogicException;
 
 /**
  * Includes the annotated route(s) when running in hidden-by-default mode
@@ -14,22 +13,4 @@ use LogicException;
  * `#[Hide]`, hide wins; the `visibility.hide-expose-conflict` rule reports it.
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
-final readonly class Expose
-{
-    /**
-     * @param null|list<non-empty-string> $only
-     * @param null|list<non-empty-string> $except
-     *
-     * @throws LogicException
-     */
-    public function __construct(
-        public ?array $only = null,
-        public ?array $except = null,
-    ) {
-        if ($only !== null && $except !== null) {
-            throw new LogicException(
-                '#[Expose] cannot use both `only` and `except` — they are mutually exclusive.',
-            );
-        }
-    }
-}
+final readonly class Expose extends VisibilityAttribute {}
