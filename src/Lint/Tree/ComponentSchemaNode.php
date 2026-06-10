@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function sprintf;
 
@@ -47,7 +48,7 @@ final class ComponentSchemaNode implements Node
 
     public function pointer(string $append = ''): string
     {
-        $base = "#/components/schemas/{$this->name}";
+        $base = ComponentReference::pointer($this->name);
 
         return $append !== '' ? "{$base}/{$append}" : $base;
     }

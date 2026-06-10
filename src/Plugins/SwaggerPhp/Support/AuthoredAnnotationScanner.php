@@ -13,6 +13,7 @@ use OpenApi\Pipeline;
 use OpenApi\Processors\OperationId;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\AnnotationWalker;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Throwable;
 
 use function is_array;
@@ -98,7 +99,7 @@ final class AuthoredAnnotationScanner
     {
         $this->scan();
 
-        $target = '#/components/schemas/' . $componentName;
+        $target = ComponentReference::pointer($componentName);
         $ownSchema = $this->schemasByClass[ltrim($excludingClass, '\\')] ?? null;
 
         foreach ($this->schemasByName as $schema) {

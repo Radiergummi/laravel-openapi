@@ -471,6 +471,6 @@ final class ComponentSchemaRegistry
 
     public function qualifyKey(string $key, ComponentType $type = ComponentType::Schemas): string
     {
-        return "#/components/{$type->value}/{$key}";
+        return ComponentReference::pointer($key, $type);
     }
 }

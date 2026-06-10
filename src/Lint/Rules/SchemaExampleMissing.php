@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRuleVisitor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function is_array;
 use function Radiergummi\OpenApi\is_defined;
@@ -61,7 +62,7 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
             level: $this->level(),
             message: sprintf('Schema "%s" has no example value', $componentSchema->name),
             location: new FindingLocation(
-                jsonPointer: '#/components/schemas/' . $componentSchema->name,
+                jsonPointer: ComponentReference::pointer($componentSchema->name),
             ),
             fixHint: 'Add an "example" or "examples" property to the schema to improve documentation.',
         );

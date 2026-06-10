@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
@@ -431,7 +432,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
         return new OA\Schema([
             'type' => 'array',
-            'items' => new OA\Schema(['ref' => "#/components/schemas/{$itemKey}"]),
+            'items' => new OA\Schema(['ref' => ComponentReference::pointer($itemKey)]),
         ]);
     }
 
@@ -525,7 +526,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
             return new OA\Schema([
                 'type' => 'array',
-                'items' => new OA\Schema(['ref' => "#/components/schemas/{$itemKey}"]),
+                'items' => new OA\Schema(['ref' => ComponentReference::pointer($itemKey)]),
             ]);
         }
 
@@ -577,7 +578,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             /** @var class-string<Data> $className */
             $key = $this->build($className);
 
-            return new OA\Schema(['ref' => "#/components/schemas/{$key}"]);
+            return new OA\Schema(['ref' => ComponentReference::pointer($key)]);
         }
 
         return $this->schemaFromType->fromType($type);

@@ -14,6 +14,7 @@ use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule as ComponentSchemaRuleVisitor;
 use Radiergummi\OpenApi\Lint\Visitors\FieldRule as FieldRuleVisitor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function array_find;
 use function is_array;
@@ -180,7 +181,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             enum: $enum,
             raw: $schema,
             location: new FindingLocation(
-                jsonPointer: '#/components/schemas/' . $componentSchema->name,
+                jsonPointer: ComponentReference::pointer($componentSchema->name),
             ),
         );
     }

@@ -6,12 +6,13 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Enums\ComponentType;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
 use function array_values;
 use function in_array;
 use function is_array;
 use function is_string;
-use function preg_match;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 
@@ -41,11 +42,7 @@ final class SchemaAccessor
             return null;
         }
 
-        if (preg_match('~^#/components/schemas/(.+)$~', $ref, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
+        return ComponentReference::name($ref);
     }
 
     /**
@@ -60,11 +57,11 @@ final class SchemaAccessor
             return null;
         }
 
-        if (preg_match('~^#/components/responses/(.+)$~', $ref, $matches)) {
-            return $matches[1];
-        }
+        $parsed = ComponentReference::parse($ref);
 
-        return null;
+        return $parsed !== null && $parsed['type'] === ComponentType::Responses->value
+            ? $parsed['name']
+            : null;
     }
 
     public static function extractSchemaType(mixed $schema): ?string

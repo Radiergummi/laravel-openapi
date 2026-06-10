@@ -24,6 +24,7 @@ use Radiergummi\OpenApi\Lint\Tree\SpecTreeWalker;
 use Radiergummi\OpenApi\Lint\Visitors\RouteRule;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
@@ -53,7 +54,6 @@ use function is_array;
 use function is_string;
 use function ltrim;
 use function max;
-use function preg_match;
 use function property_exists;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
@@ -949,8 +949,10 @@ final readonly class LintRunner
                 return;
             }
 
-            if (preg_match('~^#/components/schemas/(.+)$~', $ref, $matches) === 1) {
-                $names[] = $matches[1];
+            $name = ComponentReference::name($ref);
+
+            if ($name !== null) {
+                $names[] = $name;
             }
         });
 

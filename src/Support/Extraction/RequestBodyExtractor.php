@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 
@@ -56,7 +57,7 @@ final readonly class RequestBodyExtractor
             'required' => true,
             'content' => [
                 $resolved->mediaType->schema(new OA\Schema([
-                    'ref' => "#/components/schemas/{$resolved->componentKey}",
+                    'ref' => ComponentReference::pointer($resolved->componentKey),
                 ])),
             ],
         ]);
