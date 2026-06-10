@@ -69,8 +69,9 @@ use function sprintf;
  *   a wrapped-model target; the response documents the model's schema.
  *
  * A collection only claims the paginated `{data, links, meta}` envelope when its argument (or
- * the `toResourceCollection()` receiver) visibly ends in a `paginate()`-family call; otherwise
- * the plain `{data}` envelope is documented — pagination meta is never guessed.
+ * the `toResourceCollection()` receiver) visibly ends in a `paginate()`-family call, looking
+ * through paginator-preserving chain links (`->withQueryString()` et al.); otherwise the plain
+ * `{data}` envelope is documented — pagination meta is never guessed.
  *
  * Anything else — conditional returns, unknown variables, unrecognised chain links, receivers
  * needing dataflow — refuses with one generation-log NOTICE per action and run
@@ -96,6 +97,20 @@ final class ReturnExpressionResourceReader
      * envelope properties are optional, so the simple/cursor variants' narrower meta stays valid.
      */
     private const array PAGINATING_METHODS = ['paginate', 'simplepaginate', 'cursorpaginate'];
+
+    /**
+     * Chained methods (lowercased) on a paginator that return `$this` without changing the
+     * paginated nature or the item shape — URL/metadata tweaks only — so pagination evidence
+     * looks through them (`paginate(...)->withQueryString()` is still paginated). Item-mapping
+     * chains (`through()`) are deliberately absent: they may change what each item looks like.
+     * Any other trailing call hides the evidence and falls back to the plain `{data}` envelope.
+     */
+    private const array PAGINATOR_PRESERVING_CHAIN_METHODS = [
+        'appends',
+        'fragment',
+        'withpath',
+        'withquerystring',
+    ];
 
     /**
      * Memoised resolution per `Class::method`, so repeated lookups (generation + lint rules)
@@ -201,8 +216,8 @@ final class ReturnExpressionResourceReader
 
     /**
      * The expression of the method's single unconditional return, or null (with a note) when the
-     * scanned region has no top-level return or carries additional conditional returns — a
-     * conditional resource type would be a guess.
+     * scanned region has no top-level return or carries additional returns (conditional or
+     * dead-code) — the resource type would be a guess.
      *
      * @param list<Stmt> $statements
      */
@@ -225,7 +240,7 @@ final class ReturnExpressionResourceReader
         }
 
         if (count($this->methodLevelReturns($statements)) > 1) {
-            $this->note($method, 'sits beside conditional returns, so the resource type would be a guess');
+            $this->note($method, 'is not the method\'s only return, so the resource type would be a guess');
 
             return null;
         }
@@ -520,8 +535,11 @@ final class ReturnExpressionResourceReader
     // region Class & type resolution
 
     /**
-     * Validates a candidate name as a concrete resource: an existing `JsonResource` subclass
-     * that is not itself a `ResourceCollection` (a collection class names no item resource).
+     * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
+     * `JsonResource` subclass that is not a `ResourceCollection` (a collection class names no
+     * item resource). The base `JsonResource` and abstract subclasses carry no field shape, so
+     * accepting them would silently document an empty schema where refusing keeps the
+     * `resource.response-ambiguous` signal alive.
      *
      * @return null|class-string<JsonResource>
      */
@@ -529,9 +547,11 @@ final class ReturnExpressionResourceReader
     {
         if (
             $candidate === null
+            || $candidate === JsonResource::class
             || !class_exists($candidate)
             || !is_a($candidate, JsonResource::class, allow_string: true)
             || is_a($candidate, ResourceCollection::class, allow_string: true)
+            || new ReflectionClass($candidate)->isAbstract()
         ) {
             return null;
         }
@@ -631,10 +651,19 @@ final class ReturnExpressionResourceReader
     /**
      * Whether the expression's outermost call is a `paginate()`-family method — the only
      * evidence that a collection source is paginated. `Model::paginate()` static calls count
-     * alongside builder chains ending in `->paginate(...)`.
+     * alongside builder chains ending in `->paginate(...)`, and paginator-preserving chain
+     * links (`->paginate(...)->withQueryString()`) are looked through.
      */
     private function endsInPaginatingCall(Expr $expression): bool
     {
+        while (
+            $expression instanceof MethodCall
+            && $expression->name instanceof Identifier
+            && in_array($expression->name->toLowerString(), self::PAGINATOR_PRESERVING_CHAIN_METHODS, true)
+        ) {
+            $expression = $expression->var;
+        }
+
         $name = match (true) {
             $expression instanceof MethodCall => $expression->name,
             $expression instanceof StaticCall => $expression->name,

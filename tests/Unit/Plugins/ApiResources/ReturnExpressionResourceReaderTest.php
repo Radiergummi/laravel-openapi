@@ -27,6 +27,8 @@ class ReaderFixtureCuratedAuthor extends Model
     protected $guarded = [];
 }
 
+abstract class ReaderFixtureAbstractResource extends JsonResource {}
+
 /**
  * Parse-only fixture; actions are never invoked.
  */
@@ -49,6 +51,28 @@ class ReaderFixtureController
     public function nonWhitelistedChain(): AnonymousResourceCollection
     {
         return NestedAuthorResource::collection(Author::all())->preserveQuery();
+    }
+
+    public function paginatedWithQueryString(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collection(Author::query()->paginate(10)->withQueryString());
+    }
+
+    public function paginatedWithNonWhitelistedTrailingCall(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collection(
+            Author::query()->paginate(10)->through(static fn(Author $author): Author => $author),
+        );
+    }
+
+    public function baseClassCollection(): AnonymousResourceCollection
+    {
+        return JsonResource::collection(Author::all());
+    }
+
+    public function abstractClassCollection(): AnonymousResourceCollection
+    {
+        return ReaderFixtureAbstractResource::collection(Author::all());
     }
 
     public function propertyReceiverToResource(): JsonResource
@@ -89,6 +113,43 @@ it('marks a simplePaginate() collection argument as paginated', function (): voi
     $target = readerFor()->read(readerMethod('simplePaginated'));
 
     expect($target?->paginated)->toBeTrue();
+});
+
+it('looks through ->withQueryString() to keep the pagination evidence', function (): void {
+    $target = readerFor()->read(readerMethod('paginatedWithQueryString'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue()
+        ->and($target?->paginated)->toBeTrue();
+});
+
+it('falls back to the plain envelope for an item-mapping ->through() trailing call', function (): void {
+    $target = readerFor()->read(readerMethod('paginatedWithNonWhitelistedTrailingCall'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->paginated)->toBeFalse();
+});
+
+it('refuses a collection call on the base JsonResource class with a note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('baseClassCollection'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'baseClassCollection'),
+        ))->toHaveCount(1);
+});
+
+it('refuses a collection call on an abstract resource subclass with a note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('abstractClassCollection'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'abstractClassCollection'),
+        ))->toHaveCount(1);
 });
 
 it('refuses a non-whitelisted chained call with a note', function (): void {

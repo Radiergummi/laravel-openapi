@@ -158,7 +158,9 @@ resolves the item resource to `ProjectResource` — no annotation needed.
 Recognised shapes:
 
 - `X::collection(...)` → collection of `X`; `X::make(...)` / `new X(...)` → a
-  single `X`.
+  single `X`. `X` must be a concrete resource — a call on the base
+  `JsonResource` itself or on an abstract subclass refuses (there is no field
+  shape to document).
 - The two-statement form `$projects = X::collection(...); return $projects;`,
   as long as the variable is assigned exactly once on the unconditional path.
 - `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal
@@ -175,10 +177,13 @@ Recognised shapes:
 
 The envelope follows the expression: a collection whose source visibly ends in a
 `paginate()` / `simplePaginate()` / `cursorPaginate()` call documents the
-`{data, links, meta}` envelope; any other collection source documents a plain
-`{data: [...]}` envelope — pagination meta is never guessed. (Signature- and
-attribute-resolved collections keep the paginated envelope, the dominant
-convention, since no body information is available for them.)
+`{data, links, meta}` envelope — looking through the paginator-preserving chain
+links `withQueryString()`, `appends()`, `withPath()`, and `fragment()`, which
+only tweak the generated URLs (`paginate(...)->withQueryString()` stays
+paginated); any other collection source documents a plain `{data: [...]}`
+envelope — pagination meta is never guessed. (Signature- and attribute-resolved
+collections keep the paginated envelope, the dominant convention, since no body
+information is available for them.)
 
 Anything else — a conditional return, a variable of unknown origin, an
 unrecognised chained call, a receiver that would need dataflow — degrades to the

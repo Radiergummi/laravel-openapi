@@ -21,8 +21,11 @@ All notable changes to this project are documented here.
   bare `$model->toResource()` on a Model-typed parameter resolves Laravel's own convention
   (`#[UseResource]`, then `guessResourceName()`); `new JsonResource($model)` documents the wrapped
   model's schema directly; and a `@return AnonymousResourceCollection<X>` docblock generic is
-  honoured, winning over the body. A collection only claims the paginated `{data, links, meta}`
-  envelope when its source visibly ends in a `paginate()`-family call — any other collection source
+  honoured, winning over the body. The named class must be a *concrete* resource: a call on the base
+  `JsonResource` itself or on an abstract subclass refuses (there is no field shape to document). A
+  collection only claims the paginated `{data, links, meta}` envelope when its source visibly ends
+  in a `paginate()`-family call — looking through the paginator-preserving chain links
+  `withQueryString()` / `appends()` / `withPath()` / `fragment()` — any other collection source
   documents a plain `{data}` envelope, so pagination meta is never guessed. Conditional or otherwise
   unresolvable returns keep the previous behaviour plus one generation-log note per action,
   `#[ResponseResource]` always wins, and `resource.response-ambiguous` stops firing for

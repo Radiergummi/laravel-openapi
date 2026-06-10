@@ -127,6 +127,11 @@ class ReturnExpressionController extends Controller
         return $authors;
     }
 
+    public function baseClassCollection(): AnonymousResourceCollection
+    {
+        return JsonResource::collection(Author::all());
+    }
+
     #[ResponseResource(LiteralOnlyResource::class, collection: true)]
     public function attributeWins(): AnonymousResourceCollection
     {
@@ -366,6 +371,23 @@ it('stops flagging resource.response-ambiguous for a body-resolved collection', 
     ));
 
     expect($findings)->toBe([]);
+});
+
+it('still flags resource.response-ambiguous for a base JsonResource::collection() body', function (): void {
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        ReturnExpressionController::class,
+        'baseClassCollection',
+        '/authors-base-class',
+    );
+
+    $rule = new ResourceResponseAmbiguous(ResourceClassLocator::create());
+    $findings = iterator_to_array($rule->checkOperation(
+        OperationNodeFactory::forDescriptor($descriptor),
+        OperationNodeFactory::emptyContext(),
+    ));
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('resource.response-ambiguous');
 });
 
 it('still flags resource.response-ambiguous for an unresolvable collection', function (): void {
