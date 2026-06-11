@@ -10,4 +10,5 @@ enum LinterOutputFormat: string
     case Markdown = 'markdown';
     case Cli = 'cli';
     case GitHub = 'github';
+    case Cobertura = 'cobertura';
 }

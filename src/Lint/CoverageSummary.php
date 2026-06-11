@@ -25,6 +25,10 @@ final readonly class CoverageSummary implements Arrayable, JsonSerializable
 {
     /**
      * @param list<array{tag: string, total: int, covered: int, percent: float}> $perTag
+     * @param list<array{file: ?string, line: ?int, covered: bool}>              $perOperation
+     *                                                                                         per-operation source location + covered flag for line-keyed reports (Cobertura/LCOV).
+     *                                                                                         Held in memory only; deliberately omitted from {@see toArray()} so the JSON report and
+     *                                                                                         the coverage gate stay byte-identical to the pre-#153 aggregate output.
      */
     public function __construct(
         public string $generatorVersion,
@@ -37,6 +41,10 @@ final readonly class CoverageSummary implements Arrayable, JsonSerializable
          * @var list<array{tag: string, total: int, covered: int, percent: float}>
          */
         public array $perTag,
+        /**
+         * @var list<array{file: ?string, line: ?int, covered: bool}>
+         */
+        public array $perOperation = [],
     ) {}
 
     /**

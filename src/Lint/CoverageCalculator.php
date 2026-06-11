@@ -25,15 +25,21 @@ final readonly class CoverageCalculator
     private const string UNTAGGED_BUCKET = '(untagged)';
 
     /**
-     * @param array<string, list<string>> $operationTags operation key => its tag list (empty when
-     *                                                   untagged)
-     * @param list<Finding>               $findings      the final, level-filtered finding list
+     * @param array<string, list<string>>                     $operationTags      operation
+     *                                                                            key => its tag list (empty when untagged)
+     * @param list<Finding>                                   $findings           the final,
+     *                                                                            level-filtered finding list
+     * @param array<string, array{file: ?string, line: ?int}> $operationLocations operation key
+     *                                                                            => its source location, for the line-keyed reports. Optional: when omitted, the
+     *                                                                            resulting {@see CoverageSummary::$perOperation} is empty and only the aggregate
+     *                                                                            (JSON/gate) output is produced.
      */
     public function calculate(
         array $operationTags,
         array $findings,
         int $level,
         string $generatorVersion,
+        array $operationLocations = [],
     ): CoverageSummary {
         $uncovered = [];
         $unattributed = 0;
@@ -63,7 +69,40 @@ final readonly class CoverageCalculator
             coveragePercent: self::percent($covered, $total),
             unattributedFindings: $unattributed,
             perTag: $this->rollUpTags($operationTags, $uncovered),
+            perOperation: $this->perOperation($operationTags, $operationLocations, $uncovered),
         );
+    }
+
+    /**
+     * Build the per-operation line-coverage records, in operation-iteration order. An operation
+     * with no recorded location carries null file/line — the line-keyed formatter excludes those
+     * (inference-only / closure-routed operations have no single source line).
+     *
+     * @param array<string, list<string>>                     $operationTags
+     * @param array<string, array{file: ?string, line: ?int}> $operationLocations
+     * @param array<string, true>                             $uncovered
+     *
+     * @return list<array{file: ?string, line: ?int, covered: bool}>
+     */
+    private function perOperation(array $operationTags, array $operationLocations, array $uncovered): array
+    {
+        if ($operationLocations === []) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach ($operationTags as $key => $_tags) {
+            $location = $operationLocations[$key] ?? ['file' => null, 'line' => null];
+
+            $rows[] = [
+                'file' => $location['file'],
+                'line' => $location['line'],
+                'covered' => !isset($uncovered[$key]),
+            ];
+        }
+
+        return $rows;
     }
 
     /**

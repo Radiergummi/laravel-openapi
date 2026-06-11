@@ -236,6 +236,11 @@ final readonly class LintRunner
         /** @var array<string, list<string>> $operationTags */
         $operationTags = [];
 
+        // Operation key => controller source location, for the line-keyed coverage reports
+        // (Cobertura/LCOV). Collected in the same pass; null file/line for closure routes.
+        /** @var array<string, array{file: ?string, line: ?int}> $operationLocations */
+        $operationLocations = [];
+
         foreach ($targets as $spec) {
             // Bind a spec-local collector BEFORE generateOne so stage-emitted findings
             // (e.g. ValidationRulesToSchema, ErrorResponseInferenceStage) land alongside the
@@ -293,10 +298,9 @@ final readonly class LintRunner
                 inference: $inference,
             );
 
-            $operationTags = [
-                ...$operationTags,
-                ...$this->collectOperationTags($operations, $allowedRouteUris, $spec->name),
-            ];
+            [$specTags, $specLocations] = $this->collectOperationCoverage($operations, $allowedRouteUris, $spec->name);
+            $operationTags = [...$operationTags, ...$specTags];
+            $operationLocations = [...$operationLocations, ...$specLocations];
 
             foreach ($specLocal->all() as $finding) {
                 $emit->emit($finding->withSpec($spec->name));
@@ -326,6 +330,7 @@ final readonly class LintRunner
             $findings,
             $level,
             $this->generatorVersion(),
+            $operationLocations,
         );
 
         return new LintResult(
@@ -381,11 +386,13 @@ final readonly class LintRunner
      * @param list<OperationNode>      $operations
      * @param null|array<string, true> $allowedRouteUris
      *
-     * @return array<string, list<string>>
+     * @return array{0: array<string, list<string>>, 1: array<string, array{file: ?string, line: ?int}>}
+     *                                                                                                   [operation key => tags, operation key => source location]
      */
-    private function collectOperationTags(array $operations, ?array $allowedRouteUris, string $specName): array
+    private function collectOperationCoverage(array $operations, ?array $allowedRouteUris, string $specName): array
     {
         $operationTags = [];
+        $operationLocations = [];
 
         foreach ($operations as $operation) {
             if ($allowedRouteUris !== null && !isset($allowedRouteUris[ltrim($operation->pathUri, '/')])) {
@@ -400,10 +407,11 @@ final readonly class LintRunner
 
             if ($key !== null) {
                 $operationTags[$key] = $operation->tags;
+                $operationLocations[$key] = ['file' => $operation->file(), 'line' => $operation->line()];
             }
         }
 
-        return $operationTags;
+        return [$operationTags, $operationLocations];
     }
 
     /**
