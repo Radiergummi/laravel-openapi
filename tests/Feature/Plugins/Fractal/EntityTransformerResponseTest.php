@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\Fractal;
 
 use Illuminate\Support\Facades\Route;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 use Radiergummi\OpenApi\Tests\Fixtures\Fractal\ArticleEntityController;
+use Radiergummi\OpenApi\Tests\Fixtures\Fractal\EmptyTransformerEntityController;
 use Radiergummi\OpenApi\Tests\Fixtures\Fractal\NoDefaultEntityController;
+use Radiergummi\OpenApi\Tests\Fixtures\Transformers\EmptyTransformer;
+
+use function array_any;
+use function str_contains;
 
 uses()->group('openapi', 'plugin:fractal');
 
@@ -61,6 +67,38 @@ it('refuses a method that reassigns $entity_transformer', function (): void {
     $schema = entityResponseSchema($spec, '/entities/{entity}/reassigned');
 
     expect($schema['properties']['data']['$ref'] ?? null)->toBeNull();
+});
+
+it('documents the property default when the reassignment hides in a called helper — invisible to the bounded scan', function (): void {
+    Route::get('/entities/{entity}/helper-reassigned', [ArticleEntityController::class, 'helperReassigned']);
+
+    $spec = generateSpec();
+    $schema = entityResponseSchema($spec, '/entities/{entity}/helper-reassigned');
+
+    // Deliberate Tier-1 boundary: only the scanned method's statements are visible, so a
+    // reassignment inside a called helper cannot be seen and the class default is documented.
+    expect($schema['properties']['data']['$ref'] ?? null)
+        ->toBe('#/components/schemas/InferredArticleTransformer');
+});
+
+it('refuses a transformer whose readable transform() literal is empty, noting it yields no documentable fields', function (): void {
+    Route::get('/entities/{entity}/empty', [EmptyTransformerEntityController::class, 'show']);
+
+    $logger = recordingLogger();
+    app()->instance(LoggerInterface::class, $logger);
+
+    $spec = generateSpec();
+    $schema = entityResponseSchema($spec, '/entities/{entity}/empty');
+
+    expect($schema['properties']['data']['$ref'] ?? null)->toBeNull();
+
+    $noted = array_any(
+        $logger->records,
+        static fn(array $record): bool => str_contains($record['message'], EmptyTransformer::class)
+            && str_contains($record['message'], 'yields no documentable fields'),
+    );
+
+    expect($noted)->toBeTrue();
 });
 
 it('lets an explicit #[FractalResponse] win over the body scan', function (): void {

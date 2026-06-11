@@ -52,8 +52,10 @@ use function sprintf;
  *
  * Degradation contract: a method that reassigns `$entity_transformer` anywhere in the scanned
  * statements refuses with a note — the property default is no longer the honest answer. A
- * matched call whose transformer cannot be resolved (no usable default, or no documentable
- * fields) is noted; a method without the call shape is skipped silently — most apps never use
+ * reassignment inside a *called* helper is invisible to the bounded scan (following calls is
+ * Tier-2 dataflow), so the property default is documented — a deliberate boundary, not an
+ * oversight. A matched call whose transformer cannot be resolved (no usable default, or no
+ * documentable fields) is noted; a method without the call shape is skipped silently — most apps never use
  * this convention. An action carrying a {@see PrimaryResponseAuthoringAttribute}
  * (`#[FractalResponse]`, `#[ResponseResource]`) is never scanned: explicit authoring always
  * wins. The return-type guard keeps the scan away from actions whose signature already carries
@@ -127,8 +129,9 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
         }
 
         if (!$this->hasDocumentableFields($transformerClass)) {
+            // Covers both an unreadable transform() body and a readable-but-empty literal.
             $this->note($method, sprintf(
-                'but transformer %s declares no #[TransformerField] and has no readable transform() literal',
+                'but transformer %s declares no #[TransformerField] and yields no documentable fields',
                 $transformerClass,
             ));
 

@@ -36,6 +36,19 @@ final class ArticleEntityController extends BaseEntityController
         return $this->itemResponse(new Article());
     }
 
+    /** Reassigns the transformer inside a called helper — invisible to the bounded scan. */
+    public function helperReassigned(): JsonResponse
+    {
+        $this->swapTransformer();
+
+        return $this->itemResponse(new Article());
+    }
+
+    private function swapTransformer(): void
+    {
+        $this->entity_transformer = DeclaredAndInferredTransformer::class;
+    }
+
     /** The explicit attribute wins over the body scan. */
     #[FractalResponse(transformer: DeclaredAndInferredTransformer::class)]
     public function attributed(): JsonResponse
