@@ -24,11 +24,12 @@ use Override;
 final readonly class CoverageSummary implements Arrayable, JsonSerializable
 {
     /**
+     * `$perOperation` (source location + covered flag, for line-keyed reports like Cobertura) is
+     * held in memory only — {@see toArray()} omits it, so the JSON report and the coverage gate
+     * output are unchanged.
+     *
      * @param list<array{tag: string, total: int, covered: int, percent: float}> $perTag
      * @param list<array{file: ?string, line: ?int, covered: bool}>              $perOperation
-     *                                                                                         per-operation source location + covered flag for line-keyed reports (Cobertura/LCOV).
-     *                                                                                         Held in memory only; deliberately omitted from {@see toArray()} so the JSON report and
-     *                                                                                         the coverage gate stay byte-identical to the pre-#153 aggregate output.
      */
     public function __construct(
         public string $generatorVersion,

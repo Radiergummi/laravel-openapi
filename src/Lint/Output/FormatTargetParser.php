@@ -47,17 +47,17 @@ final readonly class FormatTargetParser
                 ));
 
             $target = OutputTarget::fromToken($targetToken);
-            $identity = $target->identity();
+            $destination = $target->label();
 
-            if (isset($seen[$identity])) {
+            if (isset($seen[$destination])) {
                 throw new InvalidArgumentException(sprintf(
                     'Cannot write two formats to %s; give each a distinct target, '
                     . 'e.g. --format=cobertura:coverage.xml.',
-                    $target->label(),
+                    $destination,
                 ));
             }
 
-            $seen[$identity] = true;
+            $seen[$destination] = true;
             $targets[] = new FormatTarget($format, $target);
         }
 

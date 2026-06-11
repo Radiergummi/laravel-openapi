@@ -8,8 +8,8 @@ namespace Radiergummi\OpenApi\Lint\Output;
  * Where a single formatter's output goes: stdout (the default), stderr, or a file path.
  *
  * `stdout` and `stderr` are reserved keywords in the `--format=<format>[:<target>]` grammar; any
- * other target is a filesystem path. {@see identity()} gives a stable key used to reject two
- * formats writing to the same destination.
+ * other target is a filesystem path. {@see label()} is the canonical string form, used both to
+ * reject two formats writing to the same destination and in error messages.
  *
  * @internal
  */
@@ -34,18 +34,10 @@ final readonly class OutputTarget
     }
 
     /**
-     * Stable destination identity for collision detection: the stream name for a console channel,
-     * or `file:<path>` for a file (so two formats may not target the same path either).
-     */
-    public function identity(): string
-    {
-        return $this->channel === OutputChannel::File
-            ? 'file:' . $this->path
-            : $this->channel->value;
-    }
-
-    /**
-     * Human label for error messages.
+     * Canonical string form: the file path, or the stream name for a console channel. Doubles as
+     * the destination identity for collision detection — a path can never equal `stdout`/`stderr`
+     * (those tokens resolve to channels in {@see fromToken()}), so no prefix is needed to keep
+     * file and console targets distinct.
      */
     public function label(): string
     {
