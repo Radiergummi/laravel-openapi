@@ -56,3 +56,49 @@ it('writes a bare cobertura format to stdout when no target is given', function 
         ->expectsOutputToContain('<coverage')
         ->assertExitCode(0);
 });
+
+it('writes a JSON report to a file target', function (): void {
+    $path = sys_get_temp_dir() . '/openapi-lint-' . uniqid() . '.json';
+
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--uri' => 'lint-fixtures/*',
+        '--format' => ['json:' . $path],
+    ])->assertExitCode(1);
+
+    expect(file_exists($path))->toBeTrue();
+
+    $decoded = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($decoded)->toHaveKey('schema_version')
+        ->and($decoded)->toHaveKey('findings')
+        ->and($decoded)->toHaveKey('coverage')
+        ->and($decoded['findings'])->not->toBeEmpty();
+
+    unlink($path);
+});
+
+it('can write findings to stderr while coverage goes to a file', function (): void {
+    $path = sys_get_temp_dir() . '/openapi-cov-stderr-' . uniqid() . '.xml';
+
+    $this->artisan('openapi:lint', [
+        '--level' => 0,
+        '--uri' => 'lint-fixtures/clean*',
+        '--format' => ['github:stderr', 'cobertura:' . $path],
+    ])->assertExitCode(0);
+
+    expect(file_exists($path))->toBeTrue();
+
+    $xml = new SimpleXMLElement((string) file_get_contents($path));
+    expect($xml->getName())->toBe('coverage');
+
+    unlink($path);
+});
+
+it('rejects two formats targeting stdout via the artisan command', function (): void {
+    expect(fn(): int => $this->artisan('openapi:lint', [
+        '--level' => 0,
+        '--uri' => 'lint-fixtures/clean*',
+        '--format' => ['github', 'json'],
+    ])->run())->toThrow(InvalidArgumentException::class, 'stdout');
+});

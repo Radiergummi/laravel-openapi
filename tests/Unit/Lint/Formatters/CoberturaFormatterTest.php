@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Formatters\CoberturaFormatter;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 uses()->group('openapi', 'lint');
@@ -11,7 +12,7 @@ uses()->group('openapi', 'lint');
 function renderCobertura(CoverageSummary $coverage): SimpleXMLElement
 {
     $output = new BufferedOutput();
-    new CoberturaFormatter()->render(findings: [], level: 1, exitCode: 0, output: $output, coverage: $coverage);
+    new CoberturaFormatter()->render(new LintResult(findings: [], level: 1, exitCode: 0, coverage: $coverage), $output);
 
     return new SimpleXMLElement($output->fetch());
 }

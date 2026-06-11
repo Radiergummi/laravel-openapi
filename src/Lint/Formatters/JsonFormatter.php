@@ -6,9 +6,8 @@ namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use JsonException;
 use Override;
-use Radiergummi\OpenApi\Lint\CoverageSummary;
-use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LinterSummary;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function json_encode;
@@ -22,21 +21,14 @@ final class JsonFormatter implements Formatter
     private const string SCHEMA_VERSION = '1';
 
     /**
-     * @param list<Finding> $findings
-     *
      * @throws JsonException
      */
     #[Override]
-    public function render(
-        array $findings,
-        int $level,
-        int $exitCode,
-        OutputInterface $output,
-        ?CoverageSummary $coverage = null,
-    ): void {
+    public function render(LintResult $result, OutputInterface $output): void
+    {
         $output->writeln(
             json_encode(
-                value: $this->buildPayload($findings, $level, $exitCode, $coverage),
+                value: $this->buildPayload($result),
                 flags: JSON_THROW_ON_ERROR
                 | JSON_PRETTY_PRINT
                 | JSON_UNESCAPED_SLASHES,
@@ -45,26 +37,20 @@ final class JsonFormatter implements Formatter
     }
 
     /**
-     * @param list<Finding> $findings
-     *
      * @return array<string, mixed>
      */
-    private function buildPayload(
-        array $findings,
-        int $level,
-        int $exitCode,
-        ?CoverageSummary $coverage,
-    ): array {
+    private function buildPayload(LintResult $result): array
+    {
         $payload = [
             'schema_version' => self::SCHEMA_VERSION,
-            'level' => $level,
-            'exit_code' => $exitCode,
-            'findings' => $findings,
-            'summary' => new LinterSummary($findings, $level),
+            'level' => $result->level,
+            'exit_code' => $result->exitCode,
+            'findings' => $result->findings,
+            'summary' => new LinterSummary($result->findings, $result->level),
         ];
 
-        if ($coverage !== null) {
-            $payload['coverage'] = $coverage;
+        if ($result->coverage !== null) {
+            $payload['coverage'] = $result->coverage;
         }
 
         return $payload;

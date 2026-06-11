@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 uses()->group('openapi', 'lint');
@@ -11,13 +13,11 @@ uses()->group('openapi', 'lint');
 it('does not print spec headers when all findings belong to one spec', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
+        new LintResult(findings: [
             new Finding(ruleId: 'rule.a', level: 0, message: 'msg', spec: 'default'),
             new Finding(ruleId: 'rule.b', level: 1, message: 'msg', spec: 'default'),
-        ],
-        level: 0,
-        exitCode: 1,
-        output: $output,
+        ], level: 0, exitCode: 1),
+        $output,
     );
 
     expect($output->fetch())->not->toContain('── spec:');
@@ -26,13 +26,11 @@ it('does not print spec headers when all findings belong to one spec', function 
 it('does not print spec headers when no findings have a spec set', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
+        new LintResult(findings: [
             new Finding(ruleId: 'rule.a', level: 0, message: 'msg'),
             new Finding(ruleId: 'rule.b', level: 1, message: 'msg'),
-        ],
-        level: 0,
-        exitCode: 1,
-        output: $output,
+        ], level: 0, exitCode: 1),
+        $output,
     );
 
     expect($output->fetch())->not->toContain('── spec:');
@@ -41,13 +39,11 @@ it('does not print spec headers when no findings have a spec set', function (): 
 it('groups findings by spec with a header per group', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
+        new LintResult(findings: [
             new Finding(ruleId: 'rule.a', level: 0, message: 'msg a', spec: 'default'),
             new Finding(ruleId: 'rule.b', level: 0, message: 'msg b', spec: 'v1'),
-        ],
-        level: 0,
-        exitCode: 1,
-        output: $output,
+        ], level: 0, exitCode: 1),
+        $output,
     );
 
     $text = $output->fetch();
@@ -59,13 +55,11 @@ it('groups findings by spec with a header per group', function (): void {
 it('renders pre-build findings under a "configuration" header when mixed with spec findings', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
+        new LintResult(findings: [
             new Finding(ruleId: 'rule.a', level: 0, message: 'msg a'),
             new Finding(ruleId: 'rule.b', level: 0, message: 'msg b', spec: 'default'),
-        ],
-        level: 0,
-        exitCode: 1,
-        output: $output,
+        ], level: 0, exitCode: 1),
+        $output,
     );
 
     $text = $output->fetch();
@@ -77,12 +71,10 @@ it('renders pre-build findings under a "configuration" header when mixed with sp
 it('does not print headers when only pre-build findings are present', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
+        new LintResult(findings: [
             new Finding(ruleId: 'rule.a', level: 0, message: 'msg a'),
-        ],
-        level: 0,
-        exitCode: 1,
-        output: $output,
+        ], level: 0, exitCode: 1),
+        $output,
     );
 
     $text = $output->fetch();
@@ -94,13 +86,11 @@ it('does not print headers when only pre-build findings are present', function (
 it('renders finding rule ids inside the correct spec group', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
+        new LintResult(findings: [
             new Finding(ruleId: 'rule.alpha', level: 0, message: 'msg', spec: 'default'),
             new Finding(ruleId: 'rule.beta', level: 0, message: 'msg', spec: 'v1'),
-        ],
-        level: 0,
-        exitCode: 1,
-        output: $output,
+        ], level: 0, exitCode: 1),
+        $output,
     );
 
     $text = $output->fetch();
@@ -114,4 +104,63 @@ it('renders finding rule ids inside the correct spec group', function (): void {
         ->and($alphaPos)->toBeGreaterThan($defaultPos)
         ->and($alphaPos)->toBeLessThan($v1Pos)
         ->and($betaPos)->toBeGreaterThan($v1Pos);
+});
+
+it('renders a coverage summary line when coverage is present', function (): void {
+    $output = new BufferedOutput();
+    new CliFormatter()->render(
+        new LintResult(
+            findings: [],
+            level: 2,
+            exitCode: 0,
+            coverage: new CoverageSummary(
+                generatorVersion: '1.0.0',
+                level: 2,
+                totalOperations: 10,
+                coveredOperations: 7,
+                coveragePercent: 70.00,
+                unattributedFindings: 0,
+                perTag: [],
+            ),
+        ),
+        $output,
+    );
+
+    $text = $output->fetch();
+    expect($text)->toContain('Coverage: 70.00%')
+        ->and($text)->toContain('7/10 operations');
+});
+
+it('includes unattributed count in coverage line when non-zero', function (): void {
+    $output = new BufferedOutput();
+    new CliFormatter()->render(
+        new LintResult(
+            findings: [],
+            level: 2,
+            exitCode: 0,
+            coverage: new CoverageSummary(
+                generatorVersion: '1.0.0',
+                level: 2,
+                totalOperations: 5,
+                coveredOperations: 5,
+                coveragePercent: 100.00,
+                unattributedFindings: 2,
+                perTag: [],
+            ),
+        ),
+        $output,
+    );
+
+    $text = $output->fetch();
+    expect($text)->toContain('2 unattributed findings');
+});
+
+it('omits the coverage line when coverage is null', function (): void {
+    $output = new BufferedOutput();
+    new CliFormatter()->render(
+        new LintResult(findings: [], level: 2, exitCode: 0),
+        $output,
+    );
+
+    expect($output->fetch())->not->toContain('Coverage:');
 });

@@ -8,6 +8,7 @@ use DOMDocument;
 use DOMElement;
 use Override;
 use Radiergummi\OpenApi\Lint\CoverageSummary;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function count;
@@ -23,24 +24,16 @@ use function ksort;
  * When two operations share a file+line (a multi-verb route on one method), the line is reported
  * uncovered if any of them is uncovered, so the gap surfaces rather than hides.
  *
- * Findings/level/exitCode are not used: this formatter reports coverage only.
+ * Only `$result->coverage` is used; findings and level are irrelevant to this format.
  *
  * @internal
  */
 final class CoberturaFormatter implements Formatter
 {
-    /**
-     * @param list<\Radiergummi\OpenApi\Lint\Finding> $findings
-     */
     #[Override]
-    public function render(
-        array $findings,
-        int $level,
-        int $exitCode,
-        OutputInterface $output,
-        ?CoverageSummary $coverage = null,
-    ): void {
-        $output->writeln($this->buildDocument($coverage)->saveXML() ?: '');
+    public function render(LintResult $result, OutputInterface $output): void
+    {
+        $output->writeln($this->buildDocument($result->coverage)->saveXML() ?: '');
     }
 
     private function buildDocument(?CoverageSummary $coverage): DOMDocument
