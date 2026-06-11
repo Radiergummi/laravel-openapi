@@ -45,6 +45,7 @@ use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
@@ -216,6 +217,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     matcher: $app->make(SpecMatcher::class),
                     specResolver: $app->make(SpecResolver::class),
                     visibility: $app->make(VisibilityResolver::class),
+                    middlewareGatherer: $app->make(RouteMiddlewareGatherer::class),
                 );
             },
         );
