@@ -120,6 +120,7 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
     $operations = 0;
     $apiOperations = 0;
     $responseSchemas = 0;
+    $documentedResponses = 0;
     $requestBodies = 0;
     $maxRequestProperties = 0;
     $complete = 0;
@@ -158,35 +159,48 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
                 $requestBodies++;
             }
 
-            $hasResponse = false;
+            $hasAnyResponse = false;       // any 2xx outcome documented (incl. contentless)
+            $hasContentlessResponse = false; // explicit no-content 2xx (e.g. 204) — documented, no schema
+            $hasSubstantiveResponse = false; // a 2xx whose content schema carries real shape
 
             foreach (($op['responses'] ?? []) as $code => $response) {
                 if (!preg_match('/^2/', (string) $code) || !is_array($response)) {
                     continue;
                 }
 
+                $hasAnyResponse = true;
                 $content = $response['content'] ?? null;
 
                 if (!is_array($content) || $content === []) {
-                    $hasResponse = true; // explicit no-content 2xx
+                    $hasContentlessResponse = true;
 
-                    break;
+                    continue;
                 }
 
                 foreach ($content as $media) {
                     if (isset($media['schema']) && survey_substantive($media['schema'], $components)) {
-                        $hasResponse = true;
+                        $hasSubstantiveResponse = true;
 
                         break 2;
                     }
                 }
             }
 
-            if ($hasResponse) {
+            // responseSchemas counts only substantive schemas — a contentless 2xx carries
+            // none, so it lands in documentedResponses instead (see #254).
+            if ($hasSubstantiveResponse) {
                 $responseSchemas++;
             }
 
-            if ($hasResponse && (!in_array($method, $bodyVerbs, true) || $hasBody)) {
+            if ($hasAnyResponse) {
+                $documentedResponses++;
+            }
+
+            // Completeness credits a substantive schema OR a contentless 2xx (parity with
+            // completeness.php — a 204 is a complete response), but not an empty-schema 2xx.
+            $hasCompleteResponse = $hasSubstantiveResponse || $hasContentlessResponse;
+
+            if ($hasCompleteResponse && (!in_array($method, $bodyVerbs, true) || $hasBody)) {
                 $complete++;
             }
         }
@@ -207,6 +221,7 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
         'operations' => $operations,
         'apiOperations' => $apiOperations,
         'responseSchemas' => $responseSchemas,
+        'documentedResponses' => $documentedResponses,
         'requestBodies' => $requestBodies,
         'maxRequestProperties' => $maxRequestProperties,
         'componentSchemas' => count($components),

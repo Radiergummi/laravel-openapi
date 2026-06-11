@@ -82,12 +82,11 @@ for name in ${names[@]+"${names[@]}"}; do
   # old library sha (which makes the relink a silent no-op), a corrupted composer.json, or
   # stale compiled caches referencing the package. This runs BEFORE the bootstrap makes its
   # own per-app composer.json edits (platform.php, constraint bumps), so those are preserved.
-  if [[ -d "$repodir/.git" ]]; then
-    git -C "$repodir" checkout -- composer.json composer.lock 2>/dev/null || true
-    rm -rf "$repodir/vendor/radiergummi" \
-           "$repodir/bootstrap/cache/packages.php" \
-           "$repodir/bootstrap/cache/services.php"
-  fi
+  # (Every command here is no-op-safe if the clone above failed, so no .git guard is needed.)
+  git -C "$repodir" checkout -- composer.json composer.lock 2>/dev/null || true
+  rm -rf "$repodir/vendor/radiergummi" \
+         "$repodir/bootstrap/cache/packages.php" \
+         "$repodir/bootstrap/cache/services.php"
 
   echo "booted" > "$appdir/boot_outcome"
   # A non-zero bootstrap exit that never reached survey_blocked still means the app
@@ -128,12 +127,10 @@ fi
 mv "$WS/results.json.tmp" "$WS/results.json"
 
 # Coverage guard (#221): on a full run, warn loudly if fewer apps were measured than the
-# corpus pins — the symptom of a silently dropped app.
-if [[ -z "$only" ]]; then
-  corpus_count=$(php -r 'echo count(json_decode(file_get_contents($argv[1]),true)["apps"]);' "$corpus")
-  if [[ "$ran" -ne "$corpus_count" ]]; then
-    echo "warn: measured $ran of $corpus_count corpus apps this run — some were skipped or dropped" >&2
-  fi
+# corpus pins — the symptom of a silently dropped app. The names array (one entry per pinned
+# app) is the corpus count, so no extra corpus read is needed.
+if [[ -z "$only" && "$ran" -ne "${#names[@]}" ]]; then
+  echo "warn: measured $ran of ${#names[@]} corpus apps this run — some were skipped or dropped" >&2
 fi
 
 # Manifest covers the FULL corpus pin registry (not just --only): records each app's pinned
