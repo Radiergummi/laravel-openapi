@@ -51,7 +51,7 @@ from controller signatures and PHPDoc, and writes an OpenAPI 3.1 YAML file to
 | `php artisan openapi:clear` | Drop the cached spec. |
 | `php artisan openapi:diff:config` | Show drift between your published `config/openapi.php` and the package default — flags added keys (`+`), removed keys (`-`), and changed default values (`~`). |
 | `GET /api/openapi.yaml` | Serve the OpenAPI 3.1 YAML. |
-| `GET /api/docs` | Interactive Scalar playground. Local environment only by default. |
+| `GET /api/docs` | Interactive playground (Scalar by default; Swagger UI optional). Local environment only by default. |
 
 Configure both routes in `config/openapi.routes`. See
 [Configuration → Routes](config.md#routes).

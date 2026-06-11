@@ -61,9 +61,18 @@ wins over the `auth` middleware entry.
     'playground' => [
         'enabled' => env('APP_ENV') === 'local', // local-only by default
         'uri' => 'docs',           // GET /api/docs
+        'renderer' => 'scalar',    // 'scalar' (default) or 'swagger-ui'
     ],
 ],
 ```
+
+The playground `renderer` chooses which UI the `/api/docs` route serves:
+`'scalar'` (the default) or `'swagger-ui'`. Both are loaded from a CDN and
+pointed at the same spec endpoint, so the switch is config-only — no asset
+publishing. Swagger UI is offered for teams (e.g. migrating from
+`darkaonline/l5-swagger`) already standardised on its layout and "Try it out"
+affordances. Any unrecognised value falls back to Scalar. In multi-spec mode the
+renderer is global; each spec's playground still points at its own document.
 
 ## Operation overrides
 

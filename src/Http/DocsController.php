@@ -68,10 +68,12 @@ final class DocsController extends Controller
     }
 
     /**
-     * Render the Scalar API reference page for the given spec.
+     * Render the API reference page for the given spec.
      *
-     * The page is a minimal HTML shell that loads Scalar from a CDN and points it at the OpenAPI
-     * YAML endpoint for this spec.
+     * The page is a minimal HTML shell that loads the configured renderer from a CDN and points it
+     * at the OpenAPI YAML endpoint for this spec. The renderer is chosen by
+     * `openapi.routes.playground.renderer` — `scalar` (default) or `swagger-ui`; any other value
+     * falls back to Scalar.
      *
      * @noinspection PhpUnhandledExceptionInspection
      */
@@ -85,6 +87,10 @@ final class DocsController extends Controller
         // serving (route_uri: false), there is nothing to render.
         abort_if(!$definition->servesOverHttp(), 404);
 
-        return view('openapi::playground', ['specUrl' => route($definition->specRouteName())]);
+        $view = config('openapi.routes.playground.renderer') === 'swagger-ui'
+            ? 'openapi::playground-swagger-ui'
+            : 'openapi::playground';
+
+        return view($view, ['specUrl' => route($definition->specRouteName())]);
     }
 }

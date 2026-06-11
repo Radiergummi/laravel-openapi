@@ -120,6 +120,50 @@ it('keeps the surviving resolvers output when one query-parameter resolver throw
 
 // endregion
 
+// region Cross-resolver dedup
+
+it('dedups query parameters colliding on name+in across resolvers, last resolver wins', function (): void {
+    $first = new class () implements QueryParameterResolver {
+        public function resolveQueryParameters(ActionDescriptor $descriptor): array
+        {
+            return [
+                new OA\Parameter(['name' => 'sort', 'in' => 'query', 'description' => 'from first']),
+                new OA\Parameter(['name' => 'only-first', 'in' => 'query']),
+            ];
+        }
+    };
+
+    $second = new class () implements QueryParameterResolver {
+        public function resolveQueryParameters(ActionDescriptor $descriptor): array
+        {
+            return [new OA\Parameter(['name' => 'sort', 'in' => 'query', 'description' => 'from second'])];
+        }
+    };
+
+    $builder = builderWithResolvers(
+        new ResolverFaultBoundary(recordingLogger()),
+        queryParameterResolvers: [$first, $second],
+    );
+
+    $op = $builder->build(faultIsolationDescriptor(), []);
+
+    $queryParams = array_values(array_filter(
+        $op->parameters,
+        static fn(OA\Parameter $p): bool => $p->in === 'query',
+    ));
+    $sort = array_values(array_filter(
+        $queryParams,
+        static fn(OA\Parameter $p): bool => $p->name === 'sort',
+    ));
+
+    expect($sort)->toHaveCount(1)
+        ->and($sort[0]->description)->toBe('from second')
+        ->and(array_map(static fn(OA\Parameter $p): string => (string) $p->name, $queryParams))
+        ->toContain('only-first');
+});
+
+// endregion
+
 // region Programming errors propagate
 
 it('lets a TypeError from a resolver abort the build instead of swallowing it', function (): void {
