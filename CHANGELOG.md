@@ -11,6 +11,25 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Constructor `$this->middleware(...)` now survives non-instantiable controllers** (#16). Laravel
+  itself resolves controller middleware when routes are gathered — the static
+  `HasMiddleware::middleware()` form without instantiation, the classic constructor form by
+  instantiating the controller through the container, both honouring `only` / `except`. The gap was
+  the controller the container *cannot* build at generation time (unbound constructor dependency, a
+  constructor that throws outside a real request): `Route::gatherMiddleware()` threw, crashed the
+  whole run, and poisoned the route's middleware cache so a retry silently returned `[]`. All
+  middleware reads now flow through one crash-safe seam (`RouteMiddlewareGatherer`): on an
+  instantiation failure it logs a notice and falls back to the route-declared middleware merged with
+  a bounded static scan of the constructor body (Tier-1, first 10 top-level statements, epic #5) —
+  literal `$this->middleware(...)` names with literal fluent `->only(...)` / `->except(...)` or
+  options-array scoping, matched against the route's action method, deduplicated against
+  route-declared names. Inherited (base-controller) constructors are read through their declaring
+  class. Security schemes, per-operation `security`, the implicit 401/403/429 responses, multi-spec
+  `match.middleware`, and `openapi:why` all see the same merged list; `#[Security]` /
+  `#[PublicEndpoint]` keep winning. Dynamic names, non-literal scoping, and conditionally applied
+  registrations are refused with a generation-log notice (documenting conditional auth as
+  unconditional would overstate the contract). See
+  [Auto-derivation → Controller middleware](docs/auto-derivation.md#controller-middleware).
 - **`spatie/laravel-query-builder` fluent chains now document themselves** (#15). The QueryBuilder
   plugin reads the literal `QueryBuilder::for(...)->allowedFilters([...])->allowedSorts([...])
   ->allowedIncludes([...])` chain straight from the controller method body (Tier-1 bounded scan of
