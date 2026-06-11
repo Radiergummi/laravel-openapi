@@ -14,4 +14,5 @@ Route::delete('/flights/{flight}', [FlightController::class, 'destroy']);
 
 Route::get('/flights/{flight}/bookings', [BookingController::class, 'index']);
 Route::post('/flights/{flight}/bookings', [BookingController::class, 'store']);
+Route::get('/bookings', [BookingController::class, 'all']);
 Route::delete('/bookings/{booking}', [BookingController::class, 'destroy']);
