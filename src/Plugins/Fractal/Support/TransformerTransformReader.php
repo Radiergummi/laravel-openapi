@@ -171,7 +171,13 @@ final class TransformerTransformReader
         $castType = $this->castType($value);
 
         if ($castType !== null) {
-            return new InferredTransformerField($name, new OA\Property(['property' => $name, 'type' => $castType]));
+            return new InferredTransformerField($name, new OA\Property([
+                'property' => $name,
+                'type' => $castType,
+                // swagger-php's validation requires items whenever type is array; an (array)
+                // cast guarantees an array of unknown items, so the honest claim is items: {}.
+                ...$castType === 'array' ? ['items' => new OA\Items([])] : [],
+            ]));
         }
 
         $modelProperty = $this->resolveModelProperty($name, $value, $modelClass, $parameterName);

@@ -12,8 +12,9 @@ use League\Fractal\TransformerAbstract;
  *
  * The generator reads the single `return [...]` literal of `transform()`
  * directly: model fetches type their property from the `Booking` parameter's
- * metadata, the cast types `seat_row`, and the unreadable `reference` value
- * stays an unconstrained property (note in the generation log).
+ * metadata, the casts type `seat_row` (integer) and `extras` (array of
+ * unconstrained items), and the unreadable `reference` value stays an
+ * unconstrained property (note in the generation log).
  */
 final class BookingTransformer extends TransformerAbstract
 {
@@ -27,6 +28,7 @@ final class BookingTransformer extends TransformerAbstract
             'passenger_name' => $booking->passenger_name,
             'seat' => $booking->seat,
             'seat_row' => (int) $booking->seat,
+            'extras' => (array) $booking->seat,
             'reference' => $this->reference($booking),
         ];
     }

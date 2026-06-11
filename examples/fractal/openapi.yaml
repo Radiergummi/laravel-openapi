@@ -134,6 +134,7 @@ components:
         - passenger_name
         - seat
         - seat_row
+        - extras
         - reference
       properties:
         id:
@@ -144,6 +145,9 @@ components:
           type: string
         seat_row:
           type: integer
+        extras:
+          type: array
+          items: {}
         reference: {}
       type: object
   responses:

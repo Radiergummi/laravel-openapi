@@ -78,7 +78,7 @@ it('reads the literal keys of a single-return transform() in literal order', fun
     $fields = readTransformerFields(InferredArticleTransformer::class);
 
     expect(array_map(static fn(InferredTransformerField $field): string => $field->name, $fields))
-        ->toBe(['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'kind', 'flags', 'permalink']);
+        ->toBe(['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'tags', 'kind', 'flags', 'permalink']);
 });
 
 it('resolves $model->field values against the typed transform() parameter', function (): void {
@@ -95,6 +95,17 @@ it('types cast values by the cast', function (): void {
     expect(transformerField($fields, 'word_count')->property->type)->toBe('integer')
         ->and(transformerField($fields, 'price')->property->type)->toBe('number')
         ->and(transformerField($fields, 'archived')->property->type)->toBe('boolean');
+});
+
+it('emits unconstrained items alongside an (array) cast', function (): void {
+    $fields = readTransformerFields(InferredArticleTransformer::class);
+
+    $tags = transformerField($fields, 'tags');
+
+    // swagger-php's Analysis::validate() rejects `type: array` without `items`; an `(array)`
+    // cast guarantees an array of unknown items, so the honest schema is `items: {}`.
+    expect($tags->property->type)->toBe('array')
+        ->and(Generator::isDefault($tags->property->items))->toBeFalse();
 });
 
 it('types literal scalar and nested literal array values', function (): void {

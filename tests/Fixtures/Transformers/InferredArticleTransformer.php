@@ -25,6 +25,7 @@ final class InferredArticleTransformer extends TransformerAbstract
             'word_count' => (int) $article->subtitle,
             'price' => (float) $article->id,
             'archived' => (bool) $article->subtitle,
+            'tags' => (array) $article->subtitle,
             'kind' => 'article',
             'flags' => ['featured' => true],
             'permalink' => $this->buildPermalink($article),
