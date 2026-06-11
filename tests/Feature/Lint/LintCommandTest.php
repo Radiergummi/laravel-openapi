@@ -401,13 +401,7 @@ it('prints a coverage summary line in cli format', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'lint-fixtures/broken*'));
 
     $output = new BufferedOutput();
-    app(CliFormatter::class)->render(
-        $result->findings,
-        $result->level,
-        $result->exitCode,
-        $output,
-        $result->coverage,
-    );
+    app(CliFormatter::class)->render($result, $output);
     $rendered = $output->fetch();
 
     expect($rendered)->toContain('Coverage:')
@@ -421,13 +415,7 @@ it('emits a coverage block in json format', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(level: 2, uriGlob: 'lint-fixtures/broken*'));
 
     $output = new BufferedOutput();
-    app(JsonFormatter::class)->render(
-        $result->findings,
-        $result->level,
-        $result->exitCode,
-        $output,
-        $result->coverage,
-    );
+    app(JsonFormatter::class)->render($result, $output);
     $json = $output->fetch();
 
     expect($json)->toContain('"coverage"')

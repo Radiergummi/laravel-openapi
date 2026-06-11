@@ -6,6 +6,7 @@ use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\BufferedOutput;
 
 uses()->group('openapi', 'lint');
@@ -13,44 +14,46 @@ uses()->group('openapi', 'lint');
 it('renders findings grouped by file', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
-            new Finding(
-                'response.empty',
-                0,
-                'No schema',
-                new FindingLocation(
-                    file: 'F.php',
-                    line: 10,
-                    routeMethod: HttpMethod::Get,
-                    routeUri: '/foo',
+        new LintResult(
+            findings: [
+                new Finding(
+                    'response.empty',
+                    0,
+                    'No schema',
+                    new FindingLocation(
+                        file: 'F.php',
+                        line: 10,
+                        routeMethod: HttpMethod::Get,
+                        routeUri: '/foo',
+                    ),
                 ),
-            ),
-            new Finding(
-                'response.heuristic',
-                1,
-                'Heuristic used',
-                new FindingLocation(
-                    file: 'F.php',
-                    line: 5,
-                    routeMethod: HttpMethod::Post,
-                    routeUri: '/bar',
+                new Finding(
+                    'response.heuristic',
+                    1,
+                    'Heuristic used',
+                    new FindingLocation(
+                        file: 'F.php',
+                        line: 5,
+                        routeMethod: HttpMethod::Post,
+                        routeUri: '/bar',
+                    ),
                 ),
-            ),
-            new Finding(
-                'schema.missing',
-                0,
-                'Missing schema',
-                new FindingLocation(
-                    file: 'G.php',
-                    line: 3,
-                    routeMethod: HttpMethod::Get,
-                    routeUri: '/baz',
+                new Finding(
+                    'schema.missing',
+                    0,
+                    'Missing schema',
+                    new FindingLocation(
+                        file: 'G.php',
+                        line: 3,
+                        routeMethod: HttpMethod::Get,
+                        routeUri: '/baz',
+                    ),
                 ),
-            ),
-        ],
-        level: 1,
-        exitCode: 1,
-        output: $output,
+            ],
+            level: 1,
+            exitCode: 1,
+        ),
+        $output,
     );
 
     $text = $output->fetch();
@@ -69,28 +72,30 @@ it('renders findings grouped by file', function (): void {
 it('renders findings without a source location first', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
-            new Finding(
-                'response.empty',
-                0,
-                'No schema',
-                new FindingLocation(
-                    file: 'Z.php',
-                    line: 10,
-                    routeMethod: HttpMethod::Get,
-                    routeUri: '/foo',
+        new LintResult(
+            findings: [
+                new Finding(
+                    'response.empty',
+                    0,
+                    'No schema',
+                    new FindingLocation(
+                        file: 'Z.php',
+                        line: 10,
+                        routeMethod: HttpMethod::Get,
+                        routeUri: '/foo',
+                    ),
                 ),
-            ),
-            new Finding(
-                'spec.missing',
-                0,
-                'No spec file',
-                new FindingLocation(),
-            ),
-        ],
-        level: 1,
-        exitCode: 1,
-        output: $output,
+                new Finding(
+                    'spec.missing',
+                    0,
+                    'No spec file',
+                    new FindingLocation(),
+                ),
+            ],
+            level: 1,
+            exitCode: 1,
+        ),
+        $output,
     );
 
     $text = $output->fetch();
@@ -108,34 +113,36 @@ it('renders findings without a source location first', function (): void {
 it('renders file groups as trees with connector characters', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [
-            new Finding(
-                'response.empty',
-                0,
-                'No schema',
-                new FindingLocation(
-                    file: 'F.php',
-                    line: 10,
-                    routeMethod: HttpMethod::Get,
-                    routeUri: '/foo',
+        new LintResult(
+            findings: [
+                new Finding(
+                    'response.empty',
+                    0,
+                    'No schema',
+                    new FindingLocation(
+                        file: 'F.php',
+                        line: 10,
+                        routeMethod: HttpMethod::Get,
+                        routeUri: '/foo',
+                    ),
                 ),
-            ),
-            new Finding(
-                'response.heuristic',
-                1,
-                'Heuristic used',
-                new FindingLocation(
-                    file: 'F.php',
-                    line: 5,
-                    routeMethod: HttpMethod::Post,
-                    routeUri: '/bar',
+                new Finding(
+                    'response.heuristic',
+                    1,
+                    'Heuristic used',
+                    new FindingLocation(
+                        file: 'F.php',
+                        line: 5,
+                        routeMethod: HttpMethod::Post,
+                        routeUri: '/bar',
+                    ),
+                    fixHint: 'Add a response schema',
                 ),
-                fixHint: 'Add a response schema',
-            ),
-        ],
-        level: 1,
-        exitCode: 1,
-        output: $output,
+            ],
+            level: 1,
+            exitCode: 1,
+        ),
+        $output,
     );
 
     $text = $output->fetch();
@@ -152,10 +159,8 @@ it('renders file groups as trees with connector characters', function (): void {
 it('renders a clean summary when no findings', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
-        findings: [],
-        level: 0,
-        exitCode: 0,
-        output: $output,
+        new LintResult(findings: [], level: 0, exitCode: 0),
+        $output,
     );
 
     $text = $output->fetch();

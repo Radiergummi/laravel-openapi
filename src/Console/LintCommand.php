@@ -8,10 +8,8 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use JsonException;
-use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\DiffMode;
 use Radiergummi\OpenApi\Lint\DiffScope;
-use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixRunner;
 use Radiergummi\OpenApi\Lint\Fix\FixRunResult;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
@@ -114,7 +112,7 @@ class LintCommand extends Command
 
         $result = $runner->run($this->buildOptions());
 
-        $this->renderToTargets($result->findings, $result->level, $result->exitCode, $result->coverage);
+        $this->renderToTargets($result);
 
         return $result->exitCode;
     }
@@ -153,7 +151,11 @@ class LintCommand extends Command
         $this->renderFixSummary($outcome, $dryRun);
 
         if ($outcome->remainingFindings !== []) {
-            $this->renderToTargets($outcome->remainingFindings, $outcome->level, $outcome->exitCode(), null);
+            $this->renderToTargets(new LintResult(
+                findings: $outcome->remainingFindings,
+                level: $outcome->level,
+                exitCode: $outcome->exitCode(),
+            ));
         }
 
         return $outcome->exitCode();
@@ -411,23 +413,18 @@ class LintCommand extends Command
     }
 
     /**
-     * Render one lint result through every requested output target (stdout/stderr/file). File
-     * streams are closed after their formatter writes.
-     *
-     * @param list<Finding> $findings
-     *
      * @throws BindingResolutionException
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
-    private function renderToTargets(array $findings, int $level, int $exitCode, ?CoverageSummary $coverage): void
+    private function renderToTargets(LintResult $result): void
     {
         foreach ($this->resolveTargets() as $target) {
             $formatter = $this->formatterFor($target->format);
             $output = $this->openOutput($target->target);
 
             try {
-                $formatter->render($findings, $level, $exitCode, $output, $coverage);
+                $formatter->render($result, $output);
             } finally {
                 $this->closeOutput($output);
             }

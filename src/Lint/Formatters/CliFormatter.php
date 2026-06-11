@@ -9,6 +9,7 @@ use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LinterSummary;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -55,18 +56,10 @@ final class CliFormatter implements Formatter
 
     public function __construct(private readonly string $basePath = '') {}
 
-    /**
-     * @param list<Finding> $findings
-     */
     #[Override]
-    public function render(
-        array $findings,
-        int $level,
-        int $exitCode,
-        OutputInterface $output,
-        ?CoverageSummary $coverage = null,
-    ): void {
-        [$preBuild, $perSpec] = $this->partitionFindings($findings);
+    public function render(LintResult $result, OutputInterface $output): void
+    {
+        [$preBuild, $perSpec] = $this->partitionFindings($result->findings);
 
         // Show section headers whenever there is more than one section. A single per-spec
         // section without pre-build findings (the common case) renders unchanged.
@@ -87,10 +80,10 @@ final class CliFormatter implements Formatter
             $this->renderSection($specFindings, $output);
         }
 
-        $this->renderSummary(new LinterSummary($findings, $level), $output);
+        $this->renderSummary(new LinterSummary($result->findings, $result->level), $output);
 
-        if ($coverage !== null) {
-            $this->renderCoverage($coverage, $output);
+        if ($result->coverage !== null) {
+            $this->renderCoverage($result->coverage, $output);
         }
     }
 
