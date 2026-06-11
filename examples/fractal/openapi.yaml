@@ -52,6 +52,32 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       security: []
+  '/api/flights/{flight}/bookings':
+    get:
+      tags:
+        - Flights
+      summary: "List a flight's bookings."
+      description: "`BookingTransformer` declares no `#[TransformerField]` — its schema is\ninferred from the `transform()` return literal."
+      operationId: get_api_flights_flight_bookings
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookingTransformer' } }
+                type: object
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
 components:
   schemas:
     FlightTransformer:
@@ -101,6 +127,24 @@ components:
         aircraft_type:
           description: 'Aircraft model / type designator.'
           type: string
+      type: object
+    BookingTransformer:
+      required:
+        - id
+        - passenger_name
+        - seat
+        - seat_row
+        - reference
+      properties:
+        id:
+          type: string
+        passenger_name:
+          type: string
+        seat:
+          type: string
+        seat_row:
+          type: integer
+        reference: {}
       type: object
   responses:
     NotFound:

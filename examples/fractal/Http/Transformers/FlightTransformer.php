@@ -11,9 +11,10 @@ use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 /**
  * Output contract for Flight responses.
  *
- * A Fractal transformer's `transform()` return array is not a set of typed
- * properties, so each field is declared at class level via
- * `#[TransformerField]`. The generator never reads `transform()` itself.
+ * Each field is declared at class level via `#[TransformerField]` to carry
+ * descriptions, formats, and enums the `transform()` literal cannot express.
+ * Declared fields always win over what the generator infers from the literal
+ * (see `BookingTransformer` for the attribute-free, inference-only variant).
  */
 #[TransformerField('id', description: 'Server-assigned flight identifier.', type: 'string', format: 'uuid')]
 #[TransformerField('number', description: 'IATA-style flight number.', example: 'LH123', type: 'string')]

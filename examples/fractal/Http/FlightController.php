@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Examples\Fractal\Http;
 
+use Examples\Fractal\Http\Transformers\BookingTransformer;
 use Examples\Fractal\Http\Transformers\FlightTransformer;
 use Examples\Shared\Models\Flight;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -44,6 +45,24 @@ final class FlightController
         $model = Flight::query()->findOrFail($flight);
 
         $resource = new Item($model, new FlightTransformer());
+
+        return new JsonResponse($fractal->createData($resource)->toArray());
+    }
+
+    /**
+     * List a flight's bookings.
+     *
+     * `BookingTransformer` declares no `#[TransformerField]` — its schema is
+     * inferred from the `transform()` return literal.
+     *
+     * @throws ModelNotFoundException When the flight does not exist.
+     */
+    #[FractalResponse(transformer: BookingTransformer::class, collection: true)]
+    public function bookings(Manager $fractal, string $flight): JsonResponse
+    {
+        $model = Flight::query()->findOrFail($flight);
+
+        $resource = new Collection($model->bookings, new BookingTransformer());
 
         return new JsonResponse($fractal->createData($resource)->toArray());
     }
