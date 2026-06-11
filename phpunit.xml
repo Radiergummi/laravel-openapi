@@ -17,6 +17,12 @@
         <testsuite name="PhpStan">
             <directory>tests/PhpStan</directory>
         </testsuite>
+        <!-- Tests for the repo's own tooling (tools/survey, .claude/skills/survey), not the
+             shipped library. Kept out of the library suites so a tooling regression does not
+             red the library gate; run as a dedicated CI job. -->
+        <testsuite name="Tools">
+            <directory>tests/Tools</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
