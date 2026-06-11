@@ -8,11 +8,14 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use JsonException;
+use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\DiffMode;
 use Radiergummi\OpenApi\Lint\DiffScope;
+use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixRunner;
 use Radiergummi\OpenApi\Lint\Fix\FixRunResult;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
+use Radiergummi\OpenApi\Lint\Formatters\CoberturaFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\Formatter;
 use Radiergummi\OpenApi\Lint\Formatters\GithubFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\JsonFormatter;
@@ -20,10 +23,18 @@ use Radiergummi\OpenApi\Lint\LinterOutputFormat;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
+use Radiergummi\OpenApi\Lint\Output\FormatTarget;
+use Radiergummi\OpenApi\Lint\Output\FormatTargetParser;
+use Radiergummi\OpenApi\Lint\Output\OutputChannel;
+use Radiergummi\OpenApi\Lint\Output\OutputTarget;
 use Radiergummi\OpenApi\Lint\RuleCatalogRenderer;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use ReflectionException;
 use RuntimeException;
+use Symfony\Component\Console\Exception\InvalidArgumentException as ConsoleInvalidArgumentException;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Process\Exception\LogicException;
 use Symfony\Component\Process\Exception\ProcessSignaledException;
 use Symfony\Component\Process\Exception\ProcessStartFailedException;
@@ -32,15 +43,17 @@ use Symfony\Component\Process\Exception\RuntimeException as ProcessRuntimeExcept
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
 
-use function array_column;
 use function array_filter;
 use function array_map;
 use function array_values;
 use function count;
 use function explode;
+use function fclose;
+use function fopen;
 use function getenv;
-use function implode;
+use function is_array;
 use function is_numeric;
+use function is_resource;
 use function is_string;
 use function sprintf;
 
@@ -57,7 +70,7 @@ class LintCommand extends Command
     // (Illuminate\Console\Attributes does not exist on Laravel 12).
     protected $signature = 'openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
-        {--format= : Output format (cli|json|github|markdown; auto-detected by default)}
+        {--format=* : Output target(s) as <format>[:<dest>], repeatable (cli|json|github|markdown|cobertura; dest = stdout (default)|stderr|<file>). E.g. --format=github --format=cobertura:coverage.xml}
         {--only= : Restrict to listed rule IDs (comma-separated; `*` globs a family, e.g. migration.*)}
         {--skip= : Restrict to listed rule IDs to exclude (comma-separated; `*` globs a family, e.g. migration.*)}
         {--uri= : Restrict to routes whose URI matches this glob}
@@ -101,14 +114,7 @@ class LintCommand extends Command
 
         $result = $runner->run($this->buildOptions());
 
-        $formatter = $this->resolveFormatter();
-        $formatter->render(
-            $result->findings,
-            $result->level,
-            $result->exitCode,
-            $this->output->getOutput(),
-            $result->coverage,
-        );
+        $this->renderToTargets($result->findings, $result->level, $result->exitCode, $result->coverage);
 
         return $result->exitCode;
     }
@@ -147,12 +153,7 @@ class LintCommand extends Command
         $this->renderFixSummary($outcome, $dryRun);
 
         if ($outcome->remainingFindings !== []) {
-            $this->resolveFormatter()->render(
-                $outcome->remainingFindings,
-                $outcome->level,
-                $outcome->exitCode(),
-                $this->output->getOutput(),
-            );
+            $this->renderToTargets($outcome->remainingFindings, $outcome->level, $outcome->exitCode(), null);
         }
 
         return $outcome->exitCode();
@@ -207,7 +208,7 @@ class LintCommand extends Command
         // expectsOutputToContain().
         new RuleCatalogRenderer()->render(
             $registry,
-            $this->resolveFormat(),
+            $this->resolveTargets()[0]->format,
             $this->output,
         );
 
@@ -215,28 +216,37 @@ class LintCommand extends Command
     }
 
     /**
+     * Resolve the requested output targets. With no `--format`, fall back to a single
+     * auto-detected format on stdout (the historical behaviour).
+     *
+     * @return list<FormatTarget>
+     *
      * @throws InvalidArgumentException
      */
-    private function resolveFormat(): LinterOutputFormat
+    private function resolveTargets(): array
     {
-        $formatIdentifier = $this->option('format');
+        $raw = $this->option('format');
 
-        if (!is_string($formatIdentifier) || $formatIdentifier === '') {
-            return match (true) {
-                getenv('GITHUB_ACTIONS') === 'true' => LinterOutputFormat::GitHub,
-                $this->output->isDecorated() => LinterOutputFormat::Cli,
-                default => LinterOutputFormat::Json,
-            };
+        $tokens = match (true) {
+            is_array($raw) => array_values(array_filter($raw, is_string(...))),
+            is_string($raw) && $raw !== '' => [$raw],
+            default => [],
+        };
+
+        if ($tokens === []) {
+            return [new FormatTarget($this->autoDetectFormat(), OutputTarget::fromToken(null))];
         }
 
-        return LinterOutputFormat::tryFrom($formatIdentifier)
-            ?? throw new InvalidArgumentException(
-                sprintf(
-                    'Invalid format: %s. Allowed values are: %s.',
-                    $formatIdentifier,
-                    implode(', ', array_column(LinterOutputFormat::cases(), 'value')),
-                ),
-            );
+        return new FormatTargetParser()->parse($tokens);
+    }
+
+    private function autoDetectFormat(): LinterOutputFormat
+    {
+        return match (true) {
+            getenv('GITHUB_ACTIONS') === 'true' => LinterOutputFormat::GitHub,
+            $this->output->isDecorated() => LinterOutputFormat::Cli,
+            default => LinterOutputFormat::Json,
+        };
     }
 
     /**
@@ -401,18 +411,85 @@ class LintCommand extends Command
     }
 
     /**
+     * Render one lint result through every requested output target (stdout/stderr/file). File
+     * streams are closed after their formatter writes.
+     *
+     * @param list<Finding> $findings
+     *
      * @throws BindingResolutionException
      * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
-    private function resolveFormatter(): Formatter
+    private function renderToTargets(array $findings, int $level, int $exitCode, ?CoverageSummary $coverage): void
     {
-        $format = $this->resolveFormat();
+        foreach ($this->resolveTargets() as $target) {
+            $formatter = $this->formatterFor($target->format);
+            $output = $this->openOutput($target->target);
 
+            try {
+                $formatter->render($findings, $level, $exitCode, $output, $coverage);
+            } finally {
+                $this->closeOutput($output);
+            }
+        }
+    }
+
+    /**
+     * @throws BindingResolutionException
+     */
+    private function formatterFor(LinterOutputFormat $format): Formatter
+    {
         return match ($format) {
             LinterOutputFormat::Markdown,
             LinterOutputFormat::Cli => $this->laravel->make(CliFormatter::class),
             LinterOutputFormat::Json => $this->laravel->make(JsonFormatter::class),
             LinterOutputFormat::GitHub => $this->laravel->make(GithubFormatter::class),
+            LinterOutputFormat::Cobertura => $this->laravel->make(CoberturaFormatter::class),
         };
+    }
+
+    /**
+     * Open the destination for one target: the command's stdout, its stderr, or a file stream.
+     *
+     * @throws RuntimeException when the target file cannot be opened for writing
+     */
+    private function openOutput(OutputTarget $target): OutputInterface
+    {
+        $console = $this->output->getOutput();
+
+        return match ($target->channel) {
+            // Write stdout through the OutputStyle, not the unwrapped OutputInterface: Laravel's
+            // PendingCommand captures writeln/write on the OutputStyle for expectsOutput() assertions.
+            OutputChannel::Stdout => $this->output,
+            OutputChannel::Stderr => $console instanceof ConsoleOutputInterface
+                ? $console->getErrorOutput()
+                : $console,
+            OutputChannel::File => $this->openFile((string) $target->path),
+        };
+    }
+
+    /**
+     * @throws RuntimeException when the file cannot be opened or wrapped as an output stream
+     */
+    private function openFile(string $path): StreamOutput
+    {
+        $handle = @fopen($path, 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException(sprintf('Cannot open %s for writing.', $path));
+        }
+
+        try {
+            return new StreamOutput($handle);
+        } catch (ConsoleInvalidArgumentException $exception) {
+            throw new RuntimeException(sprintf('Cannot write to %s.', $path), previous: $exception);
+        }
+    }
+
+    private function closeOutput(OutputInterface $output): void
+    {
+        if ($output instanceof StreamOutput && is_resource($output->getStream())) {
+            fclose($output->getStream());
+        }
     }
 }

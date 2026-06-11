@@ -78,6 +78,32 @@ php artisan openapi:lint --format=github
 php artisan openapi:lint --list
 ```
 
+### Output targets
+
+`--format` is repeatable and takes `<format>[:<target>]`, so one run can emit several
+outputs at once — handy in CI, where you want human-readable annotations *and* a
+machine report without linting twice:
+
+```bash
+# GitHub annotations to stdout AND a Cobertura coverage report to a file, in one run
+php artisan openapi:lint --format=github --format=cobertura:coverage.xml
+
+# Route a stream explicitly: stdout (the default), stderr, or a file path
+php artisan openapi:lint --format=json:stderr --format=cobertura:build/coverage.xml
+```
+
+- Formats: `cli`, `json`, `github`, `markdown`, `cobertura`.
+- Targets: `stdout` (used when no `:target` is given), `stderr`, or a file path.
+  `stdout`/`stderr` are reserved keywords; everything else is a path (the token is
+  split on its first colon only, so Windows paths keep their drive letter).
+- No two formats may write to the same destination — give each a distinct target.
+
+The `cobertura` format emits a [Cobertura](https://cobertura.github.io/cobertura/)
+coverage report keyed to controller source lines (covered operation → line hit), for
+Codecov / Coveralls / SonarQube. Operations with no single source line (closure routes,
+inference-only facts) are excluded. Coverage is the same operation-level metric as the
+[coverage gate](#documentation-coverage-gate) — see there for what counts as covered.
+
 ## Auto-fixing findings
 
 Some findings have one correct, mechanical fix — a duplicate attribute, an

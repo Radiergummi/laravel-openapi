@@ -128,6 +128,35 @@ it('rounds the coverage percent to two decimals', function (): void {
     expect($summary->coveragePercent)->toBe(66.67);
 });
 
+it('records a per-operation source location and covered flag for line-keyed reports', function (): void {
+    [$k1, $t1] = op('default', HttpMethod::Get, 'users');
+    [$k2, $t2] = op('default', HttpMethod::Post, 'users');
+
+    $summary = new CoverageCalculator()->calculate(
+        operationTags: [$k1 => $t1, $k2 => $t2],
+        findings: [findingOn('default', HttpMethod::Post, 'users')],
+        level: 1,
+        generatorVersion: 'dev',
+        operationLocations: [
+            $k1 => ['file' => '/app/UserController.php', 'line' => 20],
+            $k2 => ['file' => '/app/UserController.php', 'line' => 33],
+        ],
+    );
+
+    expect($summary->perOperation)->toBe([
+        ['file' => '/app/UserController.php', 'line' => 20, 'covered' => true],
+        ['file' => '/app/UserController.php', 'line' => 33, 'covered' => false],
+    ]);
+});
+
+it('leaves perOperation empty when no locations are supplied (JSON/gate path unchanged)', function (): void {
+    [$k1, $t1] = op('default', HttpMethod::Get, 'users');
+
+    $summary = new CoverageCalculator()->calculate([$k1 => $t1], [], 1, 'dev');
+
+    expect($summary->perOperation)->toBe([]);
+});
+
 it('matches a finding whose URI has a leading slash to an operation key without one', function (): void {
     [$k, $t] = op('default', HttpMethod::Get, 'users');          // no slash
     $finding = findingOn('default', HttpMethod::Get, '/users');  // leading slash
