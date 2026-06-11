@@ -23,7 +23,7 @@ function specConfigOrphanedEvaluator(): InclusionEvaluator
         matcher: new SpecMatcher(),
         specResolver: new SpecResolver(),
         visibility: new VisibilityResolver(VisibilityMode::Public),
-        middlewareGatherer: app(\Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer::class),
+        middlewareGatherer: app(Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer::class),
     );
 }
 

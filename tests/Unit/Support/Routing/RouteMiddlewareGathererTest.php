@@ -46,7 +46,7 @@ it('deduplicates a name declared both on the route and in the constructor', func
 
     $middleware = middlewareGatherer()->middlewareFor($route);
 
-    expect(array_values(array_keys($middleware, 'auth:sanctum', true)))->toHaveCount(1);
+    expect(array_keys($middleware, 'auth:sanctum', true))->toHaveCount(1);
 });
 
 it('caches the fallback per route instead of re-reading the poisoned runtime cache', function (): void {

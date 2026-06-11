@@ -9,9 +9,9 @@ use Radiergummi\OpenApi\Attributes\Hide;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Events\SkipReason;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
-use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecResolver;
 use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 

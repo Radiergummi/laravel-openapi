@@ -19,7 +19,6 @@ use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionClass;
 
 use function array_slice;
-use function array_values;
 use function count;
 use function end;
 use function is_array;
@@ -277,7 +276,7 @@ final class ConstructorMiddlewareScanner
     }
 
     /**
-     * @param list<Node\Arg> $arguments
+     * @param array<Node\Arg> $arguments
      */
     private function hasSpreadArgument(array $arguments): bool
     {
@@ -326,6 +325,6 @@ final class ConstructorMiddlewareScanner
             $strings[] = $entry;
         }
 
-        return array_values($strings);
+        return $strings;
     }
 }

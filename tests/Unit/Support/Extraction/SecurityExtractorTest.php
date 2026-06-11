@@ -464,5 +464,5 @@ it('does not double-derive when route and constructor declare the same middlewar
     $extractor = securityExtractor(app('router'));
     $requirement = $extractor->forRoute($route) ?? [];
 
-    expect(array_values(array_keys($requirement, ['sanctum' => []], true)))->toHaveCount(1);
+    expect(array_keys($requirement, ['sanctum' => []], true))->toHaveCount(1);
 });
