@@ -441,3 +441,28 @@ it('does not crash on a route carrying closure middleware', function (): void {
             ['oauth2ClientCredentials' => []],
         ]);
 });
+
+it('merges constructor middleware into the requirement when the controller cannot be instantiated', function (): void {
+    $route = Illuminate\Support\Facades\Route::get(
+        '/constructor-mw',
+        [Radiergummi\OpenApi\Tests\Fixtures\ConstructorMiddleware\ConstructorMiddlewareFixtureController::class, 'index'],
+    );
+
+    $extractor = securityExtractor(app('router'));
+
+    // The constructor applies `auth:sanctum`; instantiation throws on the unbound dependency,
+    // so the requirement can only come from the static constructor scan.
+    expect($extractor->forRoute($route))->toContain(['sanctum' => []]);
+});
+
+it('does not double-derive when route and constructor declare the same middleware', function (): void {
+    $route = Illuminate\Support\Facades\Route::get(
+        '/constructor-mw',
+        [Radiergummi\OpenApi\Tests\Fixtures\ConstructorMiddleware\ConstructorMiddlewareFixtureController::class, 'index'],
+    )->middleware('auth:sanctum');
+
+    $extractor = securityExtractor(app('router'));
+    $requirement = $extractor->forRoute($route) ?? [];
+
+    expect(array_values(array_keys($requirement, ['sanctum' => []], true)))->toHaveCount(1);
+});
