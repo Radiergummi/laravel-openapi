@@ -117,6 +117,7 @@ jobs:
         # language=bash
         run: |
           vendor/bin/pest \
+            --testsuite=Unit,Feature,Arch,PhpStan \
             --log-junit .cache/junit.xml \
             --exclude-group=snapshot \
             --no-coverage
@@ -214,6 +215,7 @@ jobs:
         # language=bash
         run: |
           vendor/bin/pest \
+            --testsuite=Unit,Feature,Arch,PhpStan \
             --exclude-group=snapshot \
             --no-coverage
       - name: Record result marker
@@ -282,6 +284,7 @@ jobs:
         # language=bash
         run: |
           vendor/bin/pest \
+            --testsuite=Unit,Feature,Arch,PhpStan \
             --exclude-group=snapshot \
             --log-junit .cache/junit.xml \
             --coverage \
@@ -368,6 +371,76 @@ jobs:
         run: |
           vendor/bin/pest \
             --group=snapshot \
+            --no-coverage
+      - name: Record result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        shell: bash
+        # language=bash
+        run: echo "${GITHUB_SHA}" > .ci-marker
+      - name: Persist result marker
+        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: .ci-marker
+          key: ${{ steps.marker.outputs.cache-primary-key }}
+
+  # Tests for the repo's own survey tooling (tools/survey, .claude/skills/survey), kept out of
+  # the library matrix so a tooling regression never reds the library gate. Framework-free pure
+  # PHP, so a single PHP 8.4 run is enough; the marker keys only on tooling inputs, so it skips
+  # on library-only changes.
+  tooling:
+    name: Tooling (survey)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          persist-credentials: false
+      - name: Probe result marker
+        id: marker
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: .ci-marker
+          key: tooling-${{ runner.os }}-${{ hashFiles('tools/survey/**', '.claude/skills/survey/**', 'tests/Tools/**', 'tests/Fixtures/survey/**', 'composer.json', 'composer.lock', 'phpunit.xml', '.github/workflows/**') }}
+          lookup-only: true
+      - name: Setup PHP
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: shivammathur/setup-php@7c071dfe9dc99bdf297fa79cb49ea005b9fcadbc
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Resolve Composer cache directory
+        if: steps.marker.outputs.cache-hit != 'true'
+        id: composer-cache
+        shell: bash
+        # language=bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+      - name: Cache Composer packages
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-tooling-${{ hashFiles('composer.json') }}
+          restore-keys: |
+            composer-${{ runner.os }}-tooling-
+            composer-${{ runner.os }}-
+      - name: Install dependencies
+        if: steps.marker.outputs.cache-hit != 'true'
+        shell: bash
+        # language=bash
+        run: |
+          composer update \
+            --no-interaction \
+            --prefer-dist \
+            --no-progress
+      - name: Run tooling tests
+        if: steps.marker.outputs.cache-hit != 'true'
+        shell: bash
+        # language=bash
+        run: |
+          vendor/bin/pest \
+            --testsuite=Tools \
             --no-coverage
       - name: Record result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
