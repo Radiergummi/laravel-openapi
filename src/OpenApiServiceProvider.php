@@ -579,6 +579,8 @@ class OpenApiServiceProvider extends ServiceProvider
                         $registry,
                         TransformerRefSchemaResolver::class,
                     ),
+                    transformReader: $app->make(Plugins\Fractal\Support\TransformerTransformReader::class),
+                    logger: $app->make(LoggerInterface::class),
                 );
             },
         );

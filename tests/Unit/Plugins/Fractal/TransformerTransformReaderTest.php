@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicKeyTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\InferredArticleTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\SpreadTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\UntypedParameterTransformer;
+use RuntimeException;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi', 'plugin:fractal');
@@ -28,18 +29,35 @@ uses()->group('openapi', 'plugin:fractal');
 function transformReader(): TransformerTransformReader
 {
     $logger = new NullLogger();
+    $registry = new ComponentSchemaRegistry();
 
     return new TransformerTransformReader(
         returnLiteralFinder: new SingleReturnArrayLiteralFinder(new MethodBodyScanner()),
         modelToSchema: new EloquentModelToSchema(
-            registry: new ComponentSchemaRegistry(),
-            jsonSchemaFromType: new JsonSchemaFromType($logger),
+            registry: $registry,
+            jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
             typeResolver: TypeResolver::create(),
             typeNodeResolver: TypeNodeResolver::create(),
             docBlockParser: DocBlockParser::create(),
             logger: $logger,
         ),
     );
+}
+
+/**
+ * @param class-string $transformerClass
+ *
+ * @return list<InferredTransformerField>
+ */
+function readTransformerFields(string $transformerClass): array
+{
+    $fields = transformReader()->read($transformerClass);
+
+    if ($fields === null) {
+        throw new RuntimeException("transform() of {$transformerClass} was refused");
+    }
+
+    return $fields;
 }
 
 /**
@@ -53,19 +71,18 @@ function transformerField(array $fields, string $name): InferredTransformerField
         }
     }
 
-    throw new \RuntimeException("No inferred field named {$name}");
+    throw new RuntimeException("No inferred field named {$name}");
 }
 
 it('reads the literal keys of a single-return transform() in literal order', function (): void {
-    $fields = transformReader()->read(InferredArticleTransformer::class);
+    $fields = readTransformerFields(InferredArticleTransformer::class);
 
-    expect($fields)->not->toBeNull()
-        ->and(array_map(static fn(InferredTransformerField $field): string => $field->name, $fields))
+    expect(array_map(static fn(InferredTransformerField $field): string => $field->name, $fields))
         ->toBe(['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'kind', 'flags', 'permalink']);
 });
 
 it('resolves $model->field values against the typed transform() parameter', function (): void {
-    $fields = transformReader()->read(InferredArticleTransformer::class);
+    $fields = readTransformerFields(InferredArticleTransformer::class);
 
     expect(transformerField($fields, 'id')->unconstrained)->toBeFalse()
         ->and(transformerField($fields, 'title')->property->type)->toBe('string')
@@ -73,7 +90,7 @@ it('resolves $model->field values against the typed transform() parameter', func
 });
 
 it('types cast values by the cast', function (): void {
-    $fields = transformReader()->read(InferredArticleTransformer::class);
+    $fields = readTransformerFields(InferredArticleTransformer::class);
 
     expect(transformerField($fields, 'word_count')->property->type)->toBe('integer')
         ->and(transformerField($fields, 'price')->property->type)->toBe('number')
@@ -81,7 +98,7 @@ it('types cast values by the cast', function (): void {
 });
 
 it('types literal scalar and nested literal array values', function (): void {
-    $fields = transformReader()->read(InferredArticleTransformer::class);
+    $fields = readTransformerFields(InferredArticleTransformer::class);
 
     $flags = transformerField($fields, 'flags');
 
@@ -92,7 +109,7 @@ it('types literal scalar and nested literal array values', function (): void {
 });
 
 it('keeps an unresolvable value as an unconstrained property', function (): void {
-    $fields = transformReader()->read(InferredArticleTransformer::class);
+    $fields = readTransformerFields(InferredArticleTransformer::class);
 
     $permalink = transformerField($fields, 'permalink');
 
@@ -101,10 +118,9 @@ it('keeps an unresolvable value as an unconstrained property', function (): void
 });
 
 it('keeps model fetches unconstrained when the parameter carries no model type', function (): void {
-    $fields = transformReader()->read(UntypedParameterTransformer::class);
+    $fields = readTransformerFields(UntypedParameterTransformer::class);
 
-    expect($fields)->not->toBeNull()
-        ->and(transformerField($fields, 'id')->unconstrained)->toBeTrue()
+    expect(transformerField($fields, 'id')->unconstrained)->toBeTrue()
         ->and(transformerField($fields, 'kind')->property->type)->toBe('string');
 });
 

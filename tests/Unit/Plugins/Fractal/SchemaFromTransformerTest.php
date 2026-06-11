@@ -4,14 +4,49 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
+use Closure;
 use OpenApi\Annotations as OA;
+use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\SchemaFromTransformer;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\TransformerTransformReader;
+use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
+use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
+use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DeclaredAndInferredTransformer;
+use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicBodyTransformer;
+use Radiergummi\OpenApi\Tests\Fixtures\Transformers\InferredArticleTransformer;
+use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_find;
+
+function makeSchemaFromTransformer(ComponentSchemaRegistry $registry, ?Closure $refSchemaResolvers = null): SchemaFromTransformer
+{
+    $logger = new NullLogger();
+
+    return new SchemaFromTransformer(
+        registry: $registry,
+        refSchemaResolvers: $refSchemaResolvers ?? static fn(): array => [],
+        transformReader: new TransformerTransformReader(
+            returnLiteralFinder: new SingleReturnArrayLiteralFinder(new MethodBodyScanner()),
+            modelToSchema: new EloquentModelToSchema(
+                registry: $registry,
+                jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
+                typeResolver: TypeResolver::create(),
+                typeNodeResolver: TypeNodeResolver::create(),
+                docBlockParser: DocBlockParser::create(),
+                logger: $logger,
+            ),
+        ),
+        logger: $logger,
+    );
+}
 
 #[TransformerField('id', type: 'integer')]
 #[TransformerField('title', type: 'string', maxLength: 120)]
@@ -40,7 +75,7 @@ function transformerPropertiesByName(OA\Schema $schema): array
 
 it('builds an object schema from transformer attributes', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
+    $key = makeSchemaFromTransformer($registry)->build(SchemaBookTransformer::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
     $props = transformerPropertiesByName($schema);
@@ -51,7 +86,7 @@ it('builds an object schema from transformer attributes', function (): void {
 
 it('applies scalar descriptor fields onto the property', function (): void {
     $registry = new ComponentSchemaRegistry();
-    new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
+    makeSchemaFromTransformer($registry)->build(SchemaBookTransformer::class);
 
     $book = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === 'SchemaBookTransformer');
 
@@ -60,7 +95,7 @@ it('applies scalar descriptor fields onto the property', function (): void {
 
 it('emits an include as a $ref and registers the included transformer', function (): void {
     $registry = new ComponentSchemaRegistry();
-    new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
+    makeSchemaFromTransformer($registry)->build(SchemaBookTransformer::class);
 
     $keys = array_map(static fn(OA\Schema $s): string => $s->schema, $registry->all());
     expect($keys)->toContain('SchemaAuthorTransformer');
@@ -68,7 +103,7 @@ it('emits an include as a $ref and registers the included transformer', function
 
 it('marks default includes as required and non-default as optional', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $key = new SchemaFromTransformer($registry, static fn(): array => [])->build(SchemaBookTransformer::class);
+    $key = makeSchemaFromTransformer($registry)->build(SchemaBookTransformer::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
 
@@ -77,9 +112,43 @@ it('marks default includes as required and non-default as optional', function ()
 
 it('exposes buildRef returning a qualified components ref', function (): void {
     $registry = new ComponentSchemaRegistry();
-    $ref = new SchemaFromTransformer($registry, static fn(): array => [])->buildRef(SchemaBookTransformer::class);
+    $ref = makeSchemaFromTransformer($registry)->buildRef(SchemaBookTransformer::class);
 
     expect($ref)->toBe('#/components/schemas/SchemaBookTransformer');
+});
+
+it('composes inferred transform() fields after declared attributes, attribute winning per field', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $key = makeSchemaFromTransformer($registry)->build(DeclaredAndInferredTransformer::class);
+
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
+    $props = transformerPropertiesByName($schema);
+
+    expect(array_keys($props))->toBe(['id', 'title'])
+        ->and($props['id']->format)->toBe('uuid')
+        ->and($props['title']->type)->toBe('string')
+        ->and($schema->required)->toBe(['id', 'title']);
+});
+
+it('builds an attribute-free transformer schema entirely from the transform() literal', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $key = makeSchemaFromTransformer($registry)->build(InferredArticleTransformer::class);
+
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
+    $props = transformerPropertiesByName($schema);
+
+    expect($props)->toHaveKeys(['id', 'title', 'word_count', 'kind', 'permalink'])
+        ->and($props['word_count']->type)->toBe('integer')
+        ->and($schema->required)->toContain('permalink');
+});
+
+it('degrades a dynamic transform() body to the attribute-declared shape', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $key = makeSchemaFromTransformer($registry)->build(DynamicBodyTransformer::class);
+
+    $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === $key);
+
+    expect($schema->properties)->toBe([]);
 });
 
 it('resolves non-transformer class refs via injected RefSchemaResolver', function (): void {
@@ -98,7 +167,7 @@ it('resolves non-transformer class refs via injected RefSchemaResolver', functio
         }
     };
 
-    new SchemaFromTransformer($registry, static fn(): array => [$customResolver])->build(SchemaWithResolvedRefTransformer::class);
+    makeSchemaFromTransformer($registry, static fn(): array => [$customResolver])->build(SchemaWithResolvedRefTransformer::class);
 
     $schema = array_find($registry->all(), static fn(OA\Schema $s): bool => $s->schema === 'SchemaWithResolvedRefTransformer');
     $props = transformerPropertiesByName($schema);

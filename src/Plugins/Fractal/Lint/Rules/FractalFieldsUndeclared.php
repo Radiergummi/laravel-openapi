@@ -12,18 +12,27 @@ use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
+use Radiergummi\OpenApi\Plugins\Fractal\Support\TransformerTransformReader;
+use ReflectionException;
 
 use function class_exists;
 use function sprintf;
 
 /**
  * Flags an operation bound via `#[FractalResponse]` whose transformer declares no
- * `#[TransformerField]` — the response shape is unknown.
+ * `#[TransformerField]` — and whose shape the generator cannot infer from the `transform()`
+ * literal either — so the response schema is genuinely empty.
  */
 final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 {
+    public function __construct(
+        private TransformerTransformReader $transformReader,
+    ) {}
+
     /**
      * @return iterable<Finding>
+     *
+     * @throws ReflectionException
      */
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
@@ -47,6 +56,14 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
         }
 
         if ($context->reflectionCache->classAttributes($transformer, TransformerField::class) !== []) {
+            return;
+        }
+
+        // Mirror the schema builder: a readable transform() literal with fields produces a
+        // non-empty schema — "the response schema is empty" would be untrue.
+        $inferred = $this->transformReader->read($transformer);
+
+        if ($inferred !== null && $inferred !== []) {
             return;
         }
 
