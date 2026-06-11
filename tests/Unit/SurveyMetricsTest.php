@@ -26,6 +26,7 @@ it('extracts deterministic baseline metrics from spec + lint', function (): void
         ->and($m['operations'])->toBe(4)
         ->and($m['apiOperations'])->toBe(3)
         ->and($m['responseSchemas'])->toBe(2)
+        ->and($m['documentedResponses'])->toBe(3)
         ->and($m['requestBodies'])->toBe(1)
         ->and($m['maxRequestProperties'])->toBe(2)
         ->and($m['componentSchemas'])->toBe(1)
@@ -36,6 +37,33 @@ it('extracts deterministic baseline metrics from spec + lint', function (): void
         ->and($m['crash']['bootOutcome'])->toBe('booted')
         ->and($m['crash']['routesIntrospected'])->toBe(5)
         ->and($m)->not->toHaveKey('coverage');
+});
+
+it('counts only substantive 2xx into responseSchemas, contentless ops into documentedResponses', function (): void {
+    // The #254 scenario: a contentless 2xx must NOT inflate responseSchemas (it carries
+    // no schema), while still being a documented success outcome. Moving an op from a
+    // bare 200 to a 2xx with a not-yet-substantive schema must not drop responseSchemas.
+    $spec = ['paths' => [
+        '/api/no-content' => ['delete' => ['responses' => ['204' => []]]],
+        '/api/empty-schema' => ['get' => ['responses' => ['200' => ['content' => [
+            'application/json' => ['schema' => ['type' => 'object', 'properties' => ['data' => ['type' => 'object']]]],
+        ]]]]],
+        '/api/substantive' => ['get' => ['responses' => ['200' => ['content' => [
+            'application/json' => ['schema' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]],
+        ]]]]],
+    ]];
+
+    $run = ['generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => 'booted'];
+
+    $m = surveyMetrics($spec, ['findings' => []], $run, '/api');
+
+    // Only /api/substantive carries a real schema.
+    expect($m['responseSchemas'])->toBe(1)
+        // All three document a 2xx outcome (contentless 204, empty-schema 200, substantive 200).
+        ->and($m['documentedResponses'])->toBe(3)
+        // Completeness still credits the contentless 204 (parity with completeness.php),
+        // but not the empty-schema 200: substantive GET + no-content DELETE = 2 of 3.
+        ->and($m['completenessPercent'])->toBe(66.7);
 });
 
 it('adds coverage when a published spec is supplied', function (): void {

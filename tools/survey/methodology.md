@@ -104,11 +104,12 @@ and prefix yields identical output.
 | `paths` | Number of distinct path items in `spec.paths`. |
 | `operations` | Total operations across all verbs (`get post put patch delete`) in all paths. |
 | `apiOperations` | Operations whose path starts with `apiPrefix`. All per-operation metrics below are scoped to this set. |
-| `responseSchemas` | API operations with a **substantive** 2xx response. Substantive means the 2xx content schema, resolved through `$ref` hops and a single-key `{data:…}` envelope, carries ≥1 property, OR is a scalar/array/`additionalProperties` type, OR is an explicit no-content 2xx (no `content` key). An empty object does not count. |
+| `responseSchemas` | API operations with a **substantive** 2xx response. Substantive means the 2xx content schema, resolved through `$ref` hops and a single-key `{data:…}` envelope, carries ≥1 property, OR is a scalar/array/`additionalProperties` type. An empty object does not count, and a contentless 2xx (no `content` key) carries no schema so it does not count here — it lands in `documentedResponses`. |
+| `documentedResponses` | API operations that document **any** 2xx outcome — a substantive schema, an empty-schema body, or a contentless 2xx (e.g. `204`) alike. The superset of `responseSchemas`; tracks "does the op describe a success outcome at all" without flip-flopping when a bare-200 gains a not-yet-substantive schema. |
 | `requestBodies` | API operations that have a request body with a schema in at least one media type. |
 | `maxRequestProperties` | Largest property count across all request-body schemas (following one `$ref` hop). |
 | `componentSchemas` | Number of entries in `spec.components.schemas`. |
-| `completenessPercent` | `round(100 × complete / apiOperations, 1)`. An operation is complete when it has a substantive 2xx response AND, for `post`/`put`/`patch`, also a request body. |
+| `completenessPercent` | `round(100 × complete / apiOperations, 1)`. An operation is complete when it has a substantive 2xx response **or** a contentless 2xx (a `204` is a complete response, mirroring `completeness.php`) AND, for `post`/`put`/`patch`, also a request body. An empty-schema 2xx does not count. |
 | `lintFindings.total` | Total number of findings in `lint.json`. |
 | `lintFindings.byLevel` | Map of `level → count` across all findings. |
 | `lintFindings.byRule` | Map of `rule_id → count` across all findings. |
