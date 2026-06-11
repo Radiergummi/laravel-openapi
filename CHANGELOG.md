@@ -15,9 +15,11 @@ All notable changes to this project are documented here.
   transformer's `transform()` is a single `return [...]` array literal (Tier-1 bounded scan, epic
   #5), its keys become response properties without any `#[TransformerField]`: `$model->field`
   values type themselves from the **typed `transform()` parameter**'s Eloquent metadata (Tier-0),
-  `(int)`/`(float)`/`(string)`/`(bool)`/`(array)` casts type the key by the cast, literal
+  `(int)`/`(float)`/`(string)`/`(bool)`/`(array)` casts type the key by the cast (an `(array)`
+  cast documents an array of unconstrained items — `items: {}`), literal
   scalars/arrays type themselves, and anything else keeps its key as an unconstrained property
-  with one summarising generation-log note per transformer. Declared `#[TransformerField]` /
+  with one summarising generation-log note per transformer listing the affected key paths,
+  values inside nested literals included. Declared `#[TransformerField]` /
   `#[TransformerInclude]` attributes win per field; inferred extras compose after them in literal
   order. Dynamic bodies degrade to the attribute-declared shape (note when that leaves the schema
   empty), attribute-free `TransformerAbstract` subclasses with a readable literal now resolve as

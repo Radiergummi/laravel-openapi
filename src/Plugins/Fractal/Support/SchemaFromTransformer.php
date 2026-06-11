@@ -119,8 +119,8 @@ final readonly class SchemaFromTransformer
         $inferred = $this->transformReader->read($transformerClass);
 
         if ($inferred !== null) {
-            /** @var list<string> $unconstrainedKeys */
-            $unconstrainedKeys = [];
+            /** @var list<string> $unconstrainedPaths */
+            $unconstrainedPaths = [];
 
             foreach ($inferred as $field) {
                 // A #[TransformerField] / #[TransformerInclude] wins per field.
@@ -132,18 +132,16 @@ final readonly class SchemaFromTransformer
                 $properties[] = $field->property;
                 $required[] = $field->name;
 
-                if ($field->unconstrained) {
-                    $unconstrainedKeys[] = $field->name;
-                }
+                $unconstrainedPaths = [...$unconstrainedPaths, ...$field->unconstrainedPaths];
             }
 
-            if ($unconstrainedKeys !== []) {
+            if ($unconstrainedPaths !== []) {
                 $this->logger->notice(sprintf(
-                    'transform() of %s has keys whose values could not be statically typed (%s); '
+                    'transform() of %s has values that could not be statically typed (%s); '
                     . 'they are documented as unconstrained properties. '
                     . 'Declare a #[TransformerField] for each to document its type.',
                     $transformerClass,
-                    implode(', ', $unconstrainedKeys),
+                    implode(', ', $unconstrainedPaths),
                 ));
             }
         } elseif ($seenNames === [] && $this->transformReader->declaresTransform($transformerClass)) {

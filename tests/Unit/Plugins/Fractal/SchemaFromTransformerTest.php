@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal;
 
 use Closure;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
@@ -19,16 +20,21 @@ use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
+use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DeclaredAndInferredTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicBodyTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\InferredArticleTransformer;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_find;
+use function str_contains;
 
-function makeSchemaFromTransformer(ComponentSchemaRegistry $registry, ?Closure $refSchemaResolvers = null): SchemaFromTransformer
-{
-    $logger = new NullLogger();
+function makeSchemaFromTransformer(
+    ComponentSchemaRegistry $registry,
+    ?Closure $refSchemaResolvers = null,
+    ?LoggerInterface $logger = null,
+): SchemaFromTransformer {
+    $logger ??= new NullLogger();
 
     return new SchemaFromTransformer(
         registry: $registry,
@@ -38,6 +44,7 @@ function makeSchemaFromTransformer(ComponentSchemaRegistry $registry, ?Closure $
             modelToSchema: new EloquentModelToSchema(
                 registry: $registry,
                 jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
+                typeNodeToSchema: new TypeNodeToSchema(),
                 typeResolver: TypeResolver::create(),
                 typeNodeResolver: TypeNodeResolver::create(),
                 docBlockParser: DocBlockParser::create(),
@@ -140,6 +147,22 @@ it('builds an attribute-free transformer schema entirely from the transform() li
     expect($props)->toHaveKeys(['id', 'title', 'word_count', 'kind', 'permalink'])
         ->and($props['word_count']->type)->toBe('integer')
         ->and($schema->required)->toContain('permalink');
+});
+
+it('lists nested unreadable values by key path in the summarising notice', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $logger = recordingLogger();
+
+    makeSchemaFromTransformer($registry, logger: $logger)->build(InferredArticleTransformer::class);
+
+    $notice = array_find(
+        $logger->records,
+        static fn(array $record): bool => str_contains($record['message'], InferredArticleTransformer::class),
+    );
+
+    expect($notice)->not->toBeNull()
+        ->and($notice['message'] ?? '')->toContain('permalink')
+        ->toContain('flags.rating');
 });
 
 it('degrades a dynamic transform() body to the attribute-declared shape', function (): void {

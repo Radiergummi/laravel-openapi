@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
+use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicBodyTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicKeyTransformer;
@@ -36,6 +37,7 @@ function transformReader(): TransformerTransformReader
         modelToSchema: new EloquentModelToSchema(
             registry: $registry,
             jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
+            typeNodeToSchema: new TypeNodeToSchema(),
             typeResolver: TypeResolver::create(),
             typeNodeResolver: TypeNodeResolver::create(),
             docBlockParser: DocBlockParser::create(),
@@ -84,7 +86,7 @@ it('reads the literal keys of a single-return transform() in literal order', fun
 it('resolves $model->field values against the typed transform() parameter', function (): void {
     $fields = readTransformerFields(InferredArticleTransformer::class);
 
-    expect(transformerField($fields, 'id')->unconstrained)->toBeFalse()
+    expect(transformerField($fields, 'id')->unconstrainedPaths)->toBe([])
         ->and(transformerField($fields, 'title')->property->type)->toBe('string')
         ->and(transformerField($fields, 'published_at')->property->format)->toBe('date-time');
 });
@@ -116,7 +118,10 @@ it('types literal scalar and nested literal array values', function (): void {
     expect(transformerField($fields, 'kind')->property->type)->toBe('string')
         ->and($flags->property->type)->toBe('object')
         ->and($flags->property->properties[0]->property)->toBe('featured')
-        ->and($flags->property->properties[0]->type)->toBe('boolean');
+        ->and($flags->property->properties[0]->type)->toBe('boolean')
+        // Casts resolve only at the top level of values; the nested one degrades to an
+        // unconstrained inner property, reported by its key path.
+        ->and($flags->unconstrainedPaths)->toBe(['flags.rating']);
 });
 
 it('keeps an unresolvable value as an unconstrained property', function (): void {
@@ -124,14 +129,14 @@ it('keeps an unresolvable value as an unconstrained property', function (): void
 
     $permalink = transformerField($fields, 'permalink');
 
-    expect($permalink->unconstrained)->toBeTrue()
+    expect($permalink->unconstrainedPaths)->toBe(['permalink'])
         ->and(Generator::isDefault($permalink->property->type))->toBeTrue();
 });
 
 it('keeps model fetches unconstrained when the parameter carries no model type', function (): void {
     $fields = readTransformerFields(UntypedParameterTransformer::class);
 
-    expect(transformerField($fields, 'id')->unconstrained)->toBeTrue()
+    expect(transformerField($fields, 'id')->unconstrainedPaths)->toBe(['id'])
         ->and(transformerField($fields, 'kind')->property->type)->toBe('string');
 });
 

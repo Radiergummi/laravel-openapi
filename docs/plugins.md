@@ -342,12 +342,15 @@ final class BookingTransformer extends TransformerAbstract
   that parameter's declared type is an Eloquent model.
 - `(int)` / `(float)` / `(string)` / `(bool)` / `(array)` casts type the key by
   the cast — the cast states the runtime JSON type regardless of what it wraps.
+  An `(array)` cast documents an array of unconstrained items (`items: {}`) —
+  array of anything is the honest claim.
 - Literal scalars and arrays type themselves; nested literal arrays become
   nested object/array schemas.
 - Anything else (method calls, ternaries, fields the model does not know)
   keeps its key with an **unconstrained schema** — a response property is
   never silently dropped — and one summarising generation-log note per
-  transformer lists the affected keys.
+  transformer lists the affected key paths, values inside nested literals
+  included (`flags.rating`).
 
 A `transform()` that is *not* a single straight-line array literal (early
 returns, a returned variable, a dynamic key, a spread) degrades gracefully to
@@ -441,7 +444,10 @@ attribute + `transform()` composition as above; the envelope is the
 `DataArraySerializer` shape. A method that **reassigns**
 `$entity_transformer` in its body degrades with a generation-log note (the
 default is no longer the honest answer), as does a matched call without a
-usable default; `#[FractalResponse]` always wins where declared. The two
+usable default; `#[FractalResponse]` always wins where declared. A
+reassignment hidden inside a *called* helper is invisible to the bounded
+scan — following calls is Tier-2 dataflow — so the property default is
+documented; annotate such actions with `#[FractalResponse]`. The two
 method names are a fixed whitelist — there is no configurable convention
 knob.
 

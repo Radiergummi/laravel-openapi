@@ -189,10 +189,48 @@ final class TransformerTransformReader
         $definition = SchemaDefinitionFromLiteral::fromValue($value);
 
         if ($definition !== []) {
-            return new InferredTransformerField($name, SchemaFromArrayDefinition::buildProperty($name, $definition));
+            return new InferredTransformerField(
+                $name,
+                SchemaFromArrayDefinition::buildProperty($name, $definition),
+                unconstrainedPaths: $this->unreadableNestedPaths($definition, $name),
+            );
         }
 
         return $this->unconstrained($name);
+    }
+
+    /**
+     * The key paths of unconstrained (empty) definitions inside a nested literal — values the
+     * literal mapping could not type, e.g. a cast below the top level — so the summarising
+     * notice can name them alongside the top-level refusals.
+     *
+     * @param array<string, mixed> $definition
+     *
+     * @return list<string>
+     */
+    private function unreadableNestedPaths(array $definition, string $path): array
+    {
+        $paths = [];
+
+        /** @var array<string, array<string, mixed>> $properties */
+        $properties = $definition['properties'] ?? [];
+
+        foreach ($properties as $key => $nested) {
+            $nestedPath = "{$path}.{$key}";
+
+            $paths = $nested === []
+                ? [...$paths, $nestedPath]
+                : [...$paths, ...$this->unreadableNestedPaths($nested, $nestedPath)];
+        }
+
+        /** @var array<string, mixed> $items */
+        $items = $definition['items'] ?? [];
+
+        if ($items === []) {
+            return $paths;
+        }
+
+        return [...$paths, ...$this->unreadableNestedPaths($items, "{$path}[]")];
     }
 
     /**
@@ -272,7 +310,7 @@ final class TransformerTransformReader
 
     private function unconstrained(string $name): InferredTransformerField
     {
-        return new InferredTransformerField($name, new OA\Property(['property' => $name]), unconstrained: true);
+        return new InferredTransformerField($name, new OA\Property(['property' => $name]), unconstrainedPaths: [$name]);
     }
 
     // endregion

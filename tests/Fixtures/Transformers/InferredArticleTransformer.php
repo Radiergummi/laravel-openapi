@@ -27,7 +27,8 @@ final class InferredArticleTransformer extends TransformerAbstract
             'archived' => (bool) $article->subtitle,
             'tags' => (array) $article->subtitle,
             'kind' => 'article',
-            'flags' => ['featured' => true],
+            // The nested cast is unreadable: casts resolve only at the top level of values.
+            'flags' => ['featured' => true, 'rating' => (float) $article->id],
             'permalink' => $this->buildPermalink($article),
         ];
     }

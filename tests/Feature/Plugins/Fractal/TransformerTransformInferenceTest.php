@@ -58,10 +58,12 @@ it('infers the transformer component schema from the transform() literal', funct
     expect($schema)->not->toBeNull()
         ->and($schema['type'])->toBe('object')
         ->and(array_keys($schema['properties']))->toBe(
-            ['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'kind', 'flags', 'permalink'],
+            ['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'tags', 'kind', 'flags', 'permalink'],
         )
         ->and($schema['properties']['title']['type'])->toBe('string')
         ->and($schema['properties']['word_count']['type'])->toBe('integer')
+        // (array) cast: items must accompany type array or swagger-php validation rejects it.
+        ->and($schema['properties']['tags'])->toBe(['type' => 'array', 'items' => []])
         ->and($schema['properties']['kind']['type'])->toBe('string')
         ->and($schema['properties']['permalink'])->toBe([])
         ->and($schema['required'])->toContain('id', 'permalink');
