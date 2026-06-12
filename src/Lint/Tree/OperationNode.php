@@ -11,12 +11,10 @@ use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionAttribute;
 
-use function array_any;
 use function array_filter;
 use function array_values;
 use function sprintf;
 use function str_replace;
-use function str_starts_with;
 
 final class OperationNode implements Node
 {
@@ -143,23 +141,6 @@ final class OperationNode implements Node
         }
 
         return false;
-    }
-
-    /**
-     * Returns true when the route carries any `auth:*`, `scope:*`, `scopes:*`, or Sanctum
-     * `abilities:*` / `ability:*` middleware.
-     */
-    public function hasAuthMiddleware(): bool
-    {
-        return $this->descriptor !== null && array_any(
-            $this->descriptor->route->middleware(),
-            static fn(string $middleware): bool
-                    => str_starts_with($middleware, 'auth:')
-                    || str_starts_with($middleware, 'scope:')
-                    || str_starts_with($middleware, 'scopes:')
-                    || str_starts_with($middleware, 'abilities:')
-                    || str_starts_with($middleware, 'ability:'),
-        );
     }
 
     /**

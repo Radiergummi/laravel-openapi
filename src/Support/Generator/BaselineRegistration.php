@@ -62,7 +62,7 @@ use Radiergummi\OpenApi\Lint\Rules\PathParameterUndeclared;
 use Radiergummi\OpenApi\Lint\Rules\PathParameterUndefined;
 use Radiergummi\OpenApi\Lint\Rules\PathSegmentNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\PathTrailingSlashInconsistent;
-use Radiergummi\OpenApi\Lint\Rules\PublicEndpointContradictsMw;
+use Radiergummi\OpenApi\Lint\Rules\PublicEndpointContradictsMiddleware;
 use Radiergummi\OpenApi\Lint\Rules\QueryParamDuplicate;
 use Radiergummi\OpenApi\Lint\Rules\RefBroken;
 use Radiergummi\OpenApi\Lint\Rules\RequestBodyDescriptionMissing;
@@ -176,7 +176,7 @@ final class BaselineRegistration
         SchemaRequiredWithoutProperty::class,
         SchemaEnumEmpty::class,
         SchemaEnumTypeMismatch::class,
-        PublicEndpointContradictsMw::class,
+        PublicEndpointContradictsMiddleware::class,
         ResponseNoSuccess::class,
         ResponseSuccessEmptyBody::class,
         ResponseRedirectWithoutLocation::class,
