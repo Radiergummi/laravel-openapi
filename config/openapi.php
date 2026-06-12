@@ -141,6 +141,11 @@ return [
     | @throws-derived response already supplied — so an explicit
     | @throws AuthenticationException wins over the `auth` entry.
     |
+    | Responses are also unique per status code: when two middleware kinds map
+    | to the same status (e.g. `scope` and `can` both default to 403), a route
+    | carrying both documents a single 403 — the first-detected kind's
+    | description wins. Give them distinct statuses here if you need both.
+    |
     */
 
     'middleware_responses' => [
