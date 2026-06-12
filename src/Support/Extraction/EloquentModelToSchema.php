@@ -6,6 +6,11 @@ namespace Radiergummi\OpenApi\Support\Extraction;
 
 use BackedEnum;
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Database\Eloquent\Casts\AsArrayObject;
+use Illuminate\Database\Eloquent\Casts\AsCollection;
+use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
+use Illuminate\Database\Eloquent\Casts\AsEncryptedCollection;
+use Illuminate\Database\Eloquent\Casts\AsStringable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
@@ -32,6 +37,7 @@ use function array_keys;
 use function array_merge;
 use function array_unique;
 use function array_values;
+use function class_exists;
 use function enum_exists;
 use function explode;
 use function in_array;
@@ -126,8 +132,24 @@ final class EloquentModelToSchema
                 );
             }
 
-            return $this->castToProperty($propertyName, $castString, $tag?->type)
-                ?? new OA\Property(['property' => $propertyName]);
+            $property = $this->castToProperty($propertyName, $castString, $tag?->type);
+
+            if ($property !== null) {
+                return $property;
+            }
+
+            // An unrecognised cast (a custom CastsAttributes) is unknowable at Tier 0, but its
+            // `@property` tag still has a say rather than being swallowed (#252) — the same
+            // precedence #249 established. Falls back to an untyped property when no tag resolves.
+            if ($tag !== null) {
+                $property = $this->propertyFromTag($propertyName, $tag->type, $metadata['reflection']);
+
+                if ($property !== null) {
+                    return $property;
+                }
+            }
+
+            return new OA\Property(['property' => $propertyName]);
         }
 
         if ($tag !== null) {
@@ -319,8 +341,15 @@ final class EloquentModelToSchema
                     continue;
                 }
 
-                $properties[] = $this->castToProperty($name, $castString, $tag?->type)
-                    ?? new OA\Property(['property' => $name]);
+                $property = $this->castToProperty($name, $castString, $tag?->type);
+
+                // An unrecognised cast (a custom CastsAttributes) defers to the `@property` tag
+                // rather than swallowing it (#252); falls back to an untyped property otherwise.
+                if ($property === null && $tag !== null) {
+                    $property = $this->propertyFromTag($name, $tag->type, $reflection);
+                }
+
+                $properties[] = $property ?? new OA\Property(['property' => $name]);
 
                 continue;
             }
@@ -519,10 +548,21 @@ final class EloquentModelToSchema
      */
     private function castToProperty(string $name, string $cast, ?TypeNode $declaredType = null): ?OA\Property
     {
-        // Normalise: take the part before `:` (e.g. `decimal:2` → `decimal`) and lowercase.
-        $normalised = strtolower(
-            str_contains($cast, ':') ? explode(':', $cast, 2)[0] : $cast,
-        );
+        // The part before `:` — a parameterised cast (`decimal:2`, `AsCollection:Foo`) or the
+        // bare keyword / class-string.
+        $castHead = str_contains($cast, ':') ? explode(':', $cast, 2)[0] : $cast;
+
+        // Class-form object casts (the modern `casts()` style spells the JSON casts as castable
+        // class-strings: `AsCollection::class`, `AsArrayObject::class`, …). getCasts() reports the
+        // caster FQCN, which the keyword match below would never recognise.
+        $classFormDefinition = $this->classFormCastDefinition($castHead, $declaredType);
+
+        if ($classFormDefinition !== null) {
+            return new OA\Property(['property' => $name, ...$classFormDefinition]);
+        }
+
+        // Normalise the keyword form: lowercase the head (e.g. `decimal:2` → `decimal`).
+        $normalised = strtolower($castHead);
 
         // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
         // keywords (decimal/date/datetime/array/…) are handled here.
@@ -549,6 +589,38 @@ final class EloquentModelToSchema
         }
 
         return new OA\Property(['property' => $name, ...$definition]);
+    }
+
+    /**
+     * The schema definition for a class-form object cast — the modern `casts()` style spelling the
+     * JSON casts as castable class-strings. `getCasts()` reports the caster FQCN, so these never
+     * match the lowercase keyword map in {@see castToProperty()}.
+     *
+     * - `AsCollection` / `AsEncryptedCollection` / `AsArrayObject` / `AsEncryptedArrayObject` → the
+     *   JSON object/list shape, inheriting the same `@property`-tag list disambiguation as the
+     *   string-form casts ({@see jsonCastDefinition()}).
+     * - `AsStringable` → string.
+     *
+     * Any other castable (a custom `CastsAttributes`, the enum collections that carry an
+     * enum-class parameter) is unknowable at Tier 0 — null, so the caller defers to the
+     * `@property` tag.
+     *
+     * @return null|array<string, mixed>
+     */
+    private function classFormCastDefinition(string $castClass, ?TypeNode $declaredType): ?array
+    {
+        if (!class_exists($castClass)) {
+            return null;
+        }
+
+        return match (true) {
+            is_a($castClass, AsCollection::class, allow_string: true),
+            is_a($castClass, AsEncryptedCollection::class, allow_string: true),
+            is_a($castClass, AsArrayObject::class, allow_string: true),
+            is_a($castClass, AsEncryptedArrayObject::class, allow_string: true) => $this->jsonCastDefinition($declaredType),
+            is_a($castClass, AsStringable::class, allow_string: true) => ['type' => 'string'],
+            default => null,
+        };
     }
 
     /**

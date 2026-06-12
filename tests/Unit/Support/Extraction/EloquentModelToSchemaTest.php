@@ -272,6 +272,34 @@ it('emits an array with unconstrained items when the list element is not a scala
     expect($schema['properties']['milestones'])->toEqual(['type' => 'array', 'items' => []]);
 });
 
+it('types class-form JSON casts (AsCollection / AsArrayObject / AsEncryptedCollection) via the @property generic (#252)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class);
+    $properties = $schema['properties'];
+
+    // List-shaped @property → array of the scalar element.
+    expect($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['secrets'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        // Map-shaped @property keeps the conservative object default.
+        ->and($properties['options'])->toEqual(['type' => 'object']);
+});
+
+it('types the AsStringable class-form cast as a string (#252)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class);
+
+    expect($schema['properties']['slug'])->toEqual(['type' => 'string']);
+});
+
+it('lets the @property tag type a column behind an unrecognised custom cast instead of swallowing it (#252)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class);
+    $properties = $schema['properties'];
+
+    // A custom CastsAttributes is unknowable at Tier 0, but its @property tag still has a say.
+    expect($properties['custom'])->toEqual(['type' => 'string'])
+        // No tag → genuinely untyped, the unchanged fallback for an opaque cast.
+        ->and($properties['custom_untyped'])->toEqual([]);
+});
+
 it('degrades to an unknown-shape schema for a non-instantiable model instead of throwing', function (): void {
     // Regression for #100: `new $modelClass()` on an abstract model throws an Error, which the
     // resolver fault boundary does not catch. The reader must guard instantiation and fall back.
