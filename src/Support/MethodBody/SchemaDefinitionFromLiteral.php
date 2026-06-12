@@ -107,7 +107,7 @@ final readonly class SchemaDefinitionFromLiteral
     {
         if ($value instanceof Array_) {
             if ($value->items === []) {
-                return ['type' => 'array'];
+                return self::arrayOfUnknownItems();
             }
 
             try {
@@ -138,7 +138,7 @@ final readonly class SchemaDefinitionFromLiteral
     {
         if (is_array($literal)) {
             if ($literal === []) {
-                return ['type' => 'array'];
+                return self::arrayOfUnknownItems();
             }
 
             if (array_is_list($literal)) {
@@ -177,12 +177,24 @@ final readonly class SchemaDefinitionFromLiteral
 
         foreach ($definitions as $definition) {
             if (($definition['type'] ?? null) !== ($first['type'] ?? null)) {
-                return ['type' => 'array'];
+                return self::arrayOfUnknownItems();
             }
         }
 
         return $first === []
-            ? ['type' => 'array']
+            ? self::arrayOfUnknownItems()
             : ['type' => 'array', 'items' => $first];
+    }
+
+    /**
+     * An array whose item schema is unknown — empty literals and heterogeneous or unreadable
+     * lists. The `items` key is always present: swagger-php's validator rejects a `type: array`
+     * without `@OA\Items` on both supported majors, and `openapi:generate` validates by default.
+     *
+     * @return array{type: 'array', items: array<never, never>}
+     */
+    private static function arrayOfUnknownItems(): array
+    {
+        return ['type' => 'array', 'items' => []];
     }
 }
