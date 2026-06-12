@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineValidationRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver;
@@ -59,6 +60,11 @@ final class CorePlugin implements Plugin
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
+
+        // Tier-1 body scan runs last among Core's response resolvers; its return-type guard
+        // additionally keeps it off any action whose signature carries schema information, so
+        // the Tier-0 resolvers (including later plugins') stay authoritative.
+        $registry->addPrimaryResponseResolver(InlineJsonResponseResolver::class);
         $registry->addOperationConventionResolver(ResourceConventionResolver::class);
 
         // Error-response inference contributors; the registration order is important: Throws

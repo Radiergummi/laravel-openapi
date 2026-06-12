@@ -12,7 +12,7 @@ source.
 | `operationId` | Route name (sanitised to a codegen-safe identifier — `:`/`{}` and other disallowed characters become `_`, while `.`/`-`/`_` are kept), or `{method}_{sanitized_path}`. |
 | Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. A custom-key binding (`/posts/{post:slug}`, including scoped-nested `{parent}/{child:field}`) emits the standard `{post}` template segment and notes the bound field in the description (`Bound by slug of Post.`). |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
-| Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema (fields declared via `#[ResourceField]`). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). |
+| Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema (fields declared via `#[ResourceField]`). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). |
 | Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
 | Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
 | Validation constraints | `Data::rules()` and Spatie validation attributes → `maxLength`, `minLength`, `pattern`, `enum`, `format`, `minimum`/`maximum`, `minItems`/`maxItems`. |
@@ -248,6 +248,76 @@ class Post extends Model
   separately (tracked as [#98](https://github.com/radiergummi/laravel-openapi/issues/98));
   the model schema and the resource schema are currently independent.
 
+## Inline JSON responses
+
+Controllers that build their response by hand — `return response()->json([...])`
+with a return type of `JsonResponse` (or none at all) — still get a response
+schema. The generator scans the **first 10 top-level statements** of the action
+for a `response()->json(...)` call on the global helper and reads its literal
+arguments:
+
+```php
+public function show(): JsonResponse
+{
+    return response()->json([
+        'status' => 'operational',   // → { type: string }
+        'read_only' => false,        // → { type: boolean }
+        'incidents' => 0,            // → { type: integer }
+    ]);
+}
+```
+
+Nested literal arrays recurse into nested object schemas, a literal list
+becomes an array schema with its item type taken from the first element
+(explicit sequential integer keys — `[0 => 'a', 1 => 'b']` — count as a list,
+exactly as `json_encode` treats them), and a literal (or class-constant)
+`status` argument — positional or named, `response()->json($data, 201)` /
+`response()->json(data: [...], status: 201)` — becomes the response status.
+A status you wrote in the call wins over the resource-action
+[convention](#resource-action-conventions): a `store` returning
+`response()->json([...], 200)` documents `200`, not the convention's `201`.
+With no status argument the response documents as `200` and the convention
+still applies, so a conventional `store` with no explicit status is promoted to
+`201`. A literal `204` documents as `204 No Content` without a body schema — the
+runtime strips the body. When several calls match, a **returned** `json()` beats one only
+assigned to a variable; among returned calls, the first wins.
+
+Boundaries, by design (no dataflow analysis):
+
+- Only the zero-argument `response()` **helper** is matched; the `Response`
+  facade and `new JsonResponse(...)` are not.
+- A **dynamic value under a literal key** keeps its property with an
+  unconstrained schema — the key is a fact worth documenting even when the
+  value's type isn't statically known. A **dynamic key** (or a spread entry)
+  degrades the whole call: the operation keeps its bare `200` and the
+  generation log notes the action.
+- A **non-literal first argument** — a `$data` variable, a model expression, a
+  `compact()` call — is never guessed at; same degradation. Document the shape
+  with `#[Response]` instead.
+- A **non-literal status argument** also degrades the whole call: the body must
+  not be documented under a guessed status.
+- Only a **2xx literal status** may claim the success response. A straight-line
+  non-2xx literal — the pervasive *guarded success + terminal error fallback*
+  idiom, `return response()->json(['message' => 'Unauthorized'], 403)` after a
+  conditional success — degrades with a log note instead of evicting the
+  operation's success response. (Routing such literals into the error-response
+  machinery, like `abort()` calls, is a tracked follow-up.)
+- A chained call that can **change the response's status or body** —
+  `->setStatusCode(201)`, `->setData(...)` — degrades the call rather than
+  documenting the body under the wrong status; header and cookie chains
+  (`->header(...)`, `->withHeaders(...)`, `->cookie(...)`) are harmless and
+  stay matched.
+- A `response()->json()` call that only runs **conditionally** — inside an `if`
+  branch, a ternary or `match` arm, a short-circuit operand, or a closure
+  body — is not treated as the canonical success response, nor is one past the
+  first 10 statements.
+- A **schema-bearing return type** (a Model, Data class, Resource, or
+  paginator) always wins over the scan, and so does an explicit
+  `#[Response]` attribute with a 2xx status. An action carrying a
+  primary-response **authoring attribute** — `#[ResponseResource]`,
+  `#[FractalResponse]` — is never scanned, even though the resolver consuming
+  the attribute runs later: explicit authoring always wins.
+
 ## Resource action conventions
 
 Resourceful controller actions have entirely predictable semantics, so the
@@ -276,7 +346,9 @@ method named `store` reached by `GET` is left untouched.
 
 This sits at the lowest precedence — an explicit `#[Response]` (2xx),
 `#[Summary]` / `#[Operation]` attribute, or a DocComment summary always wins over
-the convention.
+the convention. The convention's **status** likewise defers to a status read
+from an inline [`response()->json([...], <status>)`](#inline-json-responses)
+call — a status the author actually wrote is honoured over the conventional one.
 
 ## What if convention isn't enough?
 

@@ -20,4 +20,6 @@ final class LiteralConstantsFixture
     public const array NESTED_ARRAY = ['a' => 1, 'b' => ['c' => true, 'd' => null]];
 
     public const array CONTAINS_ENUM_CASE = ['status' => StatusFixtureEnum::Draft];
+
+    public const array LIST_WITH_EXPLICIT_INTEGER_KEYS = [0 => 'first', 1 => 'second'];
 }

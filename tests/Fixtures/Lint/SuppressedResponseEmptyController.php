@@ -18,14 +18,17 @@ final class SuppressedResponseEmptyController
     /**
      * Return an undocumented JSON payload.
      *
-     * No ApiResource return type is declared, so the response-schema extractor cannot derive a
-     * schema — triggering response.success-empty-body.
+     * No ApiResource return type is declared and the payload is a variable (which the Tier-1
+     * body scan refuses), so no response schema can be derived — triggering
+     * response.success-empty-body.
      */
     #[IgnoreLint('response.success-empty-body', reason: 'fixture: testing suppression mechanics')]
     #[IgnoreLint('response.no-error', reason: 'fixture: not testing error responses')]
     #[IgnoreLint('response.resource.indeterminate', reason: 'fixture: intentionally missing resource')]
     public function index(): JsonResponse
     {
-        return response()->json(['ok' => true]);
+        $payload = ['ok' => true];
+
+        return response()->json($payload);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 
 use Attribute;
+use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
 
 /**
@@ -32,7 +33,7 @@ use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
  * ```
  */
 #[Attribute(Attribute::TARGET_METHOD)]
-final readonly class FractalResponse
+final readonly class FractalResponse implements PrimaryResponseAuthoringAttribute
 {
     /**
      * @param class-string $transformer The transformer class shaping the response.

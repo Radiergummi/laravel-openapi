@@ -75,7 +75,11 @@ The resolver interfaces live in `src/Contracts/Registry/`:
 - **`QueryParameterResolver`**: produce query parameters from the
   `ActionDescriptor`. Used for `?filter[…]`, `?include`, `?sort`, paging.
 - **`PrimaryResponseResolver`**: resolve the 2xx response schema from the
-  return type or attributes.
+  return type or attributes. If your resolver consumes a custom authoring
+  attribute, have the attribute implement the
+  `Contracts\Attributes\PrimaryResponseAuthoringAttribute` marker — body-scan
+  resolvers earlier in the chain check for it and step aside, so explicit
+  authoring always wins regardless of chain position.
 - **`ErrorResponseResolver`**: given an `ErrorDescriptor`, decide whether
   it handles the error-response schema and produce an `ErrorResponse` (or null).
   Used for error envelopes (RFC 7807, JSON:API, etc.) on 4xx/5xx responses.
