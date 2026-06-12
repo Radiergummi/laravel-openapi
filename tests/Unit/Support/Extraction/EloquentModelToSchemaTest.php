@@ -265,10 +265,11 @@ it('finds the list shape through a nullable @property tag', function (): void {
     expect($schema['properties']['maybe_tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']]);
 });
 
-it('emits a bare array when the list element is not a scalar keyword', function (): void {
+it('emits an array with unconstrained items when the list element is not a scalar keyword', function (): void {
     $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
 
-    expect($schema['properties']['milestones'])->toEqual(['type' => 'array']);
+    // The element type is unknown, but swagger-php validation requires items on every array.
+    expect($schema['properties']['milestones'])->toEqual(['type' => 'array', 'items' => []]);
 });
 
 it('degrades to an unknown-shape schema for a non-instantiable model instead of throwing', function (): void {

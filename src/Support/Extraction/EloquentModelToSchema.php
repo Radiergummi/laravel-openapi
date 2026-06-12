@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -568,7 +569,9 @@ final class EloquentModelToSchema
             return ['type' => 'object'];
         }
 
-        $definition = ['type' => 'array'];
+        // A non-scalar element (list<Carbon>) still needs an items object: swagger-php's
+        // validator rejects an items-less array on both supported majors.
+        $definition = ['type' => 'array', 'items' => new OA\Items([])];
 
         if ($elementNode instanceof IdentifierTypeNode) {
             $itemDefinition = $this->scalarKeywordToDefinition($elementNode->name);
