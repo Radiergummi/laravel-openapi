@@ -172,7 +172,10 @@ Boundaries, by design (no dataflow analysis):
   generation log notes the action; document it with `#[RequestBody]` /
   `#[RequestField]` instead. A single dynamic *entry* inside an otherwise
   literal rules array only drops that entry (a `Rule::unique(...)` object next
-  to literal rules keeps the literal rest).
+  to literal rules keeps the literal rest). A class constant
+  (`RuleSets::TITLE`) counts as literal: it resolves to its value, as long as
+  that value is itself a scalar or array — enum cases are objects and stay
+  dynamic.
 - A `validate()` call that only runs conditionally — inside an `if` branch, a
   ternary or `match` arm, a `&&` / `||` / `??` short-circuit, or a closure
   body — is not picked up, nor is one past the first 10 statements.
