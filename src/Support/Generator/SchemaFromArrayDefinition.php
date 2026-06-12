@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 
 use function is_array;
 
@@ -13,6 +14,12 @@ use function is_array;
  * `properties` into `OA\Property` and `items` into `OA\Items`. swagger-php 5.x rejects a raw
  * array left under `properties`/`items` (`properties is an object literal`), failing validation;
  * a proper object graph validates on both the 5.x and 6.x lines.
+ *
+ * Every node with `type: array` is guaranteed an `items` object (an unconstrained one when the
+ * definition carries none): swagger-php's validator rejects an items-less array on both
+ * supported majors (`@OA\Items() is required when … has type "array"`), and the literal paths
+ * legitimately produce that shape (`'tags' => []`, heterogeneous lists). Mirrors the same
+ * defence in `FieldDescriptor` on the validation-rules path.
  *
  * Shared by the `#[Response(schema: [...])]` authoring path and the Tier-1 inline-JSON response
  * scan, which both express schemas as plain definition arrays first.
@@ -66,6 +73,10 @@ final readonly class SchemaFromArrayDefinition
             }
 
             $node->{$key} = $value;
+        }
+
+        if ($node->type === 'array' && Generator::isDefault($node->items)) {
+            $node->items = new OA\Items([]);
         }
     }
 }
