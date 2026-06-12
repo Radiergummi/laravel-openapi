@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Support\Types;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use PHPStan\PhpDocParser\Ast\ConstExpr\ConstExprIntegerNode;
 use PHPStan\PhpDocParser\Ast\ConstExpr\ConstExprStringNode;
 use PHPStan\PhpDocParser\Ast\Type\ArrayShapeItemNode;
@@ -16,11 +15,11 @@ use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
+use Radiergummi\OpenApi\Support\Generator\SchemaFieldCopier;
 use Reflector;
 
 use function class_exists;
 use function count;
-use function get_object_vars;
 use function in_array;
 use function strtolower;
 
@@ -183,7 +182,7 @@ final readonly class TypeNodeToSchema
         $items = new OA\Items([]);
 
         if ($element !== null) {
-            $this->copyDefinedFields($element, $items);
+            SchemaFieldCopier::copy($element, $items);
         }
 
         return new OA\Schema(['type' => 'array', 'items' => $items]);
@@ -222,26 +221,8 @@ final readonly class TypeNodeToSchema
     private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
     {
         $property = new OA\Property(['property' => $name]);
-        $this->copyDefinedFields($schema, $property);
+        SchemaFieldCopier::copy($schema, $property);
 
         return $property;
-    }
-
-    /**
-     * Copies every defined JSON-Schema field from a source schema onto a target schema subclass
-     * (OA\Property / OA\Items share OA\Schema's field set). swagger-php internals (underscore
-     * fields) and the component-key fields are skipped.
-     */
-    private function copyDefinedFields(OA\Schema $source, OA\Schema $target): void
-    {
-        foreach (get_object_vars($source) as $field => $value) {
-            if (in_array($field, ['property', 'schema'], strict: true) || $field[0] === '_') {
-                continue;
-            }
-
-            if ($value !== Generator::UNDEFINED) {
-                $target->{$field} = $value;
-            }
-        }
     }
 }

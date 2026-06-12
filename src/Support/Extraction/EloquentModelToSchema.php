@@ -9,12 +9,12 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Support\Generator\SchemaFieldCopier;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
@@ -218,11 +218,7 @@ final class EloquentModelToSchema
         // Array shapes (array{…}), list/array-of forms, and string-keyed maps are resolved by
         // TypeNodeToSchema; scalar keywords, related-model `$ref`s, and non-model classes are
         // resolved through the class-schema strategy below. Nullability is applied by the resolver.
-        $schema = $this->typeNodeToSchema->resolve(
-            $node,
-            $reflection,
-            fn(string $className): OA\Schema => $this->classTagSchema($className),
-        );
+        $schema = $this->typeNodeToSchema->resolve($node, $reflection, $this->classTagSchema(...));
 
         if ($schema === null) {
             $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
@@ -326,16 +322,7 @@ final class EloquentModelToSchema
     private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
     {
         $property = new OA\Property(['property' => $name]);
-
-        foreach (get_object_vars($schema) as $field => $value) {
-            if ($field === 'property' || $field === 'schema' || $field[0] === '_') {
-                continue;
-            }
-
-            if ($value !== Generator::UNDEFINED) {
-                $property->{$field} = $value;
-            }
-        }
+        SchemaFieldCopier::copy($schema, $property);
 
         return $property;
     }
