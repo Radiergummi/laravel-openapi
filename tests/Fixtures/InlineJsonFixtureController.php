@@ -179,6 +179,16 @@ class InlineJsonFixtureController extends Controller
         return response()->json([]);
     }
 
+    /**
+     * The #265 repro: a list whose elements are non-literal collapses to a `type: array` with an
+     * unknown item schema. The emitted `items` must still be present or `openapi:generate`'s
+     * validation pass rejects the document.
+     */
+    public function unreadableListBody(): JsonResponse
+    {
+        return response()->json(['items' => [random_int(0, 1), random_int(2, 3)]]);
+    }
+
     public function noJsonCall(): JsonResponse
     {
         return $this->buildFallback();
