@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
 
@@ -136,6 +138,25 @@ it('does not let a straight-line non-2xx literal evict the success response', fu
 });
 
 // endregion
+
+it('produces a swagger-php-valid document for an unreadable list body (#265)', function (): void {
+    Route::get('/oa-fixture/unreadable-list', [InlineJsonFixtureController::class, 'unreadableListBody']);
+
+    // The real `openapi:generate` validates the document (GenerateCommand::validate); generateSpec()
+    // does not. swagger-php rejects a `type: array` without `items`, so this guards the actual
+    // command path for the items-less-array crash.
+    $registry = app(SpecRegistry::class);
+    $document = app(OpenApiGenerator::class)
+        ->generate($registry->default(), app()->environment());
+
+    expect($document->validate())->toBeTrue();
+
+    $items = generateSpec()['paths']['/oa-fixture/unreadable-list']['get']['responses']['200']
+        ['content']['application/json']['schema']['properties']['items'];
+
+    expect($items['type'])->toBe('array')
+        ->and($items)->toHaveKey('items');
+});
 
 // region Degradation
 
