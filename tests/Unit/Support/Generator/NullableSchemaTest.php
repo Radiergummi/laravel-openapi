@@ -77,6 +77,51 @@ it('wraps a $ref schema in oneOf with a null sibling (Bug 1)', function (): void
 
 // endregion
 
+// region applyTo(): in-place nullability mirrors wrap()
+
+it('applyTo wraps a $ref schema in oneOf instead of writing type: [null]', function (): void {
+    $target = new OA\Schema(['ref' => '#/components/schemas/MyModel']);
+    NullableSchema::applyTo($target);
+
+    expect($target->ref)->toBe(Generator::UNDEFINED)
+        ->and($target->type)->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf)->toHaveCount(2);
+
+    $refBranch = collect($target->oneOf)->first(fn($s) => $s->ref !== Generator::UNDEFINED);
+    $nullBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'null');
+
+    expect($refBranch?->ref)->toBe('#/components/schemas/MyModel')
+        ->and($nullBranch?->type)->toBe('null');
+});
+
+it('applyTo migrates object structural keywords into the oneOf inner schema', function (): void {
+    $target = new OA\Schema([
+        'type' => 'object',
+        'properties' => [new OA\Property(['property' => 'id', 'type' => 'integer'])],
+        'required' => ['id'],
+    ]);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)->toBe(Generator::UNDEFINED)
+        ->and($target->properties)->toBe(Generator::UNDEFINED)
+        ->and($target->required)->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf)->toHaveCount(2);
+
+    $objectBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'object');
+
+    expect($objectBranch?->properties)->toHaveCount(1)
+        ->and($objectBranch?->required)->toBe(['id']);
+});
+
+it('applyTo widens a scalar type in place', function (): void {
+    $target = new OA\Schema(['type' => 'string']);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)->toBe(['string', 'null']);
+});
+
+// endregion
+
 // region Fallback branch: schemas without a plain type are wrapped in oneOf
 
 it('wraps a schema with no explicit type in oneOf with a null sibling', function (): void {

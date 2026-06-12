@@ -113,13 +113,29 @@ final class NullableSchema
      * list) and cannot be replaced with the new object that {@see wrap()} would return.
      *
      * The same branching logic as {@see wrap()} applies:
+     * - `$ref` schema → wrapped in `oneOf` (a bare `type: ['null']` alongside `$ref` would be an
+     *   impossible constraint in OAS 3.1, where `$ref` is no longer exclusive).
      * - Scalar type → widened to `['type', 'null']`.
      * - Already a type array of scalars → `'null'` appended if absent.
-     * - Structured type (array/object) with `items` → type+items moved into a `oneOf` inner schema.
+     * - Structured type (array/object) → type and its structural keywords (`items`, `properties`,
+     *   `additionalProperties`, `required`) moved into a `oneOf` inner schema.
      * - No type / already composed → `type` set to `['null']` (fallback; callers should avoid this).
      */
     public static function applyTo(OA\Schema $target): void
     {
+        // $ref branch: extra keywords alongside $ref are ignored in OAS 3.1, so writing
+        // type: ['null'] onto a $ref schema yields a constraint nothing can satisfy. Wrap in oneOf,
+        // mirroring wrap().
+        if (is_defined($target->ref) && is_string($target->ref)) {
+            $target->oneOf = [
+                new OA\Schema(['ref' => $target->ref]),
+                new OA\Schema(['type' => 'null']),
+            ];
+            $target->ref = Generator::UNDEFINED;
+
+            return;
+        }
+
         if (is_string($target->type) && is_defined($target->type)) {
             if (in_array($target->type, ['array', 'object'], strict: true)) {
                 $inner = new OA\Schema(['type' => $target->type]);
@@ -127,6 +143,21 @@ final class NullableSchema
                 if (is_defined($target->items)) {
                     $inner->items = $target->items;
                     $target->items = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->properties)) {
+                    $inner->properties = $target->properties;
+                    $target->properties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->additionalProperties)) {
+                    $inner->additionalProperties = $target->additionalProperties;
+                    $target->additionalProperties = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->required)) {
+                    $inner->required = $target->required;
+                    $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                 }
 
                 $target->type = Generator::UNDEFINED;
