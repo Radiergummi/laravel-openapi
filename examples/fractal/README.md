@@ -9,7 +9,11 @@ The plugin ships **commented out** in `config/openapi.php`. This flavor's
 
 Open `Http/Transformers/FlightTransformer.php` first — every key returned by
 `transform()` is declared once via a class-level `#[TransformerField]`, which
-gives the generator a schema without forcing it to read the runtime body.
+carries descriptions, formats, and enums the runtime body cannot express.
+`Http/Transformers/BookingTransformer.php` shows the attribute-free variant:
+its schema is inferred entirely from the single `return [...]` literal of
+`transform()` (model fetches typed from the `Booking` parameter, casts by
+their JSON type, unreadable values kept as unconstrained properties).
 
 Notice in `openapi.yaml`:
 
@@ -19,8 +23,11 @@ Notice in `openapi.yaml`:
   shape — see `meta.pagination` on the 200 response.
 - `Http/FlightController.php::show` is bound via `#[FractalResponse(transformer: ...)]`
   (single item). The 200 response is a bare `{data: $ref}`.
+- `Http/FlightController.php::bookings` is bound to the attribute-free
+  `BookingTransformer` — its `components.schemas` entry comes from the
+  `transform()` literal; `reference` stays an unconstrained `{}` property.
 - `FlightTransformer` itself appears once in `components.schemas` and is `$ref`d
   by every response that uses it.
 - The `fractal.response-unbound` lint rule keys off an injected `Manager`
-  parameter to flag undocumented Fractal endpoints — both routes here satisfy
+  parameter to flag undocumented Fractal endpoints — all routes here satisfy
   that signal, so the rule stays silent.

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Support;
 
 use Closure;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
@@ -16,11 +17,16 @@ use ReflectionClass;
 use ReflectionException;
 
 use function class_exists;
+use function implode;
+use function sprintf;
 
 /**
- * Builds the `OA\Schema` (type: object) for a Fractal transformer from its
- * class-level `#[TransformerField]` and `#[TransformerInclude]` attributes and
- * registers it as a component.
+ * Builds the `OA\Schema` (type: object) for a Fractal transformer and registers it as a
+ * component. Two sources compose per field: class-level `#[TransformerField]` /
+ * `#[TransformerInclude]` attributes (always authoritative for the fields they name) and the
+ * Tier-1 `transform()` literal read by {@see TransformerTransformReader} — inferred fields the
+ * attributes do not cover follow them in literal order. A dynamic `transform()` body degrades
+ * to the attribute-declared shape with a generation-log note when that leaves the schema empty.
  *
  * Nested transformer-shaped field types (classes carrying `#[TransformerField]`)
  * recurse through {@see build()} directly; other class-string types resolve via
@@ -41,6 +47,8 @@ final readonly class SchemaFromTransformer
     public function __construct(
         private ComponentSchemaRegistry $registry,
         private Closure $refSchemaResolvers,
+        private TransformerTransformReader $transformReader,
+        private LoggerInterface $logger,
     ) {}
 
     /**
@@ -85,8 +93,12 @@ final readonly class SchemaFromTransformer
         /** @var list<string> $required */
         $required = [];
 
+        /** @var array<string, true> $seenNames */
+        $seenNames = [];
+
         foreach ($reflection->getAttributes(TransformerField::class) as $attribute) {
             $field = $attribute->newInstance();
+            $seenNames[$field->name] = true;
             $properties[] = $this->buildFieldProperty($field);
 
             if (!$field->conditional) {
@@ -96,11 +108,48 @@ final readonly class SchemaFromTransformer
 
         foreach ($reflection->getAttributes(TransformerInclude::class) as $attribute) {
             $include = $attribute->newInstance();
+            $seenNames[$include->name] = true;
             $properties[] = $this->buildIncludeProperty($include);
 
             if ($include->default) {
                 $required[] = $include->name;
             }
+        }
+
+        $inferred = $this->transformReader->read($transformerClass);
+
+        if ($inferred !== null) {
+            /** @var list<string> $unconstrainedPaths */
+            $unconstrainedPaths = [];
+
+            foreach ($inferred as $field) {
+                // A #[TransformerField] / #[TransformerInclude] wins per field.
+                if (isset($seenNames[$field->name])) {
+                    continue;
+                }
+
+                $seenNames[$field->name] = true;
+                $properties[] = $field->property;
+                $required[] = $field->name;
+
+                $unconstrainedPaths = [...$unconstrainedPaths, ...$field->unconstrainedPaths];
+            }
+
+            if ($unconstrainedPaths !== []) {
+                $this->logger->notice(sprintf(
+                    'transform() of %s has values that could not be statically typed (%s); '
+                    . 'they are documented as unconstrained properties. '
+                    . 'Declare a #[TransformerField] for each to document its type.',
+                    $transformerClass,
+                    implode(', ', $unconstrainedPaths),
+                ));
+            }
+        } elseif ($seenNames === [] && $this->transformReader->declaresTransform($transformerClass)) {
+            $this->logger->notice(sprintf(
+                'transform() of %s is not a single statically-readable return-array literal and '
+                . 'no #[TransformerField] attributes are declared; the response schema stays empty.',
+                $transformerClass,
+            ));
         }
 
         $props = ['type' => 'object', 'properties' => $properties];
@@ -140,7 +189,10 @@ final readonly class SchemaFromTransformer
      */
     private function resolveClassRef(string $class): ?string
     {
-        if (new ReflectionClass($class)->getAttributes(TransformerField::class) !== []) {
+        if (
+            new ReflectionClass($class)->getAttributes(TransformerField::class) !== []
+            || ($this->transformReader->isTransformerSubclass($class) && $this->transformReader->read($class) !== null)
+        ) {
             return $this->buildRef($class);
         }
 

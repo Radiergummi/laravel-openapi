@@ -315,12 +315,59 @@ envelopes: `DataArraySerializer` (default), `ArraySerializer`, and
    depends on it).
 2. Uncomment `FractalPlugin::class` under `plugins` in `config/openapi.php`.
 
-### Usage
+### Inferred fields from `transform()`
 
-Declare each transformer's output keys with repeatable `#[TransformerField]`
-attributes on the transformer class. Declare `availableIncludes` /
-`defaultIncludes` entries with `#[TransformerInclude]`. Bind each endpoint to
-its transformer with `#[FractalResponse]`:
+When a transformer's `transform()` is a **single `return [...]` array
+literal** — the canonical transformer shape — its keys become response
+properties without any annotation. Each value resolves best-effort:
+
+```php
+final class BookingTransformer extends TransformerAbstract
+{
+    public function transform(Booking $booking): array
+    {
+        return [
+            'id'             => $booking->id,             // model @property → string
+            'passenger_name' => $booking->passenger_name, // model @property → string
+            'seat_row'       => (int) $booking->seat,     // cast → integer
+            'kind'           => 'booking',                // literal → string
+            'reference'      => $this->reference($booking), // unresolvable → {}
+        ];
+    }
+}
+```
+
+- `$booking->field` resolves against the metadata of the **typed `transform()`
+  parameter** (`$casts`, `@property` tags, typed `$appends` accessors) when
+  that parameter's declared type is an Eloquent model.
+- `(int)` / `(float)` / `(string)` / `(bool)` / `(array)` casts type the key by
+  the cast — the cast states the runtime JSON type regardless of what it wraps.
+  An `(array)` cast documents an array of unconstrained items (`items: {}`) —
+  array of anything is the honest claim.
+- Literal scalars and arrays type themselves; nested literal arrays become
+  nested object/array schemas.
+- Anything else (method calls, ternaries, fields the model does not know)
+  keeps its key with an **unconstrained schema** — a response property is
+  never silently dropped — and one summarising generation-log note per
+  transformer lists the affected key paths, values inside nested literals
+  included (`flags.rating`).
+
+A `transform()` that is *not* a single straight-line array literal (early
+returns, a returned variable, a dynamic key, a spread) degrades gracefully to
+the attribute-declared shape below, plus a generation-log note when that
+leaves the schema empty. All inferred fields are required — `transform()` has
+no conditional-field idiom; model availability is Fractal *includes*
+territory, declared with `#[TransformerInclude]`.
+
+### Declared fields
+
+`#[TransformerField]` remains the escape hatch for anything the literal cannot
+express (a description, a format, an enum) — and it **wins per field**: a
+declared field replaces the inferred one of the same name, while inferred
+fields it does not cover compose alongside. Declare output keys with
+repeatable `#[TransformerField]` attributes on the transformer class. Declare
+`availableIncludes` / `defaultIncludes` entries with `#[TransformerInclude]`.
+Bind each endpoint to its transformer with `#[FractalResponse]`:
 
 ```php
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
@@ -365,6 +412,45 @@ public function jsonApiShow(): JsonResponse { … }     // {data: {type, id, att
 For custom serializers outside the three named cases, override the response
 with `#[Response]` on the action.
 
+### The `$entity_transformer` convention
+
+Apps following the InvoiceNinja `BaseController` convention — a
+`$entity_transformer` property defaulted per controller, returned through
+inherited `itemResponse()` / `listResponse()` helpers — are documented without
+any `#[FractalResponse]`:
+
+```php
+class InvoiceController extends BaseController
+{
+    protected $entity_transformer = InvoiceTransformer::class;
+
+    public function show(ShowInvoiceRequest $request, Invoice $invoice): Response
+    {
+        return $this->itemResponse($invoice);   // single {data: $ref}
+    }
+
+    public function index(): Response
+    {
+        return $this->listResponse(Invoice::query()); // collection {data: [$ref]}
+    }
+}
+```
+
+The binding requires a top-level `return $this->itemResponse(…)` or
+`$this->listResponse(…)` in the first 10 statements **and** a concrete
+`TransformerAbstract` class-string as the property's declared *default* —
+never a runtime value. The transformer's fields come from the same
+attribute + `transform()` composition as above; the envelope is the
+`DataArraySerializer` shape. A method that **reassigns**
+`$entity_transformer` in its body degrades with a generation-log note (the
+default is no longer the honest answer), as does a matched call without a
+usable default; `#[FractalResponse]` always wins where declared. A
+reassignment hidden inside a *called* helper is invisible to the bounded
+scan — following calls is Tier-2 dataflow — so the property default is
+documented; annotate such actions with `#[FractalResponse]`. The two
+method names are a fixed whitelist — there is no configurable convention
+knob.
+
 Lint rules:
 
 | Rule | Level |
@@ -375,10 +461,14 @@ Lint rules:
 | `fractal.response-unbound` | 2 |
 | `fractal.include-transformer-missing` | 2 |
 
+`fractal.fields-undeclared` stays quiet when the transformer's `transform()`
+literal is readable and yields fields — the schema is not empty then.
+
 > [!NOTE]
 > `fractal.response-unbound` is opt-in. The `fractal()` helper and
-> `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies, and
-> the generator does not read method bodies.
+> `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies in
+> shapes the generator does not read (only the `$entity_transformer`
+> convention above is matched).
 
 ## SwaggerPhp
 

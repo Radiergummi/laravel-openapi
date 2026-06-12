@@ -11,6 +11,25 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **Fractal transformer schemas are now inferred from the `transform()` literal** (#13). When a
+  transformer's `transform()` is a single `return [...]` array literal (Tier-1 bounded scan, epic
+  #5), its keys become response properties without any `#[TransformerField]`: `$model->field`
+  values type themselves from the **typed `transform()` parameter**'s Eloquent metadata (Tier-0),
+  `(int)`/`(float)`/`(string)`/`(bool)`/`(array)` casts type the key by the cast (an `(array)`
+  cast documents an array of unconstrained items — `items: {}`), literal
+  scalars/arrays type themselves, and anything else keeps its key as an unconstrained property
+  with one summarising generation-log note per transformer listing the affected key paths,
+  values inside nested literals included. Declared `#[TransformerField]` /
+  `#[TransformerInclude]` attributes win per field; inferred extras compose after them in literal
+  order. Dynamic bodies degrade to the attribute-declared shape (note when that leaves the schema
+  empty), attribute-free `TransformerAbstract` subclasses with a readable literal now resolve as
+  `$ref` targets, and `fractal.fields-undeclared` goes quiet when inference yields fields. On top
+  of that, the InvoiceNinja-style base-controller convention binds transformers without any
+  attribute: a top-level `return $this->itemResponse(…)` / `$this->listResponse(…)` plus a
+  concrete `$entity_transformer` property **default** emits the single / collection
+  `DataArraySerializer` envelope around the transformer's schema — a method that reassigns
+  `$entity_transformer` (or has no usable default) degrades with a note, and `#[FractalResponse]`
+  always wins. See [Plugins → Fractal](docs/plugins.md#fractal).
 - **Constructor `$this->middleware(...)` now survives non-instantiable controllers** (#16). Laravel
   itself resolves controller middleware when routes are gathered — the static
   `HasMiddleware::middleware()` form without instantiation, the classic constructor form by
