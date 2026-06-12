@@ -61,15 +61,19 @@ it('keeps generation alive and notices the degradation instead of crashing', fun
         ->toBeTrue();
 });
 
-it('lets #[PublicEndpoint] win over constructor-derived security', function (): void {
+it('lets #[PublicEndpoint] win over constructor-derived security and suppresses the implicit 401', function (): void {
     Route::get('/oa-fixture/reports/health', [ConstructorMiddlewareFixtureController::class, 'health']);
 
     $spec = generateSpec();
     $operation = $spec['paths']['/oa-fixture/reports/health']['get'];
 
-    // The attribute wins for `security` — same precedence as for route-declared middleware.
-    // (The implicit 401 still follows the middleware list, also matching route-declared behaviour.)
-    expect($operation['security'] ?? [])->toBe([]);
+    // The attribute clears `security` (affirmatively public), so the auth-derived 401 is suppressed
+    // too — the document must not claim an endpoint is public *and* document a 401 (#259). The
+    // throttle-derived 429 is independent of authentication and stays (`health` also carries
+    // `throttle:exports`).
+    expect($operation['security'] ?? [])->toBe([])
+        ->and($operation['responses'])->not->toHaveKey('401')
+        ->and($operation['responses'])->toHaveKey('429');
 });
 
 // endregion

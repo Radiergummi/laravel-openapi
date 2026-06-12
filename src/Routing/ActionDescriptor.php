@@ -43,8 +43,14 @@ final class ActionDescriptor
         get => $this->method ?? $this->closure;
     }
 
+    /**
+     * Pins {@see $httpMethod} to one verb of a multi-verb route; see {@see withHttpMethod()}.
+     * Falls back to the route's first registered verb when null.
+     */
+    private ?HttpMethod $httpMethodOverride = null;
+
     public ?HttpMethod $httpMethod {
-        get => HttpMethod::fromString($this->route->methods[0] ?? '');
+        get => $this->httpMethodOverride ?? HttpMethod::fromString($this->route->methods[0] ?? '');
     }
 
     /**
@@ -71,6 +77,17 @@ final class ActionDescriptor
         public readonly array $throws = [],
         public readonly ?ReflectionFunction $closure = null,
     ) {}
+
+    /**
+     * A copy with {@see $httpMethod} pinned to the given verb.
+     */
+    public function withHttpMethod(HttpMethod $method): self
+    {
+        $clone = clone $this;
+        $clone->httpMethodOverride = $method;
+
+        return $clone;
+    }
 
     /**
      * Instantiate every `$attribute` declared on the action reflector and the controller class,

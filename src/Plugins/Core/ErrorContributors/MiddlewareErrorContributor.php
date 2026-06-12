@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\ErrorContributors;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Override;
+use Radiergummi\OpenApi\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -56,8 +57,19 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
             ),
         );
 
+        // A declared-public operation (#[PublicEndpoint]) clears `security`, so the responses that
+        // mirror it — the auth-derived 401 and the scope-derived 403 — must not be emitted, or the
+        // document would document a 401 on an affirmatively-public endpoint (#259). `can`
+        // (authorization, not part of `security`) and `throttle` (rate limiting) are independent
+        // and stay.
+        $declaredPublic = $this->isDeclaredPublic($descriptor);
+
         foreach (['auth', 'scope', 'can', 'throttle'] as $kind) {
             if (!isset($this->middlewareMap[$kind])) {
+                continue;
+            }
+
+            if ($declaredPublic && ($kind === 'auth' || $kind === 'scope')) {
                 continue;
             }
 
@@ -82,6 +94,17 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
         }
 
         return $descriptors;
+    }
+
+    /**
+     * Whether the operation is declared affirmatively public via {@see PublicEndpoint} on the
+     * action method or its controller — the same detection {@see OperationBuilder::resolveSecurity()}
+     * uses to clear `security`.
+     */
+    private function isDeclaredPublic(ActionDescriptor $descriptor): bool
+    {
+        return $descriptor->actionAttributes(PublicEndpoint::class) !== []
+            || $descriptor->controllerAttributes(PublicEndpoint::class) !== [];
     }
 
     /**

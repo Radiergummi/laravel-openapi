@@ -689,6 +689,24 @@ it('composes a deep mixed path (items.*.address.city) into array-of-object with 
         ->and($address->properties['city']->type)->toBe('string');
 });
 
+it('lets a wildcard key win the type over a conflicting scalar rule on the parent', function (): void {
+    // `a => 'string'` and `a.*.b => 'integer'` conflict: in Laravel `a.*` means `a` is a list, so
+    // the wildcard's array shape wins over the parent's scalar `string` rule (#271). The parent
+    // must not emit `type: string` with `items` grafted on.
+    $result = $this->mapper->process([
+        'a'       => 'string',
+        'a.*.b'   => 'integer',
+    ]);
+
+    $a = $result['fields']['a'];
+
+    expect($a->type)->toBe('array')
+        ->and($a->items)->not->toBeNull()
+        ->and($a->items->type)->toBe('object')
+        ->and($a->items->properties)->toHaveKey('b')
+        ->and($a->items->properties['b']->type)->toBe('integer');
+});
+
 it('merges a parent rule with its nested children on one descriptor', function (): void {
     $result = $this->mapper->process([
         'address'      => 'required',
