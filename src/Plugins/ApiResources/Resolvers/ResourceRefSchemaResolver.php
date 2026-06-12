@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
+use ReflectionException;
 
 use function is_a;
 
@@ -22,6 +23,9 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
         private SchemaFromResource $schemaFromResource,
     ) {}
 
+    /**
+     * @throws ReflectionException
+     */
     public function resolveRef(string $class): ?string
     {
         if (!$this->canResolve($class)) {

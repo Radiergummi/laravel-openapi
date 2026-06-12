@@ -7,23 +7,36 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Support;
 use Closure;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver;
+use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionClass;
 use ReflectionException;
 
+use function array_key_exists;
 use function assert;
 use function class_exists;
+use function implode;
 use function is_a;
+use function sprintf;
 
 /**
- * Builds the `OA\Schema` (type: object) for an Eloquent API Resource from its
- * class-level `#[ResourceField]` attributes and registers it as a component.
+ * Builds the `OA\Schema` (type: object) for an Eloquent API Resource and registers it as a
+ * component. Two sources compose per field: class-level `#[ResourceField]` attributes (always
+ * authoritative for the fields they name) and the Tier-1 `toArray()` literal read by
+ * {@see ResourceToArrayReader} — inferred fields the attributes do not cover follow them in
+ * literal order.
+ *
+ * When neither source yields a field and the resource wraps a resolvable model
+ * ({@see WrappedModelLocator}), {@see buildRef()} references the *model's* component directly —
+ * the passthrough/dynamic fallback of the folded #98 design; no empty `*Resource` component is
+ * created.
  *
  * Nested `JsonResource` field types recurse through {@see build()} directly;
  * other class-string field types resolve via the injected resolver factory — a
@@ -34,25 +47,84 @@ use function is_a;
  * `SchemaFrom*` builder. Invoking the factory at use time lets the container
  * finish constructing both sides first.
  */
-final readonly class SchemaFromResource
+final class SchemaFromResource
 {
+    /**
+     * Memoised passthrough/dynamic fallback decision per resource class (the wrapped model's
+     * qualified ref, or null), so the degradation note fires once per generation run.
+     *
+     * @var array<class-string<JsonResource>, ?string>
+     */
+    private array $wrappedModelRefs = [];
+
     /**
      * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy factory returning the registered ref
      *                                                               resolvers, minus this plugin's own.
      */
     public function __construct(
-        private ComponentSchemaRegistry $registry,
-        private Closure $refSchemaResolvers,
+        private readonly ComponentSchemaRegistry $registry,
+        private readonly Closure $refSchemaResolvers,
+        private readonly ResourceToArrayReader $toArrayReader,
+        private readonly WrappedModelLocator $wrappedModelLocator,
+        private readonly EloquentModelToSchema $modelToSchema,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
-     * Registers the resource and returns its qualified `$ref` string.
+     * Registers the resource (or, for the passthrough/dynamic fallback, the model it wraps)
+     * and returns the qualified `$ref` string.
      *
      * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
      */
     public function buildRef(string $resourceClass): string
     {
-        return $this->registry->qualifyKey($this->build($resourceClass));
+        return $this->wrappedModelRef($resourceClass)
+            ?? $this->registry->qualifyKey($this->build($resourceClass));
+    }
+
+    /**
+     * The wrapped model's component ref when the resource yields no fields of its own — no
+     * `#[ResourceField]` attributes and no readable `toArray()` literal (a passthrough resource,
+     * or a dynamic body that degrades here with a note). Composition is fallback-only by design:
+     * a resource that declares or infers any field is authoritative, the model is ignored.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function wrappedModelRef(string $resourceClass): ?string
+    {
+        if (array_key_exists($resourceClass, $this->wrappedModelRefs)) {
+            return $this->wrappedModelRefs[$resourceClass];
+        }
+
+        if (
+            $this->declaredFields(new ReflectionClass($resourceClass)) !== []
+            || $this->toArrayReader->read($resourceClass) !== null
+        ) {
+            return $this->wrappedModelRefs[$resourceClass] = null;
+        }
+
+        $modelClass = $this->wrappedModelLocator->locate($resourceClass);
+
+        if ($modelClass === null) {
+            return $this->wrappedModelRefs[$resourceClass] = null;
+        }
+
+        if ($this->toArrayReader->overridesToArray($resourceClass)) {
+            $this->logger->notice(sprintf(
+                'toArray() of %s is not a single statically-readable return-array literal; '
+                . 'documenting the wrapped model schema (%s) instead. '
+                . 'Declare #[ResourceField] attributes to document the actual shape.',
+                $resourceClass,
+                $modelClass,
+            ));
+        }
+
+        return $this->wrappedModelRefs[$resourceClass]
+            = $this->registry->qualifyKey($this->modelToSchema->build($modelClass));
     }
 
     /**
@@ -80,13 +152,71 @@ final readonly class SchemaFromResource
         /** @var list<string> $required */
         $required = [];
 
-        foreach ($reflection->getAttributes(ResourceField::class) as $attribute) {
-            $field = $attribute->newInstance();
+        /** @var array<string, true> $seenNames */
+        $seenNames = [];
+
+        foreach ($this->declaredFields($reflection) as $field) {
+            if (isset($seenNames[$field->name])) {
+                continue;
+            }
+
+            $seenNames[$field->name] = true;
             $properties[] = $this->buildProperty($field);
 
             if (!$field->conditional) {
                 $required[] = $field->name;
             }
+        }
+
+        $inferred = $this->toArrayReader->read($resourceClass);
+
+        if ($inferred !== null) {
+            /** @var list<string> $unconstrainedKeys */
+            $unconstrainedKeys = [];
+
+            foreach ($inferred->fields as $field) {
+                // A #[ResourceField] wins per field; a duplicate literal key keeps its first read.
+                if (isset($seenNames[$field->name])) {
+                    continue;
+                }
+
+                $seenNames[$field->name] = true;
+                $properties[] = $this->propertyFromInferredField($field);
+
+                if ($field->required) {
+                    $required[] = $field->name;
+                }
+
+                if ($field->unconstrained) {
+                    $unconstrainedKeys[] = $field->name;
+                }
+            }
+
+            if ($unconstrainedKeys !== []) {
+                $this->logger->notice(sprintf(
+                    'toArray() of %s has keys whose values could not be statically typed (%s); '
+                    . 'they are documented as unconstrained properties. '
+                    . 'Declare a #[ResourceField] for each to document its type.',
+                    $resourceClass,
+                    implode(', ', $unconstrainedKeys),
+                ));
+            }
+
+            if ($inferred->hasUnreadableMergePayload) {
+                $this->logger->notice(sprintf(
+                    'A merge()/mergeWhen() payload in %s::toArray() is not a literal array; '
+                    . 'its keys are not documented. #[ResourceField] is the escape hatch.',
+                    $resourceClass,
+                ));
+            }
+        } elseif ($seenNames === [] && $this->toArrayReader->overridesToArray($resourceClass)) {
+            // The wrapped-model fallback did not apply (buildRef would have short-circuited),
+            // so a dynamic body with no declared fields leaves a genuinely empty schema.
+            $this->logger->notice(sprintf(
+                'toArray() of %s is not a single statically-readable return-array literal and no '
+                . '#[ResourceField] or wrapped model (@mixin) is available; the response schema stays empty.',
+                $resourceClass,
+            ));
         }
 
         $props = ['type' => 'object', 'properties' => $properties];
@@ -110,6 +240,53 @@ final readonly class SchemaFromResource
         return new OA\Schema($props);
     }
 
+    /**
+     * @param ReflectionClass<JsonResource> $reflection
+     *
+     * @return list<ResourceField>
+     */
+    private function declaredFields(ReflectionClass $reflection): array
+    {
+        $fields = [];
+
+        foreach ($reflection->getAttributes(ResourceField::class) as $attribute) {
+            $fields[] = $attribute->newInstance();
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Converts an inferred field into its `OA\Property`: nested-resource references resolve to
+     * a `$ref` here (array-wrapped for `::collection()` values) — recursion into the nested
+     * resource's own schema is cycle-guarded by the component registry.
+     *
+     * @throws ReflectionException
+     */
+    private function propertyFromInferredField(InferredResourceField $field): OA\Property
+    {
+        if ($field->resourceClass !== null) {
+            $ref = $this->buildRef($field->resourceClass);
+
+            if ($field->isCollection) {
+                return new OA\Property([
+                    'property' => $field->name,
+                    'type' => 'array',
+                    'items' => new OA\Items(['ref' => $ref]),
+                ]);
+            }
+
+            return FieldReferenceProperty::build($field->name, description: null, ref: $ref);
+        }
+
+        assert($field->property !== null);
+
+        return $field->property;
+    }
+
+    /**
+     * @throws ReflectionException
+     */
     private function buildProperty(ResourceField $field): OA\Property
     {
         $type = $field->type;
@@ -143,6 +320,8 @@ final readonly class SchemaFromResource
 
     /**
      * @param class-string $class
+     *
+     * @throws ReflectionException
      */
     private function resolveClassRef(string $class): ?string
     {

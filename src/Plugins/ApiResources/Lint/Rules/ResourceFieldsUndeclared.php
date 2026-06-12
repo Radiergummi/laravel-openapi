@@ -13,22 +13,30 @@ use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceToArrayReader;
+use Radiergummi\OpenApi\Plugins\ApiResources\Support\WrappedModelLocator;
 use ReflectionClass;
+use ReflectionException;
 
 use function sprintf;
 
 /**
- * Flags an operation whose resource response class declares no `#[ResourceField]` — the response
- * shape is unknown, yielding an empty schema.
+ * Flags an operation whose resource response class declares no `#[ResourceField]` — and whose
+ * shape the generator cannot infer either (no readable `toArray()` literal, no wrapped model) —
+ * so the response schema is genuinely empty.
  */
 final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
 {
     public function __construct(
         private ResourceTargetLocator $locator,
+        private ResourceToArrayReader $toArrayReader,
+        private WrappedModelLocator $wrappedModelLocator,
     ) {}
 
     /**
      * @return iterable<Finding>
+     *
+     * @throws ReflectionException
      */
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
@@ -57,6 +65,20 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
             return;
         }
 
+        // Mirror the schema builder: a readable toArray() literal with fields, or the
+        // wrapped-model fallback (passthrough/dynamic body + resolvable model), produces a
+        // non-empty schema — "the response schema is empty" would be untrue.
+        /** @var class-string<JsonResource> $resourceClass */
+        $inferred = $this->toArrayReader->read($resourceClass);
+
+        if ($inferred !== null && $inferred->fields !== []) {
+            return;
+        }
+
+        if ($inferred === null && $this->wrappedModelLocator->locate($resourceClass) !== null) {
+            return;
+        }
+
         yield new Finding(
             ruleId: $this->id(),
             level: $this->level(),
@@ -66,7 +88,8 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
                 $operation->pathUri,
                 $resourceClass,
             ),
-            fixHint: 'Declare each output key with a class-level #[ResourceField] on the resource.',
+            fixHint: 'Declare each output key with a class-level #[ResourceField] on the resource, '
+                . 'or add an @mixin model annotation the generator can resolve fields against.',
         );
     }
 
@@ -85,6 +108,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
     #[Override]
     public function description(): string
     {
-        return 'An API Resource used as a response declares no #[ResourceField] attributes.';
+        return 'An API Resource used as a response declares no #[ResourceField] attributes '
+            . 'and its shape cannot be inferred from toArray() or a wrapped model.';
     }
 }
