@@ -289,15 +289,6 @@ final class ConstructorMiddlewareScanner
         return false;
     }
 
-    private function literal(Node\Expr $expression): mixed
-    {
-        try {
-            return AstLiteralEvaluator::evaluate($expression);
-        } catch (NonLiteralValueException) {
-            return null;
-        }
-    }
-
     /**
      * Normalises a literal value to a list of strings: a string becomes a one-element list
      * (Laravel `Arr::wrap()`s scoping arguments the same way); an array qualifies when every
@@ -326,5 +317,14 @@ final class ConstructorMiddlewareScanner
         }
 
         return $strings;
+    }
+
+    private function literal(Node\Expr $expression): mixed
+    {
+        try {
+            return AstLiteralEvaluator::evaluate($expression);
+        } catch (NonLiteralValueException) {
+            return null;
+        }
     }
 }

@@ -82,39 +82,6 @@ final readonly class StatementNodeFinder
     }
 
     /**
-     * Returns every node (in source order) matching the predicate.
-     *
-     * @param list<Stmt>          $statements
-     * @param Closure(Node): bool $predicate
-     *
-     * @return list<Node>
-     */
-    public function findAll(array $statements, ConditionalContextPolicy $policy, Closure $predicate): array
-    {
-        if ($policy === ConditionalContextPolicy::IncludeConditionalContexts) {
-            return array_values($this->nodeFinder->find($statements, $predicate));
-        }
-
-        $found = [];
-
-        foreach ($statements as $statement) {
-            $expression = match (true) {
-                $statement instanceof Expression => $statement->expr,
-                $statement instanceof Return_ => $statement->expr,
-                default => null,
-            };
-
-            if ($expression === null) {
-                continue;
-            }
-
-            $this->collectUnconditional($expression, $predicate, $found);
-        }
-
-        return $found;
-    }
-
-    /**
      * Depth-first search that refuses to enter nodes opening a conditional context.
      *
      * @param Closure(Node): bool $predicate
@@ -150,6 +117,58 @@ final readonly class StatementNodeFinder
     }
 
     /**
+     * Whether evaluating (parts of) this node depends on a runtime condition. The node is
+     * skipped wholesale — even its unconditionally-evaluated parts (a ternary's condition, a
+     * short-circuit's left operand) — matching there would document bizarre code.
+     */
+    private function opensConditionalContext(Node $node): bool
+    {
+        return $node instanceof ClosureExpression
+            || $node instanceof ArrowFunction
+            || $node instanceof Ternary
+            || $node instanceof Match_
+            || $node instanceof BooleanAnd
+            || $node instanceof BooleanOr
+            || $node instanceof LogicalAnd
+            || $node instanceof LogicalOr
+            || $node instanceof Coalesce
+            || $node instanceof CoalesceAssignment;
+    }
+
+    /**
+     * Returns every node (in source order) matching the predicate.
+     *
+     * @param list<Stmt>          $statements
+     * @param Closure(Node): bool $predicate
+     *
+     * @return list<Node>
+     */
+    public function findAll(array $statements, ConditionalContextPolicy $policy, Closure $predicate): array
+    {
+        if ($policy === ConditionalContextPolicy::IncludeConditionalContexts) {
+            return array_values($this->nodeFinder->find($statements, $predicate));
+        }
+
+        $found = [];
+
+        foreach ($statements as $statement) {
+            $expression = match (true) {
+                $statement instanceof Expression => $statement->expr,
+                $statement instanceof Return_ => $statement->expr,
+                default => null,
+            };
+
+            if ($expression === null) {
+                continue;
+            }
+
+            $this->collectUnconditional($expression, $predicate, $found);
+        }
+
+        return $found;
+    }
+
+    /**
      * Depth-first collector mirroring {@see findFirstUnconditional}, accumulating every match
      * instead of short-circuiting on the first.
      *
@@ -176,24 +195,5 @@ final readonly class StatementNodeFinder
                 }
             }
         }
-    }
-
-    /**
-     * Whether evaluating (parts of) this node depends on a runtime condition. The node is
-     * skipped wholesale — even its unconditionally-evaluated parts (a ternary's condition, a
-     * short-circuit's left operand) — matching there would document bizarre code.
-     */
-    private function opensConditionalContext(Node $node): bool
-    {
-        return $node instanceof ClosureExpression
-            || $node instanceof ArrowFunction
-            || $node instanceof Ternary
-            || $node instanceof Match_
-            || $node instanceof BooleanAnd
-            || $node instanceof BooleanOr
-            || $node instanceof LogicalAnd
-            || $node instanceof LogicalOr
-            || $node instanceof Coalesce
-            || $node instanceof CoalesceAssignment;
     }
 }

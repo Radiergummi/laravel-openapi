@@ -114,17 +114,35 @@ final class SchemaFromResource
         }
 
         if ($this->toArrayReader->overridesToArray($resourceClass)) {
-            $this->logger->notice(sprintf(
-                'toArray() of %s is not a single statically-readable return-array literal; '
-                . 'documenting the wrapped model schema (%s) instead. '
-                . 'Declare #[ResourceField] attributes to document the actual shape.',
-                $resourceClass,
-                $modelClass,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'toArray() of %s is not a single statically-readable return-array literal; '
+                    . 'documenting the wrapped model schema (%s) instead. '
+                    . 'Declare #[ResourceField] attributes to document the actual shape.',
+                    $resourceClass,
+                    $modelClass,
+                ),
+            );
         }
 
         return $this->wrappedModelRefs[$resourceClass]
             = $this->registry->qualifyKey($this->modelToSchema->build($modelClass));
+    }
+
+    /**
+     * @param ReflectionClass<JsonResource> $reflection
+     *
+     * @return list<ResourceField>
+     */
+    private function declaredFields(ReflectionClass $reflection): array
+    {
+        $fields = [];
+
+        foreach ($reflection->getAttributes(ResourceField::class) as $attribute) {
+            $fields[] = $attribute->newInstance();
+        }
+
+        return $fields;
     }
 
     /**
@@ -193,30 +211,36 @@ final class SchemaFromResource
             }
 
             if ($unconstrainedKeys !== []) {
-                $this->logger->notice(sprintf(
-                    'toArray() of %s has keys whose values could not be statically typed (%s); '
-                    . 'they are documented as unconstrained properties. '
-                    . 'Declare a #[ResourceField] for each to document its type.',
-                    $resourceClass,
-                    implode(', ', $unconstrainedKeys),
-                ));
+                $this->logger->notice(
+                    sprintf(
+                        'toArray() of %s has keys whose values could not be statically typed (%s); '
+                        . 'they are documented as unconstrained properties. '
+                        . 'Declare a #[ResourceField] for each to document its type.',
+                        $resourceClass,
+                        implode(', ', $unconstrainedKeys),
+                    ),
+                );
             }
 
             if ($inferred->hasUnreadableMergePayload) {
-                $this->logger->notice(sprintf(
-                    'A merge()/mergeWhen() payload in %s::toArray() is not a literal array; '
-                    . 'its keys are not documented. #[ResourceField] is the escape hatch.',
-                    $resourceClass,
-                ));
+                $this->logger->notice(
+                    sprintf(
+                        'A merge()/mergeWhen() payload in %s::toArray() is not a literal array; '
+                        . 'its keys are not documented. #[ResourceField] is the escape hatch.',
+                        $resourceClass,
+                    ),
+                );
             }
         } elseif ($seenNames === [] && $this->toArrayReader->overridesToArray($resourceClass)) {
             // The wrapped-model fallback did not apply (buildRef would have short-circuited),
             // so a dynamic body with no declared fields leaves a genuinely empty schema.
-            $this->logger->notice(sprintf(
-                'toArray() of %s is not a single statically-readable return-array literal and no '
-                . '#[ResourceField] or wrapped model (@mixin) is available; the response schema stays empty.',
-                $resourceClass,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'toArray() of %s is not a single statically-readable return-array literal and no '
+                    . '#[ResourceField] or wrapped model (@mixin) is available; the response schema stays empty.',
+                    $resourceClass,
+                ),
+            );
         }
 
         $props = ['type' => 'object', 'properties' => $properties];
@@ -238,50 +262,6 @@ final class SchemaFromResource
         }
 
         return new OA\Schema($props);
-    }
-
-    /**
-     * @param ReflectionClass<JsonResource> $reflection
-     *
-     * @return list<ResourceField>
-     */
-    private function declaredFields(ReflectionClass $reflection): array
-    {
-        $fields = [];
-
-        foreach ($reflection->getAttributes(ResourceField::class) as $attribute) {
-            $fields[] = $attribute->newInstance();
-        }
-
-        return $fields;
-    }
-
-    /**
-     * Converts an inferred field into its `OA\Property`: nested-resource references resolve to
-     * a `$ref` here (array-wrapped for `::collection()` values) — recursion into the nested
-     * resource's own schema is cycle-guarded by the component registry.
-     *
-     * @throws ReflectionException
-     */
-    private function propertyFromInferredField(InferredResourceField $field): OA\Property
-    {
-        if ($field->resourceClass !== null) {
-            $ref = $this->buildRef($field->resourceClass);
-
-            if ($field->isCollection) {
-                return new OA\Property([
-                    'property' => $field->name,
-                    'type' => 'array',
-                    'items' => new OA\Items(['ref' => $ref]),
-                ]);
-            }
-
-            return FieldReferenceProperty::build($field->name, description: null, ref: $ref);
-        }
-
-        assert($field->property !== null);
-
-        return $field->property;
     }
 
     /**
@@ -339,6 +319,34 @@ final class SchemaFromResource
         }
 
         return null;
+    }
+
+    /**
+     * Converts an inferred field into its `OA\Property`: nested-resource references resolve to
+     * a `$ref` here (array-wrapped for `::collection()` values) — recursion into the nested
+     * resource's own schema is cycle-guarded by the component registry.
+     *
+     * @throws ReflectionException
+     */
+    private function propertyFromInferredField(InferredResourceField $field): OA\Property
+    {
+        if ($field->resourceClass !== null) {
+            $ref = $this->buildRef($field->resourceClass);
+
+            if ($field->isCollection) {
+                return new OA\Property([
+                    'property' => $field->name,
+                    'type' => 'array',
+                    'items' => new OA\Items(['ref' => $ref]),
+                ]);
+            }
+
+            return FieldReferenceProperty::build($field->name, description: null, ref: $ref);
+        }
+
+        assert($field->property !== null);
+
+        return $field->property;
     }
 
     /**

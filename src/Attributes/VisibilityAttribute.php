@@ -29,10 +29,12 @@ abstract readonly class VisibilityAttribute
         public ?array $except = null,
     ) {
         if ($only !== null && $except !== null) {
-            throw new LogicException(sprintf(
-                '#[%s] cannot use both `only` and `except` — they are mutually exclusive.',
-                (new ReflectionClass($this))->getShortName(),
-            ));
+            throw new LogicException(
+                sprintf(
+                    '#[%s] cannot use both `only` and `except` — they are mutually exclusive.',
+                    (new ReflectionClass($this))->getShortName(),
+                ),
+            );
         }
     }
 

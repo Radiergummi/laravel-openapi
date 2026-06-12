@@ -42,17 +42,14 @@ final class ActionDescriptor
     public ?ReflectionFunctionAbstract $actionReflector {
         get => $this->method ?? $this->closure;
     }
-
+    public ?HttpMethod $httpMethod {
+        get => $this->httpMethodOverride ?? HttpMethod::fromString($this->route->methods[0] ?? '');
+    }
     /**
      * Pins {@see $httpMethod} to one verb of a multi-verb route; see {@see withHttpMethod()}.
      * Falls back to the route's first registered verb when null.
      */
     private ?HttpMethod $httpMethodOverride = null;
-
-    public ?HttpMethod $httpMethod {
-        get => $this->httpMethodOverride ?? HttpMethod::fromString($this->route->methods[0] ?? '');
-    }
-
     /**
      * Buckets of `ReflectionAttribute`s keyed by attribute FQCN. Built lazily on first access via
      * a single `getAttributes()` call per reflector — every caller that asks for a specific
@@ -113,31 +110,6 @@ final class ActionDescriptor
         }
 
         return $instances;
-    }
-
-    /**
-     * Whether the action (or its controller class) declares any attribute whose class implements
-     * the given interface. Lets a resolver detect an authoring marker — e.g.
-     * `PrimaryResponseAuthoringAttribute` — without knowing the concrete attribute classes, which
-     * may live in plugins it must not depend on.
-     *
-     * @param class-string $interface
-     */
-    public function declaresAttributeImplementing(string $interface): bool
-    {
-        foreach ([$this->actionReflector, $this->controller] as $reflector) {
-            if ($reflector === null) {
-                continue;
-            }
-
-            foreach (array_keys($this->bucketFor($reflector)) as $attributeClass) {
-                if (is_a($attributeClass, $interface, true)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -204,6 +176,31 @@ final class ActionDescriptor
         $attributes = $this->bucketFor($this->controller)[$attribute] ?? [];
 
         return $attributes;
+    }
+
+    /**
+     * Whether the action (or its controller class) declares any attribute whose class implements
+     * the given interface. Lets a resolver detect an authoring marker — e.g.
+     * `PrimaryResponseAuthoringAttribute` — without knowing the concrete attribute classes, which
+     * may live in plugins it must not depend on.
+     *
+     * @param class-string $interface
+     */
+    public function declaresAttributeImplementing(string $interface): bool
+    {
+        foreach ([$this->actionReflector, $this->controller] as $reflector) {
+            if ($reflector === null) {
+                continue;
+            }
+
+            foreach (array_keys($this->bucketFor($reflector)) as $attributeClass) {
+                if (is_a($attributeClass, $interface, true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

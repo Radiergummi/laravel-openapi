@@ -41,8 +41,11 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
      *
      * @throws LogicException when a non-empty candidate is passed (operation-level fold not implemented)
      */
-    public function subsumes(OA\AbstractAnnotation $inferred, OA\AbstractAnnotation $authored, array $candidate = []): bool
-    {
+    public function subsumes(
+        OA\AbstractAnnotation $inferred,
+        OA\AbstractAnnotation $authored,
+        array $candidate = [],
+    ): bool {
         if ($candidate !== []) {
             throw new LogicException(
                 'Operation-level candidate-replacement is not implemented; #122 part 2 must fold the candidate '

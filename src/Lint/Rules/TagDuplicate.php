@@ -72,17 +72,6 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function fixer(): Fixer
-    {
-        return new RemoveAttributeFixer(
-            attribute: Tag::class,
-            member: MemberKind::Method,
-            mode: RemoveMode::Dedupe,
-            discriminator: self::tagName(...),
-        );
-    }
-
     private static function tagName(object $attr): ?string
     {
         if (!$attr instanceof Tag) {
@@ -109,6 +98,17 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
         // always valid — a repeated #[Tag] is a redundant source attribute that changes nothing in
         // the output. Level 3 (Inconsistent), alongside the other no-op-attribute removal rules.
         return 3;
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: Tag::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: self::tagName(...),
+        );
     }
 
     #[Override]

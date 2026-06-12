@@ -40,21 +40,25 @@ final readonly class FormatTargetParser
             [$formatName, $targetToken] = $this->split($token);
 
             $format = LinterOutputFormat::tryFrom($formatName)
-                ?? throw new InvalidArgumentException(sprintf(
-                    'Invalid format: %s. Allowed values are: %s.',
-                    $formatName,
-                    implode(', ', array_column(LinterOutputFormat::cases(), 'value')),
-                ));
+                ?? throw new InvalidArgumentException(
+                    sprintf(
+                        'Invalid format: %s. Allowed values are: %s.',
+                        $formatName,
+                        implode(', ', array_column(LinterOutputFormat::cases(), 'value')),
+                    ),
+                );
 
             $target = OutputTarget::fromToken($targetToken);
             $destination = $target->label();
 
             if (isset($seen[$destination])) {
-                throw new InvalidArgumentException(sprintf(
-                    'Cannot write two formats to %s; give each a distinct target, '
-                    . 'e.g. --format=cobertura:coverage.xml.',
-                    $destination,
-                ));
+                throw new InvalidArgumentException(
+                    sprintf(
+                        'Cannot write two formats to %s; give each a distinct target, '
+                        . 'e.g. --format=cobertura:coverage.xml.',
+                        $destination,
+                    ),
+                );
             }
 
             $seen[$destination] = true;

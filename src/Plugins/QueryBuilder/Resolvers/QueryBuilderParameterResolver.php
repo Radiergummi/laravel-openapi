@@ -60,8 +60,8 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
         $scan = $this->scanChain(
             $descriptor,
             everyKindAttributed: $filterAttributes !== []
-                && $sortAttributes !== []
-                && $includeAttributes !== [],
+            && $sortAttributes !== []
+            && $includeAttributes !== [],
         );
 
         $parameters = [];
@@ -124,21 +124,25 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
         $actionName = sprintf('%s::%s', $method->getDeclaringClass()->getName(), $method->getName());
 
         if ($scan->isEmpty() && $scan->builderDetected && $scan->allowedCallDetected) {
-            $this->logger->notice(sprintf(
-                'The QueryBuilder chain in %s could not be read statically; no query parameters '
-                . 'inferred. Only a single-expression QueryBuilder::for(...) chain with literal '
-                . 'allow-lists is readable — annotate the action with #[AllowedFilter] / '
-                . '#[AllowedSort] / #[AllowedInclude] to document the parameters.',
-                $actionName,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'The QueryBuilder chain in %s could not be read statically; no query parameters '
+                    . 'inferred. Only a single-expression QueryBuilder::for(...) chain with literal '
+                    . 'allow-lists is readable — annotate the action with #[AllowedFilter] / '
+                    . '#[AllowedSort] / #[AllowedInclude] to document the parameters.',
+                    $actionName,
+                ),
+            );
         } elseif ($scan->unreadableCalls !== []) {
-            $this->logger->notice(sprintf(
-                'The QueryBuilder chain in %s: %s element(s) that are not statically readable '
-                . 'were dropped; the remaining literal names are documented. Annotate the action '
-                . 'with #[AllowedFilter] / #[AllowedSort] / #[AllowedInclude] to document the rest.',
-                $actionName,
-                implode(', ', $scan->unreadableCalls),
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'The QueryBuilder chain in %s: %s element(s) that are not statically readable '
+                    . 'were dropped; the remaining literal names are documented. Annotate the action '
+                    . 'with #[AllowedFilter] / #[AllowedSort] / #[AllowedInclude] to document the rest.',
+                    $actionName,
+                    implode(', ', $scan->unreadableCalls),
+                ),
+            );
         }
 
         return $scan;

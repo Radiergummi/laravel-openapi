@@ -33,30 +33,23 @@ use function in_array;
 final class OpenApiRegistry
 {
     /**
-     * Whether {@see seal()} has been called. Once true, every `addX()` method throws.
-     */
-    private bool $sealed = false;
-    /**
      * All registered request schema resolvers.
      *
      * @var list<class-string<RequestSchemaResolver>>
      */
     public private(set) array $requestSchemaResolvers = [];
-
     /**
      * All registered ref schema resolvers.
      *
      * @var list<class-string<RefSchemaResolver>>
      */
     public private(set) array $refSchemaResolvers = [];
-
     /**
      * All registered query parameter resolvers.
      *
      * @var list<class-string<QueryParameterResolver>>
      */
     public private(set) array $queryParameterResolvers = [];
-
     /**
      * All registered primary response resolvers.
      *
@@ -66,7 +59,6 @@ final class OpenApiRegistry
      * @var list<class-string<PrimaryResponseResolver>>
      */
     public private(set) array $primaryResponseResolvers = [];
-
     /**
      * All registered operation convention resolvers.
      *
@@ -77,7 +69,6 @@ final class OpenApiRegistry
      * @var list<class-string<OperationConventionResolver>>
      */
     public private(set) array $operationConventionResolvers = [];
-
     /**
      * All registered payload classes.
      *
@@ -88,7 +79,6 @@ final class OpenApiRegistry
      * @var list<class-string>
      */
     public private(set) array $payloadClasses = [];
-
     /**
      * All registered error response resolvers.
      *
@@ -97,27 +87,28 @@ final class OpenApiRegistry
      * @var list<class-string<ErrorResponseResolver>>
      */
     public private(set) array $errorResponseResolvers = [];
-
     /**
      * All registered error response contributors.
      *
      * @var list<class-string<ErrorResponseContributor>>
      */
     public private(set) array $errorResponseContributors = [];
-
     /**
      * All registered lint rules.
      *
      * @var list<class-string<Rule>>
      */
     public private(set) array $rules = [];
-
     /**
      * All registered spec stages.
      *
      * @var list<class-string<SpecStage>>
      */
     public private(set) array $stages = [];
+    /**
+     * Whether {@see seal()} has been called. Once true, every `addX()` method throws.
+     */
+    private bool $sealed = false;
 
     /**
      * Add a request schema resolver to the registry.
@@ -130,6 +121,24 @@ final class OpenApiRegistry
 
         if (!in_array($class, $this->requestSchemaResolvers, strict: true)) {
             $this->requestSchemaResolvers[] = $class;
+        }
+    }
+
+    /**
+     * Throws when the registry has been sealed.
+     *
+     * @throws RegistrySealedException
+     *
+     * @internal
+     */
+    private function guardSealed(): void
+    {
+        if ($this->sealed) {
+            throw new RegistrySealedException(
+                'The OpenApiRegistry is sealed and no longer accepts registrations. Register '
+                . 'stages, resolvers, and rules from a Plugin listed in config(\'openapi.plugins\') '
+                . '— the factory closure is the only window in which the registry accepts writes.',
+            );
         }
     }
 
@@ -275,23 +284,5 @@ final class OpenApiRegistry
     public function seal(): void
     {
         $this->sealed = true;
-    }
-
-    /**
-     * Throws when the registry has been sealed.
-     *
-     * @throws RegistrySealedException
-     *
-     * @internal
-     */
-    private function guardSealed(): void
-    {
-        if ($this->sealed) {
-            throw new RegistrySealedException(
-                'The OpenApiRegistry is sealed and no longer accepts registrations. Register '
-                . 'stages, resolvers, and rules from a Plugin listed in config(\'openapi.plugins\') '
-                . '— the factory closure is the only window in which the registry accepts writes.',
-            );
-        }
     }
 }

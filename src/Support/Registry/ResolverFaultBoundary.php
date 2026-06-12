@@ -44,12 +44,14 @@ final readonly class ResolverFaultBoundary
         try {
             return $resolve();
         } catch (Exception $exception) {
-            $this->logger->warning(sprintf(
-                '%s failed for route %s: %s',
-                $resolver,
-                $action->route->uri(),
-                $exception->getMessage(),
-            ));
+            $this->logger->warning(
+                sprintf(
+                    '%s failed for route %s: %s',
+                    $resolver,
+                    $action->route->uri(),
+                    $exception->getMessage(),
+                ),
+            );
 
             return null;
         }

@@ -85,7 +85,8 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
 
         // Removing a schema another surviving authored annotation still references by name would
         // dangle that reference.
-        $isLoadBearing = fn(): bool => is_defined($authored->schema)
+        $isLoadBearing = fn(): bool
+            => is_defined($authored->schema)
             && $this->scanner->isSchemaReferencedByOtherAuthored((string) $authored->schema, $class);
 
         $finding = $this->engine->evaluate(
@@ -116,6 +117,20 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     }
 
     #[Override]
+    public function id(): string
+    {
+        return 'migration.oa-redundant-with-inference';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        // A redundant annotation is a cleanup opportunity, not a spec defect — the generated
+        // document is correct with or without it.
+        return 4;
+    }
+
+    #[Override]
     public function fixer(): Fixer
     {
         return new RedundantOaAnnotationFixer();
@@ -131,20 +146,6 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     public function excludedStages(): array
     {
         return [HarvestAuthoredAnnotationsStage::class];
-    }
-
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-redundant-with-inference';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        // A redundant annotation is a cleanup opportunity, not a spec defect — the generated
-        // document is correct with or without it.
-        return 4;
     }
 
     #[Override]

@@ -174,112 +174,6 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Walks a dotted/wildcard path into the intermediate {@see RuleTreeNode} tree, creating or
-     * reusing nodes so sibling paths (`address.city` + `address.zip`) merge onto shared parents.
-     *
-     * @param array<string, RuleTreeNode> $children the current object level (by reference)
-     * @param list<string>                $segments remaining path segments
-     * @param array<int, mixed>|string    $rules    the path's raw rule list
-     */
-    private function insertPath(array &$children, array $segments, string|array $rules): void
-    {
-        $segment = array_shift($segments);
-
-        if ($segment === null || $segment === '*') {
-            return;
-        }
-
-        $node = $children[$segment] ??= new RuleTreeNode();
-
-        if ($segments === []) {
-            $node->ownRules = array_merge($node->ownRules, $this->normalizeRules($rules));
-
-            return;
-        }
-
-        if ($segments[0] === '*') {
-            // `$segment` is an array; descend into its element node.
-            array_shift($segments);
-            $node->items ??= new RuleTreeNode();
-
-            if ($segments === []) {
-                // `foo.*` — the element itself carries these rules.
-                $node->items->ownRules = array_merge(
-                    $node->items->ownRules,
-                    $this->normalizeRules($rules),
-                );
-
-                return;
-            }
-
-            // `foo.*.bar…` — the element is an object; recurse into its children.
-            $this->insertPath($node->items->children, $segments, $rules);
-
-            return;
-        }
-
-        // Plain nested object — recurse into this node's children.
-        $this->insertPath($node->children, $segments, $rules);
-    }
-
-    /**
-     * Converts an intermediate {@see RuleTreeNode} into a {@see FieldDescriptor}, recursing into
-     * nested object properties and array elements. A node with children is an `object`; a node
-     * with a wildcard element is an `array`. The wildcard element is authoritative about the
-     * type: `a.*` means `a` is a list, so it overrides a conflicting scalar rule on the same key
-     * (`'a' => 'string'`) rather than leaving `items` grafted onto a scalar type (#271).
-     */
-    private function nodeToDescriptor(RuleTreeNode $node, string $name, ?string $sourceClass): FieldDescriptor
-    {
-        $descriptor = $this->mapRules($node->ownRules, $name, $sourceClass);
-
-        if ($node->children !== []) {
-            $descriptor->type ??= 'object';
-
-            $properties = [];
-
-            foreach ($node->children as $childName => $childNode) {
-                $properties[$childName] = $this->nodeToDescriptor($childNode, $childName, $sourceClass);
-            }
-
-            $descriptor->properties = $properties;
-        }
-
-        if ($node->items !== null) {
-            $descriptor->type = 'array';
-            $descriptor->items = $this->nodeToDescriptor($node->items, $name, $sourceClass);
-        }
-
-        return $descriptor;
-    }
-
-    /**
-     * @param array<int, mixed>|string $rules
-     *
-     * @return list<object|string>
-     */
-    private function normalizeRules(string|array $rules): array
-    {
-        if (is_string($rules)) {
-            return explode('|', $rules);
-        }
-
-        $out = [];
-
-        foreach ($rules as $rule) {
-            if (is_string($rule) && str_contains($rule, '|')) {
-                foreach (explode('|', $rule) as $part) {
-                    $out[] = $part;
-                }
-            } else {
-                $out[] = $rule;
-            }
-        }
-
-        return $out;
-    }
-
-    /**
      * Maps a normalized list of rules to a single {@see FieldDescriptor}.
      *
      * Two-pass design: quantifier rules (`min`, `max`, `between`, `size`) are deferred until every
@@ -1193,5 +1087,111 @@ final readonly class ValidationRulesToSchema
             $field->minLength = $size;
             $field->maxLength = $size;
         }
+    }
+
+    /**
+     * @param array<int, mixed>|string $rules
+     *
+     * @return list<object|string>
+     */
+    private function normalizeRules(string|array $rules): array
+    {
+        if (is_string($rules)) {
+            return explode('|', $rules);
+        }
+
+        $out = [];
+
+        foreach ($rules as $rule) {
+            if (is_string($rule) && str_contains($rule, '|')) {
+                foreach (explode('|', $rule) as $part) {
+                    $out[] = $part;
+                }
+            } else {
+                $out[] = $rule;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Walks a dotted/wildcard path into the intermediate {@see RuleTreeNode} tree, creating or
+     * reusing nodes so sibling paths (`address.city` + `address.zip`) merge onto shared parents.
+     *
+     * @param array<string, RuleTreeNode> $children the current object level (by reference)
+     * @param list<string>                $segments remaining path segments
+     * @param array<int, mixed>|string    $rules    the path's raw rule list
+     */
+    private function insertPath(array &$children, array $segments, string|array $rules): void
+    {
+        $segment = array_shift($segments);
+
+        if ($segment === null || $segment === '*') {
+            return;
+        }
+
+        $node = $children[$segment] ??= new RuleTreeNode();
+
+        if ($segments === []) {
+            $node->ownRules = array_merge($node->ownRules, $this->normalizeRules($rules));
+
+            return;
+        }
+
+        if ($segments[0] === '*') {
+            // `$segment` is an array; descend into its element node.
+            array_shift($segments);
+            $node->items ??= new RuleTreeNode();
+
+            if ($segments === []) {
+                // `foo.*` — the element itself carries these rules.
+                $node->items->ownRules = array_merge(
+                    $node->items->ownRules,
+                    $this->normalizeRules($rules),
+                );
+
+                return;
+            }
+
+            // `foo.*.bar…` — the element is an object; recurse into its children.
+            $this->insertPath($node->items->children, $segments, $rules);
+
+            return;
+        }
+
+        // Plain nested object — recurse into this node's children.
+        $this->insertPath($node->children, $segments, $rules);
+    }
+
+    /**
+     * Converts an intermediate {@see RuleTreeNode} into a {@see FieldDescriptor}, recursing into
+     * nested object properties and array elements. A node with children is an `object`; a node
+     * with a wildcard element is an `array`. The wildcard element is authoritative about the
+     * type: `a.*` means `a` is a list, so it overrides a conflicting scalar rule on the same key
+     * (`'a' => 'string'`) rather than leaving `items` grafted onto a scalar type (#271).
+     */
+    private function nodeToDescriptor(RuleTreeNode $node, string $name, ?string $sourceClass): FieldDescriptor
+    {
+        $descriptor = $this->mapRules($node->ownRules, $name, $sourceClass);
+
+        if ($node->children !== []) {
+            $descriptor->type ??= 'object';
+
+            $properties = [];
+
+            foreach ($node->children as $childName => $childNode) {
+                $properties[$childName] = $this->nodeToDescriptor($childNode, $childName, $sourceClass);
+            }
+
+            $descriptor->properties = $properties;
+        }
+
+        if ($node->items !== null) {
+            $descriptor->type = 'array';
+            $descriptor->items = $this->nodeToDescriptor($node->items, $name, $sourceClass);
+        }
+
+        return $descriptor;
     }
 }

@@ -90,8 +90,13 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
      *
      * @return list<Fix>
      */
-    private function removeAttributes(array $groups, string $description, Finding $finding, string $file, FixContext $context): array
-    {
+    private function removeAttributes(
+        array $groups,
+        string $description,
+        Finding $finding,
+        string $file,
+        FixContext $context,
+    ): array {
         $source = $context->source($file);
         $fixes = [];
 

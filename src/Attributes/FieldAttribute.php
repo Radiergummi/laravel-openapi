@@ -31,23 +31,38 @@ use function sprintf;
  */
 abstract readonly class FieldAttribute
 {
+    /** @var null|array<int, BackedEnum|int|string>|FieldDefault */
+    public array|FieldDefault|null $enum;
+
     /**
      * @param null|non-empty-string                                                        $title
      * @param null|non-empty-string                                                        $description
      * @param null|class-string|OpenApiPrimitiveType                                       $type
      * @param null|non-empty-string                                                        $format
      * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        A list of
-     *                                                                                                  allowed values, or a backed-enum
-     *                                                                                                  class-string resolved to its cases.
+     *                                                                                                  allowed values,
+     *                                                                                                  or a
+     *                                                                                                  backed-enum
+     *                                                                                                  class-string
+     *                                                                                                  resolved to its
+     *                                                                                                  cases.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param bool                                                                         $conditional When true, the field is kept in
-     *                                                                                                  `properties` but removed from `required`
-     *                                                                                                  — used by response fields emitted via
-     *                                                                                                  `$this->when()` / `$this->whenLoaded()`.
+     * @param bool                                                                         $conditional When true, the
+     *                                                                                                  field is kept
+     *                                                                                                  in
+     *                                                                                                  `properties`
+     *                                                                                                  but removed
+     *                                                                                                  from `required`
+     *                                                                                                  — used by
+     *                                                                                                  response fields
+     *                                                                                                  emitted via
+     *                                                                                                  `$this->when()`
+     *                                                                                                  /
+     *                                                                                                  `$this->whenLoaded()`.
      *
      * @throws InvalidArgumentException When `$enum` is a string that is not a backed-enum class-string.
      */
@@ -80,10 +95,12 @@ abstract readonly class FieldAttribute
         // (descriptor, lint rules) sees a uniform value list rather than a bare class name.
         if (is_string($enum)) {
             if (!is_a($enum, BackedEnum::class, true)) {
-                throw new InvalidArgumentException(sprintf(
-                    'enum: expects an array of values or a backed-enum class-string, got "%s".',
-                    $enum,
-                ));
+                throw new InvalidArgumentException(
+                    sprintf(
+                        'enum: expects an array of values or a backed-enum class-string, got "%s".',
+                        $enum,
+                    ),
+                );
             }
 
             $this->enum = $enum::cases();
@@ -91,9 +108,6 @@ abstract readonly class FieldAttribute
             $this->enum = $enum;
         }
     }
-
-    /** @var null|array<int, BackedEnum|int|string>|FieldDefault */
-    public array|FieldDefault|null $enum;
 
     /**
      * Returns the explicit `example:` argument, or `null` when the author did not pass one.

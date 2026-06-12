@@ -136,11 +136,13 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             // An `@OA\Response(ref="#/components/responses/X")` points at a response component this
             // stage does not harvest; merging it verbatim would emit a dangling `$ref`. Skip + log.
             if (is_defined($authoredResponse->ref)) {
-                $this->logger->warning(sprintf(
-                    'SwaggerPhp harvester: authored response "%s" is a $ref to a response component, '
-                    . 'which is not harvested; skipping.',
-                    (string) $authoredResponse->response,
-                ));
+                $this->logger->warning(
+                    sprintf(
+                        'SwaggerPhp harvester: authored response "%s" is a $ref to a response component, '
+                        . 'which is not harvested; skipping.',
+                        (string) $authoredResponse->response,
+                    ),
+                );
 
                 continue;
             }
@@ -187,49 +189,17 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Attaches an authored schema as the operation's success body when the typed return resolves to
-     * one. The schema fills the existing primary 2xx response (e.g. a convention `201 Created`) when
-     * that response has no body yet; only when there is no success response at all is a `200` added,
-     * so the operation never ends up with two success codes.
+     * @return array<string, OA\Response>
      */
-    private function applyReturnTypeSchema(
-        OA\Operation $operation,
-        ActionDescriptor $action,
-    ): void {
-        $returnClass = $this->singleReturnClass($action);
+    private function responsesByStatus(OA\Operation $operation): array
+    {
+        $byStatus = [];
 
-        if ($returnClass === null) {
-            return;
+        foreach (is_array($operation->responses) ? $operation->responses : [] as $response) {
+            $byStatus[(string) $response->response] = $response;
         }
 
-        $schema = $this->scanner->schemaForClass($returnClass);
-
-        if ($schema === null || !is_defined($schema->schema)) {
-            return;
-        }
-
-        $primary = $this->primarySuccessResponse($operation);
-
-        if ($primary !== null && is_array($primary->content) && $primary->content !== []) {
-            return;
-        }
-
-        $this->registerSchema($schema);
-
-        $content = [
-            MediaType::Json->schema(new OA\Schema(['ref' => ComponentReference::pointer($schema->schema)])),
-        ];
-
-        if ($primary !== null) {
-            $primary->content = $content;
-
-            return;
-        }
-
-        $operation->responses = [
-            ...is_array($operation->responses) ? $operation->responses : [],
-            new OA\Response(['response' => '200', 'description' => 'OK', 'content' => $content]),
-        ];
+        return $byStatus;
     }
 
     /**
@@ -246,10 +216,12 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             $schema = $this->scanner->schemaForName($name);
 
             if ($schema === null) {
-                $this->logger->warning(sprintf(
-                    'SwaggerPhp harvester: authored response references unknown schema "%s"; skipping.',
-                    $name,
-                ));
+                $this->logger->warning(
+                    sprintf(
+                        'SwaggerPhp harvester: authored response references unknown schema "%s"; skipping.',
+                        $name,
+                    ),
+                );
 
                 return null;
             }
@@ -258,129 +230,6 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         }
 
         return $schemas;
-    }
-
-    /**
-     * Registers an authored schema into the shared {@see ComponentSchemaRegistry} under its authored
-     * name, then recurses into the schemas it references. The registry's name-keyed idempotency
-     * provides O(1) dedup and doubles as the cycle guard; the post-plugin `ComponentsStage` flush
-     * writes the accumulated schemas into the document.
-     *
-     * When the authored name is already held by a *different* schema — a convention-derived
-     * component, or another authored schema — the registry is first-wins, so the authored
-     * definition is dropped and references to that name resolve to the existing schema. That
-     * collision is reported (a warning plus a `component.schema-name-collision` finding) rather than
-     * shadowing the spec silently. An identical re-registration of the same schema object (the
-     * transitive dedup path) is not a collision.
-     */
-    private function registerSchema(OA\Schema $schema): void
-    {
-        if (!is_defined($schema->schema)) {
-            return;
-        }
-
-        $name = $schema->schema;
-
-        $existing = $this->schemaRegistry->schemaForKey($name);
-
-        if ($existing !== null) {
-            if ($existing !== $schema) {
-                $this->reportSchemaNameCollision($name, $schema);
-            }
-
-            return;
-        }
-
-        $this->schemaRegistry->registerNamed($name, $schema);
-
-        foreach ($this->collectRefNames($schema) as $referenced) {
-            $nested = $this->scanner->schemaForName($referenced);
-
-            if ($nested === null) {
-                $this->logger->warning(sprintf(
-                    'SwaggerPhp harvester: schema "%s" references unknown schema "%s".',
-                    $name,
-                    $referenced,
-                ));
-
-                continue;
-            }
-
-            $this->registerSchema($nested);
-        }
-    }
-
-    /**
-     * Warns and emits a `component.schema-name-collision` finding when an authored schema's name is
-     * already held by a different component. The finding carries the authored declaring class (so a
-     * class-scoped `#[IgnoreLint]` can match) and the colliding name.
-     */
-    private function reportSchemaNameCollision(string $name, OA\Schema $authored): void
-    {
-        $message = sprintf(
-            'SwaggerPhp harvester: authored schema "%s" collides with a component already registered '
-            . 'under that name; keeping the existing component and dropping the authored definition.',
-            $name,
-        );
-
-        $this->logger->warning($message);
-
-        $context = [SchemaNameCollision::CONTEXT_SCHEMA => $name];
-        $declaringClass = $this->scanner->declaringClassOf($authored);
-
-        if ($declaringClass !== null) {
-            $context[Finding::CONTEXT_SOURCE_CLASS] = $declaringClass;
-        }
-
-        $this->findings->emit(new Finding(
-            ruleId: SchemaNameCollision::ID,
-            level: SchemaNameCollision::LEVEL,
-            message: $message,
-            fixHint: SchemaNameCollision::FIX_HINT,
-            context: $context,
-        ));
-    }
-
-    /**
-     * @return array<string, OA\Response>
-     */
-    private function responsesByStatus(OA\Operation $operation): array
-    {
-        $byStatus = [];
-
-        foreach (is_array($operation->responses) ? $operation->responses : [] as $response) {
-            $byStatus[(string) $response->response] = $response;
-        }
-
-        return $byStatus;
-    }
-
-    /**
-     * The operation's primary success response — the first declared `2xx` — or null when it
-     * declares none yet.
-     */
-    private function primarySuccessResponse(OA\Operation $operation): ?OA\Response
-    {
-        foreach (is_array($operation->responses) ? $operation->responses : [] as $response) {
-            $status = (int) (string) $response->response;
-
-            if ($status >= 200 && $status < 300) {
-                return $response;
-            }
-        }
-
-        return null;
-    }
-
-    private function singleReturnClass(ActionDescriptor $action): ?string
-    {
-        $returnType = $action->actionReflector?->getReturnType();
-
-        if (!$returnType instanceof ReflectionNamedType || $returnType->isBuiltin()) {
-            return null;
-        }
-
-        return $returnType->getName();
     }
 
     /**
@@ -450,5 +299,164 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     private function refName(string $ref): ?string
     {
         return ComponentReference::name($ref);
+    }
+
+    /**
+     * Registers an authored schema into the shared {@see ComponentSchemaRegistry} under its authored
+     * name, then recurses into the schemas it references. The registry's name-keyed idempotency
+     * provides O(1) dedup and doubles as the cycle guard; the post-plugin `ComponentsStage` flush
+     * writes the accumulated schemas into the document.
+     *
+     * When the authored name is already held by a *different* schema — a convention-derived
+     * component, or another authored schema — the registry is first-wins, so the authored
+     * definition is dropped and references to that name resolve to the existing schema. That
+     * collision is reported (a warning plus a `component.schema-name-collision` finding) rather than
+     * shadowing the spec silently. An identical re-registration of the same schema object (the
+     * transitive dedup path) is not a collision.
+     */
+    private function registerSchema(OA\Schema $schema): void
+    {
+        if (!is_defined($schema->schema)) {
+            return;
+        }
+
+        $name = $schema->schema;
+
+        $existing = $this->schemaRegistry->schemaForKey($name);
+
+        if ($existing !== null) {
+            if ($existing !== $schema) {
+                $this->reportSchemaNameCollision($name, $schema);
+            }
+
+            return;
+        }
+
+        $this->schemaRegistry->registerNamed($name, $schema);
+
+        foreach ($this->collectRefNames($schema) as $referenced) {
+            $nested = $this->scanner->schemaForName($referenced);
+
+            if ($nested === null) {
+                $this->logger->warning(
+                    sprintf(
+                        'SwaggerPhp harvester: schema "%s" references unknown schema "%s".',
+                        $name,
+                        $referenced,
+                    ),
+                );
+
+                continue;
+            }
+
+            $this->registerSchema($nested);
+        }
+    }
+
+    /**
+     * Warns and emits a `component.schema-name-collision` finding when an authored schema's name is
+     * already held by a different component. The finding carries the authored declaring class (so a
+     * class-scoped `#[IgnoreLint]` can match) and the colliding name.
+     */
+    private function reportSchemaNameCollision(string $name, OA\Schema $authored): void
+    {
+        $message = sprintf(
+            'SwaggerPhp harvester: authored schema "%s" collides with a component already registered '
+            . 'under that name; keeping the existing component and dropping the authored definition.',
+            $name,
+        );
+
+        $this->logger->warning($message);
+
+        $context = [SchemaNameCollision::CONTEXT_SCHEMA => $name];
+        $declaringClass = $this->scanner->declaringClassOf($authored);
+
+        if ($declaringClass !== null) {
+            $context[Finding::CONTEXT_SOURCE_CLASS] = $declaringClass;
+        }
+
+        $this->findings->emit(
+            new Finding(
+                ruleId: SchemaNameCollision::ID,
+                level: SchemaNameCollision::LEVEL,
+                message: $message,
+                fixHint: SchemaNameCollision::FIX_HINT,
+                context: $context,
+            ),
+        );
+    }
+
+    /**
+     * Attaches an authored schema as the operation's success body when the typed return resolves to
+     * one. The schema fills the existing primary 2xx response (e.g. a convention `201 Created`) when
+     * that response has no body yet; only when there is no success response at all is a `200` added,
+     * so the operation never ends up with two success codes.
+     */
+    private function applyReturnTypeSchema(
+        OA\Operation $operation,
+        ActionDescriptor $action,
+    ): void {
+        $returnClass = $this->singleReturnClass($action);
+
+        if ($returnClass === null) {
+            return;
+        }
+
+        $schema = $this->scanner->schemaForClass($returnClass);
+
+        if ($schema === null || !is_defined($schema->schema)) {
+            return;
+        }
+
+        $primary = $this->primarySuccessResponse($operation);
+
+        if ($primary !== null && is_array($primary->content) && $primary->content !== []) {
+            return;
+        }
+
+        $this->registerSchema($schema);
+
+        $content = [
+            MediaType::Json->schema(new OA\Schema(['ref' => ComponentReference::pointer($schema->schema)])),
+        ];
+
+        if ($primary !== null) {
+            $primary->content = $content;
+
+            return;
+        }
+
+        $operation->responses = [
+            ...is_array($operation->responses) ? $operation->responses : [],
+            new OA\Response(['response' => '200', 'description' => 'OK', 'content' => $content]),
+        ];
+    }
+
+    private function singleReturnClass(ActionDescriptor $action): ?string
+    {
+        $returnType = $action->actionReflector?->getReturnType();
+
+        if (!$returnType instanceof ReflectionNamedType || $returnType->isBuiltin()) {
+            return null;
+        }
+
+        return $returnType->getName();
+    }
+
+    /**
+     * The operation's primary success response — the first declared `2xx` — or null when it
+     * declares none yet.
+     */
+    private function primarySuccessResponse(OA\Operation $operation): ?OA\Response
+    {
+        foreach (is_array($operation->responses) ? $operation->responses : [] as $response) {
+            $status = (int) (string) $response->response;
+
+            if ($status >= 200 && $status < 300) {
+                return $response;
+            }
+        }
+
+        return null;
     }
 }

@@ -120,18 +120,22 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         // The degrade note obeys the same verb discipline as the reads: on a body-carrying
         // verb a non-literal input()/string()/integer()/boolean() name is a body read, not an
         // undocumented query parameter — only query() notes on every verb.
-        $unreadableAccessors = array_values(array_filter(
-            $scan->unreadableAccessors,
-            static fn(string $accessor): bool => $bodylessVerb || $accessor === 'query',
-        ));
+        $unreadableAccessors = array_values(
+            array_filter(
+                $scan->unreadableAccessors,
+                static fn(string $accessor): bool => $bodylessVerb || $accessor === 'query',
+            ),
+        );
 
         if ($unreadableAccessors !== []) {
-            $this->logger->notice(sprintf(
-                'Request accessor read(s) in %s (%s) have a non-literal parameter name; those query '
-                . 'parameters are not documented. Annotate the action with #[QueryParam] to document them.',
-                $this->actionName($method),
-                implode(', ', array_unique($unreadableAccessors)),
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Request accessor read(s) in %s (%s) have a non-literal parameter name; those query '
+                    . 'parameters are not documented. Annotate the action with #[QueryParam] to document them.',
+                    $this->actionName($method),
+                    implode(', ', array_unique($unreadableAccessors)),
+                ),
+            );
         }
 
         /** @var array<string, OA\Parameter> $parameters */
@@ -153,6 +157,25 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     // endregion
 
     // region GET inline-validate hand-off
+
+    private function actionName(ReflectionMethod $method): string
+    {
+        return sprintf('%s::%s', $method->getDeclaringClass()->getName(), $method->getName());
+    }
+
+    private function parameter(string $name, OA\Schema $schema, bool $required): OA\Parameter
+    {
+        return new OA\Parameter([
+            'name' => $name,
+            'in' => 'query',
+            'required' => $required,
+            'schema' => $schema,
+        ]);
+    }
+
+    // endregion
+
+    // region #[QueryParam] attributes
 
     /**
      * @return array<string, OA\Parameter>
@@ -178,33 +201,39 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
             // DELETE sits between the verb gates by design: the body scan covers
             // POST/PUT/PATCH, the hand-off covers GET/HEAD, and on DELETE the validated
             // fields may legitimately live in either place — refusing to guess, but saying so.
-            $this->logger->notice(sprintf(
-                'Inline validation in %s is not documented: a DELETE route may carry the validated '
-                . 'fields in either the request body or the query string. Annotate the action with '
-                . '#[QueryParam] or #[RequestBody] to document them.',
-                $actionName,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Inline validation in %s is not documented: a DELETE route may carry the validated '
+                    . 'fields in either the request body or the query string. Annotate the action with '
+                    . '#[QueryParam] or #[RequestBody] to document them.',
+                    $actionName,
+                ),
+            );
 
             return [];
         }
 
         if ($scan->rules === null) {
-            $this->logger->notice(sprintf(
-                'Inline validation in %s could not be read statically (%s); no query parameters '
-                . 'inferred. Annotate the action with #[QueryParam] to document them.',
-                $actionName,
-                $scan->degradeReason,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Inline validation in %s could not be read statically (%s); no query parameters '
+                    . 'inferred. Annotate the action with #[QueryParam] to document them.',
+                    $actionName,
+                    $scan->degradeReason,
+                ),
+            );
 
             return [];
         }
 
         if ($scan->skippedFields !== []) {
-            $this->logger->notice(sprintf(
-                'Inline validation in %s: dropped field(s) %s — their rules are not statically readable.',
-                $actionName,
-                implode(', ', $scan->skippedFields),
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Inline validation in %s: dropped field(s) %s — their rules are not statically readable.',
+                    $actionName,
+                    implode(', ', $scan->skippedFields),
+                ),
+            );
         }
 
         $mapped = $this->rulesMapper->process(
@@ -235,16 +264,20 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         }
 
         if ($droppedKeys !== []) {
-            $this->logger->notice(sprintf(
-                'Inline validation in %s: rule key(s) %s cannot be expressed as query parameters; '
-                . 'dropped. Annotate the action with #[QueryParam] to document them.',
-                $actionName,
-                implode(', ', $droppedKeys),
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Inline validation in %s: rule key(s) %s cannot be expressed as query parameters; '
+                    . 'dropped. Annotate the action with #[QueryParam] to document them.',
+                    $actionName,
+                    implode(', ', $droppedKeys),
+                ),
+            );
         }
 
         return $parameters;
     }
+
+    // endregion
 
     /**
      * Maps one rule field onto query parameters in wire notation. Object children recurse into
@@ -324,10 +357,6 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         );
     }
 
-    // endregion
-
-    // region #[QueryParam] attributes
-
     /**
      * @return array<string, OA\Parameter>
      */
@@ -373,22 +402,5 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         }
 
         return $parameters;
-    }
-
-    // endregion
-
-    private function parameter(string $name, OA\Schema $schema, bool $required): OA\Parameter
-    {
-        return new OA\Parameter([
-            'name' => $name,
-            'in' => 'query',
-            'required' => $required,
-            'schema' => $schema,
-        ]);
-    }
-
-    private function actionName(ReflectionMethod $method): string
-    {
-        return sprintf('%s::%s', $method->getDeclaringClass()->getName(), $method->getName());
     }
 }

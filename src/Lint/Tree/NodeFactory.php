@@ -20,6 +20,41 @@ use function Radiergummi\OpenApi\is_undefined;
  */
 final class NodeFactory
 {
+    /**
+     * Build example nodes from a parameter's `examples` map.
+     *
+     * @return list<ExampleNode>
+     */
+    public static function examplesFromParameter(OA\Parameter $parameter): array
+    {
+        // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
+        return self::examplesFromList($parameter->examples ?? Generator::UNDEFINED);
+    }
+
+    /**
+     * @return list<ExampleNode>
+     */
+    private static function examplesFromList(mixed $examples): array
+    {
+        if (!is_array($examples) || is_undefined($examples)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($examples as $example) {
+            if (is_undefined($example)) {
+                continue;
+            }
+
+            if ($example instanceof OA\Examples) {
+                $result[] = self::exampleNode($example);
+            }
+        }
+
+        return $result;
+    }
+
     public static function exampleNode(OA\Examples $example): ExampleNode
     {
         return new ExampleNode(
@@ -33,17 +68,6 @@ final class NodeFactory
             description: SchemaAccessor::undefinedToNull($example->description),
             raw: $example,
         );
-    }
-
-    /**
-     * Build example nodes from a parameter's `examples` map.
-     *
-     * @return list<ExampleNode>
-     */
-    public static function examplesFromParameter(OA\Parameter $parameter): array
-    {
-        // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
-        return self::examplesFromList($parameter->examples ?? Generator::UNDEFINED);
     }
 
     /**
@@ -99,29 +123,5 @@ final class NodeFactory
             description: SchemaAccessor::undefinedToNull($link->description),
             raw: $link,
         );
-    }
-
-    /**
-     * @return list<ExampleNode>
-     */
-    private static function examplesFromList(mixed $examples): array
-    {
-        if (!is_array($examples) || is_undefined($examples)) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach ($examples as $example) {
-            if (is_undefined($example)) {
-                continue;
-            }
-
-            if ($example instanceof OA\Examples) {
-                $result[] = self::exampleNode($example);
-            }
-        }
-
-        return $result;
     }
 }

@@ -27,8 +27,9 @@ final readonly class QueryParam extends FieldAttribute
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        Allowed values, or a
-     *                                                                                                  backed-enum class-string; renders as a
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        Allowed values,
+     *                                                                                                  or a backed-enum
+     *                                                                                                  class-string; renders as a
      *                                                                                                  dropdown.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength

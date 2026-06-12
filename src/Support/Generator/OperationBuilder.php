@@ -503,6 +503,26 @@ final readonly class OperationBuilder
         return $out;
     }
 
+    /**
+     * Consults registered operation-convention resolvers, first non-null wins.
+     */
+    private function resolveConvention(ActionDescriptor $descriptor): ?OperationConvention
+    {
+        foreach ($this->operationConventionResolvers as $conventionResolver) {
+            $convention = $this->faultBoundary->isolate(
+                $conventionResolver::class,
+                $descriptor,
+                fn(): ?OperationConvention => $conventionResolver->resolve($descriptor),
+            );
+
+            if ($convention !== null) {
+                return $convention;
+            }
+        }
+
+        return null;
+    }
+
     /** @return list<string> */
     private function readTagAttributes(ActionDescriptor $descriptor): array
     {
@@ -658,6 +678,45 @@ final readonly class OperationBuilder
         }
 
         return new OA\ExternalDocumentation($props);
+    }
+
+    /**
+     * Reads and removes the {@see self::EXPLICIT_STATUS_EXTENSION} marker a primary-response
+     * resolver may set to claim it read the status from the controller body. The marker is
+     * transient and must never reach the serialized document, so it is always cleared.
+     */
+    private function takeExplicitStatusMarker(?OA\Response $response): bool
+    {
+        if ($response === null || is_undefined($response->x) || !is_array($response->x)) {
+            return false;
+        }
+
+        $explicit = ($response->x[self::EXPLICIT_STATUS_EXTENSION] ?? null) === true;
+
+        unset($response->x[self::EXPLICIT_STATUS_EXTENSION]);
+
+        if ($response->x === []) {
+            $response->x = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (swagger-php clears via the UNDEFINED sentinel)
+        }
+
+        return $explicit;
+    }
+
+    /**
+     * Returns the primary response carrying the convention-derived status code and reason phrase.
+     * A 204 carries no body by definition, so any resolved content is discarded in favour of a
+     * fresh body-less response.
+     */
+    private function applyConventionStatus(OA\Response $response, int $statusCode): OA\Response
+    {
+        if ($statusCode === 204) {
+            return new OA\Response(['response' => '204', 'description' => 'No Content']);
+        }
+
+        $response->response = (string) $statusCode;
+        $response->description = $statusCode === 201 ? 'Created' : 'OK';
+
+        return $response;
     }
 
     /**
@@ -827,65 +886,6 @@ final readonly class OperationBuilder
         }
 
         $primaryResponse->links = $links;
-    }
-
-    /**
-     * Consults registered operation-convention resolvers, first non-null wins.
-     */
-    private function resolveConvention(ActionDescriptor $descriptor): ?OperationConvention
-    {
-        foreach ($this->operationConventionResolvers as $conventionResolver) {
-            $convention = $this->faultBoundary->isolate(
-                $conventionResolver::class,
-                $descriptor,
-                fn(): ?OperationConvention => $conventionResolver->resolve($descriptor),
-            );
-
-            if ($convention !== null) {
-                return $convention;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Reads and removes the {@see self::EXPLICIT_STATUS_EXTENSION} marker a primary-response
-     * resolver may set to claim it read the status from the controller body. The marker is
-     * transient and must never reach the serialized document, so it is always cleared.
-     */
-    private function takeExplicitStatusMarker(?OA\Response $response): bool
-    {
-        if ($response === null || is_undefined($response->x) || !is_array($response->x)) {
-            return false;
-        }
-
-        $explicit = ($response->x[self::EXPLICIT_STATUS_EXTENSION] ?? null) === true;
-
-        unset($response->x[self::EXPLICIT_STATUS_EXTENSION]);
-
-        if ($response->x === []) {
-            $response->x = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (swagger-php clears via the UNDEFINED sentinel)
-        }
-
-        return $explicit;
-    }
-
-    /**
-     * Returns the primary response carrying the convention-derived status code and reason phrase.
-     * A 204 carries no body by definition, so any resolved content is discarded in favour of a
-     * fresh body-less response.
-     */
-    private function applyConventionStatus(OA\Response $response, int $statusCode): OA\Response
-    {
-        if ($statusCode === 204) {
-            return new OA\Response(['response' => '204', 'description' => 'No Content']);
-        }
-
-        $response->response = (string) $statusCode;
-        $response->description = $statusCode === 201 ? 'Created' : 'OK';
-
-        return $response;
     }
 
     /**

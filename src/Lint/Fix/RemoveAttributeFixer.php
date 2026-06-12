@@ -73,6 +73,21 @@ final readonly class RemoveAttributeFixer implements Fixer
     ) {}
 
     /**
+     * Convenience over {@see contextFor()} for the operation-level removal rules: derives the
+     * controller class and method names from the route's descriptor.
+     *
+     * @return array<string, string>
+     */
+    public static function contextForOperation(?ActionDescriptor $descriptor, ?string $discriminator = null): array
+    {
+        return self::contextFor(
+            $descriptor?->controller?->getName(),
+            $descriptor?->method?->getName(),
+            $discriminator,
+        );
+    }
+
+    /**
      * Build the finding context a {@see FixableRule} must stamp so this fixer can locate the member
      * to edit. Returns an empty array — leaving the finding unfixable — when the class or member
      * isn't known (e.g. the offending construct isn't backed by reflectable source).
@@ -98,21 +113,6 @@ final readonly class RemoveAttributeFixer implements Fixer
         }
 
         return $context;
-    }
-
-    /**
-     * Convenience over {@see contextFor()} for the operation-level removal rules: derives the
-     * controller class and method names from the route's descriptor.
-     *
-     * @return array<string, string>
-     */
-    public static function contextForOperation(?ActionDescriptor $descriptor, ?string $discriminator = null): array
-    {
-        return self::contextFor(
-            $descriptor?->controller?->getName(),
-            $descriptor?->method?->getName(),
-            $discriminator,
-        );
     }
 
     /**
@@ -406,17 +406,6 @@ final readonly class RemoveAttributeFixer implements Fixer
         return new ModifyAttribute($start, $end, '');
     }
 
-    private function indexInGroup(Node\AttributeGroup $group, Attribute $node): ?int
-    {
-        foreach ($group->attrs as $position => $attr) {
-            if ($attr === $node) {
-                return $position;
-            }
-        }
-
-        return null;
-    }
-
     /**
      * Whether the byte span `[$start, $end)` has nothing but whitespace on its own lines either
      * side — i.e. deleting those whole lines disturbs no other code.
@@ -431,5 +420,16 @@ final readonly class RemoveAttributeFixer implements Fixer
 
         return trim(substr($source, $lineStart, $start - $lineStart)) === ''
             && trim(substr($source, $end, $lineEnd - $end)) === '';
+    }
+
+    private function indexInGroup(Node\AttributeGroup $group, Attribute $node): ?int
+    {
+        foreach ($group->attrs as $position => $attr) {
+            if ($attr === $node) {
+                return $position;
+            }
+        }
+
+        return null;
     }
 }

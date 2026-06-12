@@ -109,127 +109,6 @@ final class TypeNodeResolver
     }
 
     /**
-     * Descends through a single nullable wrapper to reach the inner type node:
-     * - `?T` → `T`
-     * - `T|null` → `T` (only when there is exactly one non-null member)
-     * - Anything else → returned unchanged
-     *
-     * Shared by {@see resolveClassName()} and {@see EloquentModelToSchema} so the null-unwrap logic
-     * has a single canonical implementation.
-     */
-    public function unwrapNullable(TypeNode $node): TypeNode
-    {
-        if ($node instanceof NullableTypeNode) {
-            return $node->type;
-        }
-
-        if ($node instanceof UnionTypeNode) {
-            $nonNull = null;
-
-            foreach ($node->types as $member) {
-                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
-                    continue;
-                }
-
-                // Multi-class union, not a simple nullable; return unchanged.
-                if ($nonNull !== null) {
-                    return $node;
-                }
-
-                $nonNull = $member;
-            }
-
-            return $nonNull ?? $node;
-        }
-
-        return $node;
-    }
-
-    /**
-     * The element type node of a type that denotes a JSON list — `list<T>`, `array<int, T>`,
-     * or `T[]` — descending one level only, after unwrapping a leading nullable. Returns null
-     * for map-shaped generics (`array<string, T>`), single-argument `array<T>` (key type
-     * unknown), and every other shape.
-     */
-    public function listValueType(TypeNode $node): ?TypeNode
-    {
-        $inner = $this->unwrapNullable($node);
-
-        if ($inner instanceof ArrayTypeNode) {
-            return $inner->type;
-        }
-
-        if (! $inner instanceof GenericTypeNode) {
-            return null;
-        }
-
-        $name = strtolower($inner->type->name);
-
-        if ($name === 'list' && count($inner->genericTypes) === 1) {
-            return $inner->genericTypes[0];
-        }
-
-        if ($name === 'array' && count($inner->genericTypes) === 2) {
-            $key = $inner->genericTypes[0];
-
-            if ($key instanceof IdentifierTypeNode && in_array(strtolower($key->name), ['int', 'integer'], strict: true)) {
-                return $inner->genericTypes[1];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Returns true when the type node represents a nullable type: a {@see NullableTypeNode}
-     * (`?T`) or a {@see UnionTypeNode} containing a bare `null` identifier (`T|null`).
-     */
-    public function isNullable(TypeNode $node): bool
-    {
-        if ($node instanceof NullableTypeNode) {
-            return true;
-        }
-
-        if (($node instanceof UnionTypeNode) && array_any(
-            $node->types,
-            fn(TypeNode $member)
-                    => $member instanceof IdentifierTypeNode
-                    && strtolower($member->name) === 'null',
-        )) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Resolves the FQCN (no leading backslash) of a type node that denotes a single class,
-     * unwrapping a leading `?` or a `T|null` union first.
-     *
-     * @return null|class-string Null for scalar keywords, generics, arrays, or unresolvable
-     *                           identifiers.
-     */
-    public function resolveClassName(TypeNode $node, Reflector $context): ?string
-    {
-        $inner = $this->unwrapNullable($node);
-
-        // If unwrapNullable returned the same node, it is either:
-        //   (a) a plain IdentifierTypeNode needing no unwrap, handled by the identifier check
-        //       below, or
-        //   (b) a multi-member union that cannot resolve to a single class, the instanceof check
-        //       returns null.
-        if ($inner !== $node) {
-            return $inner instanceof IdentifierTypeNode
-                ? $this->resolveClass($inner, $context)
-                : null;
-        }
-
-        return $node instanceof IdentifierTypeNode
-            ? $this->resolveClass($node, $context)
-            : null;
-    }
-
-    /**
      * @return null|class-string
      */
     private function resolveClass(IdentifierTypeNode $node, Reflector $context): ?string
@@ -314,6 +193,142 @@ final class TypeNodeResolver
     }
 
     /**
+     * @param class-string|string $className
+     *
+     * @return class-string
+     */
+    private function asSpeculativeClassName(string $className): string
+    {
+        /** @var class-string */
+        return ltrim($className, '\\');
+    }
+
+    /**
+     * The element type node of a type that denotes a JSON list — `list<T>`, `array<int, T>`,
+     * or `T[]` — descending one level only, after unwrapping a leading nullable. Returns null
+     * for map-shaped generics (`array<string, T>`), single-argument `array<T>` (key type
+     * unknown), and every other shape.
+     */
+    public function listValueType(TypeNode $node): ?TypeNode
+    {
+        $inner = $this->unwrapNullable($node);
+
+        if ($inner instanceof ArrayTypeNode) {
+            return $inner->type;
+        }
+
+        if (!$inner instanceof GenericTypeNode) {
+            return null;
+        }
+
+        $name = strtolower($inner->type->name);
+
+        if ($name === 'list' && count($inner->genericTypes) === 1) {
+            return $inner->genericTypes[0];
+        }
+
+        if ($name === 'array' && count($inner->genericTypes) === 2) {
+            $key = $inner->genericTypes[0];
+
+            if ($key instanceof IdentifierTypeNode && in_array(
+                strtolower($key->name),
+                ['int', 'integer'],
+                strict: true,
+            )) {
+                return $inner->genericTypes[1];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Descends through a single nullable wrapper to reach the inner type node:
+     * - `?T` → `T`
+     * - `T|null` → `T` (only when there is exactly one non-null member)
+     * - Anything else → returned unchanged
+     *
+     * Shared by {@see resolveClassName()} and {@see EloquentModelToSchema} so the null-unwrap logic
+     * has a single canonical implementation.
+     */
+    public function unwrapNullable(TypeNode $node): TypeNode
+    {
+        if ($node instanceof NullableTypeNode) {
+            return $node->type;
+        }
+
+        if ($node instanceof UnionTypeNode) {
+            $nonNull = null;
+
+            foreach ($node->types as $member) {
+                if ($member instanceof IdentifierTypeNode && strtolower($member->name) === 'null') {
+                    continue;
+                }
+
+                // Multi-class union, not a simple nullable; return unchanged.
+                if ($nonNull !== null) {
+                    return $node;
+                }
+
+                $nonNull = $member;
+            }
+
+            return $nonNull ?? $node;
+        }
+
+        return $node;
+    }
+
+    /**
+     * Returns true when the type node represents a nullable type: a {@see NullableTypeNode}
+     * (`?T`) or a {@see UnionTypeNode} containing a bare `null` identifier (`T|null`).
+     */
+    public function isNullable(TypeNode $node): bool
+    {
+        if ($node instanceof NullableTypeNode) {
+            return true;
+        }
+
+        if (($node instanceof UnionTypeNode) && array_any(
+            $node->types,
+            fn(TypeNode $member)
+                    => $member instanceof IdentifierTypeNode
+                    && strtolower($member->name) === 'null',
+        )) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Resolves the FQCN (no leading backslash) of a type node that denotes a single class,
+     * unwrapping a leading `?` or a `T|null` union first.
+     *
+     * @return null|class-string Null for scalar keywords, generics, arrays, or unresolvable
+     *                           identifiers.
+     */
+    public function resolveClassName(TypeNode $node, Reflector $context): ?string
+    {
+        $inner = $this->unwrapNullable($node);
+
+        // If unwrapNullable returned the same node, it is either:
+        //   (a) a plain IdentifierTypeNode needing no unwrap, handled by the identifier check
+        //       below, or
+        //   (b) a multi-member union that cannot resolve to a single class, the instanceof check
+        //       returns null.
+        if ($inner !== $node) {
+            return $inner instanceof IdentifierTypeNode
+                ? $this->resolveClass($inner, $context)
+                : null;
+        }
+
+        return $node instanceof IdentifierTypeNode
+            ? $this->resolveClass($node, $context)
+            : null;
+    }
+
+    /**
      * FQCNs (no leading backslash) of every class in a (possibly union) `@throws` node, in
      * source order.
      *
@@ -363,16 +378,5 @@ final class TypeNodeResolver
         if ($node instanceof IdentifierTypeNode) {
             yield $node;
         }
-    }
-
-    /**
-     * @param class-string|string $className
-     *
-     * @return class-string
-     */
-    private function asSpeculativeClassName(string $className): string
-    {
-        /** @var class-string */
-        return ltrim($className, '\\');
     }
 }

@@ -38,8 +38,13 @@ final readonly class DocblockAnnotationRemover
      *
      * @return list<Fix>
      */
-    public function removeBlocks(?Doc $doc, string $description, Finding $finding, string $file, FixContext $context): array
-    {
+    public function removeBlocks(
+        ?Doc $doc,
+        string $description,
+        Finding $finding,
+        string $file,
+        FixContext $context,
+    ): array {
         if ($doc === null) {
             return [];
         }

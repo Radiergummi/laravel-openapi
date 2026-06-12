@@ -96,7 +96,10 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
             $seen[$variant->value] = true;
 
             if ($variant->isMalformed()) {
-                $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' must supply exactly one of schema/fields");
+                $this->emit(
+                    $descriptor,
+                    "#[RequestVariant] '{$variant->value}' must supply exactly one of schema/fields",
+                );
 
                 continue;
             }
@@ -105,7 +108,10 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
                 $ref = $this->resolveClassRef($variant->schema);
 
                 if ($ref === null) {
-                    $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' schema '{$variant->schema}' is not resolvable to a component");
+                    $this->emit(
+                        $descriptor,
+                        "#[RequestVariant] '{$variant->value}' schema '{$variant->schema}' is not resolvable to a component",
+                    );
 
                     continue;
                 }
@@ -113,7 +119,10 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
                 $key = $this->branchKey($method, $variant->value);
 
                 if (isset($usedBranchKeys[$key])) {
-                    $this->emit($descriptor, "#[RequestVariant] '{$variant->value}' maps to a component key that collides with another variant or the request-body wrapper; use a value that stays distinct after non-alphanumeric characters are removed");
+                    $this->emit(
+                        $descriptor,
+                        "#[RequestVariant] '{$variant->value}' maps to a component key that collides with another variant or the request-body wrapper; use a value that stays distinct after non-alphanumeric characters are removed",
+                    );
 
                     continue;
                 }
@@ -144,6 +153,61 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         );
     }
 
+    private function readRequestBody(ReflectionMethod $method): ?RequestBody
+    {
+        $attributes = $method->getAttributes(RequestBody::class);
+
+        if ($attributes === []) {
+            return null;
+        }
+
+        /** @var RequestBody $instance */
+        $instance = $attributes[0]->newInstance();
+
+        return $instance;
+    }
+
+    private function emit(ActionDescriptor $descriptor, string $message): void
+    {
+        $this->findings->emit(
+            new Finding(
+                ruleId: 'request.discriminator-malformed',
+                level: 2,
+                message: $message,
+                location: FindingLocation::fromDescriptor($descriptor),
+                fixHint: 'Give each #[RequestVariant] a unique value and exactly one of schema/fields.',
+            ),
+        );
+    }
+
+    private function wrapperKey(ReflectionMethod $method): string
+    {
+        return $method->getDeclaringClass()->getShortName() . ucfirst($method->getName()) . 'RequestBody';
+    }
+
+    /**
+     * Walks the ref-resolver chain and returns the first matching `$ref` string, or null.
+     *
+     * @param class-string $class
+     */
+    private function resolveClassRef(string $class): ?string
+    {
+        foreach (($this->refSchemaResolvers)() as $resolver) {
+            if ($resolver->canResolve($class)) {
+                return $resolver->resolveRef($class);
+            }
+        }
+
+        return null;
+    }
+
+    private function branchKey(ReflectionMethod $method, string $value): string
+    {
+        $suffix = ucfirst((string) preg_replace('/[^A-Za-z0-9]/', '', $value));
+
+        return $method->getDeclaringClass()->getShortName() . ucfirst($method->getName()) . 'Request' . $suffix;
+    }
+
     /**
      * @param non-empty-string $discriminatorProperty
      *
@@ -166,12 +230,15 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         // Auto-inject the discriminator property as a single-value enum string — author override
         // wins, so only inject when the branch does not already declare it.
         if (!$hasDiscriminator) {
-            array_unshift($fields, new RequestField(
-                name: $discriminatorProperty,
-                required: true,
-                type: 'string',
-                enum: [$variant->value],
-            ));
+            array_unshift(
+                $fields,
+                new RequestField(
+                    name: $discriminatorProperty,
+                    required: true,
+                    type: 'string',
+                    enum: [$variant->value],
+                ),
+            );
         }
 
         [$properties, $required] = RequestFieldObjectBuilder::propertiesAndRequired($fields);
@@ -185,58 +252,5 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         $this->registry->registerNamed($key, new OA\Schema($schemaProps));
 
         return $this->registry->qualifyKey($key);
-    }
-
-    /**
-     * Walks the ref-resolver chain and returns the first matching `$ref` string, or null.
-     *
-     * @param class-string $class
-     */
-    private function resolveClassRef(string $class): ?string
-    {
-        foreach (($this->refSchemaResolvers)() as $resolver) {
-            if ($resolver->canResolve($class)) {
-                return $resolver->resolveRef($class);
-            }
-        }
-
-        return null;
-    }
-
-    private function readRequestBody(ReflectionMethod $method): ?RequestBody
-    {
-        $attributes = $method->getAttributes(RequestBody::class);
-
-        if ($attributes === []) {
-            return null;
-        }
-
-        /** @var RequestBody $instance */
-        $instance = $attributes[0]->newInstance();
-
-        return $instance;
-    }
-
-    private function wrapperKey(ReflectionMethod $method): string
-    {
-        return $method->getDeclaringClass()->getShortName() . ucfirst($method->getName()) . 'RequestBody';
-    }
-
-    private function branchKey(ReflectionMethod $method, string $value): string
-    {
-        $suffix = ucfirst((string) preg_replace('/[^A-Za-z0-9]/', '', $value));
-
-        return $method->getDeclaringClass()->getShortName() . ucfirst($method->getName()) . 'Request' . $suffix;
-    }
-
-    private function emit(ActionDescriptor $descriptor, string $message): void
-    {
-        $this->findings->emit(new Finding(
-            ruleId: 'request.discriminator-malformed',
-            level: 2,
-            message: $message,
-            location: FindingLocation::fromDescriptor($descriptor),
-            fixHint: 'Give each #[RequestVariant] a unique value and exactly one of schema/fields.',
-        ));
     }
 }

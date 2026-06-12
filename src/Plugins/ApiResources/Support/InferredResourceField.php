@@ -45,8 +45,19 @@ final readonly class InferredResourceField
     /**
      * @param class-string<JsonResource> $resourceClass
      */
-    public static function ofNestedResource(string $name, bool $required, string $resourceClass, bool $isCollection): self
-    {
-        return new self($name, $required, property: null, resourceClass: $resourceClass, isCollection: $isCollection, unconstrained: false);
+    public static function ofNestedResource(
+        string $name,
+        bool $required,
+        string $resourceClass,
+        bool $isCollection,
+    ): self {
+        return new self(
+            $name,
+            $required,
+            property: null,
+            resourceClass: $resourceClass,
+            isCollection: $isCollection,
+            unconstrained: false,
+        );
     }
 }

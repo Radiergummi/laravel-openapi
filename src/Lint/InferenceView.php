@@ -55,6 +55,14 @@ final readonly class InferenceView
     }
 
     /**
+     * The lookup key: the HTTP method lower-cased, a space, then the URI without a leading slash.
+     */
+    private static function operationKey(string $method, string $uri): string
+    {
+        return strtolower($method) . ' ' . ltrim($uri, '/');
+    }
+
+    /**
      * The inference-only component schema for a source class, or null when inference produced none
      * (the authored annotation is then load-bearing and must be kept).
      *
@@ -71,13 +79,5 @@ final readonly class InferenceView
     public function operationForRoute(string $method, string $uri): ?OA\Operation
     {
         return $this->operationsByKey[self::operationKey($method, $uri)] ?? null;
-    }
-
-    /**
-     * The lookup key: the HTTP method lower-cased, a space, then the URI without a leading slash.
-     */
-    private static function operationKey(string $method, string $uri): string
-    {
-        return strtolower($method) . ' ' . ltrim($uri, '/');
     }
 }

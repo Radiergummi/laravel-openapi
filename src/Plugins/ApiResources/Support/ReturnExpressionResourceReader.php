@@ -215,6 +215,32 @@ final class ReturnExpressionResourceReader
     // region Return-expression location
 
     /**
+     * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
+     * `JsonResource` subclass that is not a `ResourceCollection` (a collection class names no
+     * item resource). The base `JsonResource` and abstract subclasses carry no field shape, so
+     * accepting them would silently document an empty schema where refusing keeps the
+     * `resource.response-ambiguous` signal alive.
+     *
+     * @return null|class-string<JsonResource>
+     */
+    private function concreteResourceClass(?string $candidate): ?string
+    {
+        if (
+            $candidate === null
+            || $candidate === JsonResource::class
+            || !class_exists($candidate)
+            || !is_a($candidate, JsonResource::class, allow_string: true)
+            || is_a($candidate, ResourceCollection::class, allow_string: true)
+            || new ReflectionClass($candidate)->isAbstract()
+        ) {
+            return null;
+        }
+
+        /** @var class-string<JsonResource> $candidate */
+        return $candidate;
+    }
+
+    /**
      * The expression of the method's single unconditional return, or null (with a note) when the
      * scanned region has no top-level return or carries additional returns (conditional or
      * dead-code) — the resource type would be a guess.
@@ -248,6 +274,19 @@ final class ReturnExpressionResourceReader
         return $topLevelReturn->expr;
     }
 
+    private function note(ReflectionMethod $method, string $reason): void
+    {
+        $this->logger->notice(
+            sprintf(
+                'The return expression of %s::%s %s; the concrete resource stays unresolved. '
+                . 'Annotate the action with #[ResponseResource] to document the response.',
+                $method->getDeclaringClass()->getName(),
+                $method->getName(),
+                $reason,
+            ),
+        );
+    }
+
     /**
      * Every return statement belonging to the *method itself* within the scanned statements —
      * returns inside closures, arrow functions, or anonymous classes open their own scope and
@@ -267,6 +306,10 @@ final class ReturnExpressionResourceReader
 
         return $found;
     }
+
+    // endregion
+
+    // region Call-shape matching
 
     /**
      * @param list<Return_> $found
@@ -311,7 +354,8 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        $isAssignmentToVariable = static fn(Node $node): bool => $node instanceof Assign
+        $isAssignmentToVariable = static fn(Node $node): bool
+            => $node instanceof Assign
             && $node->var instanceof Variable
             && $node->var->name === $variableName;
 
@@ -327,10 +371,13 @@ final class ReturnExpressionResourceReader
         );
 
         if (count($allAssignments) !== 1 || count($unconditionalAssignments) !== 1) {
-            $this->note($method, sprintf(
-                'returns $%s, which is not assigned exactly once on the unconditional path',
-                $variableName,
-            ));
+            $this->note(
+                $method,
+                sprintf(
+                    'returns $%s, which is not assigned exactly once on the unconditional path',
+                    $variableName,
+                ),
+            );
 
             return null;
         }
@@ -340,10 +387,6 @@ final class ReturnExpressionResourceReader
 
         return $assignment->expr;
     }
-
-    // endregion
-
-    // region Call-shape matching
 
     /**
      * Matches the return expression against the whitelisted shapes, unwrapping
@@ -375,10 +418,13 @@ final class ReturnExpressionResourceReader
                     return $this->targetFromTransformCall($current, $methodName, $method);
                 }
 
-                $this->note($method, sprintf(
-                    'is chained into ->%s(), which the scan does not recognise',
-                    $current->name->toString(),
-                ));
+                $this->note(
+                    $method,
+                    sprintf(
+                        'is chained into ->%s(), which the scan does not recognise',
+                        $current->name->toString(),
+                    ),
+                );
 
                 return null;
             }
@@ -420,6 +466,36 @@ final class ReturnExpressionResourceReader
         }
 
         return new ResourceTarget($resourceClass, isCollection: false);
+    }
+
+    // endregion
+
+    // region Class & type resolution
+
+    /**
+     * Whether the expression's outermost call is a `paginate()`-family method — the only
+     * evidence that a collection source is paginated. `Model::paginate()` static calls count
+     * alongside builder chains ending in `->paginate(...)`, and paginator-preserving chain
+     * links (`->paginate(...)->withQueryString()`) are looked through.
+     */
+    private function endsInPaginatingCall(Expr $expression): bool
+    {
+        while (
+            $expression instanceof MethodCall
+            && $expression->name instanceof Identifier
+            && in_array($expression->name->toLowerString(), self::PAGINATOR_PRESERVING_CHAIN_METHODS, true)
+        ) {
+            $expression = $expression->var;
+        }
+
+        $name = match (true) {
+            $expression instanceof MethodCall => $expression->name,
+            $expression instanceof StaticCall => $expression->name,
+            default => null,
+        };
+
+        return $name instanceof Identifier
+            && in_array($name->toLowerString(), self::PAGINATING_METHODS, true);
     }
 
     /**
@@ -466,6 +542,37 @@ final class ReturnExpressionResourceReader
     }
 
     /**
+     * The Model subclass a method parameter of the given name is typed with, or null.
+     *
+     * @return null|class-string<Model>
+     */
+    private function parameterModelClass(ReflectionMethod $method, string $parameterName): ?string
+    {
+        foreach ($method->getParameters() as $parameter) {
+            if ($parameter->getName() !== $parameterName) {
+                continue;
+            }
+
+            $type = $parameter->getType();
+
+            if (
+                $type instanceof ReflectionNamedType
+                && !$type->isBuiltin()
+                && is_a($type->getName(), Model::class, allow_string: true)
+            ) {
+                /** @var class-string<Model> $modelClass */
+                $modelClass = $type->getName();
+
+                return $modelClass;
+            }
+
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
      * `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal class argument
      * is decisive. A bare `$model->toResource()` resolves Laravel's conventional resource for a
      * Model-typed parameter receiver; every other receiver would need dataflow and refuses.
@@ -481,10 +588,13 @@ final class ReturnExpressionResourceReader
             $resourceClass = $this->resourceClassFromArgument($arguments[0]->value);
 
             if ($resourceClass === null) {
-                $this->note($method, sprintf(
-                    'passes a non-literal or non-resource class to ->%s()',
-                    $call->name instanceof Identifier ? $call->name->toString() : $methodName,
-                ));
+                $this->note(
+                    $method,
+                    sprintf(
+                        'passes a non-literal or non-resource class to ->%s()',
+                        $call->name instanceof Identifier ? $call->name->toString() : $methodName,
+                    ),
+                );
 
                 return null;
             }
@@ -519,45 +629,18 @@ final class ReturnExpressionResourceReader
         $resourceClass = $this->conventionalResourceFor($modelClass);
 
         if ($resourceClass === null) {
-            $this->note($method, sprintf(
-                'calls ->toResource() on %s, but no conventional resource class could be resolved for it',
-                $modelClass,
-            ));
+            $this->note(
+                $method,
+                sprintf(
+                    'calls ->toResource() on %s, but no conventional resource class could be resolved for it',
+                    $modelClass,
+                ),
+            );
 
             return null;
         }
 
         return new ResourceTarget($resourceClass, isCollection: false);
-    }
-
-    // endregion
-
-    // region Class & type resolution
-
-    /**
-     * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
-     * `JsonResource` subclass that is not a `ResourceCollection` (a collection class names no
-     * item resource). The base `JsonResource` and abstract subclasses carry no field shape, so
-     * accepting them would silently document an empty schema where refusing keeps the
-     * `resource.response-ambiguous` signal alive.
-     *
-     * @return null|class-string<JsonResource>
-     */
-    private function concreteResourceClass(?string $candidate): ?string
-    {
-        if (
-            $candidate === null
-            || $candidate === JsonResource::class
-            || !class_exists($candidate)
-            || !is_a($candidate, JsonResource::class, allow_string: true)
-            || is_a($candidate, ResourceCollection::class, allow_string: true)
-            || new ReflectionClass($candidate)->isAbstract()
-        ) {
-            return null;
-        }
-
-        /** @var class-string<JsonResource> $candidate */
-        return $candidate;
     }
 
     /**
@@ -579,36 +662,7 @@ final class ReturnExpressionResourceReader
         return $this->concreteResourceClass($argument->class->toString());
     }
 
-    /**
-     * The Model subclass a method parameter of the given name is typed with, or null.
-     *
-     * @return null|class-string<Model>
-     */
-    private function parameterModelClass(ReflectionMethod $method, string $parameterName): ?string
-    {
-        foreach ($method->getParameters() as $parameter) {
-            if ($parameter->getName() !== $parameterName) {
-                continue;
-            }
-
-            $type = $parameter->getType();
-
-            if (
-                $type instanceof ReflectionNamedType
-                && !$type->isBuiltin()
-                && is_a($type->getName(), Model::class, allow_string: true)
-            ) {
-                /** @var class-string<Model> $modelClass */
-                $modelClass = $type->getName();
-
-                return $modelClass;
-            }
-
-            return null;
-        }
-
-        return null;
-    }
+    // endregion
 
     /**
      * The resource class a bare `$model->toResource()` serializes through, mirroring Laravel's
@@ -646,44 +700,5 @@ final class ReturnExpressionResourceReader
         }
 
         return null;
-    }
-
-    /**
-     * Whether the expression's outermost call is a `paginate()`-family method — the only
-     * evidence that a collection source is paginated. `Model::paginate()` static calls count
-     * alongside builder chains ending in `->paginate(...)`, and paginator-preserving chain
-     * links (`->paginate(...)->withQueryString()`) are looked through.
-     */
-    private function endsInPaginatingCall(Expr $expression): bool
-    {
-        while (
-            $expression instanceof MethodCall
-            && $expression->name instanceof Identifier
-            && in_array($expression->name->toLowerString(), self::PAGINATOR_PRESERVING_CHAIN_METHODS, true)
-        ) {
-            $expression = $expression->var;
-        }
-
-        $name = match (true) {
-            $expression instanceof MethodCall => $expression->name,
-            $expression instanceof StaticCall => $expression->name,
-            default => null,
-        };
-
-        return $name instanceof Identifier
-            && in_array($name->toLowerString(), self::PAGINATING_METHODS, true);
-    }
-
-    // endregion
-
-    private function note(ReflectionMethod $method, string $reason): void
-    {
-        $this->logger->notice(sprintf(
-            'The return expression of %s::%s %s; the concrete resource stays unresolved. '
-            . 'Annotate the action with #[ResponseResource] to document the response.',
-            $method->getDeclaringClass()->getName(),
-            $method->getName(),
-            $reason,
-        ));
     }
 }

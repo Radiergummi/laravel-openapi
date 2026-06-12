@@ -136,20 +136,24 @@ final readonly class SchemaFromTransformer
             }
 
             if ($unconstrainedPaths !== []) {
-                $this->logger->notice(sprintf(
-                    'transform() of %s has values that could not be statically typed (%s); '
-                    . 'they are documented as unconstrained properties. '
-                    . 'Declare a #[TransformerField] for each to document its type.',
-                    $transformerClass,
-                    implode(', ', $unconstrainedPaths),
-                ));
+                $this->logger->notice(
+                    sprintf(
+                        'transform() of %s has values that could not be statically typed (%s); '
+                        . 'they are documented as unconstrained properties. '
+                        . 'Declare a #[TransformerField] for each to document its type.',
+                        $transformerClass,
+                        implode(', ', $unconstrainedPaths),
+                    ),
+                );
             }
         } elseif ($seenNames === [] && $this->transformReader->declaresTransform($transformerClass)) {
-            $this->logger->notice(sprintf(
-                'transform() of %s is not a single statically-readable return-array literal and '
-                . 'no #[TransformerField] attributes are declared; the response schema stays empty.',
-                $transformerClass,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'transform() of %s is not a single statically-readable return-array literal and '
+                    . 'no #[TransformerField] attributes are declared; the response schema stays empty.',
+                    $transformerClass,
+                ),
+            );
         }
 
         $props = ['type' => 'object', 'properties' => $properties];

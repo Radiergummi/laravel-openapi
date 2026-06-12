@@ -132,30 +132,36 @@ final class RouteMiddlewareGatherer
 
         $this->notedControllers[$controllerClass] = true;
 
-        $this->logger->notice(sprintf(
-            'Controller %s could not be instantiated while gathering route middleware (%s); '
-            . 'falling back to route-declared middleware plus a static scan of the constructor.',
-            $controllerClass,
-            $exception->getMessage(),
-        ));
+        $this->logger->notice(
+            sprintf(
+                'Controller %s could not be instantiated while gathering route middleware (%s); '
+                . 'falling back to route-declared middleware plus a static scan of the constructor.',
+                $controllerClass,
+                $exception->getMessage(),
+            ),
+        );
 
         if ($scan->unreadableCallDetected) {
-            $this->logger->notice(sprintf(
-                'A $this->middleware() registration in %s::__construct() has no statically '
-                . 'readable name or scope; it is not documented. Annotate the affected actions '
-                . 'with #[Security] or #[PublicEndpoint] to document them.',
-                $controllerClass,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'A $this->middleware() registration in %s::__construct() has no statically '
+                    . 'readable name or scope; it is not documented. Annotate the affected actions '
+                    . 'with #[Security] or #[PublicEndpoint] to document them.',
+                    $controllerClass,
+                ),
+            );
         }
 
         if ($scan->conditionalCallDetected) {
-            $this->logger->notice(sprintf(
-                'A $this->middleware() registration in %s::__construct() is conditionally '
-                . 'applied; it is not documented, since documenting conditional middleware as '
-                . 'unconditional would overstate the contract. Annotate the affected actions '
-                . 'with #[Security] to document them.',
-                $controllerClass,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'A $this->middleware() registration in %s::__construct() is conditionally '
+                    . 'applied; it is not documented, since documenting conditional middleware as '
+                    . 'unconditional would overstate the contract. Annotate the affected actions '
+                    . 'with #[Security] to document them.',
+                    $controllerClass,
+                ),
+            );
         }
     }
 }

@@ -74,20 +74,6 @@ final class TransformerTransformReader
     ) {}
 
     /**
-     * Whether the class declares a concrete `transform()` method — the discriminator between
-     * "nothing to read" (silent) and a dynamic body the reader had to refuse (noted by callers).
-     *
-     * @param class-string $transformerClass
-     *
-     * @throws ReflectionException
-     */
-    public function declaresTransform(string $transformerClass): bool
-    {
-        return method_exists($transformerClass, self::TRANSFORM_METHOD)
-            && !new ReflectionMethod($transformerClass, self::TRANSFORM_METHOD)->isAbstract();
-    }
-
-    /**
      * Whether the class extends `league/fractal`'s `TransformerAbstract` — the strong signal
      * callers require before treating an attribute-free class as a transformer.
      */
@@ -159,15 +145,58 @@ final class TransformerTransformReader
         return $fields;
     }
 
+    /**
+     * Whether the class declares a concrete `transform()` method — the discriminator between
+     * "nothing to read" (silent) and a dynamic body the reader had to refuse (noted by callers).
+     *
+     * @param class-string $transformerClass
+     *
+     * @throws ReflectionException
+     */
+    public function declaresTransform(string $transformerClass): bool
+    {
+        return method_exists($transformerClass, self::TRANSFORM_METHOD)
+            && !new ReflectionMethod($transformerClass, self::TRANSFORM_METHOD)->isAbstract();
+    }
+
     // region Value resolution
+
+    /**
+     * The transform() parameter the literal's model fetches resolve against: the first
+     * parameter, when its declared type is a concrete Eloquent model (Tier-0).
+     *
+     * @return array{null|class-string<Model>, null|string}
+     */
+    private function modelParameter(ReflectionMethod $method): array
+    {
+        $parameter = $method->getParameters()[0] ?? null;
+        $type = $parameter?->getType();
+
+        if ($parameter === null || !$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return [null, null];
+        }
+
+        $typeName = $type->getName();
+
+        if (!class_exists($typeName) || !is_a($typeName, Model::class, allow_string: true)) {
+            return [null, null];
+        }
+
+        /** @var class-string<Model> $typeName */
+        return [$typeName, $parameter->getName()];
+    }
 
     /**
      * @param null|class-string<Model> $modelClass
      *
      * @throws ReflectionException
      */
-    private function resolveValue(string $name, Expr $value, ?string $modelClass, ?string $parameterName): InferredTransformerField
-    {
+    private function resolveValue(
+        string $name,
+        Expr $value,
+        ?string $modelClass,
+        ?string $parameterName,
+    ): InferredTransformerField {
         $castType = $this->castType($value);
 
         if ($castType !== null) {
@@ -197,6 +226,65 @@ final class TransformerTransformReader
         }
 
         return $this->unconstrained($name);
+    }
+
+    /**
+     * The JSON type a cast expression guarantees at runtime, regardless of what it wraps —
+     * `(float) $invoice->amount` is a number even when the model metadata says `decimal` string.
+     */
+    private function castType(Expr $value): ?string
+    {
+        return match (true) {
+            $value instanceof Cast\Int_ => 'integer',
+            $value instanceof Cast\Double => 'number',
+            $value instanceof Cast\String_ => 'string',
+            $value instanceof Cast\Bool_ => 'boolean',
+            $value instanceof Cast\Array_ => 'array',
+            default => null,
+        };
+    }
+
+    /**
+     * A `$model->field` fetch on the typed transform() parameter, resolved against the model's
+     * metadata. An unknown field keeps the key as an unconstrained property.
+     *
+     * @param null|class-string<Model> $modelClass
+     *
+     * @throws ReflectionException
+     */
+    private function resolveModelProperty(
+        string $name,
+        Expr $value,
+        ?string $modelClass,
+        ?string $parameterName,
+    ): ?InferredTransformerField {
+        if ($modelClass === null || $parameterName === null) {
+            return null;
+        }
+
+        if (
+            !$value instanceof PropertyFetch
+            || !$value->name instanceof Identifier
+            || !$value->var instanceof Variable
+            || $value->var->name !== $parameterName
+        ) {
+            return null;
+        }
+
+        $property = $this->modelToSchema->propertyFor($modelClass, $value->name->toString());
+
+        if ($property === null) {
+            return $this->unconstrained($name);
+        }
+
+        $property->property = $name;
+
+        return new InferredTransformerField($name, $property);
+    }
+
+    private function unconstrained(string $name): InferredTransformerField
+    {
+        return new InferredTransformerField($name, new OA\Property(['property' => $name]), unconstrainedPaths: [$name]);
     }
 
     /**
@@ -231,86 +319,6 @@ final class TransformerTransformReader
         }
 
         return [...$paths, ...$this->unreadableNestedPaths($items, "{$path}[]")];
-    }
-
-    /**
-     * The JSON type a cast expression guarantees at runtime, regardless of what it wraps —
-     * `(float) $invoice->amount` is a number even when the model metadata says `decimal` string.
-     */
-    private function castType(Expr $value): ?string
-    {
-        return match (true) {
-            $value instanceof Cast\Int_ => 'integer',
-            $value instanceof Cast\Double => 'number',
-            $value instanceof Cast\String_ => 'string',
-            $value instanceof Cast\Bool_ => 'boolean',
-            $value instanceof Cast\Array_ => 'array',
-            default => null,
-        };
-    }
-
-    /**
-     * A `$model->field` fetch on the typed transform() parameter, resolved against the model's
-     * metadata. An unknown field keeps the key as an unconstrained property.
-     *
-     * @param null|class-string<Model> $modelClass
-     *
-     * @throws ReflectionException
-     */
-    private function resolveModelProperty(string $name, Expr $value, ?string $modelClass, ?string $parameterName): ?InferredTransformerField
-    {
-        if ($modelClass === null || $parameterName === null) {
-            return null;
-        }
-
-        if (
-            !$value instanceof PropertyFetch
-            || !$value->name instanceof Identifier
-            || !$value->var instanceof Variable
-            || $value->var->name !== $parameterName
-        ) {
-            return null;
-        }
-
-        $property = $this->modelToSchema->propertyFor($modelClass, $value->name->toString());
-
-        if ($property === null) {
-            return $this->unconstrained($name);
-        }
-
-        $property->property = $name;
-
-        return new InferredTransformerField($name, $property);
-    }
-
-    /**
-     * The transform() parameter the literal's model fetches resolve against: the first
-     * parameter, when its declared type is a concrete Eloquent model (Tier-0).
-     *
-     * @return array{null|class-string<Model>, null|string}
-     */
-    private function modelParameter(ReflectionMethod $method): array
-    {
-        $parameter = $method->getParameters()[0] ?? null;
-        $type = $parameter?->getType();
-
-        if ($parameter === null || !$type instanceof ReflectionNamedType || $type->isBuiltin()) {
-            return [null, null];
-        }
-
-        $typeName = $type->getName();
-
-        if (!class_exists($typeName) || !is_a($typeName, Model::class, allow_string: true)) {
-            return [null, null];
-        }
-
-        /** @var class-string<Model> $typeName */
-        return [$typeName, $parameter->getName()];
-    }
-
-    private function unconstrained(string $name): InferredTransformerField
-    {
-        return new InferredTransformerField($name, new OA\Property(['property' => $name]), unconstrainedPaths: [$name]);
     }
 
     // endregion

@@ -118,6 +118,11 @@ final class CoberturaFormatter implements Formatter
         return $byFile;
     }
 
+    private function rate(int $covered, int $valid): string
+    {
+        return $valid === 0 ? '0' : (string) ($covered / $valid);
+    }
+
     /**
      * @param array<int, bool> $lines
      */
@@ -145,10 +150,5 @@ final class CoberturaFormatter implements Formatter
         $class->appendChild($lineList);
 
         return $class;
-    }
-
-    private function rate(int $covered, int $valid): string
-    {
-        return $valid === 0 ? '0' : (string) ($covered / $valid);
     }
 }

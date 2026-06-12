@@ -77,84 +77,6 @@ final class AuthoredAnnotationScanner
         return $this->schemasByName[$name] ?? null;
     }
 
-    public function schemaForClass(string $class): ?Schema
-    {
-        $this->scan();
-
-        return $this->schemasByClass[ltrim($class, '\\')] ?? null;
-    }
-
-    public function operationForMethod(string $class, string $method): ?Operation
-    {
-        $this->scan();
-
-        $exact = $this->operationsByMethod[$this->methodKey($class, $method)] ?? null;
-
-        if ($exact !== null) {
-            return $exact;
-        }
-
-        // The route points at a subclass while the annotation was indexed under the parent class
-        // or trait that physically declares the method (swagger-php keys by `_context`). Walk the
-        // route controller's ancestry and retry the lookup against each declaring type; first match
-        // wins. The exact-match fast path above means the walk only runs on a genuine miss.
-        foreach ($this->declaringAncestry($class, $method) as $ancestor) {
-            $match = $this->operationsByMethod[$this->methodKey($ancestor, $method)] ?? null;
-
-            if ($match !== null) {
-                return $match;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Whether the authored component schema named `$componentName` is referenced (via `$ref`) by
-     * any *other* authored annotation — another class's authored schema, or any authored operation.
-     * The schema declared by `$excludingClass` (the candidate for removal) is itself excluded.
-     *
-     * The migration removal rule uses this as its safety check: a schema another surviving authored
-     * annotation still points at must not be removed, or that reference would dangle.
-     */
-    public function isSchemaReferencedByOtherAuthored(string $componentName, string $excludingClass): bool
-    {
-        $this->scan();
-
-        $target = ComponentReference::pointer($componentName);
-        $ownSchema = $this->schemasByClass[ltrim($excludingClass, '\\')] ?? null;
-
-        foreach ($this->schemasByName as $schema) {
-            if ($schema !== $ownSchema && $this->referencesRef($schema, $target)) {
-                return true;
-            }
-        }
-
-        foreach ($this->operationsByMethod as $operation) {
-            if ($this->referencesRef($operation, $target)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Whether the `$ref` string `$target` appears anywhere in the annotation's object tree.
-     */
-    private function referencesRef(AbstractAnnotation $node, string $target): bool
-    {
-        $found = false;
-
-        AnnotationWalker::walk($node, static function (AbstractAnnotation $annotation) use ($target, &$found): void {
-            if (property_exists($annotation, 'ref') && is_string($annotation->ref) && $annotation->ref === $target) {
-                $found = true;
-            }
-        });
-
-        return $found;
-    }
-
     private function scan(): void
     {
         if ($this->scanned) {
@@ -181,7 +103,9 @@ final class AuthoredAnnotationScanner
                 // author-written `operationId` is left untouched (the processor only fills in missing
                 // ones). This keeps the redundancy oracle from treating a synthesised id as authored
                 // content, and keeps the harvester from injecting hash ids the user never wrote.
-                ->withProcessorPipeline(static fn(Pipeline $pipeline): Pipeline => $pipeline->remove(OperationId::class))
+                ->withProcessorPipeline(
+                    static fn(Pipeline $pipeline): Pipeline => $pipeline->remove(OperationId::class),
+                )
                 ->generate($this->scanPaths, validate: false);
         } catch (Throwable $exception) {
             $this->logger->warning(
@@ -219,6 +143,24 @@ final class AuthoredAnnotationScanner
         }
     }
 
+    /**
+     * Resolve the fully qualified declaring type of an annotation to a leading-slash-free FQCN.
+     *
+     * An annotation written inside a trait carries `_context->trait` (with `_context->class` null),
+     * so a trait-declared `@OA` operation is indexed under the trait's name — which the ancestry
+     * walk in {@see operationForMethod()} then resolves for a controller that uses the trait.
+     *
+     * Public so a consumer (e.g. the harvest stage attributing a finding to its source class) can
+     * reuse the scanner's single source of truth for this derivation rather than duplicate it.
+     */
+    public function declaringClassOf(Schema|Operation $annotation): ?string
+    {
+        $context = $annotation->_context;
+        $fullyQualified = $context?->fullyQualifiedName($context->class ?? $context->trait);
+
+        return $fullyQualified === null ? null : ltrim($fullyQualified, '\\');
+    }
+
     private function indexOperations(OpenApi $document): void
     {
         if (!is_array($document->paths)) {
@@ -239,22 +181,41 @@ final class AuthoredAnnotationScanner
         }
     }
 
-    /**
-     * Resolve the fully qualified declaring type of an annotation to a leading-slash-free FQCN.
-     *
-     * An annotation written inside a trait carries `_context->trait` (with `_context->class` null),
-     * so a trait-declared `@OA` operation is indexed under the trait's name — which the ancestry
-     * walk in {@see operationForMethod()} then resolves for a controller that uses the trait.
-     *
-     * Public so a consumer (e.g. the harvest stage attributing a finding to its source class) can
-     * reuse the scanner's single source of truth for this derivation rather than duplicate it.
-     */
-    public function declaringClassOf(Schema|Operation $annotation): ?string
+    private function methodKey(string $class, string $method): string
     {
-        $context = $annotation->_context;
-        $fullyQualified = $context?->fullyQualifiedName($context->class ?? $context->trait);
+        return sprintf('%s::%s', ltrim($class, '\\'), $method);
+    }
 
-        return $fullyQualified === null ? null : ltrim($fullyQualified, '\\');
+    public function schemaForClass(string $class): ?Schema
+    {
+        $this->scan();
+
+        return $this->schemasByClass[ltrim($class, '\\')] ?? null;
+    }
+
+    public function operationForMethod(string $class, string $method): ?Operation
+    {
+        $this->scan();
+
+        $exact = $this->operationsByMethod[$this->methodKey($class, $method)] ?? null;
+
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        // The route points at a subclass while the annotation was indexed under the parent class
+        // or trait that physically declares the method (swagger-php keys by `_context`). Walk the
+        // route controller's ancestry and retry the lookup against each declaring type; first match
+        // wins. The exact-match fast path above means the walk only runs on a genuine miss.
+        foreach ($this->declaringAncestry($class, $method) as $ancestor) {
+            $match = $this->operationsByMethod[$this->methodKey($ancestor, $method)] ?? null;
+
+            if ($match !== null) {
+                return $match;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -327,8 +288,49 @@ final class AuthoredAnnotationScanner
         }
     }
 
-    private function methodKey(string $class, string $method): string
+    /**
+     * Whether the authored component schema named `$componentName` is referenced (via `$ref`) by
+     * any *other* authored annotation — another class's authored schema, or any authored operation.
+     * The schema declared by `$excludingClass` (the candidate for removal) is itself excluded.
+     *
+     * The migration removal rule uses this as its safety check: a schema another surviving authored
+     * annotation still points at must not be removed, or that reference would dangle.
+     */
+    public function isSchemaReferencedByOtherAuthored(string $componentName, string $excludingClass): bool
     {
-        return sprintf('%s::%s', ltrim($class, '\\'), $method);
+        $this->scan();
+
+        $target = ComponentReference::pointer($componentName);
+        $ownSchema = $this->schemasByClass[ltrim($excludingClass, '\\')] ?? null;
+
+        foreach ($this->schemasByName as $schema) {
+            if ($schema !== $ownSchema && $this->referencesRef($schema, $target)) {
+                return true;
+            }
+        }
+
+        foreach ($this->operationsByMethod as $operation) {
+            if ($this->referencesRef($operation, $target)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the `$ref` string `$target` appears anywhere in the annotation's object tree.
+     */
+    private function referencesRef(AbstractAnnotation $node, string $target): bool
+    {
+        $found = false;
+
+        AnnotationWalker::walk($node, static function (AbstractAnnotation $annotation) use ($target, &$found): void {
+            if (property_exists($annotation, 'ref') && is_string($annotation->ref) && $annotation->ref === $target) {
+                $found = true;
+            }
+        });
+
+        return $found;
     }
 }

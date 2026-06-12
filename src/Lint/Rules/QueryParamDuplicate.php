@@ -77,19 +77,6 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     }
 
     #[Override]
-    public function fixer(): Fixer
-    {
-        return new RemoveAttributeFixer(
-            attribute: QueryParam::class,
-            member: MemberKind::Method,
-            mode: RemoveMode::Dedupe,
-            discriminator: static fn(object $attr): ?string => $attr instanceof QueryParam
-                ? $attr->name
-                : null,
-        );
-    }
-
-    #[Override]
     public function id(): string
     {
         return 'queryparam.duplicate';
@@ -102,6 +89,20 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
         // name), but the last-wins merge silently discards the earlier #[QueryParam]'s details —
         // the document drops information the author declared. Level 1.
         return 1;
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: QueryParam::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: static fn(object $attr): ?string
+                => $attr instanceof QueryParam
+                ? $attr->name
+                : null,
+        );
     }
 
     #[Override]

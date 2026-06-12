@@ -72,22 +72,6 @@ final readonly class SchemaDescriptor
         return $schema;
     }
 
-    /**
-     * The `items` schema for an `array` type. Always present for an array (a permissive `{}` when
-     * no element type is declared), because swagger-php rejects an items-less array and would
-     * hard-fail generation.
-     */
-    private function itemsSchema(): ?OA\Items
-    {
-        if ($this->type !== 'array') {
-            return null;
-        }
-
-        return $this->items !== null
-            ? new OA\Items(['type' => $this->items])
-            : new OA\Items([]);
-    }
-
     /** @return array<string, mixed> */
     public function toOpenApi(): array
     {
@@ -122,6 +106,22 @@ final readonly class SchemaDescriptor
         }
 
         return $out;
+    }
+
+    /**
+     * The `items` schema for an `array` type. Always present for an array (a permissive `{}` when
+     * no element type is declared), because swagger-php rejects an items-less array and would
+     * hard-fail generation.
+     */
+    private function itemsSchema(): ?OA\Items
+    {
+        if ($this->type !== 'array') {
+            return null;
+        }
+
+        return $this->items !== null
+            ? new OA\Items(['type' => $this->items])
+            : new OA\Items([]);
     }
 
     /**

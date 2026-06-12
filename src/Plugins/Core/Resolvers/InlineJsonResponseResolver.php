@@ -153,6 +153,30 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
+     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
+     * HTTP response class (`JsonResponse` & friends). Any other named type — a Model, Data class,
+     * Resource, or paginator — is Tier-0 territory the signature resolvers own; union and
+     * intersection types are refused rather than arbitrated.
+     */
+    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
+    {
+        $returnType = $method->getReturnType();
+
+        if ($returnType === null) {
+            return true;
+        }
+
+        if (!$returnType instanceof ReflectionNamedType) {
+            return false;
+        }
+
+        return $returnType->isBuiltin()
+            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
+    }
+
+    // region Call-shape matching
+
+    /**
      * The matched `response()->json(...)` call, preferring *returned* calls: a `return`ed json()
      * is the response the action actually emits, while one assigned to a variable may never be.
      * Among returned matches the first wins; without any, the first match anywhere in the
@@ -162,10 +186,12 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      */
     private function findJsonCall(array $statements): ?MethodCall
     {
-        $returnStatements = array_values(array_filter(
-            $statements,
-            static fn(Stmt $statement): bool => $statement instanceof Return_,
-        ));
+        $returnStatements = array_values(
+            array_filter(
+                $statements,
+                static fn(Stmt $statement): bool => $statement instanceof Return_,
+            ),
+        );
 
         foreach ([$returnStatements, $statements] as $candidates) {
             $call = $this->statementNodeFinder->findFirst(
@@ -181,8 +207,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         return null;
     }
-
-    // region Call-shape matching
 
     /**
      * Whether the node is a `->json(...)` method call on a zero-argument `response()` helper
@@ -226,6 +250,23 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
     }
 
+    private function note(ReflectionMethod $method, string $reason): void
+    {
+        $this->logger->notice(
+            sprintf(
+                'response()->json() call in %s::%s %s; no response inferred. '
+                . 'Annotate the action with #[Response] to document it.',
+                $method->getDeclaringClass()->getName(),
+                $method->getName(),
+                $reason,
+            ),
+        );
+    }
+
+    // endregion
+
+    // region Response construction
+
     /**
      * Whether every method call chained onto the matched `json()` leaves the response's status
      * and body untouched. Walks the chain outwards (`json(...)->header(...)->setStatusCode(...)`)
@@ -241,10 +282,13 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             $name = $parent->name instanceof Identifier ? $parent->name->toString() : null;
 
             if ($name === null || !in_array(strtolower($name), self::RESPONSE_PRESERVING_CHAIN_METHODS, true)) {
-                $this->note($method, sprintf(
-                    'is chained into ->%s(), which may change the response status or body',
-                    $name ?? '{dynamic}',
-                ));
+                $this->note(
+                    $method,
+                    sprintf(
+                        'is chained into ->%s(), which may change the response status or body',
+                        $name ?? '{dynamic}',
+                    ),
+                );
 
                 return false;
             }
@@ -271,10 +315,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         return $parent instanceof MethodCall ? $parent : null;
     }
-
-    // endregion
-
-    // region Response construction
 
     private function responseFromCall(MethodCall $call, ReflectionMethod $method): ?OA\Response
     {
@@ -330,18 +370,24 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
-     * author-written status win over the resource convention. The marker never reaches the
-     * serialized document — OperationBuilder strips it.
+     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
+     *
+     * @param array<int, Arg> $arguments
      */
-    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
+    private function argument(array $arguments, string $name, int $position): ?Arg
     {
-        if ($explicit) {
-            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
+        foreach ($arguments as $index => $argument) {
+            if ($argument->name === null ? $index === $position : $argument->name->toString() === $name) {
+                return $argument;
+            }
         }
 
-        return $response;
+        return null;
     }
+
+    // endregion
+
+    // region Schema definitions
 
     /**
      * The literal status argument, 200 when absent, or null (refusal) when present but not
@@ -368,16 +414,22 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         if (!is_int($status)) {
-            $this->note($method, 'has no statically readable status code, so the body must not be documented under a guessed status');
+            $this->note(
+                $method,
+                'has no statically readable status code, so the body must not be documented under a guessed status',
+            );
 
             return null;
         }
 
         if ($status < 200 || $status > 299) {
-            $this->note($method, sprintf(
-                'has a literal non-2xx status (%d) — an error response must not claim the primary response',
-                $status,
-            ));
+            $this->note(
+                $method,
+                sprintf(
+                    'has a literal non-2xx status (%d) — an error response must not claim the primary response',
+                    $status,
+                ),
+            );
 
             return null;
         }
@@ -385,25 +437,23 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         return $status;
     }
 
-    /**
-     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
-     *
-     * @param array<int, Arg> $arguments
-     */
-    private function argument(array $arguments, string $name, int $position): ?Arg
-    {
-        foreach ($arguments as $index => $argument) {
-            if ($argument->name === null ? $index === $position : $argument->name->toString() === $name) {
-                return $argument;
-            }
-        }
-
-        return null;
-    }
-
     // endregion
 
-    // region Schema definitions
+    // region Guards & logging
+
+    /**
+     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
+     * author-written status win over the resource convention. The marker never reaches the
+     * serialized document — OperationBuilder strips it.
+     */
+    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
+    {
+        if ($explicit) {
+            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
+        }
+
+        return $response;
+    }
 
     /**
      * The plain schema-definition array for the `data` argument, or null when nothing is
@@ -424,7 +474,10 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             try {
                 return SchemaDefinitionFromLiteral::fromArrayNode($data);
             } catch (NonLiteralValueException) {
-                $this->note($method, 'has an array literal whose structure (a key or spread entry) is not statically readable');
+                $this->note(
+                    $method,
+                    'has an array literal whose structure (a key or spread entry) is not statically readable',
+                );
 
                 return null;
             }
@@ -443,43 +496,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         $definition = SchemaDefinitionFromLiteral::fromLiteralValue($literal);
 
         return $definition === [] ? null : $definition;
-    }
-
-    // endregion
-
-    // region Guards & logging
-
-    /**
-     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
-     * HTTP response class (`JsonResponse` & friends). Any other named type — a Model, Data class,
-     * Resource, or paginator — is Tier-0 territory the signature resolvers own; union and
-     * intersection types are refused rather than arbitrated.
-     */
-    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
-    {
-        $returnType = $method->getReturnType();
-
-        if ($returnType === null) {
-            return true;
-        }
-
-        if (!$returnType instanceof ReflectionNamedType) {
-            return false;
-        }
-
-        return $returnType->isBuiltin()
-            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
-    }
-
-    private function note(ReflectionMethod $method, string $reason): void
-    {
-        $this->logger->notice(sprintf(
-            'response()->json() call in %s::%s %s; no response inferred. '
-            . 'Annotate the action with #[Response] to document it.',
-            $method->getDeclaringClass()->getName(),
-            $method->getName(),
-            $reason,
-        ));
     }
 
     // endregion

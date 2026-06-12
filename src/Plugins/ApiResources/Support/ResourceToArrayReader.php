@@ -90,20 +90,6 @@ final class ResourceToArrayReader
     ) {}
 
     /**
-     * Whether the resource overrides `toArray()` outside the framework — the discriminator
-     * between the passthrough base case (no override; the wrapped model is the only source)
-     * and a dynamic body the reader had to refuse.
-     *
-     * @param class-string<JsonResource> $resourceClass
-     */
-    public function overridesToArray(string $resourceClass): bool
-    {
-        $declaringClass = new ReflectionMethod($resourceClass, 'toArray')->getDeclaringClass()->getName();
-
-        return !str_starts_with($declaringClass, 'Illuminate\\');
-    }
-
-    /**
      * @param class-string<JsonResource> $resourceClass
      *
      * @throws ReflectionException
@@ -137,13 +123,32 @@ final class ResourceToArrayReader
         $modelClass = $this->wrappedModelLocator->locate($resourceClass);
 
         $hasUnreadableMergePayload = false;
-        $fields = $this->fieldsFromArrayNode($literal, optional: false, modelClass: $modelClass, unreadableMergePayload: $hasUnreadableMergePayload);
+        $fields = $this->fieldsFromArrayNode(
+            $literal,
+            optional: false,
+            modelClass: $modelClass,
+            unreadableMergePayload: $hasUnreadableMergePayload,
+        );
 
         if ($fields === null) {
             return null;
         }
 
         return new InferredToArrayFields($fields, $hasUnreadableMergePayload);
+    }
+
+    /**
+     * Whether the resource overrides `toArray()` outside the framework — the discriminator
+     * between the passthrough base case (no override; the wrapped model is the only source)
+     * and a dynamic body the reader had to refuse.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     */
+    public function overridesToArray(string $resourceClass): bool
+    {
+        $declaringClass = new ReflectionMethod($resourceClass, 'toArray')->getDeclaringClass()->getName();
+
+        return !str_starts_with($declaringClass, 'Illuminate\\');
     }
 
     // region Literal walking
@@ -256,6 +261,39 @@ final class ResourceToArrayReader
     // region Value resolution
 
     /**
+     * The method name of a `$this->method(...)` or `$this->resource->method(...)` call, or null.
+     */
+    private function resourceMethodName(Expr $value): ?string
+    {
+        if (!$value instanceof MethodCall || $value->isFirstClassCallable() || !$value->name instanceof Identifier) {
+            return null;
+        }
+
+        return $this->isResourceReceiver($value->var) ? $value->name->toString() : null;
+    }
+
+    /**
+     * Whether the receiver is `$this` or `$this->resource` — the two spellings of "the wrapped
+     * model" inside a resource (`JsonResource` forwards unknown property reads to `resource`).
+     */
+    private function isResourceReceiver(Expr $receiver): bool
+    {
+        if ($this->isThisVariable($receiver)) {
+            return true;
+        }
+
+        return $receiver instanceof PropertyFetch
+            && $this->isThisVariable($receiver->var)
+            && $receiver->name instanceof Identifier
+            && $receiver->name->toString() === 'resource';
+    }
+
+    private function isThisVariable(Expr $expression): bool
+    {
+        return $expression instanceof Variable && $expression->name === 'this';
+    }
+
+    /**
      * @param null|class-string<Model> $modelClass
      *
      * @throws ReflectionException
@@ -343,6 +381,10 @@ final class ResourceToArrayReader
         return $this->unconstrained($name, optional: true);
     }
 
+    // endregion
+
+    // region Node shapes
+
     /**
      * A bare `whenLoaded('relation')` value: the relation name resolves against the wrapped
      * model's metadata — typically a `@property-read` relation annotation yielding a `$ref`.
@@ -351,8 +393,11 @@ final class ResourceToArrayReader
      *
      * @throws ReflectionException
      */
-    private function modelPropertyFromRelationArgument(string $name, ?Arg $argument, ?string $modelClass): ?InferredResourceField
-    {
+    private function modelPropertyFromRelationArgument(
+        string $name,
+        ?Arg $argument,
+        ?string $modelClass,
+    ): ?InferredResourceField {
         if ($argument === null || $modelClass === null) {
             return null;
         }
@@ -378,6 +423,15 @@ final class ResourceToArrayReader
         return InferredResourceField::ofProperty($name, required: false, property: $property);
     }
 
+    private function unconstrained(string $name, bool $optional): InferredResourceField
+    {
+        return InferredResourceField::ofUnconstrained(
+            $name,
+            required: !$optional,
+            property: new OA\Property(['property' => $name]),
+        );
+    }
+
     /**
      * A nested-resource value: `new X(...)`, `X::make(...)`, or `X::collection(...)` where `X`
      * is a concrete `JsonResource` subclass. A conditional wrapper inside the single argument
@@ -387,13 +441,13 @@ final class ResourceToArrayReader
     {
         [$resourceClass, $isCollection, $arguments] = match (true) {
             $value instanceof New_ && $value->class instanceof Name
-                => [$value->class->toString(), false, $value->isFirstClassCallable() ? [] : $value->getArgs()],
+            => [$value->class->toString(), false, $value->isFirstClassCallable() ? [] : $value->getArgs()],
             $value instanceof StaticCall
             && $value->class instanceof Name
             && $value->name instanceof Identifier
             && !$value->isFirstClassCallable()
             && ($value->name->toString() === 'make' || $value->name->toString() === 'collection')
-                => [$value->class->toString(), $value->name->toString() === 'collection', $value->getArgs()],
+            => [$value->class->toString(), $value->name->toString() === 'collection', $value->getArgs()],
             default => [null, false, []],
         };
 
@@ -426,8 +480,12 @@ final class ResourceToArrayReader
      *
      * @throws ReflectionException
      */
-    private function resolveModelProperty(string $name, Expr $value, bool $optional, ?string $modelClass): ?InferredResourceField
-    {
+    private function resolveModelProperty(
+        string $name,
+        Expr $value,
+        bool $optional,
+        ?string $modelClass,
+    ): ?InferredResourceField {
         $fieldName = $this->modelFieldName($value);
 
         if ($fieldName === null) {
@@ -443,22 +501,6 @@ final class ResourceToArrayReader
         $property->property = $name;
 
         return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
-    }
-
-    // endregion
-
-    // region Node shapes
-
-    /**
-     * The method name of a `$this->method(...)` or `$this->resource->method(...)` call, or null.
-     */
-    private function resourceMethodName(Expr $value): ?string
-    {
-        if (!$value instanceof MethodCall || $value->isFirstClassCallable() || !$value->name instanceof Identifier) {
-            return null;
-        }
-
-        return $this->isResourceReceiver($value->var) ? $value->name->toString() : null;
     }
 
     /**
@@ -478,36 +520,6 @@ final class ResourceToArrayReader
         }
 
         return $fieldName === 'resource' && $this->isThisVariable($value->var) ? null : $fieldName;
-    }
-
-    /**
-     * Whether the receiver is `$this` or `$this->resource` — the two spellings of "the wrapped
-     * model" inside a resource (`JsonResource` forwards unknown property reads to `resource`).
-     */
-    private function isResourceReceiver(Expr $receiver): bool
-    {
-        if ($this->isThisVariable($receiver)) {
-            return true;
-        }
-
-        return $receiver instanceof PropertyFetch
-            && $this->isThisVariable($receiver->var)
-            && $receiver->name instanceof Identifier
-            && $receiver->name->toString() === 'resource';
-    }
-
-    private function isThisVariable(Expr $expression): bool
-    {
-        return $expression instanceof Variable && $expression->name === 'this';
-    }
-
-    private function unconstrained(string $name, bool $optional): InferredResourceField
-    {
-        return InferredResourceField::ofUnconstrained(
-            $name,
-            required: !$optional,
-            property: new OA\Property(['property' => $name]),
-        );
     }
 
     // endregion

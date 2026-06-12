@@ -62,19 +62,6 @@ final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
     }
 
     #[Override]
-    public function fixer(): Fixer
-    {
-        return new RemoveAttributeFixer(
-            attribute: Response::class,
-            member: MemberKind::Method,
-            mode: RemoveMode::Dedupe,
-            discriminator: static fn(object $attr): ?string => $attr instanceof Response
-                ? (string) $attr->status
-                : null,
-        );
-    }
-
-    #[Override]
     public function id(): string
     {
         return 'response.duplicate-status';
@@ -84,6 +71,20 @@ final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
     public function level(): int
     {
         return 0;
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: Response::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: static fn(object $attr): ?string
+                => $attr instanceof Response
+                ? (string) $attr->status
+                : null,
+        );
     }
 
     #[Override]

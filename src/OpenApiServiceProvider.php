@@ -256,14 +256,15 @@ class OpenApiServiceProvider extends ServiceProvider
         // assembly in Support while the plugin references stay here.
         $this->app->scoped(
             OpenApiRegistry::class,
-            static fn(Container $app): OpenApiRegistry => BaselineRegistration::assemble(
-                $app,
-                plugins: [CorePlugin::class, ...config('openapi.plugins', [])],
-                configRules: config('openapi.lint.rules', []),
-                errorEnvelopeResolver: OpenApiServiceProvider::resolveErrorEnvelopeClass(
-                    (string) config('openapi.error_envelope', 'none'),
+            static fn(Container $app): OpenApiRegistry
+                => BaselineRegistration::assemble(
+                    $app,
+                    plugins: [CorePlugin::class, ...config('openapi.plugins', [])],
+                    configRules: config('openapi.lint.rules', []),
+                    errorEnvelopeResolver: OpenApiServiceProvider::resolveErrorEnvelopeClass(
+                        (string) config('openapi.error_envelope', 'none'),
+                    ),
                 ),
-            ),
         );
 
         $this->app->scoped(
@@ -370,44 +371,6 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Build a memoised lazy factory over the registry's ref-schema resolver list, optionally
-     * skipping one resolver class — a plugin passes its own resolver to break the cross-plugin
-     * construction cycle (see {@see registerApiResourcesPlugin()} and {@see registerFractalPlugin()}).
-     * Resolution is deferred to first use so the container can finish constructing both sides; the
-     * result is cached per returned factory.
-     *
-     * @param null|class-string<RefSchemaResolver> $exclude
-     *
-     * @return Closure(): list<RefSchemaResolver>
-     */
-    private static function refSchemaResolverFactory(
-        Container $app,
-        OpenApiRegistry $registry,
-        ?string $exclude = null,
-    ): Closure {
-        /** @var null|list<RefSchemaResolver> $cache */
-        $cache = null;
-
-        return static function () use ($app, $registry, $exclude, &$cache) {
-            if ($cache !== null) {
-                return $cache;
-            }
-
-            $resolvers = [];
-
-            foreach ($registry->refSchemaResolvers as $class) {
-                if ($class === $exclude) {
-                    continue;
-                }
-
-                $resolvers[] = $app->make($class);
-            }
-
-            return $cache = $resolvers;
-        };
-    }
-
-    /**
      * Binds the schema registry and the operation-data extractors.
      */
     private function registerExtractors(): void
@@ -489,6 +452,44 @@ class OpenApiServiceProvider extends ServiceProvider
                 );
             },
         );
+    }
+
+    /**
+     * Build a memoised lazy factory over the registry's ref-schema resolver list, optionally
+     * skipping one resolver class — a plugin passes its own resolver to break the cross-plugin
+     * construction cycle (see {@see registerApiResourcesPlugin()} and {@see registerFractalPlugin()}).
+     * Resolution is deferred to first use so the container can finish constructing both sides; the
+     * result is cached per returned factory.
+     *
+     * @param null|class-string<RefSchemaResolver> $exclude
+     *
+     * @return Closure(): list<RefSchemaResolver>
+     */
+    private static function refSchemaResolverFactory(
+        Container $app,
+        OpenApiRegistry $registry,
+        ?string $exclude = null,
+    ): Closure {
+        /** @var null|list<RefSchemaResolver> $cache */
+        $cache = null;
+
+        return static function () use ($app, $registry, $exclude, &$cache) {
+            if ($cache !== null) {
+                return $cache;
+            }
+
+            $resolvers = [];
+
+            foreach ($registry->refSchemaResolvers as $class) {
+                if ($class === $exclude) {
+                    continue;
+                }
+
+                $resolvers[] = $app->make($class);
+            }
+
+            return $cache = $resolvers;
+        };
     }
 
     /**

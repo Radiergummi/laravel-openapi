@@ -77,6 +77,55 @@ final readonly class OpenApiGenerationOrchestrator
     }
 
     /**
+     * Run `$generate` against fresh scoped state: a {@see Container::forgetScopedInstances()} reset so
+     * per-run state in {@see ComponentSchemaRegistry} / {@see ExampleFileLoader} can't leak across
+     * generations.
+     *
+     * That reset also wipes any explicit {@see FindingsCollector} the caller pinned (e.g. LintRunner
+     * binds an {@see ArrayFindingsCollector} to capture extractor-emitted findings), so it is captured
+     * and restored. With `$discardFindings`, a throwaway collector receives the run's findings instead
+     * — for control runs whose findings must not reach the caller.
+     *
+     * @template T
+     *
+     * @param callable(): T $generate
+     *
+     * @return T
+     *
+     * @throws BindingResolutionException
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws UnsupportedException
+     */
+    private function withFreshScopedState(callable $generate, bool $discardFindings = false): mixed
+    {
+        $collector = $this->container->resolved(FindingsCollector::class)
+            ? $this->container->make(FindingsCollector::class)
+            : null;
+
+        $this->container->forgetScopedInstances();
+
+        $active = $discardFindings ? new ArrayFindingsCollector() : $collector;
+
+        if ($active !== null) {
+            $this->container->instance(FindingsCollector::class, $active);
+        }
+
+        try {
+            return $generate();
+        } finally {
+            if ($discardFindings) {
+                $this->container->forgetInstance(FindingsCollector::class);
+            }
+
+            if ($collector !== null) {
+                $this->container->instance(FindingsCollector::class, $collector);
+            }
+        }
+    }
+
+    /**
      * @return array<string, OA\OpenApi>
      *
      * @throws BindingResolutionException
@@ -126,7 +175,8 @@ final readonly class OpenApiGenerationOrchestrator
 
         return $this->withFreshScopedState(
             function () use ($spec, $excludedStages, $environment): InferenceOnlyGeneration {
-                $document = $this->container->make(SpecPipeline::class)
+                $document = $this->container
+                    ->make(SpecPipeline::class)
                     ->withoutStage(...$excludedStages)
                     ->run($spec, $environment ?? $this->environment);
 
@@ -141,55 +191,6 @@ final readonly class OpenApiGenerationOrchestrator
             },
             discardFindings: true,
         );
-    }
-
-    /**
-     * Run `$generate` against fresh scoped state: a {@see Container::forgetScopedInstances()} reset so
-     * per-run state in {@see ComponentSchemaRegistry} / {@see ExampleFileLoader} can't leak across
-     * generations.
-     *
-     * That reset also wipes any explicit {@see FindingsCollector} the caller pinned (e.g. LintRunner
-     * binds an {@see ArrayFindingsCollector} to capture extractor-emitted findings), so it is captured
-     * and restored. With `$discardFindings`, a throwaway collector receives the run's findings instead
-     * — for control runs whose findings must not reach the caller.
-     *
-     * @template T
-     *
-     * @param callable(): T $generate
-     *
-     * @return T
-     *
-     * @throws BindingResolutionException
-     * @throws ReflectionException
-     * @throws RuntimeException
-     * @throws UnexpectedValueException
-     * @throws UnsupportedException
-     */
-    private function withFreshScopedState(callable $generate, bool $discardFindings = false): mixed
-    {
-        $collector = $this->container->resolved(FindingsCollector::class)
-            ? $this->container->make(FindingsCollector::class)
-            : null;
-
-        $this->container->forgetScopedInstances();
-
-        $active = $discardFindings ? new ArrayFindingsCollector() : $collector;
-
-        if ($active !== null) {
-            $this->container->instance(FindingsCollector::class, $active);
-        }
-
-        try {
-            return $generate();
-        } finally {
-            if ($discardFindings) {
-                $this->container->forgetInstance(FindingsCollector::class);
-            }
-
-            if ($collector !== null) {
-                $this->container->instance(FindingsCollector::class, $collector);
-            }
-        }
     }
 
     /**

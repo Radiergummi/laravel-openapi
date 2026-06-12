@@ -23,12 +23,14 @@ final class DuplicateSchemaNameException extends LogicException
 {
     public static function between(string $name, string $existingOwner, string $claimingClass): self
     {
-        return new self(sprintf(
-            'Component schema name "%s" requested by %s is already claimed by %s. '
-            . 'Schema names must be unique — rename or remove a #[SchemaName].',
-            $name,
-            $claimingClass,
-            $existingOwner,
-        ));
+        return new self(
+            sprintf(
+                'Component schema name "%s" requested by %s is already claimed by %s. '
+                . 'Schema names must be unique — rename or remove a #[SchemaName].',
+                $name,
+                $claimingClass,
+                $existingOwner,
+            ),
+        );
     }
 }

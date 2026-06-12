@@ -180,6 +180,20 @@ final class SecurityExtractor
     }
 
     /**
+     * @return array<string, string>
+     */
+    private function allScopes(): array
+    {
+        $map = [];
+
+        foreach (Passport::scopes() as $scope) {
+            $map[$scope->id] = $scope->description;
+        }
+
+        return $map;
+    }
+
+    /**
      * The Sanctum-derived bearer scheme, returned only when a route actually uses
      * `auth:sanctum`. Sanctum tokens are opaque `id|plaintext` strings, not JWTs, so no
      * `bearerFormat` is set.
@@ -211,17 +225,64 @@ final class SecurityExtractor
     }
 
     /**
-     * @return array<string, string>
+     * Gathers a route's middleware — via the crash-safe {@see RouteMiddlewareGatherer}, so
+     * constructor-applied middleware of non-instantiable controllers participates — and expands
+     * any group names to their members.
+     *
+     * @return list<string>
      */
-    private function allScopes(): array
+    private function expandedMiddlewareFor(Route $route): array
     {
-        $map = [];
+        return $this->expandGroups(
+            array_values($this->middlewareGatherer->middlewareFor($route)),
+            $this->middlewareGroups(),
+        );
+    }
 
-        foreach (Passport::scopes() as $scope) {
-            $map[$scope->id] = $scope->description;
+    /**
+     * Recursively expands middleware group names in $middleware against $groups.
+     * Entries that are not group keys are left untouched. A depth cap guards against
+     * cyclic group definitions.
+     *
+     * @param list<string>            $middleware
+     * @param array<string, string[]> $groups
+     *
+     * @return list<string>
+     */
+    private function expandGroups(array $middleware, array $groups, int $depth = 0): array
+    {
+        if ($depth >= self::MAX_GROUP_EXPANSION_DEPTH) {
+            return $middleware;
         }
 
-        return $map;
+        $result = [];
+
+        foreach ($middleware as $entry) {
+            // Routes may carry closure (or other non-string) middleware, which
+            // can neither name a group nor map to a security scheme. Skip it
+            // rather than crashing on the non-string array key.
+            if (!is_string($entry)) {
+                continue;
+            }
+
+            if (isset($groups[$entry])) {
+                foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
+                    $result[] = $expanded;
+                }
+            } else {
+                $result[] = $entry;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function middlewareGroups(): array
+    {
+        return $this->middlewareGroups ??= $this->router->getMiddlewareGroups();
     }
 
     /**
@@ -292,98 +353,6 @@ final class SecurityExtractor
     }
 
     /**
-     * Builds the per-operation `security` block for a set of scheme names. `$allOf` scopes must all
-     * be present (one requirement, AND semantics); each `$anyOf` scope (Sanctum `ability:`, an
-     * any-of check) becomes its own OR-alternative requirement carrying the all-of scopes too. With
-     * no any-of scopes this is one requirement per scheme name, as before.
-     *
-     * @param list<string> $schemeNames
-     * @param list<string> $allOf
-     * @param list<string> $anyOf
-     *
-     * @return list<array<string, list<string>>>
-     */
-    private function buildRequirement(array $schemeNames, array $allOf, array $anyOf): array
-    {
-        $requirement = [];
-
-        foreach ($schemeNames as $name) {
-            if ($anyOf === []) {
-                $requirement[] = [$name => $allOf];
-
-                continue;
-            }
-
-            foreach ($anyOf as $scope) {
-                $requirement[] = [$name => array_values(array_unique([...$allOf, $scope]))];
-            }
-        }
-
-        return $requirement;
-    }
-
-    /**
-     * Gathers a route's middleware — via the crash-safe {@see RouteMiddlewareGatherer}, so
-     * constructor-applied middleware of non-instantiable controllers participates — and expands
-     * any group names to their members.
-     *
-     * @return list<string>
-     */
-    private function expandedMiddlewareFor(Route $route): array
-    {
-        return $this->expandGroups(
-            array_values($this->middlewareGatherer->middlewareFor($route)),
-            $this->middlewareGroups(),
-        );
-    }
-
-    /**
-     * Recursively expands middleware group names in $middleware against $groups.
-     * Entries that are not group keys are left untouched. A depth cap guards against
-     * cyclic group definitions.
-     *
-     * @param list<string>            $middleware
-     * @param array<string, string[]> $groups
-     *
-     * @return list<string>
-     */
-    private function expandGroups(array $middleware, array $groups, int $depth = 0): array
-    {
-        if ($depth >= self::MAX_GROUP_EXPANSION_DEPTH) {
-            return $middleware;
-        }
-
-        $result = [];
-
-        foreach ($middleware as $entry) {
-            // Routes may carry closure (or other non-string) middleware, which
-            // can neither name a group nor map to a security scheme. Skip it
-            // rather than crashing on the non-string array key.
-            if (!is_string($entry)) {
-                continue;
-            }
-
-            if (isset($groups[$entry])) {
-                foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
-                    $result[] = $expanded;
-                }
-            } else {
-                $result[] = $entry;
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @return array<string, array<int, string>>
-     */
-    private function middlewareGroups(): array
-    {
-        return $this->middlewareGroups ??= $this->router->getMiddlewareGroups();
-    }
-
-    /**
      * All-of scopes: a token must carry every one of these. Sourced from Passport `scope:` /
      * `scopes:` and Sanctum's all-of `abilities:` middleware. Sanctum's any-of `ability:` is
      * handled separately by {@see extractAnyOfScopes}.
@@ -415,6 +384,19 @@ final class SecurityExtractor
     }
 
     /**
+     * Deduplicate and drop empty segments left by argument-less or trailing-comma tokens
+     * (e.g. `ability:`, `scopes:read,`) so they never leak an empty-string scope.
+     *
+     * @param list<string> $scopes
+     *
+     * @return list<string>
+     */
+    private function cleanScopes(array $scopes): array
+    {
+        return array_values(array_unique(array_filter($scopes, static fn(string $s): bool => $s !== '')));
+    }
+
+    /**
      * Any-of scopes from Sanctum's `ability:` middleware (token needs *any one* of the listed
      * abilities). Each becomes its own OR-alternative requirement in {@see buildRequirement}.
      *
@@ -435,19 +417,6 @@ final class SecurityExtractor
         }
 
         return $this->cleanScopes($scopes);
-    }
-
-    /**
-     * Deduplicate and drop empty segments left by argument-less or trailing-comma tokens
-     * (e.g. `ability:`, `scopes:read,`) so they never leak an empty-string scope.
-     *
-     * @param list<string> $scopes
-     *
-     * @return list<string>
-     */
-    private function cleanScopes(array $scopes): array
-    {
-        return array_values(array_unique(array_filter($scopes, static fn(string $s): bool => $s !== '')));
     }
 
     /**
@@ -508,29 +477,31 @@ final class SecurityExtractor
     }
 
     /**
-     * Build the per-operation `security` block targeting a specific scheme (when given) or the
-     * project default. Default resolution order, threaded through one single lookup:
+     * Builds the per-operation `security` block for a set of scheme names. `$allOf` scopes must all
+     * be present (one requirement, AND semantics); each `$anyOf` scope (Sanctum `ability:`, an
+     * any-of check) becomes its own OR-alternative requirement carrying the all-of scopes too. With
+     * no any-of scopes this is one requirement per scheme name, as before.
      *
-     * 1. Explicit `scheme:` argument — wins.
-     * 2. `openapi.security_default_scheme` config (string or list of strings) — each entry becomes
-     *    one OR-alternative.
-     * 3. Passport's `oauth2` + `oauth2ClientCredentials` pair, if Passport is installed and its
-     *    routes are registered.
-     * 4. The first scheme declared in `openapi.security_schemes`.
-     * 5. `[]` (empty requirement).
-     *
-     * @param list<string> $scopes
+     * @param list<string> $schemeNames
+     * @param list<string> $allOf
+     * @param list<string> $anyOf
      *
      * @return list<array<string, list<string>>>
      */
-    public function requirementForScopes(array $scopes, ?string $scheme = null): array
+    private function buildRequirement(array $schemeNames, array $allOf, array $anyOf): array
     {
-        $names = $scheme !== null ? [$scheme] : $this->defaultSchemeNames();
-
         $requirement = [];
 
-        foreach ($names as $name) {
-            $requirement[] = [$name => $scopes];
+        foreach ($schemeNames as $name) {
+            if ($anyOf === []) {
+                $requirement[] = [$name => $allOf];
+
+                continue;
+            }
+
+            foreach ($anyOf as $scope) {
+                $requirement[] = [$name => array_values(array_unique([...$allOf, $scope]))];
+            }
         }
 
         return $requirement;
@@ -596,5 +567,34 @@ final class SecurityExtractor
         }
 
         return $names;
+    }
+
+    /**
+     * Build the per-operation `security` block targeting a specific scheme (when given) or the
+     * project default. Default resolution order, threaded through one single lookup:
+     *
+     * 1. Explicit `scheme:` argument — wins.
+     * 2. `openapi.security_default_scheme` config (string or list of strings) — each entry becomes
+     *    one OR-alternative.
+     * 3. Passport's `oauth2` + `oauth2ClientCredentials` pair, if Passport is installed and its
+     *    routes are registered.
+     * 4. The first scheme declared in `openapi.security_schemes`.
+     * 5. `[]` (empty requirement).
+     *
+     * @param list<string> $scopes
+     *
+     * @return list<array<string, list<string>>>
+     */
+    public function requirementForScopes(array $scopes, ?string $scheme = null): array
+    {
+        $names = $scheme !== null ? [$scheme] : $this->defaultSchemeNames();
+
+        $requirement = [];
+
+        foreach ($names as $name) {
+            $requirement[] = [$name => $scopes];
+        }
+
+        return $requirement;
     }
 }

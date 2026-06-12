@@ -67,19 +67,6 @@ final readonly class ValidationErrorContributor implements ErrorResponseContribu
         ];
     }
 
-    /**
-     * Whether the method body contains one of the whitelisted inline validate() call shapes.
-     * Any match counts — recovered or degraded — since the call throws on failure either way.
-     */
-    private function hasInlineValidateCall(ActionDescriptor $descriptor): bool
-    {
-        if ($descriptor->method === null) {
-            return false;
-        }
-
-        return $this->inlineValidatorRulesReader->read($descriptor->method) !== null;
-    }
-
     private function hasFormRequestParameter(ActionDescriptor $descriptor): bool
     {
         if ($descriptor->method === null) {
@@ -101,5 +88,18 @@ final readonly class ValidationErrorContributor implements ErrorResponseContribu
         }
 
         return false;
+    }
+
+    /**
+     * Whether the method body contains one of the whitelisted inline validate() call shapes.
+     * Any match counts — recovered or degraded — since the call throws on failure either way.
+     */
+    private function hasInlineValidateCall(ActionDescriptor $descriptor): bool
+    {
+        if ($descriptor->method === null) {
+            return false;
+        }
+
+        return $this->inlineValidatorRulesReader->read($descriptor->method) !== null;
     }
 }

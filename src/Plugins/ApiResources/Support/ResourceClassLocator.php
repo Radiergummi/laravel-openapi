@@ -112,19 +112,6 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         return new ResourceTarget(resourceClass: $name, isCollection: false);
     }
 
-    /**
-     * The target resolved from the action's return expression (Tier-1; issue #108), or null for
-     * closure routes and refused bodies.
-     */
-    private function locateFromReturnExpression(ActionDescriptor $descriptor): ?ResourceTarget
-    {
-        if ($descriptor->method === null) {
-            return null;
-        }
-
-        return $this->returnExpressionReader->read($descriptor->method);
-    }
-
     private function isCollectionType(?ReflectionType $returnType): bool
     {
         return $returnType instanceof ReflectionNamedType
@@ -196,5 +183,18 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
 
         /** @var class-string<JsonResource> $candidate */
         return $candidate;
+    }
+
+    /**
+     * The target resolved from the action's return expression (Tier-1; issue #108), or null for
+     * closure routes and refused bodies.
+     */
+    private function locateFromReturnExpression(ActionDescriptor $descriptor): ?ResourceTarget
+    {
+        if ($descriptor->method === null) {
+            return null;
+        }
+
+        return $this->returnExpressionReader->read($descriptor->method);
     }
 }

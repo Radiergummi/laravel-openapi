@@ -178,6 +178,14 @@ final readonly class PathsStage implements SpecStage
         return $this->routeNameOperationId($descriptor, $method);
     }
 
+    private function methodPathOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
+    {
+        $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
+            ?? $descriptor->route->uri();
+
+        return strtolower($method->value) . '_' . $sanitised;
+    }
+
     /**
      * Priority:
      * 1. Named route → `{name}.{method}` for multi-method routes, plain `{name}` otherwise.
@@ -201,14 +209,6 @@ final readonly class PathsStage implements SpecStage
         }
 
         return $this->methodPathOperationId($descriptor, $method);
-    }
-
-    private function methodPathOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
-    {
-        $sanitised = preg_replace('/[^a-zA-Z0-9]+/', '_', $descriptor->route->uri())
-            ?? $descriptor->route->uri();
-
-        return strtolower($method->value) . '_' . $sanitised;
     }
 
     /**

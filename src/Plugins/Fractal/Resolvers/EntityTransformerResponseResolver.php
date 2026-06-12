@@ -115,7 +115,10 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
         }
 
         if ($this->reassignsEntityTransformer($statements)) {
-            $this->note($method, 'reassigns $entity_transformer in the method body, so the property default is not the honest transformer');
+            $this->note(
+                $method,
+                'reassigns $entity_transformer in the method body, so the property default is not the honest transformer',
+            );
 
             return null;
         }
@@ -130,10 +133,13 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
 
         if (!$this->hasDocumentableFields($transformerClass)) {
             // Covers both an unreadable transform() body and a readable-but-empty literal.
-            $this->note($method, sprintf(
-                'but transformer %s declares no #[TransformerField] and yields no documentable fields',
-                $transformerClass,
-            ));
+            $this->note(
+                $method,
+                sprintf(
+                    'but transformer %s declares no #[TransformerField] and yields no documentable fields',
+                    $transformerClass,
+                ),
+            );
 
             return null;
         }
@@ -152,6 +158,27 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
     }
 
     // region Call-shape matching
+
+    /**
+     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
+     * HTTP response class. Any other named type is Tier-0 territory the signature resolvers
+     * own; union and intersection types are refused rather than arbitrated.
+     */
+    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
+    {
+        $returnType = $method->getReturnType();
+
+        if ($returnType === null) {
+            return true;
+        }
+
+        if (!$returnType instanceof ReflectionNamedType) {
+            return false;
+        }
+
+        return $returnType->isBuiltin()
+            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
+    }
 
     /**
      * The first top-level `return $this->itemResponse(…)` / `$this->listResponse(…)` call.
@@ -185,6 +212,10 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
         return null;
     }
 
+    // endregion
+
+    // region Transformer resolution
+
     /**
      * Whether any scanned statement — including conditional contexts — assigns to
      * `$this->entity_transformer`: once the method switches transformers at runtime, the
@@ -197,7 +228,8 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
         $assignment = $this->statementNodeFinder->findFirst(
             $statements,
             ConditionalContextPolicy::IncludeConditionalContexts,
-            static fn(Node $node): bool => $node instanceof Assign
+            static fn(Node $node): bool
+                => $node instanceof Assign
                 && $node->var instanceof PropertyFetch
                 && $node->var->var instanceof Variable
                 && $node->var->var->name === 'this'
@@ -208,9 +240,22 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
         return $assignment !== null;
     }
 
+    private function note(ReflectionMethod $method, string $reason): void
+    {
+        $this->logger->notice(
+            sprintf(
+                'itemResponse()/listResponse() call in %s::%s %s; no response inferred. '
+                . 'Annotate the action with #[FractalResponse] to document it.',
+                $method->getDeclaringClass()->getName(),
+                $method->getName(),
+                $reason,
+            ),
+        );
+    }
+
     // endregion
 
-    // region Transformer resolution
+    // region Guards & logging
 
     /**
      * The controller's `$entity_transformer` property default, when it names a concrete
@@ -255,42 +300,6 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
         $inferred = $this->transformReader->read($transformerClass);
 
         return $inferred !== null && $inferred !== [];
-    }
-
-    // endregion
-
-    // region Guards & logging
-
-    /**
-     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
-     * HTTP response class. Any other named type is Tier-0 territory the signature resolvers
-     * own; union and intersection types are refused rather than arbitrated.
-     */
-    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
-    {
-        $returnType = $method->getReturnType();
-
-        if ($returnType === null) {
-            return true;
-        }
-
-        if (!$returnType instanceof ReflectionNamedType) {
-            return false;
-        }
-
-        return $returnType->isBuiltin()
-            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
-    }
-
-    private function note(ReflectionMethod $method, string $reason): void
-    {
-        $this->logger->notice(sprintf(
-            'itemResponse()/listResponse() call in %s::%s %s; no response inferred. '
-            . 'Annotate the action with #[FractalResponse] to document it.',
-            $method->getDeclaringClass()->getName(),
-            $method->getName(),
-            $reason,
-        ));
     }
 
     // endregion

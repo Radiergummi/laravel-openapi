@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -92,11 +91,11 @@ final readonly class OperationSecurityMissing implements Rule, OperationRuleVisi
         return array_any(
             $middleware,
             static fn(string $entry): bool
-                    => str_starts_with($entry, 'auth:')
-                    || str_starts_with($entry, 'scope:')
-                    || str_starts_with($entry, 'scopes:')
-                    || str_starts_with($entry, 'abilities:')
-                    || str_starts_with($entry, 'ability:'),
+                => str_starts_with($entry, 'auth:')
+                || str_starts_with($entry, 'scope:')
+                || str_starts_with($entry, 'scopes:')
+                || str_starts_with($entry, 'abilities:')
+                || str_starts_with($entry, 'ability:'),
         );
     }
 

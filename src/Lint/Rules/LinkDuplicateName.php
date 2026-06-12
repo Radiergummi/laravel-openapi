@@ -72,19 +72,6 @@ final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
     }
 
     #[Override]
-    public function fixer(): Fixer
-    {
-        return new RemoveAttributeFixer(
-            attribute: Link::class,
-            member: MemberKind::Method,
-            mode: RemoveMode::Dedupe,
-            discriminator: static fn(object $attr): ?string => $attr instanceof Link
-                ? $attr->name
-                : null,
-        );
-    }
-
-    #[Override]
     public function id(): string
     {
         return 'link.duplicate-name';
@@ -94,6 +81,20 @@ final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
     public function level(): int
     {
         return 0;
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new RemoveAttributeFixer(
+            attribute: Link::class,
+            member: MemberKind::Method,
+            mode: RemoveMode::Dedupe,
+            discriminator: static fn(object $attr): ?string
+                => $attr instanceof Link
+                ? $attr->name
+                : null,
+        );
     }
 
     #[Override]

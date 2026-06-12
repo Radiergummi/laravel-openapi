@@ -24,8 +24,6 @@ use const PHP_EOL;
  */
 abstract class FixOperation
 {
-    abstract public function toEdit(string $source): SourceEdit;
-
     /**
      * Byte offsets of the start of each 1-based line, plus a terminal entry at `strlen($source)`
      * for the position just past the final line. Index `n` is the start of line `n`; index
@@ -50,4 +48,6 @@ abstract class FixOperation
 
         return $offsets;
     }
+
+    abstract public function toEdit(string $source): SourceEdit;
 }

@@ -32,7 +32,10 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 final readonly class RequestField extends FieldAttribute
 {
     /**
-     * @param null|non-empty-string                                                        $name        Field name; required on a method, derived from the target otherwise
+     * @param null|non-empty-string                                                        $name        Field name; required
+     *                                                                                                  on a method, derived
+     *                                                                                                  from the target
+     *                                                                                                  otherwise
      * @param null|non-empty-string                                                        $title
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type

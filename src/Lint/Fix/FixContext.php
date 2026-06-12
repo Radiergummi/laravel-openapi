@@ -41,11 +41,20 @@ final class FixContext
     }
 
     /**
-     * The raw, unmodified contents of `$file`, cached for the duration of the run.
+     * The {@see ClassLike} node for `$class` (a fully-qualified name) within `$file`, or null when
+     * the file holds no such declaration. Resolved against the name-annotated AST, so partial and
+     * fully-qualified declarations both match.
      */
-    public function source(string $file): string
+    public function classNode(string $file, string $class): ?ClassLike
     {
-        return $this->sources[$file] ??= (file_get_contents($file) ?: '');
+        $node = new NodeFinder()->findFirst(
+            $this->ast($file),
+            static fn(Node $node): bool
+                => $node instanceof ClassLike
+                && $node->namespacedName?->toString() === $class,
+        );
+
+        return $node instanceof ClassLike ? $node : null;
     }
 
     /**
@@ -70,19 +79,10 @@ final class FixContext
     }
 
     /**
-     * The {@see ClassLike} node for `$class` (a fully-qualified name) within `$file`, or null when
-     * the file holds no such declaration. Resolved against the name-annotated AST, so partial and
-     * fully-qualified declarations both match.
+     * The raw, unmodified contents of `$file`, cached for the duration of the run.
      */
-    public function classNode(string $file, string $class): ?ClassLike
+    public function source(string $file): string
     {
-        $node = new NodeFinder()->findFirst(
-            $this->ast($file),
-            static fn(Node $node): bool
-                => $node instanceof ClassLike
-                && $node->namespacedName?->toString() === $class,
-        );
-
-        return $node instanceof ClassLike ? $node : null;
+        return $this->sources[$file] ??= (file_get_contents($file) ?: '');
     }
 }

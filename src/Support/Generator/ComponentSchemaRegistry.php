@@ -329,6 +329,13 @@ final class ComponentSchemaRegistry
         return $attributes[0]->newInstance()->name;
     }
 
+    private function isKeyTaken(string $key, string $forClass): bool
+    {
+        $owner = $this->keyToClass[$key] ?? null;
+
+        return $owner !== null && $owner !== $forClass;
+    }
+
     /**
      * Human-readable owner of a taken key for {@see DuplicateSchemaNameException} messages. Keys
      * reserved by {@see registerNamed()} carry the {@see NAMED_KEY_OWNER} sentinel, not a class.
@@ -339,13 +346,6 @@ final class ComponentSchemaRegistry
         $owner = $this->keyToClass[$key];
 
         return $owner === self::NAMED_KEY_OWNER ? 'a reserved schema' : $owner;
-    }
-
-    private function isKeyTaken(string $key, string $forClass): bool
-    {
-        $owner = $this->keyToClass[$key] ?? null;
-
-        return $owner !== null && $owner !== $forClass;
     }
 
     /**

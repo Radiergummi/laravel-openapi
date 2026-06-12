@@ -105,35 +105,6 @@ class LintRouteFilter
     }
 
     /**
-     * Normalise a CLI-supplied `--path` value to the base-relative form `git diff --name-only`
-     * emits, so explicit files and diff-derived files compare identically. Absolute paths under
-     * the project root are made relative; values already relative pass through unchanged.
-     */
-    private function normaliseToBaseRelative(string $file): string
-    {
-        return Str::after($file, base_path() . '/');
-    }
-
-    /**
-     * Resolve a `Ref`-mode scope with no ref to a concrete merge-base ref, so {@see diffCommand}
-     * stays a pure mode→argv mapping. Work-tree modes and explicit refs pass through unchanged.
-     *
-     * @throws LogicException
-     * @throws ProcessSignaledException
-     * @throws ProcessStartFailedException
-     * @throws ProcessTimedOutException
-     * @throws RuntimeException
-     */
-    private function resolveRef(DiffScope $diff): DiffScope
-    {
-        if ($diff->mode === DiffMode::Ref && ($diff->ref === null || $diff->ref === '')) {
-            return new DiffScope(DiffMode::Ref, $this->resolveDefaultDiffRef());
-        }
-
-        return $diff;
-    }
-
-    /**
      * @param list<ActionDescriptor> $descriptors
      *
      * @return list<ActionDescriptor>
@@ -169,6 +140,59 @@ class LintRouteFilter
         }
 
         return str_contains($file, '/vendor/');
+    }
+
+    /**
+     * @return list<string>
+     *
+     * @throws LogicException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws RuntimeException
+     */
+    protected function changedFilesSince(DiffScope $diff): array
+    {
+        $process = new Process($this->diffCommand($diff));
+        $process->run();
+
+        return array_values(
+            array_filter(array_map(trim(...), explode(PHP_EOL, $process->getOutput()))),
+        );
+    }
+
+    /**
+     * The git argv for a diff scope. `WorkingTree`/`StagedIndex` select uncommitted edits; `Ref`
+     * diffs `<ref>...HEAD` and expects a concrete ref (see {@see resolveRef}).
+     *
+     * @return list<string>
+     */
+    protected function diffCommand(DiffScope $diff): array
+    {
+        return match ($diff->mode) {
+            DiffMode::WorkingTree => ['git', 'diff', '--name-only', 'HEAD'],
+            DiffMode::StagedIndex => ['git', 'diff', '--cached', '--name-only'],
+            DiffMode::Ref => ['git', 'diff', '--name-only', $diff->ref . '...HEAD'],
+        };
+    }
+
+    /**
+     * Resolve a `Ref`-mode scope with no ref to a concrete merge-base ref, so {@see diffCommand}
+     * stays a pure mode→argv mapping. Work-tree modes and explicit refs pass through unchanged.
+     *
+     * @throws LogicException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws RuntimeException
+     */
+    private function resolveRef(DiffScope $diff): DiffScope
+    {
+        if ($diff->mode === DiffMode::Ref && ($diff->ref === null || $diff->ref === '')) {
+            return new DiffScope(DiffMode::Ref, $this->resolveDefaultDiffRef());
+        }
+
+        return $diff;
     }
 
     /**
@@ -240,40 +264,6 @@ class LintRouteFilter
     }
 
     /**
-     * @return list<string>
-     *
-     * @throws LogicException
-     * @throws ProcessSignaledException
-     * @throws ProcessStartFailedException
-     * @throws ProcessTimedOutException
-     * @throws RuntimeException
-     */
-    protected function changedFilesSince(DiffScope $diff): array
-    {
-        $process = new Process($this->diffCommand($diff));
-        $process->run();
-
-        return array_values(
-            array_filter(array_map(trim(...), explode(PHP_EOL, $process->getOutput()))),
-        );
-    }
-
-    /**
-     * The git argv for a diff scope. `WorkingTree`/`StagedIndex` select uncommitted edits; `Ref`
-     * diffs `<ref>...HEAD` and expects a concrete ref (see {@see resolveRef}).
-     *
-     * @return list<string>
-     */
-    protected function diffCommand(DiffScope $diff): array
-    {
-        return match ($diff->mode) {
-            DiffMode::WorkingTree => ['git', 'diff', '--name-only', 'HEAD'],
-            DiffMode::StagedIndex => ['git', 'diff', '--cached', '--name-only'],
-            DiffMode::Ref => ['git', 'diff', '--name-only', $diff->ref . '...HEAD'],
-        };
-    }
-
-    /**
      * Returns true when a changed file is the published OpenAPI config — a change there can
      * affect every operation's output, so the per-descriptor diff filter is bypassed.
      *
@@ -284,6 +274,16 @@ class LintRouteFilter
         $configPath = $this->normaliseToBaseRelative(config_path('openapi.php'));
 
         return in_array($configPath, $changedFiles, true);
+    }
+
+    /**
+     * Normalise a CLI-supplied `--path` value to the base-relative form `git diff --name-only`
+     * emits, so explicit files and diff-derived files compare identically. Absolute paths under
+     * the project root are made relative; values already relative pass through unchanged.
+     */
+    private function normaliseToBaseRelative(string $file): string
+    {
+        return Str::after($file, base_path() . '/');
     }
 
     /**

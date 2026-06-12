@@ -144,6 +144,26 @@ final readonly class RequestQueryAccessorReader
     // region Call-shape matching
 
     /**
+     * Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null.
+     */
+    private function requestParameterName(ReflectionMethod $method): ?string
+    {
+        foreach ($method->getParameters() as $parameter) {
+            $type = $parameter->getType();
+
+            if (
+                $type instanceof ReflectionNamedType
+                && !$type->isBuiltin()
+                && is_a($type->getName(), Request::class, true)
+            ) {
+                return $parameter->getName();
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Depth-first, source-order collection of whitelisted accessor calls. Descends into every
      * subtree, conditional contexts included; a closure or arrow function whose own parameter
      * list re-declares the receiver variable name shadows it for its whole subtree — reads on
@@ -230,26 +250,6 @@ final readonly class RequestQueryAccessorReader
             && $receiver->getArgs() === [];
     }
 
-    /**
-     * Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null.
-     */
-    private function requestParameterName(ReflectionMethod $method): ?string
-    {
-        foreach ($method->getParameters() as $parameter) {
-            $type = $parameter->getType();
-
-            if (
-                $type instanceof ReflectionNamedType
-                && !$type->isBuiltin()
-                && is_a($type->getName(), Request::class, true)
-            ) {
-                return $parameter->getName();
-            }
-        }
-
-        return null;
-    }
-
     // endregion
 
     // region Argument resolution
@@ -273,6 +273,31 @@ final readonly class RequestQueryAccessorReader
         }
 
         return null;
+    }
+
+    /**
+     * Converts a dotted accessor key to its query-string wire notation (`filter.name` →
+     * `filter[name]`). Returns null for keys that name no single parameter — a wildcard
+     * segment or an empty segment.
+     */
+    private function wireName(string $key): ?string
+    {
+        if ($key === '' || str_contains($key, '*')) {
+            return null;
+        }
+
+        $segments = explode('.', $key);
+        $name = array_shift($segments);
+
+        foreach ($segments as $segment) {
+            if ($segment === '') {
+                return null;
+            }
+
+            $name .= '[' . $segment . ']';
+        }
+
+        return $name === '' ? null : $name;
     }
 
     /**
@@ -304,31 +329,6 @@ final readonly class RequestQueryAccessorReader
         };
 
         return $matchesType ? $default : null;
-    }
-
-    /**
-     * Converts a dotted accessor key to its query-string wire notation (`filter.name` →
-     * `filter[name]`). Returns null for keys that name no single parameter — a wildcard
-     * segment or an empty segment.
-     */
-    private function wireName(string $key): ?string
-    {
-        if ($key === '' || str_contains($key, '*')) {
-            return null;
-        }
-
-        $segments = explode('.', $key);
-        $name = array_shift($segments);
-
-        foreach ($segments as $segment) {
-            if ($segment === '') {
-                return null;
-            }
-
-            $name .= '[' . $segment . ']';
-        }
-
-        return $name === '' ? null : $name;
     }
 
     // endregion

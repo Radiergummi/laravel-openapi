@@ -166,13 +166,15 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
 
         if (!is_int($status)) {
             // Abort-shaped call found, but the status is not statically readable — note it.
-            $this->logger->notice(sprintf(
-                '%s() call in %s::%s has no statically readable status code; no error response '
-                . 'inferred. Annotate the action with #[Response] to document it.',
-                $helper,
-                $method->getDeclaringClass()->getName(),
-                $method->getName(),
-            ));
+            $this->logger->notice(
+                sprintf(
+                    '%s() call in %s::%s has no statically readable status code; no error response '
+                    . 'inferred. Annotate the action with #[Response] to document it.',
+                    $helper,
+                    $method->getDeclaringClass()->getName(),
+                    $method->getName(),
+                ),
+            );
 
             return null;
         }
@@ -194,25 +196,6 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
             // shared per-status response component.
             shareableDescription: !$authored,
         );
-    }
-
-    /**
-     * The literal string message when present, otherwise the standard reason phrase. A dynamic
-     * message does not discard the response — the status is still a fact worth documenting.
-     *
-     * @param array<int, Arg> $arguments
-     *
-     * @return array{0: string, 1: bool} the description and whether it is route-authored
-     */
-    private function description(array $arguments, int $messageIndex, int $status): array
-    {
-        $message = $this->literalValueAt($arguments, $messageIndex);
-
-        if (is_string($message) && $message !== '') {
-            return [$message, true];
-        }
-
-        return [HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status), false];
     }
 
     /**
@@ -239,6 +222,25 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
         } catch (NonLiteralValueException) {
             return null;
         }
+    }
+
+    /**
+     * The literal string message when present, otherwise the standard reason phrase. A dynamic
+     * message does not discard the response — the status is still a fact worth documenting.
+     *
+     * @param array<int, Arg> $arguments
+     *
+     * @return array{0: string, 1: bool} the description and whether it is route-authored
+     */
+    private function description(array $arguments, int $messageIndex, int $status): array
+    {
+        $message = $this->literalValueAt($arguments, $messageIndex);
+
+        if (is_string($message) && $message !== '') {
+            return [$message, true];
+        }
+
+        return [HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status), false];
     }
 
     // endregion

@@ -85,21 +85,6 @@ final class EloquentModelToSchema
     ) {}
 
     /**
-     * Registers the model's schema and returns the component key.
-     *
-     * @param class-string<Model> $modelClass
-     *
-     * @throws ReflectionException
-     */
-    public function build(string $modelClass): string
-    {
-        return $this->registry->buildOnce(
-            $modelClass,
-            fn(): OA\Schema => $this->schemaFor($modelClass),
-        );
-    }
-
-    /**
      * The schema for one model property by name — typed from `$casts`, a `@property` /
      * `@property-read` tag, or an appended accessor, in that order — or null when the model
      * carries no metadata under that name.
@@ -275,6 +260,281 @@ final class EloquentModelToSchema
     }
 
     /**
+     * Converts an OA\Schema into a named OA\Property by copying every defined JSON-Schema field.
+     *
+     * OA\Property extends OA\Schema, so the field set is identical; swagger-php internals are
+     * underscore-prefixed and skipped, as is the component-key `schema` field.
+     */
+    private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
+    {
+        return copy_schema_fields(
+            $schema,
+            new OA\Property(['property' => $name]),
+        );
+    }
+
+    /**
+     * Maps an Eloquent cast string to an OA\Property with the given name, or returns null when
+     * the cast type is not recognised. For the JSON casts whose serialized shape is ambiguous
+     * (`array` / `json` / `collection`), the model's `@property` tag type — when present —
+     * disambiguates a list from a map ({@see jsonCastDefinition()}).
+     */
+    private function castToProperty(string $name, string $cast, ?TypeNode $declaredType = null): ?OA\Property
+    {
+        // The part before `:` — a parameterised cast (`decimal:2`, `AsCollection:Foo`) or the
+        // bare keyword / class-string. `?: $cast` keeps the type a non-false string for an empty cast.
+        $castHead = strtok($cast, ':') ?: $cast;
+
+        // Class-form object casts (the modern `casts()` style spells the JSON casts as castable
+        // class-strings: `AsCollection::class`, `AsArrayObject::class`, …). getCasts() reports the
+        // caster FQCN, which the keyword match below would never recognise.
+        $classFormDefinition = $this->classFormCastDefinition($castHead, $declaredType);
+
+        if ($classFormDefinition !== null) {
+            return new OA\Property(['property' => $name, ...$classFormDefinition]);
+        }
+
+        // Normalise the keyword form: lowercase the head (e.g. `decimal:2` → `decimal`).
+        $normalised = strtolower($castHead);
+
+        // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
+        // keywords (decimal/date/datetime/array/…) are handled here.
+        $definition = $this->scalarKeywordToDefinition($normalised) ?? match ($normalised) {
+            'real' => ['type' => 'number'],
+            'decimal',
+            'hashed',
+            'encrypted' => ['type' => 'string'],
+            'date' => ['type' => 'string', 'format' => 'date'],
+            'datetime',
+            'immutable_date',
+            'immutable_datetime',
+            'timestamp',
+            'custom_datetime' => ['type' => 'string', 'format' => 'date-time'],
+            'array',
+            'json',
+            'collection' => $this->jsonCastDefinition($declaredType),
+            'object' => ['type' => 'object'],
+            default => null,
+        };
+
+        if ($definition === null) {
+            return null;
+        }
+
+        return new OA\Property(['property' => $name, ...$definition]);
+    }
+
+    /**
+     * The schema definition for a class-form object cast — the modern `casts()` style spelling the
+     * JSON casts as castable class-strings. `getCasts()` reports the caster FQCN, so these never
+     * match the lowercase keyword map in {@see castToProperty()}.
+     *
+     * - `AsCollection` / `AsEncryptedCollection` / `AsArrayObject` / `AsEncryptedArrayObject` → the
+     *   JSON object/list shape, inheriting the same `@property`-tag list disambiguation as the
+     *   string-form casts ({@see jsonCastDefinition()}).
+     * - `AsStringable` → string.
+     *
+     * Any other castable (a custom `CastsAttributes`, the enum collections that carry an
+     * enum-class parameter) is unknowable at Tier 0 — null, so the caller defers to the
+     * `@property` tag.
+     *
+     * @return null|array<string, mixed>
+     */
+    private function classFormCastDefinition(string $castClass, ?TypeNode $declaredType): ?array
+    {
+        if (!class_exists($castClass)) {
+            return null;
+        }
+
+        return match (true) {
+            is_a($castClass, AsCollection::class, allow_string: true),
+            is_a($castClass, AsEncryptedCollection::class, allow_string: true),
+            is_a($castClass, AsArrayObject::class, allow_string: true),
+            is_a($castClass, AsEncryptedArrayObject::class, allow_string: true) => $this->jsonCastDefinition(
+                $declaredType,
+            ),
+            is_a($castClass, AsStringable::class, allow_string: true) => ['type' => 'string'],
+            default => null,
+        };
+    }
+
+    /**
+     * The schema definition for an `array` / `json` / `collection` cast: a list when the
+     * `@property` tag for the column is list-shaped (`list<T>`, `array<int, T>`, `T[]` — one
+     * level, no deep generic descent; `items` only when `T` is a scalar keyword), otherwise
+     * the conservative `object` default.
+     *
+     * @return array<string, mixed>
+     */
+    private function jsonCastDefinition(?TypeNode $declaredType): array
+    {
+        $elementNode = $declaredType === null
+            ? null
+            : $this->typeNodeResolver->listValueType($declaredType);
+
+        if ($elementNode === null) {
+            return ['type' => 'object'];
+        }
+
+        // A non-scalar element (list<Carbon>) still needs an items object: swagger-php's
+        // validator rejects an items-less array on both supported majors.
+        $definition = ['type' => 'array', 'items' => new OA\Items([])];
+
+        if ($elementNode instanceof IdentifierTypeNode) {
+            $itemDefinition = $this->scalarKeywordToDefinition($elementNode->name);
+
+            if ($itemDefinition !== null) {
+                $definition['items'] = new OA\Items($itemDefinition);
+            }
+        }
+
+        return $definition;
+    }
+
+    /**
+     * Maps a scalar PHPDoc/cast keyword to an OpenAPI type definition array,
+     * or returns null for class names and non-scalar keywords.
+     *
+     * @return null|array<string, string>
+     */
+    private function scalarKeywordToDefinition(string $keyword): ?array
+    {
+        return match (strtolower($keyword)) {
+            'int', 'integer' => ['type' => 'integer'],
+            'float', 'double' => ['type' => 'number'],
+            'string' => ['type' => 'string'],
+            'bool', 'boolean',
+            'true', 'false' => ['type' => 'boolean'],
+            default => null,
+        };
+    }
+
+    /**
+     * Builds a named OA\Property from a docblock type node via {@see TypeNodeToSchema}.
+     *
+     * Returns null when the node is unresolvable, so the caller falls through to the empty-property
+     * fallback.
+     *
+     * @param ReflectionClass<Model> $reflection
+     *
+     * @throws ReflectionException
+     */
+    private function propertyFromTag(
+        string $name,
+        TypeNode $node,
+        ReflectionClass $reflection,
+    ): ?OA\Property {
+        // Array shapes (array{…}), list/array-of forms, and string-keyed maps are resolved by
+        // TypeNodeToSchema; scalar keywords, related-model `$ref`s, and non-model classes are
+        // resolved through the class-schema strategy below. Nullability is applied by the resolver.
+        $schema = $this->typeNodeToSchema->resolve(
+            $node,
+            $reflection,
+            $this->classTagSchema(...),
+        );
+
+        if ($schema === null) {
+            $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
+                'model' => $reflection->getName(),
+                'property' => $name,
+                'type' => (string) $node,
+            ]);
+
+            return null;
+        }
+
+        return $this->propertyFromSchema($name, $schema);
+    }
+
+    /**
+     * Resolves the return type of accessor method to an OA\Property, or returns null when no
+     * reflectable typed accessor exists for the property name.
+     *
+     * Checks the new-style studly cased method (e.g. `readingTime`) and the legacy
+     * `getReadingTimeAttribute` form. If the return type is `Attribute` (the new
+     * `Attribute::get(...)` style), the value type is not reflectable, so null is returned.
+     *
+     * @param ReflectionClass<Model> $reflection
+     *
+     * @throws ReflectionException
+     */
+    private function propertyFromAccessor(ReflectionClass $reflection, string $name): ?OA\Property
+    {
+        $studly = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        $candidates = [$studly, 'get' . $studly . 'Attribute'];
+
+        foreach ($candidates as $methodName) {
+            if (!$reflection->hasMethod($methodName)) {
+                continue;
+            }
+
+            $returnType = $reflection->getMethod($methodName)->getReturnType();
+
+            if (!$returnType instanceof ReflectionNamedType) {
+                continue;
+            }
+
+            // New-style Attribute::get() accessors don't expose the value type.
+            if ($returnType->getName() === Attribute::class) {
+                continue;
+            }
+
+            try {
+                $type = $this->typeResolver->resolve($returnType);
+            } catch (UnsupportedException) {
+                continue;
+            }
+
+            return $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromType($type));
+        }
+
+        return null;
+    }
+
+    /**
+     * The default property for a framework-managed timestamp column: nullable date-time, the
+     * runtime reality (unsaved models and NULL columns carry no value).
+     */
+    private function timestampProperty(string $name): OA\Property
+    {
+        return new OA\Property(['property' => $name, 'type' => ['string', 'null'], 'format' => 'date-time']);
+    }
+
+    /**
+     * Maps a resolved leaf class to a schema: a related model becomes a pooled `$ref`, any other
+     * class is shaped by {@see JsonSchemaFromType}. Supplied as the class-schema strategy to
+     * {@see TypeNodeToSchema}.
+     *
+     * @throws ReflectionException
+     */
+    private function classTagSchema(string $className): OA\Schema
+    {
+        if (is_a($className, Model::class, allow_string: true)) {
+            /** @var class-string<Model> $className */
+            return new OA\Schema([
+                'ref' => $this->registry->qualifyKey($this->build($className)),
+            ]);
+        }
+
+        return $this->jsonSchemaFromType->fromType(Type::object($className));
+    }
+
+    /**
+     * Registers the model's schema and returns the component key.
+     *
+     * @param class-string<Model> $modelClass
+     *
+     * @throws ReflectionException
+     */
+    public function build(string $modelClass): string
+    {
+        return $this->registry->buildOnce(
+            $modelClass,
+            fn(): OA\Schema => $this->schemaFor($modelClass),
+        );
+    }
+
+    /**
      * @param class-string<Model> $modelClass
      *
      * @throws ReflectionException
@@ -403,263 +663,5 @@ final class EloquentModelToSchema
         }
 
         return new OA\Schema($schemaArgs);
-    }
-
-    /**
-     * Builds a named OA\Property from a docblock type node via {@see TypeNodeToSchema}.
-     *
-     * Returns null when the node is unresolvable, so the caller falls through to the empty-property
-     * fallback.
-     *
-     * @param ReflectionClass<Model> $reflection
-     *
-     * @throws ReflectionException
-     */
-    private function propertyFromTag(
-        string $name,
-        TypeNode $node,
-        ReflectionClass $reflection,
-    ): ?OA\Property {
-        // Array shapes (array{…}), list/array-of forms, and string-keyed maps are resolved by
-        // TypeNodeToSchema; scalar keywords, related-model `$ref`s, and non-model classes are
-        // resolved through the class-schema strategy below. Nullability is applied by the resolver.
-        $schema = $this->typeNodeToSchema->resolve(
-            $node,
-            $reflection,
-            $this->classTagSchema(...),
-        );
-
-        if ($schema === null) {
-            $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
-                'model' => $reflection->getName(),
-                'property' => $name,
-                'type' => (string) $node,
-            ]);
-
-            return null;
-        }
-
-        return $this->propertyFromSchema($name, $schema);
-    }
-
-    /**
-     * Maps a resolved leaf class to a schema: a related model becomes a pooled `$ref`, any other
-     * class is shaped by {@see JsonSchemaFromType}. Supplied as the class-schema strategy to
-     * {@see TypeNodeToSchema}.
-     *
-     * @throws ReflectionException
-     */
-    private function classTagSchema(string $className): OA\Schema
-    {
-        if (is_a($className, Model::class, allow_string: true)) {
-            /** @var class-string<Model> $className */
-            return new OA\Schema([
-                'ref' => $this->registry->qualifyKey($this->build($className)),
-            ]);
-        }
-
-        return $this->jsonSchemaFromType->fromType(Type::object($className));
-    }
-
-    /**
-     * Maps a scalar PHPDoc/cast keyword to an OpenAPI type definition array,
-     * or returns null for class names and non-scalar keywords.
-     *
-     * @return null|array<string, string>
-     */
-    private function scalarKeywordToDefinition(string $keyword): ?array
-    {
-        return match (strtolower($keyword)) {
-            'int', 'integer' => ['type' => 'integer'],
-            'float', 'double' => ['type' => 'number'],
-            'string' => ['type' => 'string'],
-            'bool', 'boolean',
-            'true', 'false' => ['type' => 'boolean'],
-            default => null,
-        };
-    }
-
-    /**
-     * Resolves the return type of accessor method to an OA\Property, or returns null when no
-     * reflectable typed accessor exists for the property name.
-     *
-     * Checks the new-style studly cased method (e.g. `readingTime`) and the legacy
-     * `getReadingTimeAttribute` form. If the return type is `Attribute` (the new
-     * `Attribute::get(...)` style), the value type is not reflectable, so null is returned.
-     *
-     * @param ReflectionClass<Model> $reflection
-     *
-     * @throws ReflectionException
-     */
-    private function propertyFromAccessor(ReflectionClass $reflection, string $name): ?OA\Property
-    {
-        $studly = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
-        $candidates = [$studly, 'get' . $studly . 'Attribute'];
-
-        foreach ($candidates as $methodName) {
-            if (!$reflection->hasMethod($methodName)) {
-                continue;
-            }
-
-            $returnType = $reflection->getMethod($methodName)->getReturnType();
-
-            if (!$returnType instanceof ReflectionNamedType) {
-                continue;
-            }
-
-            // New-style Attribute::get() accessors don't expose the value type.
-            if ($returnType->getName() === Attribute::class) {
-                continue;
-            }
-
-            try {
-                $type = $this->typeResolver->resolve($returnType);
-            } catch (UnsupportedException) {
-                continue;
-            }
-
-            return $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromType($type));
-        }
-
-        return null;
-    }
-
-    /**
-     * Converts an OA\Schema into a named OA\Property by copying every defined JSON-Schema field.
-     *
-     * OA\Property extends OA\Schema, so the field set is identical; swagger-php internals are
-     * underscore-prefixed and skipped, as is the component-key `schema` field.
-     */
-    private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
-    {
-        return copy_schema_fields(
-            $schema,
-            new OA\Property(['property' => $name]),
-        );
-    }
-
-    /**
-     * Maps an Eloquent cast string to an OA\Property with the given name, or returns null when
-     * the cast type is not recognised. For the JSON casts whose serialized shape is ambiguous
-     * (`array` / `json` / `collection`), the model's `@property` tag type — when present —
-     * disambiguates a list from a map ({@see jsonCastDefinition()}).
-     */
-    private function castToProperty(string $name, string $cast, ?TypeNode $declaredType = null): ?OA\Property
-    {
-        // The part before `:` — a parameterised cast (`decimal:2`, `AsCollection:Foo`) or the
-        // bare keyword / class-string. `?: $cast` keeps the type a non-false string for an empty cast.
-        $castHead = strtok($cast, ':') ?: $cast;
-
-        // Class-form object casts (the modern `casts()` style spells the JSON casts as castable
-        // class-strings: `AsCollection::class`, `AsArrayObject::class`, …). getCasts() reports the
-        // caster FQCN, which the keyword match below would never recognise.
-        $classFormDefinition = $this->classFormCastDefinition($castHead, $declaredType);
-
-        if ($classFormDefinition !== null) {
-            return new OA\Property(['property' => $name, ...$classFormDefinition]);
-        }
-
-        // Normalise the keyword form: lowercase the head (e.g. `decimal:2` → `decimal`).
-        $normalised = strtolower($castHead);
-
-        // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
-        // keywords (decimal/date/datetime/array/…) are handled here.
-        $definition = $this->scalarKeywordToDefinition($normalised) ?? match ($normalised) {
-            'real' => ['type' => 'number'],
-            'decimal',
-            'hashed',
-            'encrypted' => ['type' => 'string'],
-            'date' => ['type' => 'string', 'format' => 'date'],
-            'datetime',
-            'immutable_date',
-            'immutable_datetime',
-            'timestamp',
-            'custom_datetime' => ['type' => 'string', 'format' => 'date-time'],
-            'array',
-            'json',
-            'collection' => $this->jsonCastDefinition($declaredType),
-            'object' => ['type' => 'object'],
-            default => null,
-        };
-
-        if ($definition === null) {
-            return null;
-        }
-
-        return new OA\Property(['property' => $name, ...$definition]);
-    }
-
-    /**
-     * The schema definition for a class-form object cast — the modern `casts()` style spelling the
-     * JSON casts as castable class-strings. `getCasts()` reports the caster FQCN, so these never
-     * match the lowercase keyword map in {@see castToProperty()}.
-     *
-     * - `AsCollection` / `AsEncryptedCollection` / `AsArrayObject` / `AsEncryptedArrayObject` → the
-     *   JSON object/list shape, inheriting the same `@property`-tag list disambiguation as the
-     *   string-form casts ({@see jsonCastDefinition()}).
-     * - `AsStringable` → string.
-     *
-     * Any other castable (a custom `CastsAttributes`, the enum collections that carry an
-     * enum-class parameter) is unknowable at Tier 0 — null, so the caller defers to the
-     * `@property` tag.
-     *
-     * @return null|array<string, mixed>
-     */
-    private function classFormCastDefinition(string $castClass, ?TypeNode $declaredType): ?array
-    {
-        if (!class_exists($castClass)) {
-            return null;
-        }
-
-        return match (true) {
-            is_a($castClass, AsCollection::class, allow_string: true),
-            is_a($castClass, AsEncryptedCollection::class, allow_string: true),
-            is_a($castClass, AsArrayObject::class, allow_string: true),
-            is_a($castClass, AsEncryptedArrayObject::class, allow_string: true) => $this->jsonCastDefinition($declaredType),
-            is_a($castClass, AsStringable::class, allow_string: true) => ['type' => 'string'],
-            default => null,
-        };
-    }
-
-    /**
-     * The schema definition for an `array` / `json` / `collection` cast: a list when the
-     * `@property` tag for the column is list-shaped (`list<T>`, `array<int, T>`, `T[]` — one
-     * level, no deep generic descent; `items` only when `T` is a scalar keyword), otherwise
-     * the conservative `object` default.
-     *
-     * @return array<string, mixed>
-     */
-    private function jsonCastDefinition(?TypeNode $declaredType): array
-    {
-        $elementNode = $declaredType === null
-            ? null
-            : $this->typeNodeResolver->listValueType($declaredType);
-
-        if ($elementNode === null) {
-            return ['type' => 'object'];
-        }
-
-        // A non-scalar element (list<Carbon>) still needs an items object: swagger-php's
-        // validator rejects an items-less array on both supported majors.
-        $definition = ['type' => 'array', 'items' => new OA\Items([])];
-
-        if ($elementNode instanceof IdentifierTypeNode) {
-            $itemDefinition = $this->scalarKeywordToDefinition($elementNode->name);
-
-            if ($itemDefinition !== null) {
-                $definition['items'] = new OA\Items($itemDefinition);
-            }
-        }
-
-        return $definition;
-    }
-
-    /**
-     * The default property for a framework-managed timestamp column: nullable date-time, the
-     * runtime reality (unsaved models and NULL columns carry no value).
-     */
-    private function timestampProperty(string $name): OA\Property
-    {
-        return new OA\Property(['property' => $name, 'type' => ['string', 'null'], 'format' => 'date-time']);
     }
 }

@@ -123,6 +123,26 @@ final readonly class InlineValidatorRulesReader
     // region Call-shape matching
 
     /**
+     * Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null.
+     */
+    private function requestParameterName(ReflectionMethod $method): ?string
+    {
+        foreach ($method->getParameters() as $parameter) {
+            $type = $parameter->getType();
+
+            if (
+                $type instanceof ReflectionNamedType
+                && !$type->isBuiltin()
+                && is_a($type->getName(), Request::class, true)
+            ) {
+                return $parameter->getName();
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Returns the rules argument expression when the node is one of the four whitelisted
      * validator call shapes, or null otherwise.
      */
@@ -222,26 +242,6 @@ final readonly class InlineValidatorRulesReader
         $resolved = $class->toString();
 
         return $resolved === $facadeClass || $resolved === $shortName;
-    }
-
-    /**
-     * Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null.
-     */
-    private function requestParameterName(ReflectionMethod $method): ?string
-    {
-        foreach ($method->getParameters() as $parameter) {
-            $type = $parameter->getType();
-
-            if (
-                $type instanceof ReflectionNamedType
-                && !$type->isBuiltin()
-                && is_a($type->getName(), Request::class, true)
-            ) {
-                return $parameter->getName();
-            }
-        }
-
-        return null;
     }
 
     // endregion
@@ -377,7 +377,9 @@ final readonly class InlineValidatorRulesReader
             }
 
             if (!is_string($subscriptKey) && !is_int($subscriptKey)) {
-                return InlineValidationScanResult::degraded('the $this->rules subscript key is not a string or integer');
+                return InlineValidationScanResult::degraded(
+                    'the $this->rules subscript key is not a string or integer',
+                );
             }
 
             $expression = $expression->var;
@@ -394,10 +396,12 @@ final readonly class InlineValidatorRulesReader
             $declared = $this->propertyDefault($controller, $expression->name->toString());
 
             if ($declared === null) {
-                return InlineValidationScanResult::degraded(sprintf(
-                    'property $%s has no literal array default value',
-                    $expression->name->toString(),
-                ));
+                return InlineValidationScanResult::degraded(
+                    sprintf(
+                        'property $%s has no literal array default value',
+                        $expression->name->toString(),
+                    ),
+                );
             }
 
             return $this->resultFromDeclaredRules($declared, $subscriptKey);
@@ -414,10 +418,12 @@ final readonly class InlineValidatorRulesReader
             $declared = $this->invokeRulesMethod($controller, $expression->name->toString());
 
             if ($declared === null) {
-                return InlineValidationScanResult::degraded(sprintf(
-                    'method %s() could not be invoked or did not return an array',
-                    $expression->name->toString(),
-                ));
+                return InlineValidationScanResult::degraded(
+                    sprintf(
+                        'method %s() could not be invoked or did not return an array',
+                        $expression->name->toString(),
+                    ),
+                );
             }
 
             return $this->resultFromDeclaredRules($declared, $subscriptKey);
@@ -427,16 +433,40 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
+     * @param ReflectionClass<object> $controller
+     *
+     * @return null|array<int|string, mixed>
+     */
+    private function propertyDefault(ReflectionClass $controller, string $propertyName): ?array
+    {
+        try {
+            $property = $controller->getProperty($propertyName);
+        } catch (ReflectionException) {
+            return null;
+        }
+
+        if (!$property->hasDefaultValue()) {
+            return null;
+        }
+
+        $default = $property->getDefaultValue();
+
+        return is_array($default) ? $default : null;
+    }
+
+    /**
      * @param array<int|string, mixed> $declared
      */
     private function resultFromDeclaredRules(array $declared, string|int|null $subscriptKey): InlineValidationScanResult
     {
         if ($subscriptKey !== null) {
             if (!array_key_exists($subscriptKey, $declared) || !is_array($declared[$subscriptKey])) {
-                return InlineValidationScanResult::degraded(sprintf(
-                    'the declared rules have no array entry under key "%s"',
-                    $subscriptKey,
-                ));
+                return InlineValidationScanResult::degraded(
+                    sprintf(
+                        'the declared rules have no array entry under key "%s"',
+                        $subscriptKey,
+                    ),
+                );
             }
 
             /** @var array<int|string, mixed> $declared */
@@ -466,28 +496,6 @@ final readonly class InlineValidatorRulesReader
         }
 
         return InlineValidationScanResult::recovered($rules);
-    }
-
-    /**
-     * @param ReflectionClass<object> $controller
-     *
-     * @return null|array<int|string, mixed>
-     */
-    private function propertyDefault(ReflectionClass $controller, string $propertyName): ?array
-    {
-        try {
-            $property = $controller->getProperty($propertyName);
-        } catch (ReflectionException) {
-            return null;
-        }
-
-        if (!$property->hasDefaultValue()) {
-            return null;
-        }
-
-        $default = $property->getDefaultValue();
-
-        return is_array($default) ? $default : null;
     }
 
     /**

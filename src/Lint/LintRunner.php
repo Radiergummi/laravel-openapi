@@ -201,10 +201,12 @@ final readonly class LintRunner
         $rules = $this->registry->forLevel($level, only: $only, skip: $skip);
 
         if (!$options->validateSpec) {
-            $rules = array_values(array_filter(
-                $rules,
-                static fn(Rule $rule): bool => $rule->id() !== RuleRegistry::EXEMPT_RULE_ID,
-            ));
+            $rules = array_values(
+                array_filter(
+                    $rules,
+                    static fn(Rule $rule): bool => $rule->id() !== RuleRegistry::EXEMPT_RULE_ID,
+                ),
+            );
         }
 
         // Stages to exclude when building the inference-only control document for this run, unioned
@@ -268,7 +270,11 @@ final readonly class LintRunner
                     $allComponentClasses[$componentClass] = true;
                 }
 
-                foreach (array_keys($this->reachableComponentClasses($document, $allowedRouteUris, $classMap)) as $class) {
+                foreach (
+                    array_keys(
+                        $this->reachableComponentClasses($document, $allowedRouteUris, $classMap),
+                    ) as $class
+                ) {
                     $allowedSchemaClasses[$class] = true;
                 }
             }
@@ -378,121 +384,24 @@ final readonly class LintRunner
     }
 
     /**
-     * Map in-scope operations to their tag lists for the coverage denominator. When a route filter
-     * is active, an out-of-scope operation must not count: {@see walkSpec()} already restricts
-     * $document->paths when descriptors match, but an empty match (e.g. a glob that hits nothing)
-     * leaves every operation in place, so the URI is gated explicitly here.
+     * In-scope route URIs (leading slash trimmed) for the given descriptors. The single source of
+     * the "which routes are in scope" set — shared by the `--path`/`--diff` finding filter, the
+     * tree-walk path restriction, and schema reachability — so they cannot diverge on slash
+     * handling.
      *
-     * @param list<OperationNode>      $operations
-     * @param null|array<string, true> $allowedRouteUris
+     * @param list<ActionDescriptor> $descriptors
      *
-     * @return array{0: array<string, list<string>>, 1: array<string, array{file: ?string, line: ?int}>}
-     *                                                                                                   [operation key => tags, operation key => source location]
+     * @return array<string, true>
      */
-    private function collectOperationCoverage(array $operations, ?array $allowedRouteUris, string $specName): array
+    private static function descriptorUriSet(array $descriptors): array
     {
-        $operationTags = [];
-        $operationLocations = [];
+        $uris = [];
 
-        foreach ($operations as $operation) {
-            if ($allowedRouteUris !== null && !isset($allowedRouteUris[ltrim($operation->pathUri, '/')])) {
-                continue;
-            }
-
-            $key = CoverageCalculator::operationKey(
-                $specName,
-                $operation->method,
-                $operation->pathUri,
-            );
-
-            if ($key !== null) {
-                $operationTags[$key] = $operation->tags;
-                $operationLocations[$key] = ['file' => $operation->file(), 'line' => $operation->line()];
-            }
+        foreach ($descriptors as $descriptor) {
+            $uris[ltrim($descriptor->route->uri(), '/')] = true;
         }
 
-        return [$operationTags, $operationLocations];
-    }
-
-    /**
-     * Apply the post-walk finding pipeline: severity overrides, route/schema scope filtering (when
-     * --path/--diff is active), --only/--skip, suppressions, and the level cutoff.
-     *
-     * @param list<Finding>              $rawFindings
-     * @param list<string>               $only
-     * @param list<string>               $skip
-     * @param list<SuppressionDirective> $suppressionsAll
-     * @param null|array<string, true>   $allowedRouteUris
-     * @param array<string, true>        $allowedSchemaClasses
-     * @param array<string, true>        $allComponentClasses
-     *
-     * @return list<Finding>
-     */
-    private function filterFindings(
-        array $rawFindings,
-        LintOptions $options,
-        int $level,
-        array $only,
-        array $skip,
-        array $suppressionsAll,
-        ?array $allowedRouteUris,
-        array $allowedSchemaClasses,
-        array $allComponentClasses,
-    ): array {
-        $findings = $this->registry->applyOverrides($rawFindings);
-
-        if ($allowedRouteUris !== null) {
-            $findings = array_filter(
-                $findings,
-                static function (Finding $finding) use ($allowedRouteUris, $allowedSchemaClasses, $allComponentClasses): bool {
-                    $uri = $finding->location->routeUri;
-
-                    if ($uri !== null) {
-                        return isset($allowedRouteUris[ltrim($uri, '/')]);
-                    }
-
-                    // No routeUri: this is either a schema-derived generation finding (scope it by
-                    // the schema's reachability from in-scope routes) or a genuinely route-agnostic
-                    // finding (pre-build, spec-level — always kept). A source class we don't
-                    // recognise as a component is treated as route-agnostic and kept, so an
-                    // in-scope finding is never hidden because we couldn't place its schema.
-                    $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
-
-                    if (is_string($sourceClass) && isset($allComponentClasses[$sourceClass])) {
-                        return isset($allowedSchemaClasses[$sourceClass]);
-                    }
-
-                    return true;
-                },
-            );
-        }
-
-        if ($only !== []) {
-            $findings = array_filter(
-                $findings,
-                static fn(Finding $finding): bool => in_array($finding->ruleId, $only, true),
-            );
-        }
-
-        if ($skip !== []) {
-            $findings = array_filter(
-                $findings,
-                static fn(Finding $finding): bool
-                    => $finding->ruleId === RuleRegistry::EXEMPT_RULE_ID
-                    || !in_array($finding->ruleId, $skip, true),
-            );
-        }
-
-        if ($options->applySuppressions) {
-            $findings = $this->applySuppressions(array_values($findings), $suppressionsAll);
-        }
-
-        return array_values(
-            array_filter(
-                $findings,
-                static fn(Finding $finding): bool => $finding->level <= $level,
-            ),
-        );
+        return $uris;
     }
 
     /**
@@ -528,30 +437,6 @@ final readonly class LintRunner
     }
 
     /**
-     * Resolve the effective --skip list, merging CLI input with config('openapi.lint.disabled_rules').
-     *
-     * spec.invalid is unconditionally removed — it cannot be disabled.
-     *
-     * @param list<string> $cli
-     *
-     * @return list<string>
-     */
-    private function resolveSkip(array $cli): array
-    {
-        $merged = array_values(array_unique(array_merge(
-            $this->expandRulePatterns($cli),
-            $this->expandRulePatterns($this->disabledRules),
-        )));
-
-        return array_values(
-            array_filter(
-                $merged,
-                static fn(string $id): bool => $id !== RuleRegistry::EXEMPT_RULE_ID,
-            ),
-        );
-    }
-
-    /**
      * Expand `*`-globbed rule-ID patterns against the registered rule IDs, so a family pattern like
      * `migration.*` selects every rule in that family. Non-glob entries pass through verbatim
      * (an unknown exact ID still matches nothing, as before); a glob that matches no registered
@@ -577,16 +462,55 @@ final readonly class LintRunner
                 continue;
             }
 
-            $matches = array_values(array_filter(
-                $known,
-                static fn(string $id): bool => fnmatch($pattern, $id),
-            ));
+            $matches = array_values(
+                array_filter(
+                    $known,
+                    static fn(string $id): bool => fnmatch($pattern, $id),
+                ),
+            );
 
             // Keep the literal pattern when nothing matches so it still constrains to "no rules".
             $expanded = [...$expanded, ...($matches !== [] ? $matches : [$pattern])];
         }
 
         return array_values(array_unique($expanded));
+    }
+
+    /**
+     * Resolve the effective --skip list, merging CLI input with config('openapi.lint.disabled_rules').
+     *
+     * spec.invalid is unconditionally removed — it cannot be disabled.
+     *
+     * @param list<string> $cli
+     *
+     * @return list<string>
+     */
+    private function resolveSkip(array $cli): array
+    {
+        $merged = array_values(
+            array_unique(
+                array_merge(
+                    $this->expandRulePatterns($cli),
+                    $this->expandRulePatterns($this->disabledRules),
+                ),
+            ),
+        );
+
+        return array_values(
+            array_filter(
+                $merged,
+                static fn(string $id): bool => $id !== RuleRegistry::EXEMPT_RULE_ID,
+            ),
+        );
+    }
+
+    private function resolveLevel(LintOptions $options): int
+    {
+        $raw = $options->level ?? $this->configuredLevel;
+
+        return $raw === 'max'
+            ? $this->registry->maxLevel()
+            : max(0, (int) $raw);
     }
 
     /**
@@ -611,55 +535,128 @@ final readonly class LintRunner
         return array_values(array_unique($stages));
     }
 
-    private function resolveLevel(LintOptions $options): int
-    {
-        $raw = $options->level ?? $this->configuredLevel;
-
-        return $raw === 'max'
-            ? $this->registry->maxLevel()
-            : max(0, (int) $raw);
-    }
-
     /**
-     * Exit code for the run. With no coverage gate configured the legacy rule applies (any finding
-     * → 1). When a gate is active (--min-coverage / --max-findings, from CLI or config) the gate
-     * replaces that rule: non-zero only when coverage is below the floor or findings exceed the
-     * budget — findings alone no longer fail.
+     * Component classes reachable from the in-scope operations, transitively through
+     * component-to-component `$ref`s. Schema-derived findings are class-keyed (a FormRequest or
+     * Data class is built once and `$ref`'d by many routes), so they are scoped by membership in
+     * this set rather than by a single routeUri.
      *
-     * @param list<Finding> $findings
+     * Seeding from in-scope path items only — not the whole document, whose component pool still
+     * holds out-of-scope schemas — keeps a schema in scope exactly when an in-scope route reaches
+     * it.
+     *
+     * @param array<string, true>         $allowedRouteUris  in-scope route URIs, leading slash trimmed
+     * @param array<string, class-string> $componentClassMap component schema name → class
+     *
+     * @return array<class-string, true>
      */
-    private function resolveExitCode(array $findings, CoverageSummary $coverage, LintOptions $options): int
-    {
-        $minCoverage = $options->minCoverage ?? $this->configuredMinCoverage;
-        $maxFindings = $options->maxFindings ?? $this->configuredMaxFindings;
+    private function reachableComponentClasses(
+        OA\OpenApi $document,
+        array $allowedRouteUris,
+        array $componentClassMap,
+    ): array {
+        $componentsByName = [];
 
-        if ($minCoverage === null && $maxFindings === null) {
-            return $findings === [] ? 0 : 1;
+        if ($document->components !== null && is_array($document->components->schemas)) {
+            foreach ($document->components->schemas as $schema) {
+                if (is_string($schema->schema)) {
+                    $componentsByName[$schema->schema] = $schema;
+                }
+            }
         }
 
-        if ($minCoverage !== null && $coverage->coveragePercent < $minCoverage) {
-            return 1;
+        $reachable = [];
+        $queue = [];
+
+        foreach (self::inScopePathItems($document, $allowedRouteUris) as $pathItem) {
+            foreach (self::refSchemaNames($pathItem) as $name) {
+                if (!isset($reachable[$name])) {
+                    $reachable[$name] = true;
+                    $queue[] = $name;
+                }
+            }
         }
 
-        if ($maxFindings !== null && count($findings) > $maxFindings) {
-            return 1;
+        while ($queue !== []) {
+            $component = $componentsByName[array_pop($queue)] ?? null;
+
+            if ($component === null) {
+                continue;
+            }
+
+            foreach (self::refSchemaNames($component) as $next) {
+                if (!isset($reachable[$next])) {
+                    $reachable[$next] = true;
+                    $queue[] = $next;
+                }
+            }
         }
 
-        return 0;
+        $classes = [];
+
+        foreach (array_keys($reachable) as $name) {
+            $class = $componentClassMap[$name] ?? null;
+
+            if ($class !== null) {
+                $classes[$class] = true;
+            }
+        }
+
+        return $classes;
     }
 
     /**
-     * The installed generator version, stamped into the coverage report so cross-version coverage
-     * deltas are recognised as non-comparable. Falls back to 'dev' when the package is not resolvable
-     * as a Composer dependency.
+     * The document's path items whose URI is in `$allowedRouteUris` (leading slash trimmed).
+     *
+     * @param array<string, true> $allowedRouteUris
+     *
+     * @return list<OA\PathItem>
      */
-    private function generatorVersion(): string
+    private static function inScopePathItems(OA\OpenApi $document, array $allowedRouteUris): array
     {
-        if (!InstalledVersions::isInstalled('radiergummi/laravel-openapi')) {
-            return 'dev';
+        if (!is_array($document->paths)) {
+            return [];
         }
 
-        return InstalledVersions::getPrettyVersion('radiergummi/laravel-openapi') ?? 'dev';
+        return array_values(
+            array_filter(
+                $document->paths,
+                static fn(OA\PathItem $p): bool
+                    => is_defined($p->path)
+                    && is_string($p->path)
+                    && isset($allowedRouteUris[ltrim($p->path, '/')]),
+            ),
+        );
+    }
+
+    /**
+     * Schema-component names referenced via `$ref` anywhere within the given annotation subtree.
+     *
+     * @return list<string>
+     */
+    private static function refSchemaNames(OA\AbstractAnnotation $root): array
+    {
+        $names = [];
+
+        AnnotationWalker::walk($root, static function (OA\AbstractAnnotation $annotation) use (&$names): void {
+            if (!property_exists($annotation, 'ref')) {
+                return;
+            }
+
+            $ref = $annotation->ref;
+
+            if (is_undefined($ref) || !is_string($ref)) {
+                return;
+            }
+
+            $name = ComponentReference::name($ref);
+
+            if ($name !== null) {
+                $names[] = $name;
+            }
+        });
+
+        return $names;
     }
 
     /**
@@ -796,6 +793,132 @@ final readonly class LintRunner
     }
 
     /**
+     * Map in-scope operations to their tag lists for the coverage denominator. When a route filter
+     * is active, an out-of-scope operation must not count: {@see walkSpec()} already restricts
+     * $document->paths when descriptors match, but an empty match (e.g. a glob that hits nothing)
+     * leaves every operation in place, so the URI is gated explicitly here.
+     *
+     * @param list<OperationNode>      $operations
+     * @param null|array<string, true> $allowedRouteUris
+     *
+     * @return array{0: array<string, list<string>>, 1: array<string, array{file: ?string, line: ?int}>}
+     *                                                                                                   [operation key
+     *                                                                                                   => tags,
+     *                                                                                                   operation key
+     *                                                                                                   => source
+     *                                                                                                   location]
+     */
+    private function collectOperationCoverage(array $operations, ?array $allowedRouteUris, string $specName): array
+    {
+        $operationTags = [];
+        $operationLocations = [];
+
+        foreach ($operations as $operation) {
+            if ($allowedRouteUris !== null && !isset($allowedRouteUris[ltrim($operation->pathUri, '/')])) {
+                continue;
+            }
+
+            $key = CoverageCalculator::operationKey(
+                $specName,
+                $operation->method,
+                $operation->pathUri,
+            );
+
+            if ($key !== null) {
+                $operationTags[$key] = $operation->tags;
+                $operationLocations[$key] = ['file' => $operation->file(), 'line' => $operation->line()];
+            }
+        }
+
+        return [$operationTags, $operationLocations];
+    }
+
+    /**
+     * Apply the post-walk finding pipeline: severity overrides, route/schema scope filtering (when
+     * --path/--diff is active), --only/--skip, suppressions, and the level cutoff.
+     *
+     * @param list<Finding>              $rawFindings
+     * @param list<string>               $only
+     * @param list<string>               $skip
+     * @param list<SuppressionDirective> $suppressionsAll
+     * @param null|array<string, true>   $allowedRouteUris
+     * @param array<string, true>        $allowedSchemaClasses
+     * @param array<string, true>        $allComponentClasses
+     *
+     * @return list<Finding>
+     */
+    private function filterFindings(
+        array $rawFindings,
+        LintOptions $options,
+        int $level,
+        array $only,
+        array $skip,
+        array $suppressionsAll,
+        ?array $allowedRouteUris,
+        array $allowedSchemaClasses,
+        array $allComponentClasses,
+    ): array {
+        $findings = $this->registry->applyOverrides($rawFindings);
+
+        if ($allowedRouteUris !== null) {
+            $findings = array_filter(
+                $findings,
+                static function (Finding $finding) use (
+                    $allowedRouteUris,
+                    $allowedSchemaClasses,
+                    $allComponentClasses,
+                ): bool {
+                    $uri = $finding->location->routeUri;
+
+                    if ($uri !== null) {
+                        return isset($allowedRouteUris[ltrim($uri, '/')]);
+                    }
+
+                    // No routeUri: this is either a schema-derived generation finding (scope it by
+                    // the schema's reachability from in-scope routes) or a genuinely route-agnostic
+                    // finding (pre-build, spec-level — always kept). A source class we don't
+                    // recognise as a component is treated as route-agnostic and kept, so an
+                    // in-scope finding is never hidden because we couldn't place its schema.
+                    $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
+
+                    if (is_string($sourceClass) && isset($allComponentClasses[$sourceClass])) {
+                        return isset($allowedSchemaClasses[$sourceClass]);
+                    }
+
+                    return true;
+                },
+            );
+        }
+
+        if ($only !== []) {
+            $findings = array_filter(
+                $findings,
+                static fn(Finding $finding): bool => in_array($finding->ruleId, $only, true),
+            );
+        }
+
+        if ($skip !== []) {
+            $findings = array_filter(
+                $findings,
+                static fn(Finding $finding): bool
+                    => $finding->ruleId === RuleRegistry::EXEMPT_RULE_ID
+                    || !in_array($finding->ruleId, $skip, true),
+            );
+        }
+
+        if ($options->applySuppressions) {
+            $findings = $this->applySuppressions(array_values($findings), $suppressionsAll);
+        }
+
+        return array_values(
+            array_filter(
+                $findings,
+                static fn(Finding $finding): bool => $finding->level <= $level,
+            ),
+        );
+    }
+
+    /**
      * @param list<Finding>              $findings
      * @param list<SuppressionDirective> $suppressions
      *
@@ -823,147 +946,44 @@ final readonly class LintRunner
     }
 
     /**
-     * In-scope route URIs (leading slash trimmed) for the given descriptors. The single source of
-     * the "which routes are in scope" set — shared by the `--path`/`--diff` finding filter, the
-     * tree-walk path restriction, and schema reachability — so they cannot diverge on slash
-     * handling.
-     *
-     * @param list<ActionDescriptor> $descriptors
-     *
-     * @return array<string, true>
+     * The installed generator version, stamped into the coverage report so cross-version coverage
+     * deltas are recognised as non-comparable. Falls back to 'dev' when the package is not resolvable
+     * as a Composer dependency.
      */
-    private static function descriptorUriSet(array $descriptors): array
+    private function generatorVersion(): string
     {
-        $uris = [];
-
-        foreach ($descriptors as $descriptor) {
-            $uris[ltrim($descriptor->route->uri(), '/')] = true;
+        if (!InstalledVersions::isInstalled('radiergummi/laravel-openapi')) {
+            return 'dev';
         }
 
-        return $uris;
+        return InstalledVersions::getPrettyVersion('radiergummi/laravel-openapi') ?? 'dev';
     }
 
     /**
-     * The document's path items whose URI is in `$allowedRouteUris` (leading slash trimmed).
+     * Exit code for the run. With no coverage gate configured the legacy rule applies (any finding
+     * → 1). When a gate is active (--min-coverage / --max-findings, from CLI or config) the gate
+     * replaces that rule: non-zero only when coverage is below the floor or findings exceed the
+     * budget — findings alone no longer fail.
      *
-     * @param array<string, true> $allowedRouteUris
-     *
-     * @return list<OA\PathItem>
+     * @param list<Finding> $findings
      */
-    private static function inScopePathItems(OA\OpenApi $document, array $allowedRouteUris): array
+    private function resolveExitCode(array $findings, CoverageSummary $coverage, LintOptions $options): int
     {
-        if (!is_array($document->paths)) {
-            return [];
+        $minCoverage = $options->minCoverage ?? $this->configuredMinCoverage;
+        $maxFindings = $options->maxFindings ?? $this->configuredMaxFindings;
+
+        if ($minCoverage === null && $maxFindings === null) {
+            return $findings === [] ? 0 : 1;
         }
 
-        return array_values(
-            array_filter(
-                $document->paths,
-                static fn(OA\PathItem $p): bool
-                    => is_defined($p->path)
-                    && is_string($p->path)
-                    && isset($allowedRouteUris[ltrim($p->path, '/')]),
-            ),
-        );
-    }
-
-    /**
-     * Component classes reachable from the in-scope operations, transitively through
-     * component-to-component `$ref`s. Schema-derived findings are class-keyed (a FormRequest or
-     * Data class is built once and `$ref`'d by many routes), so they are scoped by membership in
-     * this set rather than by a single routeUri.
-     *
-     * Seeding from in-scope path items only — not the whole document, whose component pool still
-     * holds out-of-scope schemas — keeps a schema in scope exactly when an in-scope route reaches
-     * it.
-     *
-     * @param array<string, true>         $allowedRouteUris  in-scope route URIs, leading slash trimmed
-     * @param array<string, class-string> $componentClassMap component schema name → class
-     *
-     * @return array<class-string, true>
-     */
-    private function reachableComponentClasses(
-        OA\OpenApi $document,
-        array $allowedRouteUris,
-        array $componentClassMap,
-    ): array {
-        $componentsByName = [];
-
-        if ($document->components !== null && is_array($document->components->schemas)) {
-            foreach ($document->components->schemas as $schema) {
-                if (is_string($schema->schema)) {
-                    $componentsByName[$schema->schema] = $schema;
-                }
-            }
+        if ($minCoverage !== null && $coverage->coveragePercent < $minCoverage) {
+            return 1;
         }
 
-        $reachable = [];
-        $queue = [];
-
-        foreach (self::inScopePathItems($document, $allowedRouteUris) as $pathItem) {
-            foreach (self::refSchemaNames($pathItem) as $name) {
-                if (!isset($reachable[$name])) {
-                    $reachable[$name] = true;
-                    $queue[] = $name;
-                }
-            }
+        if ($maxFindings !== null && count($findings) > $maxFindings) {
+            return 1;
         }
 
-        while ($queue !== []) {
-            $component = $componentsByName[array_pop($queue)] ?? null;
-
-            if ($component === null) {
-                continue;
-            }
-
-            foreach (self::refSchemaNames($component) as $next) {
-                if (!isset($reachable[$next])) {
-                    $reachable[$next] = true;
-                    $queue[] = $next;
-                }
-            }
-        }
-
-        $classes = [];
-
-        foreach (array_keys($reachable) as $name) {
-            $class = $componentClassMap[$name] ?? null;
-
-            if ($class !== null) {
-                $classes[$class] = true;
-            }
-        }
-
-        return $classes;
-    }
-
-    /**
-     * Schema-component names referenced via `$ref` anywhere within the given annotation subtree.
-     *
-     * @return list<string>
-     */
-    private static function refSchemaNames(OA\AbstractAnnotation $root): array
-    {
-        $names = [];
-
-        AnnotationWalker::walk($root, static function (OA\AbstractAnnotation $annotation) use (&$names): void {
-            if (!property_exists($annotation, 'ref')) {
-                return;
-            }
-
-            $ref = $annotation->ref;
-
-            if (is_undefined($ref) || !is_string($ref)) {
-                return;
-            }
-
-            $name = ComponentReference::name($ref);
-
-            if ($name !== null) {
-                $names[] = $name;
-            }
-        });
-
-        return $names;
+        return 0;
     }
 }

@@ -68,22 +68,26 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
         $actionName = sprintf('%s::%s', $method->getDeclaringClass()->getName(), $method->getName());
 
         if ($scan->rules === null) {
-            $this->logger->notice(sprintf(
-                'Inline validation in %s could not be read statically (%s); no request body inferred. '
-                . 'Annotate the action with #[RequestBody] / #[RequestField] to document it.',
-                $actionName,
-                $scan->degradeReason,
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Inline validation in %s could not be read statically (%s); no request body inferred. '
+                    . 'Annotate the action with #[RequestBody] / #[RequestField] to document it.',
+                    $actionName,
+                    $scan->degradeReason,
+                ),
+            );
 
             return null;
         }
 
         if ($scan->skippedFields !== []) {
-            $this->logger->notice(sprintf(
-                'Inline validation in %s: dropped field(s) %s — their rules are not statically readable.',
-                $actionName,
-                implode(', ', $scan->skippedFields),
-            ));
+            $this->logger->notice(
+                sprintf(
+                    'Inline validation in %s: dropped field(s) %s — their rules are not statically readable.',
+                    $actionName,
+                    implode(', ', $scan->skippedFields),
+                ),
+            );
         }
 
         [$schema, $containsFileField] = $this->buildSchema($scan, $method);

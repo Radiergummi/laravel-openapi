@@ -93,7 +93,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
                 $resourceClass,
             ),
             fixHint: 'Declare each output key with a class-level #[ResourceField] on the resource, '
-                . 'or add an @mixin model annotation the generator can resolve fields against.',
+            . 'or add an @mixin model annotation the generator can resolve fields against.',
         );
     }
 

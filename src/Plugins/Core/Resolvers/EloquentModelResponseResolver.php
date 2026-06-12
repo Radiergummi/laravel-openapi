@@ -95,6 +95,15 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
         return null;
     }
 
+    private function jsonResponse(OA\Schema $schema): OA\Response
+    {
+        return new OA\Response([
+            'response' => '200',
+            'description' => 'OK',
+            'content' => [MediaType::Json->schema($schema)],
+        ]);
+    }
+
     /**
      * Builds (once, cycle-guarded) the model's component schema and returns the qualified `$ref`
      * key pointing at it — shared by the single-model and collection-item paths.
@@ -106,14 +115,5 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
     private function refKey(string $modelClass): string
     {
         return $this->registry->qualifyKey($this->modelToSchema->build($modelClass));
-    }
-
-    private function jsonResponse(OA\Schema $schema): OA\Response
-    {
-        return new OA\Response([
-            'response' => '200',
-            'description' => 'OK',
-            'content' => [MediaType::Json->schema($schema)],
-        ]);
     }
 }

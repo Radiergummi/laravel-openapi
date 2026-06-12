@@ -31,8 +31,11 @@ final readonly class SchemaSubsumption implements OaRedundancyComparator
     /**
      * @param list<OA\AbstractAnnotation> $candidate
      */
-    public function subsumes(OA\AbstractAnnotation $inferred, OA\AbstractAnnotation $authored, array $candidate = []): bool
-    {
+    public function subsumes(
+        OA\AbstractAnnotation $inferred,
+        OA\AbstractAnnotation $authored,
+        array $candidate = [],
+    ): bool {
         if ($candidate !== [] && $inferred instanceof OA\Schema) {
             $inferred = $this->augment($inferred, $candidate);
         }

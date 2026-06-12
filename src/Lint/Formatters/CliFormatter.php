@@ -87,26 +87,6 @@ final class CliFormatter implements Formatter
         }
     }
 
-    private function renderCoverage(CoverageSummary $coverage, OutputInterface $output): void
-    {
-        $line = sprintf(
-            ' Coverage: %.2f%% (%d/%d operations)',
-            $coverage->coveragePercent,
-            $coverage->coveredOperations,
-            $coverage->totalOperations,
-        );
-
-        if ($coverage->unattributedFindings > 0) {
-            $line .= sprintf(
-                ' · %d unattributed finding%s',
-                $coverage->unattributedFindings,
-                $coverage->unattributedFindings === 1 ? '' : 's',
-            );
-        }
-
-        $output->writeln([$line, '']);
-    }
-
     /**
      * Split findings into pre-build (spec === null) and per-spec buckets. Pre-build findings
      * come from {@see PreBuildRule}s that run once per lint invocation; per-spec findings come
@@ -315,5 +295,25 @@ final class CliFormatter implements Formatter
             ),
             '',
         ]);
+    }
+
+    private function renderCoverage(CoverageSummary $coverage, OutputInterface $output): void
+    {
+        $line = sprintf(
+            ' Coverage: %.2f%% (%d/%d operations)',
+            $coverage->coveragePercent,
+            $coverage->coveredOperations,
+            $coverage->totalOperations,
+        );
+
+        if ($coverage->unattributedFindings > 0) {
+            $line .= sprintf(
+                ' · %d unattributed finding%s',
+                $coverage->unattributedFindings,
+                $coverage->unattributedFindings === 1 ? '' : 's',
+            );
+        }
+
+        $output->writeln([$line, '']);
     }
 }

@@ -151,6 +151,41 @@ final readonly class TypeNodeToSchema
         return new OA\Schema($arguments);
     }
 
+    private function itemKey(ArrayShapeItemNode $item, int $index): string
+    {
+        return match (true) {
+            $item->keyName === null => (string) $index,
+            $item->keyName instanceof ConstExprStringNode,
+            $item->keyName instanceof ConstExprIntegerNode => $item->keyName->value,
+            $item->keyName instanceof IdentifierTypeNode => $item->keyName->name,
+            default => (string) $item->keyName,
+        };
+    }
+
+    private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
+    {
+        return copy_schema_fields(
+            $schema,
+            new OA\Property(['property' => $name]),
+        );
+    }
+
+    /**
+     * Wraps an element schema as an array schema. `items` is always emitted (an empty
+     * {@see OA\Items} when the element is unreadable) — swagger-php rejects `type: array`
+     * without `items`.
+     */
+    private function listOf(?OA\Schema $element): OA\Schema
+    {
+        $items = new OA\Items([]);
+
+        if ($element !== null) {
+            copy_schema_fields($element, $items);
+        }
+
+        return new OA\Schema(['type' => 'array', 'items' => $items]);
+    }
+
     /**
      * @param callable(string): ?OA\Schema $classSchema
      */
@@ -194,6 +229,15 @@ final readonly class TypeNodeToSchema
         return null;
     }
 
+    private function isStringKey(string $keyword): bool
+    {
+        return in_array(
+            strtolower($keyword),
+            ['string', 'array-key', 'non-empty-string'],
+            strict: true,
+        );
+    }
+
     /**
      * @param callable(string): ?OA\Schema $classSchema
      */
@@ -218,42 +262,6 @@ final readonly class TypeNodeToSchema
     }
 
     /**
-     * Wraps an element schema as an array schema. `items` is always emitted (an empty
-     * {@see OA\Items} when the element is unreadable) — swagger-php rejects `type: array`
-     * without `items`.
-     */
-    private function listOf(?OA\Schema $element): OA\Schema
-    {
-        $items = new OA\Items([]);
-
-        if ($element !== null) {
-            copy_schema_fields($element, $items);
-        }
-
-        return new OA\Schema(['type' => 'array', 'items' => $items]);
-    }
-
-    private function itemKey(ArrayShapeItemNode $item, int $index): string
-    {
-        return match (true) {
-            $item->keyName === null => (string) $index,
-            $item->keyName instanceof ConstExprStringNode,
-            $item->keyName instanceof ConstExprIntegerNode => $item->keyName->value,
-            $item->keyName instanceof IdentifierTypeNode => $item->keyName->name,
-            default => (string) $item->keyName,
-        };
-    }
-
-    private function isStringKey(string $keyword): bool
-    {
-        return in_array(
-            strtolower($keyword),
-            ['string', 'array-key', 'non-empty-string'],
-            strict: true,
-        );
-    }
-
-    /**
      * @return null|array<string, string>
      */
     private function scalarDefinition(string $keyword): ?array
@@ -265,13 +273,5 @@ final readonly class TypeNodeToSchema
             'bool', 'boolean', 'true', 'false' => ['type' => 'boolean'],
             default => null,
         };
-    }
-
-    private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
-    {
-        return copy_schema_fields(
-            $schema,
-            new OA\Property(['property' => $name]),
-        );
     }
 }

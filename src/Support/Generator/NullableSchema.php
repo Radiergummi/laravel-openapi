@@ -49,7 +49,6 @@ final class NullableSchema
      */
     public static function wrap(OA\Schema $schema): OA\Schema
     {
-
         // $ref branch: extra fields alongside $ref are ignored by validators in OAS 3.1.
         if (is_defined($schema->ref) && is_string($schema->ref)) {
             return new OA\Schema([
@@ -121,7 +120,6 @@ final class NullableSchema
      */
     public static function applyTo(OA\Schema $target): void
     {
-
         if (is_string($target->type) && is_defined($target->type)) {
             if (in_array($target->type, ['array', 'object'], strict: true)) {
                 $inner = new OA\Schema(['type' => $target->type]);

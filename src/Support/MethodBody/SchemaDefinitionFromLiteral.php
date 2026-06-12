@@ -127,6 +127,18 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
+     * An array whose item schema is unknown — empty literals and heterogeneous or unreadable
+     * lists. The `items` key is always present: swagger-php's validator rejects a `type: array`
+     * without `@OA\Items` on both supported majors, and `openapi:generate` validates by default.
+     *
+     * @return array{type: 'array', items: array<never, never>}
+     */
+    private static function arrayOfUnknownItems(): array
+    {
+        return ['type' => 'array', 'items' => []];
+    }
+
+    /**
      * Maps an already-evaluated literal (a scalar, or an array reached through a class constant)
      * onto its schema definition, with the same semantics as the AST branch: `null` yields an
      * unconstrained definition, an empty array is an array of unknown items, and list items are
@@ -184,17 +196,5 @@ final readonly class SchemaDefinitionFromLiteral
         return $first === []
             ? self::arrayOfUnknownItems()
             : ['type' => 'array', 'items' => $first];
-    }
-
-    /**
-     * An array whose item schema is unknown — empty literals and heterogeneous or unreadable
-     * lists. The `items` key is always present: swagger-php's validator rejects a `type: array`
-     * without `@OA\Items` on both supported majors, and `openapi:generate` validates by default.
-     *
-     * @return array{type: 'array', items: array<never, never>}
-     */
-    private static function arrayOfUnknownItems(): array
-    {
-        return ['type' => 'array', 'items' => []];
     }
 }

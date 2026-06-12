@@ -93,7 +93,7 @@ final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
                 $resourceClass,
             ),
             fixHint: 'Type the return to a concrete JsonResource (with #[ResourceField]s or an @mixin model), '
-                . 'or add #[ResponseResource(SomeResource::class)] to the action.',
+            . 'or add #[ResponseResource(SomeResource::class)] to the action.',
         );
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Support;
 
+use App\Models\User;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -19,7 +20,7 @@ use function is_a;
 
 /**
  * Resolves the Eloquent model a `JsonResource` wraps from the resource's class docblock —
- * an `@mixin \App\Models\User` tag first, then a generic `@extends Base<User>`; only `Model`
+ * an `@mixin User` tag first, then a generic `@extends Base<User>`; only `Model`
  * subclasses count. Shared by the schema builder (the passthrough/dynamic `toArray()` fallback
  * and `$this->field` value resolution) and the `resource.fields-undeclared` lint rule, so
  * resource→model resolution is defined exactly once (folded #98 design).

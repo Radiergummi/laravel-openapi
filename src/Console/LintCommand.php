@@ -119,87 +119,6 @@ class LintCommand extends Command
     }
 
     /**
-     * Apply (`--fix`) or preview (`--check`) the fixable findings, then report what remains.
-     *
-     * @throws \LogicException
-     * @throws BindingResolutionException
-     * @throws InvalidArgumentException
-     * @throws JsonException
-     * @throws LogicException
-     * @throws ProcessRuntimeException
-     * @throws ProcessSignaledException
-     * @throws ProcessStartFailedException
-     * @throws ProcessTimedOutException
-     * @throws ReflectionException
-     * @throws RuntimeException
-     * @throws UnexpectedValueException
-     * @throws UnsupportedException
-     */
-    private function runFix(FixRunner $fixRunner): int
-    {
-        $dryRun = (bool) $this->option('check');
-        $options = $this->buildOptions();
-
-        if ($options->minCoverage !== null || $options->maxFindings !== null) {
-            $this->warn(
-                'The coverage gate (--min-coverage / --max-findings) is not evaluated under --fix/--check. '
-                . 'Run `openapi:lint` without --fix to gate on coverage.',
-            );
-        }
-
-        $outcome = $fixRunner->run($options, $dryRun);
-
-        $this->renderFixSummary($outcome, $dryRun);
-
-        if ($outcome->remainingFindings !== []) {
-            $this->renderToTargets(new LintResult(
-                findings: $outcome->remainingFindings,
-                level: $outcome->level,
-                exitCode: $outcome->exitCode(),
-            ));
-        }
-
-        return $outcome->exitCode();
-    }
-
-    private function renderFixSummary(FixRunResult $outcome, bool $dryRun): void
-    {
-        $files = $outcome->fixResult->modifiedFiles;
-        $count = count($outcome->fixResult->applied);
-
-        if ($count === 0) {
-            $this->info('openapi:lint --fix: nothing to fix.');
-
-            return;
-        }
-
-        if ($dryRun) {
-            $this->warn(sprintf(
-                '%d fixable finding(s) pending across %d file(s). Run `php artisan openapi:lint --fix` to apply them.',
-                $count,
-                count($files),
-            ));
-
-            return;
-        }
-
-        $this->info(sprintf('Fixed %d finding(s) across %d file(s):', $count, count($files)));
-
-        foreach ($files as $file) {
-            $this->line('  ' . $file);
-        }
-
-        if ($outcome->fixResult->skipped !== []) {
-            $this->warn(sprintf(
-                '%d fix(es) skipped due to overlapping edits; re-run --fix to resolve the rest.',
-                count($outcome->fixResult->skipped),
-            ));
-        }
-
-        $this->line('Run your formatter on the changes, e.g. `vendor/bin/pint --dirty`.');
-    }
-
-    /**
      * @throws InvalidArgumentException
      * @throws JsonException
      */
@@ -253,6 +172,52 @@ class LintCommand extends Command
     }
 
     /**
+     * Apply (`--fix`) or preview (`--check`) the fixable findings, then report what remains.
+     *
+     * @throws \LogicException
+     * @throws BindingResolutionException
+     * @throws InvalidArgumentException
+     * @throws JsonException
+     * @throws LogicException
+     * @throws ProcessRuntimeException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnexpectedValueException
+     * @throws UnsupportedException
+     */
+    private function runFix(FixRunner $fixRunner): int
+    {
+        $dryRun = (bool) $this->option('check');
+        $options = $this->buildOptions();
+
+        if ($options->minCoverage !== null || $options->maxFindings !== null) {
+            $this->warn(
+                'The coverage gate (--min-coverage / --max-findings) is not evaluated under --fix/--check. '
+                . 'Run `openapi:lint` without --fix to gate on coverage.',
+            );
+        }
+
+        $outcome = $fixRunner->run($options, $dryRun);
+
+        $this->renderFixSummary($outcome, $dryRun);
+
+        if ($outcome->remainingFindings !== []) {
+            $this->renderToTargets(
+                new LintResult(
+                    findings: $outcome->remainingFindings,
+                    level: $outcome->level,
+                    exitCode: $outcome->exitCode(),
+                ),
+            );
+        }
+
+        return $outcome->exitCode();
+    }
+
+    /**
      * @throws InvalidArgumentException
      */
     private function buildOptions(): LintOptions
@@ -277,6 +242,71 @@ class LintCommand extends Command
     }
 
     /**
+     * @return list<string>
+     */
+    private function parseList(mixed $raw): array
+    {
+        if (!is_string($raw) || $raw === '') {
+            return [];
+        }
+
+        return $this->trimDropEmpty(explode(',', $raw));
+    }
+
+    /**
+     * Trim each entry and drop the empties, reindexed.
+     *
+     * @param array<string> $items
+     *
+     * @return list<string>
+     */
+    private function trimDropEmpty(array $items): array
+    {
+        return array_values(
+            array_filter(array_map(trim(...), $items)),
+        );
+    }
+
+    /**
+     * Normalise the repeatable `--path=*` option into a clean file list. Symfony yields an array
+     * of strings (or an empty array when absent); drop blanks and trim each entry.
+     *
+     * @return list<string>
+     */
+    private function parseFiles(mixed $raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        return $this->trimDropEmpty(array_filter($raw, is_string(...)));
+    }
+
+    /**
+     * Map the value-optional `--diff` flag to a {@see DiffScope}, or null when it was not passed.
+     * `--diff=staged` / `--diff=working` select the work-tree modes; any other value is a ref, and
+     * a bare `--diff` is a ref-mode scope with a null ref (deferring to the merge-base default).
+     * `option()` alone can't distinguish a bare flag from an absent one, so the raw input decides.
+     */
+    private function resolveDiffScope(): ?DiffScope
+    {
+        if (!$this->input->hasParameterOption('--diff')) {
+            return null;
+        }
+
+        $value = $this->option('diff');
+
+        return match ($value) {
+            'staged' => new DiffScope(DiffMode::StagedIndex),
+            'working' => new DiffScope(DiffMode::WorkingTree),
+            default => new DiffScope(
+                DiffMode::Ref,
+                is_string($value) && $value !== '' ? $value : null,
+            ),
+        };
+    }
+
+    /**
      * @throws InvalidArgumentException
      */
     private function parseMinCoverage(): ?float
@@ -286,22 +316,6 @@ class LintCommand extends Command
         if ($value !== null && ($value < 0.0 || $value > 100.0)) {
             throw new InvalidArgumentException(
                 sprintf('Invalid --min-coverage value: %s. Expected a percentage between 0 and 100.', $value),
-            );
-        }
-
-        return $value;
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
-    private function parseMaxFindings(): ?int
-    {
-        $value = $this->parseIntOption('max-findings');
-
-        if ($value !== null && $value < 0) {
-            throw new InvalidArgumentException(
-                sprintf('Invalid --max-findings value: %d. Expected a non-negative integer.', $value),
             );
         }
 
@@ -331,6 +345,22 @@ class LintCommand extends Command
     /**
      * @throws InvalidArgumentException
      */
+    private function parseMaxFindings(): ?int
+    {
+        $value = $this->parseIntOption('max-findings');
+
+        if ($value !== null && $value < 0) {
+            throw new InvalidArgumentException(
+                sprintf('Invalid --max-findings value: %d. Expected a non-negative integer.', $value),
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
     private function parseIntOption(string $name): ?int
     {
         $raw = $this->option($name);
@@ -348,69 +378,45 @@ class LintCommand extends Command
         return (int) $raw;
     }
 
-    /**
-     * Map the value-optional `--diff` flag to a {@see DiffScope}, or null when it was not passed.
-     * `--diff=staged` / `--diff=working` select the work-tree modes; any other value is a ref, and
-     * a bare `--diff` is a ref-mode scope with a null ref (deferring to the merge-base default).
-     * `option()` alone can't distinguish a bare flag from an absent one, so the raw input decides.
-     */
-    private function resolveDiffScope(): ?DiffScope
+    private function renderFixSummary(FixRunResult $outcome, bool $dryRun): void
     {
-        if (!$this->input->hasParameterOption('--diff')) {
-            return null;
+        $files = $outcome->fixResult->modifiedFiles;
+        $count = count($outcome->fixResult->applied);
+
+        if ($count === 0) {
+            $this->info('openapi:lint --fix: nothing to fix.');
+
+            return;
         }
 
-        $value = $this->option('diff');
+        if ($dryRun) {
+            $this->warn(
+                sprintf(
+                    '%d fixable finding(s) pending across %d file(s). Run `php artisan openapi:lint --fix` to apply them.',
+                    $count,
+                    count($files),
+                ),
+            );
 
-        return match ($value) {
-            'staged' => new DiffScope(DiffMode::StagedIndex),
-            'working' => new DiffScope(DiffMode::WorkingTree),
-            default => new DiffScope(
-                DiffMode::Ref,
-                is_string($value) && $value !== '' ? $value : null,
-            ),
-        };
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function parseList(mixed $raw): array
-    {
-        if (!is_string($raw) || $raw === '') {
-            return [];
+            return;
         }
 
-        return $this->trimDropEmpty(explode(',', $raw));
-    }
+        $this->info(sprintf('Fixed %d finding(s) across %d file(s):', $count, count($files)));
 
-    /**
-     * Normalise the repeatable `--path=*` option into a clean file list. Symfony yields an array
-     * of strings (or an empty array when absent); drop blanks and trim each entry.
-     *
-     * @return list<string>
-     */
-    private function parseFiles(mixed $raw): array
-    {
-        if (!is_array($raw)) {
-            return [];
+        foreach ($files as $file) {
+            $this->line('  ' . $file);
         }
 
-        return $this->trimDropEmpty(array_filter($raw, is_string(...)));
-    }
+        if ($outcome->fixResult->skipped !== []) {
+            $this->warn(
+                sprintf(
+                    '%d fix(es) skipped due to overlapping edits; re-run --fix to resolve the rest.',
+                    count($outcome->fixResult->skipped),
+                ),
+            );
+        }
 
-    /**
-     * Trim each entry and drop the empties, reindexed.
-     *
-     * @param array<string> $items
-     *
-     * @return list<string>
-     */
-    private function trimDropEmpty(array $items): array
-    {
-        return array_values(
-            array_filter(array_map(trim(...), $items)),
-        );
+        $this->line('Run your formatter on the changes, e.g. `vendor/bin/pint --dirty`.');
     }
 
     /**

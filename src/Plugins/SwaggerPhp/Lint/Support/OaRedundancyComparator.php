@@ -29,5 +29,9 @@ interface OaRedundancyComparator
      * @param list<OA\AbstractAnnotation> $candidate replacement annotations to fold onto the inferred
      *                                               side before comparing; empty = pure redundancy
      */
-    public function subsumes(OA\AbstractAnnotation $inferred, OA\AbstractAnnotation $authored, array $candidate = []): bool;
+    public function subsumes(
+        OA\AbstractAnnotation $inferred,
+        OA\AbstractAnnotation $authored,
+        array $candidate = [],
+    ): bool;
 }

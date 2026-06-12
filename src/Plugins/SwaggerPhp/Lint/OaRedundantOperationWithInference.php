@@ -116,6 +116,20 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     }
 
     #[Override]
+    public function id(): string
+    {
+        return 'migration.oa-redundant-operation-with-inference';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        // A redundant annotation is a cleanup opportunity, not a spec defect — the generated
+        // document is correct with or without it.
+        return 4;
+    }
+
+    #[Override]
     public function fixer(): Fixer
     {
         return new RedundantOaAnnotationFixer();
@@ -131,20 +145,6 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     public function excludedStages(): array
     {
         return [HarvestAuthoredAnnotationsStage::class];
-    }
-
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-redundant-operation-with-inference';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        // A redundant annotation is a cleanup opportunity, not a spec defect — the generated
-        // document is correct with or without it.
-        return 4;
     }
 
     #[Override]

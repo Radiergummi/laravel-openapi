@@ -95,8 +95,18 @@ final class QueryBuilderChainReader
      */
     private const array VALUE_OBJECT_CONSTRUCTORS = [
         'filters' => [
-            'exact', 'partial', 'beginswith', 'endswith', 'belongsto', 'scope', 'callback',
-            'trashed', 'custom', 'operator', 'groupor', 'groupand',
+            'exact',
+            'partial',
+            'beginswith',
+            'endswith',
+            'belongsto',
+            'scope',
+            'callback',
+            'trashed',
+            'custom',
+            'operator',
+            'groupor',
+            'groupand',
         ],
         'sorts' => ['field', 'custom', 'callback'],
         'includes' => ['relationship', 'count', 'exists', 'min', 'max', 'sum', 'avg', 'callback', 'custom'],
@@ -144,23 +154,27 @@ final class QueryBuilderChainReader
         $allowedCallDetected = $this->statementNodeFinder->findFirst(
             $statements,
             ConditionalContextPolicy::IncludeConditionalContexts,
-            static fn(Node $node): bool => $node instanceof MethodCall
-                && $node->name instanceof Identifier
-                && array_key_exists($node->name->toLowerString(), self::ALLOWED_CALL_KINDS),
+            static fn(Node $node): bool
+                    => $node instanceof MethodCall
+                    && $node->name instanceof Identifier
+                    && array_key_exists($node->name->toLowerString(), self::ALLOWED_CALL_KINDS),
         ) !== null;
 
         /** @var list<MethodCall> $matchedCalls */
         $matchedCalls = [];
 
-        foreach ($this->statementNodeFinder->findAll(
-            $statements,
-            ConditionalContextPolicy::SkipConditionalContexts,
-            fn(Node $node): bool => $node instanceof MethodCall
-                && $node->name instanceof Identifier
-                && array_key_exists($node->name->toLowerString(), self::ALLOWED_CALL_KINDS)
-                && !$node->isFirstClassCallable()
-                && $this->rootsAtBuilder($node),
-        ) as $call) {
+        foreach (
+            $this->statementNodeFinder->findAll(
+                $statements,
+                ConditionalContextPolicy::SkipConditionalContexts,
+                fn(Node $node): bool
+                    => $node instanceof MethodCall
+                    && $node->name instanceof Identifier
+                    && array_key_exists($node->name->toLowerString(), self::ALLOWED_CALL_KINDS)
+                    && !$node->isFirstClassCallable()
+                    && $this->rootsAtBuilder($node),
+            ) as $call
+        ) {
             assert($call instanceof MethodCall);
             $matchedCalls[] = $call;
         }

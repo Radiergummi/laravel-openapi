@@ -82,32 +82,6 @@ final class MethodBodyScanner
         return array_values(array_slice($methodNode->stmts ?? [], 0, $limit));
     }
 
-    /**
-     * Returns the text of a trailing `//` line comment directly after the given node (on the
-     * node's last source line), or null when there is none. Lets callers read per-entry
-     * annotations such as `'email' => 'required|email', // The contact address.`.
-     */
-    public function trailingCommentAfter(string $file, Node $node): ?string
-    {
-        $source = $this->sourceCache[$file] ?? null;
-        $endPosition = $node->getEndFilePos();
-
-        if ($source === null || $endPosition < 0) {
-            return null;
-        }
-
-        $lineEnd = strpos($source, "\n", $endPosition);
-        $restOfLine = $lineEnd === false
-            ? substr($source, $endPosition + 1)
-            : substr($source, $endPosition + 1, $lineEnd - $endPosition - 1);
-
-        if (preg_match('~^\s*,?\s*//\s*(.+?)\s*$~', $restOfLine, $matches) === 1) {
-            return $matches[1];
-        }
-
-        return null;
-    }
-
     private function methodNode(ReflectionMethod $method): ?ClassMethod
     {
         $file = $method->getFileName();
@@ -125,7 +99,8 @@ final class MethodBodyScanner
 
         $node = $this->nodeFinder->findFirst(
             $statements,
-            static fn(Node $node): bool => $node instanceof ClassMethod
+            static fn(Node $node): bool
+                => $node instanceof ClassMethod
                 && $node->name->toString() === $method->getName()
                 && $node->getStartLine() <= $declarationLine
                 && $node->getEndLine() >= $declarationLine,
@@ -167,5 +142,31 @@ final class MethodBodyScanner
         $resolved = array_values($traverser->traverse($statements));
 
         return $this->astCache[$file] = $resolved;
+    }
+
+    /**
+     * Returns the text of a trailing `//` line comment directly after the given node (on the
+     * node's last source line), or null when there is none. Lets callers read per-entry
+     * annotations such as `'email' => 'required|email', // The contact address.`.
+     */
+    public function trailingCommentAfter(string $file, Node $node): ?string
+    {
+        $source = $this->sourceCache[$file] ?? null;
+        $endPosition = $node->getEndFilePos();
+
+        if ($source === null || $endPosition < 0) {
+            return null;
+        }
+
+        $lineEnd = strpos($source, "\n", $endPosition);
+        $restOfLine = $lineEnd === false
+            ? substr($source, $endPosition + 1)
+            : substr($source, $endPosition + 1, $lineEnd - $endPosition - 1);
+
+        if (preg_match('~^\s*,?\s*//\s*(.+?)\s*$~', $restOfLine, $matches) === 1) {
+            return $matches[1];
+        }
+
+        return null;
     }
 }

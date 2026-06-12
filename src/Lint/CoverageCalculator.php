@@ -26,12 +26,16 @@ final readonly class CoverageCalculator
 
     /**
      * @param array<string, list<string>>                     $operationTags      operation
-     *                                                                            key => its tag list (empty when untagged)
+     *                                                                            key => its tag list (empty when
+     *                                                                            untagged)
      * @param list<Finding>                                   $findings           the final,
      *                                                                            level-filtered finding list
      * @param array<string, array{file: ?string, line: ?int}> $operationLocations operation key
-     *                                                                            => its source location, for the line-keyed reports. Optional: when omitted, the
-     *                                                                            resulting {@see CoverageSummary::$perOperation} is empty and only the aggregate
+     *                                                                            => its source location, for the
+     *                                                                            line-keyed reports. Optional: when
+     *                                                                            omitted, the resulting
+     *                                                                            {@see CoverageSummary::$perOperation}
+     *                                                                            is empty and only the aggregate
      *                                                                            (JSON/gate) output is produced.
      */
     public function calculate(
@@ -74,38 +78,6 @@ final readonly class CoverageCalculator
     }
 
     /**
-     * Build the per-operation line-coverage records, in operation-iteration order. An operation
-     * with no recorded location carries null file/line — the line-keyed formatter excludes those
-     * (inference-only / closure-routed operations have no single source line).
-     *
-     * @param array<string, list<string>>                     $operationTags
-     * @param array<string, array{file: ?string, line: ?int}> $operationLocations
-     * @param array<string, true>                             $uncovered
-     *
-     * @return list<array{file: ?string, line: ?int, covered: bool}>
-     */
-    private function perOperation(array $operationTags, array $operationLocations, array $uncovered): array
-    {
-        if ($operationLocations === []) {
-            return [];
-        }
-
-        $rows = [];
-
-        foreach ($operationTags as $key => $_tags) {
-            $location = $operationLocations[$key] ?? ['file' => null, 'line' => null];
-
-            $rows[] = [
-                'file' => $location['file'],
-                'line' => $location['line'],
-                'covered' => !isset($uncovered[$key]),
-            ];
-        }
-
-        return $rows;
-    }
-
-    /**
      * Stable operation key. Returns null when any part is missing (an unattributable finding).
      * The URI is leading-slash-trimmed to match the operation side.
      */
@@ -116,6 +88,11 @@ final readonly class CoverageCalculator
         }
 
         return $spec . "\0" . $method->value . "\0" . ltrim($uri, '/');
+    }
+
+    private static function percent(int $covered, int $total): float
+    {
+        return $total === 0 ? 100.00 : round($covered / $total * 100, 2);
     }
 
     /**
@@ -159,8 +136,35 @@ final readonly class CoverageCalculator
         return $rows;
     }
 
-    private static function percent(int $covered, int $total): float
+    /**
+     * Build the per-operation line-coverage records, in operation-iteration order. An operation
+     * with no recorded location carries null file/line — the line-keyed formatter excludes those
+     * (inference-only / closure-routed operations have no single source line).
+     *
+     * @param array<string, list<string>>                     $operationTags
+     * @param array<string, array{file: ?string, line: ?int}> $operationLocations
+     * @param array<string, true>                             $uncovered
+     *
+     * @return list<array{file: ?string, line: ?int, covered: bool}>
+     */
+    private function perOperation(array $operationTags, array $operationLocations, array $uncovered): array
     {
-        return $total === 0 ? 100.00 : round($covered / $total * 100, 2);
+        if ($operationLocations === []) {
+            return [];
+        }
+
+        $rows = [];
+
+        foreach ($operationTags as $key => $_tags) {
+            $location = $operationLocations[$key] ?? ['file' => null, 'line' => null];
+
+            $rows[] = [
+                'file' => $location['file'],
+                'line' => $location['line'],
+                'covered' => !isset($uncovered[$key]),
+            ];
+        }
+
+        return $rows;
     }
 }

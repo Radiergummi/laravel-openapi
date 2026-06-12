@@ -88,6 +88,22 @@ final readonly class FixRunner
     }
 
     /**
+     * @return array<string, Fixer>
+     */
+    private function fixers(): array
+    {
+        $fixers = [];
+
+        foreach ($this->registry->all() as $rule) {
+            if ($rule instanceof FixableRule) {
+                $fixers[$rule->id()] = $rule->fixer();
+            }
+        }
+
+        return $fixers;
+    }
+
+    /**
      * A finding is fixed only when it produced at least one edit and all of its edits survived
      * conflict resolution.
      *
@@ -107,21 +123,5 @@ final readonly class FixRunner
         }
 
         return true;
-    }
-
-    /**
-     * @return array<string, Fixer>
-     */
-    private function fixers(): array
-    {
-        $fixers = [];
-
-        foreach ($this->registry->all() as $rule) {
-            if ($rule instanceof FixableRule) {
-                $fixers[$rule->id()] = $rule->fixer();
-            }
-        }
-
-        return $fixers;
     }
 }
