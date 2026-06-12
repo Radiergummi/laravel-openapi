@@ -225,7 +225,9 @@ final readonly class ValidationRulesToSchema
     /**
      * Converts an intermediate {@see RuleTreeNode} into a {@see FieldDescriptor}, recursing into
      * nested object properties and array elements. A node with children is an `object`; a node
-     * with an element is an `array` (unless its own rules already set a type).
+     * with a wildcard element is an `array`. The wildcard element is authoritative about the
+     * type: `a.*` means `a` is a list, so it overrides a conflicting scalar rule on the same key
+     * (`'a' => 'string'`) rather than leaving `items` grafted onto a scalar type (#271).
      */
     private function nodeToDescriptor(RuleTreeNode $node, string $name, ?string $sourceClass): FieldDescriptor
     {
@@ -244,7 +246,7 @@ final readonly class ValidationRulesToSchema
         }
 
         if ($node->items !== null) {
-            $descriptor->type ??= 'array';
+            $descriptor->type = 'array';
             $descriptor->items = $this->nodeToDescriptor($node->items, $name, $sourceClass);
         }
 
