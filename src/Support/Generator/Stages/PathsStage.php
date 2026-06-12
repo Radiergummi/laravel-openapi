@@ -134,11 +134,8 @@ final readonly class PathsStage implements SpecStage
                 continue;
             }
 
-            // Build per emitted verb so every verb-conditional inference (write-verb request
-            // bodies, GET/HEAD query-accessor scans, the inline-validate hand-off) gates on the
-            // verb actually being documented, not the route's first registered verb (#245). The
-            // single-verb majority builds exactly once — `Route::get` yields `[GET, HEAD]`, and
-            // HEAD is skipped above; only genuine multi-verb routes build more than once.
+            // Build per verb so verb-conditional inference sees the verb being emitted, not the
+            // route's first. Single-verb routes (GET + skipped HEAD) still build once.
             $verbAction = $action->withHttpMethod($method);
             $operation = $this->operationBuilder->build($verbAction, [$tag]);
 

@@ -57,9 +57,8 @@ class InlineValidationFixtureController extends Controller
     }
 
     /**
-     * Routed via `Route::match(['get', 'post'], …)` to exercise verb-conditional gating (#245):
-     * the single `validate()` ruleset must become a *query parameter* on the GET twin and a
-     * *request body* on the POST twin, not be evaluated against the route's first verb for both.
+     * Routed via `Route::match(['get', 'post'], …)`: the single `validate()` ruleset becomes a
+     * query parameter on the GET twin and a request body on the POST twin.
      */
     public function sync(Request $request): JsonResponse
     {

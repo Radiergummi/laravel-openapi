@@ -44,9 +44,8 @@ final class ActionDescriptor
     }
 
     /**
-     * The verb of the operation actually being emitted, set per-verb by {@see withHttpMethod()}
-     * when a multi-verb route ({@see Route::match()}) fans out. When unset, the route's first
-     * registered verb is used — correct for the single-verb majority (#245).
+     * Pins {@see $httpMethod} to one verb of a multi-verb route; see {@see withHttpMethod()}.
+     * Falls back to the route's first registered verb when null.
      */
     private ?HttpMethod $httpMethodOverride = null;
 
@@ -80,10 +79,7 @@ final class ActionDescriptor
     ) {}
 
     /**
-     * A copy of this descriptor whose {@see $httpMethod} is pinned to the given verb — used by
-     * {@see \Radiergummi\OpenApi\Support\Generator\Stages\PathsStage} to build each operation of a
-     * multi-verb route against the verb actually being emitted, so verb-conditional inference gates
-     * on that verb rather than the route's first one (#245).
+     * A copy with {@see $httpMethod} pinned to the given verb.
      */
     public function withHttpMethod(HttpMethod $method): self
     {

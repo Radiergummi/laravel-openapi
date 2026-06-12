@@ -36,8 +36,8 @@ function queryParameterNames(array $operation): array
 
 // endregion
 
-// A single `validate(['name' => …])` ruleset must gate on the verb actually being emitted (#245):
-// a query parameter on the GET twin, a request body on the POST twin — for both verb orders.
+// A single `validate(['name' => …])` ruleset gates on the verb being emitted: a query parameter
+// on the GET twin, a request body on the POST twin — for both verb orders.
 it('gates inline-validate by the emitted verb on a multi-verb route', function (array $verbs): void {
     Route::match($verbs, '/oa-fixture/sync', [InlineValidationFixtureController::class, 'sync']);
 
