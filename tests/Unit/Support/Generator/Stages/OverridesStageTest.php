@@ -105,6 +105,21 @@ it('leaves operations untouched when nothing matches', function (): void {
         ->and($op->deprecated)->toBe(Generator::UNDEFINED);
 });
 
+it('normalises a multi-tag override to a sequential list', function (): void {
+    // Config supplies multiple tags. The result must be a sequential list<string> — the
+    // only form that satisfies swagger-php's [string] type validation on both 5.8 and 6.x.
+    $matcher = new OverrideMatcher([
+        'users.index' => ['tags' => ['Users', 'Admin']],
+    ]);
+
+    [$doc, $ctx] = overridesStageFixture('users.index');
+    new OverridesStage($matcher)->apply($doc, $ctx);
+
+    $tags = $doc->paths[0]->get->tags;
+    expect($tags)->toBe(['Users', 'Admin'])
+        ->and(array_is_list($tags))->toBeTrue();
+});
+
 it('skips a path item with no path even when overrides are configured', function (): void {
     $matcher = new OverrideMatcher(['api/*' => ['deprecated' => true]]);
 

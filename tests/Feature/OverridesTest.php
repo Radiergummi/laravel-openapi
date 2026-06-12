@@ -59,6 +59,18 @@ it('applies a URI-glob override and emits x-* extensions', function (): void {
     expect($op['x-internal'])->toBeTrue();
 });
 
+it('emits multiple tags as a sequential list', function (): void {
+    config()->set('openapi.overrides', [
+        'overrides.users' => ['tags' => ['Users', 'Admin']],
+    ]);
+
+    $spec = generateSpec();
+    $tags = $spec['paths']['/api/overrides/users']['get']['tags'];
+
+    expect($tags)->toBe(['Users', 'Admin'])
+        ->and(array_is_list($tags))->toBeTrue();
+});
+
 it('leaves operations untouched when overrides is empty', function (): void {
     config()->set('openapi.overrides', []);
 
