@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+use Radiergummi\OpenApi\Lint\Visitors\Resettable;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -28,7 +29,7 @@ use function str_starts_with;
  * Mark the old attribute class as at-deprecated, and this rule will emit warnings for every
  * remaining usage.
  */
-final class DeprecatedAttribute implements Rule, OperationRuleVisitor
+final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettable
 {
     private readonly string $attributeNamespace;
 
@@ -41,6 +42,13 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor
         // package-namespace rename does not require editing this constant.
         $this->attributeNamespace = $attributeNamespace
             ?? (new ReflectionClass(FieldAttribute::class)->getNamespaceName() . '\\');
+    }
+
+    /** Clears the per-attribute reflection cache so it cannot grow unbounded across walks. */
+    #[Override]
+    public function reset(): void
+    {
+        $this->reflectionCache = [];
     }
 
     /**
