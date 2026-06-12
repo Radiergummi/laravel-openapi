@@ -145,7 +145,7 @@ The property set is the union of `$casts` keys, `$fillable`, `$appends`, and
 For each property, the type is resolved in this order:
 
 1. **`$casts`** — the cast value drives the schema type. `datetime` / `date` → `string` (format `date-time` / `date`); `decimal:N` → `string`; `array` / `json` / `object` / `collection` → object; a backed-enum class-string → a `$ref` to the [shared enum component](#shared-enum-components).
-2. **`@property` / `@property-read` docblock** — scalar types (`int`, `bool`, `float`, `string`) are mapped directly; `?T` marks the property as nullable. A class type that is itself a `Model` subclass becomes a `$ref` to that model's component schema (built recursively; cycles are guarded).
+2. **`@property` / `@property-read` docblock** — scalar types (`int`, `bool`, `float`, `string`) are mapped directly; `?T` marks the property as nullable. A class type that is itself a `Model` subclass becomes a `$ref` to that model's component schema (built recursively; cycles are guarded). An **array-shape** type — `array{lat: float, lng: float}`, a nested `array{meta: array{…}}`, an optional key (`array{unit?: string}`, omitted from `required`), the list forms `list<array{…}>` / `array{…}[]`, or a string-keyed map `array<string, T>` (→ `additionalProperties`) — is resolved into the corresponding object/array schema rather than dropped to a bare `array`.
 3. **`$appends` accessor return type** — a legacy-style accessor (`getReadingTimeAttribute(): int`) contributes its return type for an appended attribute.
 4. **Unknown** — if none of the above supply a type, an unconstrained schema with no `type` is emitted.
 

@@ -11,14 +11,13 @@ use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
-use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
+use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
@@ -32,7 +31,6 @@ use function array_keys;
 use function array_merge;
 use function array_unique;
 use function array_values;
-use function class_exists;
 use function enum_exists;
 use function explode;
 use function in_array;
@@ -55,6 +53,7 @@ final class EloquentModelToSchema
     public function __construct(
         private readonly ComponentSchemaRegistry $registry,
         private readonly JsonSchemaFromType $jsonSchemaFromType,
+        private readonly TypeNodeToSchema $typeNodeToSchema,
         private readonly TypeResolver $typeResolver,
         private readonly TypeNodeResolver $typeNodeResolver,
         private readonly DocBlockParser $docBlockParser,
@@ -206,9 +205,9 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Builds a named OA\Property from a docblock type node, applying nullability via the
-     * OAS 3.1 idiom ({@see NullableSchema}). Returns null when the node is unresolvable, so the
-     * caller falls through to the empty-property fallback.
+     * Builds a named OA\Property from a docblock type node via {@see TypeNodeToSchema}. Returns
+     * null when the node is unresolvable, so the caller falls through to the empty-property
+     * fallback.
      *
      * @param ReflectionClass<Model> $reflection
      *
@@ -216,48 +215,16 @@ final class EloquentModelToSchema
      */
     private function propertyFromTag(string $name, TypeNode $node, ReflectionClass $reflection): ?OA\Property
     {
-        $schema = $this->schemaFromTagType($node, $reflection, $name);
+        // Array shapes (array{…}), list/array-of forms, and string-keyed maps are resolved by
+        // TypeNodeToSchema; scalar keywords, related-model `$ref`s, and non-model classes are
+        // resolved through the class-schema strategy below. Nullability is applied by the resolver.
+        $schema = $this->typeNodeToSchema->resolve(
+            $node,
+            $reflection,
+            fn(string $className): OA\Schema => $this->classTagSchema($className),
+        );
 
         if ($schema === null) {
-            return null;
-        }
-
-        if ($this->typeNodeResolver->isNullable($node)) {
-            $schema = NullableSchema::wrap($schema);
-        }
-
-        return $this->propertyFromSchema($name, $schema);
-    }
-
-    /**
-     * Builds the type schema for a docblock node — scalar keyword, related-model `$ref`, or a
-     * non-model class via {@see JsonSchemaFromType} — or returns null when the node is a generic,
-     * array, or otherwise unresolvable type (caller falls through to the empty-property fallback).
-     *
-     * Nullability is applied by the caller; this method only shapes the underlying type.
-     *
-     * @param ReflectionClass<Model> $reflection
-     *
-     * @throws ReflectionException
-     */
-    private function schemaFromTagType(TypeNode $node, ReflectionClass $reflection, string $name): ?OA\Schema
-    {
-        // GenericTypeNode (e.g. Collection<Tag>) and ArrayTypeNode are intentionally not descended
-        // into — Tier-0 doesn't parse deep generics (see docs/auto-derivation.md). The scalar
-        // fast-path peeks at the unwrapped identifier before the class path is tried.
-        $inner = $this->typeNodeResolver->unwrapNullable($node);
-
-        if ($inner instanceof IdentifierTypeNode) {
-            $definition = $this->scalarKeywordToDefinition($inner->name);
-
-            if ($definition !== null) {
-                return new OA\Schema($definition);
-            }
-        }
-
-        $className = $this->typeNodeResolver->resolveClassName($node, $reflection);
-
-        if ($className === null || ! class_exists($className)) {
             $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
                 'model' => $reflection->getName(),
                 'property' => $name,
@@ -267,6 +234,18 @@ final class EloquentModelToSchema
             return null;
         }
 
+        return $this->propertyFromSchema($name, $schema);
+    }
+
+    /**
+     * Maps a resolved leaf class to a schema: a related model becomes a pooled `$ref`, any other
+     * class is shaped by {@see JsonSchemaFromType}. Supplied as the class-schema strategy to
+     * {@see TypeNodeToSchema}.
+     *
+     * @throws ReflectionException
+     */
+    private function classTagSchema(string $className): OA\Schema
+    {
         if (is_a($className, Model::class, allow_string: true)) {
             /** @var class-string<Model> $className */
             return new OA\Schema(['ref' => $this->registry->qualifyKey($this->build($className))]);
