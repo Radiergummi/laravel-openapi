@@ -76,6 +76,9 @@ php artisan openapi:lint --format=github
 
 # Print the rule catalog instead of linting
 php artisan openapi:lint --list
+
+# Write the catalog to a file (honors the --format file target)
+php artisan openapi:lint --list --format=json:catalog.json
 ```
 
 ### Output targets
