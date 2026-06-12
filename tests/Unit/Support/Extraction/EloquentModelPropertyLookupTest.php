@@ -110,6 +110,28 @@ it('types a list-shaped array-cast property as an array of its element type', fu
         ->toEqual(['property' => 'aliases', 'type' => 'array', 'items' => ['type' => 'string']]);
 });
 
+it('types a class-form AsCollection cast via its @property generic on the lookup path (#252)', function (): void {
+    $property = modelPropertyReader()->propertyFor(
+        \Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class,
+        'tags',
+    );
+
+    expect($property)->not->toBeNull()
+        ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
+        ->toEqual(['property' => 'tags', 'type' => 'array', 'items' => ['type' => 'string']]);
+});
+
+it('defers a custom-cast column to its @property tag on the lookup path (#252)', function (): void {
+    $property = modelPropertyReader()->propertyFor(
+        \Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class,
+        'custom',
+    );
+
+    expect($property)->not->toBeNull()
+        ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
+        ->toEqual(['property' => 'custom', 'type' => 'string']);
+});
+
 it('memoises the model metadata across lookups', function (): void {
     $reader = modelPropertyReader();
 
