@@ -53,6 +53,26 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       security: []
+  /api/bookings:
+    get:
+      tags:
+        - Bookings
+      summary: 'List bookings.'
+      description: "The signature only says `AnonymousResourceCollection` — the generator reads\nthe `BookingResource::collection(...)` return expression to resolve the item\nresource, and the `paginate()` call to pick the `{data, links, meta}`\nenvelope. No `#[ResponseResource]` needed."
+      operationId: get_api_bookings
+      parameters: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/BookingResource' } }
+                  links: { properties: { first: { type: string }, last: { type: string }, prev: { type: string }, next: { type: string } }, type: object }
+                  meta: { properties: { current_page: { type: integer }, from: { type: integer }, last_page: { type: integer }, path: { type: string }, per_page: { type: integer }, to: { type: integer }, total: { type: integer } }, type: object }
+                type: object
+      security: []
   '/api/bookings/{booking}':
     get:
       tags:

@@ -68,6 +68,7 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
     #[Override]
     public function description(): string
     {
-        return 'A resource collection response has no #[ResponseResource] naming its item class.';
+        return 'A resource collection response names no item class — neither a #[ResponseResource] attribute, '
+            . 'nor the collection\'s #[Collects]/$collects declaration, nor the return expression resolves one.';
     }
 }

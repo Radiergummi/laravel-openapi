@@ -450,7 +450,7 @@ is enabled.
 | `request-body.on-get-or-delete` | 1 | GET or DELETE operation has a request body. |
 | `request-body.schema-degraded` | 1 | A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules. |
 | `resource.fields-undeclared` | 1 | An API Resource used as a response declares no #[ResourceField] attributes — and the generator cannot infer its shape either (no readable single-`return [...]` `toArray()` literal yielding fields, no wrapped `@mixin`/`@extends` model to fall back to), so the response schema is genuinely empty. Skipped when the resolved resource class is the abstract `Illuminate\Http\Resources\Json\JsonResource` base or any abstract subclass — anonymous `Model::toResource()` returns are passed silently, with `resource.response-ambiguous` handling the "no concrete resource class" signal. |
-| `resource.response-ambiguous` | 1 | A resource collection response has no #[ResponseResource] naming its item class. |
+| `resource.response-ambiguous` | 1 | A resource collection response names no item class — neither a #[ResponseResource] attribute, nor the collection's `#[Collects]`/`$collects` declaration, nor the return expression resolves one. |
 | `response.no-error` | 1 | Operation has no error responses (4xx/5xx). |
 | `schema.allof-type-conflict` | 1 | allOf members declare conflicting type values. |
 | `schema.enum-empty` | 1 | A schema declares an empty enum (enum: []) and is unsatisfiable. |

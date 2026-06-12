@@ -29,7 +29,7 @@ class TypelessFieldController
 it('flags a #[ResourceField] with no type', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(TypelessFieldController::class, 'show', '/typeless');
 
-    $rule = new ResourceFieldTypeMissing(new ResourceClassLocator());
+    $rule = new ResourceFieldTypeMissing(ResourceClassLocator::create());
     $findings = iterator_to_array($rule->checkOperation(
         OperationNodeFactory::forDescriptor($descriptor),
         OperationNodeFactory::emptyContext(),

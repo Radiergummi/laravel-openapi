@@ -41,8 +41,12 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
             return;
         }
 
-        /** @var class-string $resourceClass */
         $resourceClass = $target->resourceClass;
+
+        // A wrapped-model target documents the model's schema; there is no resource to inspect.
+        if ($resourceClass === null) {
+            return;
+        }
 
         foreach ($context->reflectionCache->classAttributes($resourceClass, ResourceField::class) as $attribute) {
             $field = $attribute->newInstance();

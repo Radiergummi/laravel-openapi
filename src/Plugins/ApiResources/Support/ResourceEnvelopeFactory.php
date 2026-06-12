@@ -23,6 +23,25 @@ final readonly class ResourceEnvelopeFactory
         ]);
     }
 
+    /**
+     * The `{data: [...]}` envelope of an *unpaginated* resource collection —
+     * `X::collection($query->get())` serializes without `links`/`meta`. Chosen when return-
+     * expression resolution shows the collection source is not visibly paginated.
+     */
+    public function unpaginatedCollection(string $ref): OA\Schema
+    {
+        return new OA\Schema([
+            'type' => 'object',
+            'properties' => [
+                new OA\Property([
+                    'property' => 'data',
+                    'type' => 'array',
+                    'items' => new OA\Items(['ref' => $ref]),
+                ]),
+            ],
+        ]);
+    }
+
     public function collection(string $ref): OA\Schema
     {
         return new OA\Schema([
