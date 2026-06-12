@@ -15,12 +15,12 @@ use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
-use Radiergummi\OpenApi\Support\Generator\SchemaFieldCopier;
 use Reflector;
 
 use function class_exists;
 use function count;
 use function in_array;
+use function Radiergummi\OpenApi\copy_schema_fields;
 use function strtolower;
 
 /**
@@ -41,7 +41,13 @@ use function strtolower;
 final readonly class TypeNodeToSchema
 {
     /** Generic base identifiers that denote an array/list rather than a class. */
-    private const array ARRAY_GENERICS = ['array', 'list', 'non-empty-array', 'non-empty-list', 'iterable'];
+    private const array ARRAY_GENERICS = [
+        'array',
+        'list',
+        'non-empty-array',
+        'non-empty-list',
+        'iterable',
+    ];
 
     public function __construct(
         private TypeNodeResolver $typeNodeResolver = new TypeNodeResolver(),
@@ -58,24 +64,50 @@ final readonly class TypeNodeToSchema
     public function resolve(TypeNode $node, Reflector $context, callable $classSchema): ?OA\Schema
     {
         return match (true) {
-            $this->typeNodeResolver->isNullable($node) => $this->resolveNullable($node, $context, $classSchema),
-            $node instanceof ArrayShapeNode            => $this->objectFromShape($node, $context, $classSchema),
-            $node instanceof ArrayTypeNode             => $this->listOf($this->resolve($node->type, $context, $classSchema)),
-            $node instanceof GenericTypeNode           => $this->fromGeneric($node, $context, $classSchema),
-            $node instanceof IdentifierTypeNode        => $this->fromIdentifier($node, $context, $classSchema),
-            default                                    => null,
+            $this->typeNodeResolver->isNullable($node) => $this->resolveNullable(
+                $node,
+                $context,
+                $classSchema,
+            ),
+            $node instanceof ArrayShapeNode => $this->objectFromShape(
+                $node,
+                $context,
+                $classSchema,
+            ),
+            $node instanceof ArrayTypeNode => $this->listOf(
+                $this->resolve(
+                    $node->type,
+                    $context,
+                    $classSchema,
+                ),
+            ),
+            $node instanceof GenericTypeNode => $this->fromGeneric(
+                $node,
+                $context,
+                $classSchema,
+            ),
+            $node instanceof IdentifierTypeNode => $this->fromIdentifier(
+                $node,
+                $context,
+                $classSchema,
+            ),
+            default => null,
         };
     }
 
     /**
      * Resolves a nullable node (`?T` / `T|null`) by unwrapping it, resolving the inner type, and
-     * re-wrapping via the OAS 3.1 idiom. A multi-class union (`A|B|null`) is not a simple nullable —
-     * `unwrapNullable` returns it unchanged — so it falls through to the caller's fallback.
+     * re-wrapping via the OAS 3.1 idiom. A multi-class union (`A|B|null`) is not a simple
+     * nullable (`unwrapNullable` returns it unchanged), so it falls through to the caller's
+     * fallback.
      *
      * @param callable(string): ?OA\Schema $classSchema
      */
-    private function resolveNullable(TypeNode $node, Reflector $context, callable $classSchema): ?OA\Schema
-    {
+    private function resolveNullable(
+        TypeNode $node,
+        Reflector $context,
+        callable $classSchema,
+    ): ?OA\Schema {
         $inner = $this->typeNodeResolver->unwrapNullable($node);
 
         if ($inner === $node) {
@@ -90,18 +122,22 @@ final readonly class TypeNodeToSchema
     /**
      * @param callable(string): ?OA\Schema $classSchema
      */
-    private function objectFromShape(ArrayShapeNode $node, Reflector $context, callable $classSchema): OA\Schema
-    {
+    private function objectFromShape(
+        ArrayShapeNode $node,
+        Reflector $context,
+        callable $classSchema,
+    ): OA\Schema {
         $properties = [];
         $required = [];
 
         foreach ($node->items as $index => $item) {
             $name = $this->itemKey($item, $index);
-            $value = $this->resolve($item->valueType, $context, $classSchema) ?? new OA\Schema([]);
+            $value = $this->resolve($item->valueType, $context, $classSchema)
+                ?? new OA\Schema([]);
 
             $properties[] = $this->propertyFromSchema($name, $value);
 
-            if (! $item->optional) {
+            if (!$item->optional) {
                 $required[] = $name;
             }
         }
@@ -118,16 +154,24 @@ final readonly class TypeNodeToSchema
     /**
      * @param callable(string): ?OA\Schema $classSchema
      */
-    private function fromGeneric(GenericTypeNode $node, Reflector $context, callable $classSchema): ?OA\Schema
-    {
-        if (! in_array(strtolower($node->type->name), self::ARRAY_GENERICS, strict: true)) {
+    private function fromGeneric(
+        GenericTypeNode $node,
+        Reflector $context,
+        callable $classSchema,
+    ): ?OA\Schema {
+        if (!in_array(
+            strtolower($node->type->name),
+            self::ARRAY_GENERICS,
+            strict: true,
+        )) {
             return null;
         }
 
         // array<K, V>: a string key denotes a map (additionalProperties), an int key a list.
         if (count($node->genericTypes) === 2) {
             [$key, $value] = $node->genericTypes;
-            $valueSchema = $this->resolve($value, $context, $classSchema) ?? new OA\Schema([]);
+            $valueSchema = $this->resolve($value, $context, $classSchema)
+                ?? new OA\Schema([]);
 
             if ($key instanceof IdentifierTypeNode && $this->isStringKey($key->name)) {
                 return new OA\Schema(['type' => 'object', 'additionalProperties' => $valueSchema]);
@@ -138,7 +182,13 @@ final readonly class TypeNodeToSchema
 
         // list<V> / array<V>: single argument is the value type.
         if (count($node->genericTypes) === 1) {
-            return $this->listOf($this->resolve($node->genericTypes[0], $context, $classSchema));
+            return $this->listOf(
+                $this->resolve(
+                    $node->genericTypes[0],
+                    $context,
+                    $classSchema,
+                ),
+            );
         }
 
         return null;
@@ -147,8 +197,11 @@ final readonly class TypeNodeToSchema
     /**
      * @param callable(string): ?OA\Schema $classSchema
      */
-    private function fromIdentifier(IdentifierTypeNode $node, Reflector $context, callable $classSchema): ?OA\Schema
-    {
+    private function fromIdentifier(
+        IdentifierTypeNode $node,
+        Reflector $context,
+        callable $classSchema,
+    ): ?OA\Schema {
         $definition = $this->scalarDefinition($node->name);
 
         if ($definition !== null) {
@@ -157,7 +210,7 @@ final readonly class TypeNodeToSchema
 
         $className = $this->typeNodeResolver->resolveClassName($node, $context);
 
-        if ($className === null || ! class_exists($className)) {
+        if ($className === null || !class_exists($className)) {
             return null;
         }
 
@@ -174,7 +227,7 @@ final readonly class TypeNodeToSchema
         $items = new OA\Items([]);
 
         if ($element !== null) {
-            SchemaFieldCopier::copy($element, $items);
+            copy_schema_fields($element, $items);
         }
 
         return new OA\Schema(['type' => 'array', 'items' => $items]);
@@ -183,17 +236,21 @@ final readonly class TypeNodeToSchema
     private function itemKey(ArrayShapeItemNode $item, int $index): string
     {
         return match (true) {
-            $item->keyName instanceof IdentifierTypeNode  => $item->keyName->name,
-            $item->keyName instanceof ConstExprStringNode  => $item->keyName->value,
+            $item->keyName === null => (string) $index,
+            $item->keyName instanceof ConstExprStringNode,
             $item->keyName instanceof ConstExprIntegerNode => $item->keyName->value,
-            $item->keyName === null                        => (string) $index,
-            default                                        => (string) $item->keyName,
+            $item->keyName instanceof IdentifierTypeNode => $item->keyName->name,
+            default => (string) $item->keyName,
         };
     }
 
     private function isStringKey(string $keyword): bool
     {
-        return in_array(strtolower($keyword), ['string', 'array-key', 'non-empty-string'], strict: true);
+        return in_array(
+            strtolower($keyword),
+            ['string', 'array-key', 'non-empty-string'],
+            strict: true,
+        );
     }
 
     /**
@@ -202,19 +259,19 @@ final readonly class TypeNodeToSchema
     private function scalarDefinition(string $keyword): ?array
     {
         return match (strtolower($keyword)) {
-            'int', 'integer'                   => ['type' => 'integer'],
-            'float', 'double'                  => ['type' => 'number'],
-            'string'                           => ['type' => 'string'],
+            'int', 'integer' => ['type' => 'integer'],
+            'float', 'double' => ['type' => 'number'],
+            'string' => ['type' => 'string'],
             'bool', 'boolean', 'true', 'false' => ['type' => 'boolean'],
-            default                            => null,
+            default => null,
         };
     }
 
     private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
     {
-        $property = new OA\Property(['property' => $name]);
-        SchemaFieldCopier::copy($schema, $property);
-
-        return $property;
+        return copy_schema_fields(
+            $schema,
+            new OA\Property(['property' => $name]),
+        );
     }
 }

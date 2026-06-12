@@ -14,7 +14,6 @@ use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
-use Radiergummi\OpenApi\Support\Generator\SchemaFieldCopier;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
@@ -36,38 +35,44 @@ use function explode;
 use function in_array;
 use function is_a;
 use function ltrim;
+use function Radiergummi\OpenApi\copy_schema_fields;
 use function str_contains;
 use function str_replace;
 use function strtolower;
 use function ucwords;
 
 /**
- * Builds an OpenAPI schema for an Eloquent model from its metadata:
- * cast keys, fillable fields, appends, and docblock @property names.
+ * Builds an OpenAPI schema for an Eloquent model from its metadata: cast keys, fillable fields,
+ * appends, and docblock at-property names.
  *
  * @internal
  */
 #[Scoped]
-final class EloquentModelToSchema
+final readonly class EloquentModelToSchema
 {
     public function __construct(
-        private readonly ComponentSchemaRegistry $registry,
-        private readonly JsonSchemaFromType $jsonSchemaFromType,
-        private readonly TypeNodeToSchema $typeNodeToSchema,
-        private readonly TypeResolver $typeResolver,
-        private readonly TypeNodeResolver $typeNodeResolver,
-        private readonly DocBlockParser $docBlockParser,
-        private readonly LoggerInterface $logger,
+        private ComponentSchemaRegistry $registry,
+        private JsonSchemaFromType $jsonSchemaFromType,
+        private TypeNodeToSchema $typeNodeToSchema,
+        private TypeResolver $typeResolver,
+        private TypeNodeResolver $typeNodeResolver,
+        private DocBlockParser $docBlockParser,
+        private LoggerInterface $logger,
     ) {}
 
     /**
      * Registers the model's schema and returns the component key.
      *
      * @param class-string<Model> $modelClass
+     *
+     * @throws ReflectionException
      */
     public function build(string $modelClass): string
     {
-        return $this->registry->buildOnce($modelClass, fn(): OA\Schema => $this->schemaFor($modelClass));
+        return $this->registry->buildOnce(
+            $modelClass,
+            fn(): OA\Schema => $this->schemaFor($modelClass),
+        );
     }
 
     /**
@@ -80,10 +85,10 @@ final class EloquentModelToSchema
         $reflection = new ReflectionClass($modelClass);
 
         // An abstract or otherwise non-instantiable model (reachable as a return type or a
-        // @property-read relation) would throw an Error from `new $modelClass()` — which the
+        // `@property-read` relation) would throw an Error from `new $modelClass()`, which the
         // resolver fault boundary deliberately does not catch. Degrade to an unknown-shape schema
         // here instead, so one such model does not abort the whole generation run.
-        if (! $reflection->isInstantiable()) {
+        if (!$reflection->isInstantiable()) {
             $this->logger->warning('EloquentModelToSchema: model is not instantiable, using empty fallback', [
                 'model' => $modelClass,
             ]);
@@ -92,14 +97,11 @@ final class EloquentModelToSchema
         }
 
         $model = new $modelClass();
-
         $casts = $model->getCasts();
         $hidden = $model->getHidden();
         $visible = $model->getVisible();
         $fillable = $model->getFillable();
-
         $appends = $model->getAppends();
-
         $docComment = $reflection->getDocComment();
 
         /** @var array<string, PropertyTagValueNode> $propertyTags */
@@ -122,23 +124,26 @@ final class EloquentModelToSchema
         }
 
         // Union of all known property names.
-        $allNames = array_unique(array_merge(
-            array_keys($casts),
-            $fillable,
-            $appends,
-            array_keys($propertyTags),
-        ));
+        $allNames = array_unique(
+            array_merge(
+                array_keys($casts),
+                $fillable,
+                $appends,
+                array_keys($propertyTags),
+            ),
+        );
 
         // Apply visibility/hidden filters.
         if ($visible !== []) {
-            $allNames = array_values(array_filter(
-                $allNames,
-                static fn(string $name): bool => in_array($name, $visible, strict: true),
-            ));
+            $allNames = array_values(
+                array_filter(
+                    $allNames,
+                    static fn(string $name): bool => in_array($name, $visible, strict: true),
+                ),
+            );
         }
 
         $names = array_values(array_diff($allNames, $hidden));
-
         $properties = [];
 
         foreach ($names as $name) {
@@ -146,13 +151,21 @@ final class EloquentModelToSchema
 
             if ($castString !== null) {
                 // Enum-class cast takes priority: reference the shared reusable enum component.
-                if (enum_exists($castString) && is_a($castString, BackedEnum::class, allow_string: true)) {
-                    $properties[] = $this->propertyFromSchema($name, $this->jsonSchemaFromType->fromBackedEnumComponent($castString));
+                /** @noinspection NotOptimalIfConditionsInspection */
+                if (
+                    enum_exists($castString)
+                    && is_a($castString, BackedEnum::class, allow_string: true)
+                ) {
+                    $properties[] = $this->propertyFromSchema(
+                        $name,
+                        $this->jsonSchemaFromType->fromBackedEnumComponent($castString),
+                    );
 
                     continue;
                 }
 
-                $properties[] = $this->castToProperty($name, $castString) ?? new OA\Property(['property' => $name]);
+                $properties[] = $this->castToProperty($name, $castString)
+                    ?? new OA\Property(['property' => $name]);
 
                 continue;
             }
@@ -183,14 +196,14 @@ final class EloquentModelToSchema
             $properties[] = new OA\Property(['property' => $name]);
         }
 
-        // A property is required when it has a @property/@property-read annotation whose
-        // type is non-nullable — regardless of whether the schema type came from a cast.
+        // A property is required when it has a @property/@property-read annotation whose type is
+        // non-nullable - regardless of whether the schema type came from a cast.
         $required = [];
 
         foreach ($names as $name) {
             $tag = $propertyTags[$name] ?? null;
 
-            if ($tag !== null && ! $this->typeNodeResolver->isNullable($tag->type)) {
+            if ($tag !== null && !$this->typeNodeResolver->isNullable($tag->type)) {
                 $required[] = $name;
             }
         }
@@ -205,20 +218,28 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Builds a named OA\Property from a docblock type node via {@see TypeNodeToSchema}. Returns
-     * null when the node is unresolvable, so the caller falls through to the empty-property
+     * Builds a named OA\Property from a docblock type node via {@see TypeNodeToSchema}.
+     *
+     * Returns null when the node is unresolvable, so the caller falls through to the empty-property
      * fallback.
      *
      * @param ReflectionClass<Model> $reflection
      *
      * @throws ReflectionException
      */
-    private function propertyFromTag(string $name, TypeNode $node, ReflectionClass $reflection): ?OA\Property
-    {
+    private function propertyFromTag(
+        string $name,
+        TypeNode $node,
+        ReflectionClass $reflection,
+    ): ?OA\Property {
         // Array shapes (array{…}), list/array-of forms, and string-keyed maps are resolved by
         // TypeNodeToSchema; scalar keywords, related-model `$ref`s, and non-model classes are
         // resolved through the class-schema strategy below. Nullability is applied by the resolver.
-        $schema = $this->typeNodeToSchema->resolve($node, $reflection, $this->classTagSchema(...));
+        $schema = $this->typeNodeToSchema->resolve(
+            $node,
+            $reflection,
+            $this->classTagSchema(...),
+        );
 
         if ($schema === null) {
             $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
@@ -244,7 +265,9 @@ final class EloquentModelToSchema
     {
         if (is_a($className, Model::class, allow_string: true)) {
             /** @var class-string<Model> $className */
-            return new OA\Schema(['ref' => $this->registry->qualifyKey($this->build($className))]);
+            return new OA\Schema([
+                'ref' => $this->registry->qualifyKey($this->build($className)),
+            ]);
         }
 
         return $this->jsonSchemaFromType->fromType(Type::object($className));
@@ -259,22 +282,22 @@ final class EloquentModelToSchema
     private function scalarKeywordToDefinition(string $keyword): ?array
     {
         return match (strtolower($keyword)) {
-            'int', 'integer'        => ['type' => 'integer'],
-            'float', 'double'       => ['type' => 'number'],
-            'string'                => ['type' => 'string'],
+            'int', 'integer' => ['type' => 'integer'],
+            'float', 'double' => ['type' => 'number'],
+            'string' => ['type' => 'string'],
             'bool', 'boolean',
-            'true', 'false'         => ['type' => 'boolean'],
-            default                 => null,
+            'true', 'false' => ['type' => 'boolean'],
+            default => null,
         };
     }
 
     /**
-     * Resolves the return type of an accessor method to an OA\Property, or returns null when
-     * no reflectable typed accessor exists for the property name.
+     * Resolves the return type of accessor method to an OA\Property, or returns null when no
+     * reflectable typed accessor exists for the property name.
      *
-     * Checks the new-style studly-cased method (e.g. `readingTime`) and the legacy
+     * Checks the new-style studly cased method (e.g. `readingTime`) and the legacy
      * `getReadingTimeAttribute` form. If the return type is `Attribute` (the new
-     * `Attribute::get(...)` style), the value type is not reflectable so null is returned.
+     * `Attribute::get(...)` style), the value type is not reflectable, so null is returned.
      *
      * @param ReflectionClass<Model> $reflection
      *
@@ -286,13 +309,13 @@ final class EloquentModelToSchema
         $candidates = [$studly, 'get' . $studly . 'Attribute'];
 
         foreach ($candidates as $methodName) {
-            if (! $reflection->hasMethod($methodName)) {
+            if (!$reflection->hasMethod($methodName)) {
                 continue;
             }
 
             $returnType = $reflection->getMethod($methodName)->getReturnType();
 
-            if (! $returnType instanceof ReflectionNamedType) {
+            if (!$returnType instanceof ReflectionNamedType) {
                 continue;
             }
 
@@ -321,15 +344,15 @@ final class EloquentModelToSchema
      */
     private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
     {
-        $property = new OA\Property(['property' => $name]);
-        SchemaFieldCopier::copy($schema, $property);
-
-        return $property;
+        return copy_schema_fields(
+            $schema,
+            new OA\Property(['property' => $name]),
+        );
     }
 
     /**
-     * Maps an Eloquent cast string to an OA\Property with the given name,
-     * or returns null when the cast type is not recognised.
+     * Maps an Eloquent cast string to an OA\Property with the given name, or returns null when the
+     * cast type is not recognized.
      */
     private function castToProperty(string $name, string $cast): ?OA\Property
     {
@@ -341,16 +364,20 @@ final class EloquentModelToSchema
         // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
         // keywords (decimal/date/datetime/array/…) are handled here.
         $definition = $this->scalarKeywordToDefinition($normalised) ?? match ($normalised) {
-            'real'
-                => ['type' => 'number'],
-            'decimal', 'hashed', 'encrypted'
-                => ['type' => 'string'],
-            'date'
-                => ['type' => 'string', 'format' => 'date'],
-            'datetime', 'immutable_date', 'immutable_datetime', 'timestamp', 'custom_datetime'
-                => ['type' => 'string', 'format' => 'date-time'],
-            'array', 'json', 'object', 'collection'
-                => ['type' => 'object'],
+            'real' => ['type' => 'number'],
+            'decimal',
+            'hashed',
+            'encrypted' => ['type' => 'string'],
+            'date' => ['type' => 'string', 'format' => 'date'],
+            'datetime',
+            'immutable_date',
+            'immutable_datetime',
+            'timestamp',
+            'custom_datetime' => ['type' => 'string', 'format' => 'date-time'],
+            'array',
+            'json',
+            'object',
+            'collection' => ['type' => 'object'],
             default => null,
         };
 

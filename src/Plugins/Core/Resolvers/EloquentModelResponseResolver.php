@@ -13,6 +13,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
+use ReflectionException;
 use ReflectionNamedType;
 
 use function class_exists;
@@ -23,12 +24,12 @@ use function is_a;
  * `200 OK` response whose schema is a `$ref` (single model) or an array of `$ref` items
  * (collection).
  *
- * Registered AFTER `PaginatorResponseResolver` so paginator return types are claimed first and
+ * Registered AFTER `PaginatorResponseResolver` so paginator return types are claimed first, and
  * this resolver only sees bare `Model` subclass or `Collection<*, Model>` returns. Returns null
  * for any non-Model return type, deferring to the next resolver or the bare-200 fallback.
  *
  * A nullable model return (`?Model`) is a `ReflectionNamedType` with allowsNull(); it is
- * accepted and the nullable modifier is not reflected in the emitted schema, consistent
+ * accepted, and the nullable modifier is not reflected in the emitted schema, consistent
  * with the other primary-response resolvers.
  *
  * @internal
@@ -41,6 +42,9 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
         private ReturnTypeExtractor $returnTypeExtractor,
     ) {}
 
+    /**
+     * @throws ReflectionException
+     */
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;
@@ -61,13 +65,19 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
             /** @var class-string<Model> $modelClass */
             $modelClass = $typeName;
 
-            return $this->jsonResponse(new OA\Schema(['ref' => $this->refKey($modelClass)]));
+            return $this->jsonResponse(new OA\Schema([
+                'ref' => $this->refKey($modelClass),
+            ]));
         }
 
         if (is_a($typeName, Collection::class, true)) {
             $itemClass = $this->returnTypeExtractor->genericArgument($reflector);
 
-            if ($itemClass === null || !class_exists($itemClass) || !is_a($itemClass, Model::class, true)) {
+            if (
+                $itemClass === null
+                || !class_exists($itemClass)
+                || !is_a($itemClass, Model::class, true)
+            ) {
                 return null;
             }
 
@@ -76,7 +86,10 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
 
             $items = new OA\Items(['ref' => $this->refKey($modelClass)]);
 
-            return $this->jsonResponse(new OA\Schema(['type' => 'array', 'items' => $items]));
+            return $this->jsonResponse(new OA\Schema([
+                'type' => 'array',
+                'items' => $items,
+            ]));
         }
 
         return null;
@@ -87,6 +100,8 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
      * key pointing at it — shared by the single-model and collection-item paths.
      *
      * @param class-string<Model> $modelClass
+     *
+     * @throws ReflectionException
      */
     private function refKey(string $modelClass): string
     {
