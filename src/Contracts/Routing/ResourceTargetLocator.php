@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Contracts\Routing;
 
-use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
 
 /**
  * Resolves the resource class an action returns and its response cardinality (singular vs.
  * collections). Implementations apply the conventions of their target resource convention — e.g.,
- * the bundled implementation in {@see ResourceClassLocator} handles Eloquent `JsonResource` /
+ * the bundled implementation in {@see \Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator}
+ * handles Eloquent `JsonResource` /
  * `ResourceCollection` with `#[Collects]` + `$collects` + `#[ResponseResource]` overrides.
  *
  * Plugin authors building response resolvers for alternative resource conventions (JSON:API, HAL,
