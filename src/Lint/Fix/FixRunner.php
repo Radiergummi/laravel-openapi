@@ -116,12 +116,6 @@ final readonly class FixRunner
             return false;
         }
 
-        foreach ($fixes as $fix) {
-            if (!isset($appliedIds[spl_object_id($fix)])) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_all($fixes, fn($fix) => isset($appliedIds[spl_object_id($fix)]));
     }
 }

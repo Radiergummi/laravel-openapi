@@ -27,7 +27,7 @@ use function sprintf;
  */
 final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
 {
-    private const DATE_PATTERN = "/\b(\d{4}-\d{2}-\d{2}|Q[1-4]\s*\d{4})\b/";
+    private const string DATE_PATTERN = "/\b(\d{4}-\d{2}-\d{2}|Q[1-4]\s*\d{4})\b/";
 
     /**
      * @return iterable<Finding>

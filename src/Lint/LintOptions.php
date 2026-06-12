@@ -12,7 +12,7 @@ namespace Radiergummi\OpenApi\Lint;
  * `LintOptions` fields override or merge with the config depending on the field; see
  * {@see LintRunner::resolveOnly()} / {@see LintRunner::resolveSkip()} for the merge semantics.
  */
-final readonly class LintOptions
+final class LintOptions
 {
     /**
      * @param null|int|string $level             Severity preset. Integer 0..N, the sentinel
@@ -50,25 +50,24 @@ final readonly class LintOptions
      *                                           Null falls back to `openapi.lint.max_findings`.
      */
     public function __construct(
-        public int|string|null $level = null,
-        public array $only = [],
-        public array $skip = [],
-        public ?string $uriGlob = null,
-        public array $files = [],
-        public ?DiffScope $diff = null,
-        public bool $applySuppressions = true,
-        public bool $validateSpec = true,
-        public ?string $spec = null,
-        public ?float $minCoverage = null,
-        public ?int $maxFindings = null,
+        public readonly int|string|null $level = null,
+        public readonly array $only = [],
+        public readonly array $skip = [],
+        public readonly ?string $uriGlob = null,
+        public readonly array $files = [],
+        public readonly ?DiffScope $diff = null,
+        public readonly bool $applySuppressions = true,
+        public readonly bool $validateSpec = true,
+        public readonly ?string $spec = null,
+        public readonly ?float $minCoverage = null,
+        public readonly ?int $maxFindings = null,
     ) {}
 
     /**
      * Whether any route-scoping flag (`--uri`, `--path`, or `--diff`) narrowed the linted route
      * set, so callers know to compute the in-scope URI set for finding scoping.
      */
-    public function isScoped(): bool
-    {
-        return $this->uriGlob !== null || $this->files !== [] || $this->diff !== null;
+    public bool $isScoped {
+        get => $this->uriGlob !== null || $this->files !== [] || $this->diff !== null;
     }
 }

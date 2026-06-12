@@ -48,7 +48,6 @@ final readonly class SchemaFromArrayDefinition
             if ($key === 'properties' && is_array($value)) {
                 $properties = [];
 
-                /** @var mixed $childDefinition */
                 foreach ($value as $name => $childDefinition) {
                     $property = new OA\Property(['property' => (string) $name]);
 

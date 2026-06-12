@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\RouteFilters;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
+use Override;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 
 use function in_array;
@@ -27,6 +28,7 @@ final readonly class SkipBroadcastingRoutes implements RouteFilter
 {
     private const array BROADCASTING_URIS = ['broadcasting/auth', 'broadcasting/user-auth'];
 
+    #[Override]
     public function shouldSkip(Route $route): bool
     {
         return in_array(ltrim($route->uri(), '/'), self::BROADCASTING_URIS, true);

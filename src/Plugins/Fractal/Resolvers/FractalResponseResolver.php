@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -40,6 +41,7 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;

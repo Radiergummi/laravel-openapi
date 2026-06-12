@@ -467,13 +467,9 @@ final class SecurityExtractor
             return $this->middlewareSchemeMapCache = [];
         }
 
-        $map = [];
-
-        foreach ($raw as $middleware => $scheme) {
-            if (is_string($middleware) && is_string($scheme) && $scheme !== '') {
-                $map[$middleware] = $scheme;
-            }
-        }
+        $map = array_filter($raw, function ($scheme, $middleware) {
+            return is_string($middleware) && is_string($scheme) && $scheme !== '';
+        }, ARRAY_FILTER_USE_BOTH);
 
         return $this->middlewareSchemeMapCache = $map;
     }

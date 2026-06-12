@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 use Closure;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Attributes\RequestBody;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Attributes\RequestVariant;
@@ -46,6 +47,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
     ) {}
 
     /** @throws InvalidArgumentException */
+    #[Override]
     public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
     {
         $method = $descriptor->method;

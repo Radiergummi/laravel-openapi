@@ -85,13 +85,10 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
      */
     private function isResolvable(string $class): bool
     {
-        foreach ($this->refSchemaResolvers as $resolver) {
-            if ($resolver->canResolve($class)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            $this->refSchemaResolvers,
+            fn(RefSchemaResolver $resolver): bool => $resolver->canResolve($class),
+        );
     }
 
     #[Override]

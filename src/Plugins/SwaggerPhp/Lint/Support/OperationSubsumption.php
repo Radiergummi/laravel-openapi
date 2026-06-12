@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 
 use function in_array;
 use function is_array;
@@ -41,6 +42,7 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
      *
      * @throws LogicException when a non-empty candidate is passed (operation-level fold not implemented)
      */
+    #[Override]
     public function subsumes(
         OA\AbstractAnnotation $inferred,
         OA\AbstractAnnotation $authored,

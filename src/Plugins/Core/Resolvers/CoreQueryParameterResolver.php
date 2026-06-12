@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
@@ -64,14 +65,13 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     /**
      * @return list<OA\Parameter>
      */
+    #[Override]
     public function resolveQueryParameters(ActionDescriptor $descriptor): array
     {
         /** @var array<string, OA\Parameter> $byName */
-        $byName = [];
-
-        foreach ($this->accessorParameters($descriptor) as $name => $parameter) {
-            $byName[$name] = $parameter;
-        }
+        $byName = array_map(function ($parameter) {
+            return $parameter;
+        }, $this->accessorParameters($descriptor));
 
         foreach ($this->inlineValidationParameters($descriptor) as $name => $parameter) {
             $byName[$name] = $parameter;

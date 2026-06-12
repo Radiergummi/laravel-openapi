@@ -72,6 +72,7 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
      * @throws JsonException
      * @throws RuntimeException         if the OAS 3.1 meta-schema file is missing
      */
+    #[Override]
     public function checkApi(ApiNode $api, LintContext $context): iterable
     {
         if (!file_exists($this->schemaPath)) {

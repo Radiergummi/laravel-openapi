@@ -193,10 +193,12 @@ final class ActionDescriptor
                 continue;
             }
 
-            foreach (array_keys($this->bucketFor($reflector)) as $attributeClass) {
-                if (is_a($attributeClass, $interface, true)) {
-                    return true;
-                }
+            if (array_any(
+                array_keys($this->bucketFor($reflector)),
+                fn(string $attributeClass): bool
+                    => is_a($attributeClass, $interface, true),
+            )) {
+                return true;
             }
         }
 

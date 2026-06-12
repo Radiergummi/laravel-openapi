@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SpatieData\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\SpatieData\Support\SchemaFromDataClass;
@@ -35,6 +36,7 @@ final readonly class DataClassRequestSchemaResolver implements RequestSchemaReso
      * @throws RuntimeException
      * @throws UnsupportedException
      */
+    #[Override]
     public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
     {
         if ($descriptor->method === null) {

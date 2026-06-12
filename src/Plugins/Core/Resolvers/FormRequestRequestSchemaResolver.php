@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
@@ -28,6 +29,7 @@ final readonly class FormRequestRequestSchemaResolver implements RequestSchemaRe
         private PayloadParameterScanner $scanner,
     ) {}
 
+    #[Override]
     public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
     {
         if ($descriptor->method === null) {

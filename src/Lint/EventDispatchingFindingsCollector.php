@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Container\Attributes\Give;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Events\Dispatcher;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Events\LintFindingEmitted;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
@@ -39,6 +40,7 @@ final readonly class EventDispatchingFindingsCollector implements FindingsCollec
         private LoggerInterface $logger,
     ) {}
 
+    #[Override]
     public function emit(Finding $finding): void
     {
         // A host-app listener throwing must not abort the lint run and discard the findings

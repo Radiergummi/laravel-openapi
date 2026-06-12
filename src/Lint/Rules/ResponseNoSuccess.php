@@ -29,7 +29,7 @@ final class ResponseNoSuccess implements Rule, OperationRuleVisitor
             return;
         }
 
-        if (array_any($operation->responses, fn(ResponseNode $response): bool => $response->isDefault())) {
+        if (array_any($operation->responses, fn(ResponseNode $response): bool => $response->isDefault)) {
             return;
         }
 

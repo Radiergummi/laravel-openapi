@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support;
 
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -38,10 +39,14 @@ enum AuthoredAnnotationShape: string
      */
     public static function detect(ReflectionClass|ReflectionMethod $reflector): ?self
     {
-        foreach ($reflector->getAttributes() as $attribute) {
-            if (str_starts_with($attribute->getName(), self::ATTRIBUTE_NAMESPACE)) {
-                return self::Attribute;
-            }
+        if (array_any(
+            $reflector->getAttributes(),
+            fn(ReflectionAttribute $attribute): bool => str_starts_with(
+                $attribute->getName(),
+                self::ATTRIBUTE_NAMESPACE,
+            ),
+        )) {
+            return self::Attribute;
         }
 
         $docComment = $reflector->getDocComment();

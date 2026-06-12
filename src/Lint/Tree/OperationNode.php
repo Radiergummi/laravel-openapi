@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -66,6 +67,7 @@ final class OperationNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         if ($this->webhook) {
@@ -78,6 +80,7 @@ final class OperationNode implements Node
         return $append !== '' ? $base . '/' . $append : $base;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;
@@ -93,7 +96,7 @@ final class OperationNode implements Node
         return array_values(
             array_filter(
                 $this->responses,
-                static fn(ResponseNode $response): bool => $response->isSuccess(),
+                static fn(ResponseNode $response): bool => $response->isSuccess,
             ),
         );
     }
@@ -108,7 +111,7 @@ final class OperationNode implements Node
         return array_values(
             array_filter(
                 $this->responses,
-                static fn(ResponseNode $response): bool => $response->isError(),
+                static fn(ResponseNode $response): bool => $response->isError,
             ),
         );
     }

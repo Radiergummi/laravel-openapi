@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\PhpStan\Rules;
 
+use Override;
 use PhpParser\Node;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
@@ -32,6 +33,7 @@ use function count;
  */
 final class QueryParamRequiredWithDefaultRule implements Rule
 {
+    #[Override]
     public function getNodeType(): string
     {
         return Node\Attribute::class;
@@ -42,6 +44,7 @@ final class QueryParamRequiredWithDefaultRule implements Rule
      *
      * @throws ShouldNotHappenException
      */
+    #[Override]
     public function processNode(Node $node, Scope $scope): array
     {
         assert($node instanceof Node\Attribute);

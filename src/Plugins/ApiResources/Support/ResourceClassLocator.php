@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Support;
 use Illuminate\Http\Resources\Attributes\Collects;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
@@ -14,6 +15,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionType;
@@ -45,6 +47,10 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         return new self(ReturnExpressionResourceReader::create($logger));
     }
 
+    /**
+     * @throws ReflectionException
+     */
+    #[Override]
     public function locate(ActionDescriptor $descriptor): ?ResourceTarget
     {
         $reflector = $descriptor->actionReflector;
@@ -81,7 +87,8 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
 
         if ($returnsCollection) {
             /** @var class-string<ResourceCollection> $name */
-            $itemClass = $this->readCollectsAttribute($name) ?? $this->readCollectsProperty($name);
+            $itemClass = $this->readCollectsAttribute($name)
+                ?? $this->readCollectsProperty($name);
 
             if ($itemClass !== null) {
                 return new ResourceTarget(
@@ -100,7 +107,7 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         if ($name === JsonResource::class) {
             // The base class itself carries no shape; only the return expression can name the
             // concrete resource (or the wrapped model). Refusal keeps the base-class target —
-            // an empty placeholder schema, today's behaviour.
+            // an empty placeholder schema, today's behavior.
             $bodyTarget = $this->locateFromReturnExpression($descriptor);
 
             if ($bodyTarget !== null) {
@@ -129,6 +136,7 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
             $source = $descriptor->controller->getAttributes(ResponseResource::class)[0] ?? null;
         }
 
+        /** @var null|ResponseResource */
         return $source?->newInstance();
     }
 
@@ -136,6 +144,8 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
      * @param class-string<ResourceCollection> $collectionClass
      *
      * @return null|class-string<JsonResource>
+     *
+     * @throws ReflectionException
      */
     private function readCollectsAttribute(string $collectionClass): ?string
     {
@@ -166,6 +176,8 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
      * @param class-string<ResourceCollection> $collectionClass
      *
      * @return null|class-string<JsonResource>
+     *
+     * @throws ReflectionException
      */
     private function readCollectsProperty(string $collectionClass): ?string
     {
@@ -188,6 +200,8 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
     /**
      * The target resolved from the action's return expression (Tier-1; issue #108), or null for
      * closure routes and refused bodies.
+     *
+     * @throws ReflectionException
      */
     private function locateFromReturnExpression(ActionDescriptor $descriptor): ?ResourceTarget
     {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\PhpStan\Rules;
 
+use Override;
 use PhpParser\Node;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
@@ -30,6 +31,7 @@ final class PublicEndpointSecurityConflictRule implements Rule
      */
     public function __construct(private readonly string $nodeType) {}
 
+    #[Override]
     public function getNodeType(): string
     {
         return $this->nodeType;
@@ -40,6 +42,7 @@ final class PublicEndpointSecurityConflictRule implements Rule
      *
      * @throws ShouldNotHappenException
      */
+    #[Override]
     public function processNode(Node $node, Scope $scope): array
     {
         $attributesByFqn = AttributeHelpers::attributesByFqn(AttributeHelpers::getAttributeGroups($node));

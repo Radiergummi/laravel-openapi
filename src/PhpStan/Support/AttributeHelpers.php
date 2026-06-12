@@ -42,13 +42,10 @@ final class AttributeHelpers
      */
     public static function getArgument(Node\Attribute $attribute, string $name): ?Node\Arg
     {
-        foreach ($attribute->args as $argument) {
-            if ($argument->name !== null && $argument->name->toString() === $name) {
-                return $argument;
-            }
-        }
-
-        return null;
+        return array_find(
+            $attribute->args,
+            fn($argument) => $argument->name !== null && $argument->name->toString() === $name,
+        );
     }
 
     /**

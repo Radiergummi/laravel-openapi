@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix;
 
+use Override;
 use PhpParser\Node\AttributeGroup;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
@@ -42,6 +43,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     /**
      * @return iterable<Fix>
      */
+    #[Override]
     public function fix(Finding $finding, FixContext $context): iterable
     {
         $class = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Envelopes;
 
 use Illuminate\Validation\ValidationException;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
@@ -25,6 +26,7 @@ final readonly class LaravelEnvelope implements ErrorResponseResolver
         private ComponentSchemaRegistry $registry,
     ) {}
 
+    #[Override]
     public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
     {
         $isValidation = $this->isValidation($descriptor);

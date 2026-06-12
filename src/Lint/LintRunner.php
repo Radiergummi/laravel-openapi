@@ -183,7 +183,7 @@ final readonly class LintRunner
         $allowedSchemaClasses = [];
         $allComponentClasses = [];
 
-        if ($options->isScoped()) {
+        if ($options->isScoped) {
             $allowedRouteUris = self::descriptorUriSet($descriptors);
         }
 

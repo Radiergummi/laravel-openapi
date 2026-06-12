@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\RouteFilters;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
+use Override;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 
 use function str_starts_with;
@@ -24,6 +25,7 @@ use function str_starts_with;
 #[Scoped]
 final readonly class SkipCashierRoutes implements RouteFilter
 {
+    #[Override]
     public function shouldSkip(Route $route): bool
     {
         $name = $route->getName() ?? '';

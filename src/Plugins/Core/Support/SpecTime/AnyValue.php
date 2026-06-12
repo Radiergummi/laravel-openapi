@@ -9,6 +9,7 @@ use ArrayIterator;
 use Countable;
 use IteratorAggregate;
 use JsonSerializable;
+use Override;
 use Stringable;
 use Traversable;
 
@@ -65,41 +66,49 @@ final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonS
         return true;
     }
 
+    #[Override]
     public function __toString(): string
     {
         return '';
     }
 
+    #[Override]
     public function jsonSerialize(): null
     {
         return null;
     }
 
+    #[Override]
     public function count(): int
     {
         return 0;
     }
 
+    #[Override]
     public function getIterator(): Traversable
     {
         return new ArrayIterator([]);
     }
 
+    #[Override]
     public function offsetExists(mixed $offset): bool
     {
         return false;
     }
 
+    #[Override]
     public function offsetGet(mixed $offset): self
     {
         return $this;
     }
 
+    #[Override]
     public function offsetSet(mixed $offset, mixed $value): void
     {
         // No-op: writes are not meaningful on a stub.
     }
 
+    #[Override]
     public function offsetUnset(mixed $offset): void
     {
         // No-op: writes are not meaningful on a stub.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\PhpStan\Rules;
 
+use Override;
 use PhpParser\Node;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
@@ -34,6 +35,7 @@ final class DuplicateResponseStatusRule implements Rule
      */
     public function __construct(private readonly string $nodeType) {}
 
+    #[Override]
     public function getNodeType(): string
     {
         return $this->nodeType;
@@ -44,6 +46,7 @@ final class DuplicateResponseStatusRule implements Rule
      *
      * @throws ShouldNotHappenException
      */
+    #[Override]
     public function processNode(Node $node, Scope $scope): array
     {
         $responses = AttributeHelpers::attributesNamed(

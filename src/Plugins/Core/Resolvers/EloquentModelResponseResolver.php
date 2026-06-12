@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -45,6 +46,7 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;

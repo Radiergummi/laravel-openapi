@@ -56,7 +56,7 @@ final class ConstructorMiddlewareScanner
     public const int STATEMENT_LIMIT = 10;
 
     /**
-     * Memoised scans per controller class: one parse per generation run, however many routes
+     * Memoized scans per controller class: one parse per generation run, however, many routes
      * point at the controller.
      *
      * @var array<class-string, ConstructorMiddlewareScan>
@@ -280,17 +280,11 @@ final class ConstructorMiddlewareScanner
      */
     private function hasSpreadArgument(array $arguments): bool
     {
-        foreach ($arguments as $argument) {
-            if ($argument->unpack) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($arguments, fn(Node\Arg $argument): bool => $argument->unpack);
     }
 
     /**
-     * Normalises a literal value to a list of strings: a string becomes a one-element list
+     * Normalizes a literal value to a list of strings: a string becomes a one-element list
      * (Laravel `Arr::wrap()`s scoping arguments the same way); an array qualifies when every
      * value is a string. Anything else — including null from a failed literal read — refuses.
      *

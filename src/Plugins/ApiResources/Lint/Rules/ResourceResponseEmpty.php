@@ -53,7 +53,7 @@ final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
 
         $target = $this->locator->locate($operation->descriptor);
 
-        if ($target === null || $target->isAmbiguous()) {
+        if ($target === null || $target->isAmbiguous) {
             return;
         }
 

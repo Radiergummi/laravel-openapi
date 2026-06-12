@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Support\SpecTime;
 
 use Illuminate\Routing\Route;
+use Override;
 
 /**
  * {@see Route} subclass used during FormRequest introspection. Its only purpose is to return
@@ -24,6 +25,7 @@ final class SpecTimeRoute extends Route
      * @param string             $name
      * @param null|object|string $default
      */
+    #[Override]
     public function parameter($name, $default = null): AnyValue
     {
         return AnyValue::instance();
@@ -32,6 +34,7 @@ final class SpecTimeRoute extends Route
     /**
      * @param string $name
      */
+    #[Override]
     public function hasParameter($name): bool
     {
         return true;

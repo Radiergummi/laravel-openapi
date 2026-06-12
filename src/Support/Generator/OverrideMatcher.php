@@ -29,7 +29,7 @@ use function usort;
  *
  * @internal
  */
-final readonly class OverrideMatcher
+final class OverrideMatcher
 {
     /**
      * Operation-level fields that may be set from config. Any `x-*` vendor extension is also
@@ -48,15 +48,14 @@ final readonly class OverrideMatcher
     /**
      * @param array<string, array<string, mixed>> $overrides
      */
-    public function __construct(private array $overrides) {}
+    public function __construct(private readonly array $overrides) {}
 
     /**
      * Whether any override is configured at all. Lets callers skip work entirely on the default
      * install, where `openapi.overrides` is empty.
      */
-    public function hasOverrides(): bool
-    {
-        return $this->overrides !== [];
+    public bool $hasOverrides {
+        get => $this->overrides !== [];
     }
 
     /**
@@ -84,9 +83,9 @@ final readonly class OverrideMatcher
 
             if ($routeName !== null && $key === $routeName) {
                 $nameFields = $fields;
-            } elseif ($this->matchesGlob((string) $key, $uri)) {
+            } elseif ($this->matchesGlob($key, $uri)) {
                 $globMatches[] = [
-                    'specificity' => $this->specificity((string) $key),
+                    'specificity' => $this->specificity($key),
                     'order' => $order,
                     'fields' => $fields,
                 ];
@@ -125,8 +124,8 @@ final readonly class OverrideMatcher
         $filtered = [];
 
         foreach ($block as $field => $value) {
-            if (self::isAllowedField((string) $field)) {
-                $filtered[(string) $field] = $value;
+            if (self::isAllowedField($field)) {
+                $filtered[$field] = $value;
             }
         }
 
@@ -162,8 +161,8 @@ final readonly class OverrideMatcher
         $unused = [];
 
         foreach ($this->overrides as $key => $_block) {
-            if (!$this->matchesAnyRoute((string) $key, $routes)) {
-                $unused[] = (string) $key;
+            if (!$this->matchesAnyRoute($key, $routes)) {
+                $unused[] = $key;
             }
         }
 

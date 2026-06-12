@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
@@ -45,6 +46,7 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
     /**
      * @return list<OA\Parameter>
      */
+    #[Override]
     public function resolveQueryParameters(ActionDescriptor $descriptor): array
     {
         $reflector = $descriptor->actionReflector;

@@ -37,7 +37,7 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
 
         $target = $this->locator->locate($operation->descriptor);
 
-        if ($target === null || !$target->isAmbiguous()) {
+        if ($target === null || !$target->isAmbiguous) {
             return;
         }
 

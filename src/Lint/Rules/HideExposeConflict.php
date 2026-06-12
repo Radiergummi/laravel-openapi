@@ -44,8 +44,8 @@ final class HideExposeConflict implements Rule, RouteRule
             return;
         }
 
-        $hideMatches = array_filter($hides, fn(Hide $hide): bool => $hide->appliesIn($env));
-        $exposeMatches = array_filter($exposes, fn(Expose $expose): bool => $expose->appliesIn($env));
+        $hideMatches = array_filter($hides, static fn(Hide $hide): bool => $hide->appliesIn($env));
+        $exposeMatches = array_filter($exposes, static fn(Expose $expose): bool => $expose->appliesIn($env));
 
         if ($hideMatches === [] || $exposeMatches === []) {
             return;

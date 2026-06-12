@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 
 use function sprintf;
 use function str_starts_with;
@@ -47,11 +48,13 @@ final class ResponseNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         $base = ($this->parent?->pointer() ?? '') . '/responses/' . $this->statusCode;
@@ -59,26 +62,24 @@ final class ResponseNode implements Node
         return $append !== '' ? $base . '/' . $append : $base;
     }
 
-    public function isSuccess(): bool
-    {
-        return str_starts_with((string) $this->statusCode, '2');
+    public bool $isSuccess {
+        get => str_starts_with((string) $this->statusCode, '2');
     }
 
-    public function isError(): bool
-    {
-        $s = (string) $this->statusCode;
+    public bool $isError {
+        get {
+            $status = (string) $this->statusCode;
 
-        return str_starts_with($s, '4') || str_starts_with($s, '5');
+            return str_starts_with($status, '4') || str_starts_with($status, '5');
+        }
     }
 
-    public function isRedirect(): bool
-    {
-        return str_starts_with((string) $this->statusCode, '3');
+    public bool $isRedirect {
+        get => str_starts_with((string) $this->statusCode, '3');
     }
 
-    public function isDefault(): bool
-    {
-        return (string) $this->statusCode === 'default';
+    public bool $isDefault {
+        get => (string) $this->statusCode === 'default';
     }
 
     /** The enclosing operation. */

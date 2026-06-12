@@ -72,7 +72,7 @@ final readonly class FakerExampleSynthesiser
         }
 
         if ($this->seed !== null) {
-            $this->faker->seed($this->seed ^ (int) crc32($fieldName));
+            $this->faker->seed($this->seed ^ crc32($fieldName));
         }
 
         if ($descriptor->enum !== null && $descriptor->enum !== []) {

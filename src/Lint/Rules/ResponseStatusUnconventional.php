@@ -46,7 +46,7 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
         $successCodes = [];
 
         foreach ($operation->responses as $operationResponse) {
-            if ($operationResponse->isSuccess()) {
+            if ($operationResponse->isSuccess) {
                 $successCodes[] = (string) $operationResponse->statusCode;
             }
         }

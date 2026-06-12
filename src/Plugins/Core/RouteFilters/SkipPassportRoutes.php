@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\RouteFilters;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
+use Override;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 
@@ -29,6 +30,7 @@ use function str_starts_with;
 #[Scoped]
 final readonly class SkipPassportRoutes implements RouteFilter
 {
+    #[Override]
     public function shouldSkip(Route $route): bool
     {
         $name = $route->getName() ?? '';

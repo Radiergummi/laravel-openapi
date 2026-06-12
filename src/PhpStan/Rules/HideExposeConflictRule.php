@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\PhpStan\Rules;
 
+use Override;
 use PhpParser\Node;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
@@ -35,6 +36,7 @@ final class HideExposeConflictRule implements Rule
      */
     public function __construct(private readonly string $nodeType) {}
 
+    #[Override]
     public function getNodeType(): string
     {
         return $this->nodeType;
@@ -45,6 +47,7 @@ final class HideExposeConflictRule implements Rule
      *
      * @throws ShouldNotHappenException
      */
+    #[Override]
     public function processNode(Node $node, Scope $scope): array
     {
         $attributesByFqn = AttributeHelpers::attributesByFqn(AttributeHelpers::getAttributeGroups($node));
@@ -85,15 +88,8 @@ final class HideExposeConflictRule implements Rule
      */
     private static function firstUnconditional(array $attributes): ?Node\Attribute
     {
-        foreach ($attributes as $attribute) {
-            if (
-                !AttributeHelpers::argumentIsProvided($attribute, 'only')
-                && !AttributeHelpers::argumentIsProvided($attribute, 'except')
-            ) {
-                return $attribute;
-            }
-        }
-
-        return null;
+        return array_find($attributes, fn($attribute)
+            => !AttributeHelpers::argumentIsProvided($attribute, 'only')
+            && !AttributeHelpers::argumentIsProvided($attribute, 'except'));
     }
 }

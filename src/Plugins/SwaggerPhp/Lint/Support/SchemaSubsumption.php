@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support;
 
 use OpenApi\Annotations as OA;
+use Override;
 
 use function array_values;
 use function get_object_vars;
@@ -31,6 +32,7 @@ final readonly class SchemaSubsumption implements OaRedundancyComparator
     /**
      * @param list<OA\AbstractAnnotation> $candidate
      */
+    #[Override]
     public function subsumes(
         OA\AbstractAnnotation $inferred,
         OA\AbstractAnnotation $authored,
@@ -55,7 +57,7 @@ final readonly class SchemaSubsumption implements OaRedundancyComparator
         $properties = [];
 
         foreach (is_array($inferred->properties) ? $inferred->properties : [] as $property) {
-            $properties[(string) $property->property] = clone $property;
+            $properties[$property->property] = clone $property;
         }
 
         foreach ($candidate as $replacement) {

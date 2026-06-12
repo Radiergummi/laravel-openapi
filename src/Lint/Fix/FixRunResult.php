@@ -33,7 +33,7 @@ final readonly class FixRunResult
     public function exitCode(): int
     {
         if ($this->dryRun) {
-            return $this->fixResult->hasChanges() ? 1 : 0;
+            return $this->fixResult->hasChanges ? 1 : 0;
         }
 
         return $this->remainingFindings === [] ? 0 : 1;

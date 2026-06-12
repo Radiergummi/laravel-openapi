@@ -41,7 +41,7 @@ it('removes a whole line and leaves the rest byte-identical', function (): void 
         ->and($result->applied)->toHaveCount(1)
         ->and($result->skipped)->toBe([])
         ->and($result->modifiedFiles)->toBe([$file])
-        ->and($result->hasChanges())->toBeTrue();
+        ->and($result->hasChanges)->toBeTrue();
 });
 
 it('applies multiple non-overlapping removals bottom-to-top without offset drift', function (): void {
@@ -81,7 +81,7 @@ it('writes nothing in dry-run but still reports the pending change', function ()
     ], dryRun: true);
 
     expect(file_get_contents($file))->toBe("keep\ndrop\n")
-        ->and($result->hasChanges())->toBeTrue()
+        ->and($result->hasChanges)->toBeTrue()
         ->and($result->modifiedFiles)->toBe([$file]);
 });
 

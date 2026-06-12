@@ -6,9 +6,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Fix;
 
 use Closure;
+use Override;
 use PhpParser\Node;
 use PhpParser\Node\Attribute;
 use PhpParser\Node\Param;
+use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
@@ -22,10 +24,12 @@ use ReflectionProperty;
 use Throwable;
 
 use function array_values;
+use function assert;
 use function class_basename;
 use function class_exists;
 use function count;
 use function is_a;
+use function is_int;
 use function is_string;
 use function sprintf;
 use function strcasecmp;
@@ -118,6 +122,7 @@ final readonly class RemoveAttributeFixer implements Fixer
     /**
      * @return iterable<Fix>
      */
+    #[Override]
     public function fix(Finding $finding, FixContext $context): iterable
     {
         $class = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
@@ -327,13 +332,7 @@ final readonly class RemoveAttributeFixer implements Fixer
 
     private function findMethod(ClassLike $class, string $member): ?ClassMethod
     {
-        foreach ($class->getMethods() as $method) {
-            if (strcasecmp($method->name->toString(), $member) === 0) {
-                return $method;
-            }
-        }
-
-        return null;
+        return array_find($class->getMethods(), fn($method) => strcasecmp($method->name->toString(), $member) === 0);
     }
 
     /**
@@ -343,10 +342,11 @@ final readonly class RemoveAttributeFixer implements Fixer
     private function findProperty(ClassLike $class, string $member): Property|Param|null
     {
         foreach ($class->getProperties() as $property) {
-            foreach ($property->props as $prop) {
-                if ($prop->name->toString() === $member) {
-                    return $property;
-                }
+            if (array_any(
+                $property->props,
+                fn(PropertyItem $prop): bool => $prop->name->toString() === $member,
+            )) {
+                return $property;
             }
         }
 
@@ -356,13 +356,10 @@ final readonly class RemoveAttributeFixer implements Fixer
             return null;
         }
 
-        foreach ($constructor->params as $param) {
-            if ($param->var instanceof Node\Expr\Variable && $param->var->name === $member) {
-                return $param;
-            }
-        }
-
-        return null;
+        return array_find(
+            $constructor->params,
+            fn($param) => $param->var instanceof Node\Expr\Variable && $param->var->name === $member,
+        );
     }
 
     /**
@@ -408,7 +405,7 @@ final readonly class RemoveAttributeFixer implements Fixer
 
     /**
      * Whether the byte span `[$start, $end)` has nothing but whitespace on its own lines either
-     * side — i.e. deleting those whole lines disturbs no other code.
+     * side — i.e., deleting those whole lines disturbs no other code.
      */
     private function occupiesWholeLines(string $source, int $start, int $end): bool
     {
@@ -424,12 +421,9 @@ final readonly class RemoveAttributeFixer implements Fixer
 
     private function indexInGroup(Node\AttributeGroup $group, Attribute $node): ?int
     {
-        foreach ($group->attrs as $position => $attr) {
-            if ($attr === $node) {
-                return $position;
-            }
-        }
+        $key = array_find_key($group->attrs, fn(Attribute $attr): bool => $attr === $node);
+        assert(is_int($key) || $key === null);
 
-        return null;
+        return $key;
     }
 }

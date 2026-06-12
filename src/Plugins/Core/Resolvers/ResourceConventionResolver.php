@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Support\Str;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConvention;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConventionResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -40,6 +41,7 @@ final readonly class ResourceConventionResolver implements OperationConventionRe
         'destroy' => ['verbs' => ['DELETE'], 'status' => 204, 'verb' => 'Delete', 'plural' => false],
     ];
 
+    #[Override]
     public function resolve(ActionDescriptor $descriptor): ?OperationConvention
     {
         $action = $descriptor->method?->getName();

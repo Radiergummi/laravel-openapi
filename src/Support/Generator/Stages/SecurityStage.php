@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Generator\Stages;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
@@ -25,6 +26,7 @@ final readonly class SecurityStage implements SpecStage
         private OperationBuilder $operationBuilder,
     ) {}
 
+    #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         $components = $document->components instanceof OA\Components

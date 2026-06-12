@@ -18,14 +18,14 @@ use function is_string;
 /**
  * Maps literal AST expressions onto plain JSON-Schema definition arrays — the shared
  * value-typing half of the Tier-1 body scans (epic #5). The inline-JSON response scan (#14) and
- * the Resource `toArray()` reader (#12) both walk array literals whose values are typed by the
+ * the Resource `toArray()` reader (#12) are both walk array literals whose values are typed by the
  * same rules:
  *
- * - nested literal arrays recurse (keyed → object, unkeyed or sequential-integer-keyed → list),
- * - literal scalars map to their JSON type,
- * - a dynamic *value* stays an unconstrained (empty) definition — dropping a response property
+ * - Nested literal arrays recurse (keyed → object, unkeyed or sequential-integer-keyed → list),
+ * - Literal scalars map to their JSON type,
+ * - A dynamic *value* stays an unconstrained (empty) definition — dropping a response property
  *   would be silently wrong for spec consumers,
- * - a dynamic *key*, a spread entry, or a keyed/unkeyed mix throws
+ * - A dynamic *key*, a spread entry, or a keyed/unkeyed mix throw
  *   {@see NonLiteralValueException} — the surrounding structure is unknowable, so callers
  *   degrade their whole match.
  *
@@ -176,7 +176,7 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
-     * Items are derived from the first element; when a later element disagrees the items stay
+     * Items are derived from the first element; when a later element disagrees, the items stay
      * unconstrained — a heterogeneous literal list has no single item schema. Disagreement is on
      * the top-level `type`, and additionally on the property shape for object elements (two objects
      * with differing keys must not have the first one's shape imposed on the whole list).
@@ -195,7 +195,7 @@ final readonly class SchemaDefinitionFromLiteral
                 return self::arrayOfUnknownItems();
             }
 
-            if ($firstIsObject && ($definition['properties'] ?? null) != ($first['properties'] ?? null)) {
+            if ($firstIsObject && ($definition['properties'] ?? null) !== ($first['properties'] ?? null)) {
                 return self::arrayOfUnknownItems();
             }
         }

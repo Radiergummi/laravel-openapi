@@ -33,6 +33,7 @@ use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
 
@@ -86,8 +87,8 @@ final class ReturnExpressionResourceReader
 
     /**
      * Chained methods (lowercased) that change neither the resource class nor the response
-     * cardinality — `->additional(...)` only adds sibling envelope keys (not modelled). Any
-     * other chain link may transform the response, so it refuses the scan.
+     * cardinality — `->additional(...)` only adds sibling envelope keys (not modeled). Any other
+     * chain link may transform the response, so it refuses the scan.
      */
     private const array RESOURCE_PRESERVING_CHAIN_METHODS = ['additional'];
 
@@ -113,8 +114,8 @@ final class ReturnExpressionResourceReader
     ];
 
     /**
-     * Memoised resolution per `Class::method`, so repeated lookups (generation + lint rules)
-     * parse once and the refusal note fires once per run.
+     * Memorized resolution per `Class::method`, so repeated lookups (generation and lint rules)
+     * parse once, and the refusal note fires once per run.
      *
      * @var array<string, ?ResourceTarget>
      */
@@ -141,6 +142,9 @@ final class ReturnExpressionResourceReader
         );
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function read(ReflectionMethod $method): ?ResourceTarget
     {
         $key = $method->getDeclaringClass()->getName() . '::' . $method->getName();
@@ -152,6 +156,9 @@ final class ReturnExpressionResourceReader
         return $this->cache[$key] = $this->resolve($method);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     private function resolve(ReflectionMethod $method): ?ResourceTarget
     {
         $documented = $this->targetFromReturnTag($method);
@@ -180,9 +187,13 @@ final class ReturnExpressionResourceReader
 
     // region @return docblock generic
 
+    // endregion
+
+    // region Return-expression location
+
     /**
-     * The collection target documented by a `@return …Collection<FooResource>` generic on the
-     * method docblock, or null when there is none. No body information is available here, so the
+     * The collection target documented by a `return …Collection<FooResource>` generic on the method
+     * docblock, or null when there is none. No body information is available here, so the
      * collection keeps the default paginated envelope.
      */
     private function targetFromReturnTag(ReflectionMethod $method): ?ResourceTarget
@@ -209,10 +220,6 @@ final class ReturnExpressionResourceReader
 
         return new ResourceTarget($resourceClass, isCollection: true);
     }
-
-    // endregion
-
-    // region Return-expression location
 
     /**
      * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
@@ -260,13 +267,19 @@ final class ReturnExpressionResourceReader
         }
 
         if ($topLevelReturn === null || $topLevelReturn->expr === null) {
-            $this->note($method, 'has no unconditional top-level return in the scanned statements');
+            $this->note(
+                $method,
+                'has no unconditional top-level return in the scanned statements',
+            );
 
             return null;
         }
 
         if (count($this->methodLevelReturns($statements)) > 1) {
-            $this->note($method, 'is not the method\'s only return, so the resource type would be a guess');
+            $this->note(
+                $method,
+                'is not the method\'s only return, so the resource type would be a guess',
+            );
 
             return null;
         }
@@ -278,8 +291,8 @@ final class ReturnExpressionResourceReader
     {
         $this->logger->notice(
             sprintf(
-                'The return expression of %s::%s %s; the concrete resource stays unresolved. '
-                . 'Annotate the action with #[ResponseResource] to document the response.',
+                'The return expression of %s::%s %s; the concrete resource stays unresolved.'
+                . ' Annotate the action with #[ResponseResource] to document the response.',
                 $method->getDeclaringClass()->getName(),
                 $method->getName(),
                 $reason,
@@ -316,7 +329,11 @@ final class ReturnExpressionResourceReader
      */
     private function collectMethodLevelReturns(Node $node, array &$found): void
     {
-        if ($node instanceof ClosureExpression || $node instanceof ArrowFunction || $node instanceof ClassLike) {
+        if (
+            $node instanceof ClosureExpression
+            || $node instanceof ArrowFunction
+            || $node instanceof ClassLike
+        ) {
             return;
         }
 
@@ -344,8 +361,11 @@ final class ReturnExpressionResourceReader
      *
      * @param list<Stmt> $statements
      */
-    private function expressionAssignedTo(Variable $variable, array $statements, ReflectionMethod $method): ?Expr
-    {
+    private function expressionAssignedTo(
+        Variable $variable,
+        array $statements,
+        ReflectionMethod $method,
+    ): ?Expr {
         $variableName = $variable->name;
 
         if (!is_string($variableName)) {
@@ -391,9 +411,13 @@ final class ReturnExpressionResourceReader
     /**
      * Matches the return expression against the whitelisted shapes, unwrapping
      * resource-preserving chain links first. Every refusal path notes its reason.
+     *
+     * @throws ReflectionException
      */
-    private function targetFromExpression(Expr $expression, ReflectionMethod $method): ?ResourceTarget
-    {
+    private function targetFromExpression(
+        Expr $expression,
+        ReflectionMethod $method,
+    ): ?ResourceTarget {
         $current = $expression;
 
         while (true) {
@@ -408,14 +432,22 @@ final class ReturnExpressionResourceReader
             if ($current instanceof MethodCall && $current->name instanceof Identifier) {
                 $methodName = $current->name->toLowerString();
 
-                if (in_array($methodName, self::RESOURCE_PRESERVING_CHAIN_METHODS, true)) {
+                if (in_array(
+                    $methodName,
+                    self::RESOURCE_PRESERVING_CHAIN_METHODS,
+                    true,
+                )) {
                     $current = $current->var;
 
                     continue;
                 }
 
                 if ($methodName === 'toresource' || $methodName === 'toresourcecollection') {
-                    return $this->targetFromTransformCall($current, $methodName, $method);
+                    return $this->targetFromTransformCall(
+                        $current,
+                        $methodName,
+                        $method,
+                    );
                 }
 
                 $this->note(
@@ -442,15 +474,23 @@ final class ReturnExpressionResourceReader
     /**
      * `X::collection(...)` → collection of `X`; `X::make(...)` → single `X`.
      */
-    private function targetFromStaticCall(StaticCall $call, ReflectionMethod $method): ?ResourceTarget
-    {
+    private function targetFromStaticCall(
+        StaticCall $call,
+        ReflectionMethod $method,
+    ): ?ResourceTarget {
         $resourceClass = $call->class instanceof Name
             ? $this->concreteResourceClass($call->class->toString())
             : null;
         $methodName = $call->name instanceof Identifier ? $call->name->toLowerString() : null;
 
-        if ($resourceClass === null || !in_array($methodName, ['collection', 'make'], true)) {
-            $this->note($method, 'is a static call that does not name a concrete JsonResource subclass');
+        if (
+            $resourceClass === null
+            || !in_array($methodName, ['collection', 'make'], true)
+        ) {
+            $this->note(
+                $method,
+                'is a static call that does not name a concrete JsonResource subclass',
+            );
 
             return null;
         }
@@ -473,17 +513,18 @@ final class ReturnExpressionResourceReader
     // region Class & type resolution
 
     /**
-     * Whether the expression's outermost call is a `paginate()`-family method — the only
-     * evidence that a collection source is paginated. `Model::paginate()` static calls count
-     * alongside builder chains ending in `->paginate(...)`, and paginator-preserving chain
-     * links (`->paginate(...)->withQueryString()`) are looked through.
+     * Whether the expression's outermost call is a `paginate()`-family method.
      */
     private function endsInPaginatingCall(Expr $expression): bool
     {
         while (
             $expression instanceof MethodCall
             && $expression->name instanceof Identifier
-            && in_array($expression->name->toLowerString(), self::PAGINATOR_PRESERVING_CHAIN_METHODS, true)
+            && in_array(
+                $expression->name->toLowerString(),
+                self::PAGINATOR_PRESERVING_CHAIN_METHODS,
+                true,
+            )
         ) {
             $expression = $expression->var;
         }
@@ -502,8 +543,10 @@ final class ReturnExpressionResourceReader
      * `new X(...)` → single `X`; `new JsonResource($model)` (exactly the base class) wrapping a
      * Model-typed parameter → wrapped-model target.
      */
-    private function targetFromNewExpression(NewExpression $new, ReflectionMethod $method): ?ResourceTarget
-    {
+    private function targetFromNewExpression(
+        NewExpression $new,
+        ReflectionMethod $method,
+    ): ?ResourceTarget {
         if (!$new->class instanceof Name) {
             $this->note($method, 'instantiates a dynamically-resolved class');
 
@@ -527,13 +570,20 @@ final class ReturnExpressionResourceReader
                 return null;
             }
 
-            return new ResourceTarget(resourceClass: null, isCollection: false, modelClass: $modelClass);
+            return new ResourceTarget(
+                resourceClass: null,
+                isCollection: false,
+                modelClass: $modelClass,
+            );
         }
 
         $resourceClass = $this->concreteResourceClass($className);
 
         if ($resourceClass === null) {
-            $this->note($method, 'instantiates a class that is not a concrete JsonResource subclass');
+            $this->note(
+                $method,
+                'instantiates a class that is not a concrete JsonResource subclass',
+            );
 
             return null;
         }
@@ -542,7 +592,7 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * The Model subclass a method parameter of the given name is typed with, or null.
+     * The Model subclass a method parameter of the given name, is typed with or null.
      *
      * @return null|class-string<Model>
      */
@@ -576,6 +626,8 @@ final class ReturnExpressionResourceReader
      * `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal class argument
      * is decisive. A bare `$model->toResource()` resolves Laravel's conventional resource for a
      * Model-typed parameter receiver; every other receiver would need dataflow and refuses.
+     *
+     * @throws ReflectionException
      */
     private function targetFromTransformCall(
         MethodCall $call,
@@ -672,6 +724,8 @@ final class ReturnExpressionResourceReader
      * @param class-string<Model> $modelClass
      *
      * @return null|class-string<JsonResource>
+     *
+     * @throws ReflectionException
      */
     private function conventionalResourceFor(string $modelClass): ?string
     {

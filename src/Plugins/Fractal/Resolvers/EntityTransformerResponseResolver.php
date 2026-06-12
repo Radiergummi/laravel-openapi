@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use PhpParser\Node;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\MethodCall;
@@ -87,6 +88,7 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $method = $descriptor->method;

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Generator\Stages;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Generator\GenerationContext;
@@ -35,10 +36,11 @@ final readonly class OverridesStage implements SpecStage
         private OverrideMatcher $matcher,
     ) {}
 
+    #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         // The default installation configures no overrides — skip the whole document walk.
-        if (!is_array($document->paths) || !$this->matcher->hasOverrides()) {
+        if (!is_array($document->paths) || !$this->matcher->hasOverrides) {
             return;
         }
 

@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Enums\HttpMethod;
@@ -58,6 +59,7 @@ final readonly class PathsStage implements SpecStage
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
+    #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         /** @var array<string, OA\PathItem> $pathItems */

@@ -62,8 +62,7 @@ final readonly class RequestQueryAccessorReader
     public const int STATEMENT_LIMIT = 10;
 
     /**
-     * Accessor method → OpenAPI type. Deliberately only the spec'd five (#11): `get()`,
-     * `has()`, `filled()`, `date()`, `enum()`, `float()` and friends stay off the whitelist.
+     * Accessor method → OpenAPI type.
      */
     private const array ACCESSOR_TYPES = [
         'query' => 'string',
@@ -207,13 +206,12 @@ final readonly class RequestQueryAccessorReader
             return false;
         }
 
-        foreach ($node->params as $parameter) {
-            if ($parameter->var instanceof Variable && $parameter->var->name === $requestParameterName) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            $node->params,
+            fn(Node\Param $parameter): bool
+                => $parameter->var instanceof Variable
+                && $parameter->var->name === $requestParameterName,
+        );
     }
 
     /**

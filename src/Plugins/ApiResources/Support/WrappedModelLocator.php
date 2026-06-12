@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\ApiResources\Support;
 
-use App\Models\User;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -13,17 +12,19 @@ use PHPStan\PhpDocParser\Ast\PhpDoc\MixinTagValueNode;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
+use ReflectionException;
 
 use function array_key_exists;
 use function class_exists;
 use function is_a;
 
 /**
- * Resolves the Eloquent model a `JsonResource` wraps from the resource's class docblock —
- * an `@mixin User` tag first, then a generic `@extends Base<User>`; only `Model`
- * subclasses count. Shared by the schema builder (the passthrough/dynamic `toArray()` fallback
- * and `$this->field` value resolution) and the `resource.fields-undeclared` lint rule, so
- * resource→model resolution is defined exactly once (folded #98 design).
+ * Resolves the Eloquent model a `JsonResource` wraps from the resource's class docblock.
+ *
+ * An at-mixin User tag first, then a Generic at-extends Base<User>; only Model subclasses count.
+ * Shared by the schema builder (the passthrough/dynamic `toArray()` fallback and `$this->field`
+ * value resolution) and the `resource.fields-undeclared` lint rule, so resource→model resolution is
+ * defined exactly once.
  *
  * @internal
  */
@@ -44,6 +45,8 @@ final class WrappedModelLocator
      * @param class-string<JsonResource> $resourceClass
      *
      * @return null|class-string<Model>
+     *
+     * @throws ReflectionException
      */
     public function locate(string $resourceClass): ?string
     {
@@ -58,6 +61,8 @@ final class WrappedModelLocator
      * @param class-string<JsonResource> $resourceClass
      *
      * @return null|class-string<Model>
+     *
+     * @throws ReflectionException
      */
     private function resolve(string $resourceClass): ?string
     {

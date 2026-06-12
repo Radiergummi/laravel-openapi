@@ -91,7 +91,7 @@ it('returns an ambiguous target for a bare collection return type', function ():
     $target = ResourceClassLocator::create()->locate(locatorDescriptor('collectionType'));
 
     expect($target)->not->toBeNull()
-        ->and($target?->isAmbiguous())->toBeTrue()
+        ->and($target?->isAmbiguous)->toBeTrue()
         ->and($target?->isCollection)->toBeTrue();
 });
 
