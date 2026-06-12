@@ -442,7 +442,11 @@ Boundaries, by design (no dataflow analysis):
   notes it; annotate the affected actions with `#[Security]` to document the
   requirement explicitly.
 - `#[Security]` and `#[PublicEndpoint]` always win over middleware-derived
-  security, exactly as for route-declared middleware.
+  security, exactly as for route-declared middleware. `#[PublicEndpoint]` clears
+  `security` *and* suppresses the responses that mirror it — the auth-derived 401
+  and the scope-derived 403 — so a declared-public operation never documents an
+  Unauthenticated response. The `can`-derived 403 and the `throttle`-derived 429
+  are independent of authentication and stay.
 
 ## Resource action conventions
 

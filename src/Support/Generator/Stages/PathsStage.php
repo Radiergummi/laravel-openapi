@@ -125,7 +125,7 @@ final readonly class PathsStage implements SpecStage
      */
     private function attachOperation(OA\PathItem $pathItem, ActionDescriptor $action, GenerationContext $context): void
     {
-        $operation = $this->operationBuilder->build($action, [$this->tagDeriver->derive($action)]);
+        $tag = $this->tagDeriver->derive($action);
 
         foreach ($action->route->methods() as $routeMethod) {
             $method = HttpMethod::fromString($routeMethod) ?? HttpMethod::Get;
@@ -134,9 +134,14 @@ final readonly class PathsStage implements SpecStage
                 continue;
             }
 
+            // Build per verb so verb-conditional inference sees the verb being emitted, not the
+            // route's first. Single-verb routes (GET + skipped HEAD) still build once.
+            $verbAction = $action->withHttpMethod($method);
+            $operation = $this->operationBuilder->build($verbAction, [$tag]);
+
             $resolved = $operation->operationId !== null
                 ? $operation
-                : $operation->withOperationId($this->buildOperationId($action, $method));
+                : $operation->withOperationId($this->buildOperationId($verbAction, $method));
 
             $operationSchema = $resolved->attachTo($pathItem, $method);
 
@@ -144,11 +149,11 @@ final readonly class PathsStage implements SpecStage
                 continue;
             }
 
-            $context->bindAction($operationSchema, $action);
+            $context->bindAction($operationSchema, $verbAction);
 
             OpenApiExtensions::applyOperationTransformers(
                 $operationSchema,
-                new OperationContext($action, $method),
+                new OperationContext($verbAction, $method),
             );
         }
     }

@@ -9,6 +9,7 @@ use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
+use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseEmpty;
 use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
@@ -27,6 +28,7 @@ final class ApiResourcesPlugin implements Plugin
         $registry->addRule(ResourceFieldsUndeclared::class);
         $registry->addRule(ResourceFieldTypeMissing::class);
         $registry->addRule(ResourceResponseAmbiguous::class);
+        $registry->addRule(ResourceResponseEmpty::class);
 
         // Register JsonResource as a payload class so SuppressionCollector recognizes subclasses
         $registry->addPayloadClass(JsonResource::class);

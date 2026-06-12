@@ -344,9 +344,11 @@ array element:
 //           } } }
 ```
 
-A bare `*` key maps to the schema's `additionalProperties`. For Spatie `Data` classes the
-PHP-type pass remains authoritative — rule-derived nesting only fills gaps it leaves (e.g. the
-element type of a scalar array), never overriding a typed nested `Data` `$ref`.
+A bare `*` key maps to the schema's `additionalProperties`. A wildcard key wins the type over a
+conflicting scalar rule on the same key — `['a' => 'string', 'a.*.b' => 'integer']` makes `a` an
+array of objects, since `a.*` means `a` is a list. For Spatie `Data` classes the PHP-type pass
+remains authoritative — rule-derived nesting only fills gaps it leaves (e.g. the element type of a
+scalar array), never overriding a typed nested `Data` `$ref`.
 
 ### Custom Rule objects
 
