@@ -49,6 +49,15 @@ it('emits a request body from an inline $request->validate([...]) call', functio
         ->and($schema['properties']['tags']['type'])->toBe('array');
 });
 
+it('documents the 422 validation error response for an inline validate() call', function (): void {
+    Route::post('/oa-fixture/inline', [InlineValidationFixtureController::class, 'store']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/inline']['post']['responses'];
+
+    expect($responses)->toHaveKey('422');
+});
+
 it('uses trailing rule comments as field descriptions', function (): void {
     Route::post('/oa-fixture/inline', [InlineValidationFixtureController::class, 'store']);
 
