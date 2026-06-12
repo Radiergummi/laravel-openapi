@@ -33,7 +33,7 @@ function buildModelSchema(string $modelClass): OA\Schema
     $reader = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: TypeNodeToSchema::create(),
+        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
@@ -119,7 +119,7 @@ it('maps an enum cast to a $ref into a shared reusable enum component', function
     $reader = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: TypeNodeToSchema::create(),
+        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
@@ -157,7 +157,7 @@ it('emits a $ref for a @property-read model relation and registers the nested co
     $reader = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: TypeNodeToSchema::create(),
+        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
@@ -217,4 +217,19 @@ it('resolves array-shape @property annotations into object schemas (#127)', func
     expect($properties['tags']['type'])->toBe('array')
         ->and($properties['tags']['items']['type'])->toBe('object')
         ->and($properties['tags']['items']['properties']['id']['type'])->toBe('integer');
+});
+
+it('resolves a non-model class @property via JsonSchemaFromType', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle::class);
+
+    // DateTimeImmutable is a class, not a Model, so it flows through JsonSchemaFromType.
+    expect($schema['properties']['observed_at'])->toBe(['type' => 'string', 'format' => 'date-time']);
+});
+
+it('falls back to an empty property for an unresolvable @property type', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle::class);
+
+    // `mixed` resolves to no schema, so the property is present but untyped.
+    expect($schema['properties'])->toHaveKey('payload')
+        ->and($schema['properties']['payload'])->toBe([]);
 });

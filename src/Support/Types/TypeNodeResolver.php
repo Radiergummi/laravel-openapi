@@ -43,18 +43,13 @@ final class TypeNodeResolver
     private array $contextCache = [];
 
     public function __construct(
-        private readonly StringTypeResolver $stringResolver,
-        private readonly TypeContextFactory $contextFactory,
+        private readonly StringTypeResolver $stringResolver = new StringTypeResolver(),
+        private readonly TypeContextFactory $contextFactory = new TypeContextFactory(new StringTypeResolver()),
     ) {}
 
     public static function create(): self
     {
-        $stringResolver = new StringTypeResolver();
-
-        return new self(
-            stringResolver: $stringResolver,
-            contextFactory: new TypeContextFactory($stringResolver),
-        );
+        return new self();
     }
 
     /**

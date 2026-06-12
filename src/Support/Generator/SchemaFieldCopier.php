@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 
 use function get_object_vars;
 use function in_array;
+use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Copies the defined JSON-Schema fields of one {@see OA\Schema} onto another. Since
@@ -16,7 +16,7 @@ use function in_array;
  * re-homed as a named property or an array item.
  *
  * swagger-php internals (underscore-prefixed fields) and the component-key fields (`property`,
- * `schema`) are skipped, as are undefined ({@see Generator::UNDEFINED}) values.
+ * `schema`) are skipped, as are {@see is_undefined()} values.
  *
  * @internal
  */
@@ -28,13 +28,11 @@ final class SchemaFieldCopier
     public static function copy(OA\Schema $source, OA\Schema $target): void
     {
         foreach (get_object_vars($source) as $field => $value) {
-            if (in_array($field, ['property', 'schema'], strict: true) || $field[0] === '_') {
+            if (is_undefined($value) || $field[0] === '_' || in_array($field, ['property', 'schema'], strict: true)) {
                 continue;
             }
 
-            if ($value !== Generator::UNDEFINED) {
-                $target->{$field} = $value;
-            }
+            $target->{$field} = $value;
         }
     }
 }

@@ -44,13 +44,8 @@ final readonly class TypeNodeToSchema
     private const array ARRAY_GENERICS = ['array', 'list', 'non-empty-array', 'non-empty-list', 'iterable'];
 
     public function __construct(
-        private TypeNodeResolver $typeNodeResolver,
+        private TypeNodeResolver $typeNodeResolver = new TypeNodeResolver(),
     ) {}
-
-    public static function create(): self
-    {
-        return new self(TypeNodeResolver::create());
-    }
 
     /**
      * Resolves a type node to a schema, or null when the node is a shape this resolver does not
@@ -62,37 +57,34 @@ final readonly class TypeNodeToSchema
      */
     public function resolve(TypeNode $node, Reflector $context, callable $classSchema): ?OA\Schema
     {
-        if ($this->typeNodeResolver->isNullable($node)) {
-            $inner = $this->typeNodeResolver->unwrapNullable($node);
+        return match (true) {
+            $this->typeNodeResolver->isNullable($node) => $this->resolveNullable($node, $context, $classSchema),
+            $node instanceof ArrayShapeNode            => $this->objectFromShape($node, $context, $classSchema),
+            $node instanceof ArrayTypeNode             => $this->listOf($this->resolve($node->type, $context, $classSchema)),
+            $node instanceof GenericTypeNode           => $this->fromGeneric($node, $context, $classSchema),
+            $node instanceof IdentifierTypeNode        => $this->fromIdentifier($node, $context, $classSchema),
+            default                                    => null,
+        };
+    }
 
-            // unwrapNullable returns the node unchanged for a multi-class union (e.g. A|B|null);
-            // that is not a simple nullable and is left to the caller's fallback.
-            if ($inner === $node) {
-                return null;
-            }
+    /**
+     * Resolves a nullable node (`?T` / `T|null`) by unwrapping it, resolving the inner type, and
+     * re-wrapping via the OAS 3.1 idiom. A multi-class union (`A|B|null`) is not a simple nullable —
+     * `unwrapNullable` returns it unchanged — so it falls through to the caller's fallback.
+     *
+     * @param callable(string): ?OA\Schema $classSchema
+     */
+    private function resolveNullable(TypeNode $node, Reflector $context, callable $classSchema): ?OA\Schema
+    {
+        $inner = $this->typeNodeResolver->unwrapNullable($node);
 
-            $schema = $this->resolve($inner, $context, $classSchema);
-
-            return $schema === null ? null : NullableSchema::wrap($schema);
+        if ($inner === $node) {
+            return null;
         }
 
-        if ($node instanceof ArrayShapeNode) {
-            return $this->objectFromShape($node, $context, $classSchema);
-        }
+        $schema = $this->resolve($inner, $context, $classSchema);
 
-        if ($node instanceof ArrayTypeNode) {
-            return $this->listOf($this->resolve($node->type, $context, $classSchema));
-        }
-
-        if ($node instanceof GenericTypeNode) {
-            return $this->fromGeneric($node, $context, $classSchema);
-        }
-
-        if ($node instanceof IdentifierTypeNode) {
-            return $this->fromIdentifier($node, $context, $classSchema);
-        }
-
-        return null;
+        return $schema === null ? null : NullableSchema::wrap($schema);
     }
 
     /**

@@ -54,6 +54,36 @@ class TypeNodeResolverFixture
         return null;
     }
 
+    /** @return ?stdClass Nullable class for resolver tests. */
+    public function nullableClass(): ?stdClass
+    {
+        return null;
+    }
+
+    /** @return null|stdClass Union-nullable class for resolver tests. */
+    public function unionNullableClass(): ?stdClass
+    {
+        return null;
+    }
+
+    /** @return null|LogicException|stdClass Multi-class nullable union for resolver tests. */
+    public function multiClassNullable(): stdClass|LogicException|null
+    {
+        return null;
+    }
+
+    /** @return LogicException|stdClass Multi-class union for resolver tests. */
+    public function multiClass(): stdClass|LogicException
+    {
+        return new stdClass();
+    }
+
+    /** @return int Scalar return for resolver tests. */
+    public function scalar(): int
+    {
+        return 0;
+    }
+
     /** @throws LogicException|RuntimeException */
     public function throwsUnion(): void {}
 
@@ -134,4 +164,56 @@ it('does not crash when the declaring class has annotations type-info cannot par
     // The class carries a malformed @phpstan-import-type that makes TypeContextFactory throw;
     // resolution must degrade to a context-free lookup rather than aborting the run.
     expect($resolver->throwsClasses($types[0], $method))->toBe(['RuntimeException']);
+});
+
+function returnTypeNode(string $method): array
+{
+    [$parser, $resolver] = makeResolverPair();
+    $reflection = new ReflectionMethod(TypeNodeResolverFixture::class, $method);
+    $type = $parser->parse((string) $reflection->getDocComment())->returnType();
+
+    return [$type, $resolver, $reflection];
+}
+
+it('resolves a class name through a `?T` nullable wrapper', function (): void {
+    [$type, $resolver, $reflection] = returnTypeNode('nullableClass');
+
+    expect($resolver->resolveClassName($type, $reflection))->toBe('stdClass');
+});
+
+it('resolves a class name through a `T|null` union', function (): void {
+    [$type, $resolver, $reflection] = returnTypeNode('unionNullableClass');
+
+    expect($resolver->resolveClassName($type, $reflection))->toBe('stdClass');
+});
+
+it('returns null resolving a class name from a multi-class union', function (): void {
+    [$type, $resolver, $reflection] = returnTypeNode('multiClassNullable');
+
+    expect($resolver->resolveClassName($type, $reflection))->toBeNull();
+});
+
+it('returns null resolving a class name from a scalar', function (): void {
+    [$type, $resolver, $reflection] = returnTypeNode('scalar');
+
+    expect($resolver->resolveClassName($type, $reflection))->toBeNull();
+});
+
+it('reports nullability of `?T`, `T|null`, and a non-nullable union', function (): void {
+    [$nullable, $resolver] = returnTypeNode('nullableClass');
+    [$unionNull] = returnTypeNode('unionNullableClass');
+    [$multi] = returnTypeNode('multiClass');
+
+    expect($resolver->isNullable($nullable))->toBeTrue()
+        ->and($resolver->isNullable($unionNull))->toBeTrue()
+        ->and($resolver->isNullable($multi))->toBeFalse();
+});
+
+it('unwraps a `T|null` union to its inner type but leaves a multi-class union unchanged', function (): void {
+    [$unionNull, $resolver] = returnTypeNode('unionNullableClass');
+    [$multiNull] = returnTypeNode('multiClassNullable');
+
+    // T|null collapses to T (a different node); A|B|null is not a simple nullable, returned as-is.
+    expect($resolver->unwrapNullable($unionNull))->not->toBe($unionNull)
+        ->and($resolver->unwrapNullable($multiNull))->toBe($multiNull);
 });

@@ -32,7 +32,7 @@ function parseType(string $expression): TypeNode
  */
 function resolveType(string $expression): ?OA\Schema
 {
-    return TypeNodeToSchema::create()->resolve(
+    return new TypeNodeToSchema()->resolve(
         parseType($expression),
         new ReflectionClass(stdClass::class),
         static fn(string $fqcn): OA\Schema => new OA\Schema(['ref' => "#/components/schemas/{$fqcn}"]),
@@ -164,8 +164,23 @@ it('returns null for a bare array identifier with no shape', function (): void {
     expect(resolveType('array'))->toBeNull();
 });
 
+it('returns null for a multi-class nullable union (not a simple nullable)', function (): void {
+    expect(resolveType('\stdClass|\Exception|null'))->toBeNull();
+});
+
+it('returns null for a node kind it does not model (intersection)', function (): void {
+    expect(resolveType('\stdClass&\Countable'))->toBeNull();
+});
+
+it('uses a class-constant shape key verbatim as the property name', function (): void {
+    $schema = resolveTypeToArray('array{self::FOO: int}');
+
+    expect($schema['properties'])->toHaveKey('self::FOO')
+        ->and($schema['properties']['self::FOO']['type'])->toBe('integer');
+});
+
 it('wraps a nullable array shape with the OAS 3.1 null idiom', function (): void {
-    $schema = TypeNodeToSchema::create()->resolve(
+    $schema = new TypeNodeToSchema()->resolve(
         parseType('?array{id: int}'),
         new ReflectionClass(stdClass::class),
         static fn(string $fqcn): OA\Schema => new OA\Schema([]),
