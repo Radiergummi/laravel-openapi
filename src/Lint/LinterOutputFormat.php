@@ -11,4 +11,5 @@ enum LinterOutputFormat: string
     case Cli = 'cli';
     case GitHub = 'github';
     case Cobertura = 'cobertura';
+    case Lcov = 'lcov';
 }

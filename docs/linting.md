@@ -88,11 +88,14 @@ machine report without linting twice:
 # GitHub annotations to stdout AND a Cobertura coverage report to a file, in one run
 php artisan openapi:lint --format=github --format=cobertura:coverage.xml
 
+# Same, but with LCOV (for genhtml / VS Code coverage gutters / GitLab)
+php artisan openapi:lint --format=github --format=lcov:coverage.lcov
+
 # Route a stream explicitly: stdout (the default), stderr, or a file path
 php artisan openapi:lint --format=json:stderr --format=cobertura:build/coverage.xml
 ```
 
-- Formats: `cli`, `json`, `github`, `markdown`, `cobertura`.
+- Formats: `cli`, `json`, `github`, `markdown`, `cobertura`, `lcov`.
 - Targets: `stdout` (used when no `:target` is given), `stderr`, or a file path.
   `stdout`/`stderr` are reserved keywords; everything else is a path (the token is
   split on its first colon only, so Windows paths keep their drive letter).
@@ -103,6 +106,11 @@ coverage report keyed to controller source lines (covered operation → line hit
 Codecov / Coveralls / SonarQube. Operations with no single source line (closure routes,
 inference-only facts) are excluded. Coverage is the same operation-level metric as the
 [coverage gate](#documentation-coverage-gate) — see there for what counts as covered.
+
+The `lcov` format emits an [LCOV](https://github.com/linux-test-project/lcov) tracefile
+(`.lcov` / `.info`) keyed to the same controller source lines as Cobertura. Consumed
+natively by `genhtml`, VS Code coverage gutters, and GitLab / Bitbucket integrations.
+Same data, different wire format — use whichever your tooling prefers.
 
 ## Auto-fixing findings
 

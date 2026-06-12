@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Lint\Formatters\CoberturaFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\Formatter;
 use Radiergummi\OpenApi\Lint\Formatters\GithubFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\JsonFormatter;
+use Radiergummi\OpenApi\Lint\Formatters\LcovFormatter;
 use Radiergummi\OpenApi\Lint\LinterOutputFormat;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintResult;
@@ -442,6 +443,7 @@ class LintCommand extends Command
             LinterOutputFormat::Json => $this->laravel->make(JsonFormatter::class),
             LinterOutputFormat::GitHub => $this->laravel->make(GithubFormatter::class),
             LinterOutputFormat::Cobertura => $this->laravel->make(CoberturaFormatter::class),
+            LinterOutputFormat::Lcov => $this->laravel->make(LcovFormatter::class),
         };
     }
 

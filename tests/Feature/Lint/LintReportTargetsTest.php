@@ -102,3 +102,36 @@ it('rejects two formats targeting stdout via the artisan command', function (): 
         '--format' => ['github', 'json'],
     ])->run())->toThrow(InvalidArgumentException::class, 'stdout');
 });
+
+it('writes an LCOV tracefile to a file target', function (): void {
+    $path = sys_get_temp_dir() . '/openapi-cov-' . uniqid() . '.lcov';
+
+    $this->artisan('openapi:lint', [
+        '--level' => 2,
+        '--uri' => 'lint-fixtures/*',
+        '--format' => ['github', 'lcov:' . $path],
+    ])->assertExitCode(1);
+
+    expect(file_exists($path))->toBeTrue();
+
+    $content = (string) file_get_contents($path);
+    expect($content)
+        ->toContain('TN:openapi')
+        ->toContain('SF:')
+        ->toContain('DA:')
+        ->toContain('end_of_record')
+        ->toContain('BrokenController.php')
+        ->toContain('CleanController.php');
+
+    unlink($path);
+});
+
+it('writes a bare lcov format to stdout when no target is given', function (): void {
+    $this->artisan('openapi:lint', [
+        '--level' => 0,
+        '--uri' => 'lint-fixtures/clean*',
+        '--format' => ['lcov'],
+    ])
+        ->expectsOutputToContain('TN:openapi')
+        ->assertExitCode(0);
+});
