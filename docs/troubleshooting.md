@@ -75,13 +75,29 @@ The action does not type-hint a request DTO the generator recognises. Either:
 
 ## Why doesn't my inline `$request->validate(...)` produce a request body?
 
-This is the **method-body inference** limitation. The generator reads signatures only. Inline
-`validate()`, `request()->validate()`, and ad-hoc `response()->json([…])`
-calls are invisible. Fix it by doing one of:
+Inline `validate()` calls **are** read (a bounded body scan over the first 10
+statements — see [Auto-derivation](auto-derivation.md)), so first check the
+generation log: a note names the action and the reason whenever the scan
+degrades. Common causes:
+
+- **The rules are built dynamically** (merged arrays, method calls, conditionals).
+  Only a literal rules array — or a literal `$rules` property / zero-argument
+  `rules()` method — is read; anything else degrades with a note.
+- **The call sits inside a conditional** (`if`, closure) or beyond the first 10
+  statements — conditional validation is not the canonical request shape.
+- **The route is GET/HEAD** — recovered keys become query parameters, not a
+  request body; on DELETE they are skipped by design.
+
+Fixes, in preference order:
 
 - Move the rules into a `FormRequest` and type-hint it.
 - Move them into a `Data` class and type-hint it.
 - Declare the body with `#[OpenApi\RequestBody]` and an explicit schema.
+
+The same applies to `response()->json([...])` literals (response side) and
+`$request->query(...)` reads (query parameters): straight-line literal shapes
+are inferred; dynamic shapes degrade with a generation-log note and an
+attribute escape hatch (`#[Response]`, `#[QueryParam]`).
 
 ## Response is a bare `200 OK` with no schema
 
@@ -90,6 +106,10 @@ In order of likelihood:
 - **No return type on the action.** Add one. A typed `JsonResource`,
   `ResourceCollection`, `Data`, `DataCollection<…>`, or paginator is
   documented automatically.
+- **The response is built by hand and isn't a straight-line literal.** A
+  `return response()->json([...])` with a literal array is inferred; a variable
+  body, a non-literal status, or a `json()` that only runs conditionally
+  degrades with a generation-log note — `#[Response]` is the escape hatch.
 - **Paginator without an item type.** `LengthAwarePaginator`, `Paginator`,
   and `CursorPaginator` don't carry the item generic in PHP. Add a
   `@return LengthAwarePaginator<FlightData>` PHPDoc tag. This is the one

@@ -242,8 +242,8 @@ class Post extends Model
 
 ### Known limitations
 
-- **Method-body inference is not done.** `Model::find()` / `findOrFail()` return
-  statements are not read (Tier-1, tracked as [#97](https://github.com/radiergummi/laravel-openapi/issues/97)).
+- **`Model::find()` / `findOrFail()` return statements are not read** (Tier-1,
+  tracked as [#97](https://github.com/radiergummi/laravel-openapi/issues/97)).
   Type your action's return type explicitly to get a response schema.
 - **`JsonResource` wrapping a model** is documented by the ApiResources plugin
   separately (tracked as [#98](https://github.com/radiergummi/laravel-openapi/issues/98));
