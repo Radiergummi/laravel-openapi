@@ -43,7 +43,11 @@ final readonly class RuleCatalogRenderer
 
         match ($format) {
             LinterOutputFormat::Cli => $this->renderCli($rows, $output),
-            LinterOutputFormat::Json => $this->renderJson($rows, $output),
+            // Cobertura is a coverage-report format with no catalog representation; the rule
+            // catalog degrades to the JSON listing (its machine-readable analog).
+            LinterOutputFormat::Json,
+            LinterOutputFormat::Cobertura,
+            LinterOutputFormat::Lcov => $this->renderJson($rows, $output),
             LinterOutputFormat::GitHub,
             LinterOutputFormat::Markdown => $this->renderMarkdown($rows, $output),
         };

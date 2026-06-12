@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use Override;
-use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function implode;
@@ -22,31 +22,23 @@ final class GithubFormatter implements Formatter
         2 => 'notice',
     ];
 
-    /**
-     * @param list<Finding> $findings
-     */
     #[Override]
-    public function render(
-        array $findings,
-        int $level,
-        int $exitCode,
-        OutputInterface $output,
-        ?CoverageSummary $coverage = null,
-    ): void {
-        foreach ($findings as $finding) {
+    public function render(LintResult $result, OutputInterface $output): void
+    {
+        foreach ($result->findings as $finding) {
             $output->writeln($this->formatCommand($finding));
         }
 
-        if ($coverage !== null) {
-            $suffix = $coverage->unattributedFindings > 0
-                ? sprintf(', %d unattributed', $coverage->unattributedFindings)
+        if ($result->coverage !== null) {
+            $suffix = $result->coverage->unattributedFindings > 0
+                ? sprintf(', %d unattributed', $result->coverage->unattributedFindings)
                 : '';
 
             $output->writeln(sprintf(
                 '::notice title=OpenAPI coverage::%.2f%% (%d/%d operations)%s',
-                $coverage->coveragePercent,
-                $coverage->coveredOperations,
-                $coverage->totalOperations,
+                $result->coverage->coveragePercent,
+                $result->coverage->coveredOperations,
+                $result->coverage->totalOperations,
                 $suffix,
             ));
         }
