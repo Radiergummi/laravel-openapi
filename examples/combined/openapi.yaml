@@ -174,6 +174,12 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlightControllerUpdateRequest'
       responses:
         '200':
           description: OK
@@ -183,6 +189,8 @@ paths:
                 $ref: '#/components/schemas/FlightData'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       security:
         -
           bearer:
@@ -398,6 +406,31 @@ components:
           description: 'Aircraft model / type designator.'
           type: string
           example: 'Boeing 747-400'
+      type: object
+    FlightControllerUpdateRequest:
+      properties:
+        number:
+          type: string
+        origin:
+          type: string
+          maxLength: 3
+          minLength: 3
+        destination:
+          type: string
+          maxLength: 3
+          minLength: 3
+        departs_at:
+          type: string
+          format: date
+          example: '2023-05-02'
+        arrives_at:
+          type: string
+          format: date
+          example: '2025-09-08'
+        status:
+          type: string
+        aircraft_type:
+          type: string
       type: object
     BookingData:
       required:
