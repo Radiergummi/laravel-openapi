@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 
 use function array_filter;
 use function implode;
@@ -52,6 +53,7 @@ final class FieldNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         return implode('/', array_filter([
@@ -80,6 +82,7 @@ final class FieldNode implements Node
         return null;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;

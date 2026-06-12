@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 
 use function in_array;
 use function sprintf;
@@ -45,11 +46,13 @@ final class RequestBodyNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         $base = ($this->parent?->pointer() ?? '') . '/requestBody';
@@ -57,13 +60,11 @@ final class RequestBodyNode implements Node
         return $append !== '' ? $base . '/' . $append : $base;
     }
 
-    public function isMultipart(): bool
-    {
-        return in_array('multipart/form-data', $this->contentTypes, true);
+    public bool $isMultipart {
+        get => in_array('multipart/form-data', $this->contentTypes, true);
     }
 
-    public function isJson(): bool
-    {
-        return in_array('application/json', $this->contentTypes, true);
+    public bool $isJson {
+        get => in_array('application/json', $this->contentTypes, true);
     }
 }

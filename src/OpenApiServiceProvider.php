@@ -10,6 +10,7 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\ClearCommand;
 use Radiergummi\OpenApi\Console\DiffConfigCommand;
@@ -178,6 +179,7 @@ class OpenApiServiceProvider extends ServiceProvider
         });
     }
 
+    #[Override]
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/openapi.php', 'openapi');

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 
 use function sprintf;
 use function str_replace;
@@ -40,11 +41,13 @@ final class LinkNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         $name = str_replace(['~', '/'], ['~0', '~1'], $this->name);

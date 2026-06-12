@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SpatieData\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\SpatieData\Support\SchemaFromDataClass;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -32,6 +33,7 @@ final readonly class DataRefSchemaResolver implements RefSchemaResolver
      * @throws RuntimeException
      * @throws UnsupportedException
      */
+    #[Override]
     public function resolveRef(string $class): ?string
     {
         if (!$this->canResolve($class)) {
@@ -44,6 +46,7 @@ final readonly class DataRefSchemaResolver implements RefSchemaResolver
         return $this->schemaRegistry->qualifyKey($key);
     }
 
+    #[Override]
     public function canResolve(string $class): bool
     {
         return is_a($class, Data::class, allow_string: true);

@@ -87,7 +87,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
         // dangle that reference.
         $isLoadBearing = fn(): bool
             => is_defined($authored->schema)
-            && $this->scanner->isSchemaReferencedByOtherAuthored((string) $authored->schema, $class);
+            && $this->scanner->isSchemaReferencedByOtherAuthored($authored->schema, $class);
 
         $finding = $this->engine->evaluate(
             $authored,

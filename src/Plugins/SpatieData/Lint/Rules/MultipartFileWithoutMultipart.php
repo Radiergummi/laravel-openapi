@@ -55,7 +55,7 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
             return;
         }
 
-        if ($operation->requestBody?->isMultipart()) {
+        if ($operation->requestBody?->isMultipart) {
             return;
         }
 

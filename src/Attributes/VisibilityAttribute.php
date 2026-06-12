@@ -32,7 +32,7 @@ abstract readonly class VisibilityAttribute
             throw new LogicException(
                 sprintf(
                     '#[%s] cannot use both `only` and `except` — they are mutually exclusive.',
-                    (new ReflectionClass($this))->getShortName(),
+                    new ReflectionClass($this)->getShortName(),
                 ),
             );
         }

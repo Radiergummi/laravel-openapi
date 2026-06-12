@@ -12,11 +12,11 @@ it('reports a resolved single-resource target', function (): void {
 
     expect($target->resourceClass)->toBe(stdClass::class)
         ->and($target->isCollection)->toBeFalse()
-        ->and($target->isAmbiguous())->toBeFalse();
+        ->and($target->isAmbiguous)->toBeFalse();
 });
 
 it('reports an ambiguous target when the resource class is null', function (): void {
     $target = new ResourceTarget(null, isCollection: true);
 
-    expect($target->isAmbiguous())->toBeTrue();
+    expect($target->isAmbiguous)->toBeTrue();
 });

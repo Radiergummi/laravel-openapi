@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SpatieData;
 
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\FieldAttributeWrongScope;
 use Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules\MultipartFileWithoutMultipart;
@@ -25,6 +26,7 @@ use function class_exists;
  */
 final class SpatieDataPlugin implements Plugin
 {
+    #[Override]
     public function register(OpenApiRegistry $registry): void
     {
         if (!class_exists(Data::class)) {

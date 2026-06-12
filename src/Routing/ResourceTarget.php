@@ -11,7 +11,7 @@ namespace Radiergummi\OpenApi\Routing;
  * the model's schema. A target with neither class is *ambiguous* — the action returns a resource
  * collection type but nothing names the item class, so the shape cannot be derived.
  */
-final readonly class ResourceTarget
+final class ResourceTarget
 {
     /**
      * @param null|class-string $resourceClass
@@ -23,14 +23,13 @@ final readonly class ResourceTarget
      *                                         `{data}` envelope. Only meaningful for collections.
      */
     public function __construct(
-        public ?string $resourceClass,
-        public bool $isCollection,
-        public ?string $modelClass = null,
-        public bool $paginated = true,
+        public readonly ?string $resourceClass,
+        public readonly bool $isCollection,
+        public readonly ?string $modelClass = null,
+        public readonly bool $paginated = true,
     ) {}
 
-    public function isAmbiguous(): bool
-    {
-        return $this->resourceClass === null && $this->modelClass === null;
+    public bool $isAmbiguous {
+        get => $this->resourceClass === null && $this->modelClass === null;
     }
 }

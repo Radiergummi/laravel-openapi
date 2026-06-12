@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\ApiResources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldTypeMissing;
@@ -20,6 +21,7 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
  */
 final class ApiResourcesPlugin implements Plugin
 {
+    #[Override]
     public function register(OpenApiRegistry $registry): void
     {
         $registry->addRefSchemaResolver(ResourceRefSchemaResolver::class);

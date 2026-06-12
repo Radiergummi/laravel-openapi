@@ -28,7 +28,7 @@ final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
     #[Override]
     public function checkResponse(ResponseNode $response, LintContext $context): iterable
     {
-        if (!$response->isRedirect()) {
+        if (!$response->isRedirect) {
             return;
         }
 

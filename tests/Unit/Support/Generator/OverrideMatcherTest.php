@@ -115,8 +115,8 @@ it('skips a matching block whose fields are all non-allowlisted', function (): v
 });
 
 it('reports hasOverrides only when overrides are configured', function (): void {
-    expect(new OverrideMatcher([])->hasOverrides())->toBeFalse()
-        ->and(new OverrideMatcher(['users.show' => ['summary' => 'ok']])->hasOverrides())->toBeTrue();
+    expect(new OverrideMatcher([])->hasOverrides)->toBeFalse()
+        ->and(new OverrideMatcher(['users.show' => ['summary' => 'ok']])->hasOverrides)->toBeTrue();
 });
 
 it('reports keys that match no route name and no uri as unused', function (): void {

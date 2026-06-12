@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
@@ -108,6 +109,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         $this->statementNodeFinder = new StatementNodeFinder();
     }
 
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $method = $descriptor->method;
@@ -376,13 +378,13 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      */
     private function argument(array $arguments, string $name, int $position): ?Arg
     {
-        foreach ($arguments as $index => $argument) {
-            if ($argument->name === null ? $index === $position : $argument->name->toString() === $name) {
-                return $argument;
-            }
-        }
-
-        return null;
+        return array_find(
+            $arguments,
+            fn(
+                $argument,
+                $index,
+            ) => $argument->name === null ? $index === $position : $argument->name->toString() === $name,
+        );
     }
 
     // endregion

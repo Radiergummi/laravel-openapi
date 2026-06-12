@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -40,11 +41,12 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $target = $this->locator->locate($descriptor);
 
-        if ($target === null || $target->isAmbiguous()) {
+        if ($target === null || $target->isAmbiguous) {
             return null;
         }
 

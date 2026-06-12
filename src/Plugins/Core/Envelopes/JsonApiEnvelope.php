@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Envelopes;
 
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
@@ -22,6 +23,7 @@ final readonly class JsonApiEnvelope implements ErrorResponseResolver
         private ComponentSchemaRegistry $registry,
     ) {}
 
+    #[Override]
     public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
     {
         $this->registerSchema();

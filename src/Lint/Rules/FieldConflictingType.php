@@ -20,7 +20,7 @@ final class FieldConflictingType extends AbstractFieldRule
      *
      * @var array<string, string>
      */
-    private const PHP_TO_OPENAPI = [
+    private const array PHP_TO_OPENAPI = [
         'int' => 'integer',
         'float' => 'number',
         'bool' => 'boolean',

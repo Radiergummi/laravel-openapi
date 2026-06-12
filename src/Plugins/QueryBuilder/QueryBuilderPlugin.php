@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\QueryBuilder;
 
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderFilterTypeMissing;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules\QueryBuilderParamsUndeclared;
@@ -16,6 +17,7 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
  */
 final class QueryBuilderPlugin implements Plugin
 {
+    #[Override]
     public function register(OpenApiRegistry $registry): void
     {
         $registry->addQueryParameterResolver(QueryBuilderParameterResolver::class);

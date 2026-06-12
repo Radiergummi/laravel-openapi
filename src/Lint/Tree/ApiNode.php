@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Tree;
 
 use OpenApi\Annotations as OA;
+use Override;
 
 final readonly class ApiNode implements Node
 {
@@ -24,11 +25,13 @@ final readonly class ApiNode implements Node
         public OA\OpenApi $raw,
     ) {}
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         return $append !== '' ? '#/' . $append : '#';
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return null;

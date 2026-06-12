@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp;
 
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
@@ -22,6 +23,7 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
  */
 final class SwaggerPhpPlugin implements Plugin
 {
+    #[Override]
     public function register(OpenApiRegistry $registry): void
     {
         $registry->addStage(HarvestAuthoredAnnotationsStage::class);

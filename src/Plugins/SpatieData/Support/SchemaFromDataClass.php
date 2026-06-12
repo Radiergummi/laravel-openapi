@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\SpatieData\Support;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\UploadedFile;
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
@@ -838,6 +839,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
      *
      * @throws ReflectionException
      */
+    #[Override]
     public function hasFileProperties(string $dataClass): bool
     {
         return $this->filePropertiesCache[$dataClass]

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Generator\Stages;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 
@@ -19,6 +20,7 @@ use function config;
 #[Scoped]
 final readonly class RootStage implements SpecStage
 {
+    #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         $spec = $context->spec;

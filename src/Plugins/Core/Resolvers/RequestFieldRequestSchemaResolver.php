@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Attributes\RequestBody;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
@@ -35,6 +36,7 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
         private ComponentSchemaRegistry $registry,
     ) {}
 
+    #[Override]
     public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
     {
         $method = $descriptor->method;

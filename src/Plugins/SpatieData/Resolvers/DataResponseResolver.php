@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\SpatieData\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -63,6 +64,7 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
      * @throws RuntimeException
      * @throws UnsupportedException
      */
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;

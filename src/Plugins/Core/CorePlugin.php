@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\AbortErrorContributor;
@@ -48,6 +49,7 @@ final class CorePlugin implements Plugin
         RuleInvalidEnumValue::class,
     ];
 
+    #[Override]
     public function register(OpenApiRegistry $registry): void
     {
         $registry->addRequestSchemaResolver(DiscriminatedRequestSchemaResolver::class);

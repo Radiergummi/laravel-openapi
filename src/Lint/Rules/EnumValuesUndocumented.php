@@ -25,7 +25,7 @@ use function trim;
  */
 final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
 {
-    private const LIST_PATTERN = "/^\s*[-*]\s+/m";
+    private const string LIST_PATTERN = "/^\s*[-*]\s+/m";
 
     /**
      * @return iterable<Finding>

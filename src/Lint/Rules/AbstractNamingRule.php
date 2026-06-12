@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
+use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use TypeError;
@@ -34,11 +35,13 @@ abstract readonly class AbstractNamingRule implements Rule
         $this->case = IdentifierCase::fromConfig($case);
     }
 
+    #[Override]
     final public function level(): int
     {
         return 3;
     }
 
+    #[Override]
     abstract public function description(): string;
 
     /**

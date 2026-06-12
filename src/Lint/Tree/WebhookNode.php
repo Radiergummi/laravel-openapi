@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
+use Override;
 
 use function sprintf;
 
@@ -33,11 +34,13 @@ final class WebhookNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         $base = '#/webhooks/' . $this->name;

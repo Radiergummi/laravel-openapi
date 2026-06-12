@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Fractal\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\SchemaFromTransformer;
@@ -32,6 +33,7 @@ final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function resolveRef(string $class): ?string
     {
         if (!$this->canResolve($class)) {
@@ -44,6 +46,7 @@ final readonly class TransformerRefSchemaResolver implements RefSchemaResolver
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function canResolve(string $class): bool
     {
         if (!class_exists($class)) {

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use ReflectionException;
@@ -26,6 +27,7 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function resolveRef(string $class): ?string
     {
         if (!$this->canResolve($class)) {
@@ -36,6 +38,7 @@ final readonly class ResourceRefSchemaResolver implements RefSchemaResolver
         return $this->schemaFromResource->buildRef($class);
     }
 
+    #[Override]
     public function canResolve(string $class): bool
     {
         return is_a($class, JsonResource::class, allow_string: true);

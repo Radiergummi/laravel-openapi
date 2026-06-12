@@ -27,7 +27,7 @@ use function sprintf;
  */
 final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
 {
-    private const REPLACEMENT_PATTERN = "/\b(use|replaced\s+by|replacement|sunset)\b/i";
+    private const string REPLACEMENT_PATTERN = "/\b(use|replaced\s+by|replacement|sunset)\b/i";
 
     /**
      * @return iterable<Finding>

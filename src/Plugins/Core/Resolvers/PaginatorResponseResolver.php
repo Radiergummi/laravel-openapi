@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
@@ -42,6 +43,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         private array $refSchemaResolvers = [],
     ) {}
 
+    #[Override]
     public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
     {
         $reflector = $descriptor->actionReflector;

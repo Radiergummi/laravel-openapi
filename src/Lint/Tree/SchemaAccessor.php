@@ -34,11 +34,7 @@ final class SchemaAccessor
 
         $ref = $schema->ref ?? Generator::UNDEFINED;
 
-        if (
-            is_undefined($ref)
-            || $ref === null // @phpstan-ignore identical.alwaysFalse (defensive; swagger-php may emit null at runtime)
-            || !is_string($ref)
-        ) {
+        if (!is_string($ref) || is_undefined($ref)) {
             return null;
         }
 
@@ -53,7 +49,7 @@ final class SchemaAccessor
     {
         $ref = $response->ref;
 
-        if (is_undefined($ref) || !is_string($ref)) {
+        if (!is_string($ref) || is_undefined($ref)) {
             return null;
         }
 
@@ -76,21 +72,17 @@ final class SchemaAccessor
 
         $type = $schema->type;
 
-        if (is_undefined($type) || $type === null) {
+        if ($type === null || is_undefined($type)) {
             return null;
         }
 
-        // OAS 3.1 allows `type` to be an array (e.g. ["string", "null"]).
-        // Collapse it to the first concrete (non-"null") type so downstream
-        // rules can still reason about the field.
+        // OAS 3.1 allows `type` to be an array (e.g. ["string", "null"]). Collapse it to the first
+        // concrete (non-"null") type so downstream rules can still reason about the field.
         if (is_array($type)) {
-            foreach ($type as $candidate) {
-                if (is_string($candidate) && $candidate !== 'null') {
-                    return $candidate;
-                }
-            }
-
-            return null;
+            return array_find(
+                $type,
+                static fn(string $candidate): bool => $candidate !== 'null',
+            );
         }
 
         return is_string($type) ? $type : null;
@@ -109,10 +101,7 @@ final class SchemaAccessor
         // @phpstan-ignore nullCoalesce.property (defensive; pattern may be unset at runtime)
         $pattern = $schema->pattern ?? Generator::UNDEFINED;
 
-        if (
-            is_undefined($pattern)
-            || $pattern === null // @phpstan-ignore identical.alwaysFalse (defensive; pattern may be null at runtime)
-        ) {
+        if (is_undefined($pattern)) {
             return null;
         }
 
@@ -134,7 +123,7 @@ final class SchemaAccessor
 
         $enum = $schema->enum;
 
-        if (is_undefined($enum) || !is_array($enum)) {
+        if (!is_array($enum) || is_undefined($enum)) {
             return null;
         }
 
@@ -144,10 +133,7 @@ final class SchemaAccessor
     public static function isNullable(OA\Schema $schema): bool
     {
         // OAS 3.0 style
-        if (
-            is_defined($schema->nullable)
-            && $schema->nullable === true
-        ) {
+        if ($schema->nullable === true && is_defined($schema->nullable)) {
             return true;
         }
 
@@ -159,7 +145,7 @@ final class SchemaAccessor
 
     public static function undefinedToNull(mixed $value): ?string
     {
-        if (is_undefined($value) || $value === null) {
+        if ($value === null || is_undefined($value)) {
             return null;
         }
 

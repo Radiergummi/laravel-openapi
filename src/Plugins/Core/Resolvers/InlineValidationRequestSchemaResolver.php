@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\HttpMethod;
@@ -51,6 +52,7 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
         private LoggerInterface $logger,
     ) {}
 
+    #[Override]
     public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
     {
         $method = $descriptor->method;
@@ -103,7 +105,7 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
 
     /**
      * Mirrors the FormRequest schema assembly: rules → field descriptors → properties/required,
-     * with synthesised examples as the lowest-priority fallback. Trailing-comment descriptions
+     * with synthesized examples as the lowest-priority fallback. Trailing-comment descriptions
      * are authored content and win over rule-derived ones.
      *
      * @return array{0: OA\Schema, 1: bool} the schema and whether any field is a file upload
@@ -171,10 +173,11 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
             return true;
         }
 
-        foreach ($descriptor->properties ?? [] as $nested) {
-            if ($this->containsFileField($nested)) {
-                return true;
-            }
+        if (array_any(
+            $descriptor->properties ?? [],
+            fn(FieldDescriptor $nested): bool => $this->containsFileField($nested),
+        )) {
+            return true;
         }
 
         return $descriptor->items !== null && $this->containsFileField($descriptor->items);

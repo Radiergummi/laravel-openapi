@@ -29,7 +29,7 @@ final class HeaderInvalidName implements Rule, OperationRuleVisitor
      * tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
      *         "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
      */
-    private const HTTP_TOKEN_PATTERN = '/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/';
+    private const string HTTP_TOKEN_PATTERN = '/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/';
 
     /**
      * @return iterable<Finding>

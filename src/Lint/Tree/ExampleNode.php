@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Tree;
 
 use LogicException;
 use OpenApi\Annotations as OA;
+use Override;
 
 use function sprintf;
 
@@ -35,11 +36,13 @@ final class ExampleNode implements Node
         $this->parent = $parent;
     }
 
+    #[Override]
     public function parent(): ?Node
     {
         return $this->parent;
     }
 
+    #[Override]
     public function pointer(string $append = ''): string
     {
         $name = $this->name ?? 'default';

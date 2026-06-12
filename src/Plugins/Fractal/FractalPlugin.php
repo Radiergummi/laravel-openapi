@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fractal;
 
+use Override;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalDuplicateKey;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalFieldsUndeclared;
@@ -20,6 +21,7 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
  */
 final class FractalPlugin implements Plugin
 {
+    #[Override]
     public function register(OpenApiRegistry $registry): void
     {
         $registry->addRefSchemaResolver(TransformerRefSchemaResolver::class);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint;
 
 use Illuminate\Container\Attributes\Scoped;
+use Override;
 use Psr\Log\LoggerInterface;
 
 #[Scoped]
@@ -12,6 +13,7 @@ final readonly class LoggingFindingsCollector implements FindingsCollector
 {
     public function __construct(private LoggerInterface $logger) {}
 
+    #[Override]
     public function emit(Finding $finding): void
     {
         $message = "[OpenAPI] {$finding->ruleId}: {$finding->message}";

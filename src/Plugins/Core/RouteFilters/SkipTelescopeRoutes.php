@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\RouteFilters;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
+use Override;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 
 use function ltrim;
@@ -29,6 +30,7 @@ final readonly class SkipTelescopeRoutes implements RouteFilter
         $this->telescopePath = ltrim($telescopePath, '/');
     }
 
+    #[Override]
     public function shouldSkip(Route $route): bool
     {
         return

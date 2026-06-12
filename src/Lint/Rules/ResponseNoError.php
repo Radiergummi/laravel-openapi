@@ -31,7 +31,7 @@ final class ResponseNoError implements Rule, OperationRuleVisitor
         $hasDefault = false;
 
         foreach ($operation->responses as $response) {
-            if ($response->isDefault()) {
+            if ($response->isDefault) {
                 $hasDefault = true;
 
                 break;

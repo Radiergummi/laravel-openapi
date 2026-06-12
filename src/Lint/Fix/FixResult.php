@@ -12,7 +12,7 @@ namespace Radiergummi\OpenApi\Lint\Fix;
  * are fixes dropped because they overlapped an already-applied edit in the same file; and
  * `$modifiedFiles` lists the distinct paths touched.
  */
-final readonly class FixResult
+final class FixResult
 {
     /**
      * @param list<Fix>    $applied
@@ -20,16 +20,15 @@ final readonly class FixResult
      * @param list<string> $modifiedFiles
      */
     public function __construct(
-        public array $applied,
-        public array $skipped,
-        public array $modifiedFiles,
+        public readonly array $applied,
+        public readonly array $skipped,
+        public readonly array $modifiedFiles,
     ) {}
 
     /**
      * Whether any fix was (or would be) applied.
      */
-    public function hasChanges(): bool
-    {
-        return $this->applied !== [];
+    public bool $hasChanges {
+        get => $this->applied !== [];
     }
 }

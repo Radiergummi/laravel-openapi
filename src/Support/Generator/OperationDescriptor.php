@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Support\Generator;
 
 use Illuminate\Contracts\Support\Arrayable;
 use OpenApi\Annotations as OA;
+use Override;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 
 use function array_filter;
@@ -90,6 +91,7 @@ final readonly class OperationDescriptor implements Arrayable
         };
     }
 
+    #[Override]
     public function toArray(): array
     {
         return [

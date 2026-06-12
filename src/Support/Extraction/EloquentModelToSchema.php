@@ -75,13 +75,13 @@ final class EloquentModelToSchema
     private array $metadataCache = [];
 
     public function __construct(
-        private ComponentSchemaRegistry $registry,
-        private JsonSchemaFromType $jsonSchemaFromType,
-        private TypeNodeToSchema $typeNodeToSchema,
-        private TypeResolver $typeResolver,
-        private TypeNodeResolver $typeNodeResolver,
-        private DocBlockParser $docBlockParser,
-        private LoggerInterface $logger,
+        private readonly ComponentSchemaRegistry $registry,
+        private readonly JsonSchemaFromType $jsonSchemaFromType,
+        private readonly TypeNodeToSchema $typeNodeToSchema,
+        private readonly TypeResolver $typeResolver,
+        private readonly TypeNodeResolver $typeNodeResolver,
+        private readonly DocBlockParser $docBlockParser,
+        private readonly LoggerInterface $logger,
     ) {}
 
     /**
