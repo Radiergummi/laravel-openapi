@@ -17,6 +17,7 @@ use Radiergummi\OpenApi\Attributes\Header as HeaderAttribute;
 use Radiergummi\OpenApi\Attributes\Link as LinkAttribute;
 use Radiergummi\OpenApi\Attributes\Operation as OperationAttribute;
 use Radiergummi\OpenApi\Attributes\PublicEndpoint;
+use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
 use Radiergummi\OpenApi\Attributes\ResponseExample as ResponseExampleAttribute;
@@ -49,6 +50,7 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function assert;
+use function in_array;
 use function is_array;
 use function Radiergummi\OpenApi\is_undefined;
 
@@ -127,7 +129,10 @@ final readonly class OperationBuilder
         // Dedup across resolvers by (name, in): two resolvers emitting the same parameter would
         // otherwise yield a duplicate, which is invalid OpenAPI. Resolvers run in plugin order
         // (Core first), and a later resolver wins — a plugin's richer parameter replaces an
-        // earlier one of the same name.
+        // earlier one of the same name. Exception: a name claimed by an explicit #[QueryParam]
+        // attribute keeps its first (attribute-shaped) emission — explicit authoring beats any
+        // later inference, mirroring the response-side authoring-attribute precedence (epic #5).
+        $explicitQueryParameterNames = $this->explicitQueryParameterNames($action);
         $queryParamsByKey = [];
 
         foreach ($this->queryParameterResolvers as $queryResolver) {
@@ -138,7 +143,17 @@ final readonly class OperationBuilder
             ) ?? [];
 
             foreach ($resolved as $param) {
-                $queryParamsByKey[$param->name . "\0" . $param->in] = $param;
+                $key = $param->name . "\0" . $param->in;
+
+                if (
+                    isset($queryParamsByKey[$key])
+                    && $param->in === 'query'
+                    && in_array($param->name, $explicitQueryParameterNames, true)
+                ) {
+                    continue;
+                }
+
+                $queryParamsByKey[$key] = $param;
             }
         }
 
@@ -254,6 +269,26 @@ final readonly class OperationBuilder
             operationId: $operationOverride?->operationId,
             externalDocs: $externalDocs,
         );
+    }
+
+    /**
+     * Names claimed by an explicit `#[QueryParam]` attribute on the action or its controller.
+     * These are authored ground truth: the cross-resolver dedup must not let a later resolver's
+     * inferred parameter replace them.
+     *
+     * @return list<string>
+     */
+    private function explicitQueryParameterNames(ActionDescriptor $action): array
+    {
+        $names = [];
+
+        foreach ([$action->controller, $action->actionReflector] as $reflector) {
+            foreach ($reflector?->getAttributes(QueryParam::class) ?? [] as $attribute) {
+                $names[] = $attribute->newInstance()->name;
+            }
+        }
+
+        return $names;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\QueryBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Attributes\QueryParam as CoreQueryParam;
 use Radiergummi\OpenApi\Plugins\ApiResources\ApiResourcesPlugin;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
@@ -39,6 +40,20 @@ class QbChainOnlyController extends Controller
             ->allowedFilters(['status', SpatieAllowedFilter::exact('origin')])
             ->allowedSorts(['created_at'])
             ->allowedIncludes(['books'])
+            ->paginate();
+
+        return new JsonResponse($authors);
+    }
+}
+
+class QbCoreAttributeCollisionController extends Controller
+{
+    /** List authors. */
+    #[CoreQueryParam('sort', description: 'Author-described sort param.')]
+    public function index(): JsonResponse
+    {
+        $authors = QueryBuilder::for(Author::class)
+            ->allowedSorts(['created_at'])
             ->paginate();
 
         return new JsonResponse($authors);
@@ -150,4 +165,27 @@ it('lets explicit attributes win over the chain per kind', function (): void {
             expect($parameter['schema']['items']['enum'])->toBe(['chain_include']);
         }
     }
+});
+
+it('keeps an explicit Core #[QueryParam] over a chain-inferred parameter of the same name', function (): void {
+    Route::get('/qb-core-attribute-authors', [QbCoreAttributeCollisionController::class, 'index']);
+
+    $spec = generateSpec();
+    $parameters = $spec['paths']['/qb-core-attribute-authors']['get']['parameters'] ?? [];
+
+    $sort = null;
+
+    foreach ($parameters as $parameter) {
+        if ($parameter['name'] === 'sort' && $parameter['in'] === 'query') {
+            expect($sort)->toBeNull();
+            $sort = $parameter;
+        }
+    }
+
+    // The author's attribute (description, plain string schema) survives; the chain's
+    // canned enum parameter must not replace it (explicit authoring wins, epic #5).
+    expect($sort)->not->toBeNull()
+        ->and($sort['schema']['description'])->toBe('Author-described sort param.')
+        ->and($sort['schema']['type'])->toBe('string')
+        ->and($sort['schema'])->not->toHaveKey('items');
 });
