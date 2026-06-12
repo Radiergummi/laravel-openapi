@@ -13,6 +13,8 @@ use PhpParser\NodeTraverser;
 use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\Parser;
 use PhpParser\ParserFactory;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use ReflectionMethod;
 use Throwable;
 
@@ -63,7 +65,7 @@ final class MethodBodyScanner
 
     private readonly NodeFinder $nodeFinder;
 
-    public function __construct()
+    public function __construct(private readonly LoggerInterface $logger = new NullLogger())
     {
         $this->parser = new ParserFactory()->createForNewestSupportedVersion();
         $this->nodeFinder = new NodeFinder();
@@ -128,7 +130,14 @@ final class MethodBodyScanner
 
         try {
             $statements = $this->parser->parse($source);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            // A file that won't parse yields no Tier-1 inference for any of its methods. Degrade
+            // (cache the miss) but log it — otherwise the empty result is silent.
+            $this->logger->notice(
+                'Tier-1 body scan skipped a file that failed to parse.',
+                ['file' => $file, 'exception' => $exception],
+            );
+
             $statements = null;
         }
 
