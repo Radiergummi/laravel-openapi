@@ -167,10 +167,14 @@ final class SpecTreeWalker
     private function walkOperation(OperationNode $operation, LintContext $context): iterable
     {
         $location = FindingLocation::fromOperation($operation);
+        $sourceClass = $operation->descriptor?->controller?->getName();
 
-        yield from $this->enrichAll(
-            $this->dispatchOperation($operation, $context),
-            $location,
+        yield from $this->stampSourceClass(
+            $this->enrichAll(
+                $this->dispatchOperation($operation, $context),
+                $location,
+            ),
+            $sourceClass,
         );
 
         // region Path parameters
@@ -284,6 +288,28 @@ final class SpecTreeWalker
 
         foreach ($findings as $finding) {
             yield $finding->withLocationDefaults($defaults);
+        }
+    }
+
+    /**
+     * Stamp `CONTEXT_SOURCE_CLASS` on each finding when `$sourceClass` is non-null. Findings that
+     * already carry the key are overwritten — the controller class is the authoritative source for
+     * operation-level findings.
+     *
+     * @param iterable<Finding> $findings
+     *
+     * @return iterable<Finding>
+     */
+    private function stampSourceClass(iterable $findings, ?string $sourceClass): iterable
+    {
+        if ($sourceClass === null) {
+            yield from $findings;
+
+            return;
+        }
+
+        foreach ($findings as $finding) {
+            yield $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
         }
     }
 

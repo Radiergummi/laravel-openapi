@@ -265,8 +265,10 @@ Meta-rules enforce directive hygiene:
 ### Where can `#[IgnoreLint]` go?
 
 The attribute can target controllers, controller methods, and the payload classes a plugin
-teaches Core about. For class-level placements, the directive suppresses findings on every
-property of the component schema that class produces.
+teaches Core about. Class-level placements on a **controller** suppress operation-level findings
+(`operation.*`, `response.*`, etc.) for that controller's routes. Class-level placements on a
+**payload class** (FormRequest, Spatie Data, JsonResource) suppress findings on every property
+of the component schema that class produces.
 
 | Scope    | Controller | Controller method | FormRequest | Spatie `Data` | `JsonResource` |
 |----------|------------|-------------------|-------------|---------------|----------------|
