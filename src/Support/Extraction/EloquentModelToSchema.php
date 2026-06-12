@@ -39,13 +39,12 @@ use function array_unique;
 use function array_values;
 use function class_exists;
 use function enum_exists;
-use function explode;
 use function in_array;
 use function is_a;
 use function ltrim;
 use function Radiergummi\OpenApi\copy_schema_fields;
-use function str_contains;
 use function str_replace;
+use function strtok;
 use function strtolower;
 use function ucwords;
 
@@ -139,8 +138,7 @@ final class EloquentModelToSchema
             }
 
             // An unrecognised cast (a custom CastsAttributes) is unknowable at Tier 0, but its
-            // `@property` tag still has a say rather than being swallowed (#252) — the same
-            // precedence #249 established. Falls back to an untyped property when no tag resolves.
+            // `@property` tag still has a say. Falls back to an untyped property when no tag resolves.
             if ($tag !== null) {
                 $property = $this->propertyFromTag($propertyName, $tag->type, $metadata['reflection']);
 
@@ -344,7 +342,7 @@ final class EloquentModelToSchema
                 $property = $this->castToProperty($name, $castString, $tag?->type);
 
                 // An unrecognised cast (a custom CastsAttributes) defers to the `@property` tag
-                // rather than swallowing it (#252); falls back to an untyped property otherwise.
+                // rather than swallowing it; falls back to an untyped property otherwise.
                 if ($property === null && $tag !== null) {
                     $property = $this->propertyFromTag($name, $tag->type, $reflection);
                 }
@@ -549,8 +547,8 @@ final class EloquentModelToSchema
     private function castToProperty(string $name, string $cast, ?TypeNode $declaredType = null): ?OA\Property
     {
         // The part before `:` — a parameterised cast (`decimal:2`, `AsCollection:Foo`) or the
-        // bare keyword / class-string.
-        $castHead = str_contains($cast, ':') ? explode(':', $cast, 2)[0] : $cast;
+        // bare keyword / class-string. `?: $cast` keeps the type a non-false string for an empty cast.
+        $castHead = strtok($cast, ':') ?: $cast;
 
         // Class-form object casts (the modern `casts()` style spells the JSON casts as castable
         // class-strings: `AsCollection::class`, `AsArrayObject::class`, …). getCasts() reports the
