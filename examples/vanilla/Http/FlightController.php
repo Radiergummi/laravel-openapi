@@ -116,6 +116,9 @@ final class FlightController
     public function destroy(string $flight): JsonResponse
     {
         $model = Flight::query()->findOrFail($flight);
+
+        abort_if($model->status === 'departed', 409, 'Departed flights can no longer be cancelled.');
+
         $model->delete();
 
         return new JsonResponse(null, 204);

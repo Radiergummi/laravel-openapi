@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\Core;
 use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\AbortErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\RouteModelBindingErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
@@ -61,11 +62,13 @@ final class CorePlugin implements Plugin
         $registry->addOperationConventionResolver(ResourceConventionResolver::class);
 
         // Error-response inference contributors; the registration order is important: Throws
-        // first (most specific), then the convention-derived ones (Middleware, Validation,
-        // route-model binding), which emit distinct statuses an explicit @throws would otherwise
-        // win. The stage that drives these contributors is registered by BaselineRegistration so
-        // plugins that only contribute contributors can work without depending on Core.
+        // first (most specific), then the abort() body scan (carries authored messages), then the
+        // convention-derived ones (Middleware, Validation, route-model binding), which emit
+        // distinct statuses an explicit @throws would otherwise win. The stage that drives these
+        // contributors is registered by BaselineRegistration so plugins that only contribute
+        // contributors can work without depending on Core.
         $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
+        $registry->addErrorResponseContributor(AbortErrorContributor::class);
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
         $registry->addErrorResponseContributor(RouteModelBindingErrorContributor::class);

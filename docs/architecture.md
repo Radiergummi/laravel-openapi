@@ -48,6 +48,7 @@ Laravel routes                      │
                                                                     │
                                                                     ▼  ErrorResponseInferenceStage
                                     ┌── ErrorResponseContributor(s)   ← Core: ThrowsErrorContributor
+                                    │                                 ← Core: AbortErrorContributor
                                     │                                 ← Core: MiddlewareErrorContributor
                                     └──                               ← Core: ValidationErrorContributor
                                                                     │  (dedupes by status; explicit #[Response] wins)
@@ -77,8 +78,9 @@ Laravel routes                      │
 4. **`ErrorResponseInferenceStage`** runs the registered
    `ErrorResponseContributor` chain per operation, collects
    `ErrorDescriptor`s from each contributor (`ThrowsErrorContributor`,
-   `MiddlewareErrorContributor`, `ValidationErrorContributor`), dedupes by
-   status (first contributor wins), and appends inferred error responses.
+   `AbortErrorContributor`, `MiddlewareErrorContributor`,
+   `ValidationErrorContributor`), dedupes by status (first contributor
+   wins), and appends inferred error responses.
    Explicit `#[Response(status: X)]` attributes on the action always
    override inferred responses for that status.
 5. **`ComponentSchemaRegistry`** is the shared `$ref` pool for reusable

@@ -254,11 +254,12 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
 
         $hasBody = $content !== null || $headers !== null || $links !== null;
 
-        // Share via a named response component only when the body is empty (description-only).
-        // Resolver-produced bodies may vary by descriptor — e.g., validation vs. generic at
-        // status 422 — so we inline them per operation to avoid first-write-wins collisions on the
-        // shared component.
-        if ($componentName !== null && !$hasBody) {
+        // Share via a named response component only when the body is empty (description-only)
+        // and the description is canonical for the status. Resolver-produced bodies may vary by
+        // descriptor — e.g., validation vs. generic at status 422 — and route-authored
+        // descriptions (an abort() message) vary by operation, so both are inlined per operation
+        // to avoid first-write-wins collisions on the shared component.
+        if ($componentName !== null && !$hasBody && $descriptor->shareableDescription) {
             $this->registry->registerNamedResponse(
                 $componentName,
                 new OA\Response([

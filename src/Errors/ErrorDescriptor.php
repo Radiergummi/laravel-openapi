@@ -32,6 +32,13 @@ use Throwable;
 final readonly class ErrorDescriptor
 {
     /**
+     * `$shareableDescription` declares whether the description may be hoisted into the shared
+     * per-status response component (`components.responses.Forbidden` etc.). Config- and
+     * attribute-mapped descriptions are canonical per status and share fine; a description
+     * authored for one route (e.g. an `abort(403, 'Admins only')` message) must stay inlined on
+     * that operation — the shared component is first-write-wins and would leak the text into
+     * every other operation with the same status.
+     *
      * @param null|class-string<Throwable> $exceptionClass
      */
     public function __construct(
@@ -39,5 +46,6 @@ final readonly class ErrorDescriptor
         public ?string $exceptionClass,
         public string $description,
         public ?ActionDescriptor $action = null,
+        public bool $shareableDescription = true,
     ) {}
 }

@@ -104,6 +104,8 @@ paths:
           description: 'The flight was cancelled'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: 'Departed flights can no longer be cancelled.'
       security: []
     patch:
       tags:
