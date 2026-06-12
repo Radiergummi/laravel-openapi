@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
-use Radiergummi\OpenApi\Lint\Rules\PublicEndpointContradictsMw;
+use Radiergummi\OpenApi\Lint\Rules\PublicEndpointContradictsMiddleware;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ControllerMiddlewareAuthController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\PublicEndpointMwClassController;
@@ -22,12 +22,12 @@ function publicEndpointFindings(string $controller, string $method, array $middl
     $operation = OperationNodeFactory::forDescriptor($descriptor);
 
     return iterator_to_array(
-        new PublicEndpointContradictsMw(app(RouteMiddlewareGatherer::class))->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new PublicEndpointContradictsMiddleware(app(RouteMiddlewareGatherer::class))->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 }
 
 it('reports its id and level', function (): void {
-    $rule = new PublicEndpointContradictsMw(app(RouteMiddlewareGatherer::class));
+    $rule = new PublicEndpointContradictsMiddleware(app(RouteMiddlewareGatherer::class));
 
     expect($rule->id())->toBe('publicendpoint.contradicts-middleware')
         ->and($rule->level())->toBe(1);

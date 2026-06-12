@@ -24,7 +24,7 @@ use function str_starts_with;
  * carries `auth:*` or `scope:*` middleware, indicating a contradiction between the declared
  * intent and the actual middleware stack.
  */
-final readonly class PublicEndpointContradictsMw implements Rule, OperationRuleVisitor
+final readonly class PublicEndpointContradictsMiddleware implements Rule, OperationRuleVisitor
 {
     public function __construct(
         private RouteMiddlewareGatherer $middlewareGatherer,
@@ -76,9 +76,8 @@ final readonly class PublicEndpointContradictsMw implements Rule, OperationRuleV
      */
     private function findConflictingMiddleware(ActionDescriptor $descriptor): array
     {
-        // Read the gathered (controller-aware) middleware, matching the generator — route-declared
-        // plus constructor / HasMiddleware registrations (#260). The gathered list may contain
-        // closure middleware, so filter to strings first.
+        // Read the gathered (controller-aware) middleware, matching the generator. The gathered
+        // list may contain closure middleware, so filter to strings first.
         $middleware = array_filter(
             $this->middlewareGatherer->middlewareFor($descriptor->route),
             is_string(...),

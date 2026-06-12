@@ -25,7 +25,7 @@ use function str_starts_with;
 /**
  * Reports when a route has auth or scope middleware but the generated operation declares no
  * `security` requirement, implying the endpoint is public while the runtime enforces
- * authentication. The forward mirror of {@see PublicEndpointContradictsMw}.
+ * authentication. The forward mirror of {@see PublicEndpointContradictsMiddleware}.
  *
  * The rule fires only when ALL of the following hold:
  *  1. The route carries `auth:*`, `scope:*`, or `scopes:*` middleware.
@@ -79,9 +79,8 @@ final readonly class OperationSecurityMissing implements Rule, OperationRuleVisi
 
     /**
      * Whether the route carries any `auth:*`, `scope:*`, `scopes:*`, or Sanctum `abilities:*` /
-     * `ability:*` middleware. Reads the gathered (controller-aware) list, matching the generator —
-     * route-declared plus constructor / HasMiddleware registrations (#260). The gathered list may
-     * contain closure middleware, so filter to strings first.
+     * `ability:*` middleware. Reads the gathered (controller-aware) list, matching the generator;
+     * filters to strings since the gathered list may contain closure middleware.
      */
     private function hasAuthMiddleware(ActionDescriptor $descriptor): bool
     {
