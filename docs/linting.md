@@ -504,6 +504,7 @@ is enabled.
 | `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured `path_parameter_case` (path parameters) or `query_parameter_case` (query parameters) convention. |
 | `path.segment-naming-inconsistent` | 3 | URL path segment doesn't follow the configured path_segment_case convention. |
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |
+| `query-builder.filter-duplicate` | 3 | Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.) |
 | `query-builder.filter-type-missing` | 3 | An #[AllowedFilter] is declared without an explicit value type. (QueryBuilder plugin.) |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
