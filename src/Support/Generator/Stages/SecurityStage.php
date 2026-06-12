@@ -15,6 +15,8 @@ use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
  *
  * Always runs (even if no schemes are emitted) because the existing generator always sets the
  * `securitySchemes` key — preserving that means downstream consumers' fixture diffs stay clean.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class SecurityStage implements SpecStage

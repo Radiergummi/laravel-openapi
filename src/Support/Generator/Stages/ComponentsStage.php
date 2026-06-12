@@ -15,6 +15,8 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
  *
  * Only allocates {@see OA\Components} when there is something to write; coexists with
  * {@see SecurityStage} which adds `securitySchemes` to the same components block.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class ComponentsStage implements SpecStage

@@ -58,6 +58,8 @@ use function Radiergummi\OpenApi\is_undefined;
  * Builds the property array {@see OpenApiGenerator} dispatches onto OA\Get/OA\Post/etc.
  * Override precedence: auto-derived defaults → class `#[Operation]` → method `#[Operation]` →
  * `#[Tag]`s merged → `#[Response]`s appended → native `#[\Deprecated]`.
+ *
+ * @internal
  */
 final readonly class OperationBuilder
 {

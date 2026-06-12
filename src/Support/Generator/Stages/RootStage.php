@@ -13,6 +13,8 @@ use function config;
 
 /**
  * Writes top-level document fields: openapi version, info, servers (with app.url fallback), tags.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class RootStage implements SpecStage

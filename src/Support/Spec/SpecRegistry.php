@@ -29,6 +29,8 @@ use function storage_path;
  * Resolved lazily on first call and memoised for the lifetime of the registry
  * instance (which is bound `scoped` by the service provider — one instance per
  * generation run / per request).
+ *
+ * @internal
  */
 #[Scoped]
 final class SpecRegistry

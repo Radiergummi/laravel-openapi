@@ -20,6 +20,8 @@ use const JSON_THROW_ON_ERROR;
  * Loaded files are cached for the duration of a single generation run. The class is bound as
  * `scoped` in {@see OpenApiServiceProvider}, so each scope (each request under Octane) receives
  * a fresh instance.
+ *
+ * @internal
  */
 #[Scoped]
 final class ExampleFileLoader

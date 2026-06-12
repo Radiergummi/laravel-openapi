@@ -37,6 +37,8 @@ use function in_array;
  * 3. Visibility: the route is excluded when `#[Hide]` applies in the current environment.
  * 4. Visibility default + `#[Expose]`: included when `visibility.default = 'public'` OR an
  *    `#[Expose]` resolves true for the current environment.
+ *
+ * @internal
  */
 final readonly class InclusionEvaluator
 {

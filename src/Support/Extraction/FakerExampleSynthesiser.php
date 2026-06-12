@@ -37,6 +37,8 @@ use function strtolower;
  *
  * Degrades when Faker is absent — `fakerphp/faker` is declared in `require-dev`. If it is not
  * installed at runtime, every call returns `null` and no error is raised.
+ *
+ * @internal
  */
 final readonly class FakerExampleSynthesiser
 {

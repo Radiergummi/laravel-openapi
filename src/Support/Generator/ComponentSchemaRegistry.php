@@ -34,6 +34,8 @@ use function substr;
  * **Key generation:** the component key is the class basename (e.g. `CreateProjectData`). If two
  * Data classes in different namespaces share a basename, the second one is disambiguated with its
  * parent directory segment concatenated in PascalCase (e.g. `ProjectsCreateProjectData`).
+ *
+ * @internal
  */
 #[Scoped]
 final class ComponentSchemaRegistry

@@ -20,6 +20,8 @@ use function spl_object_id;
  * This reader exposes exactly that one piece of information; it never reads method bodies.
  *
  * Returned names are not verified — callers run `class_exists()` before trusting them.
+ *
+ * @internal
  */
 #[Scoped]
 final class ReturnTypeExtractor

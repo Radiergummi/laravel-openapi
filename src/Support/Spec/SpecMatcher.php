@@ -32,6 +32,8 @@ use function str_starts_with;
  * implicit `default` spec live in {@see InclusionEvaluator}, which short-circuits before
  * reaching the matcher. This keeps {@see SpecMatcher} a pure predicate over the three config
  * keys.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class SpecMatcher

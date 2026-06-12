@@ -30,6 +30,9 @@ use function is_subclass_of;
 use function preg_match;
 use function str_contains;
 
+/**
+ * @internal
+ */
 #[Scoped]
 final readonly class UriParameterResolver
 {

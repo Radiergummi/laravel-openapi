@@ -24,6 +24,8 @@ use function assert;
  *
  * Method presence shadows the class: a method carrying `#[Spec]` ignores the class's
  * `#[Spec]` entirely, even if the union would differ.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class SpecResolver

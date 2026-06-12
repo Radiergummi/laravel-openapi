@@ -14,6 +14,8 @@ namespace Radiergummi\OpenApi\Support\Inclusion;
  * `'spec-match'`, `'visibility'`); `name` identifies the specific thing under that stage
  * (the filter class name, the matched key, etc.); `passed` is the boolean outcome; `reason`
  * is a one-line human-readable explanation.
+ *
+ * @internal
  */
 final readonly class TraceEntry
 {

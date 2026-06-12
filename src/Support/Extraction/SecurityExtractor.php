@@ -53,6 +53,8 @@ use function substr;
  *
  * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
  * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
+ *
+ * @internal
  */
 #[Scoped]
 final class SecurityExtractor

@@ -14,6 +14,8 @@ use Radiergummi\OpenApi\Events\SkipReason;
  * output (the leading verb explaining the outcome, e.g. "global filter SkipNovaRoutes",
  * "matched by prefix", "hidden in environment local"). `reason` is `null` for included
  * decisions and a {@see SkipReason} enum case for excluded ones.
+ *
+ * @internal
  */
 final readonly class InclusionDecision
 {

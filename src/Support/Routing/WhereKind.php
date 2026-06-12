@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Routing;
 
+/**
+ * @internal
+ */
 enum WhereKind
 {
     /** UUID pattern — string with UUID regex, maps to `format: uuid` in OpenAPI. */

@@ -65,6 +65,8 @@ use const SORT_REGULAR;
  * form (`['required', 'string', Rule::in([…]]`) — and produces one {@see FieldDescriptor} per
  * field. Unknown rule objects emit a {@see Finding} with rule ID `rule.unknown` instead of being
  * silently dropped.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class ValidationRulesToSchema

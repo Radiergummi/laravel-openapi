@@ -13,6 +13,8 @@ use function in_array;
 
 /**
  * @implements Arrayable<string, mixed>
+ *
+ * @internal
  */
 final readonly class OperationDescriptor implements Arrayable
 {

@@ -23,6 +23,8 @@ use function hrtime;
  *
  * Thin wrapper around {@see SpecPipeline} that dispatches lifecycle events with timing.
  * The swagger-php 3.1 context pin lives inside {@see SpecPipeline::run()}.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class OpenApiGenerator

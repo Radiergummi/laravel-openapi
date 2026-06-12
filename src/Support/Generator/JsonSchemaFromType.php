@@ -42,6 +42,8 @@ use const PHP_EOL;
  * Dispatch order matters because of the symfony/type-info inheritance hierarchy:
  *   - NullableType extends UnionType  → check NullableType BEFORE UnionType
  *   - BackedEnumType extends EnumType extends ObjectType → check BackedEnumType BEFORE ObjectType
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class JsonSchemaFromType

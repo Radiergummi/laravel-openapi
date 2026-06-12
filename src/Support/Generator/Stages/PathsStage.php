@@ -38,6 +38,8 @@ use function strtolower;
  *
  * Owns operation-level transformer dispatch and operationId derivation. Skipped routes
  * dispatch {@see RouteSkipped} for any registered listener.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class PathsStage implements SpecStage

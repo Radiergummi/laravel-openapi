@@ -26,6 +26,8 @@ use UnexpectedValueException;
  * (`config('openapi.filters')`), spec membership, and visibility are all applied there. Keeping
  * introspection unfiltered means every exclusion produces a {@see RouteSkipped} event and a trace
  * entry visible to `openapi:why`, with no hidden "first the introspector also dropped some" stage.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class RouteIntrospector

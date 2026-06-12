@@ -25,6 +25,8 @@ use function is_a;
  *    whose class `is_a()` one of the configured `$indirectionClasses`, that class's constructor
  *    is reflected and its non-builtin named-type parameters are appended. This is the right
  *    pass for callers that ask "what request-payload class does this method ultimately receive?".
+ *
+ * @internal
  */
 #[Scoped]
 final class PayloadParameterScanner

@@ -35,6 +35,8 @@ use function Radiergummi\OpenApi\is_defined;
  * for its findings collector.
  *
  * Used by {@see GenerateCommand} and {@see DocsController}.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class OpenApiGenerationOrchestrator

@@ -16,6 +16,8 @@ use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
  *
  * `routeUri` / `playgroundUri` may be `null` to opt out of HTTP serving entirely (config sets
  * the entry to `false` or `null`).
+ *
+ * @internal
  */
 final readonly class SpecDefinition
 {

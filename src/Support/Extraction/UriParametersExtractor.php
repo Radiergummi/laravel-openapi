@@ -25,6 +25,8 @@ use function sprintf;
  *
  * Enriches each parameter with `description` and `example` from a `#[PathParam]` (or any
  * FieldAttribute subclass) declared on the corresponding ReflectionParameter.
+ *
+ * @internal
  */
 #[Scoped]
 final readonly class UriParametersExtractor

@@ -6,6 +6,9 @@ namespace Radiergummi\OpenApi\Support\Routing;
 
 use Symfony\Component\TypeInfo\Type;
 
+/**
+ * @internal
+ */
 final readonly class UriParameterDescriptor
 {
     /**

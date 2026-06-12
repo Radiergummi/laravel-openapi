@@ -20,6 +20,8 @@ use function Radiergummi\OpenApi\is_undefined;
  *
  * All fields default to null / false — null means "not set" and causes the corresponding OpenAPI
  * annotation field to be omitted (preserving the annotation's `Generator::UNDEFINED` sentinel).
+ *
+ * @internal
  */
 final class FieldDescriptor
 {

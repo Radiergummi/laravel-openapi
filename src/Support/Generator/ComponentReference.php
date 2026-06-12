@@ -15,6 +15,8 @@ use function preg_match;
  *
  * Pure and stateless: callable from lint rules, attributes, and plugins alike, without injecting
  * the stateful {@see ComponentSchemaRegistry}.
+ *
+ * @internal
  */
 final class ComponentReference
 {

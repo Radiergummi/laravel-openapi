@@ -18,6 +18,8 @@ use Radiergummi\OpenApi\Attributes\ResponseField;
  * Null means "not set": {@see toOpenApi()} omits null keys so extractors' inferred values are
  * preserved. `enum` entries are any JSON-Schema scalar (`bool`, `float`, `int`, `string`) or a
  * {@see BackedEnum} case; {@see toOpenApi()} converts BackedEnum cases to their backing values.
+ *
+ * @internal
  */
 final readonly class SchemaDescriptor
 {

@@ -17,6 +17,8 @@ use function method_exists;
  * Resolves `@throws` annotations to FQCNs via phpstan/phpdoc-parser + symfony/type-info.
  *
  * Returned names are not verified — callers run `class_exists()` before trusting them.
+ *
+ * @internal
  */
 #[Scoped]
 final class ThrowsExtractor

@@ -22,6 +22,8 @@ use function sprintf;
  * Iterates registered {@see RequestSchemaResolver}s (first non-null wins) and assembles an
  * {@see OA\RequestBody}. Emits a `request.empty` finding when no resolver matches a
  * write-method action.
+ *
+ * @internal
  */
 final readonly class RequestBodyExtractor
 {

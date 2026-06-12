@@ -26,6 +26,8 @@ use function Radiergummi\OpenApi\is_undefined;
  * - **`$ref` schema** (bare reference, where extra keywords are ignored): wrap in
  *   `oneOf: [{$ref: …}, {type: 'null'}]`.
  * - **Other** (oneOf/allOf/enum without an explicit type): wrap in `oneOf` as well.
+ *
+ * @internal
  */
 final class NullableSchema
 {
