@@ -32,10 +32,13 @@ beforeEach(function (): void {
     $this->spec = generateSpec();
 });
 
-it('emits security: [] for PublicEndpoint despite auth middleware', function (): void {
+it('emits security: [] for PublicEndpoint and suppresses the auth-derived 401', function (): void {
     $operation = $this->spec['paths']['/oa-fixture/public']['get'];
 
-    expect($operation['security'])->toBe([]);
+    // A declared-public operation clears `security`; the auth-derived 401 that would contradict
+    // that must be suppressed too (#259). `/oa-fixture/public` carries `auth:api`.
+    expect($operation['security'])->toBe([])
+        ->and($operation['responses'])->not->toHaveKey('401');
 });
 
 it('honors explicit Security scopes', function (): void {
