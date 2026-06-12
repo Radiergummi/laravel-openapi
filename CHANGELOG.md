@@ -11,6 +11,17 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **New `resource.response-empty` lint rule** (#255). A response typed to the base
+  `Illuminate\Http\Resources\Json\JsonResource` (or an abstract subclass) the generator can't
+  extract a shape from ships an empty `{data: {}}` envelope, but no rule flagged it:
+  `resource.response-ambiguous` fires only for a collection with no item class, and
+  `resource.fields-undeclared` deliberately skips the base/abstract class. The new ApiResources
+  plugin rule (level 1) fills the gap — it fires exactly where `fields-undeclared` skips, gated on
+  the same emptiness checks (no readable `toArray()` literal fields, no resolvable wrapped model),
+  so a base/abstract resource that *does* carry an inferable shape isn't flagged. The three rules
+  now partition every way a resource response ends up shapeless. Bagisto's ~100 `new JsonResource([…])`
+  returns now surface a finding instead of silently documenting an empty payload. See
+  [Linting](docs/linting.md).
 - **Fractal transformer schemas are now inferred from the `transform()` literal** (#13). When a
   transformer's `transform()` is a single `return [...]` array literal (Tier-1 bounded scan, epic
   #5), its keys become response properties without any `#[TransformerField]`: `$model->field`
