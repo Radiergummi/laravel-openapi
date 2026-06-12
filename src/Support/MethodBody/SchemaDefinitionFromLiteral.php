@@ -128,7 +128,9 @@ final readonly class SchemaDefinitionFromLiteral
 
     /**
      * Maps an already-evaluated literal (a scalar, or an array reached through a class constant)
-     * onto its schema definition. `null` and empty arrays yield an unconstrained definition.
+     * onto its schema definition, with the same semantics as the AST branch: `null` yields an
+     * unconstrained definition, an empty array is an array of unknown items, and list items are
+     * only claimed when every element agrees on a type (see {@see self::listDefinition()}).
      *
      * @return array<string, mixed>
      */
@@ -136,13 +138,11 @@ final readonly class SchemaDefinitionFromLiteral
     {
         if (is_array($literal)) {
             if ($literal === []) {
-                return [];
+                return ['type' => 'array'];
             }
 
             if (array_is_list($literal)) {
-                $first = self::fromLiteralValue($literal[0]);
-
-                return $first === [] ? ['type' => 'array'] : ['type' => 'array', 'items' => $first];
+                return self::listDefinition(array_map(self::fromLiteralValue(...), $literal));
             }
 
             $properties = [];

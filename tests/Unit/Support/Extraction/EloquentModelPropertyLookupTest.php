@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
+use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -25,6 +26,7 @@ function modelPropertyReader(): EloquentModelToSchema
     return new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
+        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),

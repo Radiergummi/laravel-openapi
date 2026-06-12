@@ -245,9 +245,10 @@ class Post extends Model
 - **`Model::find()` / `findOrFail()` return statements are not read** (Tier-1,
   tracked as [#97](https://github.com/radiergummi/laravel-openapi/issues/97)).
   Type your action's return type explicitly to get a response schema.
-- **`JsonResource` wrapping a model** is documented by the ApiResources plugin
-  separately (tracked as [#98](https://github.com/radiergummi/laravel-openapi/issues/98));
-  the model schema and the resource schema are currently independent.
+- **A `JsonResource` whose `toArray()` cannot be read** falls back to the wrapped
+  model's schema (the passthrough base case); `$this->field` references inside a
+  readable `toArray()` resolve against the model's metadata. See
+  [Plugins → ApiResources](plugins.md#apiresources).
 
 ## Inline JSON responses
 

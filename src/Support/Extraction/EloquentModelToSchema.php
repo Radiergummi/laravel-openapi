@@ -49,7 +49,7 @@ use function ucwords;
  * @internal
  */
 #[Scoped]
-final readonly class EloquentModelToSchema
+final class EloquentModelToSchema
 {
     /**
      * Per-model metadata memo for {@see propertyFor()} and {@see schemaFor()}; null marks a
