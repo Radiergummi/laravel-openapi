@@ -53,4 +53,26 @@ it('still constrains items when every element agrees on a type', function (): vo
         ->toBe(['type' => 'array', 'items' => ['type' => 'integer']]);
 });
 
+it('leaves items unconstrained for a list of objects with differing property shapes', function (): void {
+    // Both elements are type: object, so a type-only comparison would impose the first element's
+    // shape; the differing key sets must degrade to unconstrained items instead.
+    expect(SchemaDefinitionFromLiteral::fromLiteralValue([
+        ['status' => 'active', 'expires_at' => '2025-01-01'],
+        ['status' => 'inactive'],
+    ]))->toBe(['type' => 'array', 'items' => []]);
+});
+
+it('constrains items for a list of objects that share the same property shape', function (): void {
+    expect(SchemaDefinitionFromLiteral::fromLiteralValue([
+        ['id' => 1, 'name' => 'Alice'],
+        ['id' => 2, 'name' => 'Bob'],
+    ]))->toBe([
+        'type' => 'array',
+        'items' => [
+            'type' => 'object',
+            'properties' => ['id' => ['type' => 'integer'], 'name' => ['type' => 'string']],
+        ],
+    ]);
+});
+
 // endregion

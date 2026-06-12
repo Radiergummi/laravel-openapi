@@ -176,8 +176,10 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
-     * Items are derived from the first element; when a later element disagrees on type the items
-     * stay unconstrained — a heterogeneous literal list has no single item schema.
+     * Items are derived from the first element; when a later element disagrees the items stay
+     * unconstrained — a heterogeneous literal list has no single item schema. Disagreement is on
+     * the top-level `type`, and additionally on the property shape for object elements (two objects
+     * with differing keys must not have the first one's shape imposed on the whole list).
      *
      * @param non-empty-list<array<string, mixed>> $definitions
      *
@@ -186,9 +188,14 @@ final readonly class SchemaDefinitionFromLiteral
     private static function listDefinition(array $definitions): array
     {
         $first = $definitions[0];
+        $firstIsObject = ($first['type'] ?? null) === 'object';
 
         foreach ($definitions as $definition) {
             if (($definition['type'] ?? null) !== ($first['type'] ?? null)) {
+                return self::arrayOfUnknownItems();
+            }
+
+            if ($firstIsObject && ($definition['properties'] ?? null) != ($first['properties'] ?? null)) {
                 return self::arrayOfUnknownItems();
             }
         }
