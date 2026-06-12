@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\DetectsAuthMiddleware;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Throwable;
 
 use function array_any;
@@ -34,6 +35,7 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
      * @param array<string, array{status: int, description: string, exception?: class-string<Throwable>}> $middlewareMap
      */
     public function __construct(
+        private RouteMiddlewareGatherer $middlewareGatherer,
         #[Config('openapi.middleware_responses', default: [])]
         private array $middlewareMap = [],
     ) {}
@@ -45,11 +47,11 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
     public function contribute(ActionDescriptor $descriptor): array
     {
         $descriptors = [];
-        // gatherMiddleware() may include closure middleware; the string-typed
+        // The gathered list may include closure middleware; the string-typed
         // detectors below only understand named middleware, so drop the rest.
         $middleware = array_values(
             array_filter(
-                $descriptor->route->gatherMiddleware(),
+                $this->middlewareGatherer->middlewareFor($descriptor->route),
                 is_string(...),
             ),
         );

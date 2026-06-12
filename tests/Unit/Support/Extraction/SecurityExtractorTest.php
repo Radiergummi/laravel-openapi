@@ -6,8 +6,17 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Routing\Router;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 
 uses()->group('openapi');
+
+function securityExtractor(Router $router): SecurityExtractor
+{
+    return new SecurityExtractor(
+        router: $router,
+        middlewareGatherer: app(RouteMiddlewareGatherer::class),
+    );
+}
 
 // Covers the public `openapi.security_schemes` and `openapi.security_default_scheme`
 // config surfaces. Per-route middleware extraction is exercised end-to-end by
@@ -22,7 +31,7 @@ it('emits config-declared security schemes from openapi.security_schemes', funct
         ],
     ]);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
     $names     = array_map(static fn($s) => $s->securityScheme, $extractor->buildSchemes());
 
     expect($names)->toContain('bearer');
@@ -33,7 +42,7 @@ it('merges config-declared schemes with Passport-derived ones', function (): voi
         'bearer' => ['type' => 'http', 'scheme' => 'bearer'],
     ]);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
     $names     = array_map(static fn($s) => $s->securityScheme, $extractor->buildSchemes());
 
     expect($names)
@@ -47,7 +56,7 @@ it('lets a config entry override a Passport-derived scheme on key collision', fu
         'oauth2' => ['type' => 'apiKey', 'name' => 'X-API-Key', 'in' => 'header'],
     ]);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     $byName = [];
 
@@ -61,7 +70,7 @@ it('lets a config entry override a Passport-derived scheme on key collision', fu
 it('auto-derives a sanctum bearer scheme when an auth:sanctum route exists', function (): void {
     app('router')->get('/protected', static fn() => null)->middleware('auth:sanctum');
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     $byName = [];
 
@@ -77,7 +86,7 @@ it('auto-derives a sanctum bearer scheme when an auth:sanctum route exists', fun
 it('does not register a sanctum scheme when no route uses auth:sanctum', function (): void {
     // Token-based detection guards against over-registration: Passport is the only
     // auto-derived source here, and no route carries auth:sanctum.
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     $names = array_map(static fn($s) => $s->securityScheme, $extractor->buildSchemes());
 
@@ -101,13 +110,13 @@ it('emits a sanctum per-operation requirement for an auth:sanctum route when Pas
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['sanctum' => []]]);
 });
 
 it('targets the explicit scheme name when requirementForScopes is called with $scheme', function (): void {
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     expect($extractor->requirementForScopes(['read'], scheme: 'bearer'))
         ->toBe([['bearer' => ['read']]]);
@@ -119,7 +128,7 @@ it('uses openapi.security_default_scheme (string) as the default when set', func
     ]);
     config()->set('openapi.security_default_scheme', 'bearer');
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     expect($extractor->requirementForScopes(['read']))
         ->toBe([['bearer' => ['read']]]);
@@ -132,7 +141,7 @@ it('uses openapi.security_default_scheme (list) to emit multiple OR-alternatives
     ]);
     config()->set('openapi.security_default_scheme', ['bearer', 'apiKey']);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     expect($extractor->requirementForScopes(['read']))
         ->toBe([
@@ -156,7 +165,7 @@ it('falls back to the first config-declared scheme when default is unset and Pas
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn(new RouteCollection())->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->requirementForScopes(['read']))
         ->toBe([['bearer' => ['read']]]);
@@ -165,7 +174,7 @@ it('falls back to the first config-declared scheme when default is unset and Pas
 it('preserves the Passport oauth2 pair as the default when default is unset and Passport is installed', function (): void {
     config()->set('openapi.security_default_scheme', null);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     expect($extractor->requirementForScopes(['read']))
         ->toBe([
@@ -190,7 +199,7 @@ it('omits security for an auth route when no scheme is derivable, instead of an 
     $route                        = new Route(['GET'], '/protected', ['uses' => static fn() => null]);
     $route->action['middleware']  = ['auth:web'];
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBeNull();
 });
@@ -198,7 +207,7 @@ it('omits security for an auth route when no scheme is derivable, instead of an 
 it('emits an explicit empty (public) requirement for a route with no auth or scope middleware', function (): void {
     $route = new Route(['GET'], '/open', ['uses' => static fn() => null]);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     expect($extractor->forRoute($route))->toBe([]);
 });
@@ -220,7 +229,7 @@ it('lists abilities:read,write as scopes on the security requirement', function 
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['sanctum' => ['read', 'write']]]);
 });
@@ -240,7 +249,7 @@ it('lists ability:admin as a scope on the security requirement', function (): vo
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['sanctum' => ['admin']]]);
 });
@@ -262,7 +271,7 @@ it('maps ability: (any-of) to OR-alternative requirements, one per ability', fun
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([
         ['sanctum' => ['read']],
@@ -286,7 +295,7 @@ it('carries the all-of abilities onto each any-of alternative when both are pres
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([
         ['sanctum' => ['base', 'x']],
@@ -309,7 +318,7 @@ it('deduplicates repeated abilities like the Passport scope path', function (): 
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['sanctum' => ['read', 'write']]]);
 });
@@ -331,7 +340,7 @@ it('emits the mapped scheme for a route carrying a configured custom guard middl
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn(new RouteCollection())->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['partner' => []]]);
 });
@@ -341,7 +350,7 @@ it('leaves a route with no mapped middleware as a public requirement', function 
 
     $route = new Route(['GET'], '/open', ['uses' => static fn() => null]);
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     expect($extractor->forRoute($route))->toBe([]);
 });
@@ -367,7 +376,7 @@ it('lets a mapped scheme take precedence over the auto-derived default, carrying
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['partner' => ['read']]]);
 });
@@ -388,7 +397,7 @@ it('emits a single requirement for a mapped scheme whose name matches the auto-d
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['sanctum' => []]]);
 });
@@ -408,7 +417,7 @@ it('does not leak an empty-string scope from an argument-less ability token', fu
     $router->allows('getMiddlewareGroups')->andReturn([])->byDefault();
     $router->allows('getRoutes')->andReturn($collection)->byDefault();
 
-    $extractor = new SecurityExtractor(router: $router);
+    $extractor = securityExtractor($router);
 
     expect($extractor->forRoute($route))->toBe([['sanctum' => []]]);
 });
@@ -420,7 +429,7 @@ it('does not crash on a route carrying closure middleware', function (): void {
     $route = new Route(['GET'], '/closure-mw', ['uses' => static fn() => null]);
     $route->action['middleware'] = [static fn($request, $next) => $next($request), 'auth:api'];
 
-    $extractor = new SecurityExtractor(router: app('router'));
+    $extractor = securityExtractor(app('router'));
 
     // The closure middleware must be skipped; the string middleware still drives
     // the requirement. Previously this threw a TypeError on the closure key.
@@ -431,4 +440,29 @@ it('does not crash on a route carrying closure middleware', function (): void {
             ['oauth2' => []],
             ['oauth2ClientCredentials' => []],
         ]);
+});
+
+it('merges constructor middleware into the requirement when the controller cannot be instantiated', function (): void {
+    $route = Illuminate\Support\Facades\Route::get(
+        '/constructor-mw',
+        [Radiergummi\OpenApi\Tests\Fixtures\ConstructorMiddleware\ConstructorMiddlewareFixtureController::class, 'index'],
+    );
+
+    $extractor = securityExtractor(app('router'));
+
+    // The constructor applies `auth:sanctum`; instantiation throws on the unbound dependency,
+    // so the requirement can only come from the static constructor scan.
+    expect($extractor->forRoute($route))->toContain(['sanctum' => []]);
+});
+
+it('does not double-derive when route and constructor declare the same middleware', function (): void {
+    $route = Illuminate\Support\Facades\Route::get(
+        '/constructor-mw',
+        [Radiergummi\OpenApi\Tests\Fixtures\ConstructorMiddleware\ConstructorMiddlewareFixtureController::class, 'index'],
+    )->middleware('auth:sanctum');
+
+    $extractor = securityExtractor(app('router'));
+    $requirement = $extractor->forRoute($route) ?? [];
+
+    expect(array_keys($requirement, ['sanctum' => []], true))->toHaveCount(1);
 });

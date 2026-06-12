@@ -14,8 +14,8 @@ source.
 | Query parameters | Request-accessor reads in the method body — `$request->query('sort')` / `input('q')` → `string`, `string('name')` / `integer('page')` / `boolean('active')` → their named type (bounded scan; see [Query parameters from the method body](#query-parameters-from-the-method-body)). On GET/HEAD routes, inline `validate()` keys become query parameters (name, schema, `required` from the rules) instead of a request body. With the QueryBuilder plugin enabled, a literal `QueryBuilder::for(...)` chain's `allowedFilters` / `allowedSorts` / `allowedIncludes` become `filter[…]` / `sort` / `include` parameters (see [Plugins → QueryBuilder](plugins.md#querybuilder)). `#[QueryParam]` attributes win for their name; other names compose. |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema: fields are inferred from a single-`return [...]` `toArray()` literal (`$this->field` typed from the wrapped `@mixin`/`@extends` model, nested resources as `$ref`s, `when*` wrappers optional) composed with declared `#[ResourceField]` attributes, which win per field; a passthrough or dynamic `toArray()` falls back to the wrapped model's schema (see [Plugins → ApiResources](plugins.md#apiresources)). A **base** resource return type (`JsonResource`, bare `ResourceCollection`, `AnonymousResourceCollection`) resolves the concrete resource from the method's return expression — `X::collection(…)` / `X::make(…)` / `new X(…)`, `->toResource(…)`, or a `@return …Collection<X>` generic; a collection only claims the paginated envelope when its source visibly ends in a `paginate()`-family call, looking through paginator-preserving links like `withQueryString()` (bounded scan; see [Plugins → ApiResources → Resolving the resource from the return expression](plugins.md#resolving-the-resource-from-the-return-expression)). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). |
-| Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
-| Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
+| Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware — route-declared or controller-applied, including constructor `$this->middleware(...)` and the static `HasMiddleware` form (see [Controller middleware](#controller-middleware)) — → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
+| Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware (route-declared or controller-applied, see [Controller middleware](#controller-middleware)) → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
 | Validation constraints | `Data::rules()` and Spatie validation attributes → `maxLength`, `minLength`, `pattern`, `enum`, `format`, `minimum`/`maximum`, `minItems`/`maxItems`. |
 
 Use an authoring attribute when convention can't produce what you need. See
@@ -391,6 +391,58 @@ Boundaries, by design (no dataflow analysis):
   accessor read of the same name — they know `required` and the constraints.
 - An explicit `#[QueryParam]` wins **entirely** for its name (no merging);
   parameters from different sources with different names compose.
+
+## Controller middleware
+
+Everywhere the generator reads a route's middleware — security requirements,
+the implicit 401/403/429 responses, multi-spec `match.middleware`, and
+`openapi:why` — it sees **controller-applied middleware too**, not just what
+the route declares. Both controller idioms count:
+
+```php
+// Laravel 11+ static form — resolved without instantiating the controller.
+class ReportController implements HasMiddleware
+{
+    public static function middleware(): array
+    {
+        return [new Middleware('auth:sanctum', only: ['index'])];
+    }
+}
+
+// Classic constructor form, common in long-lived apps.
+class ExportController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware('auth:sanctum');
+        $this->middleware('verified')->only(['index']);
+        $this->middleware('throttle:exports', ['except' => ['index']]);
+    }
+}
+```
+
+For instantiable controllers Laravel resolves both forms itself, `only` /
+`except` included. The interesting case is a controller the container *cannot*
+build at generation time — an unbound constructor dependency, a constructor
+that throws outside a real request. Previously that crashed the run; now the
+generator logs a notice and falls back to a **bounded static scan** of the
+constructor (the first 10 top-level statements): literal
+`$this->middleware(...)` names with literal `->only(...)` / `->except(...)` or
+options-array scoping are merged into the route's middleware list,
+deduplicated, and matched against the action method. Inherited constructors
+work — the scan reads the declaring (base) class.
+
+Boundaries, by design (no dataflow analysis):
+
+- Only literal strings (and class constants) are read. A dynamic name
+  (`$this->middleware($this->guard())`) or non-literal scoping is skipped with
+  a generation-log note.
+- A registration inside an `if` is **not** documented — conditional middleware
+  presented as unconditional would overstate the contract. The generation log
+  notes it; annotate the affected actions with `#[Security]` to document the
+  requirement explicitly.
+- `#[Security]` and `#[PublicEndpoint]` always win over middleware-derived
+  security, exactly as for route-declared middleware.
 
 ## Resource action conventions
 

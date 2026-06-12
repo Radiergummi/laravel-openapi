@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use ReflectionException;
 use UnexpectedValueException;
@@ -130,7 +131,7 @@ class WhyCommand extends Command
         $middleware = array_values(
             array_map(
                 static fn(mixed $entry): string => (string) $entry,
-                $descriptor->route->gatherMiddleware(),
+                app(RouteMiddlewareGatherer::class)->middlewareFor($descriptor->route),
             ),
         );
 

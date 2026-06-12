@@ -9,6 +9,7 @@ use Radiergummi\OpenApi\Attributes\Hide;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Events\SkipReason;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
 use Radiergummi\OpenApi\Support\Spec\SpecResolver;
@@ -47,6 +48,7 @@ final readonly class InclusionEvaluator
         private SpecMatcher $matcher,
         private SpecResolver $specResolver,
         private VisibilityResolver $visibility,
+        private RouteMiddlewareGatherer $middlewareGatherer,
     ) {}
 
     /**
@@ -132,7 +134,7 @@ final readonly class InclusionEvaluator
                     middleware: array_values(
                         array_map(
                             static fn(mixed $entry): string => (string) $entry,
-                            $descriptor->route->gatherMiddleware(),
+                            $this->middlewareGatherer->middlewareFor($descriptor->route),
                         ),
                     ),
                     controller: $descriptor->controller?->getName(),

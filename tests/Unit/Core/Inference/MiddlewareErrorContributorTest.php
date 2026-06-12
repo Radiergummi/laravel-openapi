@@ -7,6 +7,7 @@ use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 
 uses()->group('openapi');
@@ -14,7 +15,7 @@ uses()->group('openapi');
 // region Empty middleware
 
 it('returns an empty list when there is no middleware', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'auth'     => ['status' => 401, 'description' => 'Unauthenticated', 'exception' => AuthenticationException::class],
         'scope'    => ['status' => 403, 'description' => 'Insufficient scope'],
         'throttle' => ['status' => 429, 'description' => 'Too many requests', 'exception' => ThrottleRequestsException::class],
@@ -30,7 +31,7 @@ it('returns an empty list when there is no middleware', function (): void {
 // region auth middleware
 
 it('returns a 401 descriptor when auth middleware is present and auth is configured', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'auth' => ['status' => 401, 'description' => 'Unauthenticated', 'exception' => AuthenticationException::class],
     ]);
 
@@ -47,7 +48,7 @@ it('returns a 401 descriptor when auth middleware is present and auth is configu
 // region scope middleware
 
 it('returns a 403 descriptor when scope middleware is present and scope is configured', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'scope' => ['status' => 403, 'description' => 'Insufficient scope'],
     ]);
 
@@ -64,7 +65,7 @@ it('returns a 403 descriptor when scope middleware is present and scope is confi
 // region can middleware
 
 it('returns a 403 descriptor when can middleware is present and can is configured', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'can' => ['status' => 403, 'description' => 'Forbidden'],
     ]);
 
@@ -80,7 +81,7 @@ it('returns a 403 descriptor when can middleware is present and can is configure
 // region throttle middleware
 
 it('returns a 429 descriptor when throttle middleware is present and throttle is configured', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'throttle' => ['status' => 429, 'description' => 'Too many requests', 'exception' => ThrottleRequestsException::class],
     ]);
 
@@ -97,7 +98,7 @@ it('returns a 429 descriptor when throttle middleware is present and throttle is
 // region all three middleware
 
 it('returns three descriptors in auth/scope/throttle order when all three middleware are present', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'auth'     => ['status' => 401, 'description' => 'Unauthenticated', 'exception' => AuthenticationException::class],
         'scope'    => ['status' => 403, 'description' => 'Insufficient scope'],
         'throttle' => ['status' => 429, 'description' => 'Too many requests', 'exception' => ThrottleRequestsException::class],
@@ -116,7 +117,7 @@ it('returns three descriptors in auth/scope/throttle order when all three middle
 // region middleware present but kind absent from config
 
 it('emits no descriptor for a middleware kind absent from the config map', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'auth' => ['status' => 401, 'description' => 'Unauthenticated'],
         // 'throttle' intentionally absent
     ]);
@@ -132,7 +133,7 @@ it('emits no descriptor for a middleware kind absent from the config map', funct
 // region closure middleware
 
 it('ignores closure middleware without crashing', function (): void {
-    $contributor = new MiddlewareErrorContributor(middlewareMap: [
+    $contributor = new MiddlewareErrorContributor(middlewareGatherer: app(RouteMiddlewareGatherer::class), middlewareMap: [
         'auth' => ['status' => 401, 'description' => 'Unauthenticated', 'exception' => AuthenticationException::class],
     ]);
 

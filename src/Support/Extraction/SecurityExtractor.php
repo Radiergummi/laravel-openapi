@@ -9,6 +9,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 
 use function array_any;
 use function array_filter;
@@ -96,7 +97,10 @@ final class SecurityExtractor
     /** @var ?list<string> */
     private ?array $defaultSchemeNames = null;
 
-    public function __construct(private readonly Router $router) {}
+    public function __construct(
+        private readonly Router $router,
+        private readonly RouteMiddlewareGatherer $middlewareGatherer,
+    ) {}
 
     /**
      * @return list<OA\SecurityScheme>
@@ -319,13 +323,18 @@ final class SecurityExtractor
     }
 
     /**
-     * Gathers a route's middleware and expands any group names to their members.
+     * Gathers a route's middleware — via the crash-safe {@see RouteMiddlewareGatherer}, so
+     * constructor-applied middleware of non-instantiable controllers participates — and expands
+     * any group names to their members.
      *
      * @return list<string>
      */
     private function expandedMiddlewareFor(Route $route): array
     {
-        return $this->expandGroups(array_values($route->gatherMiddleware()), $this->middlewareGroups());
+        return $this->expandGroups(
+            array_values($this->middlewareGatherer->middlewareFor($route)),
+            $this->middlewareGroups(),
+        );
     }
 
     /**
