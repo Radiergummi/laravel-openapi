@@ -13,6 +13,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use InvalidArgumentException;
 use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
@@ -103,6 +104,7 @@ final readonly class LintRunner
         private OpenApiGenerationOrchestrator $orchestrator,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
+        private LoggerInterface $logger,
         #[Config('openapi.lint.enabled_rules')]
         private ?array $enabledRules = null,
         #[Config('openapi.lint.disabled_rules', [])]
@@ -132,7 +134,7 @@ final readonly class LintRunner
     public function run(LintOptions $options): LintResult
     {
         $inner = new ArrayFindingsCollector();
-        $emit = new EventDispatchingFindingsCollector($inner, $this->events);
+        $emit = new EventDispatchingFindingsCollector($inner, $this->events, $this->logger);
         $this->container->instance(FindingsCollector::class, $emit);
 
         try {

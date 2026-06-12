@@ -7,8 +7,10 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Container\Attributes\Give;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Events\Dispatcher;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Events\LintFindingEmitted;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
+use Throwable;
 
 /**
  * Decorator that dispatches {@see LintFindingEmitted} for every emitted finding before
@@ -34,12 +36,22 @@ final readonly class EventDispatchingFindingsCollector implements FindingsCollec
         #[Give(LoggingFindingsCollector::class)]
         private FindingsCollector $inner,
         private Dispatcher $events,
+        private LoggerInterface $logger,
     ) {}
 
     public function emit(Finding $finding): void
     {
+        // A host-app listener throwing must not abort the lint run and discard the findings
+        // collected so far — isolate it and log, then keep collecting.
         if ($this->events->hasListeners(LintFindingEmitted::class)) {
-            $this->events->dispatch(new LintFindingEmitted($finding));
+            try {
+                $this->events->dispatch(new LintFindingEmitted($finding));
+            } catch (Throwable $exception) {
+                $this->logger->warning(
+                    'A LintFindingEmitted listener threw; the finding was still collected.',
+                    ['exception' => $exception],
+                );
+            }
         }
 
         $this->inner->emit($finding);
