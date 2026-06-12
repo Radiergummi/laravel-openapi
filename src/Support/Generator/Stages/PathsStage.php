@@ -125,7 +125,7 @@ final readonly class PathsStage implements SpecStage
      */
     private function attachOperation(OA\PathItem $pathItem, ActionDescriptor $action, GenerationContext $context): void
     {
-        $operation = $this->operationBuilder->build($action, [$this->tagDeriver->derive($action)]);
+        $tag = $this->tagDeriver->derive($action);
 
         foreach ($action->route->methods() as $routeMethod) {
             $method = HttpMethod::fromString($routeMethod) ?? HttpMethod::Get;
@@ -134,9 +134,17 @@ final readonly class PathsStage implements SpecStage
                 continue;
             }
 
+            // Build per emitted verb so every verb-conditional inference (write-verb request
+            // bodies, GET/HEAD query-accessor scans, the inline-validate hand-off) gates on the
+            // verb actually being documented, not the route's first registered verb (#245). The
+            // single-verb majority builds exactly once — `Route::get` yields `[GET, HEAD]`, and
+            // HEAD is skipped above; only genuine multi-verb routes build more than once.
+            $verbAction = $action->withHttpMethod($method);
+            $operation = $this->operationBuilder->build($verbAction, [$tag]);
+
             $resolved = $operation->operationId !== null
                 ? $operation
-                : $operation->withOperationId($this->buildOperationId($action, $method));
+                : $operation->withOperationId($this->buildOperationId($verbAction, $method));
 
             $operationSchema = $resolved->attachTo($pathItem, $method);
 
@@ -144,11 +152,11 @@ final readonly class PathsStage implements SpecStage
                 continue;
             }
 
-            $context->bindAction($operationSchema, $action);
+            $context->bindAction($operationSchema, $verbAction);
 
             OpenApiExtensions::applyOperationTransformers(
                 $operationSchema,
-                new OperationContext($action, $method),
+                new OperationContext($verbAction, $method),
             );
         }
     }

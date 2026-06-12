@@ -43,8 +43,15 @@ final class ActionDescriptor
         get => $this->method ?? $this->closure;
     }
 
+    /**
+     * The verb of the operation actually being emitted, set per-verb by {@see withHttpMethod()}
+     * when a multi-verb route ({@see Route::match()}) fans out. When unset, the route's first
+     * registered verb is used — correct for the single-verb majority (#245).
+     */
+    private ?HttpMethod $httpMethodOverride = null;
+
     public ?HttpMethod $httpMethod {
-        get => HttpMethod::fromString($this->route->methods[0] ?? '');
+        get => $this->httpMethodOverride ?? HttpMethod::fromString($this->route->methods[0] ?? '');
     }
 
     /**
@@ -71,6 +78,20 @@ final class ActionDescriptor
         public readonly array $throws = [],
         public readonly ?ReflectionFunction $closure = null,
     ) {}
+
+    /**
+     * A copy of this descriptor whose {@see $httpMethod} is pinned to the given verb — used by
+     * {@see \Radiergummi\OpenApi\Support\Generator\Stages\PathsStage} to build each operation of a
+     * multi-verb route against the verb actually being emitted, so verb-conditional inference gates
+     * on that verb rather than the route's first one (#245).
+     */
+    public function withHttpMethod(HttpMethod $method): self
+    {
+        $clone = clone $this;
+        $clone->httpMethodOverride = $method;
+
+        return $clone;
+    }
 
     /**
      * Instantiate every `$attribute` declared on the action reflector and the controller class,

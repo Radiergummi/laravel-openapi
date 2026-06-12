@@ -56,6 +56,20 @@ class InlineValidationFixtureController extends Controller
         return new JsonResponse($validated);
     }
 
+    /**
+     * Routed via `Route::match(['get', 'post'], …)` to exercise verb-conditional gating (#245):
+     * the single `validate()` ruleset must become a *query parameter* on the GET twin and a
+     * *request body* on the POST twin, not be evaluated against the route's first verb for both.
+     */
+    public function sync(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        return new JsonResponse($validated);
+    }
+
     // Class-constant rules (#227): whole-ruleset constants (string and array) and a constant
     // array element.
     public function constantRules(Request $request): JsonResponse
