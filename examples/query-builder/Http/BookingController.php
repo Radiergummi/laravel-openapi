@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Attributes\Tag;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedSort;
+use Spatie\QueryBuilder\AllowedFilter as RuntimeAllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 #[Tag('Bookings')]
@@ -41,6 +42,28 @@ final class BookingController
         $bookings = QueryBuilder::for(Booking::query()->where('flight_id', $flight))
             ->allowedFilters(['passenger_name'])
             ->allowedSorts(['created_at'])
+            ->get();
+
+        return new JsonResponse($bookings->all());
+    }
+
+    /**
+     * List all bookings.
+     *
+     * The `filter`, `sort`, and `include` query parameters are documented
+     * straight from the `QueryBuilder::for(...)` chain below — no attributes
+     * needed.
+     */
+    #[Response(status: 200, description: 'All bookings', schema: [
+        'type' => 'array',
+        'items' => ['type' => 'object'],
+    ])]
+    public function all(): JsonResponse
+    {
+        $bookings = QueryBuilder::for(Booking::class)
+            ->allowedFilters(['seat', RuntimeAllowedFilter::exact('passenger_name')])
+            ->allowedSorts(['created_at'])
+            ->allowedIncludes(['flight'])
             ->get();
 
         return new JsonResponse($bookings->all());

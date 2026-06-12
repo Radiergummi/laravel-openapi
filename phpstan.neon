@@ -186,6 +186,15 @@ parameters:
             identifier: argument.type
             paths:
                 - tests/
+        # Spatie's QueryBuilder::allowedFilters()/allowedSorts()/allowedIncludes() are typed as
+        # variadic `AllowedFilter|string ...$filters` but flatten a single array argument at
+        # runtime — and the array form is the documented idiom the #15 chain reader targets, so
+        # the fixtures must use it.
+        -
+            message: '~^Parameter #1 \.\.\.\$(filters|sorts|includes) of method Spatie\\QueryBuilder\\QueryBuilder<[^>]+>::allowed(Filters|Sorts|Includes)\(\) expects Spatie\\QueryBuilder\\Allowed\w+\|string, (array|list)<.+> given\.$~'
+            identifier: argument.type
+            paths:
+                - tests/
         # Mockery mocks satisfy interfaces at runtime; PHPStan only sees `MockInterface`.
         -
             message: '~expects [^,]+, Mockery\\MockInterface given\.$~'

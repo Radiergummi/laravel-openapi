@@ -231,7 +231,44 @@ parameters.
 
 ### Usage
 
-Declare accepted parameters on the controller method:
+A literal `QueryBuilder::for(...)` fluent chain in the controller method
+documents itself — the allow-lists become query parameters with no attributes
+(bounded scan of the first 10 top-level statements; no dataflow analysis):
+
+```php
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
+
+public function index(): JsonResponse
+{
+    $flights = QueryBuilder::for(Flight::class)
+        ->allowedFilters(['status', AllowedFilter::exact('origin')])
+        ->allowedSorts(['departs_at', '-number'])
+        ->allowedIncludes(['bookings'])
+        ->paginate();
+    // → filter[status], filter[origin], sort, include
+}
+```
+
+The chain must root at the real `Spatie\QueryBuilder\QueryBuilder` (a
+same-named impostor class never matches); other chain links (`->where()`,
+`->defaultSort()`, `->paginate()`, …) are walked through. Allow-list elements
+are read from string literals (class-constant strings included) and from
+Spatie's value-object static constructors (`AllowedFilter::exact(…)`,
+`AllowedSort::field(…)`, `AllowedInclude::relationship(…)`, …) — the first
+argument is the public wire name; internal names and `->defaultSort(…)` are
+server-side detail and not modelled. Both the array and the variadic form
+(`allowedSorts('name', 'created_at')`) work, and so does a chain assigned to
+a variable in one expression. A chain-derived filter gets a `string` schema —
+use `#[AllowedFilter]` where a filter needs a type, format, or description.
+
+Anything more indirect degrades gracefully: a builder assigned to a variable
+and mutated across statements, a dynamically computed allow-list, or a chain
+inside a conditional yields no chain parameters, attributes are still
+honoured, and the generation log notes the action. A single non-literal
+element inside an otherwise literal allow-list is dropped and the rest kept.
+
+To declare parameters explicitly, use the plugin's attributes:
 
 ```php
 use Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes\AllowedFilter;
@@ -248,6 +285,10 @@ public function index(QueryBuilder $query): JsonResponse { … }
 Each `#[AllowedFilter]` becomes one `filter[name]` query parameter.
 `#[AllowedSort]` becomes the `sort` parameter (comma-separated, with the
 listed fields as `enum`); `#[AllowedInclude]` becomes `include` the same way.
+
+Attributes win over the chain **per kind**: any `#[AllowedFilter]` present
+means all filters come from attributes, and likewise for `#[AllowedSort]` /
+`#[AllowedInclude]` — the chain fills only the attribute-less kinds.
 
 Lint rules:
 

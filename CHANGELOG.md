@@ -11,6 +11,31 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- **`spatie/laravel-query-builder` fluent chains now document themselves** (#15). The QueryBuilder
+  plugin reads the literal `QueryBuilder::for(...)->allowedFilters([...])->allowedSorts([...])
+  ->allowedIncludes([...])` chain straight from the controller method body (Tier-1 bounded scan of
+  the first 10 top-level statements, epic #5) and emits the matching `filter[…]` / `sort` /
+  `include` query parameters — previously the plugin was attribute-gated and the most common form
+  of the convention produced nothing. The chain must root at the **resolved**
+  `Spatie\QueryBuilder\QueryBuilder` FQCN (a same-named impostor never matches); intermediate chain
+  links (`->where()`, `->defaultSort()`, `->paginate()`, …) are walked through, since they cannot
+  change which allow-lists the builder accepts. Allow-list elements resolve from string literals
+  (class-constant strings included) and from Spatie's value-object static constructors
+  (`AllowedFilter::exact/partial/scope/…`, `AllowedSort::field/…`,
+  `AllowedInclude::relationship/…` — the first argument is always the public wire name; internal
+  names and `->defaultSort(…)` are server-side detail and not modelled, and a bare
+  `AllowedFilter::trashed()` defaults to Spatie's `trashed`). Both the array and the variadic form
+  work, sort names shed their `-` direction prefix, and a chain assigned to a variable in one
+  expression reads fine. Chain-derived filters get a `string` schema (`#[AllowedFilter]` is the
+  hatch for typed filters); sorts/includes emit the same enum'd `sort` / `include` parameters as
+  the attributes, so both sources converge on identical output. Precedence is **per kind**: any
+  attribute of a kind present means that kind comes from attributes only, and a fully attributed
+  action is never scanned. Degradation per the epic contract: a builder mutated across statements,
+  a dynamic allow-list, or a chain inside a conditional yields no chain parameters with one
+  generation-log notice pointing at the attributes; a non-literal element inside an otherwise
+  literal allow-list is dropped and the rest kept. No variable tracking or cross-call dataflow
+  (Tier 2 stays refused). The `examples/query-builder` flavor gains an attribute-free chain-only
+  endpoint. See [Plugins → QueryBuilder](docs/plugins.md#querybuilder).
 - **Concrete API Resources now resolve from the controller's return expression** (#108). When an
   action's signature names only a *base* resource type (`JsonResource`, a bare `ResourceCollection`,
   `AnonymousResourceCollection`) — previously an ambiguous endpoint with no response schema — the

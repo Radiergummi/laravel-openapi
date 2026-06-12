@@ -259,6 +259,62 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationFailed'
       security: []
+  /api/bookings:
+    get:
+      tags:
+        - Bookings
+      summary: 'List all bookings.'
+      description: "The `filter`, `sort`, and `include` query parameters are documented\nstraight from the `QueryBuilder::for(...)` chain below — no attributes\nneeded."
+      operationId: get_api_bookings
+      parameters:
+        -
+          name: 'filter[seat]'
+          in: query
+          required: false
+          schema:
+            type: string
+        -
+          name: 'filter[passenger_name]'
+          in: query
+          required: false
+          schema:
+            type: string
+        -
+          name: sort
+          in: query
+          description: 'Comma-separated sort fields. Prefix a field with `-` for descending order.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - created_at
+        -
+          name: include
+          in: query
+          description: 'Comma-separated related resources to include.'
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - flight
+      responses:
+        '200':
+          description: 'All bookings'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+      security: []
   '/api/bookings/{booking}':
     delete:
       tags:
