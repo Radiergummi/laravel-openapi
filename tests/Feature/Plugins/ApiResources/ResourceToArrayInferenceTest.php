@@ -113,13 +113,19 @@ it('resolves $this->field references against the wrapped model', function (): vo
 
     expect($properties)->toHaveKeys([
         'id', 'title', 'subtitle', 'published_at', 'status', 'reading_time', 'internal_notes',
+        'tags', 'created_at',
     ])
         ->and($properties['title']['type'])->toBe('string')
         ->and($properties['published_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time'])
         ->and($properties['status']['enum'])->toContain('draft')
         ->and($properties['reading_time']['type'])->toBe('integer')
         // $hidden governs the model's own serialization; a key the resource names is output.
-        ->and($properties['internal_notes']['type'])->toBe('string');
+        ->and($properties['internal_notes']['type'])->toBe('string')
+        // #249: the `array` cast plus a `list<string>` @property generic documents a JSON list.
+        ->and($properties['tags']['type'])->toBe('array')
+        ->and($properties['tags']['items']['type'])->toBe('string')
+        // #250: framework-managed timestamps resolve without explicit model metadata.
+        ->and($properties['created_at']['format'])->toBe('date-time');
 });
 
 it('keeps every always-present key required', function (): void {

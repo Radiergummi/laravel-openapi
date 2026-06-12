@@ -84,6 +84,8 @@ components:
         origin: { type: string }
         destination: { type: string }
         departs_at: { type: string, format: date-time }
+        created_at: { type: [ string, 'null' ], format: date-time }
+        updated_at: { type: [ string, 'null' ], format: date-time }
 ```
 
 </td>
@@ -96,7 +98,8 @@ Every part of that document traces back to something already in the code:
   signature;
 - `#[Tag('Flights')]` sets the tag, and the first line of the method's PHPDoc becomes the summary;
 - the `Flight` return type produces the `200` response and a reusable `Flight` schema, whose properties are read from
-  the model's `@property` tags, so `departs_at` becomes a `date-time` string because of the `datetime` cast;
+  the model's `@property` tags, so `departs_at` becomes a `date-time` string because of the `datetime` cast, and the
+  framework-managed `created_at` / `updated_at` timestamps are typed as nullable `date-time` strings automatically;
 - `@throws ModelNotFoundException` produces the `404`.
 
 ## Features

@@ -70,8 +70,9 @@ class BookingResource extends JsonResource
 
 - `$this->field` / `$this->resource->field` resolve against the **wrapped
   model's** metadata (`$casts`, `@property` / `@property-read` tags, typed
-  `$appends` accessors). The model is discovered from the resource's class
-  docblock: an `@mixin \App\Models\Booking` tag first, then a generic
+  `$appends` accessors, framework-managed timestamp columns). The model is
+  discovered from the resource's class docblock: an
+  `@mixin \App\Models\Booking` tag first, then a generic
   `@extends BaseResource<Booking>`.
 - Literal scalars and arrays type themselves; nested literal arrays become
   nested object/array schemas.

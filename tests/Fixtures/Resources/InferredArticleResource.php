@@ -28,6 +28,8 @@ class InferredArticleResource extends JsonResource
             'status' => $this->status,
             'reading_time' => $this->resource->reading_time,
             'internal_notes' => $this->internal_notes,
+            'tags' => $this->tags,
+            'created_at' => $this->created_at,
         ];
     }
 }
