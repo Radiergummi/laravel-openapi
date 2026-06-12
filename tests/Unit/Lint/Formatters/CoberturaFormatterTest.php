@@ -103,3 +103,16 @@ it('emits a valid empty coverage document when there is nothing to attribute', f
         ->and((int) $xml['lines-valid'])->toBe(0)
         ->and($xml->xpath('//class'))->toBe([]);
 });
+
+it('emits a valid empty coverage document when coverage is null', function (): void {
+    $output = new BufferedOutput();
+    $result = new LintResult(findings: [], level: 1, exitCode: 0, coverage: null);
+
+    new CoberturaFormatter()->render($result, $output);
+
+    $xml = new SimpleXMLElement($output->fetch());
+
+    expect($xml->getName())->toBe('coverage')
+        ->and((int) $xml['lines-valid'])->toBe(0)
+        ->and($xml->xpath('//class'))->toBe([]);
+});
