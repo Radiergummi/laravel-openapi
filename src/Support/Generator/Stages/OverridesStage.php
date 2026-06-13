@@ -41,33 +41,50 @@ final readonly class OverridesStage implements SpecStage
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         // The default installation configures no overrides — skip the whole document walk.
-        if (!is_array($document->paths) || !$this->matcher->hasOverrides) {
+        if (!$this->matcher->hasOverrides) {
             return;
         }
 
-        foreach ($document->paths as $pathItem) {
-            if (!$pathItem instanceof OA\PathItem || is_undefined($pathItem->path)) {
+        if (is_array($document->paths)) {
+            foreach ($document->paths as $pathItem) {
+                if (!$pathItem instanceof OA\PathItem || is_undefined($pathItem->path)) {
+                    continue;
+                }
+
+                $this->applyToPathItem($pathItem, $pathItem->path, $context);
+            }
+        }
+
+        if (is_array($document->webhooks)) {
+            foreach ($document->webhooks as $webhookItem) {
+                if (!$webhookItem instanceof OA\Webhook || is_undefined($webhookItem->webhook)) {
+                    continue;
+                }
+
+                $this->applyToPathItem($webhookItem, $webhookItem->webhook, $context);
+            }
+        }
+    }
+
+    private function applyToPathItem(OA\PathItem $pathItem, string $lookupKey, GenerationContext $context): void
+    {
+        foreach (HttpMethod::cases() as $method) {
+            $operation = $pathItem->{$method->value} ?? null;
+
+            if (!$operation instanceof OA\Operation) {
                 continue;
             }
 
-            foreach (HttpMethod::cases() as $method) {
-                $operation = $pathItem->{$method->value} ?? null;
+            // The operation is bound to its source route by PathsStage; reuse that binding
+            // rather than maintaining a parallel route-name index.
+            $routeName = $context->actionFor($operation)?->route->getName();
+            $fields = $this->matcher->fieldsFor($routeName, $lookupKey);
 
-                if (!$operation instanceof OA\Operation) {
-                    continue;
-                }
-
-                // The operation is bound to its source route by PathsStage; reuse that binding
-                // rather than maintaining a parallel route-name index.
-                $routeName = $context->actionFor($operation)?->route->getName();
-                $fields = $this->matcher->fieldsFor($routeName, $pathItem->path);
-
-                if ($fields === []) {
-                    continue;
-                }
-
-                $this->applyFields($operation, $fields);
+            if ($fields === []) {
+                continue;
             }
+
+            $this->applyFields($operation, $fields);
         }
     }
 
