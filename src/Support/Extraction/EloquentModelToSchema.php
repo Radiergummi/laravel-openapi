@@ -44,8 +44,10 @@ use function is_a;
 use function ltrim;
 use function Radiergummi\OpenApi\copy_schema_fields;
 use function str_replace;
+use function str_starts_with;
 use function strtok;
 use function strtolower;
+use function substr;
 use function ucwords;
 
 /**
@@ -296,6 +298,15 @@ final class EloquentModelToSchema
 
         // Normalise the keyword form: lowercase the head (e.g. `decimal:2` → `decimal`).
         $normalised = strtolower($castHead);
+
+        // `encrypted:array`, `encrypted:collection`, `encrypted:json`, `encrypted:object` decrypt
+        // to their inner type at runtime — delegate to the same resolution as the bare inner cast.
+        // Bare `encrypted` (no parameter) stays as-is: it decrypts to a string.
+        if ($normalised === 'encrypted' && str_starts_with($cast, 'encrypted:')) {
+            $inner = substr($cast, strlen('encrypted:'));
+
+            return $this->castToProperty($name, $inner, $declaredType);
+        }
 
         // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
         // keywords (decimal/date/datetime/array/…) are handled here.

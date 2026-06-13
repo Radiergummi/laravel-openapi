@@ -162,6 +162,75 @@ final class NullableSchema
                     $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                 }
 
+                // Migrate validation constraint keywords into the inner branch so per-branch
+                // validators apply them. SchemaDescriptor writes these onto the outer schema before
+                // calling applyTo(); without this they strand on the typeless outer oneOf schema
+                // where JSON Schema validators ignore them.
+                if (is_defined($target->minItems)) {
+                    $inner->minItems = $target->minItems;
+                    $target->minItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->maxItems)) {
+                    $inner->maxItems = $target->maxItems;
+                    $target->maxItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->uniqueItems)) {
+                    $inner->uniqueItems = $target->uniqueItems;
+                    $target->uniqueItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->minimum)) {
+                    $inner->minimum = $target->minimum;
+                    $target->minimum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->maximum)) {
+                    $inner->maximum = $target->maximum;
+                    $target->maximum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->exclusiveMinimum)) {
+                    $inner->exclusiveMinimum = $target->exclusiveMinimum;
+                    $target->exclusiveMinimum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->exclusiveMaximum)) {
+                    $inner->exclusiveMaximum = $target->exclusiveMaximum;
+                    $target->exclusiveMaximum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->minLength)) {
+                    $inner->minLength = $target->minLength;
+                    $target->minLength = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->maxLength)) {
+                    $inner->maxLength = $target->maxLength;
+                    $target->maxLength = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->multipleOf)) {
+                    $inner->multipleOf = $target->multipleOf;
+                    $target->multipleOf = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
+                if (is_defined($target->pattern)) {
+                    $inner->pattern = $target->pattern;
+                    $target->pattern = Generator::UNDEFINED;
+                }
+
+                if (is_defined($target->format)) {
+                    $inner->format = $target->format;
+                    $target->format = Generator::UNDEFINED;
+                }
+
+                if (is_defined($target->enum)) {
+                    $inner->enum = $target->enum;
+                    $target->enum = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
+                }
+
                 $target->type = Generator::UNDEFINED;
                 $target->oneOf = [
                     $inner,

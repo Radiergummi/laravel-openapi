@@ -121,18 +121,18 @@ class LintCommand extends Command
     /**
      * @throws InvalidArgumentException
      * @throws JsonException
+     * @throws RuntimeException
      */
     private function renderCatalog(RuleRegistry $registry): int
     {
-        // Pass $this->output (the OutputStyle) rather than ->getOutput() — Laravel's
-        // PendingCommand mocks writeln/write on the OutputStyle for assertion capture, so
-        // writes to the unwrapped OutputInterface bypass tests that use
-        // expectsOutputToContain().
-        new RuleCatalogRenderer()->render(
-            $registry,
-            $this->resolveTargets()[0]->format,
-            $this->output,
-        );
+        $target = $this->resolveTargets()[0];
+        $output = $this->openOutput($target->target);
+
+        try {
+            new RuleCatalogRenderer()->render($registry, $target->format, $output);
+        } finally {
+            $this->closeOutput($output);
+        }
 
         return self::SUCCESS;
     }

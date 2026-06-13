@@ -147,6 +147,128 @@ it('nullable scalar widens type array without oneOf wrapping', function (): void
 
 // endregion
 
+// region nullable array/object — constraint migration into the oneOf inner branch
+
+it('migrates minItems and maxItems into the inner branch of a nullable array', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'array';
+    $descriptor->nullable = true;
+    $descriptor->minItems = 1;
+    $descriptor->maxItems = 10;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->oneOf)->toBeArray()->toHaveCount(2);
+
+    $inner = nonNullBranch($target->oneOf);
+
+    expect($inner->type)->toBe('array')
+        ->and($inner->minItems)->toBe(1)
+        ->and($inner->maxItems)->toBe(10)
+        ->and(isUndefined($target->minItems))->toBeTrue()
+        ->and(isUndefined($target->maxItems))->toBeTrue();
+});
+
+it('migrates minimum and maximum into the inner branch of a nullable object', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'object';
+    $descriptor->nullable = true;
+    $descriptor->minimum = 0;
+    $descriptor->maximum = 100;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->oneOf)->toBeArray()->toHaveCount(2);
+
+    $inner = nonNullBranch($target->oneOf);
+
+    expect($inner->minimum)->toBe(0)
+        ->and($inner->maximum)->toBe(100)
+        ->and(isUndefined($target->minimum))->toBeTrue()
+        ->and(isUndefined($target->maximum))->toBeTrue();
+});
+
+it('migrates minLength, maxLength, and pattern into the inner branch of a nullable array', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'array';
+    $descriptor->nullable = true;
+    $descriptor->minLength = 2;
+    $descriptor->maxLength = 8;
+    $descriptor->pattern = '^[a-z]+$';
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->oneOf)->toBeArray()->toHaveCount(2);
+
+    $inner = nonNullBranch($target->oneOf);
+
+    expect($inner->minLength)->toBe(2)
+        ->and($inner->maxLength)->toBe(8)
+        ->and($inner->pattern)->toBe('^[a-z]+$')
+        ->and(isUndefined($target->minLength))->toBeTrue()
+        ->and(isUndefined($target->maxLength))->toBeTrue()
+        ->and(isUndefined($target->pattern))->toBeTrue();
+});
+
+it('migrates format and enum into the inner branch of a nullable array', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'array';
+    $descriptor->nullable = true;
+    $descriptor->format = 'date';
+    $descriptor->enum = ['a', 'b'];
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->oneOf)->toBeArray()->toHaveCount(2);
+
+    $inner = nonNullBranch($target->oneOf);
+
+    expect($inner->format)->toBe('date')
+        ->and($inner->enum)->toBe(['a', 'b'])
+        ->and(isUndefined($target->format))->toBeTrue()
+        ->and(isUndefined($target->enum))->toBeTrue();
+});
+
+it('migrates multipleOf into the inner branch of a nullable object', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'object';
+    $descriptor->nullable = true;
+    $descriptor->multipleOf = 5;
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->oneOf)->toBeArray()->toHaveCount(2);
+
+    $inner = nonNullBranch($target->oneOf);
+
+    expect($inner->multipleOf)->toBe(5)
+        ->and(isUndefined($target->multipleOf))->toBeTrue();
+});
+
+it('keeps description and example on the outer schema of a nullable array', function (): void {
+    $descriptor = new FieldDescriptor();
+    $descriptor->type = 'array';
+    $descriptor->nullable = true;
+    $descriptor->description = 'A list of items';
+    $descriptor->example = ['foo'];
+
+    $target = new OA\Schema([]);
+    $descriptor->applyTo($target);
+
+    expect($target->oneOf)->toBeArray()->toHaveCount(2);
+
+    // Description and example are field-level metadata — they stay on the outer schema.
+    expect($target->description)->toBe('A list of items')
+        ->and($target->example)->toBe(['foo']);
+});
+
+// endregion
+
 // region multipleOf wiring (#83)
 
 it('writes a non-null multipleOf onto the target schema', function (): void {
