@@ -357,3 +357,35 @@ it('falls back to an empty property for an unresolvable @property type', functio
     expect($schema['properties'])->toHaveKey('payload')
         ->and($schema['properties']['payload'])->toBe([]);
 });
+
+it('maps encrypted:array/json/collection casts to the same schema as their non-encrypted counterparts (#283)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+    $properties = $schema['properties'];
+
+    // Without a list-shaped @property tag, these default to object (same as plain array/json/collection).
+    expect($properties['settings'])->toEqual(['type' => 'object'])
+        ->and($properties['preferences'])->toEqual(['type' => 'object'])
+        ->and($properties['data'])->toEqual(['type' => 'object']);
+});
+
+it('maps encrypted:object cast to type: object (#283)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+
+    expect($schema['properties']['payload'])->toEqual(['type' => 'object']);
+});
+
+it('keeps bare encrypted cast as type: string (#283)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+
+    expect($schema['properties']['secret'])->toEqual(['type' => 'string']);
+});
+
+it('respects @property list hints for encrypted:array and encrypted:collection casts (#283)', function (): void {
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+    $properties = $schema['properties'];
+
+    // A list-shaped @property tag disambiguates to an array, exactly as with plain array/collection.
+    expect($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['options'])->toEqual(['type' => 'object']);
+});

@@ -78,6 +78,22 @@ class ReturnExpressionController extends Controller
         return NestedAuthorResource::collection(Author::all());
     }
 
+    /**
+     * @return AnonymousResourceCollection<LiteralOnlyResource>
+     */
+    public function docblockCollectionNoPaginate(): AnonymousResourceCollection
+    {
+        return LiteralOnlyResource::collection(Author::all());
+    }
+
+    /**
+     * @return AnonymousResourceCollection<LiteralOnlyResource>
+     */
+    public function docblockCollectionPaginated(): AnonymousResourceCollection
+    {
+        return LiteralOnlyResource::collection(Author::query()->paginate());
+    }
+
     public function toResourceConvention(Author $author): JsonResource
     {
         return $author->toResource();
@@ -91,6 +107,28 @@ class ReturnExpressionController extends Controller
     public function toResourceCollectionExplicit(): ResourceCollection
     {
         return Author::query()->paginate()->toResourceCollection(NestedAuthorResource::class);
+    }
+
+    /**
+     * @return ResourceCollection<LiteralOnlyResource>
+     */
+    public function docblockCollectionToResourceCollectionPaginated(): ResourceCollection
+    {
+        return Author::query()->paginate()->toResourceCollection(LiteralOnlyResource::class);
+    }
+
+    /**
+     * @return AnonymousResourceCollection<LiteralOnlyResource>
+     */
+    public function docblockCollectionConditionalBody(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            $collection = LiteralOnlyResource::collection(Author::query()->paginate());
+        } else {
+            $collection = LiteralOnlyResource::collection(Author::all());
+        }
+
+        return $collection;
     }
 
     public function wrappedModel(Article $article): JsonResource
@@ -280,6 +318,65 @@ it('lets the @return generic win over a disagreeing body expression', function (
 
     expect($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/LiteralOnlyResource')
         ->and($spec['components']['schemas'])->not->toHaveKey('NestedAuthorResource');
+});
+
+it('emits a plain {data} envelope for @return Collection<X> when the body uses ::collection() without paginate()', function (): void {
+    Route::get('/literal-no-paginate', [ReturnExpressionController::class, 'docblockCollectionNoPaginate']);
+
+    $schema = successSchema(generateSpec(), '/literal-no-paginate');
+
+    expect($schema['properties'])->toHaveKey('data')
+        ->and($schema['properties'])->not->toHaveKeys(['links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/LiteralOnlyResource');
+});
+
+it('emits a paginated {data,links,meta} envelope for @return Collection<X> when the body ends in paginate()', function (): void {
+    Route::get('/literal-paginated', [ReturnExpressionController::class, 'docblockCollectionPaginated']);
+
+    $schema = successSchema(generateSpec(), '/literal-paginated');
+
+    expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/LiteralOnlyResource');
+});
+
+it('emits a paginated {data,links,meta} envelope for @return Collection<X> when the body uses ->toResourceCollection() on a paginating receiver', function (): void {
+    Route::get('/literal-to-resource-collection-paginated', [ReturnExpressionController::class, 'docblockCollectionToResourceCollectionPaginated']);
+
+    $schema = successSchema(generateSpec(), '/literal-to-resource-collection-paginated');
+
+    expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/LiteralOnlyResource');
+});
+
+it('defaults to a plain {data} envelope for @return Collection<X> when the body is not a recognisable collection shape', function (): void {
+    Route::get('/literal-no-body', [ReturnExpressionController::class, 'docblockGeneric']);
+
+    $schema = successSchema(generateSpec(), '/literal-no-body');
+
+    expect($schema['properties'])->toHaveKey('data')
+        ->and($schema['properties'])->not->toHaveKeys(['links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/LiteralOnlyResource');
+});
+
+it('emits no spurious refusal notice when the @return generic resolves the resource but the body is conditionally assigned', function (): void {
+    Route::get('/literal-conditional-body', [ReturnExpressionController::class, 'docblockCollectionConditionalBody']);
+
+    $logger = recordingLogger();
+    app()->instance(LoggerInterface::class, $logger);
+
+    $schema = successSchema(generateSpec(), '/literal-conditional-body');
+
+    // The resource resolves from the docblock — the schema must be emitted.
+    expect($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/LiteralOnlyResource');
+
+    // No refusal notice should fire because the docblock already supplies the resource.
+    $spurious = array_any(
+        $logger->records,
+        static fn(array $record): bool => str_contains($record['message'], 'docblockCollectionConditionalBody')
+            && str_contains($record['message'], 'ResponseResource'),
+    );
+
+    expect($spurious)->toBeFalse();
 });
 
 // endregion
