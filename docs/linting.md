@@ -380,6 +380,7 @@ visibility).
 | `openapi.response.refAndSchema` | `#[Response]` sets both `ref` and `schema` (schema wins; `ref` is silently dropped). | — |
 | `openapi.field.rangeOrdering` | Field attribute has `min* > max*` for `minimum`/`maximum`, `minLength`/`maxLength`, or `minItems`/`maxItems` (literal numerics only). | — |
 | `openapi.queryParam.requiredWithDefault` | `#[QueryParam(required: true, default: …)]` — a default makes the parameter implicitly optional, contradicting `required: true`. | — |
+| `openapi.requestField.nameRequiredOnMethod` | `#[RequestField]` on a method or function omits `name:` — the name cannot be derived from a method target, so the field is silently dropped at generation time. | — |
 | `openapi.exceptionResponse.nonThrowable` | `#[ExceptionResponse]` is attached to a class that doesn't implement `Throwable` — the standard-responses extractor only consults the attribute when resolving `@throws` FQCNs, so it is silently ignored elsewhere. | — |
 
 The extension also ships two PHPStan type aliases — `OpenApiPrimitiveType`
