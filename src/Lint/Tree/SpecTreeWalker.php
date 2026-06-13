@@ -166,15 +166,32 @@ final class SpecTreeWalker
      */
     private function walkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $location = FindingLocation::fromOperation($operation);
         $sourceClass = $operation->descriptor?->controller?->getName();
 
+        // Every finding produced under this operation is stamped (as a fallback) with the
+        // controller class, so a controller-level #[IgnoreLint] can match it structurally. Findings
+        // that already carry a more-specific source class (e.g. response/request-body fields
+        // attributed to their component schema) keep theirs.
         yield from $this->stampSourceClass(
-            $this->enrichAll(
-                $this->dispatchOperation($operation, $context),
-                $location,
-            ),
+            $this->walkOperationNodes($operation, $context),
             $sourceClass,
+        );
+    }
+
+    /**
+     * Emit all findings for an operation and its sub-nodes (operation, path/query parameters,
+     * request body, responses, headers, links, and their examples), enriched with location
+     * defaults but without source-class stamping — that is applied by {@see walkOperation}.
+     *
+     * @return iterable<Finding>
+     */
+    private function walkOperationNodes(OperationNode $operation, LintContext $context): iterable
+    {
+        $location = FindingLocation::fromOperation($operation);
+
+        yield from $this->enrichAll(
+            $this->dispatchOperation($operation, $context),
+            $location,
         );
 
         // region Path parameters
@@ -292,9 +309,10 @@ final class SpecTreeWalker
     }
 
     /**
-     * Stamp `CONTEXT_SOURCE_CLASS` on each finding when `$sourceClass` is non-null. Findings that
-     * already carry the key are overwritten — the controller class is the authoritative source for
-     * operation-level findings.
+     * Stamp the controller `CONTEXT_SOURCE_CLASS` on each finding when `$sourceClass` is non-null,
+     * as a fallback only. Findings that already carry the key (e.g. a request-body or response field
+     * stamped with its component schema's source class) keep their more-specific value; the
+     * controller class merely fills in operation-level findings that have none.
      *
      * @param iterable<Finding> $findings
      *
@@ -309,7 +327,9 @@ final class SpecTreeWalker
         }
 
         foreach ($findings as $finding) {
-            yield $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
+            yield isset($finding->context[Finding::CONTEXT_SOURCE_CLASS])
+                ? $finding
+                : $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
         }
     }
 

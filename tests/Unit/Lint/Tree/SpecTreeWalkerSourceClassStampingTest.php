@@ -9,11 +9,13 @@ use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
+use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
 use Radiergummi\OpenApi\Lint\Tree\SpecTreeBuilder;
 use Radiergummi\OpenApi\Lint\Tree\SpecTreeWalker;
 use Radiergummi\OpenApi\Lint\TreeIndex;
 use Radiergummi\OpenApi\Lint\Visitors\FieldRule as FieldRuleVisitor;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+use Radiergummi\OpenApi\Lint\Visitors\ResponseRule as ResponseRuleVisitor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ResponseEmptyController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -156,6 +158,100 @@ it('does not stamp CONTEXT_SOURCE_CLASS on operation-level findings when no cont
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->context)->not->toHaveKey(Finding::CONTEXT_SOURCE_CLASS);
+});
+
+it('stamps the controller CONTEXT_SOURCE_CLASS on response-level findings', function (): void {
+    $rule = new class () implements Rule, ResponseRuleVisitor {
+        public function id(): string
+        {
+            return 'test.response-rule';
+        }
+        public function level(): int
+        {
+            return 1;
+        }
+        public function description(): string
+        {
+            return 'test';
+        }
+        public function checkResponse(ResponseNode $response, LintContext $context): iterable
+        {
+            yield new Finding(
+                ruleId: $this->id(),
+                level: $this->level(),
+                message: 'fire on ' . $response->statusCode,
+            );
+        }
+    };
+
+    $descriptor = ActionDescriptorFactory::forControllerMethod(CleanController::class, 'list');
+    $operation = OperationNodeFactory::makeOperation(descriptor: $descriptor, operationId: null);
+    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
+    $api = new ApiNode(
+        operations: [$operation],
+        components: [],
+        webhooks: [],
+        declaredTags: [],
+        tagDescriptions: [],
+        raw: $spec,
+    );
+    $index = TreeIndex::empty();
+    $context = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
+
+    $walker = new SpecTreeWalker([$rule]);
+    $findings = iterator_to_array($walker->walk($api, $context), preserve_keys: false);
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_CLASS] ?? null)->toBe(CleanController::class);
+});
+
+it('stamps each operation its own controller for response-level findings (no cross-controller bleed)', function (): void {
+    $rule = new class () implements Rule, ResponseRuleVisitor {
+        public function id(): string
+        {
+            return 'test.response-rule';
+        }
+        public function level(): int
+        {
+            return 1;
+        }
+        public function description(): string
+        {
+            return 'test';
+        }
+        public function checkResponse(ResponseNode $response, LintContext $context): iterable
+        {
+            yield new Finding(
+                ruleId: $this->id(),
+                level: $this->level(),
+                message: 'fire',
+            );
+        }
+    };
+
+    $descriptorA = ActionDescriptorFactory::forControllerMethod(CleanController::class, 'list', '/a');
+    $descriptorB = ActionDescriptorFactory::forControllerMethod(ResponseEmptyController::class, 'index', '/b');
+    $operationA = OperationNodeFactory::makeOperation(pathUri: '/a', descriptor: $descriptorA, operationId: null);
+    $operationB = OperationNodeFactory::makeOperation(pathUri: '/b', descriptor: $descriptorB, operationId: null);
+
+    $spec = new OA\OpenApi(['openapi' => '3.1.0']);
+    $api = new ApiNode(
+        operations: [$operationA, $operationB],
+        components: [],
+        webhooks: [],
+        declaredTags: [],
+        tagDescriptions: [],
+        raw: $spec,
+    );
+    $index = TreeIndex::empty();
+    $context = new LintContext(api: $api, index: $index, rawSpec: $spec, actionDescriptors: [], suppressions: []);
+
+    $walker = new SpecTreeWalker([$rule]);
+    $findings = iterator_to_array($walker->walk($api, $context), preserve_keys: false);
+
+    expect($findings)->toHaveCount(2)
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_CLASS] ?? null)->toBe(CleanController::class)
+        ->and($findings[1]->context[Finding::CONTEXT_SOURCE_CLASS] ?? null)->toBe(ResponseEmptyController::class);
 });
 
 it('stamps different CONTEXT_SOURCE_CLASS values for operations from different controllers', function (): void {
