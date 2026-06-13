@@ -164,6 +164,15 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Extracted the spec route-URI convention into a single `Support\Spec\SpecRouteConfig` helper
+  (`@internal`), removing the duplicated `route_uri` / `playground_uri` resolution that previously
+  lived inline in both `SpecRegistry::buildSpec()` and the service provider's route mounting. The
+  two copies are now one source of truth, so the served route path and the generated spec path can
+  no longer drift. Extracting the two copies surfaced a latent divergence on a `null` URI override:
+  `SpecRegistry` already treated `null` (like `false`) as opting the spec out of HTTP serving, but
+  the service provider's `?? default` fall-through still mounted the route. Both now opt out on
+  `null`, matching the documented config convention (`false`/`null` = do not mount). The `false`
+  case and all string overrides are unchanged. (#48)
 - PHP 8.4 modernization pass across `src/`. Every method that implements an interface or overrides
   a parent now carries `#[Override]` (118 added, bringing the codebase to full coverage); `foreach`
   search/existence/universal loops over plain arrays were replaced with `array_find` / `array_any`
