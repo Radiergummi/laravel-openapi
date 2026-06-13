@@ -50,7 +50,8 @@ Laravel routes                      │
                                     ┌── ErrorResponseContributor(s)   ← Core: ThrowsErrorContributor
                                     │                                 ← Core: AbortErrorContributor
                                     │                                 ← Core: MiddlewareErrorContributor
-                                    └──                               ← Core: ValidationErrorContributor
+                                    │                                 ← Core: ValidationErrorContributor
+                                    └──                               ← Core: RouteModelBindingErrorContributor
                                                                     │  (dedupes by status; explicit #[Response] wins)
                                                                     ▼
                                                           ComponentSchemaRegistry
@@ -79,7 +80,8 @@ Laravel routes                      │
    `ErrorResponseContributor` chain per operation, collects
    `ErrorDescriptor`s from each contributor (`ThrowsErrorContributor`,
    `AbortErrorContributor`, `MiddlewareErrorContributor`,
-   `ValidationErrorContributor`), dedupes by status (first contributor
+   `ValidationErrorContributor`, `RouteModelBindingErrorContributor`),
+   dedupes by status (first contributor
    wins), and appends inferred error responses.
    Explicit `#[Response(status: X)]` attributes on the action always
    override inferred responses for that status.

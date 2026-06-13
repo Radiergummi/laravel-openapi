@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Lint\Finding;
-use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Lint\SuppressionDirective;
@@ -70,12 +69,14 @@ it('emits a finding when a suppression did not match any finding', function (): 
         ->and($findings[0]->location->line)->toBe(10);
 });
 
-it('emits no finding when a suppression matched a finding', function (): void {
+it('emits no finding when a suppression matched a finding via source-class context', function (): void {
     $matchingFinding = new Finding(
         ruleId: 'response.empty',
         level: 0,
         message: 'No responses',
-        location: new FindingLocation(file: 'Controller.php'),
+        context: [
+            Finding::CONTEXT_SOURCE_CLASS => 'Acme\\Http\\Controllers\\Controller',
+        ],
     );
 
     $context = staleContext(staleDirective('response.empty'));
@@ -91,7 +92,9 @@ it('emits when finding ruleId does not match the directive', function (): void {
         ruleId: 'summary.missing',
         level: 0,
         message: 'Missing summary',
-        location: new FindingLocation(file: 'Controller.php'),
+        context: [
+            Finding::CONTEXT_SOURCE_CLASS => 'Acme\\Http\\Controllers\\Controller',
+        ],
     );
 
     $context = staleContext(staleDirective('response.empty'));
@@ -103,18 +106,20 @@ it('emits when finding ruleId does not match the directive', function (): void {
         ->and($findings[0]->message)->toContain('response.empty');
 });
 
-it('does not match a finding in a different file', function (): void {
-    $findingInDifferentFile = new Finding(
+it('does not match a finding from a different class', function (): void {
+    $findingFromOtherClass = new Finding(
         ruleId: 'response.empty',
         level: 0,
         message: 'No responses',
-        location: new FindingLocation(file: 'OtherController.php'),
+        context: [
+            Finding::CONTEXT_SOURCE_CLASS => 'Acme\\Http\\Controllers\\OtherController',
+        ],
     );
 
-    $context = staleContext(staleDirective('response.empty', file: 'Controller.php'));
+    $context = staleContext(staleDirective('response.empty'));
 
     $rule = new MetaSuppressionStale();
-    $findings = iterator_to_array($rule->check($context, [$findingInDifferentFile]));
+    $findings = iterator_to_array($rule->check($context, [$findingFromOtherClass]));
 
     expect($findings)->toHaveCount(1);
 });

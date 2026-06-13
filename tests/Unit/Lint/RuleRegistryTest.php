@@ -53,3 +53,15 @@ it('applies a severity override to every rule sharing the overridden id', functi
     expect($registry->effectiveLevelFor('fake.duplicate', 2))->toBe(0)
         ->and($registry->maxLevel())->toBe(0);
 });
+
+it('floors a negative severity override to zero', function () use ($rule): void {
+    $registry = new RuleRegistry([$rule('fake.rule', 2)], ['fake.rule' => -1]);
+
+    expect($registry->effectiveLevelFor('fake.rule', 2))->toBe(0);
+});
+
+it('passes a large positive severity override through unchanged', function () use ($rule): void {
+    $registry = new RuleRegistry([$rule('fake.rule', 2)], ['fake.rule' => 999]);
+
+    expect($registry->effectiveLevelFor('fake.rule', 2))->toBe(999);
+});
