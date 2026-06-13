@@ -202,6 +202,38 @@ it('lists the rule catalog as Markdown with --list', function (): void {
         ->assertExitCode(0);
 })->group('openapi', 'lint');
 
+it('--list writes the catalog to a file when a file target is given', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'openapi-lint-catalog-') . '.json';
+
+    try {
+        $this->artisan('openapi:lint', ['--list' => true, '--format' => "json:{$path}"])
+            ->assertExitCode(0);
+
+        expect(file_exists($path))->toBeTrue();
+
+        $decoded = json_decode(file_get_contents($path), associative: true, flags: JSON_THROW_ON_ERROR);
+
+        // The catalog is a list of rule entries with at minimum 'id', 'level', 'description'.
+        expect($decoded)
+            ->toBeArray()
+            ->not->toBeEmpty();
+
+        expect($decoded[0])->toHaveKeys(['id', 'level', 'description']);
+    } finally {
+        if (file_exists($path)) {
+            unlink($path);
+        }
+    }
+})->group('openapi', 'lint');
+
+it('--list still writes to stdout when no file target is given', function (): void {
+    // The existing JSON test already covers exit 0; this one asserts stdout is populated
+    // by checking that the artisan output contains the JSON start marker.
+    $this->artisan('openapi:lint', ['--list' => true, '--format' => 'json'])
+        ->expectsOutputToContain('"id"')
+        ->assertExitCode(0);
+})->group('openapi', 'lint');
+
 it('tags per-spec findings with the spec name', function (): void {
     config([
         'openapi.specs' => [

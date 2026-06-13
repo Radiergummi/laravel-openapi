@@ -206,6 +206,7 @@ All notable changes to this project are documented here.
   services provide a reusable foundation for parsing further PHPDoc tags.
 
 ### Fixed
+- `openapi:lint --list` now honors file targets: `--format=json:catalog.json` writes the rule catalog to the file instead of silently falling back to stdout. Stdout is still used when no file path is given. (#298)
 - `RuleRegistry::effectiveLevelFor()` now floors negative `severity_overrides` values to `0` via `max(0, …)`. A negative override (e.g. `-1`) previously propagated unchanged, causing a rule to always match every `forLevel()` threshold. (#296)
 - `#[Deprecated]` no longer declares `Attribute::TARGET_CLASS_CONSTANT` as a valid target. No code in the package reads `#[Deprecated]` off class constants (only methods, functions, properties, and promoted constructor parameters are consumed), so placing the attribute on a constant was a silent no-op. Removing the flag lets PHP reject the misplacement at attribute-resolution time rather than silently ignoring it. (#297)
 - `OverridesStage` now normalises a `tags` override to a sequential `list<string>` (via `array_values`) before assigning it to `OA\Operation->tags`, matching the form the rest of the pipeline produces and satisfying swagger-php's `[string]` type validation (`array_is_list` check) on both 5.8 and 6.x.
