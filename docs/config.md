@@ -52,7 +52,7 @@ wins over the `auth` middleware entry.
 ```php
 'routes' => [
     'enabled' => true,           // set false to register no routes at all
-    'prefix' => 'api',
+    'prefix' => 'api',           // spec + playground mount here
     'middleware' => ['web'],
     'spec' => [
         'enabled' => true,        // always on by default
@@ -73,6 +73,12 @@ publishing. Swagger UI is offered for teams (e.g. migrating from
 `darkaonline/l5-swagger`) already standardised on its layout and "Try it out"
 affordances. Any unrecognised value falls back to Scalar. In multi-spec mode the
 renderer is global; each spec's playground still points at its own document.
+
+Because the spec and playground mount under `prefix` (default `api`), they appear
+in `php artisan route:list --path=api` alongside your own API routes. This is
+cosmetic only — the `SkipSelfRoutes` filter already keeps them out of the
+generated document. Set `prefix` to a dedicated segment (e.g. `_openapi`) if you
+prefer they not show up under your `api` listing.
 
 ## Operation overrides
 
