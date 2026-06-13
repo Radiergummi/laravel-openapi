@@ -7,8 +7,10 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\SpatieData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
+use LogicException;
 use Radiergummi\OpenApi\Tests\Fixtures\Alpha\SelfRefData as AlphaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
+use Radiergummi\OpenApi\Tests\Fixtures\ConditionalResponseFieldFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\MapInputNameFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\SchemaTitleDescriptionFixtureData;
@@ -186,6 +188,40 @@ it('maps #[Summary] to schema title and #[Description] to schema description', f
 
     expect($schema['title'])->toBe('Fixture Title')
         ->and($schema['description'])->toBe('Fixture data class for schema-level title/description.');
+});
+
+// endregion
+
+// region #[ResponseField(conditional: true)]
+
+class ConditionalResponseFieldController extends Controller
+{
+    public function show(): ConditionalResponseFieldFixtureData
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+}
+
+it('keeps a conditional field in properties but removes it from required[]', function (): void {
+    Route::get('/spatie-data/conditional', [ConditionalResponseFieldController::class, 'show']);
+
+    $spec = generateSpec();
+
+    $schema = $spec['components']['schemas']['ConditionalResponseFieldFixtureData'];
+
+    expect($schema['properties'])->toHaveKey('conditionalField')
+        ->and($schema['required'] ?? [])->not->toContain('conditionalField');
+});
+
+it('does not remove non-conditional fields from required[]', function (): void {
+    Route::get('/spatie-data/conditional', [ConditionalResponseFieldController::class, 'show']);
+
+    $spec = generateSpec();
+
+    $required = $spec['components']['schemas']['ConditionalResponseFieldFixtureData']['required'] ?? [];
+
+    expect($required)->toContain('id')
+        ->and($required)->toContain('alwaysRequired');
 });
 
 // endregion
