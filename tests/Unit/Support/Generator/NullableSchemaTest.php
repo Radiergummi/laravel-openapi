@@ -113,6 +113,90 @@ it('applyTo migrates object structural keywords into the oneOf inner schema', fu
         ->and($objectBranch?->required)->toBe(['id']);
 });
 
+it('applyTo migrates array validation constraints into the oneOf inner schema (#279)', function (): void {
+    $target = new OA\Schema([
+        'type' => 'array',
+        'items' => new OA\Items(['type' => 'string']),
+        'minItems' => 1,
+        'maxItems' => 10,
+        'uniqueItems' => true,
+    ]);
+    NullableSchema::applyTo($target);
+
+    expect($target->type)->toBe(Generator::UNDEFINED)
+        ->and($target->items)->toBe(Generator::UNDEFINED)
+        ->and($target->minItems)->toBe(Generator::UNDEFINED)
+        ->and($target->maxItems)->toBe(Generator::UNDEFINED)
+        ->and($target->uniqueItems)->toBe(Generator::UNDEFINED)
+        ->and($target->oneOf)->toHaveCount(2);
+
+    $arrayBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'array');
+
+    expect($arrayBranch?->minItems)->toBe(1)
+        ->and($arrayBranch?->maxItems)->toBe(10)
+        ->and($arrayBranch?->uniqueItems)->toBeTrue();
+});
+
+it('applyTo migrates numeric and string constraints into the oneOf inner schema (#279)', function (): void {
+    $target = new OA\Schema([
+        'type' => 'object',
+        'minimum' => 1,
+        'maximum' => 100,
+        'exclusiveMinimum' => 0,
+        'exclusiveMaximum' => 101,
+        'multipleOf' => 5,
+        'minLength' => 2,
+        'maxLength' => 8,
+        'pattern' => '^a',
+        'format' => 'int32',
+        'enum' => ['a', 'b'],
+    ]);
+    NullableSchema::applyTo($target);
+
+    expect($target->minimum)->toBe(Generator::UNDEFINED)
+        ->and($target->maximum)->toBe(Generator::UNDEFINED)
+        ->and($target->exclusiveMinimum)->toBe(Generator::UNDEFINED)
+        ->and($target->exclusiveMaximum)->toBe(Generator::UNDEFINED)
+        ->and($target->multipleOf)->toBe(Generator::UNDEFINED)
+        ->and($target->minLength)->toBe(Generator::UNDEFINED)
+        ->and($target->maxLength)->toBe(Generator::UNDEFINED)
+        ->and($target->pattern)->toBe(Generator::UNDEFINED)
+        ->and($target->format)->toBe(Generator::UNDEFINED)
+        ->and($target->enum)->toBe(Generator::UNDEFINED);
+
+    $objectBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'object');
+
+    expect($objectBranch?->minimum)->toBe(1)
+        ->and($objectBranch?->maximum)->toBe(100)
+        ->and($objectBranch?->exclusiveMinimum)->toBe(0)
+        ->and($objectBranch?->exclusiveMaximum)->toBe(101)
+        ->and($objectBranch?->multipleOf)->toBe(5)
+        ->and($objectBranch?->minLength)->toBe(2)
+        ->and($objectBranch?->maxLength)->toBe(8)
+        ->and($objectBranch?->pattern)->toBe('^a')
+        ->and($objectBranch?->format)->toBe('int32')
+        ->and($objectBranch?->enum)->toBe(['a', 'b']);
+});
+
+it('applyTo keeps description and example on the outer schema (#279)', function (): void {
+    $target = new OA\Schema([
+        'type' => 'array',
+        'items' => new OA\Items(['type' => 'string']),
+        'minItems' => 1,
+        'description' => 'A list',
+        'example' => ['x'],
+    ]);
+    NullableSchema::applyTo($target);
+
+    expect($target->description)->toBe('A list')
+        ->and($target->example)->toBe(['x'])
+        ->and($target->minItems)->toBe(Generator::UNDEFINED);
+
+    $arrayBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'array');
+
+    expect($arrayBranch?->minItems)->toBe(1);
+});
+
 it('applyTo widens a scalar type in place', function (): void {
     $target = new OA\Schema(['type' => 'string']);
     NullableSchema::applyTo($target);
