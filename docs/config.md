@@ -112,7 +112,14 @@ most specific source wins per field:
    declaration order, later key winning.
 2. The exact route-name key, applied last (highest precedence).
 
-A key matching neither a route name nor any URI is reported by the `overrides.unused` lint rule.
+**Webhook operations** (handlers marked `#[Webhook(name: …)]`, emitted under the top-level
+`webhooks` block rather than `paths`) are matched by their **webhook name** — the logical name that
+appears in the spec — not their route URI. A key equal to the webhook name matches exactly; globs
+match it as if it were a URI. The exact route-name key still applies. So an override keyed by the
+webhook name (e.g. `'stripe.payment_intent.succeeded'`) applies to that webhook operation.
+
+A key matching nothing — no route name, no path URI, and no webhook name — is reported by the
+`overrides.unused` lint rule.
 
 **Precedence against other sources.** Overrides beat plugin contributions and convention-derived
 values (attributes, docblocks, route names). A code-based

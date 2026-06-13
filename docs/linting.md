@@ -500,7 +500,7 @@ is enabled.
 | `operation.return-type-missing` | 3 | Action has no typed return value or response attribute, so no response schema can be inferred. |
 | `operation.summary-equals-description` | 3 | Operation summary and description are identical (redundant). |
 | `overrides.unknown-field` | 3 | An `openapi.overrides` block sets a field outside the allowlist (operationId, summary, description, tags, deprecated, x-*). |
-| `overrides.unused` | 3 | An `openapi.overrides` key matches no route name and no route URI. |
+| `overrides.unused` | 3 | An `openapi.overrides` key matches no route name, path URI, or webhook name. |
 | `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured `path_parameter_case` (path parameters) or `query_parameter_case` (query parameters) convention. |
 | `path.segment-naming-inconsistent` | 3 | URL path segment doesn't follow the configured path_segment_case convention. |
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |

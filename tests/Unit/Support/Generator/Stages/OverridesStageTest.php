@@ -153,6 +153,39 @@ it('applies a config override keyed by route name to a webhook operation', funct
         ->and($doc->webhooks[0]->post->deprecated)->toBeTrue();
 });
 
+it('applies a config override keyed by webhook name via glob to a webhook operation', function (): void {
+    $matcher = new OverrideMatcher([
+        // Keyed by the webhook name (what appears in the spec), not the route name or URI.
+        'payment.*' => ['summary' => 'Payment event', 'deprecated' => true],
+    ]);
+
+    $operation = new OA\Post([]);
+    $webhook = new OA\Webhook(['webhook' => 'payment.received']);
+    $webhook->post = $operation;
+
+    $doc = new OA\OpenApi(['openapi' => '3.1.0']);
+    $doc->paths = [];
+    $doc->webhooks = [$webhook];
+
+    // Route name and URI deliberately do NOT match the override key; only the webhook name does.
+    $route = new Route(['POST'], '/webhooks/payment', static fn() => null);
+    $route->name('webhooks.payment.received');
+
+    $ctx = new GenerationContext(app(SpecRegistry::class)->default(), 'testing');
+    $ctx->bindAction($operation, new ActionDescriptor(
+        route: $route,
+        controller: null,
+        method: null,
+        summary: null,
+        description: null,
+    ));
+
+    new OverridesStage($matcher)->apply($doc, $ctx);
+
+    expect($doc->webhooks[0]->post->summary)->toBe('Payment event')
+        ->and($doc->webhooks[0]->post->deprecated)->toBeTrue();
+});
+
 it('leaves webhook operations untouched when no override matches', function (): void {
     $matcher = new OverrideMatcher([
         'other.route' => ['deprecated' => true],
