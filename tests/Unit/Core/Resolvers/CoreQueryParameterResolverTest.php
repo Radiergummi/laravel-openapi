@@ -259,6 +259,16 @@ it('lets an explicit #[QueryParam] win entirely for the same name and composes o
         ->and(queryParameterNamed($parameters, 'q')?->schema->type)->toBe('string');
 });
 
+it('emits an open (untyped) schema for a #[QueryParam] without an explicit type', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('untypedNullableParam'));
+
+    $perPage = queryParameterNamed($parameters, 'per_page');
+
+    // No explicit type must not be seeded to ['string', 'null'] — the parameter stays open.
+    expect($perPage?->schema->type)->not->toBe(['string', 'null']);
+});
+
 // endregion
 
 // region GET inline-validate hand-off

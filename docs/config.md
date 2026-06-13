@@ -52,7 +52,7 @@ wins over the `auth` middleware entry.
 ```php
 'routes' => [
     'enabled' => true,           // set false to register no routes at all
-    'prefix' => 'api',
+    'prefix' => 'api',           // spec + playground mount here
     'middleware' => ['web'],
     'spec' => [
         'enabled' => true,        // always on by default
@@ -73,6 +73,12 @@ publishing. Swagger UI is offered for teams (e.g. migrating from
 `darkaonline/l5-swagger`) already standardised on its layout and "Try it out"
 affordances. Any unrecognised value falls back to Scalar. In multi-spec mode the
 renderer is global; each spec's playground still points at its own document.
+
+Because the spec and playground mount under `prefix` (default `api`), they appear
+in `php artisan route:list --path=api` alongside your own API routes. This is
+cosmetic only — the `SkipSelfRoutes` filter already keeps them out of the
+generated document. Set `prefix` to a dedicated segment (e.g. `_openapi`) if you
+prefer they not show up under your `api` listing.
 
 ## Operation overrides
 
@@ -112,7 +118,14 @@ most specific source wins per field:
    declaration order, later key winning.
 2. The exact route-name key, applied last (highest precedence).
 
-A key matching neither a route name nor any URI is reported by the `overrides.unused` lint rule.
+**Webhook operations** (handlers marked `#[Webhook(name: …)]`, emitted under the top-level
+`webhooks` block rather than `paths`) are matched by their **webhook name** — the logical name that
+appears in the spec — not their route URI. A key equal to the webhook name matches exactly; globs
+match it as if it were a URI. The exact route-name key still applies. So an override keyed by the
+webhook name (e.g. `'stripe.payment_intent.succeeded'`) applies to that webhook operation.
+
+A key matching nothing — no route name, no path URI, and no webhook name — is reported by the
+`overrides.unused` lint rule.
 
 **Precedence against other sources.** Overrides beat plugin contributions and convention-derived
 values (attributes, docblocks, route names). A code-based

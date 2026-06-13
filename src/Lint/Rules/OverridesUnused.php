@@ -13,9 +13,11 @@ use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /**
- * Flags `openapi.overrides` keys that match no route name and no route URI across the discovered
- * routes. Catches typo'd route names and globs that match nothing. Delegates to
- * {@see OverrideMatcher::unusedKeys()} so the matching logic is not duplicated.
+ * Flags `openapi.overrides` keys that match nothing across the discovered routes — no route name,
+ * no path URI, and no webhook name. Catches typo'd route names and globs that match nothing.
+ * Delegates to {@see OverrideMatcher::unusedKeys()} so the matching logic is not duplicated, and
+ * derives each webhook's key via {@see OverrideMatcher::webhookKeyFor()} — the same source
+ * {@see \Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage} matches against.
  */
 final readonly class OverridesUnused implements PreBuildRule, Rule
 {
@@ -32,7 +34,7 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
     #[Override]
     public function description(): string
     {
-        return 'Override key matches no route name and no route URI.';
+        return 'Override key matches no route name, path URI, or webhook name.';
     }
 
     #[Override]
@@ -47,6 +49,9 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
             $routes[] = [
                 'name' => $descriptor->route->getName(),
                 'uri' => $descriptor->route->uri(),
+                // A webhook operation is matched by its webhook name, not its URI — keep the rule's
+                // key semantics aligned with OverridesStage via the shared derivation.
+                'webhook' => OverrideMatcher::webhookKeyFor($descriptor),
             ];
         }
 
@@ -55,7 +60,7 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
                 new Finding(
                     ruleId: self::ID,
                     level: $this->level(),
-                    message: "Override key '{$key}' matched no route or URI.",
+                    message: "Override key '{$key}' matched no route name, path URI, or webhook name.",
                     fixHint: 'Fix the route name/glob, or remove the override entry.',
                 ),
             );
