@@ -182,10 +182,11 @@ it('keeps an explicit Core #[QueryParam] over a chain-inferred parameter of the 
         }
     }
 
-    // The author's attribute (description, plain string schema) survives; the chain's
-    // canned enum parameter must not replace it (explicit authoring wins, epic #5).
+    // The author's attribute (description, untyped/open schema) survives; the chain's
+    // canned enum parameter must not replace it (explicit authoring wins, epic #5). The
+    // untyped attribute yields an open schema — not a defaulted `type: string`.
     expect($sort)->not->toBeNull()
         ->and($sort['schema']['description'])->toBe('Author-described sort param.')
-        ->and($sort['schema']['type'])->toBe('string')
+        ->and($sort['schema'])->not->toHaveKey('type')
         ->and($sort['schema'])->not->toHaveKey('items');
 });
