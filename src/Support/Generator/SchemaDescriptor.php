@@ -53,7 +53,8 @@ final readonly class SchemaDescriptor
 
     /**
      * Builds a standalone `OA\Schema` from this descriptor, applying the OAS 3.1
-     * `type: [..., 'null']` shape when `$this->nullable === true`.
+     * `type: [..., 'null']` shape when `$this->nullable === true`. An untyped descriptor
+     * produces an open schema (no `type`) rather than defaulting to `string`.
      *
      * `toOpenApi()` deliberately omits `nullable`; this helper is the canonical
      * place to apply it for callers that produce a `Schema` (parameter resolvers)
@@ -61,7 +62,9 @@ final readonly class SchemaDescriptor
      */
     public function toSchema(): OA\Schema
     {
-        $schema = new OA\Schema(['type' => 'string', ...$this->toOpenApi()]);
+        // No `type` seed: an untyped descriptor yields an open schema, not a string one. A typed
+        // descriptor carries its own `type` through toOpenApi().
+        $schema = new OA\Schema($this->toOpenApi());
 
         if (($items = $this->itemsSchema()) !== null) {
             $schema->items = $items;

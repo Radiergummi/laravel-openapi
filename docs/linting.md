@@ -268,8 +268,10 @@ Meta-rules enforce directive hygiene:
 ### Where can `#[IgnoreLint]` go?
 
 The attribute can target controllers, controller methods, and the payload classes a plugin
-teaches Core about. For class-level placements, the directive suppresses findings on every
-property of the component schema that class produces.
+teaches Core about. Class-level placements on a **controller** suppress operation-level findings
+(`operation.*`, `response.*`, etc.) for that controller's routes. Class-level placements on a
+**payload class** (FormRequest, Spatie Data, JsonResource) suppress findings on every property
+of the component schema that class produces.
 
 | Scope    | Controller | Controller method | FormRequest | Spatie `Data` | `JsonResource` |
 |----------|------------|-------------------|-------------|---------------|----------------|
@@ -381,6 +383,7 @@ visibility).
 | `openapi.response.refAndSchema` | `#[Response]` sets both `ref` and `schema` (schema wins; `ref` is silently dropped). | — |
 | `openapi.field.rangeOrdering` | Field attribute has `min* > max*` for `minimum`/`maximum`, `minLength`/`maxLength`, or `minItems`/`maxItems` (literal numerics only). | — |
 | `openapi.queryParam.requiredWithDefault` | `#[QueryParam(required: true, default: …)]` — a default makes the parameter implicitly optional, contradicting `required: true`. | — |
+| `openapi.requestField.nameRequiredOnMethod` | `#[RequestField]` on a method or function omits `name:` — the name cannot be derived from a method target, so the field is silently dropped at generation time. | — |
 | `openapi.exceptionResponse.nonThrowable` | `#[ExceptionResponse]` is attached to a class that doesn't implement `Throwable` — the standard-responses extractor only consults the attribute when resolving `@throws` FQCNs, so it is silently ignored elsewhere. | — |
 
 The extension also ships two PHPStan type aliases — `OpenApiPrimitiveType`
@@ -503,7 +506,7 @@ is enabled.
 | `operation.return-type-missing` | 3 | Action has no typed return value or response attribute, so no response schema can be inferred. |
 | `operation.summary-equals-description` | 3 | Operation summary and description are identical (redundant). |
 | `overrides.unknown-field` | 3 | An `openapi.overrides` block sets a field outside the allowlist (operationId, summary, description, tags, deprecated, x-*). |
-| `overrides.unused` | 3 | An `openapi.overrides` key matches no route name and no route URI. |
+| `overrides.unused` | 3 | An `openapi.overrides` key matches no route name, path URI, or webhook name. |
 | `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured `path_parameter_case` (path parameters) or `query_parameter_case` (query parameters) convention. |
 | `path.segment-naming-inconsistent` | 3 | URL path segment doesn't follow the configured path_segment_case convention. |
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |
