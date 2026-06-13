@@ -550,11 +550,17 @@ return [
     | API reference. The playground `renderer` chooses the UI: `scalar` (default)
     | or `swagger-ui` — the latter for teams standardised on Swagger UI.
     |
+    | The spec and playground routes mount under `prefix` (default `api`), so
+    | they show up in `php artisan route:list --path=api` next to your own API
+    | routes. That is cosmetic only — the `SkipSelfRoutes` filter already keeps
+    | them out of the generated document. Set `prefix` to a dedicated segment
+    | (e.g. `_openapi`) if you'd rather they not appear under your `api` listing.
+    |
     */
 
     'routes' => [
         'enabled' => true,
-        'prefix' => 'api',
+        'prefix' => 'api', // also where the spec/playground mount; see note above
         'middleware' => ['web'],
         'spec' => ['enabled' => true, 'uri' => 'openapi.yaml'],
         'playground' => [
