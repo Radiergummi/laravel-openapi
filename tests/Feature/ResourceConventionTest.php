@@ -119,6 +119,21 @@ it('does not apply the convention when the route verb does not match the action'
         ->and($operation)->not->toHaveKey('summary');
 });
 
+it('does not apply the store convention to the GET twin of a multi-verb route', function (): void {
+    RouteFacade::match(['GET', 'POST'], '/upload', [MisverbedWidgetController::class, 'store']);
+
+    $spec = generateSpec();
+    $get = $spec['paths']['/upload']['get'];
+    $post = $spec['paths']['/upload']['post'];
+
+    // GET twin must not carry the store convention (201 / "Create …").
+    expect($get['responses'])->not->toHaveKey('201')
+        ->and($get)->not->toHaveKey('summary');
+
+    // POST twin must carry the store convention.
+    expect($post['responses'])->toHaveKey('201');
+});
+
 it('lets an explicit #[Summary] win over the convention summary while keeping the convention status', function (): void {
     RouteFacade::post('/widgets', [SummaryOverrideWidgetController::class, 'store']);
 
