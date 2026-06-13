@@ -245,6 +245,18 @@ it('types array/json/collection casts as lists when the @property generic is lis
         ->and($properties['ranks'])->toEqual(['type' => 'array', 'items' => ['type' => 'integer']]);
 });
 
+it('treats single-arg array<T>, non-empty-list<T>, and non-empty-array<T> casts as lists (#284)', function (): void {
+    // Cast path must agree with the pure-tag path: single-argument array<T> is a list,
+    // not an object. Before the fix, listValueType() returned null for these forms,
+    // causing jsonCastDefinition() to fall back to type: object.
+    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $properties = $schema['properties'];
+
+    expect($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+        ->and($properties['scores'])->toEqual(['type' => 'array', 'items' => ['type' => 'integer']])
+        ->and($properties['slugs'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']]);
+});
+
 it('keeps map-shaped and untagged array casts as objects', function (): void {
     $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
     $properties = $schema['properties'];

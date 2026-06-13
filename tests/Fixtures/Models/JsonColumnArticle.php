@@ -11,14 +11,17 @@ use Illuminate\Support\Carbon;
  * Fixture for the array/json/collection cast disambiguation (#249): the docblock
  * generic decides whether a JSON column documents as a list or an object.
  *
- * @property array<int, string>   $aliases
- * @property string[]             $flags
- * @property ?list<string>        $maybe_tags
- * @property list<Carbon>         $milestones
- * @property array<string, mixed> $options
- * @property list<int>            $ranks
- * @property list<string>         $settings
- * @property list<string>         $tags
+ * @property array<int, string>      $aliases
+ * @property string[]                $flags
+ * @property array<string>           $labels
+ * @property ?list<string>           $maybe_tags
+ * @property list<Carbon>            $milestones
+ * @property array<string, mixed>    $options
+ * @property list<int>               $ranks
+ * @property non-empty-list<int>     $scores
+ * @property list<string>            $settings
+ * @property non-empty-array<string> $slugs
+ * @property list<string>            $tags
  */
 class JsonColumnArticle extends Model
 {
@@ -28,6 +31,9 @@ class JsonColumnArticle extends Model
 
     protected $casts = [
         'aliases' => 'array',
+        'labels' => 'array',
+        'scores' => 'array',
+        'slugs' => 'array',
         'tags' => 'array',
         'flags' => 'json',
         'ranks' => 'collection',
