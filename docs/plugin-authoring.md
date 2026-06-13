@@ -60,7 +60,7 @@ The resolver interfaces live in `src/Contracts/Registry/`:
   error responses implied by it (`@throws` annotations, middleware, payload
   type, etc.). Bundled by Core: `ThrowsErrorContributor`,
   `AbortErrorContributor`, `MiddlewareErrorContributor`,
-  `ValidationErrorContributor`. The
+  `ValidationErrorContributor`, `RouteModelBindingErrorContributor`. The
   `ErrorResponseInferenceStage` runs the chain in registration order and
   dedupes by status (first wins). Explicit `#[Response(status: X)]`
   attributes on the action always override inferred responses for that
