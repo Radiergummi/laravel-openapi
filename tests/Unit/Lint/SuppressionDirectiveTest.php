@@ -60,7 +60,9 @@ it('does not match when the structural class context names a different class', f
     expect($directive->suppresses($finding))->toBeFalse();
 });
 
-it('still matches a class-scope directive by file path when no source-class context is present', function (): void {
+it('does not match a class-scope directive by file path alone when no source-class context is present', function (): void {
+    // Class-scope suppression requires CONTEXT_SOURCE_CLASS on the finding; file-path matching
+    // alone is not sufficient and would incorrectly suppress all classes in the same file.
     $directive = new SuppressionDirective(
         ruleId: 'response.no-error',
         reason: null,
@@ -77,7 +79,7 @@ it('still matches a class-scope directive by file path when no source-class cont
         location: new FindingLocation(file: __FILE__),
     );
 
-    expect($directive->suppresses($finding))->toBeTrue();
+    expect($directive->suppresses($finding))->toBeFalse();
 });
 
 it('suppresses a rule.unknown finding via class scope using its source class', function (): void {
@@ -111,6 +113,52 @@ it('suppresses a rule.unknown finding via class scope using its source class', f
     foreach ($unknownFindings as $finding) {
         expect($directive->suppresses($finding))->toBeTrue();
     }
+});
+
+it('suppresses an operation-level finding when the source class matches the directive target', function (): void {
+    $directive = new SuppressionDirective(
+        ruleId: 'operation.id-missing',
+        reason: null,
+        scope: SuppressionScope::ClassScope,
+        file: '/app/Http/Controllers/UserController.php',
+        line: 1,
+        targetClass: 'App\\Http\\Controllers\\UserController',
+    );
+
+    $finding = new Finding(
+        ruleId: 'operation.id-missing',
+        level: 1,
+        message: 'GET /users has no operationId',
+        context: [
+            Finding::CONTEXT_SOURCE_CLASS => 'App\\Http\\Controllers\\UserController',
+        ],
+    );
+
+    expect($directive->suppresses($finding))->toBeTrue();
+});
+
+it('does not suppress an operation-level finding from a different controller in the same file', function (): void {
+    // Two controllers in one file: IgnoreLint on ControllerA must not silence ControllerB's findings.
+    $directive = new SuppressionDirective(
+        ruleId: 'operation.id-missing',
+        reason: null,
+        scope: SuppressionScope::ClassScope,
+        file: '/app/Http/Controllers/SameFile.php',
+        line: 1,
+        targetClass: 'App\\Http\\Controllers\\ControllerA',
+    );
+
+    $findingFromControllerB = new Finding(
+        ruleId: 'operation.id-missing',
+        level: 1,
+        message: 'POST /orders has no operationId',
+        location: new FindingLocation(file: '/app/Http/Controllers/SameFile.php'),
+        context: [
+            Finding::CONTEXT_SOURCE_CLASS => 'App\\Http\\Controllers\\ControllerB',
+        ],
+    );
+
+    expect($directive->suppresses($findingFromControllerB))->toBeFalse();
 });
 
 it('does not match a class-scope directive when the rule ID differs', function (): void {
