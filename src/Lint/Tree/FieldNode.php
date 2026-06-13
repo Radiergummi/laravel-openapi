@@ -35,12 +35,6 @@ final class FieldNode implements Node
         public readonly array $examples,
         public readonly ?string $ref,
         public readonly ?OA\Property $raw,
-        /**
-         * True when this field's schema is a `oneOf` / `anyOf` of two or more genuine (non-null)
-         * alternatives, which the tree builder leaves uninspected. The standard nullable shape
-         * (one concrete branch plus `{type: 'null'}`) is unwrapped instead and does not set this.
-         */
-        public readonly bool $uninspectedCompositeBranches = false,
     ) {}
 
     /**

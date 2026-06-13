@@ -9,20 +9,15 @@ use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\FieldNode;
+use Radiergummi\OpenApi\Lint\Tree\SchemaAccessor;
 use Radiergummi\OpenApi\Lint\Visitors\FieldRule as FieldRuleVisitor;
 
 use function sprintf;
 
 /**
  * Reports schema properties whose `oneOf` / `anyOf` is a union of two or more genuine alternatives,
- * which the tree builder does not descend into.
- *
- * Field-level rules (`field.description-missing`, `schema.enum-type-mismatch`, …) inspect a single
- * concrete schema per property. The standard nullable encoding (`oneOf: [<concrete>, {type: 'null'}]`)
- * is unwrapped to its concrete branch and inspected normally; a genuine multi-alternative union is
- * not — unioning the alternatives' field sets is out of scope. Without this rule, those properties
- * would simply produce no field findings, leaving the gap invisible. This makes it explicit so the
- * author can document the branches by hand or restructure the schema.
+ * which field-level rules cannot descend into. Without this, such a property produces no field
+ * findings at all, leaving the coverage gap invisible.
  */
 final class SchemaCompositeFieldsUninspected implements Rule, FieldRuleVisitor
 {
@@ -32,7 +27,11 @@ final class SchemaCompositeFieldsUninspected implements Rule, FieldRuleVisitor
     #[Override]
     public function checkField(FieldNode $field, LintContext $context): iterable
     {
-        if (!$field->uninspectedCompositeBranches) {
+        if ($field->raw === null) {
+            return;
+        }
+
+        if (!SchemaAccessor::classifyComposition($field->raw)['uninspectedComposite']) {
             return;
         }
 
@@ -56,8 +55,7 @@ final class SchemaCompositeFieldsUninspected implements Rule, FieldRuleVisitor
     #[Override]
     public function level(): int
     {
-        // Potential issue: the branches may hide undocumented fields the linter cannot reach. Not
-        // invalid documentation (level 1) and more than a style nit (level 4) — it is a coverage gap.
+        // A coverage gap, not invalid documentation.
         return 3;
     }
 

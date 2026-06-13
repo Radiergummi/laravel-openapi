@@ -133,16 +133,12 @@ final class SchemaAccessor
     }
 
     /**
-     * Classify a schema's `oneOf` / `anyOf` composition.
+     * Classify a schema's `oneOf` / `anyOf` composition, separating the OAS 3.1 nullable encoding
+     * (one concrete branch plus pure `{type: 'null'}` branches) from a genuine multi-alternative
+     * union.
      *
-     * Distinguishes the standard OAS 3.1 nullable encoding (one concrete branch plus one or more
-     * pure `{type: 'null'}` branches — see {@see NullableSchema}) from a genuine union of multiple
-     * alternatives. The nullable shape is unwrappable to its single non-null branch so field rules
-     * can still inspect it; a genuine multi-branch union is not, and is reported instead.
-     *
-     * `branch` is the single non-null branch to inspect when the schema is the nullable shape (or a
-     * defensive single-branch composition); null otherwise. `uninspectedComposite` is true when two
-     * or more genuine (non-null) alternatives are present and therefore left uninspected.
+     * `branch` is the single non-null branch to inspect for the nullable shape, null otherwise.
+     * `uninspectedComposite` is true when two or more genuine alternatives are present.
      *
      * @return array{branch: null|OA\Schema, uninspectedComposite: bool}
      */
@@ -159,13 +155,12 @@ final class SchemaAccessor
             static fn(OA\Schema $branch): bool => !self::isPureNullSchema($branch),
         ));
 
-        // Exactly one concrete branch (with or without accompanying null branches) is the nullable
-        // shape — unwrap it so its fields get inspected like any other schema.
+        // One concrete branch (with or without null branches): the nullable shape — unwrap it.
         if (count($nonNullBranches) === 1) {
             return ['branch' => $nonNullBranches[0], 'uninspectedComposite' => false];
         }
 
-        // Two or more genuine alternatives: not the nullable shape. We do not union their fields.
+        // Two or more genuine alternatives: not unwrappable.
         return [
             'branch' => null,
             'uninspectedComposite' => count($nonNullBranches) >= 2,
