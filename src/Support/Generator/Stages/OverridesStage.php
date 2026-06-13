@@ -13,6 +13,7 @@ use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Generator\SpecPipeline;
 
+use function array_values;
 use function is_array;
 use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
@@ -99,6 +100,12 @@ final readonly class OverridesStage implements SpecStage
                 $operation->x = $x;
 
                 continue;
+            }
+
+            // tags must be a list<string>; re-index to satisfy swagger-php's [string] type
+            // validation on both 5.8 and 6.x (array_is_list check).
+            if ($field === 'tags' && is_array($value)) {
+                $value = array_values($value);
             }
 
             // Allowlisted fields map 1:1 to OA\Operation properties.
