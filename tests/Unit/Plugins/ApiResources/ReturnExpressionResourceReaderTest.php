@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\Resources\Json\ResourceCollection;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ReturnExpressionResourceReader;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
@@ -73,6 +74,28 @@ class ReaderFixtureController
     public function abstractClassCollection(): AnonymousResourceCollection
     {
         return ReaderFixtureAbstractResource::collection(Author::all());
+    }
+
+    /**
+     * @return ResourceCollection<NestedAuthorResource>
+     */
+    public function docblockToResourceCollectionPaginated(): ResourceCollection
+    {
+        return Author::query()->paginate()->toResourceCollection(NestedAuthorResource::class);
+    }
+
+    /**
+     * @return AnonymousResourceCollection<NestedAuthorResource>
+     */
+    public function docblockConditionalAssignment(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            $collection = NestedAuthorResource::collection(Author::query()->paginate());
+        } else {
+            $collection = NestedAuthorResource::collection(Author::all());
+        }
+
+        return $collection;
     }
 
     public function propertyReceiverToResource(): JsonResource
@@ -161,6 +184,26 @@ it('refuses a non-whitelisted chained call with a note', function (): void {
             $logger->records,
             static fn(array $record): bool => str_contains($record['message'], 'nonWhitelistedChain'),
         ))->toHaveCount(1);
+});
+
+it('marks a @return-docblock collection with ->toResourceCollection() on a paginating receiver as paginated', function (): void {
+    $target = readerFor()->read(readerMethod('docblockToResourceCollectionPaginated'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue()
+        ->and($target?->paginated)->toBeTrue();
+});
+
+it('emits no refusal notice when a @return-docblock collection has a conditionally assigned body', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('docblockConditionalAssignment'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'docblockConditionalAssignment'),
+        ))->toBeEmpty();
 });
 
 it('refuses a bare ->toResource() whose receiver is not a typed parameter', function (): void {

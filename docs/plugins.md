@@ -181,9 +181,12 @@ The envelope follows the expression: a collection whose source visibly ends in a
 links `withQueryString()`, `appends()`, `withPath()`, and `fragment()`, which
 only tweak the generated URLs (`paginate(...)->withQueryString()` stays
 paginated); any other collection source documents a plain `{data: [...]}`
-envelope — pagination meta is never guessed. (Signature- and attribute-resolved
-collections keep the paginated envelope, the dominant convention, since no body
-information is available for them.)
+envelope — pagination meta is never guessed. A `@return` docblock generic resolves
+the item class but still derives the envelope from the body: `{data, links, meta}`
+only when the body's `::collection($source)` argument visibly ends in a
+`paginate()`-family call; plain `{data}` otherwise (including when no inspectable
+body is available). Attribute-resolved collections always use `{data, links, meta}`
+since attributes carry no body context.
 
 Anything else — a conditional return, a variable of unknown origin, an
 unrecognised chained call, a receiver that would need dataflow — degrades to the

@@ -6,6 +6,13 @@ namespace Radiergummi\OpenApi\Tests\Unit\Support\Types;
 
 use Illuminate\Support\Collection;
 use LogicException;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\TypeNode;
+use PHPStan\PhpDocParser\Lexer\Lexer;
+use PHPStan\PhpDocParser\Parser\ConstExprParser;
+use PHPStan\PhpDocParser\Parser\TokenIterator;
+use PHPStan\PhpDocParser\Parser\TypeParser;
+use PHPStan\PhpDocParser\ParserConfig;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Types\BrokenTypeContext;
@@ -217,3 +224,91 @@ it('unwraps a `T|null` union to its inner type but leaves a multi-class union un
     expect($resolver->unwrapNullable($unionNull))->not->toBe($unionNull)
         ->and($resolver->unwrapNullable($multiNull))->toBe($multiNull);
 });
+
+// region listValueType
+
+function parseResolverType(string $expression): TypeNode
+{
+    $config = new ParserConfig([]);
+    $lexer = new Lexer($config);
+    $typeParser = new TypeParser($config, new ConstExprParser($config));
+
+    return $typeParser->parse(new TokenIterator($lexer->tokenize($expression)));
+}
+
+function listElement(string $expression): ?TypeNode
+{
+    return TypeNodeResolver::create()->listValueType(parseResolverType($expression));
+}
+
+it('resolves the element type of T[] shorthand', function (): void {
+    $element = listElement('string[]');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('string');
+});
+
+it('resolves the element type of list<T>', function (): void {
+    $element = listElement('list<int>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('int');
+});
+
+it('resolves single-arg array<T> as a list', function (): void {
+    // array<T> with one generic argument must be treated as a list, consistent with
+    // TypeNodeToSchema::fromGeneric which already does this on the pure-tag path.
+    $element = listElement('array<string>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('string');
+});
+
+it('resolves non-empty-list<T> as a list', function (): void {
+    $element = listElement('non-empty-list<int>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('int');
+});
+
+it('resolves single-arg non-empty-array<T> as a list', function (): void {
+    $element = listElement('non-empty-array<string>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('string');
+});
+
+it('resolves array<int, T> (integer key) as a list', function (): void {
+    $element = listElement('array<int, string>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('string');
+});
+
+it('returns null for a string-keyed map array<string, T>', function (): void {
+    expect(listElement('array<string, int>'))->toBeNull();
+});
+
+it('returns null for a non-list generic (e.g. Collection<K,V>)', function (): void {
+    expect(listElement('Illuminate\Support\Collection<int, string>'))->toBeNull();
+});
+
+it('returns null for a bare scalar identifier', function (): void {
+    expect(listElement('string'))->toBeNull();
+});
+
+it('resolves the element type through a nullable wrapper', function (): void {
+    $element = listElement('?list<string>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('string');
+});
+
+it('resolves single-arg array<T> through a nullable wrapper', function (): void {
+    $element = listElement('?array<string>');
+
+    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+        ->and($element->name)->toBe('string');
+});
+
+// endregion

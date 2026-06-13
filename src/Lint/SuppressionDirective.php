@@ -37,8 +37,7 @@ final readonly class SuppressionDirective
         }
 
         return match ($this->scope) {
-            SuppressionScope::ClassScope => $this->fileMatches($finding->location->file)
-                || $this->classMatches($finding),
+            SuppressionScope::ClassScope => $this->classMatches($finding),
             SuppressionScope::MethodScope => $this->fileMatches(
                 $finding->location->file,
             ) && $this->coversLine($finding->location->line),
@@ -67,10 +66,9 @@ final readonly class SuppressionDirective
     }
 
     /**
-     * Class scope can match a finding emitted from the spec tree (no source file on the finding's
-     * location) by comparing the directive's target class to the finding's recorded source class.
-     * The walker stamps this context on findings that descend from a component schema whose owning
-     * class is known.
+     * Compare the directive's target class to the finding's recorded source class. The walker
+     * stamps `CONTEXT_SOURCE_CLASS` on findings that descend from a known controller class or
+     * component schema, so a class-scope directive can match them structurally.
      */
     private function classMatches(Finding $finding): bool
     {

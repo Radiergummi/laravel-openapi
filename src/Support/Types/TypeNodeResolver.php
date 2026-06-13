@@ -204,10 +204,14 @@ final class TypeNodeResolver
     }
 
     /**
-     * The element type node of a type that denotes a JSON list — `list<T>`, `array<int, T>`,
-     * or `T[]` — descending one level only, after unwrapping a leading nullable. Returns null
-     * for map-shaped generics (`array<string, T>`), single-argument `array<T>` (key type
-     * unknown), and every other shape.
+     * The element type node of a type that denotes a JSON list — `list<T>`, `non-empty-list<T>`,
+     * `array<T>`, `non-empty-array<T>`, `array<int, T>`, or `T[]` — descending one level only,
+     * after unwrapping a leading nullable. Returns null for map-shaped generics (`array<string, T>`)
+     * and every other shape.
+     *
+     * Single-argument `array<T>` and `non-empty-array<T>` are treated as lists (consistent with
+     * {@see TypeNodeToSchema::fromGeneric}, which resolves the
+     * same forms as arrays on the pure-tag path).
      */
     public function listValueType(TypeNode $node): ?TypeNode
     {
@@ -223,19 +227,30 @@ final class TypeNodeResolver
 
         $name = strtolower($inner->type->name);
 
-        if ($name === 'list' && count($inner->genericTypes) === 1) {
+        // list<T> and non-empty-list<T>: single argument is always the value type.
+        if (in_array($name, ['list', 'non-empty-list'], strict: true)
+            && count($inner->genericTypes) === 1
+        ) {
             return $inner->genericTypes[0];
         }
 
-        if ($name === 'array' && count($inner->genericTypes) === 2) {
-            $key = $inner->genericTypes[0];
+        if (in_array($name, ['array', 'non-empty-array'], strict: true)) {
+            // Single-argument array<T> / non-empty-array<T>: the one argument is the value type.
+            if (count($inner->genericTypes) === 1) {
+                return $inner->genericTypes[0];
+            }
 
-            if ($key instanceof IdentifierTypeNode && in_array(
-                strtolower($key->name),
-                ['int', 'integer'],
-                strict: true,
-            )) {
-                return $inner->genericTypes[1];
+            // Two-argument array<K, V>: an integer key is a list; a string key is a map.
+            if (count($inner->genericTypes) === 2) {
+                $key = $inner->genericTypes[0];
+
+                if ($key instanceof IdentifierTypeNode && in_array(
+                    strtolower($key->name),
+                    ['int', 'integer'],
+                    strict: true,
+                )) {
+                    return $inner->genericTypes[1];
+                }
             }
         }
 

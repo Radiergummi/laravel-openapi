@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use Illuminate\Support\Str;
+use Radiergummi\OpenApi\Attributes\Webhook as WebhookAttribute;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 use function in_array;
 use function ltrim;
@@ -56,6 +58,22 @@ final class OverrideMatcher
      */
     public bool $hasOverrides {
         get => $this->overrides !== [];
+    }
+
+    /**
+     * The override lookup key for a webhook descriptor: the logical webhook name from its
+     * `#[Webhook]` attribute, which is the string that appears under `webhooks` in the spec and the
+     * value {@see Stages\OverridesStage} matches against. Returns null for non-webhook descriptors.
+     *
+     * Single source of truth shared by {@see Stages\PathsStage} (which emits the name) and
+     * {@see \Radiergummi\OpenApi\Lint\Rules\OverridesUnused} (which checks it), so the stage and
+     * the lint rule cannot drift on webhook key semantics.
+     */
+    public static function webhookKeyFor(ActionDescriptor $descriptor): ?string
+    {
+        $attribute = $descriptor->actionAttributes(WebhookAttribute::class)[0] ?? null;
+
+        return $attribute?->newInstance()->name;
     }
 
     /**
@@ -150,9 +168,11 @@ final class OverrideMatcher
     }
 
     /**
-     * Config keys that matched no route name and no URI across the given set.
+     * Config keys that matched no route across the given set. A path route is matched by its route
+     * name or its URI; a webhook route by its route name or its webhook name (never its URI) —
+     * mirroring how {@see Stages\OverridesStage} keys each, so the rule and stage agree.
      *
-     * @param list<array{name: ?string, uri: string}> $routes
+     * @param list<array{name: ?string, uri: string, webhook?: ?string}> $routes
      *
      * @return list<string>
      */
@@ -170,7 +190,7 @@ final class OverrideMatcher
     }
 
     /**
-     * @param list<array{name: ?string, uri: string}> $routes
+     * @param list<array{name: ?string, uri: string, webhook?: ?string}> $routes
      */
     private function matchesAnyRoute(string $key, array $routes): bool
     {
@@ -179,7 +199,11 @@ final class OverrideMatcher
                 return true;
             }
 
-            if ($this->matchesGlob($key, $this->normalise($route['uri']))) {
+            // Webhook operations are keyed by their webhook name, not their URI — match that
+            // string the same way OverridesStage does. Path operations match on their URI.
+            $globTarget = $route['webhook'] ?? $route['uri'];
+
+            if ($this->matchesGlob($key, $this->normalise($globTarget))) {
                 return true;
             }
         }
