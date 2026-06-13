@@ -165,6 +165,15 @@ All notable changes to this project are documented here.
 
 ### Changed
 
+- Extracted the spec route-URI convention into a single `Support\Spec\SpecRouteConfig` helper
+  (`@internal`), removing the duplicated `route_uri` / `playground_uri` resolution that previously
+  lived inline in both `SpecRegistry::buildSpec()` and the service provider's route mounting. The
+  two copies are now one source of truth, so the served route path and the generated spec path can
+  no longer drift. Extracting the two copies surfaced a latent divergence on a `null` URI override:
+  `SpecRegistry` already treated `null` (like `false`) as opting the spec out of HTTP serving, but
+  the service provider's `?? default` fall-through still mounted the route. Both now opt out on
+  `null`, matching the documented config convention (`false`/`null` = do not mount). The `false`
+  case and all string overrides are unchanged. (#48)
 - PHP 8.4 modernization pass across `src/`. Every method that implements an interface or overrides
   a parent now carries `#[Override]` (118 added, bringing the codebase to full coverage); `foreach`
   search/existence/universal loops over plain arrays were replaced with `array_find` / `array_any`
@@ -198,6 +207,7 @@ All notable changes to this project are documented here.
   services provide a reusable foundation for parsing further PHPDoc tags.
 
 ### Fixed
+- `SchemaDescriptor::toSchema()` no longer defaults an untyped descriptor to `type: string` (#291). It seeded every schema with a hardcoded `type: 'string'` before spreading `toOpenApi()`, so a descriptor with no explicit type — e.g. `#[QueryParam(name: 'per_page', nullable: true)]` — was wrongly constrained to a string (`type: ['string', 'null']` once nullable widening applied). An untyped descriptor now produces an open schema (no `type`); an explicit type still emits that type, and an explicit nullable type still widens to the OAS 3.1 `[type, 'null']` shape. The two `toSchema()` callers were audited: `#[QueryParam]` and `#[AllowedFilter]` (QueryBuilder plugin). Both bundled fixtures that intended a string already set `type: 'string'` explicitly; an untyped `#[AllowedFilter]` is already flagged by the `querybuilder.filter-type-missing` lint rule rather than silently defaulting. Path/header parameters are unaffected — `UriParametersExtractor` builds its schema from the parameter type, not via `toSchema()`.
 - The Tier-1 body scanner now logs when a controller file fails to parse instead of degrading silently. `MethodBodyScanner` caught the parse `Throwable` and cached an empty result, so a file with a syntax/encoding issue silently produced no Tier-1 inference for any of its methods with no diagnostic — matching the "degrade gracefully **and log**" contract the other extractors follow. It now logs at `notice` (file path + exception) via an injected `LoggerInterface` (a `NullLogger` default keeps the many direct constructions working; the container injects the real logger on the generation/lint path). Degradation behaviour is otherwise unchanged.
 - The `deprecated.attribute` lint rule (`DeprecatedAttribute`) now implements `Resettable`, so its per-attribute `ReflectionClass` cache is cleared before each walk instead of accumulating across runs in a long-lived process (Octane, test suites). Matches the reset protocol the other stateful rules already follow.
 - The Tier-1 literal mapper no longer imposes the first element's shape on a list of differently-shaped objects. `SchemaDefinitionFromLiteral::listDefinition()` compared only the top-level `type`, so a `response()->json([...])` / `toArray()` / `transform()` list like `[['status' => 'active', 'expires_at' => '…'], ['status' => 'inactive']]` (both `type: object`) documented `expires_at` as an always-present property when it appears on only one element. Object elements now must also agree on their property shape; a list of objects with differing keys degrades to unconstrained `items: {}`, matching how the mapper already handles type-disagreeing lists. Homogeneous object lists are unchanged.

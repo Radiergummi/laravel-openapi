@@ -173,6 +173,12 @@ class QueryAccessorFixtureController extends Controller
         return new JsonResponse([$sort, $search]);
     }
 
+    #[QueryParam('per_page', nullable: true)]
+    public function untypedNullableParam(Request $request): JsonResponse
+    {
+        return new JsonResponse([$request->query('per_page')]);
+    }
+
     // endregion
 
     // region GET inline-validate hand-off
