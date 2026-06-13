@@ -78,8 +78,8 @@ it('emits exactly one composite-fields-uninspected finding for a genuine anyOf u
                 'property' => 'payload',
                 'description' => 'Either shape.',
                 'anyOf' => [
-                    new OA\Schema(['$ref' => '#/components/schemas/A']),
-                    new OA\Schema(['$ref' => '#/components/schemas/B']),
+                    new OA\Schema(['ref' => '#/components/schemas/A']),
+                    new OA\Schema(['ref' => '#/components/schemas/B']),
                 ],
             ]),
         ],
@@ -99,7 +99,7 @@ it('does not flag the nullable shape as a composite union', function (): void {
                 'property' => 'avatar',
                 'description' => 'Avatar url.',
                 'oneOf' => [
-                    new OA\Schema(['$ref' => '#/components/schemas/Image']),
+                    new OA\Schema(['ref' => '#/components/schemas/Image']),
                     new OA\Schema(['type' => 'null']),
                 ],
             ]),
