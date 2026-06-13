@@ -508,8 +508,10 @@ final class SpecTreeBuilder
      * Resolves `allOf` composition: a schema written as
      * `allOf: [{$ref: '#/components/schemas/Base'}, {properties: {…}}]` exposes both the inherited
      * properties from the `$ref` branch and any properties declared on the local schema.
-     * The `required` list is merged the same way. `oneOf` / `anyOf` are intentionally left
-     * untouched — they represent alternatives, not composition. Cycles in the `$ref` graph (`A`'s
+     * The `required` list is merged the same way. `oneOf` / `anyOf` on a *property* are handled
+     * per-field below: the standard nullable shape is unwrapped to its concrete branch, while a
+     * genuine multi-alternative union is flagged via `FieldNode::$uninspectedCompositeBranches`
+     * (no field union is attempted). Cycles in the `$ref` graph (`A`'s
      * `allOf` references `B` whose `allOf` references `A`) are broken with a visited-set guard
      * keyed by component name; the local declarations on each visited schema still contribute, but
      * the chain stops as soon as the same component is encountered a second time.
@@ -539,24 +541,34 @@ final class SpecTreeBuilder
         $fields = [];
 
         foreach ($properties as $name => $property) {
-            $children = $this->buildFields($property);
+            // Resolve a `oneOf`/`anyOf` property. The standard nullable shape (one concrete branch
+            // plus `{type: 'null'}`) is unwrapped to its concrete branch so field/schema rules still
+            // inspect the underlying type and nested properties. A genuine union of multiple
+            // alternatives is left uninspected and flagged instead — see SchemaCompositeFieldsUninspected.
+            $composition = SchemaAccessor::classifyComposition($property);
+            $structural = $composition['branch'] ?? $property;
+            $nullable = SchemaAccessor::isNullable($property)
+                || $composition['branch'] !== null;
+
+            $children = $this->buildFields($structural);
             $examples = NodeFactory::examplesFromSchema($property);
 
             $field = new FieldNode(
                 name: $name,
-                type: SchemaAccessor::extractSchemaType($property),
+                type: SchemaAccessor::extractSchemaType($structural),
                 required: in_array($name, $required, true),
-                nullable: SchemaAccessor::isNullable($property),
+                nullable: $nullable,
                 description: SchemaAccessor::undefinedToNull($property->description),
                 format: SchemaAccessor::undefinedToNull($property->format),
                 example: is_defined($property->example)
                     ? $property->example
                     : null,
-                enum: SchemaAccessor::extractSchemaEnum($property),
+                enum: SchemaAccessor::extractSchemaEnum($structural),
                 children: $children,
                 examples: $examples,
-                ref: SchemaAccessor::extractRef($property),
+                ref: SchemaAccessor::extractRef($structural),
                 raw: $property instanceof OA\Property ? $property : null,
+                uninspectedCompositeBranches: $composition['uninspectedComposite'],
             );
 
             // Link children and examples to this field

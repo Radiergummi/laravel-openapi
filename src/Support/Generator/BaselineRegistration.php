@@ -80,6 +80,7 @@ use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
 use Radiergummi\OpenApi\Lint\Rules\ResponseStatusUnconventional;
 use Radiergummi\OpenApi\Lint\Rules\ResponseSuccessEmptyBody;
 use Radiergummi\OpenApi\Lint\Rules\SchemaAllOfTypeConflict;
+use Radiergummi\OpenApi\Lint\Rules\SchemaCompositeFieldsUninspected;
 use Radiergummi\OpenApi\Lint\Rules\SchemaConstraintsMissing;
 use Radiergummi\OpenApi\Lint\Rules\SchemaDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\SchemaEnumEmpty;
@@ -254,6 +255,7 @@ final class BaselineRegistration
         SpecConfigOrphaned::class,
 
         ResponseRefUnresolvable::class,
+        SchemaCompositeFieldsUninspected::class,
 
         OverridesUnknownField::class,
         OverridesUnused::class,
