@@ -138,7 +138,7 @@ values (attributes, docblocks, route names). A code-based
 | `lint.level` | Default severity level when `--level` is not passed to `openapi:lint`. |
 | `lint.enabled_rules` | `null` = all rules at or below the level. A non-null array is an explicit allowlist. |
 | `lint.disabled_rules` | Always-off rules regardless of level. `spec.invalid` cannot be disabled. |
-| `lint.severity_overrides` | Per-rule level remap: `'rule.id' => level`. `spec.invalid` is exempt. |
+| `lint.severity_overrides` | Per-rule level remap: `'rule.id' => level`. `spec.invalid` is exempt. Negative values are floored to `0`. |
 | `lint.style` | Per-convention case expectations for naming rules. See [Linting → Style conventions](linting.md#style-conventions-naming-rules). |
 | `lint.baseline` | Path to a baseline file; `null` disables the baseline feature. |
 | `lint.rules` | Extra custom rule class-strings appended to the registry. |
