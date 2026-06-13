@@ -185,16 +185,13 @@ final class ReturnExpressionResourceReader
         return $this->targetFromExpression($expression, $method);
     }
 
-    // region @return docblock generic
-
-    // endregion
-
     // region Return-expression location
 
     /**
-     * The collection target documented by a `return …Collection<FooResource>` generic on the method
-     * docblock, or null when there is none. No body information is available here, so the
-     * collection keeps the default paginated envelope.
+     * The collection target documented by a `return …Collection<FooResource>` generic on the
+     * method docblock, or null when there is none. Pagination evidence is derived from the method
+     * body when available — `paginated: true` only when the body visibly ends in a
+     * `paginate()`-family call. Falls back to non-paginated when no body is inspectable.
      */
     private function targetFromReturnTag(ReflectionMethod $method): ?ResourceTarget
     {
@@ -218,7 +215,73 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        return new ResourceTarget($resourceClass, isCollection: true);
+        return new ResourceTarget(
+            $resourceClass,
+            isCollection: true,
+            paginated: $this->paginatedFromBody($method),
+        );
+    }
+
+    /**
+     * Derives pagination evidence from the method body: `true` only when the body's single
+     * unconditional return expression is (or unwraps to) a recognised collection shape whose
+     * source visibly ends in a `paginate()`-family call. Recognised shapes:
+     * - `X::collection($source)` — paginated when `$source` ends in a paginating call.
+     * - `$source->toResourceCollection(X::class)` — paginated when `$source` ends in a paginating
+     *   call (mirrors the body-scan path's `targetFromTransformCall` logic exactly).
+     *
+     * Returns `false` when the body is not inspectable or the return expression does not match.
+     * Never logs — on the docblock path the resource is already resolved, so refusal notices are
+     * false signals.
+     */
+    private function paginatedFromBody(ReflectionMethod $method): bool
+    {
+        $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+        $returnExpression = $this->canonicalReturnExpression($statements, $method, log: false);
+
+        if ($returnExpression === null) {
+            return false;
+        }
+
+        $expression = $returnExpression instanceof Variable
+            ? $this->expressionAssignedTo($returnExpression, $statements, $method, log: false)
+            : $returnExpression;
+
+        if ($expression === null) {
+            return false;
+        }
+
+        // Unwrap resource-preserving chain links (e.g. ->additional(...)).
+        while (
+            $expression instanceof MethodCall
+            && $expression->name instanceof Identifier
+            && in_array($expression->name->toLowerString(), self::RESOURCE_PRESERVING_CHAIN_METHODS, true)
+        ) {
+            $expression = $expression->var;
+        }
+
+        // X::collection($source) — paginated when $source ends in a paginating call.
+        if (
+            $expression instanceof StaticCall
+            && $expression->name instanceof Identifier
+            && $expression->name->toLowerString() === 'collection'
+        ) {
+            $argument = $expression->getArgs()[0]->value ?? null;
+
+            return $argument !== null && $this->endsInPaginatingCall($argument);
+        }
+
+        // $source->toResourceCollection(X::class) — paginated when $source ends in a paginating call.
+        if (
+            $expression instanceof MethodCall
+            && $expression->name instanceof Identifier
+            && $expression->name->toLowerString() === 'toresourcecollection'
+            && $expression->getArgs() !== []
+        ) {
+            return $this->endsInPaginatingCall($expression->var);
+        }
+
+        return false;
     }
 
     /**
@@ -250,12 +313,16 @@ final class ReturnExpressionResourceReader
     /**
      * The expression of the method's single unconditional return, or null (with a note) when the
      * scanned region has no top-level return or carries additional returns (conditional or
-     * dead-code) — the resource type would be a guess.
+     * dead-code) — the resource type would be a guess. Pass `log: false` to suppress the notice
+     * when the caller does not need the diagnostic (e.g. the pagination-only probe).
      *
      * @param list<Stmt> $statements
      */
-    private function canonicalReturnExpression(array $statements, ReflectionMethod $method): ?Expr
-    {
+    private function canonicalReturnExpression(
+        array $statements,
+        ReflectionMethod $method,
+        bool $log = true,
+    ): ?Expr {
         $topLevelReturn = null;
 
         foreach ($statements as $statement) {
@@ -267,19 +334,23 @@ final class ReturnExpressionResourceReader
         }
 
         if ($topLevelReturn === null || $topLevelReturn->expr === null) {
-            $this->note(
-                $method,
-                'has no unconditional top-level return in the scanned statements',
-            );
+            if ($log) {
+                $this->note(
+                    $method,
+                    'has no unconditional top-level return in the scanned statements',
+                );
+            }
 
             return null;
         }
 
         if (count($this->methodLevelReturns($statements)) > 1) {
-            $this->note(
-                $method,
-                'is not the method\'s only return, so the resource type would be a guess',
-            );
+            if ($log) {
+                $this->note(
+                    $method,
+                    'is not the method\'s only return, so the resource type would be a guess',
+                );
+            }
 
             return null;
         }
@@ -357,7 +428,9 @@ final class ReturnExpressionResourceReader
      * Resolves `return $variable;` through the single assignment to that variable — the
      * two-statement `$x = X::collection(...); return $x;` form. The assignment must be the only
      * one targeting the variable anywhere in the scanned region (a conditional reassignment makes
-     * the type a guess) and must itself sit on the unconditional path.
+     * the type a guess) and must itself sit on the unconditional path. Pass `log: false` to
+     * suppress the notice when the caller does not need the diagnostic (e.g. the
+     * pagination-only probe).
      *
      * @param list<Stmt> $statements
      */
@@ -365,11 +438,14 @@ final class ReturnExpressionResourceReader
         Variable $variable,
         array $statements,
         ReflectionMethod $method,
+        bool $log = true,
     ): ?Expr {
         $variableName = $variable->name;
 
         if (!is_string($variableName)) {
-            $this->note($method, 'returns a dynamically-named variable');
+            if ($log) {
+                $this->note($method, 'returns a dynamically-named variable');
+            }
 
             return null;
         }
@@ -391,13 +467,15 @@ final class ReturnExpressionResourceReader
         );
 
         if (count($allAssignments) !== 1 || count($unconditionalAssignments) !== 1) {
-            $this->note(
-                $method,
-                sprintf(
-                    'returns $%s, which is not assigned exactly once on the unconditional path',
-                    $variableName,
-                ),
-            );
+            if ($log) {
+                $this->note(
+                    $method,
+                    sprintf(
+                        'returns $%s, which is not assigned exactly once on the unconditional path',
+                        $variableName,
+                    ),
+                );
+            }
 
             return null;
         }

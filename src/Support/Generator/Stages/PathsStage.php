@@ -9,7 +9,6 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use Override;
-use Radiergummi\OpenApi\Attributes\Webhook as WebhookAttribute;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Events\RouteSkipped;
@@ -18,6 +17,7 @@ use Radiergummi\OpenApi\Extensions\OperationContext;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Generator\TagDeriver;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
@@ -86,12 +86,11 @@ final readonly class PathsStage implements SpecStage
                 continue;
             }
 
-            $webhookAttr = $this->readWebhookAttribute($descriptor);
+            $webhookName = OverrideMatcher::webhookKeyFor($descriptor);
 
-            if ($webhookAttr !== null) {
-                $name = $webhookAttr->name;
-                $webhookItems[$name] ??= new OA\Webhook(['webhook' => $name]);
-                $this->attachOperation($webhookItems[$name], $descriptor, $context);
+            if ($webhookName !== null) {
+                $webhookItems[$webhookName] ??= new OA\Webhook(['webhook' => $webhookName]);
+                $this->attachOperation($webhookItems[$webhookName], $descriptor, $context);
 
                 continue;
             }
@@ -106,18 +105,6 @@ final readonly class PathsStage implements SpecStage
         if ($webhookItems !== []) {
             $document->webhooks = array_values($webhookItems);
         }
-    }
-
-    private function readWebhookAttribute(ActionDescriptor $descriptor): ?WebhookAttribute
-    {
-        if ($descriptor->actionReflector === null) {
-            return null;
-        }
-
-        $attribute = ($descriptor->actionReflector->getAttributes(WebhookAttribute::class)[0] ?? null)?->newInstance();
-        assert($attribute === null || $attribute instanceof WebhookAttribute);
-
-        return $attribute;
     }
 
     /**
