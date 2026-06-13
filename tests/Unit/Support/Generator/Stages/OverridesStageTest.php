@@ -120,6 +120,37 @@ it('normalises a multi-tag override to a sequential list', function (): void {
         ->and(array_is_list($tags))->toBeTrue();
 });
 
+it('re-indexes a gappy-keyed tags override to a sequential list', function (): void {
+    // Hand-edited config can leave non-sequential integer keys behind. The result must
+    // still be a sequential list<string>; without array_values() the gappy keys would
+    // survive and array_is_list() would report false.
+    $matcher = new OverrideMatcher([
+        'users.index' => ['tags' => [1 => 'Users', 3 => 'Admin']],
+    ]);
+
+    [$doc, $ctx] = overridesStageFixture('users.index');
+    new OverridesStage($matcher)->apply($doc, $ctx);
+
+    $tags = $doc->paths[0]->get->tags;
+    expect($tags)->toBe(['Users', 'Admin'])
+        ->and(array_is_list($tags))->toBeTrue();
+});
+
+it('re-indexes an associative-keyed tags override to a sequential list', function (): void {
+    // Associative inner arrays are a realistic hand-edited config shape. The result must
+    // be a sequential list<string>, not a string-keyed map.
+    $matcher = new OverrideMatcher([
+        'users.index' => ['tags' => ['a' => 'Users', 'b' => 'Admin']],
+    ]);
+
+    [$doc, $ctx] = overridesStageFixture('users.index');
+    new OverridesStage($matcher)->apply($doc, $ctx);
+
+    $tags = $doc->paths[0]->get->tags;
+    expect($tags)->toBe(['Users', 'Admin'])
+        ->and(array_is_list($tags))->toBeTrue();
+});
+
 it('skips a path item with no path even when overrides are configured', function (): void {
     $matcher = new OverrideMatcher(['api/*' => ['deprecated' => true]]);
 

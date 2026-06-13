@@ -71,6 +71,21 @@ it('emits multiple tags as a sequential list', function (): void {
         ->and(array_is_list($tags))->toBeTrue();
 });
 
+it('re-indexes an associative-keyed tags override to a sequential list', function (): void {
+    // A hand-edited config can carry string keys on the inner tags array. The emitted
+    // tags must still be a sequential list<string>; without array_values() the keys
+    // would survive and array_is_list() would report false.
+    config()->set('openapi.overrides', [
+        'overrides.users' => ['tags' => ['a' => 'Users', 'b' => 'Admin']],
+    ]);
+
+    $spec = generateSpec();
+    $tags = $spec['paths']['/api/overrides/users']['get']['tags'];
+
+    expect($tags)->toBe(['Users', 'Admin'])
+        ->and(array_is_list($tags))->toBeTrue();
+});
+
 it('leaves operations untouched when overrides is empty', function (): void {
     config()->set('openapi.overrides', []);
 
