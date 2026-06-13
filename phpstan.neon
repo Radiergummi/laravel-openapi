@@ -127,6 +127,10 @@ parameters:
             identifier: openapi.visibility.hideExposeConflict
             paths:
                 - tests/Fixtures/
+        -
+            identifier: openapi.allowedFilter.duplicate
+            paths:
+                - tests/Unit/Plugins/QueryBuilder/Lint/QueryBuilderFilterDuplicateTest.php
         # Tests and fixtures don't document checked exceptions via @throws — they are not part
         # of the public API surface and the throws.* lint rules don't apply to them.
         -
