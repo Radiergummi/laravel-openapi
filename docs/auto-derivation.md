@@ -286,7 +286,10 @@ A status you wrote in the call wins over the resource-action
 With no status argument the response documents as `200` and the convention
 still applies, so a conventional `store` with no explicit status is promoted to
 `201`. A literal `204` documents as `204 No Content` without a body schema — the
-runtime strips the body — as does a bare `response()->noContent()`. A chained
+runtime strips the body — as does a bare `response()->noContent()`. A
+`response()->noContent($status)` is read at its status argument
+(`noContent(202)` / `noContent(status: 202)` documents `202`, still body-less);
+a non-literal or non-2xx status degrades. A chained
 `->setStatusCode(<literal>)` — `response()->json([...])->setStatusCode(201)`,
 class constants such as `Response::HTTP_CREATED` included — overrides the status
 and likewise wins over the convention. When several calls match, a **returned**

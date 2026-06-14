@@ -33,6 +33,7 @@ All notable changes to this project are documented here.
 - Pipeline order is expressed as a single ordered sequence in `BaselineRegistration::assemble()`; resolver fault isolation is centralized in `ResolverFaultBoundary`; pipeline classes are scoped singletons (Octane-safe).
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).
 - `PaginatorKind` recognises Spatie's `PaginatedDataCollection`; `DataResponseResolver` handles union return types as `oneOf`.
+- The inline `response()->noContent($status)` body-scan reads an explicit literal/named 2xx status (body-less); a non-literal or non-2xx status degrades. (#328)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)
