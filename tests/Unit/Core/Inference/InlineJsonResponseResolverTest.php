@@ -122,16 +122,74 @@ it('matches a json call wrapped in a further method chain', function (): void {
     expect(inlineJsonSchema($response)['properties'])->toHaveKey('cached');
 });
 
-it('refuses a json call chained into a status-mutating method and logs a note', function (): void {
+it('refuses a json call chained into a body-mutating method and logs a note', function (): void {
     $logger = recordingLogger();
 
     $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
-        inlineJsonActionDescriptor('statusMutatingChain'),
+        inlineJsonActionDescriptor('setDataChain'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('setData');
+});
+
+it('reads a literal ->setStatusCode() over the json chain and keeps the body', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('setStatusCodeLiteral'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('201')
+        ->and($response->description)->toBe('Created')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('created');
+});
+
+it('resolves a class-constant ->setStatusCode() over the json chain', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('setStatusCodeConstant'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('201')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('created');
+});
+
+it('refuses a non-literal ->setStatusCode() and logs a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('setStatusCodeDynamic'),
     );
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
         ->and($logger->records[0]['message'])->toContain('setStatusCode');
+});
+
+it('refuses a literal non-2xx ->setStatusCode() and logs a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('setStatusCodeNonSuccess'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('non-2xx')
+        ->and($logger->records[0]['message'])->toContain('403');
+});
+
+it('documents a 204 from ->noContent() without a body schema', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContent'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and($response->description)->toBe('No Content')
+        ->and($logger->records)->toBeEmpty();
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($response, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
 });
 
 it('documents explicit sequential integer keys as a JSON array (AST path)', function (): void {
