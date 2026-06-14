@@ -266,8 +266,12 @@ final class FieldDescriptor
             }
         }
 
-        // Nested array element (from wildcard validation keys).
-        if ($this->items !== null) {
+        // Nested array element (from wildcard validation keys). Skip when the target is already a
+        // map (`type: object` with `additionalProperties`): a string-keyed array resolves to a map,
+        // and a rule pass that read it as a plain `array` must not graft a stray `items` onto it.
+        $targetIsMap = $target->type === 'object' && is_defined($target->additionalProperties);
+
+        if ($this->items !== null && !$targetIsMap) {
             if ($overwrite || is_undefined($target->items)) {
                 $childItems = new OA\Items([]);
                 $this->items->applyTo($childItems);
