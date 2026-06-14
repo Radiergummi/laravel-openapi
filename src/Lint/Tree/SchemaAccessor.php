@@ -218,6 +218,40 @@ final class SchemaAccessor
         return is_array($type) && !is_undefined($type) && $type === ['null'];
     }
 
+    /**
+     * Extract the first inline media-type schema from a response or request body, skipping
+     * `$ref` schemas (a referenced component is inspected at its own definition). Returns null
+     * when the body carries no inline schema.
+     */
+    public static function bodySchema(OA\Response|OA\RequestBody $body): ?OA\Schema
+    {
+        $content = $body->content;
+
+        if (!is_array($content) || is_undefined($content)) {
+            return null;
+        }
+
+        foreach ($content as $mediaType) {
+            if (!$mediaType instanceof OA\MediaType || is_undefined($mediaType)) {
+                continue;
+            }
+
+            $schema = $mediaType->schema;
+
+            if (
+                !$schema instanceof OA\Schema
+                || is_undefined($schema)
+                || self::extractRef($schema) !== null
+            ) {
+                continue;
+            }
+
+            return $schema;
+        }
+
+        return null;
+    }
+
     public static function isNullable(OA\Schema $schema): bool
     {
         // OAS 3.0 style

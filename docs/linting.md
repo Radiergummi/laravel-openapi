@@ -514,7 +514,7 @@ is enabled.
 | `query-builder.filter-duplicate` | 3 | Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.) |
 | `query-builder.filter-type-missing` | 3 | An #[AllowedFilter] is declared without an explicit value type. (QueryBuilder plugin.) |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
-| `schema.composite-fields-uninspected` | 3 | Schema property is a oneOf/anyOf of multiple alternatives whose fields are not inspected by field-level rules. |
+| `schema.composite-fields-uninspected` | 3 | Schema is a oneOf/anyOf of multiple alternatives whose fields are not inspected by field-level rules (property, component schema, response body, or request body). |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
 | `spec.config-orphaned` | 3 | A configured spec has zero assigned routes after evaluation. |
 | `tag.duplicate` | 3 | The same #[Tag] is applied more than once to a controller method (redundant; tags are deduplicated in the output). |
