@@ -28,4 +28,16 @@ final class DuplicateResponseHeaderFixture
     #[ResponseHeader(name: 'X-Correlation-Id')]
     #[ResponseHeader(name: 'x-correlation-id')]
     public function caseInsensitiveDuplicate(): void {}
+
+    #[ResponseHeader('X-Positional')]
+    #[ResponseHeader('X-Positional')]
+    public function positionalNameDuplicate(): void {}
+
+    #[ResponseHeader('X-Pos-Status', 404)]
+    #[ResponseHeader('X-Pos-Status', 500)]
+    public function positionalDifferentStatuses(): void {}
+
+    #[ResponseHeader('X-Pos-Status', 404)]
+    #[ResponseHeader('X-Pos-Status', 404)]
+    public function positionalSameStatus(): void {}
 }

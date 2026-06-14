@@ -38,6 +38,14 @@ final class DuplicateResponseHeaderRuleTest extends RuleTestCase
                 "#[ResponseHeader] 'x-correlation-id' for status 200 is declared more than once on this target — the duplicate is silently dropped.",
                 29,
             ],
+            [
+                "#[ResponseHeader] 'X-Positional' for status 200 is declared more than once on this target — the duplicate is silently dropped.",
+                33,
+            ],
+            [
+                "#[ResponseHeader] 'X-Pos-Status' for status 404 is declared more than once on this target — the duplicate is silently dropped.",
+                41,
+            ],
         ]);
     }
 }
