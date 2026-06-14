@@ -9,6 +9,7 @@ use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Radiergummi\OpenApi\Attributes\BaseExample as BaseExampleAttribute;
+use Radiergummi\OpenApi\Attributes\CookieParam as CookieParamAttribute;
 use Radiergummi\OpenApi\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Attributes\Example as ExampleAttribute;
@@ -163,6 +164,7 @@ final readonly class OperationBuilder
 
         $security = $this->resolveSecurity($action);
         $headerParams = $this->readHeaderAttributes($action);
+        $cookieParams = $this->readCookieAttributes($action);
         $requestBody = $this->bodyExtractor->extractFromMethod($action);
         $requestBody = $this->applyRequestBodyOverride($action, $requestBody);
         $this->applyRequestExamples($action, $requestBody);
@@ -263,7 +265,7 @@ final readonly class OperationBuilder
             summary: $summary ?: null,
             description: $description ?: null,
             tags: $this->mergeTags($baseTags, $additionalTags),
-            parameters: [...$pathParams, ...$queryParams, ...$headerParams],
+            parameters: [...$pathParams, ...$queryParams, ...$headerParams, ...$cookieParams],
             security: $security,
             responses: $responses,
             requestBody: $requestBody,
@@ -365,6 +367,29 @@ final readonly class OperationBuilder
         }
 
         return array_values(array_map($this->buildHeaderParameter(...), $byName));
+    }
+
+    /**
+     * Method-level entries win on name collision; declaration order is otherwise preserved.
+     *
+     * @return list<OA\Parameter>
+     */
+    private function readCookieAttributes(ActionDescriptor $descriptor): array
+    {
+        /** @var array<string, CookieParamAttribute> $byName */
+        $byName = [];
+
+        foreach (
+            [
+                ...$descriptor->controllerAttributes(CookieParamAttribute::class),
+                ...$descriptor->actionAttributes(CookieParamAttribute::class),
+            ] as $attribute
+        ) {
+            $instance = $attribute->newInstance();
+            $byName[$instance->name] = $instance;
+        }
+
+        return array_values(array_map($this->buildCookieParameter(...), $byName));
     }
 
     /**
@@ -1006,6 +1031,30 @@ final readonly class OperationBuilder
 
         if ($header->deprecated !== null) {
             $props['deprecated'] = $header->deprecated;
+        }
+
+        return new OA\Parameter($props);
+    }
+
+    private function buildCookieParameter(CookieParamAttribute $cookie): OA\Parameter
+    {
+        $schema = $cookie->descriptor()->toSchema();
+
+        // Cookies are string-valued on the wire; default the schema type when the author left it
+        // unset and it could not be inferred from an enum.
+        if ($schema->type === Generator::UNDEFINED) {
+            $schema->type = 'string';
+        }
+
+        $props = [
+            'name' => $cookie->name,
+            'in' => 'cookie',
+            'required' => $cookie->required,
+            'schema' => $schema,
+        ];
+
+        if ($cookie->deprecated) {
+            $props['deprecated'] = true;
         }
 
         return new OA\Parameter($props);
