@@ -142,20 +142,11 @@ final class SpecRegistry
         $match = is_array($overrides['match'] ?? null) ? $overrides['match'] : [];
 
         $outputPath = $this->resolveOutputPath($name, $overrides);
-        $routeUri = $this->resolveOptional(
-            $overrides,
-            'route_uri',
-            $name === 'default'
-                ? $this->rootRouteUri
-                : sprintf('openapi-%s.yaml', $name),
-        );
-        $playgroundUri = $this->resolveOptional(
-            $overrides,
-            'playground_uri',
-            $name === 'default'
-                ? $this->rootPlaygroundUri
-                : sprintf('docs/%s', $name),
-        );
+        $routes = new SpecRouteConfig($this->rootRouteUri, $this->rootPlaygroundUri);
+
+        // `SpecDefinition` opts out of HTTP serving with `null`; the helper signals it with `false`.
+        $routeUri = $routes->routeUri($name, $overrides);
+        $playgroundUri = $routes->playgroundUri($name, $overrides);
 
         return new SpecDefinition(
             name: $name,
@@ -164,8 +155,8 @@ final class SpecRegistry
             tags: $tags,
             match: $match,
             outputPath: $outputPath,
-            routeUri: $routeUri,
-            playgroundUri: $playgroundUri,
+            routeUri: $routeUri === false ? null : $routeUri,
+            playgroundUri: $playgroundUri === false ? null : $playgroundUri,
         );
     }
 
@@ -181,24 +172,6 @@ final class SpecRegistry
         return $name === 'default'
             ? $this->rootOutputPath
             : rtrim($this->storagePath, '/') . sprintf('/openapi-%s.yaml', $name);
-    }
-
-    /**
-     * @param array<string, mixed> $overrides
-     */
-    private function resolveOptional(array $overrides, string $key, string $default): ?string
-    {
-        if (!array_key_exists($key, $overrides)) {
-            return $default;
-        }
-
-        $value = $overrides[$key];
-
-        if ($value === false || $value === null) {
-            return null;
-        }
-
-        return (string) $value;
     }
 
     /**

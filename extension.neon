@@ -77,6 +77,12 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Radiergummi\OpenApi\PhpStan\Rules\RequestFieldNameRequiredOnMethodRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
+        tags:
+            - phpstan.rules.rule
+    -
         class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseHeaderRule
         arguments:
             nodeType: PhpParser\Node\FunctionLike
@@ -86,6 +92,13 @@ services:
         class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseHeaderRule
         arguments:
             nodeType: PhpParser\Node\Stmt\ClassLike
+        tags:
+            - phpstan.rules.rule
+    # QueryBuilder plugin: #[AllowedFilter] targets methods/functions only, so no ClassLike variant.
+    -
+        class: Radiergummi\OpenApi\Plugins\QueryBuilder\PhpStan\Rules\QueryBuilderFilterDuplicateRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
         tags:
             - phpstan.rules.rule
 

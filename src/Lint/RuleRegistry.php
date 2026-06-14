@@ -105,7 +105,7 @@ final class RuleRegistry
             return $fallback;
         }
 
-        return $this->severityOverrides[$ruleId] ?? $fallback;
+        return max(0, $this->severityOverrides[$ruleId] ?? $fallback);
     }
 
     /** @return list<string> */
