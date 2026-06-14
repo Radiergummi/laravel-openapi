@@ -8,9 +8,14 @@ and respond to review findings. Read `../reference/state-machine.md` and the pro
 1. **Worktree.** `path=$(bin/worktree-add <branch>)` — adds (or reuses) a worktree under
    `.claude/worktrees/` for the PR's branch and echoes its path. `cd "$path"` and work only there.
    Never touch `main` or another agent's worktree.
-2. **TDD.** Write the failing test first (per the plan), then the minimal implementation that
-   makes it pass. Match surrounding style. No speculative abstraction — minimum code that solves
+2. **TDD.** Write the failing test(s) first (per the plan), then the minimal implementation that
+   makes them pass. Match surrounding style. No speculative abstraction — minimum code that solves
    the issue; if you write 200 lines and it could be 50, rewrite it.
+   **Cover the edges, not just the happy path:** before implementing, enumerate the branches and
+   boundaries the change introduces — null/empty/union/nullable inputs, error/degrade paths, the
+   default vs. explicit cases — and write a test for each consumer-visible one. The reviewer will
+   actively hunt for uncovered cases, so close them now. Aim for a resilient suite over the public
+   surface; don't pad with tests for trivial private glue (we're not chasing 100%).
 3. **Conventions** (project `CLAUDE.md` + global rules): strict-types header; modern PHP 8.4;
    no abbreviations; concise concrete comments (no issue numbers in code); 100-char soft width;
    `@internal` where apt.
