@@ -7,19 +7,28 @@ last role comment.
 ## Phases
 
 ```
-Full:      planning ─▶ plan-review ─▶ coding ⇄ review ─▶ [survey] ─▶ merge ─▶ done
-           planner     reviewer       coder   reviewer    surveyor    lead
-                                         ▲______│ (≤3 rounds)
+Full:      planning ─▶ plan-review ─▶ coding ⇄ review ─▶ [docs] ─▶ [survey] ─▶ merge ─▶ done
+           planner     reviewer       coder   reviewer  docs-writer surveyor    lead
+                                         ▲______│ (≤3 rounds)  └▶ reviewer docs-check
 
 Fast-path:                              coding ──▶ review ──────────▶ merge ─▶ done
-(docs / area:cli / area:lint /          coder      reviewer (×1)      lead
+(area:cli / area:lint /                 coder      reviewer (×1)      lead
  ≤20-line mechanical)
+
+Docs-path:  [planning] ─▶ docs ──▶ review ──▶ merge ─▶ done
+(documentation issue)   docs-writer  reviewer    lead
 ```
 
 - **`[survey]` is conditional:** run only for generation-affecting areas (`area:core`,
   `area:responses`, `area:params`, `area:requests`, `area:plugins`, `area:security`,
   `area:multi-spec`). Skipped for lint/cli/docs. The lead picks the tier when admitting; a
   fast-pathed item that turns out larger/generation-affecting is promoted to Full.
+- **`[docs]` is conditional:** after code review, the lead inserts a docs sub-phase only when the
+  change has **material** documentation impact (new public surface, authoring attribute, config
+  key, lint rule, or a conceptual change). The `docs-writer` updates the pages on the same branch,
+  then a `reviewer` docs-checks. Trivial doc impact is handled inline by the coder + the reviewer's
+  docs-gap duty — no sub-phase. A `documentation`-labeled issue uses the Docs-path, owned by the
+  `docs-writer`.
 
 ## Label map (one active phase label at a time)
 
@@ -28,18 +37,21 @@ Fast-path:                              coding ──▶ review ─────�
 | planning     | `agent:planning`    | planner    | draft    |
 | plan-review  | `agent:plan-review` | reviewer   | draft    |
 | coding       | `agent:coding`      | coder      | draft    |
-| review       | `agent:in-review`   | reviewer   | ready    |
-| survey       | `agent:survey`      | surveyor   | ready    |
-| escalated    | `agent:needs-human` | (human)    | ready    |
+| review       | `agent:in-review`   | reviewer    | ready    |
+| docs         | `agent:docs`        | docs-writer | ready    |
+| survey       | `agent:survey`      | surveyor    | ready    |
+| escalated    | `agent:needs-human` | (human)     | ready    |
 
 When a role finishes its phase it (a) posts a comment, (b) `SendMessage`s the lead, then the
 **lead** moves the label and reassigns the task. Roles do not relabel across phases themselves —
 the lead owns transitions so there is a single writer. The lead transitions with
 `bin/set-phase <num> <phase> "<comment>"`, which removes any other `agent:*` label and posts the
-annotation atomically — keeping the single-active-label invariant intact.
+annotation atomically — keeping the single-active-label invariant intact. Once the PR exists,
+transition the **PR** number: `set-phase` detects a PR and also clears the stale label from the
+issue(s) it closes, so the phase locus migrates issue → PR with no double-count on `resume-scan`.
 
-Issues carrying any of `blocked`, `deferred`, `spec`, `epic`, or `agent:needs-human` are
-**never** picked up.
+Issues carrying any of `blocked`, `deferred`, `spec`, `epic`, `human-task`, or `agent:needs-human`
+are **never** picked up.
 
 ## Comment protocol (durable annotations)
 

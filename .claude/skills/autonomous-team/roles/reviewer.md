@@ -28,6 +28,18 @@ Review the pushed diff adversarially. Reject unless **all** hold:
 - **Correctness:** logic is right; edge cases (null/empty/union/nullable, error paths) covered by
   tests. Try to find the input that breaks it.
 - **Tests:** new behaviour has tests that would fail without the change. TDD was followed.
+- **Test-suite gaps (actively hunt — this is a first-class review duty, not a footnote):** don't
+  just confirm the happy path is tested — enumerate the behaviours this change touches and look for
+  what is *left uncovered*. For the changed code, walk every branch, boundary, and error/degrade
+  path and ask "what input would exercise this, and is there a test for it?". Then widen to the
+  **public surface** the change affects (the public methods/attributes/options a package consumer
+  relies on) and flag any consumer-visible behaviour or edge case with no test. A missing but
+  important case is a **finding**, written as a concrete test to add (name the input and expected
+  output), not a vague "add more tests". Optionally consult `composer test:coverage` and inspect
+  the touched files to spot untested branches — but judge by edge-case/public-surface reasoning,
+  **not** a coverage percentage. The goal is a resilient suite covering the public surface and its
+  edges; we are explicitly **not** chasing 100% — don't demand tests for trivial/private glue or
+  unreachable states.
 - **Conventions (project `CLAUDE.md` + global rules):** strict-types header; **modern PHP 8.4**;
   **no abbreviations** in names; **concise, concrete comments** (no restating code, no issue
   numbers in code); **100-char soft line width**; `@internal` on internal-only classes; verbose
@@ -35,8 +47,16 @@ Review the pushed diff adversarially. Reject unless **all** hold:
 - **Boundaries:** `src/Support/` and `src/Contracts/` don't depend on any plugin/third-party
   convention package; nothing config-driven leaks into `src/Plugins/Core/`; no host-app runtime
   mutation.
-- **Bookkeeping:** `CHANGELOG.md [Unreleased]` entry present; affected `docs/` page updated if the
-  change is observable; `docs/linting.md` catalog row added for any new rule.
+- **Bookkeeping:** `CHANGELOG.md [Unreleased]` entry present; `docs/linting.md` catalog row added
+  for any new rule.
+- **Documentation gaps (actively check — like test gaps, a first-class duty):** don't just confirm
+  *a* docs line exists — ask whether the **public surface** this change introduces or alters is
+  properly documented for a consumer: the right `docs/` page updated, the `docs/README.md` index
+  current, examples accurate, the tier/boundary framing honest. If the change has **material** doc
+  impact (new public method, authoring attribute, config key, lint rule, or a conceptual change)
+  that the inline edit under-covers, flag it — the lead will route a **docs sub-phase** to the
+  `docs-writer`. Trivial/observable tweaks the coder handled inline are fine; judge by
+  consumer-visibility, not page count.
 - **No scope creep / no deviation from the agreed plan** (if it deviated, the coder must have
   documented why as a PR comment).
 

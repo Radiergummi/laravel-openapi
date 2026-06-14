@@ -29,7 +29,9 @@ Read `../reference/state-machine.md` for the label/comment protocol. Read the pr
   idiom. If only Tier 2 (full dataflow) would solve it, say so: that case is the authoring
   attribute's job, not inference. Flag for escalation.
 - Files to create/modify, named.
-- The test(s) that will prove it (TDD: the failing test comes first).
+- The test(s) that will prove it (TDD: the failing test comes first) — list the edge cases and
+  branches to cover (null/empty/union, error/degrade paths, default vs. explicit), not just the
+  happy path, so coverage of the public surface is planned up front.
 - Observable behaviour changes → which `docs/` page and `CHANGELOG.md [Unreleased]` entry.
 - If it adds a lint rule: the rule ID and the `docs/linting.md` catalog row.
 - Anything that would make this **controversial** to merge (touches `src/Contracts/**`, changes

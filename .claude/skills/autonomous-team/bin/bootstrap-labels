@@ -13,5 +13,7 @@ create "agent:planning"    "5319e7" "Autonomous team: planner is drafting the PR
 create "agent:plan-review" "8a63d2" "Autonomous team: reviewer is vetting the plan"
 create "agent:coding"      "0e8a16" "Autonomous team: coder is implementing in a worktree"
 create "agent:in-review"   "fbca04" "Autonomous team: reviewer is in the adversarial code loop"
+create "agent:docs"        "c2e0c6" "Autonomous team: docs-writer is authoring/updating documentation"
 create "agent:survey"      "1d76db" "Autonomous team: surveyor is running the Layer A gate"
 create "agent:needs-human" "b60205" "Autonomous team: escalated — a human decision is required"
+create "human-task"        "d4c5f9" "Not agent-implementable (needs a human, e.g. outreach/permissions) — never admitted"
