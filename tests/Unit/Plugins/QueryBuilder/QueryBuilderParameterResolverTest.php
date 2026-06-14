@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Spatie\QueryBuilder\AllowedFilter as SpatieAllowedFilter;
 use Spatie\QueryBuilder\AllowedInclude as SpatieAllowedInclude;
 use Spatie\QueryBuilder\AllowedSort as SpatieAllowedSort;
+use Spatie\QueryBuilder\Enums\SortDirection;
 use Spatie\QueryBuilder\QueryBuilder;
 
 use function array_find;
@@ -150,6 +151,35 @@ class QbChainFixtureController
     {
         return QueryBuilder::for(Author::class)
             ->allowedSorts('name', 'created_at')
+            ->get();
+    }
+
+    public function modifiedValueObjectChain(): mixed
+    {
+        return QueryBuilder::for(Author::class)
+            ->allowedFilters([
+                SpatieAllowedFilter::exact('healthy')->nullable(),
+                SpatieAllowedFilter::exact('q')->default('x')->ignore(null),
+            ])
+            ->allowedSorts([SpatieAllowedSort::field('-created_at')->defaultDirection(SortDirection::Ascending)])
+            ->get();
+    }
+
+    public function mixedModifierAllowListChain(): mixed
+    {
+        return QueryBuilder::for(Author::class)
+            ->allowedFilters([
+                'status',
+                SpatieAllowedFilter::exact('origin'),
+                SpatieAllowedFilter::exact('healthy')->nullable(),
+            ])
+            ->get();
+    }
+
+    public function modifiedImpostorChain(): mixed
+    {
+        return QueryBuilder::for(Author::class)
+            ->allowedFilters(['status', QbImpostorQueryBuilder::for('x')->get()])
             ->get();
     }
 
@@ -351,6 +381,27 @@ it('reads the variadic allow-list form', function (): void {
         ->and($sort->schema->items->enum)->toBe(['name', 'created_at']);
 });
 
+it('reads through fluent modifiers wrapping value-object constructors', function (): void {
+    $descriptor = chainDescriptor(QbChainFixtureController::class, 'modifiedValueObjectChain');
+    $params = makeQueryBuilderParameterResolver()->resolveQueryParameters($descriptor);
+
+    $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
+
+    expect(parameterNames($params))->toContain('filter[healthy]')
+        ->and(parameterNames($params))->toContain('filter[q]')
+        ->and($sort)->not->toBeNull()
+        ->and($sort->schema->items->enum)->toBe(['created_at']);
+});
+
+it('keeps literal, bare and modifier-wrapped elements together without a partial drop', function (): void {
+    $logger = recordingLogger();
+    $descriptor = chainDescriptor(QbChainFixtureController::class, 'mixedModifierAllowListChain');
+    $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
+
+    expect(parameterNames($params))->toBe(['filter[status]', 'filter[origin]', 'filter[healthy]'])
+        ->and($logger->records)->toBe([]);
+});
+
 // endregion
 
 // region Graceful degradation
@@ -358,6 +409,16 @@ it('reads the variadic allow-list form', function (): void {
 it('keeps readable elements and drops non-literal ones with a notice', function (): void {
     $logger = recordingLogger();
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'partiallyReadableChain');
+    $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
+
+    expect(parameterNames($params))->toBe(['filter[status]'])
+        ->and(implode("\n", array_map(static fn(array $r): string => $r['message'], $logger->records)))
+        ->toContain('allowedFilters');
+});
+
+it('drops a modifier-wrapped non-Spatie root while keeping the readable element', function (): void {
+    $logger = recordingLogger();
+    $descriptor = chainDescriptor(QbChainFixtureController::class, 'modifiedImpostorChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
     expect(parameterNames($params))->toBe(['filter[status]'])
