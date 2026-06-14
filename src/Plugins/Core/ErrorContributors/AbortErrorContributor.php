@@ -26,6 +26,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 use function array_key_exists;
+use function array_search;
 use function function_exists;
 use function is_int;
 use function is_string;
@@ -52,13 +53,15 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
     public const int STATEMENT_LIMIT = 10;
 
     /**
-     * The whitelisted helpers, mapped to the position of their status argument (the message
-     * argument follows directly after).
+     * The whitelisted helpers, mapped to their parameter names in declared order. The position of
+     * `code` is the status argument and `message` follows it; `abort_if` / `abort_unless` carry a
+     * leading `boolean` condition that shifts both by one. The names let a named-argument call
+     * (`abort(code: 403)`) resolve to the same position as a positional one.
      */
-    private const array HELPER_STATUS_ARGUMENT = [
-        'abort' => 0,
-        'abort_if' => 1,
-        'abort_unless' => 1,
+    private const array HELPER_PARAMETERS = [
+        'abort' => ['code', 'message'],
+        'abort_if' => ['boolean', 'code', 'message'],
+        'abort_unless' => ['boolean', 'code', 'message'],
     ];
 
     private StatementNodeFinder $statementNodeFinder;
@@ -131,7 +134,7 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
 
         $name = $call->name->toLowerString();
 
-        if (!array_key_exists($name, self::HELPER_STATUS_ARGUMENT)) {
+        if (!array_key_exists($name, self::HELPER_PARAMETERS)) {
             return null;
         }
 
@@ -159,10 +162,10 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
     ): ?ErrorDescriptor {
         /** @var string $helper guaranteed by the find predicate */
         $helper = $this->helperName($call);
-        $statusIndex = self::HELPER_STATUS_ARGUMENT[$helper];
+        $parameters = self::HELPER_PARAMETERS[$helper];
         $arguments = $call->getArgs();
 
-        $status = $this->literalValueAt($arguments, $statusIndex);
+        $status = $this->literalArgument($arguments, $parameters, 'code');
 
         if (!is_int($status)) {
             // Abort-shaped call found, but the status is not statically readable — note it.
@@ -184,7 +187,7 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
             return null;
         }
 
-        [$description, $authored] = $this->description($arguments, $statusIndex + 1, $status);
+        [$description, $authored] = $this->description($arguments, $parameters, $status);
 
         return new ErrorDescriptor(
             status: $status,
@@ -199,20 +202,44 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
     }
 
     /**
-     * Evaluates the positional argument at the given index as a compile-time literal. Returns
-     * null when the argument is absent, named, unpacked, or not a literal.
+     * Evaluates the helper's `$parameterName` argument as a compile-time literal, resolving it
+     * either by name (`abort(code: 403)`) or by its declared position (`abort(403)`). Returns null
+     * when the argument is absent, unpacked, or not a literal.
      *
      * @param array<int, Arg> $arguments
+     * @param list<string>    $parameters the helper's parameter names in declared order
      */
-    private function literalValueAt(array $arguments, int $index): mixed
+    private function literalArgument(array $arguments, array $parameters, string $parameterName): mixed
     {
-        $argument = $arguments[$index] ?? null;
+        $argument = $this->resolveArgument($arguments, $parameters, $parameterName);
 
-        if ($argument === null || $argument->name !== null || $argument->unpack) {
+        if ($argument === null || $argument->unpack) {
             return null;
         }
 
         return $this->literalValueOf($argument->value);
+    }
+
+    /**
+     * Finds the argument bound to `$parameterName`: a matching named argument wins, otherwise the
+     * positional argument at the parameter's declared index — but only while no named argument has
+     * appeared (named arguments may not precede positional ones in a valid call).
+     *
+     * @param array<int, Arg> $arguments
+     * @param list<string>    $parameters the helper's parameter names in declared order
+     */
+    private function resolveArgument(array $arguments, array $parameters, string $parameterName): ?Arg
+    {
+        foreach ($arguments as $argument) {
+            if ($argument->name !== null && $argument->name->toString() === $parameterName) {
+                return $argument;
+            }
+        }
+
+        $index = array_search($parameterName, $parameters, true);
+        $positional = $index === false ? null : ($arguments[$index] ?? null);
+
+        return $positional !== null && $positional->name === null ? $positional : null;
     }
 
     private function literalValueOf(Expr $expression): mixed
@@ -229,12 +256,13 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
      * message does not discard the response — the status is still a fact worth documenting.
      *
      * @param array<int, Arg> $arguments
+     * @param list<string>    $parameters the helper's parameter names in declared order
      *
      * @return array{0: string, 1: bool} the description and whether it is route-authored
      */
-    private function description(array $arguments, int $messageIndex, int $status): array
+    private function description(array $arguments, array $parameters, int $status): array
     {
-        $message = $this->literalValueAt($arguments, $messageIndex);
+        $message = $this->literalArgument($arguments, $parameters, 'message');
 
         if (is_string($message) && $message !== '') {
             return [$message, true];
