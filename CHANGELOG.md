@@ -34,6 +34,7 @@ All notable changes to this project are documented here.
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).
 - `PaginatorKind` recognises Spatie's `PaginatedDataCollection`; `DataResponseResolver` handles union return types as `oneOf`.
 - The inline `response()->noContent($status)` body-scan reads an explicit literal/named 2xx status (body-less); a non-literal or non-2xx status degrades. (#328)
+- A typed `UploadedFile` property on a Spatie `Data` class (transitively, through nested Data classes) emits a `multipart/form-data` body with a `format: binary` field, matching the FormRequest file-rule path; the `multipart.file-without-multipart` lint rule is reframed as a contradiction guard that fires only when a `#[RequestBody]` override forces a non-multipart media type onto a file-carrying payload. (#333)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)

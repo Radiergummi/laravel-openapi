@@ -582,10 +582,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
             return new OA\Schema([
                 'type' => 'string',
                 'format' => 'binary',
-                'description' => sprintf(
-                    'File upload property `%s` — multipart/form-data bodies are not yet fully modelled.',
-                    $propertyName,
-                ),
             ]);
         }
 
