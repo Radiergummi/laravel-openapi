@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Emit open issues the team may pick up, lowest-numbered first, tier-0 before tier-1.
+# Excludes: blocked/deferred/spec/epic, anything already in an agent:* phase,
+# and any issue already referenced (Closes/Fixes/Resolves #N) by an open PR.
+# Output: JSON array of {number,title,labels}.
+set -euo pipefail
+
+EXCLUDE='["blocked","deferred","spec","epic","agent:planning","agent:plan-review","agent:coding","agent:in-review","agent:survey","agent:needs-human"]'
+
+# Issue numbers already claimed by an open PR (via closing keywords in the PR body).
+CLAIMED=$(gh pr list --state open --limit 200 --json body \
+  | jq -r '.[].body // ""' \
+  | grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#[0-9]+' \
+  | grep -oE '[0-9]+' \
+  | jq -R 'tonumber' | jq -s '.')
+CLAIMED=${CLAIMED:-[]}
+
+gh issue list --state open --limit 200 --json number,title,labels \
+  | jq --argjson claimed "$CLAIMED" --argjson exclude "$EXCLUDE" '
+    [ .[]
+      | { number, title, labels: [.labels[].name] }
+      | select( ([.labels[]] - $exclude) == [.labels[]] )
+      | select( ([.number] - $claimed) == [.number] )
+    ]
+    | sort_by(
+        ( if   (.labels | index("tier-0")) then 0
+          elif (.labels | index("tier-1")) then 1
+          else 2 end ),
+        .number )
+  '
