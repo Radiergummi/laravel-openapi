@@ -46,6 +46,7 @@ final readonly class RequestField extends FieldAttribute
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
+     * @param null|array<string, mixed>                                                    $x           Vendor extensions (`x-*`).
      */
     public function __construct(
         public ?string $name = null,
@@ -71,6 +72,7 @@ final readonly class RequestField extends FieldAttribute
         ?int $maxItems = null,
         ?bool $uniqueItems = null,
         ?bool $writeOnly = null,
+        ?array $x = null,
     ) {
         parent::__construct(
             title: $title,
@@ -94,6 +96,7 @@ final readonly class RequestField extends FieldAttribute
             maxItems: $maxItems,
             uniqueItems: $uniqueItems,
             writeOnly: $writeOnly,
+            x: $x,
         );
     }
 }

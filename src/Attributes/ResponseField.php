@@ -37,6 +37,7 @@ final readonly class ResponseField extends FieldAttribute
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
+     * @param null|array<string, mixed>                                                    $x           Vendor extensions (`x-*`).
      */
     public function __construct(
         ?string $title = null,
@@ -60,6 +61,7 @@ final readonly class ResponseField extends FieldAttribute
         ?bool $uniqueItems = null,
         ?bool $readOnly = null,
         bool $conditional = false,
+        ?array $x = null,
     ) {
         parent::__construct(
             title: $title,
@@ -83,6 +85,7 @@ final readonly class ResponseField extends FieldAttribute
             uniqueItems: $uniqueItems,
             readOnly: $readOnly,
             conditional: $conditional,
+            x: $x,
         );
     }
 }

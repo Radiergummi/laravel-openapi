@@ -55,7 +55,7 @@ target. The wrong scope is caught by `field.attribute-wrong-scope`.
 |---|---|---|---|
 | `RequestField` | property, parameter, class-constant | Request-body input fields | Place on a Spatie Data class property / promoted constructor parameter, or on a `FormRequest` field constant. Supports `writeOnly` and `default`. No `readOnly` (a request field is never read-only). |
 | `ResponseField` | class-constant, property | Response output fields | Place on a response class field constant or property. Supports `readOnly` and `conditional`. `conditional: true` keeps the field in `properties` but removes it from `required`. Use for conditionally-present fields. |
-| `PathParam` | parameter | URI path parameters | Place on a controller action parameter for a route-bound model or scalar segment. Only `description`, `example`, `format`, and `pattern` apply (type is inferred from the binding). |
+| `PathParam` | parameter | URI path parameters | Place on a controller action parameter for a route-bound model or scalar segment. Only `description`, `example`, `format`, `pattern`, and `x` apply (type is inferred from the binding). |
 | `QueryParam` | class, method | Ad-hoc query parameters | See operation-level table above. |
 | `CookieParam` | class, method | Cookie parameters | See operation-level table above. |
 
@@ -66,8 +66,30 @@ All five subclasses share the same JSON Schema field surface inherited from
 type), `default`, `nullable`, `enum`, `minimum` / `maximum`,
 `exclusiveMinimum` / `exclusiveMaximum`, `multipleOf`, `minLength` /
 `maxLength`, `pattern`, `minItems` / `maxItems`, `uniqueItems`, `readOnly`,
-`writeOnly` (where applicable to the scope — e.g. `RequestField` has no
-`readOnly`, `PathParam` only `description` / `example` / `format` / `pattern`).
+`writeOnly`, `x` (where applicable to the scope — e.g. `RequestField` has no
+`readOnly`, `PathParam` only `description` / `example` / `format` / `pattern` /
+`x`).
+
+### Vendor extensions (`x-*`)
+
+The `x:` argument attaches OpenAPI [specification extensions](https://spec.openapis.org/oas/v3.1.0#specification-extensions)
+(`x-*` keys) to the field's schema. Pass an array keyed by the **`x-`-prefixed**
+name; values may be scalars or nested arrays:
+
+```php
+#[ResponseField('id', x: ['x-internal-id' => 'sys-42'])]
+#[QueryParam('sort', type: 'string', x: ['x-ui-control' => 'dropdown'])]
+```
+
+emits `x-internal-id: sys-42` on the `id` property and `x-ui-control: dropdown`
+on the `sort` parameter's schema. (Keys are passed with the `x-` prefix — the
+same author-facing contract as `openapi.overrides` — so the two escape hatches
+read alike.)
+
+This is the field-level analogue of the `openapi.overrides` config key: use the
+attribute when the extension is **co-located with the field and should travel
+with refactors**; use `openapi.overrides` for **document-level** `x-*` targeted
+at code you can't or won't annotate (third-party routes, generated controllers).
 
 ### Enum from a backed-enum class-string
 
