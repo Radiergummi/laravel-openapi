@@ -34,7 +34,9 @@ Fast-path:                              coding ──▶ review ─────�
 
 When a role finishes its phase it (a) posts a comment, (b) `SendMessage`s the lead, then the
 **lead** moves the label and reassigns the task. Roles do not relabel across phases themselves —
-the lead owns transitions so there is a single writer.
+the lead owns transitions so there is a single writer. The lead transitions with
+`bin/set-phase <num> <phase> "<comment>"`, which removes any other `agent:*` label and posts the
+annotation atomically — keeping the single-active-label invariant intact.
 
 Issues carrying any of `blocked`, `deferred`, `spec`, `epic`, or `agent:needs-human` are
 **never** picked up.

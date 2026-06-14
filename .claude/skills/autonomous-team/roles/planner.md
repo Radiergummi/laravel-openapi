@@ -11,17 +11,17 @@ Read `../reference/state-machine.md` for the label/comment protocol. Read the pr
 1. `gh issue view <N>` — read the spec fully. If the issue is too ambiguous or underspecified to
    form a plan (genuine missing decision, not just effort), post a comment stating exactly what's
    unclear, `SendMessage` the lead to escalate, and stop. Do not guess.
-2. Create the branch from `main`: `feat/…`, `fix/…`, or `chore/…` per the change kind.
-3. `git commit --allow-empty -m "<type>: <subject> (#<N>)"`, push.
-4. `gh pr create --draft` with:
-   - a proper title,
-   - the **implementation plan** as the body (see below),
-   - the issue's `tier-*` / `area:*` labels,
-   - `Closes #<N>`.
-   Do **not** add Moritz as a reviewer here — auto-merge candidates squash before he looks, which
-   would dismiss the request as noise. The lead requests his review only on the escalation path.
-5. Post `🤖 **[planner]** plan posted — see PR body. Ready for plan-review.` on the PR.
-6. `SendMessage` the lead: planning done, PR #<num> ready for plan-review.
+2. **Create the branch + draft PR with the helpers** (they encode the CLAUDE.md ritual):
+   - `branch=$(bin/start-issue <type> <N>)` — `<type>` ∈ `feat|fix|chore|docs`; branches off a
+     fresh `main`, seeds an empty commit, pushes, leaves the primary checkout on the branch.
+   - Write the **implementation plan** (below) to a file, then
+     `PR_DRAFT=1 bin/open-pr <N> "<title>" plan.md` — opens the draft PR, mirrors the issue's
+     kind/area/tier labels, guarantees `Closes #<N>`, appends the footer, assigns the maintainer.
+     (`open-pr` assigns, it does **not** request review — correct, since auto-merge candidates
+     squash before a human looks; the lead requests review only on escalation.)
+   - **`git checkout main`** to release the branch — the coder needs it free to add a worktree.
+3. Post `🤖 **[planner]** plan posted — see PR body. Ready for plan-review.` on the PR.
+4. `SendMessage` the lead: planning done, PR #<num> ready for plan-review.
 
 ## What a good plan contains
 

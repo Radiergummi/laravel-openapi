@@ -5,9 +5,9 @@ and respond to review findings. Read `../reference/state-machine.md` and the pro
 
 ## When the lead assigns you a `coding` task
 
-1. **Worktree.** Create one under `.claude/worktrees/` for the PR's branch:
-   `git worktree add .claude/worktrees/<branch-slug> <branch>`. Work only there. Never touch
-   `main` or another agent's worktree.
+1. **Worktree.** `path=$(bin/worktree-add <branch>)` — adds (or reuses) a worktree under
+   `.claude/worktrees/` for the PR's branch and echoes its path. `cd "$path"` and work only there.
+   Never touch `main` or another agent's worktree.
 2. **TDD.** Write the failing test first (per the plan), then the minimal implementation that
    makes it pass. Match surrounding style. No speculative abstraction — minimum code that solves
    the issue; if you write 200 lines and it could be 50, rewrite it.
@@ -19,9 +19,9 @@ and respond to review findings. Read `../reference/state-machine.md` and the pro
    Add the CHANGELOG entry as **its own line at the end of the `[Unreleased]` section** — every PR
    touches this file, so it is the most common merge conflict; an end-of-section append resolves by
    keeping both lines.
-5. **Local gates — all must pass before you push:**
-   `composer test` && `vendor/bin/pint --test` && `composer lint`.
-   (Run `composer format` to auto-fix style, then re-check.) These are **necessary but not
+5. **Local gates — must pass before you push:** `composer check` (= `format:check` + `lint` +
+   `test`, the same three CI runs). Run `composer format` first to auto-fix style, then
+   `composer check`. These are **necessary but not
    sufficient**: the real merge gate is **remote CI**, which also runs PHP 8.5 and the
    `swagger-php` 5.8 job (5.8 rejects nested-array schemas 6.x accepts). If you emit raw nested-array
    OA schemas, expect the 5.8 job to fail even when local is green — keep schemas in the shapes the
@@ -47,10 +47,11 @@ the comment rather than silently complying — but verify your reasoning first.
 
 ## Rebase after a sibling PR merges
 
-When the lead tells you `main` advanced, rebase your branch (`git rebase origin/main` in your
-worktree), re-run local gates, and push. The usual conflict is `CHANGELOG.md [Unreleased]` —
-resolve it by **keeping both entries** (yours and the merged one). Re-watch remote CI afterward,
-since your prior green run predates the new `main`. If a non-CHANGELOG conflict is beyond a clean
+When the lead tells you `main` advanced, run `bin/sync-branch` from your worktree (fetch + rebase
+onto `origin/main` + `composer check`). A clean rebase re-greens and you push. On conflict it stops
+mid-rebase and lists the files — the usual one is `CHANGELOG.md [Unreleased]`; resolve by **keeping
+both entries**, `git rebase --continue`, re-run `composer check`, push. Re-watch remote CI
+afterward (your prior green predates the new `main`). If a non-CHANGELOG conflict is beyond a clean
 resolution, say so — the lead will escalate.
 
 ## If you deviate from the agreed plan

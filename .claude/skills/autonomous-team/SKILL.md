@@ -79,6 +79,25 @@ Anything not covered by a directive falls back to the defaults below.
    calibrate the controversy heuristic and the review quality, then drop the directive to go
    hands-off.
 
+## Helper scripts (`bin/`)
+
+Prefer these over hand-rolling the command chains — they encode the repo conventions and the
+single-active-label / closing-keyword / footer invariants.
+
+| Script | Who | What |
+|--------|-----|------|
+| `bootstrap-labels` | lead | idempotently create the `agent:*` labels |
+| `eligible-issues` | lead | issues the team may admit (filters + tier sort) |
+| `resume-scan` | lead | rebuild the in-flight pipeline from GitHub on startup |
+| `set-phase <num> <phase> [comment]` | lead | move phase: enforce one `agent:*` label + post annotation |
+| `finish-pr <pr> [comment]` | lead | squash-merge + delete branch + remove worktree + comment |
+| `start-issue <type> <N> [slug]` | planner | branch off fresh `main`, empty commit, push; echoes branch |
+| `open-pr <N> <title> [body-file]` | planner | open PR with labels/`Closes`/footer/assignee (`PR_DRAFT=1` for draft) |
+| `worktree-add <branch>` | coder | add/reuse a worktree under `.claude/worktrees/`; echoes path |
+| `sync-branch` | coder | from a worktree: fetch + rebase `origin/main` + `composer check` |
+
+Gates everywhere use **`composer check`** (= `format:check` + `lint` + `test`).
+
 ## The loop
 
 Maintain **≤3 issues in flight** (a task not in `done`/`needs-human`). While the budget allows,
@@ -86,17 +105,19 @@ eligible issues remain, and any **volume cap** from the directives is not yet re
 
 1. **Admit.** If fewer than 3 are in flight, run `bin/eligible-issues`, **apply any scope filter
    from the directives**, pick the lowest-numbered survivor (prefer `tier-0` then `tier-1`),
-   create a task for it, label the issue `agent:planning`, and assign it to `planner`.
+   create a task for it, `bin/set-phase <N> planning "🤖 **[lead]** admitted → planning."`, and
+   assign it to `planner`.
    *(If a directive seeded an existing PR at a specific entry phase, skip admission for that item
-   and start it at that phase instead.)*
+   and `set-phase` it to that phase instead.)*
 2. **Pick a process tier** for the issue (scale ceremony to the change):
    - **Full** (default): `planning → plan-review → coding → review → survey → merge`.
    - **Fast-path** for trivially-scoped work — docs-only, `area:cli`/`area:lint`-only, or an
      obviously mechanical ≤20-line change: **skip planning + plan-review**, coder implements
      directly, **one** reviewer pass, **skip survey** (non-generation-affecting), merge. If a
      fast-pathed change turns out larger or generation-affecting once opened, promote it to Full.
-3. **Drive phases** by reassigning the task and relabeling the issue/PR as each role reports
-   done (see the state machine). The code⇄review loop runs between a `coder` and a `reviewer`.
+3. **Drive phases** as each role reports done: reassign the task and move the phase with
+   `bin/set-phase <num> <phase> "<comment>"` (it enforces the single-active-label invariant and
+   posts the annotation in one step). The code⇄review loop runs between a `coder` and a `reviewer`.
 4. **Merge or escalate** (below) when a PR reaches the end of its tier.
 5. **Self-feed.** Any agent may `gh issue create` for out-of-scope problems/ideas it finds;
    those become future eligible issues. Never fold them into the current PR.
@@ -125,12 +146,14 @@ Auto-squash-merge **only when ALL hold**:
   - changes a **public method signature** or removes a public symbol
   - diff exceeds **~150 changed lines** (tunable)
 
-On merge: `gh pr merge --squash --delete-branch`, close the issue, remove the worktree
-(`git worktree remove <path>`), post a closing comment, mark the task `done`.
+On merge: `bin/finish-pr <pr> "<closing comment>"` — squash-merges, deletes the branch (the PR's
+`Closes #N` auto-closes the issue), removes the worktree, prunes, posts the closing annotation.
+Mark the task `done`.
 
 **After every merge, reconcile the other in-flight branches** (they are now behind `main` and
 their CI is stale):
-- For each open agent PR, send its coder a `rebase onto main` instruction.
+- For each open agent PR, tell its coder to run `bin/sync-branch` (rebase onto `origin/main` +
+  re-gate).
 - **`CHANGELOG.md [Unreleased]` is a guaranteed conflict hotspot** — every PR touches it. Expect
   the conflict there; the coder resolves by keeping *both* entries (it is an append). Coders are
   told to add their entry as its own line at the end of the section to minimise overlap.
@@ -139,10 +162,10 @@ their CI is stale):
 - If a rebase conflict is outside CHANGELOG and the coder cannot resolve it cleanly within the
   loop cap, escalate that PR.
 
-Otherwise → **escalate**: label `agent:needs-human`, **request Moritz's review on the PR**
-(`gh pr edit --add-reviewer`), leave it **ready but unmerged**, post a summary comment explaining
-what needs a human decision, **leave the worktree in place** for the human (note it in the
-comment), drop it from the in-flight count, admit the next issue.
+Otherwise → **escalate**: `bin/set-phase <num> needs-human "🤖 **[lead]** <why this needs a human
+decision; worktree left in place>"`, **request Moritz's review** (`gh pr edit --add-reviewer`),
+leave the PR **ready but unmerged** with its worktree in place, drop it from the in-flight count,
+admit the next issue.
 
 ## Budget checkpoint & exit
 
