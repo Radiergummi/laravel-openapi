@@ -35,10 +35,10 @@ final readonly class SchemaDescriptor
      *                                                                          stripped (swagger-php re-adds it on
      *                                                                          serialize), matching `OverridesStage`.
      * @param null|bool|string                            $additionalProperties Map-value override: `true`/`false`
-     *                                                                          for the boolean form, or a type/
-     *                                                                          class-string wrapped into a nested
-     *                                                                          value schema (mirroring `$items`).
-     *                                                                          `null` leaves inference untouched.
+     *                                                                          for the boolean form, or a type string
+     *                                                                          wrapped into a nested value schema
+     *                                                                          (mirroring `$items`). `null` leaves
+     *                                                                          inference untouched.
      */
     public function __construct(
         public ?string $title = null,
