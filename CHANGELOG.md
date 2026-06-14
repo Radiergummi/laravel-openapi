@@ -11,6 +11,7 @@ All notable changes to this project are documented here.
 
 ### Added
 
+- The `abort()` / `abort_if()` / `abort_unless()` body scan reads named arguments (`code:` / `message:`), not just positional ones; `abort_if`/`abort_unless`'s leading `boolean:` condition shifts the positions, and an unknown named argument keeps the graceful skip. (#234)
 - **New `query-builder.filter-duplicate` lint rule** (level 3, QueryBuilder plugin). Two or more `#[AllowedFilter]` attributes sharing the same wire name on a single action are silently deduplicated by `OperationBuilder` (last wins, earlier instances are dropped). The new rule flags each duplicated name with one finding, naming the duplicate wire name and the instance count. Mirrors the sibling `query-builder.filter-type-missing` rule's structure. A complementary edit-time PHPStan rule (`openapi.allowedFilter.duplicate`) catches the same collision in the IDE before a spec is generated, resolving the filter name from both the positional and named `name:` forms. See [Linting](docs/linting.md). (Closes #292)
 - **New `resource.response-empty` lint rule** (#255). A response typed to the base
   `Illuminate\Http\Resources\Json\JsonResource` (or an abstract subclass) the generator can't
