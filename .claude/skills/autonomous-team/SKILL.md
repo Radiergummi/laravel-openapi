@@ -89,7 +89,7 @@ single-active-label / closing-keyword / footer invariants.
 | `bootstrap-labels` | lead | idempotently create the `agent:*` labels |
 | `eligible-issues` | lead | issues the team may admit (filters + tier sort) |
 | `resume-scan` | lead | rebuild the in-flight pipeline from GitHub on startup |
-| `set-phase <num> <phase> [comment]` | lead | move phase: enforce one `agent:*` label + post annotation |
+| `set-phase <num> <phase> [comment]` | lead | move phase: enforce one `agent:*` label + post annotation; on a PR, also clears the closed issue's stale label (issue→PR migration) |
 | `finish-pr <pr> [comment]` | lead | squash-merge + delete branch + remove worktree + comment |
 | `start-issue <type> <N> [slug]` | planner | branch off fresh `main`, empty commit, push; echoes branch |
 | `open-pr <N> <title> [body-file]` | planner | open PR with labels/`Closes`/footer/assignee (`PR_DRAFT=1` for draft) |
@@ -144,7 +144,9 @@ Auto-squash-merge **only when ALL hold**:
   - touches `src/Contracts/**` or changes registry/pipeline **stage order** (`area:core`)
   - adds/changes a **config key** or a lint-rule **default severity**
   - changes a **public method signature** or removes a public symbol
-  - diff exceeds **~150 changed lines** (tunable)
+  - the **`src/` diff** exceeds **~150 changed lines** (tunable) — count production code only;
+    tests, fixtures, `docs/`, and `CHANGELOG.md` do **not** count toward the threshold
+    (`gh pr diff <pr> --name-only` + per-file `git diff --numstat`, summing `src/**` only)
 
 On merge: `bin/finish-pr <pr> "<closing comment>"` — squash-merges, deletes the branch (the PR's
 `Closes #N` auto-closes the issue), removes the worktree, prunes, posts the closing annotation.

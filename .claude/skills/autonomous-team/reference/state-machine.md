@@ -36,7 +36,9 @@ When a role finishes its phase it (a) posts a comment, (b) `SendMessage`s the le
 **lead** moves the label and reassigns the task. Roles do not relabel across phases themselves —
 the lead owns transitions so there is a single writer. The lead transitions with
 `bin/set-phase <num> <phase> "<comment>"`, which removes any other `agent:*` label and posts the
-annotation atomically — keeping the single-active-label invariant intact.
+annotation atomically — keeping the single-active-label invariant intact. Once the PR exists,
+transition the **PR** number: `set-phase` detects a PR and also clears the stale label from the
+issue(s) it closes, so the phase locus migrates issue → PR with no double-count on `resume-scan`.
 
 Issues carrying any of `blocked`, `deferred`, `spec`, `epic`, or `agent:needs-human` are
 **never** picked up.

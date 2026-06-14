@@ -3,11 +3,15 @@
 # (remove any others, add the target) and post the transition comment. Works on both
 # issues and PRs — the GitHub API treats PRs as issues for labels/comments.
 #
+# When <number> is a PR, this also clears stale `agent:*` labels from the issue(s) the PR
+# closes — so the phase locus migrates cleanly from issue → PR once the PR exists, with no
+# double-counting on resume-scan.
+#
 # Usage: set-phase <number> <phase> [comment...]
 #   <phase>  planning | plan-review | coding | in-review | survey | needs-human | clear
 #   comment  optional; posted verbatim as the transition annotation
 #
-# Example: set-phase 236 coding "🤖 **[lead]** plan approved → coding (coder-1)."
+# Example: set-phase 330 plan-review "🤖 **[lead]** plan looks tight → plan-review."
 set -euo pipefail
 
 num="${1:?usage: set-phase <number> <phase> [comment...]}"
@@ -20,10 +24,24 @@ case "$phase" in
   *) echo "error: bad phase '$phase'" >&2; exit 2 ;;
 esac
 
-# Drop every agent:* phase label currently set (ignore 'not present' 404s).
-for label in agent:planning agent:plan-review agent:coding agent:in-review agent:survey agent:needs-human; do
-  gh api -X DELETE "repos/{owner}/{repo}/issues/${num}/labels/${label}" >/dev/null 2>&1 || true
-done
+PHASE_LABELS="agent:planning agent:plan-review agent:coding agent:in-review agent:survey agent:needs-human"
+
+clear_phase_labels() { # <number>
+  local target="$1" label
+  for label in $PHASE_LABELS; do
+    gh api -X DELETE "repos/{owner}/{repo}/issues/${target}/labels/${label}" >/dev/null 2>&1 || true
+  done
+}
+
+# Clear phase labels from the target itself.
+clear_phase_labels "$num"
+
+# If the target is a PR, also clear them from the issue(s) it closes — migrate the locus.
+if gh api "repos/{owner}/{repo}/issues/${num}" --jq '.pull_request // empty' 2>/dev/null | grep -q .; then
+  while read -r linked; do
+    [ -n "$linked" ] && clear_phase_labels "$linked"
+  done < <(gh pr view "$num" --json closingIssuesReferences --jq '.closingIssuesReferences[].number' 2>/dev/null || true)
+fi
 
 # Add the target phase label (unless clearing).
 if [ "$phase" != "clear" ]; then
