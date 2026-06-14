@@ -530,6 +530,11 @@ final class SpecTreeBuilder
             return [];
         }
 
+        // A top-level schema written as the nullable `oneOf`/`anyOf` shape unwraps to its concrete
+        // branch so its fields are built; a genuine multi-alternative union has no branch and yields
+        // no fields here (the SchemaCompositeFieldsUninspected rule flags that case).
+        $schema = SchemaAccessor::classifyComposition($schema)['branch'] ?? $schema;
+
         [$properties, $required] = $this->collectComposedProperties($schema, $visited);
 
         if ($properties === []) {
