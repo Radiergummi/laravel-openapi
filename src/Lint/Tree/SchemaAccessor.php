@@ -9,7 +9,9 @@ use OpenApi\Generator;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 
+use function array_filter;
 use function array_values;
+use function count;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -128,6 +130,92 @@ final class SchemaAccessor
         }
 
         return array_values($enum);
+    }
+
+    /**
+     * Classify a schema's `oneOf` / `anyOf` composition, separating the OAS 3.1 nullable encoding
+     * (one concrete branch plus pure `{type: 'null'}` branches) from a genuine multi-alternative
+     * union.
+     *
+     * `branch` is the single non-null branch to inspect for the nullable shape, null otherwise.
+     * `uninspectedComposite` is true when two or more genuine alternatives are present.
+     *
+     * @return array{branch: null|OA\Schema, uninspectedComposite: bool}
+     */
+    public static function classifyComposition(OA\Schema $schema): array
+    {
+        $branches = self::compositionBranches($schema);
+
+        if ($branches === []) {
+            return ['branch' => null, 'uninspectedComposite' => false];
+        }
+
+        $nonNullBranches = array_values(array_filter(
+            $branches,
+            static fn(OA\Schema $branch): bool => !self::isPureNullSchema($branch),
+        ));
+
+        // One concrete branch (with or without null branches): the nullable shape — unwrap it.
+        if (count($nonNullBranches) === 1) {
+            return ['branch' => $nonNullBranches[0], 'uninspectedComposite' => false];
+        }
+
+        // Two or more genuine alternatives: not unwrappable.
+        return [
+            'branch' => null,
+            'uninspectedComposite' => count($nonNullBranches) >= 2,
+        ];
+    }
+
+    /**
+     * Return the `oneOf` or `anyOf` branches of a schema as a list of concrete `OA\Schema` objects,
+     * or an empty list when the schema declares neither. `oneOf` is preferred when both exist.
+     *
+     * @return list<OA\Schema>
+     */
+    private static function compositionBranches(OA\Schema $schema): array
+    {
+        foreach (['oneOf', 'anyOf'] as $keyword) {
+            $value = $schema->{$keyword};
+
+            if (!is_array($value) || is_undefined($value)) {
+                continue;
+            }
+
+            $branches = [];
+
+            foreach ($value as $branch) {
+                if ($branch instanceof OA\Schema && is_defined($branch)) {
+                    $branches[] = $branch;
+                }
+            }
+
+            if ($branches !== []) {
+                return $branches;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * A branch is "pure null" when its only type is `null` — i.e. `type: 'null'` or
+     * `type: ['null']` — with no `$ref`, properties, or further composition. This is the null
+     * member of the OAS 3.1 nullable encoding.
+     */
+    private static function isPureNullSchema(OA\Schema $schema): bool
+    {
+        if (self::extractRef($schema) !== null) {
+            return false;
+        }
+
+        $type = $schema->type;
+
+        if ($type === 'null') {
+            return true;
+        }
+
+        return is_array($type) && !is_undefined($type) && $type === ['null'];
     }
 
     public static function isNullable(OA\Schema $schema): bool
