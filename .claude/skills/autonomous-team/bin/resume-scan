@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Reconstruct the in-flight pipeline from GitHub on startup.
+# For each agent:* phase, list the issues and PRs carrying that label.
+# Output: JSON { phase: [ {number, title, kind, url} ] } — the lead rebuilds tasks from this.
+set -euo pipefail
+
+PHASES='agent:planning agent:plan-review agent:coding agent:in-review agent:survey agent:needs-human'
+
+emit_for_label() {
+  local label="$1"
+  local issues prs
+  issues=$(gh issue list --state open --label "$label" --limit 100 \
+            --json number,title,url --jq '[ .[] | . + {kind:"issue"} ]')
+  prs=$(gh pr list --state open --label "$label" --limit 100 \
+            --json number,title,url --jq '[ .[] | . + {kind:"pr"} ]')
+  jq -n --arg label "$label" --argjson issues "$issues" --argjson prs "$prs" \
+    '{ ($label): ($issues + $prs) }'
+}
+
+{
+  for p in $PHASES; do emit_for_label "$p"; done
+} | jq -s 'add'

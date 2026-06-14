@@ -84,6 +84,11 @@
         "fmt": "@format",
         "lint": "phpstan analyse --memory-limit=4G",
         "analyse": "@lint",
+        "check": [
+            "@format:check",
+            "@lint",
+            "@test"
+        ],
         "examples:vanilla": "@php examples/generate.php vanilla",
         "examples:form-requests": "@php examples/generate.php form-requests",
         "examples:spatie-data": "@php examples/generate.php spatie-data",
