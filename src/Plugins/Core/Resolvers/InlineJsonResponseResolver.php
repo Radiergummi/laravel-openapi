@@ -65,7 +65,8 @@ use function strtolower;
  * status may claim the primary response: a straight-line non-2xx literal (the guarded-success +
  * terminal-error-fallback idiom) degrades with a note rather than evicting the operation's
  * success response. A 204 documents without content — the runtime strips the body. A
- * `response()->noContent()` is matched directly as a 204 with no body. A chained
+ * `response()->noContent(<status>)` is matched as a body-less response at its status argument
+ * (204 when absent, the literal 2xx otherwise); a non-literal or non-2xx status degrades. A chained
  * `->setStatusCode(<literal|class-constant>)` overrides the status (and beats the resource-action
  * convention); a non-literal `->setStatusCode()` or a body-mutating `->setData()` degrades the
  * call. Header/cookie chains stay matched.
@@ -136,8 +137,20 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         $noContentCall = $this->findNoContentCall($statements);
 
         if ($noContentCall instanceof MethodCall) {
+            $status = $this->statusFromNoContent($noContentCall, $method);
+
+            if ($status === false) {
+                return null;
+            }
+
+            // Writing noContent() at all is an affirmative choice of a body-less success response,
+            // so it beats the resource-action convention regardless of whether a status argument
+            // is present (absent → 204; literal 2xx → that status). Only the value varies.
             return $this->markStatusExplicit(
-                new OA\Response(['response' => '204', 'description' => 'No Content']),
+                new OA\Response([
+                    'response' => (string) $status,
+                    'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
+                ]),
                 true,
             );
         }
@@ -238,7 +251,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     /**
      * The matched `response()->noContent()` call, preferring a *returned* call over one only
      * assigned to a variable, mirroring {@see self::findJsonCall}. `noContent()` always documents
-     * a 204 with no body, so its (defaulted) status argument is not read.
+     * a body-less response; {@see self::statusFromNoContent()} reads its status argument.
      *
      * @param list<Stmt> $statements
      */
@@ -307,12 +320,16 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
     }
 
-    private function note(ReflectionMethod $method, string $reason): void
-    {
+    private function note(
+        ReflectionMethod $method,
+        string $reason,
+        string $callExpression = 'response()->json()',
+    ): void {
         $this->logger->notice(
             sprintf(
-                'response()->json() call in %s::%s %s; no response inferred. '
+                '%s call in %s::%s %s; no response inferred. '
                 . 'Annotate the action with #[Response] to document it.',
+                $callExpression,
                 $method->getDeclaringClass()->getName(),
                 $method->getName(),
                 $reason,
@@ -398,6 +415,41 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             $method,
             'is chained into ->setStatusCode() with no statically readable status code, '
             . 'so the body must not be documented under a guessed status',
+        );
+
+        return false;
+    }
+
+    /**
+     * The status of a matched `response()->noContent(<status>)`: 204 when the argument is absent
+     * (the helper default), the literal/class-constant 2xx status when present, or false (degrade
+     * with a note) when the argument is non-literal or a non-2xx literal — the same contract
+     * {@see self::statusFromSetStatusCode()} follows. The response stays body-less either way.
+     */
+    private function statusFromNoContent(MethodCall $call, ReflectionMethod $method): int|false
+    {
+        $statusArgument = $this->argument($call->getArgs(), 'status', 0);
+
+        if ($statusArgument === null) {
+            return 204;
+        }
+
+        if (!$statusArgument->unpack) {
+            try {
+                $status = AstLiteralEvaluator::evaluate($statusArgument->value);
+            } catch (NonLiteralValueException) {
+                $status = null;
+            }
+
+            if (is_int($status)) {
+                return $this->ensureSuccessStatus($status, $method, 'response()->noContent()') ?? false;
+            }
+        }
+
+        $this->note(
+            $method,
+            'has no statically readable status code, so the body must not be documented under a guessed status',
+            'response()->noContent()',
         );
 
         return false;
@@ -541,8 +593,11 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      * or a `->setStatusCode(403)`) is an error response, and taking it as primary would evict the
      * operation's success response.
      */
-    private function ensureSuccessStatus(int $status, ReflectionMethod $method): ?int
-    {
+    private function ensureSuccessStatus(
+        int $status,
+        ReflectionMethod $method,
+        string $callExpression = 'response()->json()',
+    ): ?int {
         if ($status < 200 || $status > 299) {
             $this->note(
                 $method,
@@ -550,6 +605,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
                     'has a literal non-2xx status (%d) — an error response must not claim the primary response',
                     $status,
                 ),
+                $callExpression,
             );
 
             return null;
