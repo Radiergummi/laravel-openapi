@@ -15,7 +15,7 @@ source.
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema: fields are inferred from a single-`return [...]` `toArray()` literal (`$this->field` typed from the wrapped `@mixin`/`@extends` model, nested resources as `$ref`s, `when*` wrappers optional) composed with declared `#[ResourceField]` attributes, which win per field; a passthrough or dynamic `toArray()` falls back to the wrapped model's schema (see [Plugins → ApiResources](plugins.md#apiresources)). A **base** resource return type (`JsonResource`, bare `ResourceCollection`, `AnonymousResourceCollection`) resolves the concrete resource from the method's return expression — `X::collection(…)` / `X::make(…)` / `new X(…)`, `->toResource(…)`, or a `@return …Collection<X>` generic; a collection only claims the paginated envelope when its source visibly ends in a `paginate()`-family call, looking through paginator-preserving links like `withQueryString()` (bounded scan; see [Plugins → ApiResources → Resolving the resource from the return expression](plugins.md#resolving-the-resource-from-the-return-expression)). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). With the Fractal plugin enabled, a transformer's schema is inferred from its single-`return [...]` `transform()` literal (`$model->field` typed from the typed parameter, casts by their JSON type) composed with `#[TransformerField]` attributes, which win per field; the `$entity_transformer` + `itemResponse()`/`listResponse()` base-controller convention binds it without an attribute (see [Plugins → Fractal](plugins.md#fractal)). |
 | Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware — route-declared or controller-applied, including constructor `$this->middleware(...)` and the static `HasMiddleware` form (see [Controller middleware](#controller-middleware)) — → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
-| Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware (route-declared or controller-applied, see [Controller middleware](#controller-middleware)) → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
+| Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, named `code:` / `message:` arguments resolve like positional ones, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware (route-declared or controller-applied, see [Controller middleware](#controller-middleware)) → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
 | Validation constraints | `Data::rules()` and Spatie validation attributes → `maxLength`, `minLength`, `pattern`, `enum`, `format`, `minimum`/`maximum`, `minItems`/`maxItems`. |
 
 Use an authoring attribute when convention can't produce what you need. See
@@ -286,8 +286,12 @@ A status you wrote in the call wins over the resource-action
 With no status argument the response documents as `200` and the convention
 still applies, so a conventional `store` with no explicit status is promoted to
 `201`. A literal `204` documents as `204 No Content` without a body schema — the
-runtime strips the body. When several calls match, a **returned** `json()` beats one only
-assigned to a variable; among returned calls, the first wins.
+runtime strips the body — as does a bare `response()->noContent()`. A chained
+`->setStatusCode(<literal>)` — `response()->json([...])->setStatusCode(201)`,
+class constants such as `Response::HTTP_CREATED` included — overrides the status
+and likewise wins over the convention. When several calls match, a **returned**
+`json()` beats one only assigned to a variable; among returned calls, the first
+wins.
 
 Boundaries, by design (no dataflow analysis):
 
@@ -309,11 +313,11 @@ Boundaries, by design (no dataflow analysis):
   conditional success — degrades with a log note instead of evicting the
   operation's success response. (Routing such literals into the error-response
   machinery, like `abort()` calls, is a tracked follow-up.)
-- A chained call that can **change the response's status or body** —
-  `->setStatusCode(201)`, `->setData(...)` — degrades the call rather than
-  documenting the body under the wrong status; header and cookie chains
-  (`->header(...)`, `->withHeaders(...)`, `->cookie(...)`) are harmless and
-  stay matched.
+- A chained **literal** `->setStatusCode(...)` is read as a status override (see
+  above); a non-literal `->setStatusCode(...)` or a body-mutating
+  `->setData(...)` degrades the call rather than documenting the body under the
+  wrong status. Header and cookie chains (`->header(...)`, `->withHeaders(...)`,
+  `->cookie(...)`) are harmless and stay matched.
 - A `response()->json()` call that only runs **conditionally** — inside an `if`
   branch, a ternary or `match` arm, a short-circuit operand, or a closure
   body — is not treated as the canonical success response, nor is one past the

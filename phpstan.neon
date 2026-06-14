@@ -131,6 +131,17 @@ parameters:
             identifier: openapi.allowedFilter.duplicate
             paths:
                 - tests/Unit/Plugins/QueryBuilder/Lint/QueryBuilderFilterDuplicateTest.php
+        # The abort-scan fixture deliberately passes an unknown named argument (`status:` instead
+        # of `code:`) to prove the body scan degrades gracefully. The malformed call against the
+        # real abort_if signature is the test input; for everyone else PHPStan rightly rejects it.
+        -
+            identifier: argument.unknown
+            paths:
+                - tests/Fixtures/AbortFixtureController.php
+        -
+            identifier: argument.missing
+            paths:
+                - tests/Fixtures/AbortFixtureController.php
         # Tests and fixtures don't document checked exceptions via @throws — they are not part
         # of the public API surface and the throws.* lint rules don't apply to them.
         -
