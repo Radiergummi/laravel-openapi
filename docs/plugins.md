@@ -260,7 +260,11 @@ are read from string literals (class-constant strings included) and from
 Spatie's value-object static constructors (`AllowedFilter::exact(…)`,
 `AllowedSort::field(…)`, `AllowedInclude::relationship(…)`, …) — the first
 argument is the public wire name; internal names and `->defaultSort(…)` are
-server-side detail and not modelled. Both the array and the variadic form
+server-side detail and not modelled. Fluent modifiers on a value-object element
+(`->nullable()`, `->default()`, `->ignore()`, `->delimiter()`,
+`->defaultDirection()`) are walked through — they change server-side behaviour,
+not the wire name, so `AllowedFilter::exact('healthy')->nullable()` still reads
+as `filter[healthy]`. Both the array and the variadic form
 (`allowedSorts('name', 'created_at')`) work, and so does a chain assigned to
 a variable in one expression. A chain-derived filter gets a `string` schema —
 use `#[AllowedFilter]` where a filter needs a type, format, or description.

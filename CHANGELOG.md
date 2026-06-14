@@ -50,6 +50,7 @@ All notable changes to this project are documented here.
 ### Documentation
 - New [Migrating from L5-Swagger](docs/migrating-from-l5-swagger.md) guide and [CI integration](docs/ci.md) guide. (#123, #158)
 - Documentation restructure: the monolithic `docs/usage.md` is split into focused pages, with an accuracy sweep across the set.
+- The query-builder chain reader sees value-object constructors wrapped in fluent modifiers, so `AllowedFilter::exact('healthy')->nullable()` is read as `filter[healthy]` instead of dropped. (#257)
 
 ## [0.1.0] - 2026-05-18
 

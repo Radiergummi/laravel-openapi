@@ -47,9 +47,11 @@ use function ltrim;
  * Allow-list elements resolve from string literals (via {@see AstLiteralEvaluator}, so
  * class-constant strings work too) and from Spatie's value-object static constructors
  * (`AllowedFilter::exact('status')`, `AllowedSort::field('created_at')`, …), whose first
- * argument is always the public wire name. Spatie's variadic form
- * (`allowedSorts('name', 'created_at')`) reads the same way. A non-literal element is dropped
- * and the remaining ones kept; the call is reported as partially unreadable.
+ * argument is always the public wire name. Fluent instance modifiers on such a constructor
+ * (`->nullable()`, `->default()`, `->ignore()`, `->delimiter()`, `->defaultDirection()`) are
+ * walked through — they change server-side semantics, never the wire name. Spatie's variadic
+ * form (`allowedSorts('name', 'created_at')`) reads the same way. A non-literal element is
+ * dropped and the remaining ones kept; the call is reported as partially unreadable.
  *
  * @internal
  */
@@ -290,10 +292,21 @@ final class QueryBuilderChainReader
      */
     private function elementName(Expr $element, string $kind): ?string
     {
-        if ($element instanceof StaticCall) {
-            return $this->valueObjectName($element, $kind);
+        // Spatie's instance modifiers (->nullable(), ->default(), ->ignore(), ->delimiter(),
+        // AllowedSort::...->defaultDirection()) wrap the value-object constructor but never
+        // change the wire name — walk the method-call spine to the underlying constructor,
+        // exactly as the chain receiver is walked in rootsAtBuilder().
+        $root = $element;
+
+        while ($root instanceof MethodCall) {
+            $root = $root->var;
         }
 
+        if ($root instanceof StaticCall) {
+            return $this->valueObjectName($root, $kind);
+        }
+
+        // A bare literal element carries no spine, so evaluate the original node directly.
         try {
             $value = AstLiteralEvaluator::evaluate($element);
         } catch (NonLiteralValueException) {
