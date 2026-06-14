@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Attributes\ResponseField;
 
+use function is_bool;
 use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
 use function substr;
@@ -29,10 +30,15 @@ final readonly class SchemaDescriptor
 {
     /**
      * @param null|list<BackedEnum|bool|float|int|string> $enum
-     * @param null|array<string, mixed>                   $x    Vendor extensions; keys are passed
-     *                                                          with the `x-` prefix and stored
-     *                                                          stripped (swagger-php re-adds it on
-     *                                                          serialize), matching `OverridesStage`.
+     * @param null|array<string, mixed>                   $x                    Vendor extensions; keys are passed
+     *                                                                          with the `x-` prefix and stored
+     *                                                                          stripped (swagger-php re-adds it on
+     *                                                                          serialize), matching `OverridesStage`.
+     * @param null|bool|string                            $additionalProperties Map-value override: `true`/`false`
+     *                                                                          for the boolean form, or a type/
+     *                                                                          class-string wrapped into a nested
+     *                                                                          value schema (mirroring `$items`).
+     *                                                                          `null` leaves inference untouched.
      */
     public function __construct(
         public ?string $title = null,
@@ -58,6 +64,7 @@ final readonly class SchemaDescriptor
         public ?bool $readOnly = null,
         public ?bool $writeOnly = null,
         public ?array $x = null,
+        public bool|string|null $additionalProperties = null,
     ) {}
 
     /**
@@ -83,6 +90,7 @@ final readonly class SchemaDescriptor
             NullableSchema::applyTo($schema);
         }
 
+        $this->applyAdditionalProperties($schema);
         $this->applyVendorExtensions($schema);
 
         return $schema;
@@ -125,6 +133,20 @@ final readonly class SchemaDescriptor
     }
 
     /**
+     * The `additionalProperties` value for a map override: a bool passes through; a type string is
+     * wrapped into a nested value schema (mirroring {@see itemsSchema()}). `null` means "not set",
+     * leaving any inferred value in place.
+     */
+    private function additionalPropertiesValue(): bool|OA\AdditionalProperties|null
+    {
+        return match (true) {
+            $this->additionalProperties === null => null,
+            is_bool($this->additionalProperties) => $this->additionalProperties,
+            default => new OA\AdditionalProperties(['type' => $this->additionalProperties]),
+        };
+    }
+
+    /**
      * The `items` schema for an `array` type. Always present for an array (a permissive `{}` when
      * no element type is declared), because swagger-php rejects an items-less array and would
      * hard-fail generation.
@@ -163,7 +185,26 @@ final readonly class SchemaDescriptor
             NullableSchema::applyTo($property);
         }
 
+        $this->applyAdditionalProperties($property);
         $this->applyVendorExtensions($property);
+    }
+
+    /**
+     * Writes an explicit `additionalProperties` override onto the target, unconditionally when the
+     * descriptor carries one. The write must overwrite — an inferred map value (e.g. from
+     * `array<string, T>` map inference) is already on the property by the time this runs, and the
+     * author's override wins by being applied last; a skip-if-defined guard would invert that.
+     *
+     * Public so callers that build a parameter schema directly ({@see UriParametersExtractor})
+     * can honor a `#[PathParam]` override without routing through {@see applyTo()}.
+     */
+    public function applyAdditionalProperties(OA\Schema|OA\Property $target): void
+    {
+        $value = $this->additionalPropertiesValue();
+
+        if ($value !== null) {
+            $target->additionalProperties = $value;
+        }
     }
 
     /**
