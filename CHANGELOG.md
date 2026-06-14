@@ -49,6 +49,7 @@ All notable changes to this project are documented here.
 ### Documentation
 - New [Migrating from L5-Swagger](docs/migrating-from-l5-swagger.md) guide and [CI integration](docs/ci.md) guide. (#123, #158)
 - Documentation restructure: the monolithic `docs/usage.md` is split into focused pages, with an accuracy sweep across the set.
+- The inline `response()->noContent($status)` body-scan now reads an explicit literal/named 2xx status argument (a body-less `202` etc.); a non-literal or non-2xx status degrades. (#328)
 
 ## [0.1.0] - 2026-05-18
 

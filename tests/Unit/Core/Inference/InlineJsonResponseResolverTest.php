@@ -192,6 +192,60 @@ it('documents a 204 from ->noContent() without a body schema', function (): void
     expect($serialized)->not->toHaveKey('content');
 });
 
+it('reads a literal status argument on ->noContent() and stays body-less', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('noContentExplicitStatus'),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('200')
+        ->and($response->description)->toBe('OK')
+        ->and($logger->records)->toBeEmpty();
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($response, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
+});
+
+it('reads a named status argument on ->noContent()', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('noContentNamedStatus'),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('202')
+        ->and($response->description)->toBe('Accepted')
+        ->and($logger->records)->toBeEmpty();
+});
+
+it('degrades a non-literal status argument on ->noContent() with a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('noContentDynamicStatus'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1);
+});
+
+it('degrades a non-2xx literal status on ->noContent() with a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('noContentNonSuccess'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('404');
+});
+
 it('documents explicit sequential integer keys as a JSON array (AST path)', function (): void {
     $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('integerKeyedList'));
 

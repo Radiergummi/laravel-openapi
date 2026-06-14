@@ -68,6 +68,26 @@ class InlineJsonFixtureController extends Controller
         return response()->noContent();
     }
 
+    public function noContentExplicitStatus(): SymfonyResponse
+    {
+        return response()->noContent(200);
+    }
+
+    public function noContentNamedStatus(): SymfonyResponse
+    {
+        return response()->noContent(status: 202);
+    }
+
+    public function noContentDynamicStatus(Request $request): SymfonyResponse
+    {
+        return response()->noContent($request->integer('status'));
+    }
+
+    public function noContentNonSuccess(): SymfonyResponse
+    {
+        return response()->noContent(404);
+    }
+
     public function setStatusCodeLiteral(): JsonResponse
     {
         return response()->json(['created' => true])->setStatusCode(201);
