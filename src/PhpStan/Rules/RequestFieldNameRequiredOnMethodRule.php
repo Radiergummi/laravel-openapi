@@ -88,16 +88,8 @@ final class RequestFieldNameRequiredOnMethodRule implements Rule
      */
     private function nameIsMissingOrEmpty(Node\Attribute $attribute, Scope $scope): bool
     {
-        // Check named argument first
+        // Resolves `name` by name or positional slot (parameter #0 of RequestField).
         $argument = AttributeHelpers::getArgument($attribute, 'name');
-
-        if ($argument === null) {
-            // Fall back to positional first argument (name is parameter #0)
-            $argument = array_find(
-                $attribute->args,
-                static fn(Node\Arg $arg): bool => $arg->name === null,
-            );
-        }
 
         // Absent entirely
         if ($argument === null) {

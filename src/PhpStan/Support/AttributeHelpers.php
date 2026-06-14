@@ -5,22 +5,35 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\PhpStan\Support;
 
 use PhpParser\Node;
+use ReflectionClass;
+
+use function array_find;
+use function class_exists;
 
 /**
- * Shared helpers for PHPStan attribute rules. Operates directly on PhpParser AST nodes — no
- * reflection, no scope lookups — so callers can use these from any rule's `processNode()`.
+ * Shared helpers for PHPStan attribute rules. Operates on PhpParser AST nodes and resolves
+ * arguments by name; when a named match is absent, the lookup falls back to the positional
+ * argument occupying that parameter's constructor slot, so `#[Response(404, '…')]` resolves the
+ * same as `#[Response(status: 404, …)]`.
  *
- * Lookups are by named argument only. Positional argument resolution is deliberately omitted: the
- * positions would have to be hardcoded per attribute (fragile under constructor reorders) or
- * resolved via reflection (extra complexity for a corner case). Authoring attributes carry
- * 2–6 parameters, so positional use beyond the first argument is vanishingly rare; rules that
- * miss `#[Example('n', 'v')]`-style positional misuse still get caught by the runtime constructor.
+ * The positional slot is derived by reflecting the attribute's constructor (the attribute name is
+ * already resolved to a real class by the time rules run), so it stays correct across constructor
+ * reorders rather than depending on a hardcoded index. Resolution runs only under PHPStan, never
+ * at application runtime.
  */
 final class AttributeHelpers
 {
     /**
-     * True when the named argument is present with a non-null value. A literal `null` is treated
-     * as absent, matching `?T = null` attribute parameter defaults.
+     * Per-attribute-class map of constructor parameter name → positional index, memoized across
+     * lookups within a single analysis process.
+     *
+     * @var array<string, array<string, int>>
+     */
+    private static array $parameterPositions = [];
+
+    /**
+     * True when the argument is present (by name or positional slot) with a non-null value. A
+     * literal `null` is treated as absent, matching `?T = null` attribute parameter defaults.
      */
     public static function argumentIsProvided(Node\Attribute $attribute, string $name): bool
     {
@@ -36,16 +49,82 @@ final class AttributeHelpers
     }
 
     /**
-     * Returns the argument node for the given named argument, or null when the argument was not
-     * passed. A literal `null` is still returned — callers that want to treat it as absent should
-     * use {@see argumentIsProvided()} or inspect the returned value themselves.
+     * Returns the argument node for the given parameter, resolved by name and falling back to the
+     * positional slot that parameter occupies in the attribute's constructor. Returns null when the
+     * argument was passed neither way. A literal `null` is still returned — callers that want to
+     * treat it as absent should use {@see argumentIsProvided()} or inspect the returned value.
      */
     public static function getArgument(Node\Attribute $attribute, string $name): ?Node\Arg
     {
-        return array_find(
+        $named = array_find(
             $attribute->args,
-            fn($argument) => $argument->name !== null && $argument->name->toString() === $name,
+            static fn(Node\Arg $argument): bool => $argument->name !== null && $argument->name->toString() === $name,
         );
+
+        if ($named !== null) {
+            return $named;
+        }
+
+        $position = self::parameterPosition($attribute->name->toString(), $name);
+
+        if ($position === null) {
+            return null;
+        }
+
+        // Positional arguments always precede named ones and appear in source order, so the
+        // parameter's slot is the n-th argument carrying no explicit name.
+        $positionalIndex = 0;
+
+        foreach ($attribute->args as $argument) {
+            if ($argument->name !== null) {
+                break;
+            }
+
+            if ($positionalIndex === $position) {
+                return $argument;
+            }
+
+            ++$positionalIndex;
+        }
+
+        return null;
+    }
+
+    /**
+     * Constructor position of the given parameter on the attribute class, or null when the class
+     * is unavailable or has no such parameter. Results are memoized per class.
+     */
+    private static function parameterPosition(string $attributeClass, string $parameterName): ?int
+    {
+        if (!isset(self::$parameterPositions[$attributeClass])) {
+            self::$parameterPositions[$attributeClass] = self::resolveParameterPositions($attributeClass);
+        }
+
+        return self::$parameterPositions[$attributeClass][$parameterName] ?? null;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private static function resolveParameterPositions(string $attributeClass): array
+    {
+        if (!class_exists($attributeClass)) {
+            return [];
+        }
+
+        $constructor = new ReflectionClass($attributeClass)->getConstructor();
+
+        if ($constructor === null) {
+            return [];
+        }
+
+        $positions = [];
+
+        foreach ($constructor->getParameters() as $index => $parameter) {
+            $positions[$parameter->getName()] = $index;
+        }
+
+        return $positions;
     }
 
     /**

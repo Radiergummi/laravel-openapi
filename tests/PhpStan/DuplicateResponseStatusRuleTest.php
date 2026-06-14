@@ -34,6 +34,14 @@ final class DuplicateResponseStatusRuleTest extends RuleTestCase
                 '#[Response] with status 500 is declared more than once on this target — duplicate status codes are silently dropped.',
                 21,
             ],
+            [
+                '#[Response] with status 404 is declared more than once on this target — duplicate status codes are silently dropped.',
+                25,
+            ],
+            [
+                '#[Response] with status 404 is declared more than once on this target — duplicate status codes are silently dropped.',
+                29,
+            ],
         ]);
     }
 }

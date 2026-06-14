@@ -20,4 +20,12 @@ final class DuplicateResponseStatusFixture
     #[Response(status: 500, description: 'B')]
     #[Response(status: 500, description: 'C')]
     public function tripleDuplicate(): void {}
+
+    #[Response(404, 'Positional A')]
+    #[Response(404, 'Positional B')]
+    public function positionalDuplicateStatus(): void {}
+
+    #[Response(404, 'Positional')]
+    #[Response(status: 404, description: 'Named')]
+    public function mixedPositionalNamedDuplicate(): void {}
 }
