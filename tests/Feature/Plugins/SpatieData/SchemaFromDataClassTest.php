@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Alpha\SelfRefData as AlphaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\Beta\SelfRefData as BetaSelfRefData;
 use Radiergummi\OpenApi\Tests\Fixtures\ConditionalResponseFieldFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\MapInputNameFixtureData;
+use Radiergummi\OpenApi\Tests\Fixtures\MapPropertiesFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\SchemaTitleDescriptionFixtureData;
 
@@ -202,6 +203,14 @@ class ConditionalResponseFieldController extends Controller
     }
 }
 
+class MapPropertiesController extends Controller
+{
+    public function store(MapPropertiesFixtureData $data): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
+
 it('keeps a conditional field in properties but removes it from required[]', function (): void {
     Route::get('/spatie-data/conditional', [ConditionalResponseFieldController::class, 'show']);
 
@@ -222,6 +231,94 @@ it('does not remove non-conditional fields from required[]', function (): void {
 
     expect($required)->toContain('id')
         ->and($required)->toContain('alwaysRequired');
+});
+
+// endregion
+
+// region #334: string-keyed array properties → additionalProperties (map inference)
+
+it('emits additionalProperties with a $ref for a string-keyed Data-class map', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    expect($props['addressMap']['type'])->toBe('object')
+        ->and($props['addressMap'])->not->toHaveKey('items')
+        ->and($props['addressMap']['additionalProperties']['$ref'])
+        ->toBe('#/components/schemas/AddressFixtureData');
+});
+
+it('emits additionalProperties with a scalar value schema for a string-keyed scalar map', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    expect($props['scalarMap']['type'])->toBe('object')
+        ->and($props['scalarMap']['additionalProperties']['type'])->toBe('string');
+});
+
+it('emits permissive additionalProperties for a string-keyed map with an opaque value', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    expect($props['opaqueMap']['type'])->toBe('object')
+        ->and($props['opaqueMap']['additionalProperties'])->toBeTrue();
+});
+
+it('emits a nested map for array<string, array<string, Data>>', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    $outer = $props['nestedMap'];
+    $inner = $outer['additionalProperties'];
+
+    expect($outer['type'])->toBe('object')
+        ->and($inner['type'])->toBe('object')
+        ->and($inner['additionalProperties']['$ref'])
+        ->toBe('#/components/schemas/AddressFixtureData');
+});
+
+it('preserves a nullable map value as oneOf [$ref, null] (full fidelity, not degraded to true)', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    $value = $props['nullableValueMap']['additionalProperties'];
+    $refs  = array_column($value['oneOf'], '$ref');
+    $types = array_column($value['oneOf'], 'type');
+
+    expect($props['nullableValueMap']['type'])->toBe('object')
+        ->and($refs)->toContain('#/components/schemas/AddressFixtureData')
+        ->and($types)->toContain('null');
+});
+
+it('preserves a union map value as oneOf of the member schemas', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    $types = array_column($props['unionValueMap']['additionalProperties']['oneOf'], 'type');
+
+    expect($props['unionValueMap']['type'])->toBe('object')
+        ->and($types)->toContain('integer')
+        ->and($types)->toContain('string');
+});
+
+it('keeps int-keyed, list and bare-array properties as plain arrays (not maps)', function (): void {
+    Route::post('/spatie-data/maps', [MapPropertiesController::class, 'store']);
+
+    $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
+
+    expect($props['addressList']['type'])->toBe('array')
+        ->and($props['addressList'])->not->toHaveKey('additionalProperties')
+        ->and($props['addressList']['items']['$ref'])->toBe('#/components/schemas/AddressFixtureData')
+        ->and($props['indexedList']['type'])->toBe('array')
+        ->and($props['indexedList'])->not->toHaveKey('additionalProperties')
+        ->and($props['indexedList']['items']['$ref'])->toBe('#/components/schemas/AddressFixtureData')
+        ->and($props['bareArray']['type'])->toBe('array')
+        ->and($props['bareArray'])->not->toHaveKey('additionalProperties');
 });
 
 // endregion

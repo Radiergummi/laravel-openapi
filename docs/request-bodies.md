@@ -18,6 +18,7 @@ validation.
 | Request-side support | Yes, always on | Yes, via the SpatieData plugin |
 | Response-side support | No. Return a typed resource (`JsonResource`) or use `#[ResponseResource]`. | Yes. Return a `Data`, `DataCollection<…>`, or paginated variant. |
 | Nested objects | Yes, via dotted/wildcard rule keys (`address.city`, `items.*.name`) → inline nested object/array schemas | Yes. Nested `Data` classes become nested component schemas via `$ref`. |
+| Maps / dictionaries | Inline rules describe lists, not string-keyed maps | A string-keyed property (`@var array<string, T>`) → `{type: object, additionalProperties: …}`; an int-keyed/`list<T>`/bare `array` stays a plain array |
 | Enums | `Rule::in([...])` → inline `enum`; `Rule::enum(Status::class)` (full case set) → `$ref` to a [shared enum component](auto-derivation.md#shared-enum-components) | Native `BackedEnum` property → `$ref` to the shared enum component; `Rule::in([...])` still works |
 | Field-level enrichment | `#[RequestField]` on a `PARAM_*` class-constant whose value matches the field name | `#[RequestField]` on the promoted constructor parameter or property |
 | Transformations / computed properties | No. The generator reads signatures only — method bodies are not read. | The `Data` class can carry `Optional`-typed and computed properties. PATCH semantics are inferred from `Optional\|…\|null`. |

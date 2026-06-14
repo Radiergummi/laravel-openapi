@@ -25,6 +25,7 @@ All notable changes to this project are documented here.
 - `SpecStage`, `ErrorResponseContributor`, and `ResourceTargetLocator` plugin extension points; observability events for generation and linting.
 - Default route filters for first-party operational packages (Horizon, Pulse, Nova, Telescope, Ignition, Passport, and the library's own routes via `SkipSelfRoutes`).
 - `openapi:diff:config` command reporting drift between the published config and the package default.
+- String-keyed array/collection properties on Spatie `Data` classes (`array<string, T>`) emit `additionalProperties` (a map) instead of a bare array. (#334)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
