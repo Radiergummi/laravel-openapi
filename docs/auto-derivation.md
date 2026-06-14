@@ -286,8 +286,12 @@ A status you wrote in the call wins over the resource-action
 With no status argument the response documents as `200` and the convention
 still applies, so a conventional `store` with no explicit status is promoted to
 `201`. A literal `204` documents as `204 No Content` without a body schema — the
-runtime strips the body. When several calls match, a **returned** `json()` beats one only
-assigned to a variable; among returned calls, the first wins.
+runtime strips the body — as does a bare `response()->noContent()`. A chained
+`->setStatusCode(<literal>)` — `response()->json([...])->setStatusCode(201)`,
+class constants such as `Response::HTTP_CREATED` included — overrides the status
+and likewise wins over the convention. When several calls match, a **returned**
+`json()` beats one only assigned to a variable; among returned calls, the first
+wins.
 
 Boundaries, by design (no dataflow analysis):
 
@@ -309,11 +313,11 @@ Boundaries, by design (no dataflow analysis):
   conditional success — degrades with a log note instead of evicting the
   operation's success response. (Routing such literals into the error-response
   machinery, like `abort()` calls, is a tracked follow-up.)
-- A chained call that can **change the response's status or body** —
-  `->setStatusCode(201)`, `->setData(...)` — degrades the call rather than
-  documenting the body under the wrong status; header and cookie chains
-  (`->header(...)`, `->withHeaders(...)`, `->cookie(...)`) are harmless and
-  stay matched.
+- A chained **literal** `->setStatusCode(...)` is read as a status override (see
+  above); a non-literal `->setStatusCode(...)` or a body-mutating
+  `->setData(...)` degrades the call rather than documenting the body under the
+  wrong status. Header and cookie chains (`->header(...)`, `->withHeaders(...)`,
+  `->cookie(...)`) are harmless and stay matched.
 - A `response()->json()` call that only runs **conditionally** — inside an `if`
   branch, a ternary or `match` arm, a short-circuit operand, or a closure
   body — is not treated as the canonical success response, nor is one past the

@@ -63,9 +63,34 @@ class InlineJsonFixtureController extends Controller
         return response()->json(['cached' => true])->header('X-Cache', 'hit');
     }
 
-    public function statusMutatingChain(): JsonResponse
+    public function noContent(): SymfonyResponse
+    {
+        return response()->noContent();
+    }
+
+    public function setStatusCodeLiteral(): JsonResponse
     {
         return response()->json(['created' => true])->setStatusCode(201);
+    }
+
+    public function setStatusCodeConstant(): JsonResponse
+    {
+        return response()->json(['created' => true])->setStatusCode(SymfonyResponse::HTTP_CREATED);
+    }
+
+    public function setStatusCodeDynamic(Request $request): JsonResponse
+    {
+        return response()->json(['created' => true])->setStatusCode($request->integer('status'));
+    }
+
+    public function setStatusCodeNonSuccess(): JsonResponse
+    {
+        return response()->json(['error' => 'nope'])->setStatusCode(403);
+    }
+
+    public function setDataChain(): JsonResponse
+    {
+        return response()->json(['created' => true])->setData(['replaced' => true]);
     }
 
     public function integerKeyedList(): JsonResponse
