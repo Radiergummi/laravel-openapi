@@ -339,6 +339,70 @@ it('emits a finding and continues the chain when a resolver throws', function ()
     expect($collector->all()[0]->message)->toContain('resolver exploded');
 });
 
+it('lets a TypeError from a resolver propagate instead of swallowing it', function (): void {
+    $throwing = new class () implements ErrorResponseResolver {
+        public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
+        {
+            throw new TypeError('programming bug');
+        }
+    };
+
+    $contributor = new class () implements ErrorResponseContributor {
+        public function contribute(ActionDescriptor $descriptor): array
+        {
+            return [new ErrorDescriptor(status: 500, exceptionClass: null, description: 'Server error')];
+        }
+    };
+
+    $stage = new ErrorResponseInferenceStage(
+        contributors: [$contributor],
+        errorResponseResolvers: [$throwing],
+        registry: new ComponentSchemaRegistry(),
+        findings: new ArrayFindingsCollector(),
+    );
+
+    $operation = new OA\Get([]);
+    $doc = docWithGetOperation($operation);
+    $ctx = new GenerationContext(inferenceStageSpec(), 'testing');
+    $ctx->bindAction($operation, inferenceStageDescriptor());
+
+    expect(static function () use ($stage, $doc, $ctx): void {
+        $stage->apply($doc, $ctx);
+    })->toThrow(TypeError::class);
+});
+
+it('lets a generic Error from a resolver propagate instead of swallowing it', function (): void {
+    $throwing = new class () implements ErrorResponseResolver {
+        public function resolveErrorResponse(ErrorDescriptor $descriptor): ErrorResponse
+        {
+            throw new Error('programming bug');
+        }
+    };
+
+    $contributor = new class () implements ErrorResponseContributor {
+        public function contribute(ActionDescriptor $descriptor): array
+        {
+            return [new ErrorDescriptor(status: 500, exceptionClass: null, description: 'Server error')];
+        }
+    };
+
+    $stage = new ErrorResponseInferenceStage(
+        contributors: [$contributor],
+        errorResponseResolvers: [$throwing],
+        registry: new ComponentSchemaRegistry(),
+        findings: new ArrayFindingsCollector(),
+    );
+
+    $operation = new OA\Get([]);
+    $doc = docWithGetOperation($operation);
+    $ctx = new GenerationContext(inferenceStageSpec(), 'testing');
+    $ctx->bindAction($operation, inferenceStageDescriptor());
+
+    expect(static function () use ($stage, $doc, $ctx): void {
+        $stage->apply($doc, $ctx);
+    })->toThrow(Error::class);
+});
+
 // endregion
 
 // region Case 8: Webhook operations are decorated like path operations

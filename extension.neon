@@ -77,6 +77,12 @@ services:
         tags:
             - phpstan.rules.rule
     -
+        class: Radiergummi\OpenApi\PhpStan\Rules\RequestFieldNameRequiredOnMethodRule
+        arguments:
+            nodeType: PhpParser\Node\FunctionLike
+        tags:
+            - phpstan.rules.rule
+    -
         class: Radiergummi\OpenApi\PhpStan\Rules\DuplicateResponseHeaderRule
         arguments:
             nodeType: PhpParser\Node\FunctionLike

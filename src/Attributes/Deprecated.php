@@ -15,8 +15,7 @@ use Attribute;
     Attribute::TARGET_METHOD
     | Attribute::TARGET_FUNCTION
     | Attribute::TARGET_PROPERTY
-    | Attribute::TARGET_PARAMETER
-    | Attribute::TARGET_CLASS_CONSTANT,
+    | Attribute::TARGET_PARAMETER,
 )]
 final readonly class Deprecated
 {

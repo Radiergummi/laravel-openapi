@@ -8,6 +8,7 @@ use Radiergummi\OpenApi\Lint\Rules\OverridesUnused;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\OverridesWebhookController;
 
 uses()->group('openapi', 'lint');
 
@@ -23,6 +24,24 @@ function overridesUnusedDescriptor(string $uri, ?string $name): ActionDescriptor
         route: $route,
         controller: null,
         method: null,
+        summary: null,
+        description: null,
+    );
+}
+
+/**
+ * A descriptor for the `#[Webhook(name: 'payment.received')]` fixture handler. Its route URI and
+ * name deliberately differ from the webhook name so tests can isolate webhook-name matching.
+ */
+function overridesUnusedWebhookDescriptor(): ActionDescriptor
+{
+    $route = new Route(['POST'], 'webhooks/payment', static fn() => null);
+    $route->name('webhooks.payment.received');
+
+    return new ActionDescriptor(
+        route: $route,
+        controller: null,
+        method: new ReflectionMethod(OverridesWebhookController::class, 'handlePaymentReceived'),
         summary: null,
         description: null,
     );
@@ -75,4 +94,29 @@ it('flags a key that matches no route or uri', function (): void {
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('overrides.unused')
         ->and($findings[0]->message)->toContain('legacy.foo');
+});
+
+it('does not flag an override keyed by a webhook name the stage applies', function (): void {
+    // Exact key and glob key, both against the webhook name — the same way OverridesStage matches.
+    $findings = overridesUnusedCollect(
+        [
+            'payment.received' => ['summary' => 'x'],
+            'payment.*'        => ['deprecated' => true],
+        ],
+        [overridesUnusedWebhookDescriptor()],
+    );
+
+    expect($findings)->toBe([]);
+});
+
+it('flags a key matching neither route, uri, nor webhook name', function (): void {
+    // The webhook's route URI (webhooks/payment) must NOT satisfy a key — webhooks match by name.
+    $findings = overridesUnusedCollect(
+        ['webhooks/payment' => ['summary' => 'x']],
+        [overridesUnusedWebhookDescriptor()],
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('overrides.unused')
+        ->and($findings[0]->message)->toContain('webhooks/payment');
 });

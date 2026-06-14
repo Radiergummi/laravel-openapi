@@ -10,7 +10,7 @@ use Radiergummi\OpenApi\Contracts\Registry\OperationConvention;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConventionResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
-use function array_intersect;
+use function in_array;
 use function preg_replace;
 
 /**
@@ -51,8 +51,10 @@ final readonly class ResourceConventionResolver implements OperationConventionRe
             return null;
         }
 
-        // Verb gate: the route must use the conventional verb for this action.
-        if (array_intersect($convention['verbs'], $descriptor->route->methods()) === []) {
+        // Verb gate: the pinned emitted verb must match the convention for this action.
+        $emittedVerb = $descriptor->httpMethod?->forDisplay();
+
+        if ($emittedVerb === null || !in_array($emittedVerb, $convention['verbs'], true)) {
             return null;
         }
 

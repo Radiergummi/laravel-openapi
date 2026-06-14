@@ -210,6 +210,20 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
         }
 
+        // Remove conditional fields from required[]: a conditional field stays in properties but
+        // must not appear in required, matching the semantics honored by the ApiResources and
+        // Fractal backends.
+        foreach ($contexts as $context) {
+            $attrs = $context->reflection->getAttributes(FieldAttribute::class, ReflectionAttribute::IS_INSTANCEOF);
+
+            if ($attrs !== [] && $attrs[0]->newInstance()->conditional) {
+                $wireName = $context->wireName;
+                $required = array_values(
+                    array_filter($required, static fn(string $name): bool => $name !== $wireName),
+                );
+            }
+        }
+
         // Pass 4: synthesise a Faker example for any property whose example slot is still
         // unclaimed. Runs last so authored sources (type-derived examples, rule defaults, scoped
         // field attributes) always win. Mirrors SchemaFromFormRequest::buildSchema() so the same

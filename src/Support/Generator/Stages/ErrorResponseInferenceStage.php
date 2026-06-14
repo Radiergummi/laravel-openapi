@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Generator\Stages;
 
+use Exception;
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
@@ -21,7 +22,6 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
-use Throwable;
 
 use function is_array;
 use function ksort;
@@ -169,15 +169,19 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
      *
      * The {@see ErrorResponseResolver} contract requires implementations to catch internally and
      * return null on failure, but the stage defends against misbehaving resolvers anyway: a
-     * throwing resolver emits a `errors.resolver-failed` finding and the chain continues, matching
-     * the spec's promise that a single bad resolver does not abort the full generation run.
+     * thrown {@see Exception} emits a `errors.resolver-failed` finding and the chain continues,
+     * matching the spec's promise that a single bad resolver does not abort the full generation run.
+     *
+     * {@see \Error}/`TypeError` — programming bugs in first-party or plugin resolver code — are
+     * intentionally not caught: they propagate as a loud stack trace rather than disappearing into
+     * a silently missing body, matching the policy of {@see \Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary}.
      */
     private function resolveBody(ErrorDescriptor $descriptor): ?ErrorResponse
     {
         foreach ($this->errorResponseResolvers as $resolver) {
             try {
                 $body = $resolver->resolveErrorResponse($descriptor);
-            } catch (Throwable $e) {
+            } catch (Exception $e) {
                 $this->findings->emit(
                     new Finding(
                         ruleId: 'errors.resolver-failed',

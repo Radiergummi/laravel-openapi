@@ -118,7 +118,14 @@ most specific source wins per field:
    declaration order, later key winning.
 2. The exact route-name key, applied last (highest precedence).
 
-A key matching neither a route name nor any URI is reported by the `overrides.unused` lint rule.
+**Webhook operations** (handlers marked `#[Webhook(name: …)]`, emitted under the top-level
+`webhooks` block rather than `paths`) are matched by their **webhook name** — the logical name that
+appears in the spec — not their route URI. A key equal to the webhook name matches exactly; globs
+match it as if it were a URI. The exact route-name key still applies. So an override keyed by the
+webhook name (e.g. `'stripe.payment_intent.succeeded'`) applies to that webhook operation.
+
+A key matching nothing — no route name, no path URI, and no webhook name — is reported by the
+`overrides.unused` lint rule.
 
 **Precedence against other sources.** Overrides beat plugin contributions and convention-derived
 values (attributes, docblocks, route names). A code-based
@@ -131,7 +138,7 @@ values (attributes, docblocks, route names). A code-based
 | `lint.level` | Default severity level when `--level` is not passed to `openapi:lint`. |
 | `lint.enabled_rules` | `null` = all rules at or below the level. A non-null array is an explicit allowlist. |
 | `lint.disabled_rules` | Always-off rules regardless of level. `spec.invalid` cannot be disabled. |
-| `lint.severity_overrides` | Per-rule level remap: `'rule.id' => level`. `spec.invalid` is exempt. |
+| `lint.severity_overrides` | Per-rule level remap: `'rule.id' => level`. `spec.invalid` is exempt. Negative values are floored to `0`. |
 | `lint.style` | Per-convention case expectations for naming rules. See [Linting → Style conventions](linting.md#style-conventions-naming-rules). |
 | `lint.baseline` | Path to a baseline file; `null` disables the baseline feature. |
 | `lint.rules` | Extra custom rule class-strings appended to the registry. |
