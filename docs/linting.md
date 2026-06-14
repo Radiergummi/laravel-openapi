@@ -385,6 +385,7 @@ visibility).
 | `openapi.queryParam.requiredWithDefault` | `#[QueryParam(required: true, default: …)]` — a default makes the parameter implicitly optional, contradicting `required: true`. | — |
 | `openapi.requestField.nameRequiredOnMethod` | `#[RequestField]` on a method or function omits `name:` — the name cannot be derived from a method target, so the field is silently dropped at generation time. | — |
 | `openapi.exceptionResponse.nonThrowable` | `#[ExceptionResponse]` is attached to a class that doesn't implement `Throwable` — the standard-responses extractor only consults the attribute when resolving `@throws` FQCNs, so it is silently ignored elsewhere. | — |
+| `openapi.allowedFilter.duplicate` | Two `#[AllowedFilter]` attributes with the same name on one action (QueryBuilder plugin). | `query-builder.filter-duplicate` |
 
 The extension also ships two PHPStan type aliases — `OpenApiPrimitiveType`
 and `HttpStatusCode` — used by the attribute PHPDocs so consumer PHPStan
@@ -510,6 +511,7 @@ is enabled.
 | `parameter.name-naming-inconsistent` | 3 | Parameter name doesn't follow the configured `path_parameter_case` (path parameters) or `query_parameter_case` (query parameters) convention. |
 | `path.segment-naming-inconsistent` | 3 | URL path segment doesn't follow the configured path_segment_case convention. |
 | `path.trailing-slash-inconsistent` | 3 | Trailing-slash usage is inconsistent across paths. |
+| `query-builder.filter-duplicate` | 3 | Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.) |
 | `query-builder.filter-type-missing` | 3 | An #[AllowedFilter] is declared without an explicit value type. (QueryBuilder plugin.) |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
