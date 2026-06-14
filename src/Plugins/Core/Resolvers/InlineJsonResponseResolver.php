@@ -320,12 +320,16 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
     }
 
-    private function note(ReflectionMethod $method, string $reason): void
-    {
+    private function note(
+        ReflectionMethod $method,
+        string $reason,
+        string $callExpression = 'response()->json()',
+    ): void {
         $this->logger->notice(
             sprintf(
-                'response()->json() call in %s::%s %s; no response inferred. '
+                '%s call in %s::%s %s; no response inferred. '
                 . 'Annotate the action with #[Response] to document it.',
+                $callExpression,
                 $method->getDeclaringClass()->getName(),
                 $method->getName(),
                 $reason,
@@ -438,13 +442,14 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             }
 
             if (is_int($status)) {
-                return $this->ensureSuccessStatus($status, $method) ?? false;
+                return $this->ensureSuccessStatus($status, $method, 'response()->noContent()') ?? false;
             }
         }
 
         $this->note(
             $method,
             'has no statically readable status code, so the body must not be documented under a guessed status',
+            'response()->noContent()',
         );
 
         return false;
@@ -588,8 +593,11 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      * or a `->setStatusCode(403)`) is an error response, and taking it as primary would evict the
      * operation's success response.
      */
-    private function ensureSuccessStatus(int $status, ReflectionMethod $method): ?int
-    {
+    private function ensureSuccessStatus(
+        int $status,
+        ReflectionMethod $method,
+        string $callExpression = 'response()->json()',
+    ): ?int {
         if ($status < 200 || $status > 299) {
             $this->note(
                 $method,
@@ -597,6 +605,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
                     'has a literal non-2xx status (%d) — an error response must not claim the primary response',
                     $status,
                 ),
+                $callExpression,
             );
 
             return null;

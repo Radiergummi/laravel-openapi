@@ -33,6 +33,7 @@ All notable changes to this project are documented here.
 - Pipeline order is expressed as a single ordered sequence in `BaselineRegistration::assemble()`; resolver fault isolation is centralized in `ResolverFaultBoundary`; pipeline classes are scoped singletons (Octane-safe).
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).
 - `PaginatorKind` recognises Spatie's `PaginatedDataCollection`; `DataResponseResolver` handles union return types as `oneOf`.
+- The inline `response()->noContent($status)` body-scan reads an explicit literal/named 2xx status (body-less); a non-literal or non-2xx status degrades. (#328)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)
@@ -49,7 +50,6 @@ All notable changes to this project are documented here.
 ### Documentation
 - New [Migrating from L5-Swagger](docs/migrating-from-l5-swagger.md) guide and [CI integration](docs/ci.md) guide. (#123, #158)
 - Documentation restructure: the monolithic `docs/usage.md` is split into focused pages, with an accuracy sweep across the set.
-- The inline `response()->noContent($status)` body-scan now reads an explicit literal/named 2xx status argument (a body-less `202` etc.); a non-literal or non-2xx status degrades. (#328)
 
 ## [0.1.0] - 2026-05-18
 

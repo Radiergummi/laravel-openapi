@@ -231,7 +231,8 @@ it('degrades a non-literal status argument on ->noContent() with a note', functi
     );
 
     expect($response)->toBeNull()
-        ->and($logger->records)->toHaveCount(1);
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('response()->noContent()');
 });
 
 it('degrades a non-2xx literal status on ->noContent() with a note', function (): void {
@@ -243,7 +244,8 @@ it('degrades a non-2xx literal status on ->noContent() with a note', function ()
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
-        ->and($logger->records[0]['message'])->toContain('404');
+        ->and($logger->records[0]['message'])->toContain('404')
+        ->and($logger->records[0]['message'])->toContain('response()->noContent()');
 });
 
 it('documents explicit sequential integer keys as a JSON array (AST path)', function (): void {
