@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Add (or reuse) a worktree for an existing branch under .claude/worktrees/.
+# The branch must already exist (start-issue created + pushed it). Echoes the path.
+#
+# Usage: worktree-add <branch>
+set -euo pipefail
+
+branch="${1:?usage: worktree-add <branch>}"
+root=$(git rev-parse --show-toplevel)
+slug=$(printf '%s' "$branch" | tr '/' '-')
+path="${root}/.claude/worktrees/${slug}"
+
+# Reuse an existing worktree for this path rather than erroring.
+if git worktree list --porcelain | grep -qx "worktree ${path}"; then
+  echo "$path"
+  exit 0
+fi
+
+git fetch origin "$branch" >/dev/null 2>&1 || true
+git worktree add "$path" "$branch" >/dev/null
+echo "$path"

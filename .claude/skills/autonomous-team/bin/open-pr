@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Open a PR with the repo conventions filled in: mirror the issue's kind/area/tier
+# labels onto the PR, ensure a `Closes #<issue>` line, append the Claude Code footer,
+# and assign the maintainer. The body itself is bespoke — pass it in.
+#
+# Usage: bin/open-pr <issue-number> <title> [body-file]
+#   body-file  path to the PR body (markdown); reads stdin when omitted or '-'.
+#
+# Env:
+#   PR_ASSIGNEE   maintainer to assign/request review (default: Radiergummi)
+#   PR_DRAFT=1    open as a draft instead of ready-for-review
+#
+# Echoes the created PR URL on success.
+set -euo pipefail
+
+issue="${1:?usage: open-pr <issue-number> <title> [body-file]}"
+title="${2:?usage: open-pr <issue-number> <title> [body-file]}"
+body_file="${3:--}"
+assignee="${PR_ASSIGNEE:-Radiergummi}"
+
+# Read the bespoke body (file or stdin).
+if [ "$body_file" = "-" ]; then
+  body=$(cat)
+else
+  body=$(cat "$body_file")
+fi
+
+# Guarantee the closing keyword so merging the PR closes the issue.
+if ! grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?)[[:space:]]+#${issue}\b" <<<"$body"; then
+  body="Closes #${issue}"$'\n\n'"$body"
+fi
+
+# Append the attribution footer once.
+footer="🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+if ! grep -qF "$footer" <<<"$body"; then
+  body="${body}"$'\n\n'"${footer}"
+fi
+
+# Mirror the issue's durable labels onto the PR: keep kind/area/tier/plugin-candidate,
+# drop planning-only labels that should never travel to a PR.
+mapfile -t labels < <(
+  gh issue view "$issue" --json labels --jq '.labels[].name' \
+    | grep -viE '^(spec|epic|blocked|deferred|agent:)' || true
+)
+
+label_args=()
+for label in "${labels[@]}"; do
+  [ -n "$label" ] && label_args+=(--label "$label")
+done
+
+draft_args=()
+[ "${PR_DRAFT:-0}" = "1" ] && draft_args+=(--draft)
+
+gh pr create \
+  --title "$title" \
+  --body "$body" \
+  --assignee "$assignee" \
+  "${label_args[@]}" \
+  "${draft_args[@]}"

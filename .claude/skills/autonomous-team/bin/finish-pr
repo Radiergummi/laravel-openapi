@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Squash-merge a green, approved, non-controversial PR and clean up after it:
+# merge + delete remote branch (the PR's `Closes #N` auto-closes the issue),
+# remove the branch's worktree, prune, and post the closing annotation.
+#
+# Usage: finish-pr <pr-number> [comment...]
+# Run from the primary checkout (not from inside the worktree being removed).
+set -euo pipefail
+
+pr="${1:?usage: finish-pr <pr-number> [comment...]}"
+shift || true
+comment="${*:-🤖 **[lead]** all gates green + non-controversial → squash-merged and cleaned up.}"
+
+branch=$(gh pr view "$pr" --json headRefName --jq '.headRefName')
+
+gh pr merge "$pr" --squash --delete-branch
+
+root=$(git rev-parse --show-toplevel)
+slug=$(printf '%s' "$branch" | tr '/' '-')
+path="${root}/.claude/worktrees/${slug}"
+[ -d "$path" ] && git worktree remove "$path" --force
+git worktree prune
+
+gh pr comment "$pr" --body "$comment" >/dev/null
+echo "merged + cleaned: PR #${pr} (${branch})"

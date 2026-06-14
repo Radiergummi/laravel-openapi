@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Move an issue or PR to a phase: enforce the single-active-`agent:*`-label invariant
+# (remove any others, add the target) and post the transition comment. Works on both
+# issues and PRs — the GitHub API treats PRs as issues for labels/comments.
+#
+# Usage: set-phase <number> <phase> [comment...]
+#   <phase>  planning | plan-review | coding | in-review | survey | needs-human | clear
+#   comment  optional; posted verbatim as the transition annotation
+#
+# Example: set-phase 236 coding "🤖 **[lead]** plan approved → coding (coder-1)."
+set -euo pipefail
+
+num="${1:?usage: set-phase <number> <phase> [comment...]}"
+phase="${2:?usage: set-phase <number> <phase> [comment...]}"
+shift 2 || true
+comment="$*"
+
+case "$phase" in
+  planning|plan-review|coding|in-review|survey|needs-human|clear) ;;
+  *) echo "error: bad phase '$phase'" >&2; exit 2 ;;
+esac
+
+# Drop every agent:* phase label currently set (ignore 'not present' 404s).
+for label in agent:planning agent:plan-review agent:coding agent:in-review agent:survey agent:needs-human; do
+  gh api -X DELETE "repos/{owner}/{repo}/issues/${num}/labels/${label}" >/dev/null 2>&1 || true
+done
+
+# Add the target phase label (unless clearing).
+if [ "$phase" != "clear" ]; then
+  gh api "repos/{owner}/{repo}/issues/${num}/labels" -f "labels[]=agent:${phase}" >/dev/null
+fi
+
+# Post the transition comment so the move is durable + resumable.
+if [ -n "$comment" ]; then
+  gh api "repos/{owner}/{repo}/issues/${num}/comments" -f "body=${comment}" >/dev/null
+fi
+
+echo "set #${num} → ${phase}"

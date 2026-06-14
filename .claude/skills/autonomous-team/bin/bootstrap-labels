@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Idempotently create the agent:* phase labels used by the autonomous team.
+# Safe to run on every startup.
+set -euo pipefail
+
+create() { # name color description
+  gh label create "$1" --color "$2" --description "$3" 2>/dev/null \
+    || gh label edit "$1" --color "$2" --description "$3" >/dev/null
+  echo "ok: $1"
+}
+
+create "agent:planning"    "5319e7" "Autonomous team: planner is drafting the PR + plan"
+create "agent:plan-review" "8a63d2" "Autonomous team: reviewer is vetting the plan"
+create "agent:coding"      "0e8a16" "Autonomous team: coder is implementing in a worktree"
+create "agent:in-review"   "fbca04" "Autonomous team: reviewer is in the adversarial code loop"
+create "agent:survey"      "1d76db" "Autonomous team: surveyor is running the Layer A gate"
+create "agent:needs-human" "b60205" "Autonomous team: escalated — a human decision is required"

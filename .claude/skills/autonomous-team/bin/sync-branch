@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Rebase the current branch onto the latest origin/main and re-run the gate.
+# Run from inside the branch's worktree, after a sibling PR merged.
+#
+# Clean rebase  → runs `composer check`, exits 0.
+# Conflicts     → leaves the rebase in progress, lists conflicted files, exits 2
+#                 (resolve — usually CHANGELOG, keep both entries — then
+#                  `git rebase --continue` and re-run `composer check`).
+set -euo pipefail
+
+git fetch origin main
+
+if git rebase origin/main; then
+  composer check
+  echo "synced: clean rebase onto origin/main, gates green"
+else
+  {
+    echo "conflict: resolve these, then 'git rebase --continue' and re-run 'composer check':"
+    git diff --name-only --diff-filter=U
+  } >&2
+  exit 2
+fi

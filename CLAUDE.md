@@ -163,6 +163,10 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 - Do not use abbreviations in class names, method names, or variable names. The codebase favors
   verbosity for clarity.
 - Keep code comments short and to the point.
+- Write modern PHP 8.4: constructor property promotion, property hooks, asymmetric visibility, 
+  readonly, enums, first-class callables, named arguments where they aid clarity, `match` over 
+  `switch`, typed properties everywhere.
+- Soft line-width limit of 100 characters; wrap rather than overrun where it stays readable.
 
 ## Inference philosophy & boundaries
 

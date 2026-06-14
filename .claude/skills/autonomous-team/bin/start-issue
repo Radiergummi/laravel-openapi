@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Kick off the draft-PR ritual for one issue (CLAUDE.md development workflow):
+# branch from a fresh main, seed an empty commit so the branch has a diff, push.
+# The planner follows this with `gh pr create --draft` (or use bin/open-pr later).
+#
+# Usage: bin/start-issue <type> <issue-number> [slug]
+#   <type>  one of: feat | fix | chore | docs
+#   [slug]  optional branch suffix; derived from the issue title when omitted
+#
+# Echoes the created branch name on success.
+set -euo pipefail
+
+type="${1:?usage: start-issue <type> <issue-number> [slug]}"
+issue="${2:?usage: start-issue <type> <issue-number> [slug]}"
+slug="${3:-}"
+
+case "$type" in
+  feat|fix|chore|docs) ;;
+  *) echo "error: <type> must be feat|fix|chore|docs (got '$type')" >&2; exit 2 ;;
+esac
+
+# The empty-commit subject reuses the issue title, so the branch reads sensibly in `git log`.
+title=$(gh issue view "$issue" --json title --jq '.title')
+
+if [ -z "$slug" ]; then
+  # Slugify the title: lowercase, non-alphanumerics → '-', collapse, trim, cap length.
+  slug=$(printf '%s' "$title" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' \
+    | cut -c1-40 \
+    | sed -E 's/-+$//')
+fi
+
+branch="${type}/${issue}-${slug}"
+
+# Refuse to clobber uncommitted work — durable state must never be lost silently.
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "error: working tree is dirty; commit or stash before starting a new issue" >&2
+  exit 1
+fi
+
+git checkout main
+git pull --ff-only
+git checkout -b "$branch"
+git commit --allow-empty -m "${type}: ${title} (#${issue})" \
+  -m "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+git push -u origin "$branch"
+
+echo "$branch"
