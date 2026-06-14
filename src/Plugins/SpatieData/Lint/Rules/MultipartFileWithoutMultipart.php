@@ -20,9 +20,11 @@ use Spatie\LaravelData\Data;
 use function sprintf;
 
 /**
- * Reports when a controller method accepts a Data object containing an
- * `UploadedFile` property, but the corresponding OpenAPI operation does not
- * declare a `multipart/form-data` request body.
+ * Contradiction guard: the generator already emits `multipart/form-data` for any Data class that
+ * carries an `UploadedFile` property, so the auto-generated path can never trip this rule. It fires
+ * only when a `#[RequestBody]` override forces a non-multipart media type onto an operation whose
+ * Data object still carries a file — leaving a `format: binary` field under, say, `application/json`,
+ * a spec that contradicts the code.
  *
  * File-property detection is delegated to {@see SchemaFromDataClass::hasFileProperties()},
  * which uses the same TypeInfo-based traversal as schema generation and caches results
@@ -63,13 +65,13 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
-                '%s::%s() accepts an UploadedFile via a Data object, but %s %s does not declare multipart/form-data',
+                '%s::%s() accepts an UploadedFile via a Data object, but %s %s overrides the body to a non-multipart media type — the file field will not transfer',
                 $operation->descriptor->controller?->getShortName() ?? '(unknown)',
                 $operation->descriptor->method->getName(),
                 $operation->method->forDisplay(),
                 $operation->pathUri,
             ),
-            fixHint: 'Add a multipart/form-data request body to the operation, or use #[RequestBody] with the correct media type.',
+            fixHint: 'Remove the non-multipart #[RequestBody] media-type override, or stop passing the UploadedFile through this Data object.',
         );
     }
 
@@ -108,6 +110,6 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
     #[Override]
     public function description(): string
     {
-        return "Data class has a file property but the request body isn't multipart/form-data — produces an incorrect spec.";
+        return 'Data class carries a file property but a #[RequestBody] override forces a non-multipart body — the spec contradicts the code.';
     }
 }

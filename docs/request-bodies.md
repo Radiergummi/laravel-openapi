@@ -357,3 +357,35 @@ Built-in Laravel rule classes (`Password`, `File`, `ImageFile`, `Dimensions`,
 `Rule` implementations, is dropped and reported by the `rule.unknown` lint
 rule. Inject constraints for these via a
 [schema transformer](extensions.md#schema-transformer).
+
+## File uploads → `multipart/form-data`
+
+A body that carries a file is detected on both paths and switches the whole
+request body to `multipart/form-data`; the file field becomes
+`type: string, format: binary`.
+
+- **FormRequest / inline validation** — a `file`, `image`, `mimes`,
+  `mimetypes`, `File`, `ImageFile`, or `Dimensions` rule marks the field as a
+  file (see the rule table above).
+- **Spatie `Data` class** — a typed `UploadedFile` property is auto-detected,
+  transitively through nested `Data` classes:
+
+  ```php
+  final class CreateAvatarData extends Data
+  {
+      public function __construct(
+          public string $name,
+          public UploadedFile $avatar,
+      ) {}
+  }
+  ```
+
+  produces a `multipart/form-data` body whose `avatar` field is
+  `{type: string, format: binary}` while `name` stays a plain string.
+
+Because this is automatic, you never declare multipart yourself. The
+`multipart.file-without-multipart` lint rule is therefore a **contradiction
+guard**: it fires only when a `#[RequestBody(mediaType: …)]` override forces a
+non-multipart media type onto an operation whose payload still carries a file —
+a spec that contradicts the code. Drop the override (or stop passing the file
+through that body) to clear it.

@@ -98,7 +98,9 @@ it('reports its id and level', function (): void {
         ->and($rule->level())->toBe(1);
 });
 
-it('emits a finding when a file-upload Data class is used without multipart content type', function (): void {
+it('emits a finding when a #[RequestBody] override forces a non-multipart body on a file Data class', function (): void {
+    // The generator always emits multipart for a file-carrying Data class; this models the only
+    // way the body ends up non-multipart — a #[RequestBody] media-type override.
     $descriptor = ActionDescriptorFactory::forControllerMethod(FileUploadFixtureController::class, 'upload', '/upload', ['POST']);
 
     $requestBody = new RequestBodyNode(
@@ -126,7 +128,7 @@ it('emits a finding when a file-upload Data class is used without multipart cont
         ->and($findings[0]->level)->toBe(1)
         ->and($findings[0]->message)->toContain('FileUploadFixtureController')
         ->and($findings[0]->message)->toContain('upload')
-        ->and($findings[0]->message)->toContain('multipart/form-data');
+        ->and($findings[0]->message)->toContain('non-multipart');
 });
 
 it('emits no finding when a file-upload Data class is used with multipart content type', function (): void {
