@@ -55,6 +55,18 @@ it('keeps a body-scan literal 201 over the index convention (200)', function ():
     expect(resourcePrimaryStatus($op))->toBe('201');
 });
 
+it('keeps a chained ->setStatusCode(200) over the store convention (201)', function (): void {
+    $op = buildResourceOperation('post', '/widgets', ResourceConventionLiteralController::class, 'storeSetStatusCode');
+
+    expect(resourcePrimaryStatus($op))->toBe('200');
+});
+
+it('keeps a ->noContent() 204 over the store convention (201)', function (): void {
+    $op = buildResourceOperation('post', '/widgets', ResourceConventionLiteralController::class, 'storeNoContent');
+
+    expect(resourcePrimaryStatus($op))->toBe('204');
+});
+
 it('still applies the resource convention when the json() call has no explicit status', function (): void {
     $op = buildResourceOperation('post', '/things', ResourceConventionDefaultController::class, 'store');
 
