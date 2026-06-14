@@ -52,6 +52,7 @@ All notable changes to this project are documented here.
 - `ValidationRulesToSchema` maps additional rules (`multiple_of`, Email/Exists/Unique/NotIn objects, wildcard keys) it previously dropped (#83).
 
 ### Documentation
+- README refreshed for the current feature set (Tier-1 method-body inference, SwaggerPhp plugin) and trimmed to a gentle overview that defers detail to `docs/`.
 - New [Migrating from L5-Swagger](docs/migrating-from-l5-swagger.md) guide and [CI integration](docs/ci.md) guide. (#123, #158)
 - Documentation restructure: the monolithic `docs/usage.md` is split into focused pages, with an accuracy sweep across the set.
 - The query-builder chain reader sees value-object constructors wrapped in fluent modifiers, so `AllowedFilter::exact('healthy')->nullable()` is read as `filter[healthy]` instead of dropped. (#257)
