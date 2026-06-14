@@ -25,21 +25,24 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 final readonly class PathParam extends FieldAttribute
 {
     /**
-     * @param null|non-empty-string $description
-     * @param null|non-empty-string $format
-     * @param null|non-empty-string $pattern
+     * @param null|non-empty-string     $description
+     * @param null|non-empty-string     $format
+     * @param null|non-empty-string     $pattern
+     * @param null|array<string, mixed> $x           Vendor extensions (`x-*`).
      */
     public function __construct(
         ?string $description = null,
         mixed $example = FieldDefault::Unset,
         ?string $format = null,
         ?string $pattern = null,
+        ?array $x = null,
     ) {
         parent::__construct(
             description: $description,
             example: $example,
             format: $format,
             pattern: $pattern,
+            x: $x,
         );
     }
 }

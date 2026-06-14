@@ -72,6 +72,8 @@ final readonly class UriParametersExtractor
             $schema->example = $fieldDescriptor->example;
         }
 
+        $fieldDescriptor?->applyVendorExtensions($schema);
+
         // OpenAPI 3.x §4.8.12.1: path parameters MUST have `required: true`. Laravel's `{param?}`
         // optional-segment signal is not expressible in OAS on a single operation; we preserve it
         // as a description suffix instead. A future release may expand `{param?}` into two

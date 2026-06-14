@@ -37,6 +37,7 @@ final readonly class CookieParam extends FieldAttribute
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
+     * @param null|array<string, mixed>                                                    $x           Vendor extensions (`x-*`).
      */
     public function __construct(
         public string $name,
@@ -62,6 +63,7 @@ final readonly class CookieParam extends FieldAttribute
         ?int $minItems = null,
         ?int $maxItems = null,
         ?bool $uniqueItems = null,
+        ?array $x = null,
     ) {
         parent::__construct(
             title: $title,
@@ -84,6 +86,7 @@ final readonly class CookieParam extends FieldAttribute
             minItems: $minItems,
             maxItems: $maxItems,
             uniqueItems: $uniqueItems,
+            x: $x,
         );
     }
 }

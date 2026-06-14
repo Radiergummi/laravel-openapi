@@ -11,6 +11,10 @@ use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Attributes\ResponseField;
 
+use function Radiergummi\OpenApi\is_undefined;
+use function str_starts_with;
+use function substr;
+
 /**
  * Carries all JSON-Schema field metadata expressible via scoped field
  * attributes ({@see RequestField}, {@see ResponseField}, {@see PathParam}, {@see QueryParam}).
@@ -25,6 +29,10 @@ final readonly class SchemaDescriptor
 {
     /**
      * @param null|list<BackedEnum|bool|float|int|string> $enum
+     * @param null|array<string, mixed>                   $x    Vendor extensions; keys are passed
+     *                                                          with the `x-` prefix and stored
+     *                                                          stripped (swagger-php re-adds it on
+     *                                                          serialize), matching `OverridesStage`.
      */
     public function __construct(
         public ?string $title = null,
@@ -49,6 +57,7 @@ final readonly class SchemaDescriptor
         public ?bool $uniqueItems = null,
         public ?bool $readOnly = null,
         public ?bool $writeOnly = null,
+        public ?array $x = null,
     ) {}
 
     /**
@@ -73,6 +82,8 @@ final readonly class SchemaDescriptor
         if ($this->nullable === true) {
             NullableSchema::applyTo($schema);
         }
+
+        $this->applyVendorExtensions($schema);
 
         return $schema;
     }
@@ -151,5 +162,30 @@ final readonly class SchemaDescriptor
         if ($this->nullable === true) {
             NullableSchema::applyTo($property);
         }
+
+        $this->applyVendorExtensions($property);
+    }
+
+    /**
+     * Merges the vendor extensions onto swagger-php's `$x` bag. Keys arrive `x-`-prefixed (the
+     * author-facing contract shared with `OverridesStage`) and are stored stripped, because
+     * swagger-php re-adds the `x-` prefix on serialize — storing them prefixed would emit `x-x-…`.
+     *
+     * Public so callers that build a parameter schema directly ({@see UriParametersExtractor})
+     * can apply `x-*` from a `#[PathParam]` without routing through {@see applyTo()}.
+     */
+    public function applyVendorExtensions(OA\Schema|OA\Property $target): void
+    {
+        if ($this->x === null) {
+            return;
+        }
+
+        $bag = is_undefined($target->x) ? [] : $target->x;
+
+        foreach ($this->x as $key => $value) {
+            $bag[str_starts_with($key, 'x-') ? substr($key, 2) : $key] = $value;
+        }
+
+        $target->x = $bag;
     }
 }

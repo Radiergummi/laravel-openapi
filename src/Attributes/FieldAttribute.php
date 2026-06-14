@@ -63,6 +63,14 @@ abstract readonly class FieldAttribute
      *                                                                                                  `$this->when()`
      *                                                                                                  /
      *                                                                                                  `$this->whenLoaded()`.
+     * @param null|array<string, mixed>                                                    $x           Vendor extensions
+     *                                                                                                  (`x-*`); keys are
+     *                                                                                                  written with the
+     *                                                                                                  `x-` prefix and
+     *                                                                                                  emitted verbatim,
+     *                                                                                                  matching the
+     *                                                                                                  `openapi.overrides`
+     *                                                                                                  contract.
      *
      * @throws InvalidArgumentException When `$enum` is a string that is not a backed-enum class-string.
      */
@@ -90,6 +98,7 @@ abstract readonly class FieldAttribute
         public ?bool $readOnly = null,
         public ?bool $writeOnly = null,
         public bool $conditional = false,
+        public ?array $x = null,
     ) {
         // A backed-enum class-string is resolved to its cases here, so every downstream reader
         // (descriptor, lint rules) sees a uniform value list rather than a bare class name.
@@ -181,6 +190,7 @@ abstract readonly class FieldAttribute
             uniqueItems: $this->uniqueItems,
             readOnly: $this->readOnly,
             writeOnly: $this->writeOnly,
+            x: $this->x,
         );
     }
 }
