@@ -20,11 +20,11 @@ shift 2 || true
 comment="$*"
 
 case "$phase" in
-  planning|plan-review|coding|in-review|survey|needs-human|clear) ;;
+  planning|plan-review|coding|in-review|docs|survey|needs-human|clear) ;;
   *) echo "error: bad phase '$phase'" >&2; exit 2 ;;
 esac
 
-PHASE_LABELS="agent:planning agent:plan-review agent:coding agent:in-review agent:survey agent:needs-human"
+PHASE_LABELS="agent:planning agent:plan-review agent:coding agent:in-review agent:docs agent:survey agent:needs-human"
 
 clear_phase_labels() { # <number>
   local target="$1" label

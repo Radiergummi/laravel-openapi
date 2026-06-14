@@ -5,7 +5,7 @@
 # Output: JSON array of {number,title,labels}.
 set -euo pipefail
 
-EXCLUDE='["blocked","deferred","spec","epic","human-task","agent:planning","agent:plan-review","agent:coding","agent:in-review","agent:survey","agent:needs-human"]'
+EXCLUDE='["blocked","deferred","spec","epic","human-task","agent:planning","agent:plan-review","agent:coding","agent:in-review","agent:docs","agent:survey","agent:needs-human"]'
 
 # Issue numbers already claimed by an open PR (via closing keywords in the PR body).
 CLAIMED=$(gh pr list --state open --limit 200 --json body \

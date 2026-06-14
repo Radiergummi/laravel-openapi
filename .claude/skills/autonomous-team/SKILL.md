@@ -65,8 +65,9 @@ Anything not covered by a directive falls back to the defaults below.
    and the shared task list; post all durable annotations as GitHub comments."*
 
    Capacity ceiling (spawn up to, never beyond): `planner` ×1, `reviewer` ×2, `coder` ×3,
-   `surveyor` ×1. Scale to the directives — a `"review PR #324"` run only ever needs one
-   `reviewer` (+ a `coder` for findings).
+   `surveyor` ×1, `docs-writer` ×1. Scale to the directives — a `"review PR #324"` run only ever
+   needs one `reviewer` (+ a `coder` for findings); spawn the `docs-writer` only when a docs
+   sub-phase or a `documentation` issue actually arises.
 
    **First-time validation:** before the first real run, confirm the team idle/wake model on this
    runtime with a 2-agent spike — spawn one background teammate, let its turn end, `SendMessage`
@@ -93,8 +94,8 @@ single-active-label / closing-keyword / footer invariants.
 | `finish-pr <pr> [comment]` | lead | squash-merge + delete branch + remove worktree + comment |
 | `start-issue <type> <N> [slug]` | planner | branch off fresh `main`, empty commit, push; echoes branch |
 | `open-pr <N> <title> [body-file]` | planner | open PR with labels/`Closes`/footer/assignee (`PR_DRAFT=1` for draft) |
-| `worktree-add <branch>` | coder | add/reuse a worktree under `.claude/worktrees/`; echoes path |
-| `sync-branch` | coder | from a worktree: fetch + rebase `origin/main` + `composer check` |
+| `worktree-add <branch>` | coder / docs-writer | add/reuse a worktree under `.claude/worktrees/`; echoes path |
+| `sync-branch` | coder / docs-writer | from a worktree: fetch + rebase `origin/main` + `composer check` |
 
 Gates everywhere use **`composer check`** (= `format:check` + `lint` + `test`).
 
@@ -110,14 +111,23 @@ eligible issues remain, and any **volume cap** from the directives is not yet re
    *(If a directive seeded an existing PR at a specific entry phase, skip admission for that item
    and `set-phase` it to that phase instead.)*
 2. **Pick a process tier** for the issue (scale ceremony to the change):
-   - **Full** (default): `planning → plan-review → coding → review → survey → merge`.
-   - **Fast-path** for trivially-scoped work — docs-only, `area:cli`/`area:lint`-only, or an
-     obviously mechanical ≤20-line change: **skip planning + plan-review**, coder implements
-     directly, **one** reviewer pass, **skip survey** (non-generation-affecting), merge. If a
-     fast-pathed change turns out larger or generation-affecting once opened, promote it to Full.
+   - **Full** (default): `planning → plan-review → coding ⇄ review → [docs] → [survey] → merge`.
+   - **Fast-path** for trivially-scoped code — `area:cli`/`area:lint`-only or an obviously
+     mechanical ≤20-line change: **skip planning + plan-review**, coder implements directly, **one**
+     reviewer pass, **skip survey** (non-generation-affecting), merge. Promote to Full if it turns
+     out larger or generation-affecting once opened.
+   - **Docs-path** for a `documentation`-labeled issue: the **`docs-writer` owns it** as the
+     implementer (`planning` via `start-issue`/`open-pr` is fine, or skip straight to `docs`), then
+     **one** reviewer docs-check, **skip survey**, merge.
 3. **Drive phases** as each role reports done: reassign the task and move the phase with
    `bin/set-phase <num> <phase> "<comment>"` (it enforces the single-active-label invariant and
    posts the annotation in one step). The code⇄review loop runs between a `coder` and a `reviewer`.
+   **Docs sub-phase (conditional):** after code review approves, judge the change's documentation
+   impact. If it's **material** — new public surface, authoring attribute, config key, lint rule, or
+   a conceptual change the coder's inline edit didn't fully cover — `set-phase <pr> docs` and hand
+   to the `docs-writer`; when it reports back, route to a `reviewer` for a docs-check, then continue
+   to `[survey]`/merge. If the doc impact is trivial (the coder's inline page edit + the reviewer's
+   docs-gap check sufficed), skip the docs sub-phase.
 4. **Merge or escalate** (below) when a PR reaches the end of its tier.
 5. **Self-feed.** Any agent may `gh issue create` for out-of-scope problems/ideas it finds;
    those become future eligible issues. Never fold them into the current PR.

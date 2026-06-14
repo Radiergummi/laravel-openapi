@@ -47,8 +47,16 @@ Review the pushed diff adversarially. Reject unless **all** hold:
 - **Boundaries:** `src/Support/` and `src/Contracts/` don't depend on any plugin/third-party
   convention package; nothing config-driven leaks into `src/Plugins/Core/`; no host-app runtime
   mutation.
-- **Bookkeeping:** `CHANGELOG.md [Unreleased]` entry present; affected `docs/` page updated if the
-  change is observable; `docs/linting.md` catalog row added for any new rule.
+- **Bookkeeping:** `CHANGELOG.md [Unreleased]` entry present; `docs/linting.md` catalog row added
+  for any new rule.
+- **Documentation gaps (actively check — like test gaps, a first-class duty):** don't just confirm
+  *a* docs line exists — ask whether the **public surface** this change introduces or alters is
+  properly documented for a consumer: the right `docs/` page updated, the `docs/README.md` index
+  current, examples accurate, the tier/boundary framing honest. If the change has **material** doc
+  impact (new public method, authoring attribute, config key, lint rule, or a conceptual change)
+  that the inline edit under-covers, flag it — the lead will route a **docs sub-phase** to the
+  `docs-writer`. Trivial/observable tweaks the coder handled inline are fine; judge by
+  consumer-visibility, not page count.
 - **No scope creep / no deviation from the agreed plan** (if it deviated, the coder must have
   documented why as a PR comment).
 
