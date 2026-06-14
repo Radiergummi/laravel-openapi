@@ -138,6 +138,73 @@ it('marks authored messages as non-shareable and default descriptions as shareab
         ->and($defaulted[0]->shareableDescription)->toBeTrue();
 });
 
+it('reads named code and message arguments on abort()', function (): void {
+    $result = abortContributor()->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'namedAbort'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(403)
+        ->and($result[0]->description)->toBe('Named forbidden');
+});
+
+it('reads a named code argument on abort_if()', function (): void {
+    $result = abortContributor()->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'namedAbortIf'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(404)
+        ->and($result[0]->exceptionClass)->toBe(NotFoundHttpException::class);
+});
+
+it('reads named code and message arguments on abort_unless()', function (): void {
+    $result = abortContributor()->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'namedAbortUnless'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(403)
+        ->and($result[0]->description)->toBe('Named admins only');
+});
+
+it('reads named arguments regardless of their order', function (): void {
+    $result = abortContributor()->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'reorderedNamedAbortIf'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(403);
+});
+
+it('reads a mixed positional status and named message', function (): void {
+    $result = abortContributor()->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'mixedPositionalAndNamedAbort'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(403)
+        ->and($result[0]->description)->toBe('Mixed forbidden');
+});
+
+it('skips an unknown named argument and logs a generation note', function (): void {
+    $logger = recordingLogger();
+
+    $result = abortContributor($logger)->contribute(
+        abortActionDescriptor(AbortFixtureController::class, 'unknownNamedArgument'),
+    );
+
+    expect($result)->toBe([]);
+
+    $noted = array_any(
+        $logger->records,
+        static fn(array $record): bool => $record['level'] === 'notice'
+            && str_contains($record['message'], 'unknownNamedArgument'),
+    );
+
+    expect($noted)->toBeTrue();
+});
+
 it('binds the action onto every emitted descriptor', function (): void {
     $descriptor = abortActionDescriptor(AbortFixtureController::class, 'plainAbort');
 

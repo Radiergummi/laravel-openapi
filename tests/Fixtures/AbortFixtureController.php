@@ -74,6 +74,50 @@ class AbortFixtureController extends Controller
         abort(SymfonyResponse::HTTP_FORBIDDEN, 'Cannot update a user prospect.');
     }
 
+    public function namedAbort(): never
+    {
+        abort(code: 403, message: 'Named forbidden');
+    }
+
+    public function namedAbortIf(Request $request): JsonResponse
+    {
+        abort_if($request->user() === null, code: 404);
+
+        return new JsonResponse([]);
+    }
+
+    // The AdvisingApp idiom: named boolean/code/message arguments.
+    public function namedAbortUnless(Request $request): JsonResponse
+    {
+        abort_unless(
+            boolean: $request->boolean('admin'),
+            code: 403,
+            message: 'Named admins only',
+        );
+
+        return new JsonResponse([]);
+    }
+
+    // Named arguments may appear in any order, ahead of the condition.
+    public function reorderedNamedAbortIf(Request $request): JsonResponse
+    {
+        abort_if(code: 403, boolean: $request->user() === null);
+
+        return new JsonResponse([]);
+    }
+
+    public function mixedPositionalAndNamedAbort(): never
+    {
+        abort(403, message: 'Mixed forbidden');
+    }
+
+    public function unknownNamedArgument(Request $request): JsonResponse
+    {
+        abort_if(boolean: $request->boolean('x'), status: 403);
+
+        return new JsonResponse([]);
+    }
+
     // endregion
 
     // region Off-whitelist and out-of-scope shapes
