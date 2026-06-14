@@ -38,15 +38,13 @@ fi
 
 # Mirror the issue's durable labels onto the PR: keep kind/area/tier/plugin-candidate,
 # drop planning-only labels that should never travel to a PR.
-mapfile -t labels < <(
+label_args=()
+while IFS= read -r label; do
+  [ -n "$label" ] && label_args+=(--label "$label")
+done < <(
   gh issue view "$issue" --json labels --jq '.labels[].name' \
     | grep -viE '^(spec|epic|blocked|deferred|agent:)' || true
 )
-
-label_args=()
-for label in "${labels[@]}"; do
-  [ -n "$label" ] && label_args+=(--label "$label")
-done
 
 draft_args=()
 [ "${PR_DRAFT:-0}" = "1" ] && draft_args+=(--draft)
