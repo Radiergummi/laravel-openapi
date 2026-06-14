@@ -158,7 +158,10 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
 
             try {
-                $type = $this->typeResolver->resolve($rawType, $this->typeContextFor($context->reflection));
+                // Resolve the property itself (not its ReflectionNamedType) so the docblock-aware
+                // resolver reads `@var` generics — `array<string, T>` key/value types collapse to a
+                // bare `array` when only the native type is resolved.
+                $type = $this->typeResolver->resolve($context->reflection, $this->typeContextFor($context->reflection));
             } catch (UnsupportedException) {
                 $properties[] = new OA\Property([
                     'property' => $context->wireName,
@@ -531,6 +534,16 @@ final class SchemaFromDataClass implements FilePropertyChecker
     {
         $valueType = $type->getCollectionValueType();
 
+        // A pure string key denotes a map (`array<string, T>`) → `additionalProperties`. A bare
+        // `array` and `array<array-key, T>` both surface an int|string union key, which is the
+        // "unknown" case, not an asserted map — those fall through to the list/array branches.
+        if (!$type->isList() && $this->isStringKey($type->getCollectionKeyType())) {
+            return new OA\Schema([
+                'type' => 'object',
+                'additionalProperties' => $this->mapValueSchema($valueType, $propertyName),
+            ]);
+        }
+
         if (
             $valueType instanceof ObjectType
             && is_a($valueType->getClassName(), Data::class, allow_string: true)
@@ -568,6 +581,41 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
+     * Schema for a map's value. Reuses the full property-schema resolution (Data → `$ref`, scalar,
+     * nullable/union → `oneOf`, nested collection), so a map value gets the same fidelity as any
+     * other property. An opaque `mixed` value has no useful schema, so it degrades to a permissive
+     * `additionalProperties: true` rather than an empty schema.
+     *
+     * @return OA\Schema|true permissive `additionalProperties` for an opaque `mixed` value
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function mapValueSchema(Type $valueType, string $propertyName): OA\Schema|bool
+    {
+        if (
+            $valueType instanceof BuiltinType
+            && $valueType->isIdentifiedBy(TypeIdentifier::MIXED)
+        ) {
+            return true;
+        }
+
+        return $this->resolvePropertySchema($valueType, $propertyName);
+    }
+
+    /**
+     * Whether the collection key is a pure `string` identifier (a map key). The reflected-type path
+     * surfaces a bare `array` / `array<array-key, T>` as an int|string {@see UnionType}, which is
+     * deliberately not a map; `non-empty-string` normalizes to a `string` {@see BuiltinType}.
+     */
+    private function isStringKey(Type $keyType): bool
+    {
+        return $keyType instanceof BuiltinType
+            && $keyType->isIdentifiedBy(TypeIdentifier::STRING);
+    }
+
+    /**
      * @param ObjectType<class-string> $type
      *
      * @throws ReflectionException
@@ -582,10 +630,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
             return new OA\Schema([
                 'type' => 'string',
                 'format' => 'binary',
-                'description' => sprintf(
-                    'File upload property `%s` — multipart/form-data bodies are not yet fully modelled.',
-                    $propertyName,
-                ),
             ]);
         }
 

@@ -25,6 +25,8 @@ All notable changes to this project are documented here.
 - `SpecStage`, `ErrorResponseContributor`, and `ResourceTargetLocator` plugin extension points; observability events for generation and linting.
 - Default route filters for first-party operational packages (Horizon, Pulse, Nova, Telescope, Ignition, Passport, and the library's own routes via `SkipSelfRoutes`).
 - `openapi:diff:config` command reporting drift between the published config and the package default.
+- String-keyed array/collection properties on Spatie `Data` classes (`array<string, T>`) emit `additionalProperties` (a map) instead of a bare array. (#334)
+- `#[CookieParam]` authoring attribute documenting an `in: cookie` parameter read off the request at runtime. (#335)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
@@ -34,6 +36,7 @@ All notable changes to this project are documented here.
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).
 - `PaginatorKind` recognises Spatie's `PaginatedDataCollection`; `DataResponseResolver` handles union return types as `oneOf`.
 - The inline `response()->noContent($status)` body-scan reads an explicit literal/named 2xx status (body-less); a non-literal or non-2xx status degrades. (#328)
+- A typed `UploadedFile` property on a Spatie `Data` class (transitively, through nested Data classes) emits a `multipart/form-data` body with a `format: binary` field, matching the FormRequest file-rule path; the `multipart.file-without-multipart` lint rule is reframed as a contradiction guard that fires only when a `#[RequestBody]` override forces a non-multipart media type onto a file-carrying payload. (#333)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)

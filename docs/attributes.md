@@ -31,6 +31,7 @@ Attach to controller classes or methods.
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
 | `Header` | class, method | yes | Document a custom request header parameter on the operation. |
+| `CookieParam` | class, method | yes | Document a cookie parameter read off the request at runtime (`$request->cookie('…')`). Each instance defines one `in: cookie` parameter; the schema type defaults to `string`. |
 | `ResponseHeader` | class, method | yes | Document a custom response header. Set `status:` to scope to a specific response status (defaults to the primary 2xx). |
 | `Security` | class, method | yes | Override the auto-derived scopes. Pass an empty list for "token required, no specific scope". `scheme:` targets a specific scheme name from `openapi.security_schemes` (or one of the Passport-derived defaults); omit for the project default. Stack multiple instances to advertise OR-alternatives (any one set of credentials satisfies the operation). See [Declare custom security schemes](recipes.md#declare-custom-security-schemes). |
 | `PublicEndpoint` | class, method | no | Mark as public (no auth advertised) even if middleware would imply otherwise. |
@@ -47,7 +48,7 @@ Attach to controller classes or methods.
 
 ## Field-enrichment attributes
 
-`FieldAttribute` has four scoped subclasses. Pick the one matching the
+`FieldAttribute` has five scoped subclasses. Pick the one matching the
 target. The wrong scope is caught by `field.attribute-wrong-scope`.
 
 | Attribute | Target | Scope | Notes |
@@ -56,8 +57,9 @@ target. The wrong scope is caught by `field.attribute-wrong-scope`.
 | `ResponseField` | class-constant, property | Response output fields | Place on a response class field constant or property. Supports `readOnly` and `conditional`. `conditional: true` keeps the field in `properties` but removes it from `required`. Use for conditionally-present fields. |
 | `PathParam` | parameter | URI path parameters | Place on a controller action parameter for a route-bound model or scalar segment. Only `description`, `example`, `format`, and `pattern` apply (type is inferred from the binding). |
 | `QueryParam` | class, method | Ad-hoc query parameters | See operation-level table above. |
+| `CookieParam` | class, method | Cookie parameters | See operation-level table above. |
 
-All four subclasses share the same JSON Schema field surface inherited from
+All five subclasses share the same JSON Schema field surface inherited from
 `FieldAttribute`:
 
 `title`, `description`, `example`, `type`, `format`, `items` (array element
@@ -84,8 +86,8 @@ one, and the literal-array form keeps working as an override.
 
 ### Inline description directives
 
-The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[ResponseField]`, and
-`#[PathParam]` accepts three keyword directives, each on its own line. The `@` prefix is required —
+The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[CookieParam]`,
+`#[ResponseField]`, and `#[PathParam]` accepts three keyword directives, each on its own line. The `@` prefix is required —
 it keeps directives visibly distinct from prose so a sentence like `Enum: see docs at /enums` is
 not silently parsed as a directive.
 
