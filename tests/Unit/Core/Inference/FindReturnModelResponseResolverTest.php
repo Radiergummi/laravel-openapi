@@ -103,6 +103,16 @@ class FindReturnFixtureController
     {
         return Article::find($id);
     }
+
+    public function ternary(string $id, bool $flag): mixed
+    {
+        return $flag ? User::find($id) : null;
+    }
+
+    public function arrayWrapped(string $id): mixed
+    {
+        return [User::find($id)];
+    }
 }
 
 // endregion
@@ -233,6 +243,20 @@ it('refuses a conditional-only lookup with a notice', function (): void {
     $logger = findReturnRecordingLogger();
 
     expect(findReturnResolver($logger)->resolvePrimaryResponse(findReturnDescriptor('conditionalOnly')))->toBeNull()
+        ->and($logger->records)->toHaveCount(1);
+});
+
+it('refuses a ternary-returned lookup with a notice', function (): void {
+    $logger = findReturnRecordingLogger();
+
+    expect(findReturnResolver($logger)->resolvePrimaryResponse(findReturnDescriptor('ternary')))->toBeNull()
+        ->and($logger->records)->toHaveCount(1);
+});
+
+it('refuses an array-wrapped lookup with a notice', function (): void {
+    $logger = findReturnRecordingLogger();
+
+    expect(findReturnResolver($logger)->resolvePrimaryResponse(findReturnDescriptor('arrayWrapped')))->toBeNull()
         ->and($logger->records)->toHaveCount(1);
 });
 
