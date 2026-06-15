@@ -40,6 +40,19 @@ class FallbackAnonymousCollectionController extends Controller
     }
 }
 
+class FallbackResolvableItemCollectionController extends Controller
+{
+    // A resource return type AND a Core-resolvable item: #[ResponseResource(Author::class)] names a
+    // bare model (so Guard 2 passes) and the body paginates — so only Guard 1 (the resource return
+    // type) keeps Core from stealing this. Neutralising Guard 1 makes Core claim a {data:[Author]}
+    // paginated array instead of the resource envelope ApiResources shapes.
+    #[ResponseResource(Author::class)]
+    public function index(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collection(Author::query()->paginate());
+    }
+}
+
 class FallbackMethodAttributeController extends Controller
 {
     // A loose JsonResponse return type, but #[ResponseResource] names a JsonResource — ApiResources'
@@ -98,6 +111,21 @@ it('lets ApiResources shape a paginated AnonymousResourceCollection return rathe
     expect($schema)->not->toBeNull()
         ->and($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
         ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+});
+
+it('keeps ApiResources for a resource return even when the item class is Core-resolvable (Guard 1)', function (): void {
+    Route::get('/fallback/resolvable-item', [FallbackResolvableItemCollectionController::class, 'index']);
+
+    $schema = generateSpec()['paths']['/fallback/resolvable-item']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
+
+    // Pins Guard 1: the item class is resolvable (#[ResponseResource(Author::class)] is a bare
+    // model, so Guard 2 passes and resolveItemClass() would succeed), so only the resource return
+    // type stops Core. ApiResources shapes the envelope with the resource $ref and nested
+    // pagination meta; without Guard 1 Core would emit a {data: [Author], ...} paginated array.
+    expect($schema)->not->toBeNull()
+        ->and($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and($schema['properties']['meta']['properties'] ?? null)->toHaveKey('total');
 });
 
 it('defers to ApiResources when a method-level #[ResponseResource] names a resource', function (): void {
