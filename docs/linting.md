@@ -463,6 +463,7 @@ is enabled.
 | `schema.allof-type-conflict` | 1 | allOf members declare conflicting type values. |
 | `schema.enum-empty` | 1 | A schema declares an empty enum (enum: []) and is unsatisfiable. |
 | `schema.nullable-via-deprecated-keyword` | 1 | Schema uses the deprecated OpenAPI 3.0 nullable: true keyword instead of a type array. |
+| `schema.raw-keyword-unsupported` | 1 | A #[RawSchema] uses a keyword swagger-php cannot serialise (if/then/else, dependentRequired/dependentSchemas, dependencies); it is silently dropped from the output. |
 | `security.invalid-scope` | 1 | Operation requires a scope not declared in securitySchemes. |
 | `streaming.no-content-type` | 1 | Streaming operation has no content-type: text/event-stream response. |
 | `throws.transitive-missing` | 1 | An action's handler declares @throws exceptions not redeclared on the controller method. |

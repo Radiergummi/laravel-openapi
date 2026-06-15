@@ -546,6 +546,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     wrappedModelLocator: $app->make(Plugins\ApiResources\Support\WrappedModelLocator::class),
                     modelToSchema: $app->make(Support\Extraction\EloquentModelToSchema::class),
                     logger: $app->make(LoggerInterface::class),
+                    explicitSchema: $app->make(Support\Generator\ExplicitClassSchema::class),
                 );
             },
         );

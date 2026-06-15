@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 
 uses()->group('openapi', 'examples');
 
@@ -41,6 +42,7 @@ function fakerSynthesisBuildSchema(bool $synthesise): OA\Schema
         logger: new NullLogger(),
         synthesiser: new FakerExampleSynthesiser(enabled: $synthesise, seed: 1234),
         findings: new ArrayFindingsCollector(),
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
 
     $builder->build(fakerSynthesisMakeEmailFormRequest());
@@ -129,6 +131,7 @@ it('does not overwrite an authored example from a #[RequestField] attribute', fu
         logger: new NullLogger(),
         synthesiser: new FakerExampleSynthesiser(enabled: true, seed: 1234),
         findings: new ArrayFindingsCollector(),
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
 
     $builder->build($request::class);

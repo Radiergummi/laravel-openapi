@@ -29,6 +29,7 @@ All notable changes to this project are documented here.
 - `#[CookieParam]` authoring attribute documenting an `in: cookie` parameter read off the request at runtime. (#335)
 - `x:` vendor-extension passthrough on the field attributes (`#[ResponseField]`, `#[RequestField]`, `#[QueryParam]`, `#[PathParam]`, `#[CookieParam]`): attach `x-*` specification extensions to a field's schema, co-located with the field (the field-level analogue of `openapi.overrides`). (#336)
 - `additionalProperties:` override on the field attributes (`#[ResponseField]`, `#[RequestField]`, `#[QueryParam]`, `#[PathParam]`): set a field's map behaviour to a bool or a typed value schema; applied last, it wins over inferred `array<string, T>` map values. (#345)
+- `#[RawSchema]` class-level attribute replaces a payload class's inferred component body with a literal JSON Schema (Spatie Data, API Resource, FormRequest); keywords are bounded to what swagger-php serialises, with unsupported keywords dropped-and-logged and flagged by the new `schema.raw-keyword-unsupported` lint rule. (#344)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.

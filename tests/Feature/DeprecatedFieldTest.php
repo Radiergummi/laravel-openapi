@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Plugins\SpatieData\Support\SchemaFromDataClass;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedAttributeFieldFixtureData;
 use Radiergummi\OpenApi\Tests\Fixtures\DeprecatedFieldFixtureData;
@@ -55,6 +56,7 @@ function makeDeprecatedSchemaBuilder(?ComponentSchemaRegistry $registry = null):
         dataConfig: app(DataConfig::class),
         logger: new NullLogger(),
         synthesiser: new FakerExampleSynthesiser(enabled: false),
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
 }
 

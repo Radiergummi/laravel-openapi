@@ -46,3 +46,28 @@ it('leaves non-array nodes without items', function (): void {
 
     expect(Generator::isDefault($schema->items))->toBeTrue();
 });
+
+it('converts oneOf/anyOf/allOf members into OA\Schema graphs that validate', function (): void {
+    $schema = SchemaFromArrayDefinition::build([
+        'oneOf' => [
+            ['type' => 'object', 'properties' => ['a' => ['type' => 'string']]],
+            ['type' => 'string'],
+        ],
+    ]);
+
+    expect($schema->oneOf)->toHaveCount(2)
+        ->and($schema->oneOf[0])->toBeInstanceOf(OA\Schema::class)
+        ->and($schema->oneOf[0]->properties[0])->toBeInstanceOf(OA\Property::class)
+        ->and($schema->oneOf[1])->toBeInstanceOf(OA\Schema::class)
+        ->and($schema->validate())->toBeTrue();
+});
+
+it('converts not into a nested OA\Schema that validates', function (): void {
+    $schema = SchemaFromArrayDefinition::build([
+        'not' => ['type' => 'string'],
+    ]);
+
+    expect($schema->not)->toBeInstanceOf(OA\Schema::class)
+        ->and($schema->not->type)->toBe('string')
+        ->and($schema->validate())->toBeTrue();
+});
