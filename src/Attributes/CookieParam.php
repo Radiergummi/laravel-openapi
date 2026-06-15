@@ -9,49 +9,40 @@ use BackedEnum;
 use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 
 /**
- * Documents a request-body input field.
- *
- * Place on a Spatie Data class property / promoted constructor parameter, or on a FormRequest
- * `PARAM_*` class constant — there the field name is taken from the target. Or stack it
- * (repeatable) on a controller action to document a request body field-by-field when the action
- * validates outside a FormRequest/Data class (e.g. in an Action/service); there `$name` is
- * required and composes with `#[RequestBody]` for the envelope. Request fields support `writeOnly`
- * but not `readOnly` (a request field is never read-only).
+ * Documents a cookie parameter read off the request at runtime (`$request->cookie('x')`).
+ * Cookies are never typed in the action signature, so this attribute supplies the name and the
+ * documented shape that reflection cannot recover. Repeatable; method-level wins over class-level
+ * on `name` collision.
  *
  * ```php
- * #[RequestBody(description: 'Create a site.')]
- * #[RequestField('domain', required: true, type: 'string', format: 'hostname')]
- * #[RequestField('php_version', type: 'string', default: '8.4')]
- * public function store(Request $request) { … }
+ * #[CookieParam('session', description: 'Opaque session token.')]
+ * #[CookieParam('theme', enum: Theme::class)]
  * ```
  */
-#[Attribute(
-    Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER | Attribute::TARGET_CLASS_CONSTANT
-    | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE,
-)]
-final readonly class RequestField extends FieldAttribute
+#[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
+final readonly class CookieParam extends FieldAttribute
 {
     /**
-     * @param null|non-empty-string                                                        $name                 Field name; required
-     *                                                                                                           on a method, derived
-     *                                                                                                           from the target
-     *                                                                                                           otherwise
+     * @param non-empty-string                                                             $name
      * @param null|non-empty-string                                                        $title
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        Allowed values,
+     *                                                                                                  or a backed-enum
+     *                                                                                                  class-string; renders as a
+     *                                                                                                  dropdown.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`).
-     * @param null|bool|string                                                             $additionalProperties Map-value override.
+     * @param null|array<string, mixed>                                                    $x           Vendor extensions (`x-*`).
      */
     public function __construct(
-        public ?string $name = null,
-        public ?bool $required = null,
+        public string $name,
+        public bool $required = false,
+        public bool $deprecated = false,
         ?string $title = null,
         ?string $description = null,
         mixed $example = FieldDefault::Unset,
@@ -72,9 +63,7 @@ final readonly class RequestField extends FieldAttribute
         ?int $minItems = null,
         ?int $maxItems = null,
         ?bool $uniqueItems = null,
-        ?bool $writeOnly = null,
         ?array $x = null,
-        bool|string|null $additionalProperties = null,
     ) {
         parent::__construct(
             title: $title,
@@ -97,9 +86,7 @@ final readonly class RequestField extends FieldAttribute
             minItems: $minItems,
             maxItems: $maxItems,
             uniqueItems: $uniqueItems,
-            writeOnly: $writeOnly,
             x: $x,
-            additionalProperties: $additionalProperties,
         );
     }
 }

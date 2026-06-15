@@ -15,7 +15,7 @@ source.
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema: fields are inferred from a single-`return [...]` `toArray()` literal (`$this->field` typed from the wrapped `@mixin`/`@extends` model, nested resources as `$ref`s, `when*` wrappers optional) composed with declared `#[ResourceField]` attributes, which win per field; a passthrough or dynamic `toArray()` falls back to the wrapped model's schema (see [Plugins → ApiResources](plugins.md#apiresources)). A **base** resource return type (`JsonResource`, bare `ResourceCollection`, `AnonymousResourceCollection`) resolves the concrete resource from the method's return expression — `X::collection(…)` / `X::make(…)` / `new X(…)`, `->toResource(…)`, or a `@return …Collection<X>` generic; a collection only claims the paginated envelope when its source visibly ends in a `paginate()`-family call, looking through paginator-preserving links like `withQueryString()` (bounded scan; see [Plugins → ApiResources → Resolving the resource from the return expression](plugins.md#resolving-the-resource-from-the-return-expression)). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`. See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). With the Fractal plugin enabled, a transformer's schema is inferred from its single-`return [...]` `transform()` literal (`$model->field` typed from the typed parameter, casts by their JSON type) composed with `#[TransformerField]` attributes, which win per field; the `$entity_transformer` + `itemResponse()`/`listResponse()` base-controller convention binds it without an attribute (see [Plugins → Fractal](plugins.md#fractal)). |
 | Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware — route-declared or controller-applied, including constructor `$this->middleware(...)` and the static `HasMiddleware` form (see [Controller middleware](#controller-middleware)) — → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
-| Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, named `code:` / `message:` arguments resolve like positional ones, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) → 404; a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware (route-declared or controller-applied, see [Controller middleware](#controller-middleware)) → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
+| Error responses | `@throws ExceptionClass` → status codes; `abort(403)` / `abort_if(…, 404, 'msg')` / `abort_unless(…, 403, 'msg')` in the method body → that status, with a literal message as the response description (bounded scan of the first 10 statements; class-constant statuses such as `abort(Response::HTTP_FORBIDDEN, …)` resolve too, named `code:` / `message:` arguments resolve like positional ones, a genuinely non-literal status is skipped with a generation-log note); a route-model-bound parameter (`show(Post $post)`) or a `findOrFail()` / `firstOrFail()` lookup in the method body → 404 (deduped to one response); a `FormRequest` parameter → 422; `auth`/`scope`/`can`/`throttle` middleware (route-declared or controller-applied, see [Controller middleware](#controller-middleware)) → 401 / 403 / 403 / 429. An explicit `#[Response]` for the same status always wins. |
 | Validation constraints | `Data::rules()` and Spatie validation attributes → `maxLength`, `minLength`, `pattern`, `enum`, `format`, `minimum`/`maximum`, `minItems`/`maxItems`. |
 
 Use an authoring attribute when convention can't produce what you need. See
@@ -398,6 +398,35 @@ Boundaries, by design (no dataflow analysis):
   accessor read of the same name — they know `required` and the constraints.
 - An explicit `#[QueryParam]` wins **entirely** for its name (no merging);
   parameters from different sources with different names compose.
+
+### Pagination parameters
+
+The same bounded scan recognises a `paginate()`-family call in the first 10
+top-level statements and documents the pagination knob it implies:
+
+```php
+public function index(): LengthAwarePaginator    // → page, per_page
+{
+    return Article::query()->paginate();
+}
+
+public function feed(): CursorPaginator          // → cursor
+{
+    return Article::query()->cursorPaginate();
+}
+```
+
+- `paginate()` and `simplePaginate()` (offset pagination) emit `page` and
+  `per_page` — both optional `integer`, `minimum: 1`. `per_page` is the common
+  `?per_page=` idiom rather than a framework default; it is documented for the
+  offset case.
+- `cursorPaginate()` emits an optional `string` `cursor` parameter.
+- The first unconditional `paginate()`-family call is matched, looking through
+  chains like `->paginate()->withQueryString()`. A call behind an `if`/ternary
+  is not treated as the operation's shape.
+- These compose with the accessor/validation parameters above, and an explicit
+  `#[QueryParam('page')]` wins entirely for its name — annotate it when the page
+  knob needs a description or different constraints.
 
 ## Controller middleware
 

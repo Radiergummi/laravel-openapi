@@ -31,6 +31,7 @@ Attach to controller classes or methods.
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
 | `Header` | class, method | yes | Document a custom request header parameter on the operation. |
+| `CookieParam` | class, method | yes | Document a cookie parameter read off the request at runtime (`$request->cookie('…')`). Each instance defines one `in: cookie` parameter; the schema type defaults to `string`. |
 | `ResponseHeader` | class, method | yes | Document a custom response header. Set `status:` to scope to a specific response status (defaults to the primary 2xx). |
 | `Security` | class, method | yes | Override the auto-derived scopes. Pass an empty list for "token required, no specific scope". `scheme:` targets a specific scheme name from `openapi.security_schemes` (or one of the Passport-derived defaults); omit for the project default. Stack multiple instances to advertise OR-alternatives (any one set of credentials satisfies the operation). See [Declare custom security schemes](recipes.md#declare-custom-security-schemes). |
 | `PublicEndpoint` | class, method | no | Mark as public (no auth advertised) even if middleware would imply otherwise. |
@@ -47,25 +48,70 @@ Attach to controller classes or methods.
 
 ## Field-enrichment attributes
 
-`FieldAttribute` has four scoped subclasses. Pick the one matching the
+`FieldAttribute` has five scoped subclasses. Pick the one matching the
 target. The wrong scope is caught by `field.attribute-wrong-scope`.
 
 | Attribute | Target | Scope | Notes |
 |---|---|---|---|
 | `RequestField` | property, parameter, class-constant | Request-body input fields | Place on a Spatie Data class property / promoted constructor parameter, or on a `FormRequest` field constant. Supports `writeOnly` and `default`. No `readOnly` (a request field is never read-only). |
 | `ResponseField` | class-constant, property | Response output fields | Place on a response class field constant or property. Supports `readOnly` and `conditional`. `conditional: true` keeps the field in `properties` but removes it from `required`. Use for conditionally-present fields. |
-| `PathParam` | parameter | URI path parameters | Place on a controller action parameter for a route-bound model or scalar segment. Only `description`, `example`, `format`, and `pattern` apply (type is inferred from the binding). |
+| `PathParam` | parameter | URI path parameters | Place on a controller action parameter for a route-bound model or scalar segment. Only `description`, `example`, `format`, `pattern`, `x`, and `additionalProperties` apply (type is inferred from the binding). |
 | `QueryParam` | class, method | Ad-hoc query parameters | See operation-level table above. |
+| `CookieParam` | class, method | Cookie parameters | See operation-level table above. |
 
-All four subclasses share the same JSON Schema field surface inherited from
+All five subclasses share the same JSON Schema field surface inherited from
 `FieldAttribute`:
 
 `title`, `description`, `example`, `type`, `format`, `items` (array element
 type), `default`, `nullable`, `enum`, `minimum` / `maximum`,
 `exclusiveMinimum` / `exclusiveMaximum`, `multipleOf`, `minLength` /
 `maxLength`, `pattern`, `minItems` / `maxItems`, `uniqueItems`, `readOnly`,
-`writeOnly` (where applicable to the scope — e.g. `RequestField` has no
-`readOnly`, `PathParam` only `description` / `example` / `format` / `pattern`).
+`writeOnly`, `x`, `additionalProperties` (where applicable to the scope — e.g.
+`RequestField` has no `readOnly`, `PathParam` only `description` / `example` /
+`format` / `pattern` / `x` / `additionalProperties`).
+
+### Vendor extensions (`x-*`)
+
+The `x:` argument attaches OpenAPI [specification extensions](https://spec.openapis.org/oas/v3.1.0#specification-extensions)
+(`x-*` keys) to the field's schema. Pass an array keyed by the **`x-`-prefixed**
+name; values may be scalars or nested arrays:
+
+```php
+#[ResponseField('id', x: ['x-internal-id' => 'sys-42'])]
+#[QueryParam('sort', type: 'string', x: ['x-ui-control' => 'dropdown'])]
+```
+
+emits `x-internal-id: sys-42` on the `id` property and `x-ui-control: dropdown`
+on the `sort` parameter's schema. (Keys are passed with the `x-` prefix — the
+same author-facing contract as `openapi.overrides` — so the two escape hatches
+read alike.)
+
+This is the field-level analogue of the `openapi.overrides` config key: use the
+attribute when the extension is **co-located with the field and should travel
+with refactors**; use `openapi.overrides` for **document-level** `x-*` targeted
+at code you can't or won't annotate (third-party routes, generated controllers).
+
+### `additionalProperties` override
+
+The `additionalProperties:` argument overrides the schema's open/closed map
+behaviour. Pass a bool, or a type string wrapped into a nested value schema
+(mirroring `items:`):
+
+```php
+#[ResponseField(additionalProperties: false)]    // forbid extra keys
+#[ResponseField(additionalProperties: 'string')] // values are strings → {type: string}
+```
+
+It **wins over inference**: a property typed `array<string, Foo>` is otherwise
+inferred to `additionalProperties: {$ref: Foo}` (the [map inference](auto-derivation.md)),
+and the attribute — applied last — replaces that inferred value. Leave the
+argument off (`null`) to keep the inferred map untouched; `additionalProperties:
+false` is distinct from unset and emits a closed map.
+
+A free-form `schema:` knob is intentionally **not** offered: every keyword
+`OA\Schema` models as a scalar is already an individually-overridable field
+argument, and composition keywords (`oneOf`/`allOf`/…) belong to the class-level
+schema-body escape hatch, not a field knob.
 
 ### Enum from a backed-enum class-string
 
@@ -84,8 +130,8 @@ one, and the literal-array form keeps working as an override.
 
 ### Inline description directives
 
-The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[ResponseField]`, and
-`#[PathParam]` accepts three keyword directives, each on its own line. The `@` prefix is required —
+The `description` argument of `#[RequestField]`, `#[QueryParam]`, `#[CookieParam]`,
+`#[ResponseField]`, and `#[PathParam]` accepts three keyword directives, each on its own line. The `@` prefix is required —
 it keeps directives visibly distinct from prose so a sentence like `Enum: see docs at /enums` is
 not silently parsed as a directive.
 

@@ -25,6 +25,11 @@ All notable changes to this project are documented here.
 - `SpecStage`, `ErrorResponseContributor`, and `ResourceTargetLocator` plugin extension points; observability events for generation and linting.
 - Default route filters for first-party operational packages (Horizon, Pulse, Nova, Telescope, Ignition, Passport, and the library's own routes via `SkipSelfRoutes`).
 - `openapi:diff:config` command reporting drift between the published config and the package default.
+- String-keyed array/collection properties on Spatie `Data` classes (`array<string, T>`) emit `additionalProperties` (a map) instead of a bare array. (#334)
+- `#[CookieParam]` authoring attribute documenting an `in: cookie` parameter read off the request at runtime. (#335)
+- `x:` vendor-extension passthrough on the field attributes (`#[ResponseField]`, `#[RequestField]`, `#[QueryParam]`, `#[PathParam]`, `#[CookieParam]`): attach `x-*` specification extensions to a field's schema, co-located with the field (the field-level analogue of `openapi.overrides`). (#336)
+- `additionalProperties:` override on the field attributes (`#[ResponseField]`, `#[RequestField]`, `#[QueryParam]`, `#[PathParam]`): set a field's map behaviour to a bool or a typed value schema; applied last, it wins over inferred `array<string, T>` map values. (#345)
+- Pagination query parameters from a `->paginate()`/`->simplePaginate()`/`->cursorPaginate()` body call (Tier-1): offset paginators emit `page`/`per_page`, cursor paginators emit `cursor`; an explicit `#[QueryParam]` wins for its name. (#31)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
@@ -34,6 +39,7 @@ All notable changes to this project are documented here.
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).
 - `PaginatorKind` recognises Spatie's `PaginatedDataCollection`; `DataResponseResolver` handles union return types as `oneOf`.
 - The inline `response()->noContent($status)` body-scan reads an explicit literal/named 2xx status (body-less); a non-literal or non-2xx status degrades. (#328)
+- A typed `UploadedFile` property on a Spatie `Data` class (transitively, through nested Data classes) emits a `multipart/form-data` body with a `format: binary` field, matching the FormRequest file-rule path; the `multipart.file-without-multipart` lint rule is reframed as a contradiction guard that fires only when a `#[RequestBody]` override forces a non-multipart media type onto a file-carrying payload. (#333)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)
@@ -48,8 +54,11 @@ All notable changes to this project are documented here.
 - `ValidationRulesToSchema` maps additional rules (`multiple_of`, Email/Exists/Unique/NotIn objects, wildcard keys) it previously dropped (#83).
 
 ### Documentation
+- README refreshed for the current feature set (Tier-1 method-body inference, SwaggerPhp plugin) and trimmed to a gentle overview that defers detail to `docs/`.
 - New [Migrating from L5-Swagger](docs/migrating-from-l5-swagger.md) guide and [CI integration](docs/ci.md) guide. (#123, #158)
 - Documentation restructure: the monolithic `docs/usage.md` is split into focused pages, with an accuracy sweep across the set.
+- The query-builder chain reader sees value-object constructors wrapped in fluent modifiers, so `AllowedFilter::exact('healthy')->nullable()` is read as `filter[healthy]` instead of dropped. (#257)
+- A `findOrFail()` / `firstOrFail()` lookup in the controller body infers a 404 response, deduped against the route-model-binding 404. (#168)
 
 ## [0.1.0] - 2026-05-18
 

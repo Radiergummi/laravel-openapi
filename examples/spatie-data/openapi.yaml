@@ -18,7 +18,21 @@ paths:
         description: 'Public API reference'
         url: 'https://example.com/docs/flights'
       operationId: get_api_flights
-      parameters: []
+      parameters:
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: OK
