@@ -44,6 +44,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         private ComponentSchemaRegistry $registry,
         private Closure $refSchemaResolvers,
         private FindingsCollector $findings,
+        private RequestFieldObjectBuilder $objectBuilder,
     ) {}
 
     /** @throws InvalidArgumentException */
@@ -243,7 +244,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
             );
         }
 
-        [$properties, $required] = RequestFieldObjectBuilder::propertiesAndRequired($fields);
+        [$properties, $required] = $this->objectBuilder->propertiesAndRequired($fields);
 
         $schemaProps = ['type' => 'object', 'properties' => $properties];
 
