@@ -421,9 +421,9 @@ public function feed(): CursorPaginator          // → cursor
   `?per_page=` idiom rather than a framework default; it is documented for the
   offset case.
 - `cursorPaginate()` emits an optional `string` `cursor` parameter.
-- The call is matched only on the dominant (unconditional) return path, looking
-  through chains like `->paginate()->withQueryString()`. A paginate call hidden
-  behind an `if`/ternary is not treated as the operation's shape.
+- The first unconditional `paginate()`-family call is matched, looking through
+  chains like `->paginate()->withQueryString()`. A call behind an `if`/ternary
+  is not treated as the operation's shape.
 - These compose with the accessor/validation parameters above, and an explicit
   `#[QueryParam('page')]` wins entirely for its name — annotate it when the page
   knob needs a description or different constraints.

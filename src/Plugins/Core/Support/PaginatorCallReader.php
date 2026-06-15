@@ -20,11 +20,12 @@ use ReflectionMethod;
  * pagination query parameters (issue #31).
  *
  * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
- * {@see ConditionalContextPolicy::SkipConditionalContexts}: a paginate call is the dominant return
- * path of a listing action, not a guarded branch, so a call hidden behind an `if`/ternary is not
- * treated as the operation's shape. The first method or static call whose lowercased name maps via
- * {@see PaginatorKind::fromPaginatingMethod()} decides the kind; anything else (no paginate call,
- * an unreadable or closure body) returns null and the operation advertises no pagination knob.
+ * {@see ConditionalContextPolicy::SkipConditionalContexts}: the first method or static call whose
+ * lowercased name maps via {@see PaginatorKind::fromPaginatingMethod()} decides the kind. Detection
+ * is presence-based (any unconditional statement, not only the returned expression), since in a
+ * listing action the paginate call is the operation's shape rather than a guarded branch — so a
+ * call hidden behind an `if`/ternary is not matched. Anything else (no paginate call, an unreadable
+ * or closure body) returns null and the operation advertises no pagination knob.
  *
  * @internal
  */
