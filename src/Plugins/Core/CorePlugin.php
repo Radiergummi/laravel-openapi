@@ -9,6 +9,8 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\AbortErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\FindOrFailErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\InlineJsonErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\RouteModelBindingErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
@@ -20,9 +22,11 @@ use Radiergummi\OpenApi\Plugins\Core\Lint\ThrowsUnmapped;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\FindReturnModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineValidationRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginationQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\ResourceConventionResolver;
@@ -60,8 +64,18 @@ final class CorePlugin implements Plugin
         // Tier-0 miss — actions whose signature carries no typed payload parameter.
         $registry->addRequestSchemaResolver(InlineValidationRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
+
+        // Runs after the core resolver so an explicit #[QueryParam('page')] keeps its emission via
+        // OperationBuilder's (name, in) dedup; otherwise page/per_page/cursor simply compose.
+        $registry->addQueryParameterResolver(PaginationQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
+
+        // Tier-1 model-lookup scan: a directly-returned Model::find()/findOrFail()/firstOrFail()
+        // call. Runs after the Tier-0 reflection resolver (which stays authoritative for typed
+        // Model/Collection returns via the shared return-type guard) and before the inline-json
+        // scan, since a returned model lookup is a model return, not a response()->json() literal.
+        $registry->addPrimaryResponseResolver(FindReturnModelResponseResolver::class);
 
         // Tier-1 body scan runs last among Core's response resolvers; its return-type guard
         // additionally keeps it off any action whose signature carries schema information, so
@@ -77,9 +91,15 @@ final class CorePlugin implements Plugin
         // contributors can work without depending on Core.
         $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
         $registry->addErrorResponseContributor(AbortErrorContributor::class);
+        // After Abort (an authored abort() message is at least as specific), before the envelope-only
+        // contributors: a literal json() error body is more specific than the configured envelope.
+        $registry->addErrorResponseContributor(InlineJsonErrorContributor::class);
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
         $registry->addErrorResponseContributor(RouteModelBindingErrorContributor::class);
+        // After the binding contributor: both source the same ModelNotFoundException config entry,
+        // so the 404 is byte-identical and the stage's first-contributor-wins dedup is order-safe.
+        $registry->addErrorResponseContributor(FindOrFailErrorContributor::class);
 
         // Register FormRequest so SuppressionCollector descends into its #[IgnoreLint] attributes
         // via the param-walk path (fromDataParameter checks against registered payload classes).

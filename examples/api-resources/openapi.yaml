@@ -15,7 +15,21 @@ paths:
       summary: 'List flights.'
       description: "Returns a paginated collection of all known flights wrapped in the\nstandard JsonResource `{data, links, meta}` envelope."
       operationId: get_api_flights
-      parameters: []
+      parameters:
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: OK
@@ -60,7 +74,21 @@ paths:
       summary: 'List bookings.'
       description: "The signature only says `AnonymousResourceCollection` — the generator reads\nthe `BookingResource::collection(...)` return expression to resolve the item\nresource, and the `paginate()` call to pick the `{data, links, meta}`\nenvelope. No `#[ResponseResource]` needed."
       operationId: get_api_bookings
-      parameters: []
+      parameters:
+        -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: OK

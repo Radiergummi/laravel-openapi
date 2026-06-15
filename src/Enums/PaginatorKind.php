@@ -9,6 +9,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 
 use function is_a;
+use function strtolower;
 
 /**
  * The three Laravel paginator shapes, distinguished by the metadata each serializes via its
@@ -45,6 +46,21 @@ enum PaginatorKind
             is_a($class, LengthAwarePaginator::class, allow_string: true),
             is_a($class, self::SPATIE_PAGINATED_DATA_COLLECTION, allow_string: true) => self::LengthAware,
             is_a($class, Paginator::class, allow_string: true) => self::Simple,
+            default => null,
+        };
+    }
+
+    /**
+     * Maps a paginating builder method to its paginator kind, or null when the (lowercased) name
+     * is not a paginate-family call: `paginate` → length-aware, `simplePaginate` → simple,
+     * `cursorPaginate` → cursor. The canonical method-name mapping, sibling to {@see fromClass}.
+     */
+    public static function fromPaginatingMethod(string $method): ?self
+    {
+        return match (strtolower($method)) {
+            'paginate' => self::LengthAware,
+            'simplepaginate' => self::Simple,
+            'cursorpaginate' => self::Cursor,
             default => null,
         };
     }

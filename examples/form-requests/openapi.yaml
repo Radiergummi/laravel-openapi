@@ -17,6 +17,20 @@ paths:
       operationId: get_api_flights
       parameters:
         -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
           name: X-Request-Id
           in: header
           description: 'Optional client-supplied correlation id echoed back on every response.'
