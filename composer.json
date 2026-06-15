@@ -25,6 +25,7 @@
         "doctrine/annotations": "^2.0",
         "fakerphp/faker": "^1.24",
         "larastan/larastan": "^v3.9.6",
+        "laravel/fortify": "^1.21",
         "laravel/passport": "^13.7.5",
         "laravel/pint": "^1.29.1",
         "league/fractal": "~0.20.2",
