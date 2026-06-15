@@ -8,27 +8,21 @@ use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Override;
 use PhpParser\Node;
-use PhpParser\Node\Arg;
-use PhpParser\Node\Expr;
-use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
-use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
-use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
-use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -36,12 +30,9 @@ use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 
 use function array_filter;
 use function array_values;
-use function function_exists;
-use function in_array;
 use function is_a;
 use function is_int;
 use function sprintf;
-use function strtolower;
 
 /**
  * Infers the primary response from a literal `response()->json([...])` call in the controller
@@ -55,21 +46,15 @@ use function strtolower;
  * arguments followed by `->json(...)` is matched; the `Response` facade and `new JsonResponse()`
  * are out of scope by design.
  *
- * The `data` and `status` arguments resolve by position or by name against the helper signature
- * `json($data = [], $status = 200, ...)`. A literal array body becomes an object/array schema:
- * nested literal arrays recurse, literal scalars type their property, and a dynamic *value* under
- * a literal key keeps the property with an unconstrained schema — dropping a response property
- * would be silently wrong for spec consumers. A dynamic *key* (or spread) degrades the whole
- * call. A literal (or class-constant) `status` becomes the response status; a non-literal status
- * degrades the whole call — the body must not be documented under a guessed status. Only a 2xx
- * status may claim the primary response: a straight-line non-2xx literal (the guarded-success +
- * terminal-error-fallback idiom) degrades with a note rather than evicting the operation's
- * success response. A 204 documents without content — the runtime strips the body. A
- * `response()->noContent(<status>)` is matched as a body-less response at its status argument
- * (204 when absent, the literal 2xx otherwise); a non-literal or non-2xx status degrades. A chained
- * `->setStatusCode(<literal|class-constant>)` overrides the status (and beats the resource-action
- * convention); a non-literal `->setStatusCode()` or a body-mutating `->setData()` degrades the
- * call. Header/cookie chains stay matched.
+ * Call recognition and literal status/body reading live in the shared {@see InlineJsonCallReader};
+ * this resolver applies the *primary-slot* policy on top of those facts: only a 2xx status may
+ * claim the success response, so a straight-line non-2xx literal (the guarded-success +
+ * terminal-error-fallback idiom) degrades with a note rather than evicting the operation's success
+ * response — that refused 4xx/5xx literal is the error machinery's job
+ * ({@see \Radiergummi\OpenApi\Plugins\Core\ErrorContributors\InlineJsonErrorContributor}, #238). A
+ * 204 documents without content — the runtime strips the body. A `response()->noContent(<status>)`
+ * is matched as a body-less response at its status argument (204 when absent, the literal 2xx
+ * otherwise); a non-literal or non-2xx status degrades.
  *
  * Degradation contract: a matched call that cannot be read statically is skipped with a
  * generation-log note (`#[Response]` is the escape hatch); a method without any matching call is
@@ -87,26 +72,11 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 {
     public const int STATEMENT_LIMIT = 10;
 
-    /**
-     * Positions in Laravel's `ResponseFactory::json($data = [], $status = 200, …)` signature,
-     * used to resolve arguments by position or by name.
-     */
-    private const int DATA_ARGUMENT_POSITION = 0;
-
-    private const int STATUS_ARGUMENT_POSITION = 1;
-
-    /**
-     * Chained methods (lowercased) that cannot change the response's status or body — header and
-     * cookie decoration only. A `->setStatusCode(<literal>)` link is read as a status override; any
-     * other chained call (`setData`, `setNotModified`, …) may invalidate what the matched call
-     * promised, so it degrades the scan.
-     */
-    private const array RESPONSE_PRESERVING_CHAIN_METHODS = ['header', 'withheaders', 'cookie', 'withcookie'];
-
     private StatementNodeFinder $statementNodeFinder;
 
     public function __construct(
         private MethodBodyScanner $scanner,
+        private InlineJsonCallReader $callReader,
         private LoggerInterface $logger,
     ) {
         $this->statementNodeFinder = new StatementNodeFinder();
@@ -161,7 +131,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             $conditionalCall = $this->statementNodeFinder->findFirst(
                 $statements,
                 ConditionalContextPolicy::IncludeConditionalContexts,
-                fn(Node $node): bool => $this->isJsonHelperCall($node),
+                fn(Node $node): bool => $this->callReader->isJsonHelperCall($node),
             );
 
             if ($conditionalCall !== null) {
@@ -171,15 +141,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        // The chain walk degrades the call (false), reads a literal `->setStatusCode()` as a status
-        // override (int), or leaves the json() status untouched (null).
-        $chainStatus = $this->statusFromChain($statements, $call, $method);
-
-        if ($chainStatus === false) {
-            return null;
-        }
-
-        return $this->responseFromCall($call, $method, $chainStatus);
+        return $this->responseFromCall($call, $method, $statements);
     }
 
     /**
@@ -227,7 +189,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             $call = $this->statementNodeFinder->findFirst(
                 $candidates,
                 ConditionalContextPolicy::SkipConditionalContexts,
-                fn(Node $node): bool => $this->isJsonHelperCall($node),
+                fn(Node $node): bool => $this->callReader->isJsonHelperCall($node),
             );
 
             if ($call instanceof MethodCall) {
@@ -236,16 +198,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         return null;
-    }
-
-    /**
-     * Whether the node is a `->json(...)` method call on a zero-argument `response()` helper
-     * call. `response('content')` returns a response, not the factory, so any argument
-     * disqualifies the receiver.
-     */
-    private function isJsonHelperCall(Node $node): bool
-    {
-        return $this->isFactoryMethodCall($node, 'json');
     }
 
     /**
@@ -268,7 +220,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             $call = $this->statementNodeFinder->findFirst(
                 $candidates,
                 ConditionalContextPolicy::SkipConditionalContexts,
-                fn(Node $node): bool => $this->isFactoryMethodCall($node, 'nocontent'),
+                fn(Node $node): bool => $this->callReader->isFactoryMethodCall($node, 'nocontent'),
             );
 
             if ($call instanceof MethodCall) {
@@ -277,47 +229,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         return null;
-    }
-
-    /**
-     * Whether the node is a `->{$method}(...)` call (method name lowercased) on a zero-argument
-     * `response()` helper call.
-     */
-    private function isFactoryMethodCall(Node $node, string $method): bool
-    {
-        return $node instanceof MethodCall
-            && !$node->isFirstClassCallable()
-            && $node->name instanceof Identifier
-            && $node->name->toLowerString() === $method
-            && $this->isResponseHelperCall($node->var);
-    }
-
-    /**
-     * Names arrive resolved by the scanner's NameResolver pass. A fully-qualified name matches
-     * when it is the root-namespace helper itself (`\response`); an *unqualified* name in a
-     * namespaced file stays unresolved (PHP's runtime fallback), so it matches as Laravel's
-     * global helper — unless a same-namespace function of that name is actually defined, in
-     * which case PHP would call the user's function and we must not document it.
-     */
-    private function isResponseHelperCall(Expr $receiver): bool
-    {
-        if (
-            !$receiver instanceof FuncCall
-            || $receiver->isFirstClassCallable()
-            || !$receiver->name instanceof Name
-            || $receiver->name->toLowerString() !== 'response'
-            || $receiver->getArgs() !== []
-        ) {
-            return false;
-        }
-
-        if ($receiver->name->isFullyQualified()) {
-            return true;
-        }
-
-        $namespacedName = $receiver->name->getAttribute('namespacedName');
-
-        return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
     }
 
     private function note(
@@ -342,66 +253,51 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     // region Response construction
 
     /**
-     * Walks the chain outwards from the matched `json()` (`json(...)->header(...)->setStatusCode(...)`)
-     * to determine the response status. Header/cookie links leave the json() status untouched; a
-     * `->setStatusCode(<literal|class-constant>)` overrides it (returned as an int); any other link
-     * — including a non-literal `->setStatusCode()` or a body-mutating `->setData()` — degrades the
-     * call with a note (returned as false). A chain with no status override returns null.
-     *
-     * @param list<Stmt> $statements
+     * The status of a matched `response()->noContent(<status>)`: 204 when the argument is absent
+     * (the helper default), the literal/class-constant 2xx status when present, or false (degrade
+     * with a note) when the argument is non-literal or a non-2xx literal — the same contract
+     * {@see self::ensureSuccessStatus()} follows. The response stays body-less either way.
      */
-    private function statusFromChain(array $statements, MethodCall $call, ReflectionMethod $method): int|false|null
+    private function statusFromNoContent(MethodCall $call, ReflectionMethod $method): int|false
     {
-        $current = $call;
-        $statusOverride = null;
+        $statusArgument = $this->noContentStatusArgument($call);
 
-        while (($parent = $this->chainParentOf($statements, $current)) !== null) {
-            $name = $parent->name instanceof Identifier ? strtolower($parent->name->toString()) : null;
+        if ($statusArgument === false) {
+            $this->note(
+                $method,
+                'has no statically readable status code, so the body must not be documented under a guessed status',
+                'response()->noContent()',
+            );
 
-            if ($name === 'setstatuscode') {
-                $statusOverride = $this->statusFromSetStatusCode($parent, $method);
-
-                if ($statusOverride === false) {
-                    return false;
-                }
-
-                $current = $parent;
-
-                continue;
-            }
-
-            if ($name === null || !in_array($name, self::RESPONSE_PRESERVING_CHAIN_METHODS, true)) {
-                $this->note(
-                    $method,
-                    sprintf(
-                        'is chained into ->%s(), which may change the response status or body',
-                        $parent->name instanceof Identifier ? $parent->name->toString() : '{dynamic}',
-                    ),
-                );
-
-                return false;
-            }
-
-            $current = $parent;
+            return false;
         }
 
-        return $statusOverride;
+        if ($statusArgument === null) {
+            return 204;
+        }
+
+        return $this->ensureSuccessStatus($statusArgument, $method, 'response()->noContent()') ?? false;
     }
 
     /**
-     * The literal status argument of a chained `->setStatusCode(<literal|class-constant>)`, or
-     * false (degrade with a note) when the argument is absent or not statically readable —
-     * documenting the body under a guessed status would be wrong, the same contract the `json()`
-     * status argument follows.
+     * The literal status argument of a `noContent()` call: null when absent (the 204 default),
+     * an int when a statically readable literal/class-constant, or false when present but not
+     * statically readable.
      */
-    private function statusFromSetStatusCode(MethodCall $call, ReflectionMethod $method): int|false
+    private function noContentStatusArgument(MethodCall $call): int|false|null
     {
-        $arguments = $call->getArgs();
-        $statusArgument = $arguments[0] ?? null;
+        $argument = array_find(
+            $call->getArgs(),
+            static fn($arg, $index) => $arg->name === null ? $index === 0 : $arg->name->toString() === 'status',
+        );
 
-        if ($statusArgument !== null && !$statusArgument->unpack) {
+        if ($argument === null) {
+            return null;
+        }
+
+        if (!$argument->unpack) {
             try {
-                $status = AstLiteralEvaluator::evaluate($statusArgument->value);
+                $status = AstLiteralEvaluator::evaluate($argument->value);
             } catch (NonLiteralValueException) {
                 $status = null;
             }
@@ -411,99 +307,34 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             }
         }
 
-        $this->note(
-            $method,
-            'is chained into ->setStatusCode() with no statically readable status code, '
-            . 'so the body must not be documented under a guessed status',
-        );
-
         return false;
     }
 
     /**
-     * The status of a matched `response()->noContent(<status>)`: 204 when the argument is absent
-     * (the helper default), the literal/class-constant 2xx status when present, or false (degrade
-     * with a note) when the argument is non-literal or a non-2xx literal — the same contract
-     * {@see self::statusFromSetStatusCode()} follows. The response stays body-less either way.
-     */
-    private function statusFromNoContent(MethodCall $call, ReflectionMethod $method): int|false
-    {
-        $statusArgument = $this->argument($call->getArgs(), 'status', 0);
-
-        if ($statusArgument === null) {
-            return 204;
-        }
-
-        if (!$statusArgument->unpack) {
-            try {
-                $status = AstLiteralEvaluator::evaluate($statusArgument->value);
-            } catch (NonLiteralValueException) {
-                $status = null;
-            }
-
-            if (is_int($status)) {
-                return $this->ensureSuccessStatus($status, $method, 'response()->noContent()') ?? false;
-            }
-        }
-
-        $this->note(
-            $method,
-            'has no statically readable status code, so the body must not be documented under a guessed status',
-            'response()->noContent()',
-        );
-
-        return false;
-    }
-
-    /**
-     * The method call whose receiver is exactly the given call (the next link outwards in a
-     * fluent chain), or null when the call is not chained into another method call.
+     * Builds the primary response from a matched `json()` call by reading its facts via the shared
+     * {@see InlineJsonCallReader} and applying the 2xx primary-slot policy. A degraded read, a
+     * non-2xx status, or a non-readable body all refuse with the reader's note (the refused 4xx/5xx
+     * literal becomes the error machinery's job in {@see InlineJsonErrorContributor}).
      *
      * @param list<Stmt> $statements
      */
-    private function chainParentOf(array $statements, MethodCall $call): ?MethodCall
+    private function responseFromCall(MethodCall $call, ReflectionMethod $method, array $statements): ?OA\Response
     {
-        $parent = $this->statementNodeFinder->findFirst(
-            $statements,
-            ConditionalContextPolicy::IncludeConditionalContexts,
-            static fn(Node $node): bool => $node instanceof MethodCall && $node->var === $call,
-        );
+        $result = $this->callReader->read($statements, $call);
 
-        return $parent instanceof MethodCall ? $parent : null;
-    }
+        if ($result->status === null) {
+            $this->note($method, $result->statusDegradeReason ?? 'has no statically readable status code');
 
-    private function responseFromCall(MethodCall $call, ReflectionMethod $method, int|false|null $chainStatus): ?OA\Response
-    {
-        $arguments = $call->getArgs();
-
-        foreach ($arguments as $argument) {
-            if ($argument->unpack) {
-                $this->note($method, 'spreads its arguments, so they cannot be read statically');
-
-                return null;
-            }
-        }
-
-        $dataArgument = $this->argument($arguments, 'data', self::DATA_ARGUMENT_POSITION);
-
-        // No data argument means an empty `[]` body — readable, but carrying no shape worth
-        // documenting. Silent by the found-but-unreadable convention: nothing is unreadable here.
-        if ($dataArgument === null) {
             return null;
         }
 
-        // A chained `->setStatusCode(<literal>)` is the response's final status — it overrides the
-        // json() status argument. Both pass the same 2xx guard.
-        if ($chainStatus !== null && $chainStatus !== false) {
-            $status = $this->ensureSuccessStatus($chainStatus, $method);
-            $statusIsExplicit = true;
-        } else {
-            $status = $this->resolveStatus($arguments, $method);
-            // A status the author wrote in the call is ground truth, not a default; the resource
-            // convention must defer to it rather than relabel the body (#240). An absent status
-            // argument is the helper's own 200 default, which the convention may still override.
-            $statusIsExplicit = $this->argument($arguments, 'status', self::STATUS_ARGUMENT_POSITION) !== null;
-        }
+        // A status the author wrote in the call (or a ->setStatusCode chain) is ground truth, not a
+        // default; the resource convention must defer to it rather than relabel the body (#240). An
+        // absent status argument is the helper's own 200 default, which the convention may override.
+        $statusIsExplicit = $this->callReader->isJsonHelperCall($call)
+            && $this->hasExplicitStatus($call, $statements);
+
+        $status = $this->ensureSuccessStatus($result->status, $method);
 
         if ($status === null) {
             return null;
@@ -518,73 +349,71 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             );
         }
 
-        $definition = $this->bodyDefinition($dataArgument->value, $method);
+        if (!$result->bodyReadable) {
+            $this->note($method, $result->bodyDegradeReason ?? 'has no statically readable body');
 
-        if ($definition === null) {
+            return null;
+        }
+
+        // An empty literal body carries no shape worth documenting — silent by the
+        // found-but-unreadable convention (nothing is unreadable here).
+        if ($result->bodySchema === null) {
             return null;
         }
 
         return $this->markStatusExplicit(new OA\Response([
             'response' => (string) $status,
             'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
-            'content' => [MediaType::Json->schema(SchemaFromArrayDefinition::build($definition))],
+            'content' => [MediaType::Json->schema($result->bodySchema)],
         ]), $statusIsExplicit);
     }
 
     /**
-     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
+     * Whether the response status is author-written (a `json()` status argument or a chained
+     * `->setStatusCode()`) rather than the helper's 200 default — the resource convention must
+     * defer to an explicit status.
      *
-     * @param array<int, Arg> $arguments
+     * @param list<Stmt> $statements
      */
-    private function argument(array $arguments, string $name, int $position): ?Arg
+    private function hasExplicitStatus(MethodCall $call, array $statements): bool
     {
-        return array_find(
-            $arguments,
-            fn(
-                $argument,
-                $index,
-            ) => $argument->name === null ? $index === $position : $argument->name->toString() === $name,
+        $statusArgument = array_find(
+            $call->getArgs(),
+            static fn($arg, $index) => $arg->name === null ? $index === 1 : $arg->name->toString() === 'status',
         );
+
+        if ($statusArgument !== null) {
+            return true;
+        }
+
+        // A chained ->setStatusCode() also makes the status explicit.
+        $setStatusCode = $this->statementNodeFinder->findFirst(
+            $statements,
+            ConditionalContextPolicy::IncludeConditionalContexts,
+            static fn(Node $node): bool => $node instanceof MethodCall
+                && $node->name instanceof Identifier
+                && $node->name->toLowerString() === 'setstatuscode',
+        );
+
+        return $setStatusCode !== null;
     }
 
     // endregion
 
-    // region Schema definitions
+    // region Guards & logging
 
     /**
-     * The literal status argument, 200 when absent, or null (refusal) when present but not
-     * statically readable — documenting the body under a guessed status would be wrong — or not
-     * a 2xx. Only a success status may claim the primary response: a straight-line non-2xx
-     * literal (`return response()->json(['message' => 'Unauthorized'], 403)` as the terminal
-     * fallback after a guarded success) is an error response, and taking it as primary would
-     * evict the operation's success response.
-     *
-     * @param array<int, Arg> $arguments
+     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
+     * author-written status win over the resource convention. The marker never reaches the
+     * serialized document — OperationBuilder strips it.
      */
-    private function resolveStatus(array $arguments, ReflectionMethod $method): ?int
+    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
     {
-        $statusArgument = $this->argument($arguments, 'status', self::STATUS_ARGUMENT_POSITION);
-
-        if ($statusArgument === null) {
-            return 200;
+        if ($explicit) {
+            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
         }
 
-        try {
-            $status = AstLiteralEvaluator::evaluate($statusArgument->value);
-        } catch (NonLiteralValueException) {
-            $status = null;
-        }
-
-        if (!is_int($status)) {
-            $this->note(
-                $method,
-                'has no statically readable status code, so the body must not be documented under a guessed status',
-            );
-
-            return null;
-        }
-
-        return $this->ensureSuccessStatus($status, $method);
+        return $response;
     }
 
     /**
@@ -612,67 +441,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         return $status;
-    }
-
-    // endregion
-
-    // region Guards & logging
-
-    /**
-     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
-     * author-written status win over the resource convention. The marker never reaches the
-     * serialized document — OperationBuilder strips it.
-     */
-    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
-    {
-        if ($explicit) {
-            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
-        }
-
-        return $response;
-    }
-
-    /**
-     * The plain schema-definition array for the `data` argument, or null when nothing is
-     * documentable: an empty literal (silent — no shape information) or a non-literal expression
-     * (noted — `$data` variables, model expressions, and `compact()` are Tier-2 dataflow and
-     * belong to the `#[Response]` attribute). The literal-walking rules live in the shared
-     * {@see SchemaDefinitionFromLiteral}.
-     *
-     * @return null|array<string, mixed>
-     */
-    private function bodyDefinition(Expr $data, ReflectionMethod $method): ?array
-    {
-        if ($data instanceof Array_) {
-            if ($data->items === []) {
-                return null;
-            }
-
-            try {
-                return SchemaDefinitionFromLiteral::fromArrayNode($data);
-            } catch (NonLiteralValueException) {
-                $this->note(
-                    $method,
-                    'has an array literal whose structure (a key or spread entry) is not statically readable',
-                );
-
-                return null;
-            }
-        }
-
-        try {
-            $literal = AstLiteralEvaluator::evaluate($data);
-        } catch (NonLiteralValueException) {
-            $this->note($method, 'has no statically readable body');
-
-            return null;
-        }
-
-        // A literal scalar (`json('ok')`, `json(true)`) is a valid JSON document; `null` and an
-        // empty array carry no shape.
-        $definition = SchemaDefinitionFromLiteral::fromLiteralValue($literal);
-
-        return $definition === [] ? null : $definition;
     }
 
     // endregion

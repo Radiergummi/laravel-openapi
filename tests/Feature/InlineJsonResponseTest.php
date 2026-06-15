@@ -132,9 +132,10 @@ it('does not let a straight-line non-2xx literal evict the success response', fu
     $responses = $spec['paths']['/oa-fixture/guarded']['post']['responses'];
 
     // The guarded-success + terminal-403-fallback idiom: the operation keeps its (bare) success
-    // response; the error literal claims nothing.
+    // response, and the terminal error literal is routed into a 403 error response by the error
+    // machinery (#238) — the primary scan no longer evicts the success slot with it.
     expect($responses)->toHaveKey('200')
-        ->and($responses)->not->toHaveKey('403');
+        ->and($responses)->toHaveKey('403');
 });
 
 // endregion
