@@ -19,7 +19,7 @@ it('reports stock when the contract resolves to a Fortify class', function (): v
 
 it('reports customized when rebound to a non-Fortify class via a closure', function (): void {
     $container = new Container();
-    $container->bind(LoginResponse::class, fn (): LoginResponse => new class () implements LoginResponse {
+    $container->bind(LoginResponse::class, fn(): LoginResponse => new class () implements LoginResponse {
         public function toResponse($request)
         {
             return response()->noContent();

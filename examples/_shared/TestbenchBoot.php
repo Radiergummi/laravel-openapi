@@ -7,10 +7,13 @@ namespace Examples\Shared;
 use Examples\Shared\Database\Seeder;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
+use Laravel\Fortify\Fortify;
 use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\Foundation\Application as TestbenchApplication;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
 use Spatie\LaravelData\LaravelDataServiceProvider;
+
+use function class_exists;
 
 /**
  * Boots a real Laravel container (via Testbench) configured for one example
@@ -38,6 +41,14 @@ final class TestbenchBoot
             basePath: null,
             options: ['enables-package-discoveries' => false],
         );
+
+        // laravel/fortify (a dev dependency) force-registers its provider even with package
+        // discovery disabled, and its boot() loads ~20 auth routes that would pollute every
+        // example snapshot. Suppress that route registration before bootstrap — example flavors
+        // never exercise Fortify's own routes.
+        if (class_exists(Fortify::class)) {
+            Fortify::ignoreRoutes();
+        }
 
         $app->register(LaravelDataServiceProvider::class);
         $app->register(PassportServiceProvider::class);
