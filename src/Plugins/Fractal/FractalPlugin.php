@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalIncludeTransformerMiss
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalResponseUnbound;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalTransformerClassMissing;
 use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\EntityTransformerResponseResolver;
+use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\FractalHelperResponseResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\FractalResponseResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\TransformerRefSchemaResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
@@ -27,6 +28,7 @@ final class FractalPlugin implements Plugin
         $registry->addRefSchemaResolver(TransformerRefSchemaResolver::class);
         $registry->addPrimaryResponseResolver(FractalResponseResolver::class);
         $registry->addPrimaryResponseResolver(EntityTransformerResponseResolver::class);
+        $registry->addPrimaryResponseResolver(FractalHelperResponseResolver::class);
         $registry->addRule(FractalResponseUnbound::class);
         $registry->addRule(FractalFieldsUndeclared::class);
         $registry->addRule(FractalIncludeTransformerMissing::class);

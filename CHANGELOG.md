@@ -32,6 +32,7 @@ All notable changes to this project are documented here.
 - `#[RawSchema]` class-level attribute replaces a payload class's inferred component body with a literal JSON Schema (Spatie Data, API Resource, FormRequest); keywords are bounded to what swagger-php serialises, with unsupported keywords dropped-and-logged and flagged by the new `schema.raw-keyword-unsupported` lint rule. (#344)
 - Pagination query parameters from a `->paginate()`/`->simplePaginate()`/`->cursorPaginate()` body call (Tier-1): offset paginators emit `page`/`per_page`, cursor paginators emit `cursor`; an explicit `#[QueryParam]` wins for its name. (#31)
 - Success-response model schema inferred from a directly-returned `Model::find()`/`findOrFail()`/`firstOrFail()` call in the controller body (Tier-1), feeding the existing Eloquent model→schema reader; composes with the `findOrFail()` 404. (#97)
+- Fractal responses inferred from the `fractal()` helper, the `Spatie\Fractalistic\Fractal` facade, and injected-`Manager` `new Item`/`new Collection` resource construction (Tier-1 body scan), with `item`/`collection` envelopes and `serializeWith(...)` serializer detection; the bare two-argument `fractal($data, new T())` form, a variable transformer, and an unrecognised serializer all degrade with a note, and `#[FractalResponse]` remains authoritative. (#263)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
