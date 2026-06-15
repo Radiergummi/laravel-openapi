@@ -458,6 +458,56 @@ documented; annotate such actions with `#[FractalResponse]`. The two
 method names are a fixed whitelist — there is no configurable convention
 knob.
 
+### `fractal()` helper / facade / Manager call shapes
+
+The two dominant Fractal invocation styles — the `fractal()` helper and the
+`Spatie\Fractalistic\Fractal` facade — are documented without any
+`#[FractalResponse]`, as is the injected-`Manager` resource-construction style:
+
+```php
+public function show(): JsonResponse
+{
+    return fractal()->item(new Booking(), new BookingTransformer())->respond();   // {data: $ref}
+}
+
+public function index(): JsonResponse
+{
+    return Fractal::create()
+        ->collection(Booking::all(), new BookingTransformer())
+        ->respond();                                                              // {data: [$ref]}
+}
+
+public function managed(Manager $fractal): JsonResponse
+{
+    $resource = new Item(new Booking(), new BookingTransformer());
+
+    return new JsonResponse($fractal->createData($resource)->toArray());          // {data: $ref}
+}
+```
+
+The binding reads the first `return` expression (and, for the `Manager` style, a
+`new Item(…)` / `new Collection(…)` resource) within the first 10 statements,
+and requires:
+
+- an `->item(…)` / `->collection(…)` chain link whose root is literally the
+  `fractal()` helper or the `Fractal` facade (so the same method names on an
+  unrelated service or query builder never match), or a single `new Item(…)` /
+  `new Collection(…)` resource — `item` / `Item` binds the single envelope,
+  `collection` / `Collection` the collection envelope;
+- a transformer named by a literal `new T()` or `T::class` argument that extends
+  `TransformerAbstract` and yields documentable fields.
+
+A trailing `->serializeWith(new ArraySerializer())` / `JsonApiSerializer` maps
+onto the matching serializer envelope. All Fractal classes are matched by name,
+so neither package need be installed for the scan to run.
+
+The **bare two-argument helper** `fractal($data, new T())` is **refused**: item
+vs collection is not statically knowable from the first argument, so the
+generator emits a generation-log note rather than guessing an envelope — annotate
+those actions with `#[FractalResponse]`. A variable/dynamic transformer, an
+unrecognised serializer, or a transformer with no documentable fields likewise
+degrade with a note; `#[FractalResponse]` always wins where declared.
+
 Lint rules:
 
 | Rule | Level |
@@ -472,10 +522,12 @@ Lint rules:
 literal is readable and yields fields — the schema is not empty then.
 
 > [!NOTE]
-> `fractal.response-unbound` is opt-in. The `fractal()` helper and
-> `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies in
-> shapes the generator does not read (only the `$entity_transformer`
-> convention above is matched).
+> `fractal.response-unbound` is opt-in and keys off an **injected `Manager`
+> parameter** only. The `fractal()` helper and `Fractal` facade shapes never
+> inject a `Manager`, so they never trigger this rule — even now that the
+> generator reads them (see the call-shape binding above). The rule remains a
+> conservative backstop for the one Fractal style whose response the generator
+> cannot bind without an attribute when it carries no literal transformer.
 
 ## SwaggerPhp
 
