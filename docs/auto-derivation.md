@@ -219,6 +219,22 @@ Article:
 
 `password` is absent because it is in `$hidden`.
 
+### Examples from model factories
+
+When a model exposes a Laravel factory (the `HasFactory` trait), the generator
+invokes the factory's `definition()` and uses its **scalar** values as the
+per-property `example` in the model's schema. A factory definition is a
+hand-curated, app-maintained realistic payload, so reusing it raises example
+quality at no extra authoring cost. Only scalar (and `null`) values are taken;
+nested arrays, relationship closures, and factory references are skipped.
+
+Factory `definition()` typically calls `fake()`, so the values are reseeded
+deterministically from `openapi.examples.faker_seed` (mixed with the model
+class) before each read — reads are order-independent and stable across runs.
+This path follows the same switches as the rest of example synthesis: it is
+disabled when `openapi.examples.synthesise` is `false` or `faker_seed` is `null`
+(see [Configuration](config.md)).
+
 ### Documenting computed fields
 
 A field in `$appends` without a typed legacy accessor falls back to an

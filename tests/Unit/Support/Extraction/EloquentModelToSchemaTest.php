@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Support\Extraction;
 
 use OpenApi\Annotations as OA;
+use OpenApi\Generator;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\FactoryArticle;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
@@ -38,6 +42,7 @@ function buildModelSchema(string $modelClass): OA\Schema
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
         logger: $logger,
+        factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
     );
 
     $key = $reader->build($modelClass);
@@ -124,6 +129,7 @@ it('maps an enum cast to a $ref into a shared reusable enum component', function
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
         logger: $logger,
+        factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
     );
 
     $reader->build(Article::class);
@@ -162,6 +168,7 @@ it('emits a $ref for a @property-read model relation and registers the nested co
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
         logger: $logger,
+        factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
     );
 
     $reader->build(Article::class);
@@ -388,4 +395,18 @@ it('respects @property list hints for encrypted:array and encrypted:collection c
     expect($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['options'])->toEqual(['type' => 'object']);
+});
+
+it('seeds property examples from the model factory definition', function (): void {
+    $schema = buildModelSchema(FactoryArticle::class);
+
+    expect(modelProperty($schema, 'title')->example)->toBeString()
+        ->and(modelProperty($schema, 'views')->example)->toBeInt();
+});
+
+it('leaves properties without an example when the model has no factory', function (): void {
+    $schema = buildModelSchema(Author::class);
+
+    // Generator::UNDEFINED marks an unset swagger-php field.
+    expect(modelProperty($schema, 'name')->example)->toBe(Generator::UNDEFINED);
 });

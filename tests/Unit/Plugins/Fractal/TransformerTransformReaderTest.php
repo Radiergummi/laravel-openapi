@@ -9,6 +9,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\InferredTransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\TransformerTransformReader;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
@@ -42,6 +43,7 @@ function transformReader(): TransformerTransformReader
             typeNodeResolver: TypeNodeResolver::create(),
             docBlockParser: DocBlockParser::create(),
             logger: $logger,
+            factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
         ),
     );
 }
