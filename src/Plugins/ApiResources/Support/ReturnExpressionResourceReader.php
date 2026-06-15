@@ -26,6 +26,7 @@ use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
@@ -91,13 +92,6 @@ final class ReturnExpressionResourceReader
      * chain link may transform the response, so it refuses the scan.
      */
     private const array RESOURCE_PRESERVING_CHAIN_METHODS = ['additional'];
-
-    /**
-     * Method names (lowercased) whose call marks a collection source as paginated. All three
-     * envelope variants document as the dominant `{data, links, meta}` length-aware shape; its
-     * envelope properties are optional, so the simple/cursor variants' narrower meta stays valid.
-     */
-    private const array PAGINATING_METHODS = ['paginate', 'simplepaginate', 'cursorpaginate'];
 
     /**
      * Chained methods (lowercased) on a paginator that return `$this` without changing the
@@ -614,7 +608,7 @@ final class ReturnExpressionResourceReader
         };
 
         return $name instanceof Identifier
-            && in_array($name->toLowerString(), self::PAGINATING_METHODS, true);
+            && PaginatorKind::fromPaginatingMethod($name->toString()) !== null;
     }
 
     /**
