@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fortify\Support;
 
 use Closure;
 use Illuminate\Contracts\Container\Container;
+use ReflectionException;
 use ReflectionFunction;
 
 use function is_string;
@@ -65,14 +66,20 @@ final readonly class FortifyResponseCustomization
             return $concrete;
         }
 
-        // Laravel wraps a string concrete in a closure that captures it as `$concrete`; recover it.
-        if ($concrete instanceof Closure) {
-            $captured = (new ReflectionFunction($concrete))->getClosureUsedVariables();
-            $value = $captured['concrete'] ?? null;
-
-            return is_string($value) ? $value : null;
+        if (!$concrete instanceof Closure) {
+            return null;
         }
 
-        return null;
+        // Laravel wraps a string concrete in a closure that captures it as `$concrete`; recover it.
+        // Reflecting a Closure never throws, but degrade to null rather than propagate if it ever does.
+        try {
+            $captured = (new ReflectionFunction($concrete))->getClosureUsedVariables();
+        } catch (ReflectionException) {
+            return null;
+        }
+
+        $value = $captured['concrete'] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 }
