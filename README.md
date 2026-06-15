@@ -6,12 +6,12 @@
 
 > Batteries-included OpenAPI 3.1 generation for Laravel.
 
-Generate an OpenAPI 3.1 document from your existing Laravel routes: no handwritten YAML, no sprawling annotation blocks.
-Schemas come from the types, PHPDoc, and conventions your code already uses. If something can't be inferred
-automatically, you can fill the gap with a range of authoring attributes. An included linter reports documentation gaps.
+Generate an OpenAPI 3.1 document from your existing Laravel routes — no handwritten YAML, no sprawling annotation
+blocks. The spec is *derived* from the types, PHPDoc, attributes, and conventions your code already uses. Where
+convention can't reach, a range of authoring attributes fills the gap, and a bundled linter reports what's still thin.
 
-From a typed controller action (plain Laravel, no DTOs or extra packages) `openapi:generate` produces the full operation
-parameters, response, and a reusable component schema:
+From a typed controller action (plain Laravel, no DTOs or extra packages) `openapi:generate` produces the full
+operation — parameters, response, and a reusable component schema:
 
 <table>
 <tr>
@@ -92,29 +92,26 @@ components:
 </tr>
 </table>
 
-Every part of that document traces back to something already in the code:
-
-- the route `GET /flights/{flight}` and its `{flight}` path parameter come from the route definition and the `show()`
-  signature;
-- `#[Tag('Flights')]` sets the tag, and the first line of the method's PHPDoc becomes the summary;
-- the `Flight` return type produces the `200` response and a reusable `Flight` schema, whose properties are read from
-  the model's `@property` tags, so `departs_at` becomes a `date-time` string because of the `datetime` cast, and the
-  framework-managed `created_at` / `updated_at` timestamps are typed as nullable `date-time` strings automatically;
-- `@throws ModelNotFoundException` produces the `404`.
+Every part of that document traces back to something already in the code: the route and its `{flight}` parameter, the
+`#[Tag]` and PHPDoc summary, the `Flight` return type (whose schema is read from the model's `@property` tags and
+`$casts`), and the `@throws` that produces the `404`.
 
 ## Features
 
 - **OpenAPI 3.1 from your routes:** no handwritten YAML, no large annotation blocks.
-- **Schemas from code you already write:** typed return values, request parameters, resource classes, PHPDoc, validation
-  rules, model metadata, and more.
-- **The rest from convention:** tags, path and query parameters, security from auth/scope middleware, error responses
+- **Schemas from code you already write:** typed parameters and return values, PHPDoc, resource classes, validation
+  rules, and model metadata (`$casts`, `$hidden`, `$appends`, migration columns).
+- **Reads common method-body idioms:** bounded parsing of `$request->validate()`, `abort()`, `response()->json([…])`,
+  resource `toArray()`, and similar, so untyped-but-conventional code still produces a schema.
+- **The rest from convention:** tags, path/query parameters, security from auth/scope middleware, error responses
   from `@throws`.
 - **Authoring attributes** for the cases convention can't reach.
-- **Included Linter** (`openapi:lint`) that reports documentation gaps and removes redundant annotations.
+- **A linter** (`openapi:lint`) that reports documentation gaps and removes redundant annotations, with CI integration.
 - **A served spec and interactive playground** (Scalar) out of the box.
-- **Plugins** for Spatie Data, API Resources, Spatie Query Builder, and Fractal.
+- **Plugins** for Spatie Data, API Resources, Spatie Query Builder, Fractal, and importing existing swagger-php
+  annotations.
 
-## Quick start
+## Installation
 
 Requires PHP 8.4+ and Laravel 12 or 13.
 
@@ -141,32 +138,28 @@ Two routes are registered by default:
 > **Status:** pre-1.0, approaching the first stable release. The generated output is stable in shape; attribute and
 > config names may still change before 1.0.
 
-## What gets derived
+## How it works
 
-Most of the spec falls out of your code with zero or minimal configuration:
-
-- Summaries and descriptions from PHPDoc.
-- Path parameters from action signatures and route constraints.
-- Request bodies from typed `FormRequest` or Spatie Data parameters.
-- Response schemas from return types.
-- Security requirements from `auth:*` and `scope:*` middleware.
-- Error responses from `@throws` and built-in middleware.
-- Validation constraints from `rules()` and validation attributes.
-- `operationId` from route names, or `{method}_{sanitized_path}`.
-- Tags from controller namespaces (or `#[Tag]`).
-
-Model schemas are read from `@property` tags and `$casts`: Those `@property` tags are what
+Most of the spec falls out of your code with zero or minimal configuration — summaries from PHPDoc, path parameters
+from action signatures and route constraints, request bodies from `FormRequest` or Spatie Data parameters, response
+schemas from return types, security from `auth:*` / `scope:*` middleware, error responses from `@throws`, and tags and
+`operationId`s from route metadata. Model schemas are read from `@property` tags and `$casts` — the same tags
 [`laravel-ide-helper`](https://github.com/barryvdh/laravel-ide-helper) generates, so most typed apps already have them.
-For anything convention can't derive, the authoring attributes fill the gap.
+
+Where shapes live in the controller body rather than the signature, the generator parses a bounded whitelist of
+well-known idioms — inline `validate()`, `abort()`, `response()->json([…])`, resource `toArray()` — to recover them
+without running your code. Anything beyond that whitelist is the job of an authoring attribute.
+
+See [Auto-derivation](docs/auto-derivation.md) for the full map of what comes from where, and
+[Attributes](docs/attributes.md) for the escape-hatch catalog.
 
 ## Integrations
 
-The richer your types, the richer the spec, and it reads the conventions your stack already uses. Type a controller
-parameter as a [Spatie Data](https://github.com/spatie/laravel-data) class, and a single definition becomes both the
-request body and the response schema, validation constraints included:
+The richer your types, the richer the spec. Type a controller parameter as a
+[Spatie Data](https://github.com/spatie/laravel-data) class, and a single definition becomes both the request body and
+the response schema, validation constraints included:
 
 ```php
-#[Tag('Flights')]
 final class BookingController
 {
     /** Book a seat on a flight. */
@@ -185,31 +178,21 @@ final class CreateBookingData extends Data
 }
 ```
 
-The `CreateBookingData` parameter becomes the request body (`passenger_name` carries `maxLength: 200`
-and `seat` its `pattern`) while the `BookingData` return type becomes the `200` response schema. One class, both
-directions.
+The `CreateBookingData` parameter becomes the request body (`passenger_name` carries `maxLength: 200`, `seat` its
+`pattern`); the `BookingData` return type becomes the `200` response schema. One class, both directions.
 
-Core handles `FormRequest` request bodies directly. Everything else ships as a plugin in `config/openapi.plugins`:
+Core handles vanilla Laravel — `FormRequest`, API Resources, validation rules — directly. Everything else ships as a
+plugin in `config/openapi.plugins`: **SpatieData** and **ApiResources** are enabled by default; **QueryBuilder**,
+**Fractal**, and **SwaggerPhp** (which harvests hand-authored `#[OA\…]` / `@OA` annotations into the spec) are present
+but opt-in. To add your own, implement the `Plugin` interface.
 
-- **SpatieData** (default-enabled): request and response schemas from Spatie Data classes, including `DataCollection`
-  and `PaginatedDataCollection`. No-ops without `spatie/laravel-data` installed.
-- **ApiResources** (default-enabled): `JsonResource` / `ResourceCollection` responses declared with `#[ResourceField]`.
-- **QueryBuilder** (disabled): `filter[…]` / `sort` / `include` parameters from `#[AllowedFilter]` / `#[AllowedSort]` /
-  `#[AllowedInclude]`. Requires `spatie/laravel-query-builder`.
-- **Fractal** (disabled): `league/fractal` transformer responses with `DataArray`, `ArraySerializer`, and `JsonApi`
-  envelopes.
-
-To add your own, implement the `Plugin` interface. See [Plugin authoring](docs/plugin-authoring.md).
-
-Eight runnable flavors of a flights/bookings API (vanilla, FormRequest, Spatie Data, API Resources, Fractal, QueryBuilder, swagger-php, and a combined app)
-live under [`examples/`](examples/README.md) alongside their generated
-`openapi.yaml` snapshots.
+See [Plugins](docs/plugins.md) and [Plugin authoring](docs/plugin-authoring.md) for details.
 
 ## The linter
 
-`openapi:lint` generates the spec and reports where it's incomplete: operations without a summary or description,
-parameters without descriptions, responses with no declared errors, schemas without examples. Each finding carries a
-severity score, from "broken" (a validator would reject the document) down to optional polish.
+`openapi:lint` generates the spec and reports where it's incomplete — operations without a summary, parameters without
+descriptions, responses with no declared errors, schemas without examples. Each finding carries a severity, from
+"broken" (a validator would reject the document) down to optional polish.
 
 ```text
 $ php artisan openapi:lint --level=2
@@ -228,83 +211,50 @@ app/Http/Controllers/BookingController.php (2)
  Summary: 1 warning, 1 notice (2 total across 1 route)
 ```
 
-Run it in CI (`--format=github` annotates the pull request), limit it to routes changed since a git ref (`--diff`), or
-restrict it to specific rules. `--fix` applies the mechanical fixes (removing redundant or no-op annotations, such as a
-`#[Tag]` declared twice), while `--check` reports without writing, for CI.
-
-```bash
-php artisan openapi:lint --fix     # auto-fix some findings (currently just redundant annotations)
-php artisan openapi:lint --check   # report only; exits non-zero if a fix is pending (like pint --test)
-```
-
-See [Linting](docs/linting.md) for the full rule catalog and severity levels.
+Run it in CI (`--format=github` annotates the pull request), scope it to routes changed since a git ref (`--diff`),
+gate on coverage (`--min-coverage`), or apply mechanical fixes (`--fix`). See [Linting](docs/linting.md) for the full
+rule catalog and [CI integration](docs/ci.md) for pipeline recipes.
 
 ## How this compares
 
 If you've reached for an OpenAPI tool in Laravel before, here's where this one sits:
 
-- **vs. L5-Swagger / handwritten `#[OA\]` attributes:** those make you *write* the spec as annotations, a second source
-  of truth you maintain by hand; here it's *derived* from code you already write. (Importing and migrating off existing
-  `#[OA\]`/swagger-php annotations is [on the roadmap](#roadmap).)
+- **vs. L5-Swagger / handwritten `#[OA\]` attributes:** those make you *write* the spec as annotations, a second
+  source of truth maintained by hand; here it's *derived* from code you already write. The SwaggerPhp plugin can even
+  import your existing `#[OA\]` / `@OA` annotations and the linter flags the ones inference now covers, so you can
+  migrate off them incrementally.
 - **vs. Scribe:** Scribe is annotation- and config-driven and renders its own HTML; this leans on your existing types
   and PHPDoc, emits standard OpenAPI 3.1, and lets you bring your own renderer (Scalar ships wired up).
-- **vs. Scramble:** both packages generate without annotations. Scramble does deeper code analysis: it reads method
-  bodies (return statements, `validate()` calls, resource `toArray()`) and follows the flow, so it often pulls schemas
-  out of code where this package would want a type hint or attribute. The trade-off is determinism: this package stays
-  at types, PHPDoc, attributes, and model metadata (no method-body parsing yet, see [Roadmap](#roadmap)) and ships a
-  linter that reports exactly where the spec is still thin; Scramble has no equivalent completeness check.
+- **vs. Scramble:** both generate without annotations and both read controller bodies. The difference is depth versus
+  determinism: Scramble follows full type-flow through your code, recovering shapes this package would want a type hint
+  or attribute for. This package deliberately stops at a bounded whitelist of well-known idioms — predictable and cheap
+  — and ships a linter that reports exactly where the spec is still thin, which Scramble has no equivalent for.
 
-If you're looking for detailed comparisons with specific tools, see the [Field report](docs/field-report.md) on
-performance against eleven real-world OSS apps.
+For a detailed look at how the generator fares against real codebases, see the
+[Field report](docs/field-report.md) (eleven real-world OSS apps).
 
 ## Caveats
 
-A couple of constraints are deliberate and here to stay:
+Two constraints are deliberate and here to stay:
 
-- **Static analysis only.** It inspects your code, route definitions, types, and metadata; it never executes your
-  controller actions or calls an endpoint to observe a real response. A shape that exists only at runtime (e.g., a
-  payload assembled conditionally, a dynamically keyed array, etc.) can't be read from the source, so describe it with
-  an [authoring attribute](docs/attributes.md).
+- **It never runs your code.** Generation is pure static analysis — types, PHPDoc, attributes, model metadata, and a
+  bounded read of common method-body idioms. A shape that only exists at runtime (a conditionally assembled payload, a
+  dynamically keyed array) can't be read from source; describe it with an [authoring attribute](docs/attributes.md).
 - **No bespoke documentation UI.** The output is a standard OpenAPI 3.1 document, rendered through the bundled Scalar
-  playground or any OpenAPI tool you prefer. The package won't grow its own HTML documentation renderer.
+  playground or any OpenAPI tool you prefer. The package won't grow its own HTML renderer.
 
-Gaps that are simply not implemented *yet* - response schemas from untyped returns, inline `validate()` bodies - are
-tracked on the [Roadmap](#roadmap), not here.
-
-## Roadmap
-
-The direction below is tracked on the [Roadmap project](https://github.com/Radiergummi/laravel-openapi/projects)
-and bucketed into milestones; specifics may shift.
-
-**Shipping in 1.0:** generation from types, PHPDoc, attributes, and model metadata; Spatie Data and API Resource
-plugins; multiple specs per app; the linter with CI integration and mechanical auto-fix; the Scalar playground.
-
-**Next (v1.1):** deeper response- and request-body inference; typed path parameters from route-model binding; query
-parameters derived from convention; convention-derived error responses; backed-enum schema components; importing
-existing `@OA`/swagger-php annotations.
-
-**Later (v1.2):** Tier-1 reading of well-known method-body idioms (inline `validate()`,
-`response()->json([...])`, `abort()`); Eloquent API Resource `toArray()` inference; broader auto-fix (corrections and
-stubs) plus migrating off redundant `#[OA\]` annotations; OpenAPI 3.2.0 output; an interactive "Try it out" docs
-playground.
+The direction beyond 1.0 — broader method-body idiom coverage, deeper response inference, OpenAPI 3.2 output — is
+tracked on the [Roadmap project](https://github.com/Radiergummi/laravel-openapi/projects).
 
 ## Documentation
 
-Index: [`docs/README.md`](docs/README.md).
+Full documentation lives in [`docs/`](docs/README.md). Start with [Getting started](docs/getting-started.md) and
+[Auto-derivation](docs/auto-derivation.md); the rest (request bodies, attributes, recipes, plugins, multi-spec,
+linting, configuration, troubleshooting, and architecture) is indexed there.
 
-- [Getting started](docs/getting-started.md): install, first spec.
-- [Auto-derivation](docs/auto-derivation.md): what's derived from what.
-- [Request bodies](docs/request-bodies.md): `FormRequest` vs `Data`, validation mapping.
-- [Attributes](docs/attributes.md): escape-hatch catalog.
-- [Recipes](docs/recipes.md): short snippets for specific cases.
-- [Plugins](docs/plugins.md): bundled plugins.
-- [Multi-spec](docs/multi-spec.md): multiple OpenAPI documents per app.
-- [Linting](docs/linting.md): `openapi:lint`, rule catalog.
-- [Configuration](docs/config.md): config keys.
-- [Troubleshooting](docs/troubleshooting.md): symptom index.
-- [Field report](docs/field-report.md): how it performed against eleven real-world OSS apps.
-- [Plugin authoring](docs/plugin-authoring.md): write a plugin.
-- [Architecture](docs/architecture.md): generation pipeline internals.
+Eight runnable flavors of a flights/bookings API — vanilla, FormRequest, Spatie Data, API Resources, Fractal,
+QueryBuilder, swagger-php, and a combined app — live under [`examples/`](examples/README.md) alongside their generated
+snapshots.
 
 ## License
 

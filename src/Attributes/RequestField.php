@@ -32,10 +32,10 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 final readonly class RequestField extends FieldAttribute
 {
     /**
-     * @param null|non-empty-string                                                        $name        Field name; required
-     *                                                                                                  on a method, derived
-     *                                                                                                  from the target
-     *                                                                                                  otherwise
+     * @param null|non-empty-string                                                        $name                 Field name; required
+     *                                                                                                           on a method, derived
+     *                                                                                                           from the target
+     *                                                                                                           otherwise
      * @param null|non-empty-string                                                        $title
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type
@@ -46,6 +46,8 @@ final readonly class RequestField extends FieldAttribute
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
+     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`).
+     * @param null|bool|string                                                             $additionalProperties Map-value override.
      */
     public function __construct(
         public ?string $name = null,
@@ -71,6 +73,8 @@ final readonly class RequestField extends FieldAttribute
         ?int $maxItems = null,
         ?bool $uniqueItems = null,
         ?bool $writeOnly = null,
+        ?array $x = null,
+        bool|string|null $additionalProperties = null,
     ) {
         parent::__construct(
             title: $title,
@@ -94,6 +98,8 @@ final readonly class RequestField extends FieldAttribute
             maxItems: $maxItems,
             uniqueItems: $uniqueItems,
             writeOnly: $writeOnly,
+            x: $x,
+            additionalProperties: $additionalProperties,
         );
     }
 }
