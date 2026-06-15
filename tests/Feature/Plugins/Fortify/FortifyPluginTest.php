@@ -53,16 +53,33 @@ function generateWithFortifyPlugin(?Closure $rebind = null): array
     return generateSpec();
 }
 
-it('documents the login request body from the stock table', function (): void {
+it('documents the login request body under a clean, framework-agnostic component name', function (): void {
     $doc = generateWithFortifyPlugin();
 
     $op = $doc['paths']['/login']['post'];
     $ref = $op['requestBody']['content']['application/json']['schema']['$ref'];
-    $key = substr((string) $ref, strlen('#/components/schemas/'));
-    $schema = $doc['components']['schemas'][$key];
+
+    expect($ref)->toBe('#/components/schemas/LoginRequest');
+
+    $schema = $doc['components']['schemas']['LoginRequest'];
 
     expect($schema['properties'])->toHaveKeys(['email', 'password', 'remember'])
         ->and($schema['required'])->toContain('email', 'password');
+});
+
+it('leaks no Fortify/namespace internals into any consumer-visible component key or $ref', function (): void {
+    $doc = generateWithFortifyPlugin();
+
+    $serialized = json_encode($doc, JSON_THROW_ON_ERROR);
+    $keys = array_keys($doc['components']['schemas'] ?? []);
+
+    expect($keys)->toContain('LoginRequest', 'RegisterRequest', 'ForgotPasswordRequest')
+        ->and($serialized)->not->toContain('Fortify')
+        ->and($serialized)->not->toContain('\\\\'); // no escaped backslash (namespace separator)
+
+    foreach ($keys as $key) {
+        expect($key)->not->toContain('\\');
+    }
 });
 
 it('emits the stock success body when the response contract is default Fortify', function (): void {

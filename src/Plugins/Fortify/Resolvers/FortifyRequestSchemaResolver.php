@@ -34,11 +34,12 @@ final readonly class FortifyRequestSchemaResolver implements RequestSchemaResolv
 
         $entry = FortifyContractTable::for($name);
 
-        if ($entry === null || $entry->requestSchema === null) {
+        if ($entry === null || $entry->requestSchema === null || $entry->requestSchemaName === null) {
             return null;
         }
 
-        $key = $this->registry->reserveKey('Fortify\\Request\\' . $name);
+        // Use the clean, framework-agnostic component name — never a Fortify/namespace string.
+        $key = $this->registry->reserveKey($entry->requestSchemaName);
         $this->registry->registerNamed($key, $entry->requestSchema);
 
         return new ResolvedSchema(componentKey: $key, mediaType: MediaType::Json);

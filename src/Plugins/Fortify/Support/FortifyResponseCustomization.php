@@ -4,25 +4,18 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Fortify\Support;
 
-use Closure;
 use Illuminate\Contracts\Container\Container;
-use ReflectionException;
-use ReflectionFunction;
+use ReflectionClass;
+use Throwable;
 
-use function is_string;
 use function str_starts_with;
 
 /**
- * Best-effort detector for whether a Fortify response contract still maps to a stock Fortify
- * implementation. Inspects the registered binding's concrete class name WITHOUT resolving it; a
- * binding we cannot read as a concrete class (or an unbound contract) is treated as customized —
- * we never emit a possibly-wrong stock body.
- *
- * Note on the binding shape: Laravel's container wraps a string concrete in a closure inside
- * `bind()`/`singleton()` (see `Container::getClosure()`), so `getBindings()[...]['concrete']` is a
- * Closure even for `singleton($contract, ConcreteClass::class)` — the form Fortify uses for every
- * response. We therefore recover the original class name from the wrapper's captured `concrete`
- * variable, falling back to a directly-stored string concrete for other binding paths.
+ * Detects whether a Fortify response contract still maps to a stock Fortify implementation. At
+ * generation time the app is booted, so we resolve the contract from the container and check
+ * whether the concrete is a `Laravel\Fortify\…` class. Anything else — a custom implementation, an
+ * unbound contract, or a resolution that throws — is treated as customized: the body is unknowable,
+ * so the response resolver falls back to status-only and never emits a possibly-wrong stock body.
  *
  * @internal
  */
@@ -42,44 +35,21 @@ final readonly class FortifyResponseCustomization
             return true;
         }
 
-        if (!$this->container->bound($responseContract)) {
-            // Unbound: Fortify's service provider binds all of these, so an unbound contract means
-            // Fortify isn't fully wired — be conservative.
+        try {
+            // Two stock responses (the password-reset {message} bodies) take a required
+            // `string $status`; pass an empty one so resolving them doesn't throw. The argument is
+            // ignored by responses that don't declare it, including custom implementations.
+            $instance = $this->container->make($responseContract, ['status' => '']);
+
+            // An anonymous class implementing a Fortify contract inherits the contract's namespace
+            // in its synthetic name (`Laravel\Fortify\Contracts\X@anonymous…`), so a bare namespace
+            // check would mistake a custom inline response for stock — exclude anonymous classes.
+            $isAnonymous = (new ReflectionClass($instance))->isAnonymous();
+        } catch (Throwable) {
+            // Unbound, or a binding that throws when constructed — be conservative.
             return false;
         }
 
-        $concrete = $this->concreteClassName($responseContract);
-
-        return $concrete !== null && str_starts_with($concrete, self::FORTIFY_NAMESPACE);
-    }
-
-    /**
-     * Recovers the bound concrete *class name* without resolving the binding, or null when it
-     * cannot be read statically (a user closure that constructs an instance inline).
-     */
-    private function concreteClassName(string $responseContract): ?string
-    {
-        $concrete = $this->container->getBindings()[$responseContract]['concrete'] ?? null;
-
-        // A directly-stored string concrete (older/alternative binding paths).
-        if (is_string($concrete)) {
-            return $concrete;
-        }
-
-        if (!$concrete instanceof Closure) {
-            return null;
-        }
-
-        // Laravel wraps a string concrete in a closure that captures it as `$concrete`; recover it.
-        // Reflecting a Closure never throws, but degrade to null rather than propagate if it ever does.
-        try {
-            $captured = (new ReflectionFunction($concrete))->getClosureUsedVariables();
-        } catch (ReflectionException) {
-            return null;
-        }
-
-        $value = $captured['concrete'] ?? null;
-
-        return is_string($value) ? $value : null;
+        return !$isAnonymous && str_starts_with($instance::class, self::FORTIFY_NAMESPACE);
     }
 }

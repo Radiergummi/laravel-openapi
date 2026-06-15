@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Container\Container;
 use Laravel\Fortify\Contracts\LoginResponse;
+use Laravel\Fortify\Contracts\SuccessfulPasswordResetLinkRequestResponse;
+use Laravel\Fortify\Http\Responses as FortifyResponses;
 use Radiergummi\OpenApi\Plugins\Fortify\Support\FortifyResponseCustomization;
 
 uses()->group('openapi', 'plugin:fortify');
@@ -19,11 +21,25 @@ class CustomLoginResponse implements LoginResponse
 
 it('reports stock when the contract resolves to a Fortify class', function (): void {
     $container = new Container();
-    $container->singleton(LoginResponse::class, Laravel\Fortify\Http\Responses\LoginResponse::class);
+    $container->singleton(LoginResponse::class, FortifyResponses\LoginResponse::class);
 
     $gate = new FortifyResponseCustomization($container);
 
     expect($gate->isStock(LoginResponse::class))->toBeTrue();
+});
+
+it('reports stock for a Fortify response with a required constructor argument', function (): void {
+    // SuccessfulPasswordResetLinkRequestResponse takes `string $status`; the gate must still
+    // resolve it as stock rather than choke on the constructor.
+    $container = new Container();
+    $container->singleton(
+        SuccessfulPasswordResetLinkRequestResponse::class,
+        FortifyResponses\SuccessfulPasswordResetLinkRequestResponse::class,
+    );
+
+    $gate = new FortifyResponseCustomization($container);
+
+    expect($gate->isStock(SuccessfulPasswordResetLinkRequestResponse::class))->toBeTrue();
 });
 
 it('reports customized when rebound to a non-Fortify class-string singleton', function (): void {
@@ -32,8 +48,6 @@ it('reports customized when rebound to a non-Fortify class-string singleton', fu
 
     $gate = new FortifyResponseCustomization($container);
 
-    // The FQCN is recovered successfully from the wrapper closure, but it is not in the Fortify
-    // namespace — distinct from the inline-closure path where no class-string is recoverable.
     expect($gate->isStock(LoginResponse::class))->toBeFalse();
 });
 
@@ -51,14 +65,25 @@ it('reports customized when rebound to a non-Fortify class via a closure', funct
     expect($gate->isStock(LoginResponse::class))->toBeFalse();
 });
 
-it('reports stock for a null contract (no contract governs the body)', function (): void {
-    $gate = new FortifyResponseCustomization(new Container());
+it('reports customized when the bound concrete throws on construction', function (): void {
+    $container = new Container();
+    $container->bind(LoginResponse::class, function (): LoginResponse {
+        throw new RuntimeException('boom');
+    });
 
-    expect($gate->isStock(null))->toBeTrue();
+    $gate = new FortifyResponseCustomization($container);
+
+    expect($gate->isStock(LoginResponse::class))->toBeFalse();
 });
 
 it('reports customized when the contract is unbound', function (): void {
     $gate = new FortifyResponseCustomization(new Container());
 
     expect($gate->isStock(LoginResponse::class))->toBeFalse();
+});
+
+it('reports stock for a null contract (no contract governs the body)', function (): void {
+    $gate = new FortifyResponseCustomization(new Container());
+
+    expect($gate->isStock(null))->toBeTrue();
 });
