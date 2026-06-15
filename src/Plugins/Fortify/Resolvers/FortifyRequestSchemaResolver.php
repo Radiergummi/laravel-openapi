@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Radiergummi\OpenApi\Plugins\Fortify\Resolvers;
+
+use Illuminate\Container\Attributes\Scoped;
+use Override;
+use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
+use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Plugins\Fortify\Support\FortifyContractTable;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
+
+/**
+ * Emits the stock Fortify request body for a matched core-auth route, by route name.
+ *
+ * @internal
+ */
+#[Scoped]
+final readonly class FortifyRequestSchemaResolver implements RequestSchemaResolver
+{
+    public function __construct(private ComponentSchemaRegistry $registry) {}
+
+    #[Override]
+    public function resolveRequestSchema(ActionDescriptor $descriptor): ?ResolvedSchema
+    {
+        $name = $descriptor->route->getName();
+
+        if ($name === null) {
+            return null;
+        }
+
+        $entry = FortifyContractTable::for($name);
+
+        if ($entry === null || $entry->requestSchema === null) {
+            return null;
+        }
+
+        $key = $this->registry->reserveKey('Fortify\\Request\\' . $name);
+        $this->registry->registerNamed($key, $entry->requestSchema);
+
+        return new ResolvedSchema(componentKey: $key, mediaType: MediaType::Json);
+    }
+}
