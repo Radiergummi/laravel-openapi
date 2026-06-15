@@ -13,13 +13,20 @@ comment="${*:-🤖 **[lead]** all gates green + non-controversial → squash-mer
 
 branch=$(gh pr view "$pr" --json headRefName --jq '.headRefName')
 
-gh pr merge "$pr" --squash --delete-branch
+# Merge first (squash). Defer branch deletion until after the worktree is gone:
+# `gh pr merge --delete-branch` cannot remove the local branch while its worktree
+# still references it, so we delete the branch explicitly below instead.
+gh pr merge "$pr" --squash
 
 root=$(git rev-parse --show-toplevel)
 slug=$(printf '%s' "$branch" | tr '/' '-')
 path="${root}/.claude/worktrees/${slug}"
 [ -d "$path" ] && git worktree remove "$path" --force
 git worktree prune
+
+# Branch is now unreferenced — delete it locally and on the remote.
+git branch -D "$branch" 2>/dev/null || true
+git push origin --delete "$branch" 2>/dev/null || true
 
 gh pr comment "$pr" --body "$comment" >/dev/null
 echo "merged + cleaned: PR #${pr} (${branch})"
