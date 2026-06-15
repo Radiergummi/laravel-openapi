@@ -7,8 +7,6 @@ use Laravel\Fortify\Fortify;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Plugins\Fortify\Support\FortifyContractTable;
 
-use function array_map;
-
 uses()->group('openapi', 'plugin:fortify');
 
 it('exposes an entry for each v1 core-auth route name', function (): void {
