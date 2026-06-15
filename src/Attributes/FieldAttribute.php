@@ -39,38 +39,45 @@ abstract readonly class FieldAttribute
      * @param null|non-empty-string                                                        $description
      * @param null|class-string|OpenApiPrimitiveType                                       $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        A list of
-     *                                                                                                  allowed values,
-     *                                                                                                  or a
-     *                                                                                                  backed-enum
-     *                                                                                                  class-string
-     *                                                                                                  resolved to its
-     *                                                                                                  cases.
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum                 A list of
+     *                                                                                                           allowed values,
+     *                                                                                                           or a
+     *                                                                                                           backed-enum
+     *                                                                                                           class-string
+     *                                                                                                           resolved to its
+     *                                                                                                           cases.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param bool                                                                         $conditional When true, the
-     *                                                                                                  field is kept
-     *                                                                                                  in
-     *                                                                                                  `properties`
-     *                                                                                                  but removed
-     *                                                                                                  from `required`
-     *                                                                                                  — used by
-     *                                                                                                  response fields
-     *                                                                                                  emitted via
-     *                                                                                                  `$this->when()`
-     *                                                                                                  /
-     *                                                                                                  `$this->whenLoaded()`.
-     * @param null|array<string, mixed>                                                    $x           Vendor extensions
-     *                                                                                                  (`x-*`); keys are
-     *                                                                                                  written with the
-     *                                                                                                  `x-` prefix and
-     *                                                                                                  emitted verbatim,
-     *                                                                                                  matching the
-     *                                                                                                  `openapi.overrides`
-     *                                                                                                  contract.
+     * @param bool                                                                         $conditional          When true, the
+     *                                                                                                           field is kept
+     *                                                                                                           in
+     *                                                                                                           `properties`
+     *                                                                                                           but removed
+     *                                                                                                           from `required`
+     *                                                                                                           — used by
+     *                                                                                                           response fields
+     *                                                                                                           emitted via
+     *                                                                                                           `$this->when()`
+     *                                                                                                           /
+     *                                                                                                           `$this->whenLoaded()`.
+     * @param null|array<string, mixed>                                                    $x                    Vendor extensions
+     *                                                                                                           (`x-*`); keys are
+     *                                                                                                           written with the
+     *                                                                                                           `x-` prefix and
+     *                                                                                                           emitted verbatim,
+     *                                                                                                           matching the
+     *                                                                                                           `openapi.overrides`
+     *                                                                                                           contract.
+     * @param null|bool|string                                                             $additionalProperties Map-value
+     *                                                                                                           override: `true`/
+     *                                                                                                           `false`, or a type
+     *                                                                                                           string wrapped into
+     *                                                                                                           a nested value
+     *                                                                                                           schema. Wins over
+     *                                                                                                           inferred map values.
      *
      * @throws InvalidArgumentException When `$enum` is a string that is not a backed-enum class-string.
      */
@@ -99,6 +106,7 @@ abstract readonly class FieldAttribute
         public ?bool $writeOnly = null,
         public bool $conditional = false,
         public ?array $x = null,
+        public bool|string|null $additionalProperties = null,
     ) {
         // A backed-enum class-string is resolved to its cases here, so every downstream reader
         // (descriptor, lint rules) sees a uniform value list rather than a bare class name.
@@ -191,6 +199,7 @@ abstract readonly class FieldAttribute
             readOnly: $this->readOnly,
             writeOnly: $this->writeOnly,
             x: $this->x,
+            additionalProperties: $this->additionalProperties,
         );
     }
 }

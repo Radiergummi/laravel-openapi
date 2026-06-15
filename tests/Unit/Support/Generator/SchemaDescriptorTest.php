@@ -86,3 +86,53 @@ it('does not touch $x when no extensions are given', function (): void {
 });
 
 // endregion
+
+// region additionalProperties override
+
+it('emits additionalProperties: false on a property via applyTo()', function (): void {
+    $descriptor = new SchemaDescriptor(type: 'object', additionalProperties: false);
+    $property = new OA\Property(['property' => 'meta', '_context' => new Context()]);
+
+    $descriptor->applyTo($property);
+    $serialized = serializeAnnotation($property);
+
+    expect($serialized['additionalProperties'])->toBeFalse();
+});
+
+it('emits additionalProperties: true on a property via applyTo()', function (): void {
+    $descriptor = new SchemaDescriptor(type: 'object', additionalProperties: true);
+    $property = new OA\Property(['property' => 'meta', '_context' => new Context()]);
+
+    $descriptor->applyTo($property);
+    $serialized = serializeAnnotation($property);
+
+    expect($serialized['additionalProperties'])->toBeTrue();
+});
+
+it('wraps a type-string additionalProperties value into a nested schema', function (): void {
+    $descriptor = new SchemaDescriptor(type: 'object', additionalProperties: 'string');
+    $property = new OA\Property(['property' => 'meta', '_context' => new Context()]);
+
+    $descriptor->applyTo($property);
+    $serialized = serializeAnnotation($property);
+
+    expect($serialized['additionalProperties'])->toBe(['type' => 'string']);
+});
+
+it('emits additionalProperties on a standalone schema via toSchema()', function (): void {
+    $descriptor = new SchemaDescriptor(type: 'object', additionalProperties: false);
+    $serialized = serializeAnnotation($descriptor->toSchema());
+
+    expect($serialized['additionalProperties'])->toBeFalse();
+});
+
+it('does not touch additionalProperties when the descriptor does not carry it', function (): void {
+    $descriptor = new SchemaDescriptor(type: 'object');
+    $property = new OA\Property(['property' => 'meta', '_context' => new Context()]);
+
+    $descriptor->applyTo($property);
+
+    expect($property->additionalProperties)->toBe(Generator::UNDEFINED);
+});
+
+// endregion

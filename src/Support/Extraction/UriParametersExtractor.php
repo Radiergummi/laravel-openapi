@@ -72,6 +72,7 @@ final readonly class UriParametersExtractor
             $schema->example = $fieldDescriptor->example;
         }
 
+        $fieldDescriptor?->applyAdditionalProperties($schema);
         $fieldDescriptor?->applyVendorExtensions($schema);
 
         // OpenAPI 3.x §4.8.12.1: path parameters MUST have `required: true`. Laravel's `{param?}`

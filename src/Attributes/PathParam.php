@@ -28,7 +28,8 @@ final readonly class PathParam extends FieldAttribute
      * @param null|non-empty-string     $description
      * @param null|non-empty-string     $format
      * @param null|non-empty-string     $pattern
-     * @param null|array<string, mixed> $x           Vendor extensions (`x-*`).
+     * @param null|array<string, mixed> $x                    Vendor extensions (`x-*`).
+     * @param null|bool|string          $additionalProperties Map-value override.
      */
     public function __construct(
         ?string $description = null,
@@ -36,6 +37,7 @@ final readonly class PathParam extends FieldAttribute
         ?string $format = null,
         ?string $pattern = null,
         ?array $x = null,
+        bool|string|null $additionalProperties = null,
     ) {
         parent::__construct(
             description: $description,
@@ -43,6 +45,7 @@ final readonly class PathParam extends FieldAttribute
             format: $format,
             pattern: $pattern,
             x: $x,
+            additionalProperties: $additionalProperties,
         );
     }
 }
