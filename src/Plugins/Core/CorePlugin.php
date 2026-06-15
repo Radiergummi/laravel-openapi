@@ -9,6 +9,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\AbortErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\FindOrFailErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\RouteModelBindingErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
@@ -80,6 +81,9 @@ final class CorePlugin implements Plugin
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
         $registry->addErrorResponseContributor(RouteModelBindingErrorContributor::class);
+        // After the binding contributor: both source the same ModelNotFoundException config entry,
+        // so the 404 is byte-identical and the stage's first-contributor-wins dedup is order-safe.
+        $registry->addErrorResponseContributor(FindOrFailErrorContributor::class);
 
         // Register FormRequest so SuppressionCollector descends into its #[IgnoreLint] attributes
         // via the param-walk path (fromDataParameter checks against registered payload classes).
