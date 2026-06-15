@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\AbortErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\FindOrFailErrorContributor;
+use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\InlineJsonErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\MiddlewareErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\RouteModelBindingErrorContributor;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
@@ -90,6 +91,9 @@ final class CorePlugin implements Plugin
         // contributors can work without depending on Core.
         $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
         $registry->addErrorResponseContributor(AbortErrorContributor::class);
+        // After Abort (an authored abort() message is at least as specific), before the envelope-only
+        // contributors: a literal json() error body is more specific than the configured envelope.
+        $registry->addErrorResponseContributor(InlineJsonErrorContributor::class);
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
         $registry->addErrorResponseContributor(RouteModelBindingErrorContributor::class);
