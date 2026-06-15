@@ -63,6 +63,7 @@ All notable changes to this project are documented here.
 - A `findOrFail()` / `firstOrFail()` lookup in the controller body infers a 404 response, deduped against the route-model-binding 404. (#168)
 - Infer error responses from non-2xx `response()->json([...], <4xx/5xx>)` literals in the controller body (Tier-1), carrying the literal body schema inlined per operation; falls back to the configured error envelope when only the status is statically readable. (#238)
 - Internal: the API Resource return-expression reader's paginate-method whitelist now routes through the shared `PaginatorKind::fromPaginatingMethod()` enum instead of a duplicated local constant. (#354)
+- Eloquent model schemas seed their per-property examples from the model's Laravel factory `definition()` (scalar values only), reseeded deterministically per model from `openapi.examples.faker_seed`; disabled when example synthesis is off or the seed is null. (#36)
 
 ## [0.1.0] - 2026-05-18
 

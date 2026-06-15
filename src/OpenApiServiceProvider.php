@@ -410,6 +410,20 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
+            Support\Extraction\ModelFactoryExampleReader::class,
+            static fn(Container $app): Support\Extraction\ModelFactoryExampleReader
+                => new Support\Extraction\ModelFactoryExampleReader(
+                    // Disabled (null seed) when auto-examples are switched off or no fixed seed is
+                    // configured — factory fake() values would otherwise be non-deterministic.
+                    seed: (bool) (config('openapi.examples.synthesise') ?? true)
+                        && config('openapi.examples.faker_seed') !== null
+                        ? (int) config('openapi.examples.faker_seed')
+                        : null,
+                    logger: $app->make(LoggerInterface::class),
+                ),
+        );
+
+        $this->app->scoped(
             Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver::class,
             static function (Container $app): Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver {
                 $registry = $app->make(OpenApiRegistry::class);

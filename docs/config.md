@@ -26,7 +26,7 @@ this page is the at-a-glance summary.
 | `security_middleware_map` | Map of custom guard-middleware name → a scheme declared in `security_schemes`. A route carrying a mapped middleware emits that scheme's per-operation requirement (taking precedence over the auto-derived `auth:*`/`scope:*` resolution for that route), so project-specific guards don't make a protected endpoint look public. |
 | `plugins` | Ordered list of `Plugin` class-strings. Ships with `SpatieDataPlugin` and `ApiResourcesPlugin` enabled; `QueryBuilderPlugin` and `FractalPlugin` shipped commented out. |
 | `request_payload_indirection` | Base classes whose constructors are also scanned for Data-class parameters. See [Request bodies → Indirect request payloads](request-bodies.md#indirect-request-payloads). |
-| `examples` | Example synthesis: `synthesise` (default `true`) toggles Faker-generated examples for fields with no authored example; `faker_seed` makes them deterministic. |
+| `examples` | Example synthesis: `synthesise` (default `true`) toggles Faker-generated examples for fields with no authored example and model-factory `definition()` examples for Eloquent model schemas; `faker_seed` makes them deterministic (a `null` seed disables both). |
 | `visibility` | `default` accepts `'public'` (every route documented unless `#[Hide]`) or `'hidden'` (every route excluded unless `#[Expose]`). See [Recipes → Switch between public-default and hidden-default visibility](recipes.md#switch-between-public-default-and-hidden-default-visibility). |
 | `overrides` | Spec-only per-route operation field overrides, keyed by route name or URI glob. See [Operation overrides](#operation-overrides) below. |
 | `routes` | Spec/playground route registration. See below. |

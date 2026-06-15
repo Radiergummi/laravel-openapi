@@ -12,6 +12,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FindReturnModelResponseResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
@@ -132,6 +133,7 @@ function findReturnResolver(?LoggerInterface $logger = null): FindReturnModelRes
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
         logger: $logger,
+        factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
     );
 
     return new FindReturnModelResponseResolver(

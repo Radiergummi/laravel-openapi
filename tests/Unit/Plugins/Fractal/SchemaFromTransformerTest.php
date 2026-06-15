@@ -14,6 +14,7 @@ use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\SchemaFromTransformer;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\TransformerTransformReader;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
@@ -49,6 +50,7 @@ function makeSchemaFromTransformer(
                 typeNodeResolver: TypeNodeResolver::create(),
                 docBlockParser: DocBlockParser::create(),
                 logger: $logger,
+                factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
             ),
         ),
         logger: $logger,
