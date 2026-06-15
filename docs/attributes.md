@@ -188,6 +188,7 @@ Resource, a `FormRequest`, an Eloquent model).
 | Attribute | Target | Purpose |
 |---|---|---|
 | `SchemaName` | class | Override the component key the class maps to in `#/components/schemas/{key}`. |
+| `RawSchema` | class | Replace the inferred component body with a literal JSON Schema. Skips all convention inference and field attributes on the class. |
 
 By default the key is derived from the class basename (disambiguated with namespace segments, or a
 short hash as a last resort). That key is a public, consumer-facing contract — it becomes the type
@@ -208,6 +209,48 @@ restates what derivation already produces. The name still goes through the `comp
 lint rule, so keep it consistent with the rest of the document (PascalCase by default). Two distinct
 classes declaring the same name is an unresolvable conflict: generation throws
 `DuplicateSchemaNameException`.
+
+### Replace a component body with a literal schema (`#[RawSchema]`)
+
+When the shape a class produces genuinely cannot be derived — a hand-tuned composition, a body the
+runtime assembles dynamically — `#[RawSchema]` lets you supply the component body verbatim. The
+array becomes the component schema; the generator does not read the class's properties, `rules()`,
+`toArray()`, or any field-level attribute on it.
+
+```php
+use Radiergummi\OpenApi\Attributes as OpenApi;
+
+#[OpenApi\RawSchema([
+    'type' => 'object',
+    'required' => ['kind'],
+    'properties' => [
+        'kind' => ['type' => 'string', 'enum' => ['circle', 'square']],
+        'shape' => ['oneOf' => [
+            ['$ref' => '#/components/schemas/Circle'],
+            ['$ref' => '#/components/schemas/Square'],
+        ]],
+    ],
+])]
+final class ShapeData extends Data { … }
+```
+
+**Class-level wins.** Because the literal body replaces inference outright, any `#[ResponseField]`,
+`#[RequestField]`, etc. on the same class are ignored — there is no merge.
+
+**Bounded keyword set.** Keywords are limited to what swagger-php can serialise: `type`, `enum`,
+`const`, `not`, `oneOf`/`anyOf`/`allOf`, `properties`, `required`, `additionalProperties`,
+`patternProperties`, `propertyNames`, `contains`, `items`, the numeric/string/array constraints,
+`default`, `title`, `description`, `format`, plus any `x-*` extension. Unsupported keywords —
+`if`/`then`/`else`, `dependentRequired`/`dependentSchemas`, and the draft-07 `dependencies` (OpenAPI
+3.1 splits it into the two `dependent*` keywords; accepting only the deprecated spelling would be
+dialect-inconsistent) — are **dropped from the output and logged**, and the
+`schema.raw-keyword-unsupported` lint rule flags them so the loss is never silent.
+
+**Boundaries.** `#[RawSchema]` is co-located with the class and travels with it through refactors;
+use `openapi.overrides` instead for **document-level, operation-targeted** edits (it cannot address a
+component body). It is also distinct from the SwaggerPhp plugin's harvester, which ingests
+hand-authored `#[OA\Schema]` annotations wholesale — `#[RawSchema]` is a terse first-party knob
+scoped to the validated keyword set.
 
 ## Exception-level attribute
 

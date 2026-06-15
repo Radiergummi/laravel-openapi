@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\DeeplyChainedFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\RouteBoundFormRequest;
@@ -28,6 +29,7 @@ beforeEach(function (): void {
         logger: new NullLogger(),
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: $this->findings,
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
 });
 
@@ -166,6 +168,7 @@ it('registers a placeholder schema, logs a warning, and emits a finding when rul
         logger: $logger,
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: $findings,
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
 
     $brokenClass = new class () extends FormRequest {

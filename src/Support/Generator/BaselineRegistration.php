@@ -87,6 +87,7 @@ use Radiergummi\OpenApi\Lint\Rules\SchemaEnumEmpty;
 use Radiergummi\OpenApi\Lint\Rules\SchemaEnumTypeMismatch;
 use Radiergummi\OpenApi\Lint\Rules\SchemaExampleMissing;
 use Radiergummi\OpenApi\Lint\Rules\SchemaNullableViaDeprecatedKeyword;
+use Radiergummi\OpenApi\Lint\Rules\SchemaRawKeywordUnsupported;
 use Radiergummi\OpenApi\Lint\Rules\SchemaRequiredWithoutProperty;
 use Radiergummi\OpenApi\Lint\Rules\ScopeOverlyBroad;
 use Radiergummi\OpenApi\Lint\Rules\SecurityInvalidScope;
@@ -183,6 +184,7 @@ final class BaselineRegistration
         ResponseRedirectWithoutLocation::class,
         OperationIdMissing::class,
         SchemaAllOfTypeConflict::class,
+        SchemaRawKeywordUnsupported::class,
         ParameterQueryNoSchema::class,
         TagDuplicate::class,
         ResponseDescriptionMissing::class,

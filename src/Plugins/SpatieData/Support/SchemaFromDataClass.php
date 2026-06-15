@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 use ReflectionAttribute;
@@ -89,6 +90,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         private readonly DataConfig $dataConfig,
         private readonly LoggerInterface $logger,
         private readonly FakerExampleSynthesiser $synthesiser,
+        private readonly ExplicitClassSchema $explicitSchema,
     ) {}
 
     /**
@@ -115,6 +117,12 @@ final class SchemaFromDataClass implements FilePropertyChecker
     private function buildSchema(string $dataClass): OA\Schema
     {
         $reflection = new ReflectionClass($dataClass);
+
+        // #[RawSchema] replaces the inferred body wholesale; field-level attributes are ignored.
+        if (($rawSchema = $this->explicitSchema->read($reflection)) !== null) {
+            return $this->explicitSchema->toSchema($rawSchema, $reflection);
+        }
+
         $title = $this->readClassAttributeValue($reflection, SummaryAttribute::class);
         $description = $this->readClassAttributeValue($reflection, DescriptionAttribute::class);
 
