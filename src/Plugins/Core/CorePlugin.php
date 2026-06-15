@@ -24,6 +24,7 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineValidationRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginationQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\ResourceConventionResolver;
@@ -61,6 +62,10 @@ final class CorePlugin implements Plugin
         // Tier-0 miss — actions whose signature carries no typed payload parameter.
         $registry->addRequestSchemaResolver(InlineValidationRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
+
+        // Runs after the core resolver so an explicit #[QueryParam('page')] keeps its emission via
+        // OperationBuilder's (name, in) dedup; otherwise page/per_page/cursor simply compose.
+        $registry->addQueryParameterResolver(PaginationQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
 
