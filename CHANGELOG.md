@@ -66,6 +66,7 @@ All notable changes to this project are documented here.
 - Internal: the API Resource return-expression reader's paginate-method whitelist now routes through the shared `PaginatorKind::fromPaginatingMethod()` enum instead of a duplicated local constant. (#354)
 - Eloquent model schemas seed their per-property examples from the model's Laravel factory `definition()` (scalar values only), reseeded deterministically per model from `openapi.examples.faker_seed`; disabled when example synthesis is off or the seed is null. (#36)
 - `#[RequestField]` ref support: a class-string `type:` resolves to a `$ref`, and a class-string `items:` on a `type: 'array'` field resolves to `items: { $ref }` — mirroring the response-side `#[ResourceField]`; an unresolvable class degrades to a permissive object. (#150)
+- A non-paginator action whose body unconditionally calls `paginate()`/`simplePaginate()`/`cursorPaginate()` now gets the matching paginated response envelope, with a declared item class (`#[ResponseResource(Model::class)]` or `@return Paginator<Item>`). Guarded so it never overrides a response API Resources or Spatie Data would shape — a resource/`Data` return type or a resource-naming `#[ResponseResource]` defers to those plugins. (#353)
 
 ## [0.1.0] - 2026-05-18
 
