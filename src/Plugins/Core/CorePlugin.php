@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Plugins\Core\Lint\ThrowsUnmapped;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\EloquentModelResponseResolver;
+use Radiergummi\OpenApi\Plugins\Core\Resolvers\FindReturnModelResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineValidationRequestSchemaResolver;
@@ -68,6 +69,12 @@ final class CorePlugin implements Plugin
         $registry->addQueryParameterResolver(PaginationQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
+
+        // Tier-1 model-lookup scan: a directly-returned Model::find()/findOrFail()/firstOrFail()
+        // call. Runs after the Tier-0 reflection resolver (which stays authoritative for typed
+        // Model/Collection returns via the shared return-type guard) and before the inline-json
+        // scan, since a returned model lookup is a model return, not a response()->json() literal.
+        $registry->addPrimaryResponseResolver(FindReturnModelResponseResolver::class);
 
         // Tier-1 body scan runs last among Core's response resolvers; its return-type guard
         // additionally keeps it off any action whose signature carries schema information, so
