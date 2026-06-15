@@ -45,6 +45,14 @@ class FindOrFailFixtureController extends Controller
         return new JsonResponse([]);
     }
 
+    public function mixedCaseFindOrFail(int $id): JsonResponse
+    {
+        // PHP dispatches this to the same method regardless of casing.
+        $article = Article::FindOrFail($id);
+
+        return new JsonResponse($article);
+    }
+
     public function boundAndFindOrFail(Article $article, int $id): JsonResponse
     {
         $related = Article::findOrFail($id);

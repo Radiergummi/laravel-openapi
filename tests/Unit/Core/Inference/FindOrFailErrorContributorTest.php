@@ -76,6 +76,15 @@ it('finds a findOrFail inside an if guard', function (): void {
         ->and($result[0]->status)->toBe(404);
 });
 
+it('matches the method name case-insensitively', function (): void {
+    $result = findOrFailContributor()->contribute(
+        findOrFailActionDescriptor(FindOrFailFixtureController::class, 'mixedCaseFindOrFail'),
+    );
+
+    expect($result)->toHaveCount(1)
+        ->and($result[0]->status)->toBe(404);
+});
+
 it('emits a single 404 even when several failing lookups are present', function (): void {
     $result = findOrFailContributor()->contribute(
         findOrFailActionDescriptor(FindOrFailFixtureController::class, 'boundAndFindOrFail'),

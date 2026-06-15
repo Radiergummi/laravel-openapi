@@ -44,7 +44,7 @@ final readonly class FindOrFailErrorContributor implements ErrorResponseContribu
 {
     public const int STATEMENT_LIMIT = 10;
 
-    private const array THROWING_METHODS = ['findOrFail', 'firstOrFail'];
+    private const array THROWING_METHODS = ['findorfail', 'firstorfail'];
 
     private StatementNodeFinder $statementNodeFinder;
 
@@ -106,8 +106,10 @@ final readonly class FindOrFailErrorContributor implements ErrorResponseContribu
     private function isThrowingLookup(Node $node): bool
     {
         if ($node instanceof MethodCall || $node instanceof StaticCall) {
+            // PHP method names are case-insensitive, so `->FindOrFail()` dispatches to the same
+            // method and throws the same exception — match case-insensitively, as Abort does.
             return $node->name instanceof Identifier
-                && in_array($node->name->toString(), self::THROWING_METHODS, true);
+                && in_array($node->name->toLowerString(), self::THROWING_METHODS, true);
         }
 
         return false;
