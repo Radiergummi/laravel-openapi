@@ -213,6 +213,21 @@ declaration wins over a type-hinted `FormRequest` on the same action. The same
 field attributes apply as everywhere else — `type`, `format`, `enum`, `minLength`,
 `pattern`, and so on (see [Validation rules → schema constraints](#validation-rules--schema-constraints)).
 
+For a field whose value is another schema-bearing class, pass its class-string as
+`type` — it resolves to a `$ref` through the ref-resolver chain (a Spatie Data
+class, an API Resource, anything a registered resolver builds). For a field that is
+a **collection** of such a class, keep `type: 'array'` and pass the item
+class-string as `items`; it resolves to `items: { $ref: … }`. Both mirror the
+response-side [`#[ResourceField]`](plugins.md#declared-fields-with-resourcefield);
+a class-string no resolver recognises degrades to a permissive `type: object`
+(or `items: { type: object }`).
+
+```php
+#[RequestField('owner', type: UserData::class)]
+#[RequestField('members', type: 'array', items: UserData::class)]
+public function store(Request $request): SiteResource { … }
+```
+
 ## Runtime state in `rules()`
 
 `rules()` bodies that read request state — `$this->route('foo')->bar`,

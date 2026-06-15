@@ -64,6 +64,7 @@ All notable changes to this project are documented here.
 - Infer error responses from non-2xx `response()->json([...], <4xx/5xx>)` literals in the controller body (Tier-1), carrying the literal body schema inlined per operation; falls back to the configured error envelope when only the status is statically readable. (#238)
 - Internal: the API Resource return-expression reader's paginate-method whitelist now routes through the shared `PaginatorKind::fromPaginatingMethod()` enum instead of a duplicated local constant. (#354)
 - Eloquent model schemas seed their per-property examples from the model's Laravel factory `definition()` (scalar values only), reseeded deterministically per model from `openapi.examples.faker_seed`; disabled when example synthesis is off or the seed is null. (#36)
+- `#[RequestField]` ref support: a class-string `type:` resolves to a `$ref`, and a class-string `items:` on a `type: 'array'` field resolves to `items: { $ref }` — mirroring the response-side `#[ResourceField]`; an unresolvable class degrades to a permissive object. (#150)
 
 ## [0.1.0] - 2026-05-18
 

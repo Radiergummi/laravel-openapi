@@ -38,7 +38,9 @@ final readonly class RequestField extends FieldAttribute
      *                                                                                                           otherwise
      * @param null|non-empty-string                                                        $title
      * @param null|non-empty-string                                                        $description
-     * @param null|OpenApiPrimitiveType                                                    $type
+     * @param null|class-string|OpenApiPrimitiveType                                       $type                 A JSON-Schema scalar
+     *                                                                                                           type, or a class-string
+     *                                                                                                           for a nested `$ref`.
      * @param null|non-empty-string                                                        $format
      * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum
      * @param null|int<0, max>                                                             $minLength
