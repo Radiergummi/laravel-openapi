@@ -239,12 +239,18 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
-      - name: Probe result marker
+      # Coverage is a pure function of the same hashed inputs as the test matrix, so it reuses the
+      # php8.4/L12 cell's marker rather than its own. That marker is written sooner (the test cells
+      # finish well before this slower instrumented run), so a PR opened right after a `main` merge
+      # no longer loses the race against coverage's own — formerly last-written — marker and re-runs
+      # the full suite for no reason. On a real code change the hash is new and unmarked → coverage
+      # runs and uploads as before. Coverage owns no marker of its own (the test job writes this one).
+      - name: Probe test result marker (identical inputs ⇒ identical coverage)
         id: marker
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: .ci-marker
-          key: coverage-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
+          key: tests-${{ runner.os }}-php8.4-l12-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
           lookup-only: true
       - name: Setup PHP
         if: steps.marker.outputs.cache-hit != 'true'
@@ -303,17 +309,8 @@ jobs:
         with:
           files: .cache/junit.xml
           token: ${{ secrets.CODECOV_TOKEN }}
-      - name: Record result marker
-        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        shell: bash
-        # language=bash
-        run: echo "${GITHUB_SHA}" > .ci-marker
-      - name: Persist result marker
-        if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
-        with:
-          path: .ci-marker
-          key: ${{ steps.marker.outputs.cache-primary-key }}
+      # No marker save here: coverage reuses the test cell's marker (probed above) and never writes
+      # its own, so the test job remains the single writer of that key.
 
   snapshot:
     name: Snapshot (locked toolchain)

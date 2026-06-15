@@ -311,6 +311,30 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
       security: []
+  '/api/find/flights/{flight}':
+    get:
+      tags:
+        - FindFlights
+        - Flights
+      summary: 'Look up a single flight.'
+      operationId: get_api_find_flights_flight_
+      parameters:
+        -
+          name: flight
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security: []
 components:
   schemas:
     FlightControllerStoreRequest:

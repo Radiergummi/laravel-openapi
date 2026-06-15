@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use ReflectionClass;
 use ReflectionException;
 
@@ -68,6 +69,7 @@ final class SchemaFromResource
         private readonly WrappedModelLocator $wrappedModelLocator,
         private readonly EloquentModelToSchema $modelToSchema,
         private readonly LoggerInterface $logger,
+        private readonly ExplicitClassSchema $explicitSchema,
     ) {}
 
     /**
@@ -163,6 +165,11 @@ final class SchemaFromResource
     private function buildSchema(string $resourceClass): OA\Schema
     {
         $reflection = new ReflectionClass($resourceClass);
+
+        // #[RawSchema] replaces the inferred body wholesale; field-level attributes are ignored.
+        if (($rawSchema = $this->explicitSchema->read($reflection)) !== null) {
+            return $this->explicitSchema->toSchema($rawSchema, $reflection);
+        }
 
         /** @var list<OA\Property> $properties */
         $properties = [];

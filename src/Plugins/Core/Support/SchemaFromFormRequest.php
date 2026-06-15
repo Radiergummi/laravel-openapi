@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
@@ -53,6 +54,7 @@ final readonly class SchemaFromFormRequest
         private LoggerInterface $logger,
         private FakerExampleSynthesiser $synthesiser,
         private FindingsCollector $findings,
+        private ExplicitClassSchema $explicitSchema,
     ) {}
 
     /**
@@ -88,6 +90,15 @@ final readonly class SchemaFromFormRequest
     private function buildSchema(string $formRequestClass): OA\Schema
     {
         $basename = class_basename($formRequestClass);
+
+        // #[RawSchema] replaces the inferred body wholesale; the rules() read below is skipped.
+        $reflection = new ReflectionClass($formRequestClass);
+
+        if (($rawSchema = $this->explicitSchema->read($reflection)) !== null) {
+            $this->registry->setHasFileFields($formRequestClass, false);
+
+            return $this->explicitSchema->toSchema($rawSchema, $reflection);
+        }
 
         if (!method_exists($formRequestClass, 'rules')) {
             $this->registry->setHasFileFields($formRequestClass, false);

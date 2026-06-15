@@ -14,6 +14,7 @@ use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
 use Radiergummi\OpenApi\Generator\GenerationContext;
@@ -149,6 +150,14 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         $additions = [];
 
         foreach ($byStatus as $descriptor) {
+            // A literal body read from the controller wins over the resolver-chain envelope and is
+            // inlined on this operation (never hoisted to a shared component): it is route-specific.
+            if ($descriptor->bodySchema !== null) {
+                $additions[] = $this->buildLiteralBodyResponse($descriptor);
+
+                continue;
+            }
+
             $body = $this->resolveBody($descriptor);
             $componentName = self::STATUS_COMPONENT_NAMES[$descriptor->status] ?? null;
             $additions[] = $this->buildResponse(
@@ -296,6 +305,20 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         }
 
         return new OA\Response($properties);
+    }
+
+    /**
+     * Composes a response from a literal body schema the contributor read from the controller,
+     * inlined on the operation with a JSON media type. The literal wins over the envelope chain,
+     * so this path never consults a resolver or registers a shared component.
+     */
+    private function buildLiteralBodyResponse(ErrorDescriptor $descriptor): OA\Response
+    {
+        return new OA\Response([
+            'response' => (string) $descriptor->status,
+            'description' => $descriptor->description,
+            'content' => [MediaType::Json->schema($descriptor->bodySchema)],
+        ]);
     }
 
     // endregion

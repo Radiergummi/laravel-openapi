@@ -7,6 +7,7 @@ use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
+use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
@@ -18,7 +19,11 @@ uses()->group('openapi');
 
 function inlineJsonResolver(?LoggerInterface $logger = null): InlineJsonResponseResolver
 {
-    return new InlineJsonResponseResolver(new MethodBodyScanner(), $logger ?? new NullLogger());
+    return new InlineJsonResponseResolver(
+        new MethodBodyScanner(),
+        new InlineJsonCallReader(),
+        $logger ?? new NullLogger(),
+    );
 }
 
 /**

@@ -13,6 +13,7 @@ use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Action;
 use Radiergummi\OpenApi\Tests\Fixtures\FileUploadFixtureController;
@@ -34,6 +35,7 @@ function makeFormRequestResolver(): FormRequestRequestSchemaResolver
         logger: new NullLogger(),
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: new ArrayFindingsCollector(),
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
 
     return new FormRequestRequestSchemaResolver(
@@ -100,6 +102,7 @@ it('registers the FormRequest schema in the component registry', function (): vo
         logger: new NullLogger(),
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: new ArrayFindingsCollector(),
+        explicitSchema: new ExplicitClassSchema(new NullLogger()),
     );
     $resolver = new FormRequestRequestSchemaResolver(
         schemaBuilder: $builder,

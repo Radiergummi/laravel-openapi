@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\WrappedModelLocator;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
@@ -37,6 +38,7 @@ final class SchemaFromResourceFactory
             wrappedModelLocator: self::wrappedModelLocator(),
             modelToSchema: self::modelToSchema($registry),
             logger: new NullLogger(),
+            explicitSchema: new ExplicitClassSchema(new NullLogger()),
         );
     }
 

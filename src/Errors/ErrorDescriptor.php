@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Errors;
 
+use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Throwable;
 
@@ -39,6 +40,16 @@ final readonly class ErrorDescriptor
      * that operation — the shared component is first-write-wins and would leak the text into
      * every other operation with the same status.
      *
+     * `$bodySchema` carries a literal response body read from the controller (a non-2xx
+     * `response()->json([...], <4xx/5xx>)` literal — see
+     * {@see \Radiergummi\OpenApi\Plugins\Core\ErrorContributors\InlineJsonErrorContributor}). When
+     * present, {@see \Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage}
+     * composes the response from this schema (JSON media type, inlined on the operation) and skips
+     * the {@see \Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver} envelope chain for
+     * that status: a literal body the author wrote wins over the configured envelope. A literal
+     * body is route-specific, so it is never hoisted into the shared `components.responses.*`
+     * component (same reasoning as a route-authored `abort()` message).
+     *
      * @param null|class-string<Throwable> $exceptionClass
      */
     public function __construct(
@@ -47,5 +58,6 @@ final readonly class ErrorDescriptor
         public string $description,
         public ?ActionDescriptor $action = null,
         public bool $shareableDescription = true,
+        public ?OA\Schema $bodySchema = null,
     ) {}
 }

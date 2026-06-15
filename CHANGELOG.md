@@ -29,7 +29,9 @@ All notable changes to this project are documented here.
 - `#[CookieParam]` authoring attribute documenting an `in: cookie` parameter read off the request at runtime. (#335)
 - `x:` vendor-extension passthrough on the field attributes (`#[ResponseField]`, `#[RequestField]`, `#[QueryParam]`, `#[PathParam]`, `#[CookieParam]`): attach `x-*` specification extensions to a field's schema, co-located with the field (the field-level analogue of `openapi.overrides`). (#336)
 - `additionalProperties:` override on the field attributes (`#[ResponseField]`, `#[RequestField]`, `#[QueryParam]`, `#[PathParam]`): set a field's map behaviour to a bool or a typed value schema; applied last, it wins over inferred `array<string, T>` map values. (#345)
+- `#[RawSchema]` class-level attribute replaces a payload class's inferred component body with a literal JSON Schema (Spatie Data, API Resource, FormRequest); keywords are bounded to what swagger-php serialises, with unsupported keywords dropped-and-logged and flagged by the new `schema.raw-keyword-unsupported` lint rule. (#344)
 - Pagination query parameters from a `->paginate()`/`->simplePaginate()`/`->cursorPaginate()` body call (Tier-1): offset paginators emit `page`/`per_page`, cursor paginators emit `cursor`; an explicit `#[QueryParam]` wins for its name. (#31)
+- Success-response model schema inferred from a directly-returned `Model::find()`/`findOrFail()`/`firstOrFail()` call in the controller body (Tier-1), feeding the existing Eloquent model→schema reader; composes with the `findOrFail()` 404. (#97)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
@@ -59,6 +61,7 @@ All notable changes to this project are documented here.
 - Documentation restructure: the monolithic `docs/usage.md` is split into focused pages, with an accuracy sweep across the set.
 - The query-builder chain reader sees value-object constructors wrapped in fluent modifiers, so `AllowedFilter::exact('healthy')->nullable()` is read as `filter[healthy]` instead of dropped. (#257)
 - A `findOrFail()` / `firstOrFail()` lookup in the controller body infers a 404 response, deduped against the route-model-binding 404. (#168)
+- Infer error responses from non-2xx `response()->json([...], <4xx/5xx>)` literals in the controller body (Tier-1), carrying the literal body schema inlined per operation; falls back to the configured error envelope when only the status is statically readable. (#238)
 
 ## [0.1.0] - 2026-05-18
 

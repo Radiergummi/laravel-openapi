@@ -7,13 +7,17 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 
+use function array_map;
+use function array_values;
 use function is_array;
 
 /**
  * Builds an `OA\Schema` from a literal JSON-Schema array definition, recursively converting
- * `properties` into `OA\Property` and `items` into `OA\Items`. swagger-php 5.x rejects a raw
- * array left under `properties`/`items` (`properties is an object literal`), failing validation;
- * a proper object graph validates on both the 5.x and 6.x lines.
+ * `properties` into `OA\Property`, `items` into `OA\Items`, the `oneOf`/`anyOf`/`allOf`
+ * composition keywords into `OA\Schema[]`, and `not` into a nested `OA\Schema`. swagger-php
+ * rejects a raw array left under any of these (`properties is an object literal`,
+ * `allOf must be an array of @OA\Schema`), failing validation on both the 5.x and 6.x lines;
+ * a proper object graph validates on both.
  *
  * Every node with `type: array` is guaranteed an `items` object (an unconstrained one when the
  * definition carries none): swagger-php's validator rejects an items-less array on both
@@ -67,6 +71,23 @@ final readonly class SchemaFromArrayDefinition
                 $items = new OA\Items([]);
                 self::apply($items, $value);
                 $node->items = $items;
+
+                continue;
+            }
+
+            if (($key === 'oneOf' || $key === 'anyOf' || $key === 'allOf') && is_array($value)) {
+                $node->{$key} = array_map(
+                    static fn(mixed $member): OA\Schema => is_array($member)
+                        ? self::build($member)
+                        : new OA\Schema([]),
+                    array_values($value),
+                );
+
+                continue;
+            }
+
+            if ($key === 'not' && is_array($value)) {
+                $node->not = self::build($value);
 
                 continue;
             }
