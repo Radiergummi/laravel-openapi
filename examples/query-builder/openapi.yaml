@@ -17,6 +17,20 @@ paths:
       operationId: get_api_flights
       parameters:
         -
+          name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
+          name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        -
           name: 'filter[number]'
           in: query
           required: false

@@ -399,6 +399,35 @@ Boundaries, by design (no dataflow analysis):
 - An explicit `#[QueryParam]` wins **entirely** for its name (no merging);
   parameters from different sources with different names compose.
 
+### Pagination parameters
+
+The same bounded scan recognises a `paginate()`-family call in the first 10
+top-level statements and documents the pagination knob it implies:
+
+```php
+public function index(): LengthAwarePaginator    // → page, per_page
+{
+    return Article::query()->paginate();
+}
+
+public function feed(): CursorPaginator          // → cursor
+{
+    return Article::query()->cursorPaginate();
+}
+```
+
+- `paginate()` and `simplePaginate()` (offset pagination) emit `page` and
+  `per_page` — both optional `integer`, `minimum: 1`. `per_page` is the common
+  `?per_page=` idiom rather than a framework default; it is documented for the
+  offset case.
+- `cursorPaginate()` emits an optional `string` `cursor` parameter.
+- The first unconditional `paginate()`-family call is matched, looking through
+  chains like `->paginate()->withQueryString()`. A call behind an `if`/ternary
+  is not treated as the operation's shape.
+- These compose with the accessor/validation parameters above, and an explicit
+  `#[QueryParam('page')]` wins entirely for its name — annotate it when the page
+  knob needs a description or different constraints.
+
 ## Controller middleware
 
 Everywhere the generator reads a route's middleware — security requirements,

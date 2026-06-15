@@ -10,7 +10,9 @@ use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 
 uses()->group('openapi');
 
@@ -26,7 +28,7 @@ class PaginatorDocblockController extends Controller
     /**
      * List widgets.
      *
-     * @return LengthAwarePaginatorContract<PaginatedWidget>
+     * @return LengthAwarePaginatorContract<Author>
      */
     public function index(): LengthAwarePaginatorContract
     {
@@ -58,11 +60,34 @@ class CursorPaginatorController extends Controller
     /**
      * Stream widgets.
      *
-     * @return CursorPaginatorContract<PaginatedWidget>
+     * @return CursorPaginatorContract<Author>
      */
     public function index(): CursorPaginatorContract
     {
         return new CursorPaginator([], 15);
+    }
+}
+
+/**
+ * Body-scan fixtures: the `->paginate()`-family call in the body drives the pagination query
+ * parameters. Actions are never invoked.
+ */
+class PaginateBodyController extends Controller
+{
+    public function offset(): LengthAwarePaginatorContract
+    {
+        return Author::query()->paginate(15);
+    }
+
+    public function cursor(): CursorPaginatorContract
+    {
+        return Author::query()->cursorPaginate(15);
+    }
+
+    #[QueryParam('page', description: 'Authored page knob.')]
+    public function authoredPage(): LengthAwarePaginatorContract
+    {
+        return Author::query()->paginate(15);
     }
 }
 
@@ -110,4 +135,59 @@ it('documents a cursor paginator with cursor metadata', function (): void {
     expect($schema)->not->toBeNull()
         ->and($schema['properties'])->toHaveKeys(['data', 'next_cursor', 'prev_cursor'])
         ->and($schema['properties'])->not->toHaveKey('total');
+});
+
+/**
+ * @return array<string, array<string, mixed>>
+ */
+function paginationParametersByName(array $operation): array
+{
+    $byName = [];
+
+    foreach ($operation['parameters'] ?? [] as $parameter) {
+        if (($parameter['in'] ?? null) === 'query') {
+            $byName[$parameter['name']] = $parameter;
+        }
+    }
+
+    return $byName;
+}
+
+it('emits page and per_page for an offset-paginating body', function (): void {
+    Route::get('/paginate/offset', [PaginateBodyController::class, 'offset']);
+
+    $operation = generateSpec()['paths']['/paginate/offset']['get'];
+    $parameters = paginationParametersByName($operation);
+
+    expect($parameters)->toHaveKeys(['page', 'per_page'])
+        ->and($parameters)->not->toHaveKey('cursor')
+        ->and($parameters['page']['required'])->toBeFalse()
+        ->and($parameters['page']['schema']['type'])->toBe('integer')
+        ->and($parameters['page']['schema']['minimum'])->toBe(1)
+        ->and($parameters['per_page']['schema']['type'])->toBe('integer');
+});
+
+it('emits cursor for a cursor-paginating body and omits offset params', function (): void {
+    Route::get('/paginate/cursor', [PaginateBodyController::class, 'cursor']);
+
+    $operation = generateSpec()['paths']['/paginate/cursor']['get'];
+    $parameters = paginationParametersByName($operation);
+
+    expect($parameters)->toHaveKey('cursor')
+        ->and($parameters)->not->toHaveKeys(['page', 'per_page'])
+        ->and($parameters['cursor']['schema']['type'])->toBe('string');
+});
+
+it('lets an explicit #[QueryParam(page)] win over the inferred page', function (): void {
+    Route::get('/paginate/authored', [PaginateBodyController::class, 'authoredPage']);
+
+    $operation = generateSpec()['paths']['/paginate/authored']['get'];
+    $pageParameters = array_filter(
+        $operation['parameters'] ?? [],
+        static fn(array $parameter): bool
+            => ($parameter['name'] ?? null) === 'page' && ($parameter['in'] ?? null) === 'query',
+    );
+
+    expect($pageParameters)->toHaveCount(1)
+        ->and(reset($pageParameters)['schema']['description'] ?? null)->toBe('Authored page knob.');
 });
