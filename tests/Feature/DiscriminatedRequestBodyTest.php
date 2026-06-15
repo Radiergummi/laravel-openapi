@@ -110,6 +110,17 @@ it('resolves multiple class-string branches through the ref chain', function ():
         ->and($spec['components']['schemas'])->toHaveKeys(['CircleData', 'RectangleData']);
 })->group('plugin:spatie-data');
 
+it('resolves a class-string #[RequestField] type inside an inline branch to a $ref', function (): void {
+    Route::post('/oa-139/inline-field-ref', [DiscriminatedRequestFixtureController::class, 'inlineFieldRef']);
+    $spec = generateSpec();
+
+    $mapping = discriminatedBodySchema($spec, '/oa-139/inline-field-ref')['discriminator']['mapping'];
+    $branch = $spec['components']['schemas'][substr((string) $mapping['wrapped'], strlen('#/components/schemas/'))];
+
+    expect($branch['properties']['detail']['$ref'])->toBe('#/components/schemas/CircleData')
+        ->and($spec['components']['schemas'])->toHaveKey('CircleData');
+})->group('plugin:spatie-data');
+
 it('emits the expected discriminated request-body shape', function (): void {
     Route::post('/oa-139/inline', [DiscriminatedRequestFixtureController::class, 'inline']);
     $schema = discriminatedBodySchema(generateSpec(), '/oa-139/inline');

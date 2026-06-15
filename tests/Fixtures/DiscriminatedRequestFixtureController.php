@@ -94,4 +94,13 @@ class DiscriminatedRequestFixtureController extends Controller
     {
         return [];
     }
+
+    // An inline branch whose field carries a class-string `type:` — exercises the field path
+    // through objectBuilder->buildProperty(), distinct from the whole-variant `schema:` branch.
+    #[RequestBody(discriminator: 'shape')]
+    #[RequestVariant('wrapped', fields: [new RequestField('detail', type: CircleData::class)])]
+    public function inlineFieldRef(Request $request): array
+    {
+        return [];
+    }
 }
