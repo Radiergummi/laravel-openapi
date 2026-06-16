@@ -53,14 +53,19 @@ it('keeps the nested schema under additionalProperties', function (): void {
         ->and($component['additionalProperties']['items']['type'])->toBe('string');
 });
 
-it('leaves an items-less array under additionalProperties unconverted', function (): void {
-    // These keywords are not built into OA\Schema, so apply()'s items-less-array guard does not
-    // descend; the bare {type: array} survives verbatim. If conversion is ever added, the
-    // synthesised items will make this fail at the boundary.
+it('validates and leaves an items-less array under additionalProperties unconverted', function (): void {
+    // The divergent shape #352 names: an items-less array nested under a schema keyword. These
+    // keywords are not built into OA\Schema, so apply()'s items-less-array guard does not descend;
+    // the bare {type: array} survives verbatim and swagger-php accepts it on both legs. If
+    // conversion is ever added, the synthesised items will make this fail at the boundary.
+    $registry = app(SpecRegistry::class);
+    $document = app(OpenApiGenerator::class)->generate($registry->default(), app()->environment());
+
+    expect($document->validate())->toBeTrue();
+
     $component = nestedKeywordComponentFor(generateSpec(), '/oa-fixture/raw-additional-properties-items-less');
 
-    expect($component['additionalProperties'])
-        ->toBe(['type' => 'array']);
+    expect($component['additionalProperties'])->toBe(['type' => 'array']);
 });
 
 it('keeps the nested schemas under patternProperties', function (): void {
