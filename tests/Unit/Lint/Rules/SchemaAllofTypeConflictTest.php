@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaAllOfTypeConflict;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -45,7 +46,7 @@ it('reports its id and level', function (): void {
     $rule = new SchemaAllOfTypeConflict();
 
     expect($rule->id())->toBe('schema.allof-type-conflict')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits no finding when allOf types do not conflict', function (string $label, array $types): void {
@@ -85,7 +86,7 @@ it('emits a finding when allOf sub-schemas have conflicting types', function ():
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.allof-type-conflict')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('Conflict')
         ->and($findings[0]->message)->toContain('string')
         ->and($findings[0]->message)->toContain('integer')

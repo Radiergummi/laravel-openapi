@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaConstraintsMissing;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -33,7 +34,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('schema.constraints-missing')
-        ->and($rule->level())->toBe(4);
+        ->and($rule->severity())->toBe(Severity::Improvable);
 });
 
 // region FieldRule
@@ -51,7 +52,7 @@ it('emits a finding for fields lacking the expected constraint', function (strin
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.constraints-missing')
-        ->and($findings[0]->level)->toBe(4)
+        ->and($findings[0]->severity)->toBe(Severity::Improvable)
         ->and($findings[0]->message)->toContain($name);
 })->with([
     'string without maxLength' => ['name', 'string'],

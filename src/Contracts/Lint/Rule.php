@@ -18,12 +18,9 @@ interface Rule
     public function id(): string;
 
     /**
-     * Severity level: 0 = spec-breaking, 1 = invalid docs, 2 = missing detail,
-     * 3 = potential issue, 4 = style / cleanup. Lower is more severe.
-     *
-     * @return int<0, max>
+     * Severity of the findings this rule emits. Lower is more severe.
      */
-    public function level(): int;
+    public function severity(): Severity;
 
     /**
      * One-line description of what the rule checks; shown by `openapi:lint --list`.

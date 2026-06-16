@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Lint;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
@@ -31,9 +32,9 @@ final class RequestBodySchemaDegraded implements Rule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -35,7 +36,7 @@ final class SchemaDescriptionMissing implements Rule, ComponentSchemaRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf('Component schema "%s" has no description', $componentSchema->name),
             location: new FindingLocation(jsonPointer: $componentSchema->pointer()),
             fixHint: 'Add a description to the component schema explaining what it represents.',
@@ -49,9 +50,9 @@ final class SchemaDescriptionMissing implements Rule, ComponentSchemaRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

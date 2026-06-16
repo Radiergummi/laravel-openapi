@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Lint\Rules\ParameterNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
@@ -44,7 +45,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('parameter.name-naming-inconsistent')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 // region Path parameters
@@ -79,7 +80,7 @@ it('default (camel for path): flags snake_case path parameters', function (): vo
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.name-naming-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('device_id')
         ->and($findings[0]->message)->toContain('camelCase');
 });

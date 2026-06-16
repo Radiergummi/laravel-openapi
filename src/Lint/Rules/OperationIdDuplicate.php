@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -56,7 +57,7 @@ final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finaliza
             foreach ($nodes as $node) {
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf(
                         'Duplicate operationId "%s" on %s %s (%d occurrences)',
                         $operationId,
@@ -78,9 +79,9 @@ final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finaliza
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]

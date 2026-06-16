@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use Override;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -29,31 +30,51 @@ use const PHP_EOL;
 
 final class CliFormatter implements Formatter
 {
-    private const array LEVEL_ICONS = [
-        0 => '❌',
-        1 => '⚠️',
-        2 => 'ℹ️',
-    ];
-
-    private const array LEVEL_SINGULAR = [
-        0 => 'error',
-        1 => 'warning',
-        2 => 'notice',
-    ];
-
-    private const array LEVEL_PLURAL = [
-        0 => 'errors',
-        1 => 'warnings',
-        2 => 'notices',
-    ];
-
-    private const array LEVEL_COLORS = [
-        0 => 'red',
-        1 => 'yellow',
-        2 => 'blue',
-    ];
-
     public function __construct(private readonly string $basePath = '') {}
+
+    private function icon(Severity $severity): string
+    {
+        return match ($severity) {
+            Severity::Broken => '❌',
+            Severity::Degraded => '⚠️',
+            Severity::Underspecified,
+            Severity::Inconsistent,
+            Severity::Improvable => 'ℹ️',
+        };
+    }
+
+    private function color(Severity $severity): string
+    {
+        return match ($severity) {
+            Severity::Broken => 'red',
+            Severity::Degraded => 'yellow',
+            Severity::Underspecified,
+            Severity::Inconsistent,
+            Severity::Improvable => 'blue',
+        };
+    }
+
+    private function singular(Severity $severity): string
+    {
+        return match ($severity) {
+            Severity::Broken => 'error',
+            Severity::Degraded => 'warning',
+            Severity::Underspecified,
+            Severity::Inconsistent,
+            Severity::Improvable => 'notice',
+        };
+    }
+
+    private function plural(Severity $severity): string
+    {
+        return match ($severity) {
+            Severity::Broken => 'errors',
+            Severity::Degraded => 'warnings',
+            Severity::Underspecified,
+            Severity::Inconsistent,
+            Severity::Improvable => 'notices',
+        };
+    }
 
     #[Override]
     public function render(LintResult $result, OutputInterface $output): void
@@ -169,21 +190,21 @@ final class CliFormatter implements Formatter
             $isLast = $index === $last;
             $connector = $isLast ? ' ╰─' : ' ├─';
             $continuation = $isLast ? '   ' : ' │ ';
-            $icon = self::LEVEL_ICONS[$finding->level] ?? '?';
+            $color = $this->color($finding->severity);
 
             $output->writeln(
                 sprintf(
                     '%s %s <fg=%s;options=bold>%s</>',
                     $connector,
-                    $icon,
-                    'bright-' . (self::LEVEL_COLORS[$finding->level] ?? 'white'),
+                    $this->icon($finding->severity),
+                    "bright-{$color}",
                     $finding->ruleId,
                 ),
             );
             $output->writeln(
                 sprintf(
                     '<fg=%s>%s</>',
-                    self::LEVEL_COLORS[$finding->level] ?? 'white',
+                    $color,
                     $this->wrapText($finding->message, "{$continuation}   "),
                 ),
             );
@@ -266,10 +287,16 @@ final class CliFormatter implements Formatter
     {
         $summaryParts = [];
 
-        foreach ($summary->findingCountsPerLevel as $severity => $count) {
+        foreach ($summary->findingCountsPerLevel as $level => $count) {
+            $severity = Severity::tryFrom($level);
+
+            if ($severity === null) {
+                continue;
+            }
+
             $label = $count === 1
-                ? self::LEVEL_SINGULAR[$severity] ?? "L{$severity}"
-                : self::LEVEL_PLURAL[$severity] ?? "L{$severity}";
+                ? $this->singular($severity)
+                : $this->plural($severity);
             $summaryParts[] = "{$count} {$label}";
         }
 

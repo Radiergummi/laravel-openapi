@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\QueryParamDuplicate;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DuplicateQueryParamController;
@@ -25,7 +26,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new QueryParamDuplicate();
 
     expect($rule->id())->toBe('queryparam.duplicate')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a method has duplicate query param names', function (): void {
@@ -36,7 +37,7 @@ it('emits a finding when a method has duplicate query param names', function ():
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('queryparam.duplicate')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('"q"')
         ->and($findings[0]->message)->toContain('2 times');
 });

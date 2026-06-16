@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
@@ -85,7 +86,7 @@ final readonly class OaRedundantOperationWithInference implements Rule, Operatio
             fn(): ReflectionMethod => new ReflectionMethod($controller, $method),
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'The %s on %s::%s restates an operation the generator already infers; it can be removed.',
                     $shape === AuthoredAnnotationShape::Docblock
@@ -116,10 +117,9 @@ final readonly class OaRedundantOperationWithInference implements Rule, Operatio
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        // Cleanup opportunity, not a spec defect.
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Formatters;
 
 use Override;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintResult;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -16,12 +17,6 @@ use function str_replace;
 
 final class GithubFormatter implements Formatter
 {
-    private const array LEVEL_COMMANDS = [
-        0 => 'error',
-        1 => 'warning',
-        2 => 'notice',
-    ];
-
     #[Override]
     public function render(LintResult $result, OutputInterface $output): void
     {
@@ -48,7 +43,13 @@ final class GithubFormatter implements Formatter
 
     private function formatCommand(Finding $finding): string
     {
-        $command = self::LEVEL_COMMANDS[$finding->level] ?? 'notice';
+        $command = match ($finding->severity) {
+            Severity::Broken => 'error',
+            Severity::Degraded => 'warning',
+            Severity::Underspecified,
+            Severity::Inconsistent,
+            Severity::Improvable => 'notice',
+        };
         $params = $this->buildParams($finding);
         $body = $this->buildBody($finding);
 

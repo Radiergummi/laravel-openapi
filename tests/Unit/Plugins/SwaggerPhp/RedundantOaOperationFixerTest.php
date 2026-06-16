@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
@@ -33,7 +34,7 @@ function runRedundantOaAnnotationFixer(string $class, string $method, AuthoredAn
 
     $finding = new Finding(
         ruleId: 'migration.oa-redundant-operation-with-inference',
-        level: 4,
+        severity: Severity::Improvable,
         message: 'fixture',
         location: new FindingLocation(file: $sourceFile),
         context: [
@@ -83,7 +84,7 @@ it('removes the #[OA\*] operation attributes from a controller method', function
 it('yields nothing when the finding context lacks the source class, member, or shape', function (): void {
     $finding = new Finding(
         ruleId: 'migration.oa-redundant-operation-with-inference',
-        level: 4,
+        severity: Severity::Improvable,
         message: 'fixture',
     );
 

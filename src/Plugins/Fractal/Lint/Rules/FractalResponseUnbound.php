@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -54,7 +55,7 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '%s %s injects a Fractal Manager but declares no #[FractalResponse]',
                 $operation->method->forDisplay(),
@@ -71,9 +72,9 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

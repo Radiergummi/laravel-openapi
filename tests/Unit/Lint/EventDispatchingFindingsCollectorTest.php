@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\EventDispatchingFindingsCollector;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -21,7 +22,7 @@ it('still collects the finding when a listener throws, and logs the failure', fu
     $inner = new ArrayFindingsCollector();
     $collector = new EventDispatchingFindingsCollector($inner, $events, $logger);
 
-    $collector->emit(new Finding('rule.id', 0, 'message'));
+    $collector->emit(new Finding('rule.id', Severity::Broken, 'message'));
 
     expect($inner->all())->toHaveCount(1);
 });
@@ -37,7 +38,7 @@ it('does not dispatch (or log) when no listener is registered', function (): voi
     $inner = new ArrayFindingsCollector();
     $collector = new EventDispatchingFindingsCollector($inner, $events, $logger);
 
-    $collector->emit(new Finding('rule.id', 0, 'message'));
+    $collector->emit(new Finding('rule.id', Severity::Broken, 'message'));
 
     expect($inner->all())->toHaveCount(1);
 });

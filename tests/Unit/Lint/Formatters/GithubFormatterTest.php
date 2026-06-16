@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -16,7 +17,7 @@ it('renders a ::error workflow command per level-0 finding', function (): void {
     new GithubFormatter()->render(
         new LintResult(findings: [new Finding(
             ruleId: 'response.empty',
-            level: 0,
+            severity: Severity::Broken,
             message: 'msg',
             location: new FindingLocation(file: 'F.php', line: 10),
             fixHint: 'fix it',
@@ -32,7 +33,7 @@ it('renders ::warning for level-1 findings', function (): void {
     new GithubFormatter()->render(
         new LintResult(findings: [new Finding(
             ruleId: 'response.heuristic',
-            level: 1,
+            severity: Severity::Degraded,
             message: 'heuristic used',
             location: new FindingLocation(file: 'G.php', line: 5),
         )], level: 1, exitCode: 0),
@@ -47,7 +48,7 @@ it('percent-encodes newlines in the body', function (): void {
     new GithubFormatter()->render(
         new LintResult(findings: [new Finding(
             ruleId: 'test.rule',
-            level: 0,
+            severity: Severity::Broken,
             message: "line one\nline two\r\nline three",
             location: new FindingLocation(),
         )], level: 0, exitCode: 1),
@@ -63,7 +64,7 @@ it('percent-encodes percent signs in the body', function (): void {
     new GithubFormatter()->render(
         new LintResult(findings: [new Finding(
             ruleId: 'test.rule',
-            level: 0,
+            severity: Severity::Broken,
             message: '100% complete',
             location: new FindingLocation(),
         )], level: 0, exitCode: 1),
@@ -78,7 +79,7 @@ it('percent-encodes commas and colons in property values', function (): void {
     new GithubFormatter()->render(
         new LintResult(findings: [new Finding(
             ruleId: 'a:b,c',
-            level: 0,
+            severity: Severity::Broken,
             message: 'msg',
             location: new FindingLocation(file: 'path/to:file,name.php'),
         )], level: 0, exitCode: 1),

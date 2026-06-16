@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\PathTrailingSlashInconsistent;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -31,8 +32,8 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('path.trailing-slash-inconsistent')
-        ->and($rule->level())
-        ->toBe(3);
+        ->and($rule->severity())
+        ->toBe(Severity::Inconsistent);
 });
 
 it('emits no finding when paths are consistent', function (array $pathUris): void {
@@ -60,7 +61,7 @@ it('emits a finding when paths are inconsistent', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('path.trailing-slash-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('/posts/')
         ->and($findings[0]->message)->toContain('/users');
 });

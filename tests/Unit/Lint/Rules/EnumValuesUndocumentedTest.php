@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\EnumValuesUndocumented;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -12,7 +13,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('enum.values-undocumented')
-        ->and($rule->level())->toBe(2);
+        ->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when an enum field has no description', function (): void {
@@ -25,7 +26,7 @@ it('emits a finding when an enum field has no description', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('enum.values-undocumented')
-        ->and($findings[0]->level)->toBe(2)
+        ->and($findings[0]->severity)->toBe(Severity::Underspecified)
         ->and($findings[0]->message)->toContain('Status');
 });
 

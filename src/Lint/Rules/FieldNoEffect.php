@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
@@ -51,7 +52,7 @@ final class FieldNoEffect extends AbstractFieldRule implements FixableRule
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '#[%s] on %s::$%s has no parameters set — the attribute has no effect',
                 $this->attributeName($field),
@@ -98,8 +99,8 @@ final class FieldNoEffect extends AbstractFieldRule implements FixableRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 }

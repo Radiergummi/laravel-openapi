@@ -8,6 +8,7 @@ use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use Radiergummi\OpenApi\Events\LintFindingEmitted;
 use Radiergummi\OpenApi\Events\RouteSkipped;
@@ -165,7 +166,7 @@ it('dispatches LintFindingEmitted whenever a finding is collected', function ():
 
     $collector->emit(new Finding(
         ruleId: 'test.example',
-        level: 1,
+        severity: Severity::Degraded,
         message: 'a synthetic finding',
     ));
 

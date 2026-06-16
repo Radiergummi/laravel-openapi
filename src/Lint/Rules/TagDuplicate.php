@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use BackedEnum;
 use Override;
 use Radiergummi\OpenApi\Attributes\Tag;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
@@ -56,7 +57,7 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Tag "%s" is applied %d times on %s %s',
                     $tag,
@@ -90,9 +91,9 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3; // redundant but not incorrect (generator deduplicates before emitting)
+        return Severity::Inconsistent;
     }
 
     #[Override]

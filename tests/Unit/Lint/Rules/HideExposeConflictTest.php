@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\HideExposeConflict;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\HideExposeConflictController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -24,7 +25,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('visibility.hide-expose-conflict')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when #[Hide] and #[Expose] both apply unconditionally', function (): void {

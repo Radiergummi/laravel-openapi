@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ActionMissingReturnType;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ReturnTypeNudgeController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -24,7 +25,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('operation.return-type-missing')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when the action has no return type and no response attribute', function (): void {
@@ -33,7 +34,7 @@ it('emits a finding when the action has no return type and no response attribute
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.return-type-missing')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('ReturnTypeNudgeController')
         ->and($findings[0]->message)->toContain('untyped')
         ->and($findings[0]->fixHint)->not->toBeNull();

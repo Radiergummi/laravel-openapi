@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Validation\ValidationRule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -24,7 +25,7 @@ it('matches a class-scope directive structurally via the source class context', 
 
     $finding = new Finding(
         ruleId: 'field.name-naming-inconsistent',
-        level: 3,
+        severity: Severity::Inconsistent,
         message: 'snake case',
         location: new FindingLocation(jsonPointer: '#/components/schemas/Some/properties/error_uri'),
         context: [
@@ -48,7 +49,7 @@ it('does not match when the structural class context names a different class', f
 
     $finding = new Finding(
         ruleId: 'field.name-naming-inconsistent',
-        level: 3,
+        severity: Severity::Inconsistent,
         message: 'snake case',
         location: new FindingLocation(jsonPointer: '#/components/schemas/Other/properties/foo'),
         context: [
@@ -76,7 +77,7 @@ it(
 
         $finding = new Finding(
             ruleId: 'response.no-error',
-            level: 1,
+            severity: Severity::Degraded,
             message: 'no error response',
             location: new FindingLocation(file: __FILE__),
         );
@@ -130,7 +131,7 @@ it('suppresses an operation-level finding when the source class matches the dire
 
     $finding = new Finding(
         ruleId: 'operation.id-missing',
-        level: 1,
+        severity: Severity::Degraded,
         message: 'GET /users has no operationId',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'App\\Http\\Controllers\\UserController',
@@ -153,7 +154,7 @@ it('does not suppress an operation-level finding from a different controller in 
 
     $findingFromControllerB = new Finding(
         ruleId: 'operation.id-missing',
-        level: 1,
+        severity: Severity::Degraded,
         message: 'POST /orders has no operationId',
         location: new FindingLocation(file: '/app/Http/Controllers/SameFile.php'),
         context: [
@@ -176,7 +177,7 @@ it('does not match a class-scope directive when the rule ID differs', function (
 
     $finding = new Finding(
         ruleId: 'response.no-error',
-        level: 1,
+        severity: Severity::Degraded,
         message: 'no error response',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'App\\Requests\\Some',

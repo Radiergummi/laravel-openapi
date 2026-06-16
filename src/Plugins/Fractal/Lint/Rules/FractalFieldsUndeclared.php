@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -67,7 +68,7 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '%s %s is bound to %s, which declares no #[TransformerField] — the response schema is empty',
                 $operation->method->forDisplay(),
@@ -85,9 +86,9 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -34,7 +35,7 @@ final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
 
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf(
                         'Tag "%s" used on %s %s is not declared in the top-level tags array',
                         $tag,
@@ -58,9 +59,9 @@ final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\FieldConflictingType;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
@@ -24,7 +25,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('field.conflicting-type')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when RequestField type contradicts the PHP type', function (): void {
@@ -46,7 +47,7 @@ it('emits a finding when RequestField type contradicts the PHP type', function (
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.conflicting-type')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('$conflicting')
         ->and($findings[0]->message)->toContain('"integer"')
         ->and($findings[0]->message)->toContain('"string"');

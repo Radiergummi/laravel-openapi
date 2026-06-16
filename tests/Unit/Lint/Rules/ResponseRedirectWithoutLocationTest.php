@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ResponseRedirectWithoutLocation;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -13,7 +14,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('response.redirect-without-location')
-        ->and($rule->level())->toBe(2);
+        ->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it(
@@ -53,7 +54,7 @@ it('emits a finding when a 302 response has no Location header', function (): vo
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.redirect-without-location')
-        ->and($findings[0]->level)->toBe(2)
+        ->and($findings[0]->severity)->toBe(Severity::Underspecified)
         ->and($findings[0]->message)->toContain('302')
         ->and($findings[0]->message)->toContain('GET')
         ->and($findings[0]->message)->toContain('/old')

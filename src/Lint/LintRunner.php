@@ -713,9 +713,9 @@ final readonly class LintRunner
      */
     private function metaRuleEnabled(Rule $rule, int $level, array $only, array $skip): bool
     {
-        $effectiveLevel = $this->registry->effectiveLevelFor($rule->id(), $rule->level());
+        $effectiveLevel = $this->registry->effectiveLevelFor($rule->id(), $rule->severity());
 
-        return $effectiveLevel <= $level
+        return $effectiveLevel->value <= $level
             && ($only === [] || in_array($rule->id(), $only, true))
             && !in_array($rule->id(), $skip, true);
     }
@@ -829,7 +829,7 @@ final readonly class LintRunner
         return array_values(
             array_filter(
                 $findings,
-                static fn(Finding $finding): bool => $finding->level <= $level,
+                static fn(Finding $finding): bool => $finding->severity->value <= $level,
             ),
         );
     }

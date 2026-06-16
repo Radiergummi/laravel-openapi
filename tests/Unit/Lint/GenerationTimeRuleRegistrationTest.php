@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Lint\Rules\RequestEmpty;
 use Radiergummi\OpenApi\Plugins\Core\Lint\RuleUnknown;
@@ -63,8 +64,10 @@ it('severity override applies to request.empty', function (): void {
         severityOverrides: ['request.empty' => 2],
     );
 
-    // With the override in place, effectiveLevelFor returns 2 regardless of the caller's fallback.
-    expect($registry->effectiveLevelFor('request.empty', 0))->toBe(2);
+    // With the override in place, effectiveLevelFor returns the remapped severity regardless of
+    // the caller's fallback.
+    expect($registry->effectiveLevelFor('request.empty', Severity::Broken))
+        ->toBe(Severity::Underspecified);
 });
 
 // endregion

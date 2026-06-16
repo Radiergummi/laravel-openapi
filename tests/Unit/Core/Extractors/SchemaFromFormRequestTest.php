@@ -6,6 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
@@ -199,7 +200,7 @@ it('registers a placeholder schema, logs a warning, and emits a finding when rul
     expect($emitted)
         ->toHaveCount(1)
         ->and($emitted[0]->ruleId)->toBe('request-body.schema-degraded')
-        ->and($emitted[0]->level)->toBe(1)
+        ->and($emitted[0]->severity)->toBe(Severity::Degraded)
         ->and($emitted[0]->message)->toContain('DB not available')
         ->and($emitted[0]->message)->toContain($brokenClassName);
 });

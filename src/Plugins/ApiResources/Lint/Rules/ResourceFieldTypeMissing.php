@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -57,7 +58,7 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     '#[ResourceField(\'%s\')] on %s has no type — the field is emitted untyped',
                     $field->name,
@@ -75,9 +76,9 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

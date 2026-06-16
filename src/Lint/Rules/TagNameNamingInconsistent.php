@@ -45,7 +45,7 @@ final readonly class TagNameNamingInconsistent extends AbstractNamingRule implem
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Tag name "%s" does not follow the %s naming convention',
                     $tagName,

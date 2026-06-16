@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\ResponseNoError;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -13,7 +14,7 @@ it('reports its id and level', function (): void {
     $rule = new ResponseNoError();
 
     expect($rule->id())->toBe('response.no-error')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it(
@@ -42,7 +43,7 @@ it('emits a finding when an operation has only success responses', function (): 
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.no-error')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('GET')
         ->and($findings[0]->message)->toContain('/users')
         ->and($findings[0]->message)->toContain('no error response');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\SecuritySchemeUndefined;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -53,7 +54,7 @@ function makeSchemeUndefinedContext(array $declaredSchemes): LintContext
 it('reports its id and level', function (): void {
     $rule = new SecuritySchemeUndefined();
 
-    expect($rule->id())->toBe('security.scheme-undefined')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('security.scheme-undefined')->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no finding when all referenced schemes are declared', function (): void {
@@ -87,8 +88,8 @@ it('emits a finding when a referenced scheme is not declared', function (): void
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)
         ->toBe('security.scheme-undefined')
-        ->and($findings[0]->level)
-        ->toBe(0)
+        ->and($findings[0]->severity)
+        ->toBe(Severity::Broken)
         ->and($findings[0]->message)
         ->toContain('oauth2');
 });

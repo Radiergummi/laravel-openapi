@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ErrorsResolverFailed;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 
@@ -16,7 +17,7 @@ it('exposes the stable rule id', function (): void {
 });
 
 it('reports a warning-level severity', function (): void {
-    expect(new ErrorsResolverFailed()->level())->toBe(2);
+    expect(new ErrorsResolverFailed()->severity())->toBe(Severity::Underspecified);
 });
 
 it('provides a non-empty description', function (): void {

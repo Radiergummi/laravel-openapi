@@ -7,9 +7,10 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 
 /**
- * Writes lint findings to the PSR-3 logger, mapping level 0 → error, 1 → warning, rest → info.
+ * Writes lint findings to the PSR-3 logger, mapping Broken to error, Degraded to warning, rest to info.
  */
 #[Scoped]
 final readonly class LoggingFindingsCollector implements FindingsCollector
@@ -22,17 +23,19 @@ final readonly class LoggingFindingsCollector implements FindingsCollector
         $message = "[OpenAPI] {$finding->ruleId}: {$finding->message}";
         $context = [
             'rule_id' => $finding->ruleId,
-            'level' => $finding->level,
+            'level' => $finding->severity->value,
             'route' => $finding->location->routeName,
             'file' => $finding->location->file,
             'line' => $finding->location->line,
             'fix' => $finding->fixHint,
         ];
 
-        match ($finding->level) {
-            0 => $this->logger->error($message, $context),
-            1 => $this->logger->warning($message, $context),
-            default => $this->logger->info($message, $context),
+        match ($finding->severity) {
+            Severity::Broken => $this->logger->error($message, $context),
+            Severity::Degraded => $this->logger->warning($message, $context),
+            Severity::Underspecified,
+            Severity::Inconsistent,
+            Severity::Improvable => $this->logger->info($message, $context),
         };
     }
 }

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\PublicEndpointContradictsMiddleware;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ControllerMiddlewareAuthController;
@@ -30,7 +31,7 @@ it('reports its id and level', function (): void {
     $rule = new PublicEndpointContradictsMiddleware(app(RouteMiddlewareGatherer::class));
 
     expect($rule->id())->toBe('publicendpoint.contradicts-middleware')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a method-level PublicEndpoint has auth middleware', function (): void {
@@ -38,7 +39,7 @@ it('emits a finding when a method-level PublicEndpoint has auth middleware', fun
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('publicendpoint.contradicts-middleware')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('PublicEndpointMwController')
         ->and($findings[0]->message)->toContain('publicAction')
         ->and($findings[0]->message)->toContain('auth:api');

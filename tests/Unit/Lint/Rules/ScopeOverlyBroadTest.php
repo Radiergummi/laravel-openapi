@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\ScopeOverlyBroad;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -61,7 +62,7 @@ it('reports its id and level', function (): void {
     $rule = new ScopeOverlyBroad(registeredScopes: []);
 
     expect($rule->id())->toBe('scope.overly-broad')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when the only scope is the wildcard', function (): void {
@@ -78,7 +79,7 @@ it('emits a finding when the only scope is the wildcard', function (): void {
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('scope.overly-broad')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('wildcard')
         ->and($findings[0]->message)->toContain('GET')
         ->and($findings[0]->message)->toContain('/foo');

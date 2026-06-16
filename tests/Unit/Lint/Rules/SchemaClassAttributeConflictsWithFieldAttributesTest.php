@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaClassAttributeConflictsWithFieldAttributes;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\RawSchema\RawSchemaController;
@@ -31,7 +32,7 @@ it('reports its id and level 3', function (): void {
 
     expect($rule->id())
         ->toBe('schema.class-attribute-conflicts-with-field-attributes')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('flags a class carrying both #[RawSchema] and a field attribute', function (): void {
@@ -40,7 +41,7 @@ it('flags a class carrying both #[RawSchema] and a field attribute', function ()
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.class-attribute-conflicts-with-field-attributes')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)
         ->toContain('replaces the inferred body')
         ->toContain('have no effect')

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\TagDuplicate;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DuplicateTagController;
@@ -24,7 +25,7 @@ function makeTagDuplicateOperation(string $method): OperationNode
 it('has the correct rule id and level', function (): void {
     $rule = new TagDuplicate();
 
-    expect($rule->id())->toBe('tag.duplicate')->and($rule->level())->toBe(3);
+    expect($rule->id())->toBe('tag.duplicate')->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a method has duplicate tags', function (): void {
@@ -36,7 +37,7 @@ it('emits a finding when a method has duplicate tags', function (): void {
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('tag.duplicate')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('"Search"')
         ->and($findings[0]->message)->toContain('2 times');
 });

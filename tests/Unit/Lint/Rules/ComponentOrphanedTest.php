@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -91,7 +92,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('component.orphaned')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding for an unreferenced schema', function (): void {
@@ -100,7 +101,7 @@ it('emits a finding for an unreferenced schema', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('component.orphaned')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('User')
         ->and($findings[0]->context['component'])->toBe('User');
 });

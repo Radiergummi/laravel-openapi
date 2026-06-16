@@ -55,7 +55,7 @@ final readonly class RuleCatalogRenderer
             static fn(Rule $rule): array
                 => [
                     'id' => $rule->id(),
-                    'level' => $rule->level(),
+                    'level' => $rule->severity()->value,
                     'description' => $rule->description(),
                 ],
             $registry->all(),

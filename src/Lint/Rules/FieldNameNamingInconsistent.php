@@ -42,7 +42,7 @@ final readonly class FieldNameNamingInconsistent extends AbstractNamingRule impl
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Field name "%s" does not follow the %s naming convention',
                 $field->name,

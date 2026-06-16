@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
@@ -52,7 +53,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('meta.suppression-stale')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a suppression did not match any finding', function (): void {
@@ -64,7 +65,7 @@ it('emits a finding when a suppression did not match any finding', function (): 
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.suppression-stale')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('response.empty')
         ->and($findings[0]->message)->toContain('stale')
         ->and($findings[0]->location->file)->toBe('Controller.php')
@@ -74,7 +75,7 @@ it('emits a finding when a suppression did not match any finding', function (): 
 it('emits no finding when a suppression matched a finding via source-class context', function (): void {
     $matchingFinding = new Finding(
         ruleId: 'response.empty',
-        level: 0,
+        severity: Severity::Broken,
         message: 'No responses',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'Acme\\Http\\Controllers\\Controller',
@@ -92,7 +93,7 @@ it('emits no finding when a suppression matched a finding via source-class conte
 it('emits when finding ruleId does not match the directive', function (): void {
     $unrelatedFinding = new Finding(
         ruleId: 'summary.missing',
-        level: 0,
+        severity: Severity::Broken,
         message: 'Missing summary',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'Acme\\Http\\Controllers\\Controller',
@@ -112,7 +113,7 @@ it('emits when finding ruleId does not match the directive', function (): void {
 it('does not match a finding from a different class', function (): void {
     $findingFromOtherClass = new Finding(
         ruleId: 'response.empty',
-        level: 0,
+        severity: Severity::Broken,
         message: 'No responses',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'Acme\\Http\\Controllers\\OtherController',

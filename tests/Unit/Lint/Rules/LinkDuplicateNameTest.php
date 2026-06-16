@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\LinkDuplicateName;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DuplicateLinkNameController;
@@ -24,7 +25,7 @@ function makeLinkDuplicateNameOperation(string $method): OperationNode
 it('reports its id and level', function (): void {
     $rule = new LinkDuplicateName();
 
-    expect($rule->id())->toBe('link.duplicate-name')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('link.duplicate-name')->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits a finding when a method has duplicate link names', function (): void {
@@ -36,7 +37,7 @@ it('emits a finding when a method has duplicate link names', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('link.duplicate-name')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('"GetProject"')
         ->and($findings[0]->message)->toContain('2 times');
 });

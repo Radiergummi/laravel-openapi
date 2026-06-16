@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\FieldNoEffect;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\ActionWithNoEffectData;
@@ -23,7 +24,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('field.no-effect')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when RequestField has all default values', function (): void {
@@ -41,7 +42,7 @@ it('emits a finding when RequestField has all default values', function (): void
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.no-effect')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('$noEffect')
         ->and($findings[0]->message)->toContain('no parameters set');
 });

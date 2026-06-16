@@ -11,6 +11,7 @@ use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -54,9 +55,9 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]
@@ -236,7 +237,7 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
 
         return new Finding(
             ruleId: 'spec.invalid',
-            level: 0,
+            severity: $this->severity(),
             message: "{$humanPath}: {$interpolatedMessage}",
             location: $location,
             fixHint: $this->buildFixHint($parsed, $keyword),

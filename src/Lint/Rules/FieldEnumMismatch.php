@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use BackedEnum;
 use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use ReflectionNamedType;
@@ -91,7 +92,7 @@ final class FieldEnumMismatch extends AbstractFieldRule
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '#[%s] enum values on %s::$%s do not match %s cases: %s',
                 $this->attributeName($field),
@@ -115,8 +116,8 @@ final class FieldEnumMismatch extends AbstractFieldRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 }

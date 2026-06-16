@@ -224,9 +224,10 @@ rest follow the same class-string registration pattern.
 
 > [!NOTE]
 > Plugin-specific lint rules should follow the package's
-> [severity convention](linting.md#severity-levels): level 0 for broken-spec
-> contributions, level 1 for "lies about the API", level 2 for missing
-> documentation, level 3+ for style.
+> [severity convention](linting.md#severity-levels): `Severity::Broken` for
+> broken-spec contributions, `Severity::Degraded` for "lies about the API",
+> `Severity::Underspecified` for missing documentation, and
+> `Severity::Inconsistent`/`Severity::Improvable` for style.
 
 ## Public contracts and helpers
 

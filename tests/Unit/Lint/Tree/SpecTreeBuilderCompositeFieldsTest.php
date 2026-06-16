@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\FieldDescriptionMissing;
@@ -88,7 +89,7 @@ it('emits exactly one composite-fields-uninspected finding for a genuine anyOf u
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.composite-fields-uninspected')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('payload');
 });
 

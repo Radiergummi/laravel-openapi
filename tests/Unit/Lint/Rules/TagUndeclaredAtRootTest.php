@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\TagUndeclaredAtRoot;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -35,7 +36,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new TagUndeclaredAtRoot();
 
     expect($rule->id())->toBe('tag.undeclared-at-root')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a tag is not declared at root', function (): void {
@@ -45,7 +46,7 @@ it('emits a finding when a tag is not declared at root', function (): void {
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('tag.undeclared-at-root')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('"Users"');
 });
 

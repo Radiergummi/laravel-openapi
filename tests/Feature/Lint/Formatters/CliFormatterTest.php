@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -18,7 +19,7 @@ it('renders findings grouped by file', function (): void {
             findings: [
                 new Finding(
                     'response.empty',
-                    0,
+                    Severity::Broken,
                     'No schema',
                     new FindingLocation(
                         file: 'F.php',
@@ -29,7 +30,7 @@ it('renders findings grouped by file', function (): void {
                 ),
                 new Finding(
                     'response.heuristic',
-                    1,
+                    Severity::Degraded,
                     'Heuristic used',
                     new FindingLocation(
                         file: 'F.php',
@@ -40,7 +41,7 @@ it('renders findings grouped by file', function (): void {
                 ),
                 new Finding(
                     'schema.missing',
-                    0,
+                    Severity::Broken,
                     'Missing schema',
                     new FindingLocation(
                         file: 'G.php',
@@ -76,7 +77,7 @@ it('renders findings without a source location first', function (): void {
             findings: [
                 new Finding(
                     'response.empty',
-                    0,
+                    Severity::Broken,
                     'No schema',
                     new FindingLocation(
                         file: 'Z.php',
@@ -87,7 +88,7 @@ it('renders findings without a source location first', function (): void {
                 ),
                 new Finding(
                     'spec.missing',
-                    0,
+                    Severity::Broken,
                     'No spec file',
                     new FindingLocation(),
                 ),
@@ -117,7 +118,7 @@ it('renders file groups as trees with connector characters', function (): void {
             findings: [
                 new Finding(
                     'response.empty',
-                    0,
+                    Severity::Broken,
                     'No schema',
                     new FindingLocation(
                         file: 'F.php',
@@ -128,7 +129,7 @@ it('renders file groups as trees with connector characters', function (): void {
                 ),
                 new Finding(
                     'response.heuristic',
-                    1,
+                    Severity::Degraded,
                     'Heuristic used',
                     new FindingLocation(
                         file: 'F.php',

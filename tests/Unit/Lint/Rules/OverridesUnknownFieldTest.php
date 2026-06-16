@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\OverridesUnknownField;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
@@ -23,11 +24,11 @@ function overridesUnknownFieldCollect(array $overrides): array
     return $collector->all();
 }
 
-it('has the correct id and a non-zero level', function (): void {
+it('has the correct id and severity', function (): void {
     $rule = new OverridesUnknownField([]);
 
     expect($rule->id())->toBe('overrides.unknown-field')
-        ->and($rule->level())->toBeGreaterThan(0);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('stays silent for fully allowlisted blocks', function (): void {

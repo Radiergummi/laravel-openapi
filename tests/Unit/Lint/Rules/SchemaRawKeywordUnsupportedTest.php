@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaRawKeywordUnsupported;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\RawSchema\RawSchemaController;
@@ -29,7 +30,7 @@ it('reports its id and level 1', function (): void {
 
     expect($rule->id())
         ->toBe('schema.raw-keyword-unsupported')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('flags a #[RawSchema] carrying an unsupported keyword', function (): void {
@@ -38,7 +39,7 @@ it('flags a #[RawSchema] carrying an unsupported keyword', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.raw-keyword-unsupported')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('if');
 });
 

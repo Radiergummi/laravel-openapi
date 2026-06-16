@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaEnumEmpty;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -13,7 +14,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('schema.enum-empty')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding for a field schema with an empty enum array', function (): void {
@@ -26,7 +27,7 @@ it('emits a finding for a field schema with an empty enum array', function (): v
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-empty')
-        ->and($findings[0]->level)->toBe(1);
+        ->and($findings[0]->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding for a field whose enum is non-empty or absent', function (?array $enum): void {
@@ -55,7 +56,7 @@ it('emits a finding for a component schema with an empty enum array', function (
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-empty')
-        ->and($findings[0]->level)->toBe(1);
+        ->and($findings[0]->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding for a component schema with a non-empty enum', function (): void {

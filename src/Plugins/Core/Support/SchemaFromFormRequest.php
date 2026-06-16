@@ -9,6 +9,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -217,7 +218,7 @@ final readonly class SchemaFromFormRequest
         $this->findings->emit(
             new Finding(
                 ruleId: 'request-body.schema-degraded',
-                level: 1,
+                severity: Severity::Degraded,
                 message: sprintf(
                     'Schema introspection failed for %s: %s',
                     $formRequestClass,

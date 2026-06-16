@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\FieldInvalidFormat;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
@@ -24,7 +25,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('field.invalid-format')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when RequestField declares an unrecognized format', function (): void {
@@ -43,7 +44,7 @@ it('emits a finding when RequestField declares an unrecognized format', function
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.invalid-format')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('$invalidFormat')
         ->and($findings[0]->message)->toContain('"not-a-format"');
 });

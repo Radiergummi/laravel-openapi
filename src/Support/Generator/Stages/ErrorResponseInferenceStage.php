@@ -10,6 +10,7 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Enums\ComponentType;
@@ -184,7 +185,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
                 $this->findings->emit(
                     new Finding(
                         ruleId: 'errors.resolver-failed',
-                        level: 2,
+                        severity: Severity::Underspecified,
                         message: sprintf(
                             'Error-response resolver %s threw %s while resolving status %d: %s',
                             $resolver::class,

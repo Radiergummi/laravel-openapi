@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\Fractal\Lint;
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules\FractalTransformerClassMissing;
@@ -30,7 +31,7 @@ it('has the canonical rule metadata', function (): void {
     $rule = new FractalTransformerClassMissing();
 
     expect($rule->id())->toBe('fractal.transformer-class-missing')
-        ->and($rule->level())->toBe(1)
+        ->and($rule->severity())->toBe(Severity::Degraded)
         ->and($rule->description())->toContain('transformer class');
 });
 

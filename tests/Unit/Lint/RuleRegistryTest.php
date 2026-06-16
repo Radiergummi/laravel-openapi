@@ -3,20 +3,21 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 
-/** Builds a minimal {@see Rule} stub with the given id and level. */
-$rule = static fn(string $id, int $level): Rule => new readonly class ($id, $level) implements Rule {
-    public function __construct(private string $ruleId, private int $ruleLevel) {}
+/** Builds a minimal {@see Rule} stub with the given id and severity. */
+$rule = static fn(string $id, Severity $severity): Rule => new readonly class ($id, $severity) implements Rule {
+    public function __construct(private string $ruleId, private Severity $ruleSeverity) {}
 
     public function id(): string
     {
         return $this->ruleId;
     }
 
-    public function level(): int
+    public function severity(): Severity
     {
-        return max(0, $this->ruleLevel);
+        return $this->ruleSeverity;
     }
 
     public function description(): string
@@ -29,14 +30,20 @@ $rule = static fn(string $id, int $level): Rule => new readonly class ($id, $lev
 // behaviour so a future change to that contract is a deliberate, visible one.
 
 it('keeps every rule when two share an id', function () use ($rule): void {
-    $registry = new RuleRegistry([$rule('fake.duplicate', 2), $rule('fake.duplicate', 4)]);
+    $registry = new RuleRegistry([
+        $rule('fake.duplicate', Severity::Underspecified),
+        $rule('fake.duplicate', Severity::Improvable),
+    ]);
 
     expect($registry->all())->toHaveCount(2)
         ->and($registry->knownIds())->toBe(['fake.duplicate', 'fake.duplicate']);
 });
 
 it('returns both same-id rules from forLevel', function () use ($rule): void {
-    $registry = new RuleRegistry([$rule('fake.duplicate', 2), $rule('fake.duplicate', 4)]);
+    $registry = new RuleRegistry([
+        $rule('fake.duplicate', Severity::Underspecified),
+        $rule('fake.duplicate', Severity::Improvable),
+    ]);
 
     expect($registry->forLevel(4))->toHaveCount(2)
         // The stricter of the two still passes a tighter level threshold.
@@ -45,23 +52,38 @@ it('returns both same-id rules from forLevel', function () use ($rule): void {
 
 it('applies a severity override to every rule sharing the overridden id', function () use ($rule): void {
     $registry = new RuleRegistry(
-        [$rule('fake.duplicate', 2), $rule('fake.duplicate', 4)],
+        [
+            $rule('fake.duplicate', Severity::Underspecified),
+            $rule('fake.duplicate', Severity::Improvable),
+        ],
         ['fake.duplicate' => 0],
     );
 
-    // The override is keyed by id, so both instances collapse to the remapped level.
-    expect($registry->effectiveLevelFor('fake.duplicate', 2))->toBe(0)
+    // The override is keyed by id, so both instances collapse to the remapped severity.
+    expect($registry->effectiveLevelFor('fake.duplicate', Severity::Underspecified))->toBe(Severity::Broken)
         ->and($registry->maxLevel())->toBe(0);
 });
 
-it('floors a negative severity override to zero', function () use ($rule): void {
-    $registry = new RuleRegistry([$rule('fake.rule', 2)], ['fake.rule' => -1]);
+it('floors a negative severity override to the most severe case', function () use ($rule): void {
+    $registry = new RuleRegistry([$rule('fake.rule', Severity::Underspecified)], ['fake.rule' => -1]);
 
-    expect($registry->effectiveLevelFor('fake.rule', 2))->toBe(0);
+    expect($registry->effectiveLevelFor('fake.rule', Severity::Underspecified))->toBe(Severity::Broken);
 });
 
-it('passes a large positive severity override through unchanged', function () use ($rule): void {
-    $registry = new RuleRegistry([$rule('fake.rule', 2)], ['fake.rule' => 999]);
+it('clamps an out-of-range high override to the least severe case', function () use ($rule): void {
+    // The severity space is closed, so a stray high int can no longer suppress a finding by
+    // sitting above every threshold; it surfaces at the least-severe level instead.
+    $registry = new RuleRegistry([$rule('fake.rule', Severity::Underspecified)], ['fake.rule' => 999]);
 
-    expect($registry->effectiveLevelFor('fake.rule', 2))->toBe(999);
+    expect($registry->effectiveLevelFor('fake.rule', Severity::Underspecified))->toBe(Severity::Improvable);
+});
+
+it('keeps spec.invalid exempt from severity overrides', function () use ($rule): void {
+    $registry = new RuleRegistry(
+        [$rule(RuleRegistry::EXEMPT_RULE_ID, Severity::Broken)],
+        [RuleRegistry::EXEMPT_RULE_ID => 4],
+    );
+
+    expect($registry->effectiveLevelFor(RuleRegistry::EXEMPT_RULE_ID, Severity::Broken))
+        ->toBe(Severity::Broken);
 });

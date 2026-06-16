@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
@@ -86,7 +87,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             fn(): ReflectionClass => new ReflectionClass($class),
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'The %s annotation on %s restates a schema the generator already infers; it can be removed.',
                     $shape === AuthoredAnnotationShape::Docblock ? '@OA\Schema docblock' : '#[OA\Schema] attribute',
@@ -113,10 +114,9 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        // Cleanup opportunity, not a spec defect: the document is correct either way.
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\ResponseStatusUnconventional;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
@@ -13,7 +14,7 @@ it('reports its id and level', function (): void {
     $rule = new ResponseStatusUnconventional();
 
     expect($rule->id())->toBe('response.status-unconventional')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it(
@@ -63,7 +64,7 @@ it(
 
         expect($findings)->toHaveCount(1)
             ->and($findings[0]->ruleId)->toBe('response.status-unconventional')
-            ->and($findings[0]->level)->toBe(3)
+            ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
             ->and($findings[0]->message)->toContain($method->forDisplay())
             ->and($findings[0]->message)->toContain($expectedConventional);
     },

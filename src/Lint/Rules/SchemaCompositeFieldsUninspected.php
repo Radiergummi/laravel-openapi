@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
@@ -48,7 +49,7 @@ final class SchemaCompositeFieldsUninspected implements
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Field "%s" is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
                 $field->name,
@@ -64,9 +65,9 @@ final class SchemaCompositeFieldsUninspected implements
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3; // coverage gap, not invalid documentation
+        return Severity::Inconsistent;
     }
 
     /**
@@ -96,7 +97,7 @@ final class SchemaCompositeFieldsUninspected implements
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '%s is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
                 $subject,

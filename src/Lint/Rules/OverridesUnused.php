@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
@@ -55,7 +56,7 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
             $findings->emit(
                 new Finding(
                     ruleId: self::ID,
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: "Override key '{$key}' matched no route name, path URI, or webhook name.",
                     fixHint: 'Fix the route name/glob, or remove the override entry.',
                 ),
@@ -64,8 +65,8 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 }

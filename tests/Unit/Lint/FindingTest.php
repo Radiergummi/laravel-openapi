@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -19,7 +20,7 @@ it('constructs a Finding with required fields and exposes them readonly', functi
 
     $finding = new Finding(
         ruleId: 'response.empty',
-        level: 0,
+        severity: Severity::Broken,
         message: 'No response schema',
         location: $location,
         fixHint: 'Add #[Response].',
@@ -28,7 +29,7 @@ it('constructs a Finding with required fields and exposes them readonly', functi
 
     expect($finding->ruleId)
         ->toBe('response.empty')
-        ->and($finding->level)->toBe(0)
+        ->and($finding->severity)->toBe(Severity::Broken)
         ->and($finding->message)->toBe('No response schema')
         ->and($finding->location)->toBe($location)
         ->and($finding->fixHint)->toBe('Add #[Response].')
@@ -38,7 +39,7 @@ it('constructs a Finding with required fields and exposes them readonly', functi
 it('defaults fixHint to null and context to empty array', function (): void {
     $finding = new Finding(
         ruleId: 'x.y',
-        level: 1,
+        severity: Severity::Degraded,
         message: 'msg',
         location: new FindingLocation(),
     );
@@ -48,7 +49,7 @@ it('defaults fixHint to null and context to empty array', function (): void {
         ->and($finding->context)->toBe([]);
 });
 
-it('withLevel returns a copy with the new level and all other fields preserved', function (): void {
+it('withSeverity returns a copy with the new severity and all other fields preserved', function (): void {
     $location = new FindingLocation(
         file: 'app/Http/Controllers/Foo.php',
         line: 10,
@@ -59,17 +60,17 @@ it('withLevel returns a copy with the new level and all other fields preserved',
 
     $original = new Finding(
         ruleId: 'some.rule',
-        level: 2,
+        severity: Severity::Underspecified,
         message: 'original message',
         location: $location,
         fixHint: 'fix it',
         context: ['key' => 'value'],
     );
 
-    $remapped = $original->withLevel(0);
+    $remapped = $original->withSeverity(Severity::Broken);
 
-    expect($remapped->level)
-        ->toBe(0)
+    expect($remapped->severity)
+        ->toBe(Severity::Broken)
         ->and($remapped->ruleId)->toBe('some.rule')
         ->and($remapped->message)->toBe('original message')
         ->and($remapped->location)->toBe($location)

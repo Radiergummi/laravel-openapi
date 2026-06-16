@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaNullableViaDeprecatedKeyword;
 use Radiergummi\OpenApi\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -34,7 +35,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('schema.nullable-via-deprecated-keyword')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits no finding when field raw does not use nullable keyword', function (): void {
@@ -57,7 +58,7 @@ it('emits a finding when field raw uses deprecated nullable keyword', function (
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.nullable-via-deprecated-keyword')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('UserName')
         ->and($findings[0]->message)->toContain('nullable');
 });

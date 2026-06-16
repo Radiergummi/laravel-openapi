@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -43,7 +44,7 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '%s %s returns a resource collection but no #[ResponseResource] names the item class',
                 $operation->method->forDisplay(),
@@ -60,9 +61,9 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

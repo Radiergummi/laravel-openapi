@@ -13,11 +13,10 @@ For the tree-walk internals (needed only when writing a custom rule), see
 
 ## Severity levels
 
-Each rule carries a numeric level. The scale is an open-ended gradient of
-decreasing severity (lower = more severe), modelled on PHPStan. Levels are
-not fixed categories, and finer levels may be added later. The `--level` flag
-(or `config/openapi.lint.level`) sets the threshold; only rules at or below
-it run.
+Each rule carries one of five fixed severities (lower = more severe). The space
+is closed: stricter linting arrives as more rules slotting into these buckets,
+not as new severity tiers. The `--level` flag (or `config/openapi.lint.level`)
+sets the threshold; only rules at or below it run.
 
 | Level | Name | Meaning |
 |---|---|---|

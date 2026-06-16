@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\ServerVariableUndeclared;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -41,7 +42,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new ServerVariableUndeclared();
 
     expect($rule->id())->toBe('server.variable-undeclared')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits a finding when a template variable has no matching variables entry', function (): void {
@@ -49,7 +50,7 @@ it('emits a finding when a template variable has no matching variables entry', f
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('server.variable-undeclared')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('region');
 });
 

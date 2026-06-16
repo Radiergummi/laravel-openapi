@@ -68,7 +68,7 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
     {
         return new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Parameter name "%s" does not follow the %s naming convention',
                 $name,

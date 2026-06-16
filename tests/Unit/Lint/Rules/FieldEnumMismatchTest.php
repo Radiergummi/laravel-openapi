@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\FieldEnumMismatch;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
@@ -24,7 +25,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('field.enum-mismatch')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits a finding when RequestField enum values do not match BackedEnum cases', function (): void {
@@ -47,7 +48,7 @@ it('emits a finding when RequestField enum values do not match BackedEnum cases'
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.enum-mismatch')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('$mismatched')
         ->and($findings[0]->message)->toContain('missing')
         ->and($findings[0]->message)->toContain('pending');

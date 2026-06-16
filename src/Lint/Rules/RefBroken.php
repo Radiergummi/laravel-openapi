@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Lint\AnnotationWalker;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -54,7 +55,7 @@ final class RefBroken implements Rule, ApiRuleVisitor
             if (!$this->refExists($ref, $componentIndex)) {
                 $findings[] = new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf('Broken $ref "%s": referenced component does not exist', $ref),
                     location: new FindingLocation(jsonPointer: $ref),
                     fixHint: 'Ensure the referenced component is defined under #/components/.',
@@ -112,9 +113,9 @@ final class RefBroken implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]

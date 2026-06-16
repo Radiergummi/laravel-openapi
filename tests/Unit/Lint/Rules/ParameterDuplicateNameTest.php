@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ParameterDuplicateName;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -27,7 +28,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('parameter.duplicate-name')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no finding when all parameters are unique', function (): void {
@@ -57,7 +58,7 @@ it('emits a finding when parameters share the same name', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.duplicate-name')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('filter')
         ->and($findings[0]->message)->toContain('2 times');
 });

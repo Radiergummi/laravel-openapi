@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -18,7 +19,7 @@ it('renders findings as schema-versioned JSON', function (): void {
         new LintResult(findings: [
             new Finding(
                 ruleId: 'response.empty',
-                level: 0,
+                severity: Severity::Broken,
                 message: 'No schema',
                 location: new FindingLocation(file: 'F.php', line: 10, routeName: 'foo'),
                 fixHint: 'Add #[Response].',

@@ -46,7 +46,7 @@ final readonly class OperationIdNamingInconsistent extends AbstractNamingRule im
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Operation ID "%s" on %s %s does not follow the %s naming convention',
                 $operation->operationId,

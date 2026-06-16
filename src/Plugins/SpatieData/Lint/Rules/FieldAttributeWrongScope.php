@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Attributes\PathParam;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -86,7 +87,7 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     '#[PathParam] on %s::$%s applies to URI parameters, not request-body fields',
                     $property->getDeclaringClass()->getName(),
@@ -104,9 +105,9 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     /** @return iterable<Finding> */
@@ -118,7 +119,7 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '#[RequestField] on URI parameter $%s of %s %s applies to request-body fields, not URI parameters',
                 $param->getName(),

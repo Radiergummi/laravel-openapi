@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\SpatieData\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -56,7 +57,7 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '%s::%s() accepts an UploadedFile via a Data object, but %s %s overrides the body to a non-multipart media type — the file field will not transfer',
                 $operation->descriptor->controller?->getShortName() ?? '(unknown)',
@@ -90,9 +91,9 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

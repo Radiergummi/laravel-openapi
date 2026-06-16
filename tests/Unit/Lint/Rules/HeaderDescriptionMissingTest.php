@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\HeaderDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Tree\HeaderNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -27,7 +28,7 @@ function makeHeaderUnderResponse(string $name, ?string $description): HeaderNode
 it('has the correct rule id and level', function (): void {
     $rule = new HeaderDescriptionMissing();
 
-    expect($rule->id())->toBe('header.description-missing')->and($rule->level())->toBe(2);
+    expect($rule->id())->toBe('header.description-missing')->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when a response header has a missing or blank description', function (?string $description): void {
@@ -41,7 +42,7 @@ it('emits a finding when a response header has a missing or blank description', 
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('header.description-missing')
-        ->and($findings[0]->level)->toBe(2)
+        ->and($findings[0]->severity)->toBe(Severity::Underspecified)
         ->and($findings[0]->message)->toContain('X-Request-Id');
 })->with([
     'null'            => [null],

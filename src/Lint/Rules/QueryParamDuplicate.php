@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Attributes\QueryParam;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
@@ -60,7 +61,7 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Query parameter "%s" is declared %d times on %s %s',
                     $name,
@@ -81,10 +82,9 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        // Warning, not error: the spec is valid but the earlier #[QueryParam]'s details are silently dropped.
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -107,7 +108,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             if ($targetSchema === null) {
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf(
                         'Discriminator mapping "%s" on schema "%s" references unknown schema "%s"',
                         $discriminatorValue,
@@ -130,7 +131,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             if (!$this->schemaHasProperty($targetSchema, $propertyName, $schemaMap)) {
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf(
                         'Schema "%s" mapped by discriminator on "%s" does not declare property "%s"',
                         $targetSchemaName,
@@ -178,9 +179,9 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     /**

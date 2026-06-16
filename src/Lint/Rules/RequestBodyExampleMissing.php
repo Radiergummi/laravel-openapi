@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\RequestBodyNode;
@@ -28,7 +29,7 @@ final class RequestBodyExampleMissing implements Rule, RequestBodyRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: 'Request body has no example value',
             fixHint: 'Add an "examples" entry to the requestBody media type to illustrate the expected payload.',
         );
@@ -41,9 +42,9 @@ final class RequestBodyExampleMissing implements Rule, RequestBodyRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

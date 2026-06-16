@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use LogicException;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseEmpty;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -71,7 +72,7 @@ it('flags a response that resolves to the base JsonResource — schema is empty'
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('resource.response-empty')
-        ->and($findings[0]->level)->toBe(1);
+        ->and($findings[0]->severity)->toBe(Severity::Degraded);
 });
 
 it('flags a response that resolves to an empty abstract JsonResource subclass', function (): void {

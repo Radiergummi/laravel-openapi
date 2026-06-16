@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use Override;
 use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
@@ -62,7 +63,7 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        level: $this->level(),
+                        severity: $this->severity(),
                         message: "Response ref '{$ref}' on status {$response->status} cannot be resolved by any registered schema resolver; the response will be emitted without a body schema.",
                         location: FindingLocation::fromDescriptor($descriptor),
                         fixHint: 'Reference a class a registered schema resolver handles, or supply an inline `schema:` instead.',
@@ -85,8 +86,8 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 }

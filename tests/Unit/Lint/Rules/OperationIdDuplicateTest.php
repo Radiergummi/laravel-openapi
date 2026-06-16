@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdDuplicate;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -13,7 +14,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('operation.id-duplicate')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no finding when all operationIds are unique', function (): void {
@@ -48,7 +49,7 @@ it('emits findings for duplicate operationIds', function (): void {
     expect($findings)
         ->toHaveCount(2)
         ->and($findings[0]->ruleId)->toBe('operation.id-duplicate')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('users.index')
         ->and($findings[0]->message)->toContain('2 occurrences')
         ->and($findings[1]->message)->toContain('users.index');

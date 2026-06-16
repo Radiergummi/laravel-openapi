@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -29,9 +30,9 @@ it('stamps CONTEXT_SOURCE_CLASS on findings emitted under a component schema who
         {
             return 'test.field-rule';
         }
-        public function level(): int
+        public function severity(): Severity
         {
-            return 3;
+            return Severity::Inconsistent;
         }
         public function description(): string
         {
@@ -41,7 +42,7 @@ it('stamps CONTEXT_SOURCE_CLASS on findings emitted under a component schema who
         {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'fire on ' . $field->name,
             );
         }
@@ -76,9 +77,9 @@ it('stamps CONTEXT_SOURCE_CLASS from the controller on operation-level findings'
         {
             return 'test.operation-rule';
         }
-        public function level(): int
+        public function severity(): Severity
         {
-            return 1;
+            return Severity::Degraded;
         }
         public function description(): string
         {
@@ -88,7 +89,7 @@ it('stamps CONTEXT_SOURCE_CLASS from the controller on operation-level findings'
         {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'fire',
             );
         }
@@ -121,9 +122,9 @@ it('does not stamp CONTEXT_SOURCE_CLASS on operation-level findings when no cont
         {
             return 'test.operation-rule';
         }
-        public function level(): int
+        public function severity(): Severity
         {
-            return 1;
+            return Severity::Degraded;
         }
         public function description(): string
         {
@@ -133,7 +134,7 @@ it('does not stamp CONTEXT_SOURCE_CLASS on operation-level findings when no cont
         {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'fire',
             );
         }
@@ -166,9 +167,9 @@ it('stamps the controller CONTEXT_SOURCE_CLASS on response-level findings', func
         {
             return 'test.response-rule';
         }
-        public function level(): int
+        public function severity(): Severity
         {
-            return 1;
+            return Severity::Degraded;
         }
         public function description(): string
         {
@@ -178,7 +179,7 @@ it('stamps the controller CONTEXT_SOURCE_CLASS on response-level findings', func
         {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'fire on ' . $response->statusCode,
             );
         }
@@ -211,9 +212,9 @@ it('stamps each operation its own controller for response-level findings (no cro
         {
             return 'test.response-rule';
         }
-        public function level(): int
+        public function severity(): Severity
         {
-            return 1;
+            return Severity::Degraded;
         }
         public function description(): string
         {
@@ -223,7 +224,7 @@ it('stamps each operation its own controller for response-level findings (no cro
         {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'fire',
             );
         }
@@ -260,9 +261,9 @@ it('stamps different CONTEXT_SOURCE_CLASS values for operations from different c
         {
             return 'test.operation-rule';
         }
-        public function level(): int
+        public function severity(): Severity
         {
-            return 1;
+            return Severity::Degraded;
         }
         public function description(): string
         {
@@ -272,7 +273,7 @@ it('stamps different CONTEXT_SOURCE_CLASS values for operations from different c
         {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'fire on ' . $operation->pathUri,
             );
         }

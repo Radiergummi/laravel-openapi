@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ResponseDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -21,7 +22,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('response.description-missing')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits a finding when a response has a missing or blank description', function (?string $description): void {
@@ -35,7 +36,7 @@ it('emits a finding when a response has a missing or blank description', functio
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.description-missing')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('200')
         ->and($findings[0]->message)->toContain('GET');
 })->with([

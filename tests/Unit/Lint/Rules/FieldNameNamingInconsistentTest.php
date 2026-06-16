@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Lint\Rules\FieldNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Tree\FieldNode;
@@ -33,7 +34,7 @@ it('reports its id and level', function (): void {
     $rule = new FieldNameNamingInconsistent();
 
     expect($rule->id())->toBe('field.name-naming-inconsistent')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('default (camel): passes a valid camelCase field name', function (string $name): void {
@@ -54,7 +55,7 @@ it('default (camel): flags non-camelCase field names', function (string $name): 
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.name-naming-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain($name)
         ->and($findings[0]->message)->toContain('camelCase');
 })->with([

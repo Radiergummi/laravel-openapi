@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -32,7 +33,7 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
         if ($this->isEmptyEnum($field->enum)) {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Field "%s" declares an empty enum (enum: []) and is unsatisfiable',
                     $field->name,
@@ -58,9 +59,9 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     /**
@@ -84,7 +85,7 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
         if ($this->isEmptyEnum($enum)) {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Component schema "%s" declares an empty enum (enum: []) and is unsatisfiable',
                     $componentSchema->name,

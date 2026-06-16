@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -56,7 +57,7 @@ final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizabl
             foreach ($nodes as $node) {
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf(
                         'Webhook name "%s" is used %d times across the spec; names must be globally unique',
                         $name,
@@ -76,9 +77,9 @@ final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizabl
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]
