@@ -47,8 +47,8 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
     public function description(): string
     {
         return 'A class carries a class-level #[RawSchema] together with field-level attributes '
-            . '(#[RequestField]/#[ResponseField]/#[ResourceField]); the raw schema replaces the '
-            . 'inferred body wholesale, so the field attributes have no effect.';
+            . '(#[RequestField]/#[ResponseField]); the raw schema replaces the inferred body '
+            . 'wholesale, so the field attributes have no effect.';
     }
 
     /**
@@ -100,7 +100,10 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
         $dead = [];
 
         foreach ($reflection->getProperties() as $property) {
-            $attributes = $property->getAttributes(FieldAttribute::class, ReflectionAttribute::IS_INSTANCEOF);
+            $attributes = $property->getAttributes(
+                FieldAttribute::class,
+                ReflectionAttribute::IS_INSTANCEOF,
+            );
 
             foreach ($attributes as $attribute) {
                 $shortName = new ReflectionClass($attribute->getName())->getShortName();
