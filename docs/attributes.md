@@ -30,7 +30,7 @@ Attach to controller classes or methods.
 | `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. |
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
-| `ResponseFile` | method | yes | Attach a JSON file's contents as the example for a response (primary by default; `status:` targets a specific one). |
+| `ResponseFile` | method | yes | Attach a JSON file's contents as the example for a response (primary by default; `status:` targets a specific one). Path is relative to the project root and must be valid JSON. |
 | `Header` | class, method | yes | Document a custom request header parameter on the operation. |
 | `CookieParam` | class, method | yes | Document a cookie parameter read off the request at runtime (`$request->cookie('…')`). Each instance defines one `in: cookie` parameter; the schema type defaults to `string`. |
 | `ResponseHeader` | class, method | yes | Document a custom response header. Set `status:` to scope to a specific response status (defaults to the primary 2xx). |
