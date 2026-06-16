@@ -32,6 +32,7 @@ beforeEach(function (): void {
     Route::post('/oa-fixture/raw-property-names', [NestedKeywordController::class, 'propertyNames']);
     Route::post('/oa-fixture/raw-contains', [NestedKeywordController::class, 'contains']);
     Route::post('/oa-fixture/raw-discriminator', [NestedKeywordController::class, 'discriminator']);
+    Route::post('/oa-fixture/raw-additional-properties-items-less', [NestedKeywordController::class, 'additionalPropertiesItemsLess']);
     Route::post('/oa-fixture/raw-additional-properties-bool', [NestedKeywordController::class, 'additionalPropertiesBool']);
 });
 
@@ -50,6 +51,16 @@ it('keeps the nested schema under additionalProperties', function (): void {
     expect($component['additionalProperties']['type'])
         ->toBe('array')
         ->and($component['additionalProperties']['items']['type'])->toBe('string');
+});
+
+it('leaves an items-less array under additionalProperties unconverted', function (): void {
+    // These keywords are not built into OA\Schema, so apply()'s items-less-array guard does not
+    // descend; the bare {type: array} survives verbatim. If conversion is ever added, the
+    // synthesised items will make this fail at the boundary.
+    $component = nestedKeywordComponentFor(generateSpec(), '/oa-fixture/raw-additional-properties-items-less');
+
+    expect($component['additionalProperties'])
+        ->toBe(['type' => 'array']);
 });
 
 it('keeps the nested schemas under patternProperties', function (): void {

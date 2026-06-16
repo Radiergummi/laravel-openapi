@@ -33,6 +33,11 @@ class NestedKeywordController extends Controller
         return [];
     }
 
+    public function additionalPropertiesItemsLess(AdditionalPropertiesItemsLessData $payload): array
+    {
+        return [];
+    }
+
     public function additionalPropertiesBool(AdditionalPropertiesBoolData $payload): array
     {
         return [];

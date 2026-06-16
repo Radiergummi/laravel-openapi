@@ -9,7 +9,8 @@ use Spatie\LaravelData\Data;
 
 /**
  * `additionalProperties` as a nested schema object (not a bool). The nested schema is itself an
- * array type, forcing the items-less-array guard to fire on the converted child.
+ * array type. These keywords are not converted to `OA\Schema`, so the nested array is preserved
+ * as a raw array and the items-less-array guard in `apply()` does not descend into it.
  */
 #[RawSchema([
     'type' => 'object',
