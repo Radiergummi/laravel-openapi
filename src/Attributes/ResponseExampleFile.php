@@ -15,7 +15,7 @@ use Attribute;
  * is conventionally bodyless (204/205/304), and when `$status` names no declared response.
  */
 #[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
-final readonly class ResponseFile
+final readonly class ResponseExampleFile
 {
     /**
      * @param non-empty-string $file   Path to the JSON file, relative to the project root.

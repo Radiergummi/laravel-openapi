@@ -22,7 +22,7 @@ use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
 use Radiergummi\OpenApi\Attributes\ResponseExample as ResponseExampleAttribute;
-use Radiergummi\OpenApi\Attributes\ResponseFile as ResponseFileAttribute;
+use Radiergummi\OpenApi\Attributes\ResponseExampleFile as ResponseExampleFileAttribute;
 use Radiergummi\OpenApi\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
@@ -214,7 +214,7 @@ final readonly class OperationBuilder
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
         $responses = [$primaryResponse, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
-        $this->applyResponseFiles($action, $responses, $primaryResponse);
+        $this->applyResponseExampleFiles($action, $responses, $primaryResponse);
         $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
@@ -740,7 +740,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Attaches `#[ResponseFile]` payloads as the singular media-type `example` on a response.
+     * Attaches `#[ResponseExampleFile]` payloads as the singular media-type `example` on a response.
      *
      * `status: null` targets the already-resolved primary response. Files for a status with no
      * matching response are dropped silently; so are files for a conventionally bodyless status
@@ -752,12 +752,12 @@ final readonly class OperationBuilder
      *
      * @throws RuntimeException When a referenced file is missing or not valid JSON.
      */
-    private function applyResponseFiles(
+    private function applyResponseExampleFiles(
         ActionDescriptor $descriptor,
         array $responses,
         OA\Response $primaryResponse,
     ): void {
-        $attributes = $descriptor->actionAttributes(ResponseFileAttribute::class);
+        $attributes = $descriptor->actionAttributes(ResponseExampleFileAttribute::class);
 
         if ($attributes === []) {
             return;

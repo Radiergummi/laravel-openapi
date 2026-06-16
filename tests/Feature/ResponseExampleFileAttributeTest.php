@@ -10,37 +10,37 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Attributes\ResponseExample;
-use Radiergummi\OpenApi\Attributes\ResponseFile;
+use Radiergummi\OpenApi\Attributes\ResponseExampleFile;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use RuntimeException;
 
 uses()->group('openapi');
 
-const RESPONSE_FILE_FIXTURE = 'tests/Fixtures/OpenApi/example_payloads/create_project.json';
+const RESPONSE_EXAMPLE_FILE_FIXTURE = 'tests/Fixtures/OpenApi/example_payloads/create_project.json';
 
-class ResponseFileFixtureController extends Controller
+class ResponseExampleFileFixtureController extends Controller
 {
-    #[ResponseFile(RESPONSE_FILE_FIXTURE)]
+    #[ResponseExampleFile(RESPONSE_EXAMPLE_FILE_FIXTURE)]
     public function primary(): JsonResponse
     {
         return new JsonResponse();
     }
 
     #[Response(status: 422, description: 'Validation failed')]
-    #[ResponseFile(RESPONSE_FILE_FIXTURE, status: 422)]
+    #[ResponseExampleFile(RESPONSE_EXAMPLE_FILE_FIXTURE, status: 422)]
     public function explicitStatus(): JsonResponse
     {
         return new JsonResponse();
     }
 
-    #[ResponseFile('tests/Fixtures/OpenApi/example_payloads/does-not-exist.json')]
+    #[ResponseExampleFile('tests/Fixtures/OpenApi/example_payloads/does-not-exist.json')]
     public function missingFile(): JsonResponse
     {
         return new JsonResponse();
     }
 
-    #[ResponseFile('tests/Fixtures/OpenApi/example_payloads/malformed.json')]
+    #[ResponseExampleFile('tests/Fixtures/OpenApi/example_payloads/malformed.json')]
     public function invalidJson(): JsonResponse
     {
         return new JsonResponse();
@@ -48,13 +48,13 @@ class ResponseFileFixtureController extends Controller
 
     // A declared 204 is conventionally bodyless; the file must not scaffold a JSON body onto it.
     #[Response(status: 204, description: 'No Content')]
-    #[ResponseFile(RESPONSE_FILE_FIXTURE, status: 204)]
+    #[ResponseExampleFile(RESPONSE_EXAMPLE_FILE_FIXTURE, status: 204)]
     public function noContent(): HttpResponse
     {
         return new HttpResponse(status: 204);
     }
 
-    #[ResponseFile(RESPONSE_FILE_FIXTURE, status: 418)]
+    #[ResponseExampleFile(RESPONSE_EXAMPLE_FILE_FIXTURE, status: 418)]
     public function noMatchingStatus(): JsonResponse
     {
         return new JsonResponse();
@@ -63,7 +63,7 @@ class ResponseFileFixtureController extends Controller
     // Both target the 200 response; named examples and a singular example are mutually exclusive
     // on one media type, so the pre-existing named #[ResponseExample] wins and the file is skipped.
     #[ResponseExample(status: 200, name: 'inline', value: ['from' => 'attribute'])]
-    #[ResponseFile(RESPONSE_FILE_FIXTURE)]
+    #[ResponseExampleFile(RESPONSE_EXAMPLE_FILE_FIXTURE)]
     public function collision(): JsonResponse
     {
         return new JsonResponse();
@@ -72,7 +72,7 @@ class ResponseFileFixtureController extends Controller
 
 function responseFileSpec(string $method, string $uri): array
 {
-    Route::get($uri, [ResponseFileFixtureController::class, $method]);
+    Route::get($uri, [ResponseExampleFileFixtureController::class, $method]);
 
     return generateSpec();
 }
@@ -137,9 +137,9 @@ it('skips the file when named examples already occupy the media type', function 
         ->and($media['example'] ?? null)->toBeNull();
 });
 
-it('produces a swagger-php-valid document with a #[ResponseFile] example', function (): void {
-    Route::get('/oa-40/valid-primary', [ResponseFileFixtureController::class, 'primary']);
-    Route::get('/oa-40/valid-collision', [ResponseFileFixtureController::class, 'collision']);
+it('produces a swagger-php-valid document with a #[ResponseExampleFile] example', function (): void {
+    Route::get('/oa-40/valid-primary', [ResponseExampleFileFixtureController::class, 'primary']);
+    Route::get('/oa-40/valid-collision', [ResponseExampleFileFixtureController::class, 'collision']);
 
     $registry = app(SpecRegistry::class);
     $document = app(OpenApiGenerator::class)->generate($registry->default(), app()->environment());
