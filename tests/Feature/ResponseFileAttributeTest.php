@@ -130,7 +130,8 @@ it('skips the file when named examples already occupy the media type', function 
 
     $media = $spec['paths']['/oa-40/collision']['get']['responses']['200']['content']['application/json'];
 
-    // The named example stays; the singular example is not set, so validate() stays happy.
+    // The named example stays; the toBeNull assertion is the real mutual-exclusivity guard
+    // (swagger-php's validate() does not reject example + examples co-emission on its own).
     expect($media['examples'])
         ->toHaveKey('inline')
         ->and($media['example'] ?? null)->toBeNull();

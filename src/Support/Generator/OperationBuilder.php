@@ -784,7 +784,9 @@ final readonly class OperationBuilder
             $content = $response->content;
 
             if (!is_array($content) || $content === []) {
-                // A bodyless status must not gain a JSON body just to carry an example.
+                // A bodyless status must not gain a JSON body just to carry an example. The set is
+                // inlined deliberately: the canonical list is a private Lint-layer detail, and
+                // Support must not depend on Lint.
                 if (in_array((int) $response->response, [204, 205, 304], true)) {
                     continue;
                 }
