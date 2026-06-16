@@ -44,12 +44,12 @@ it('explains a globally-filtered route as filtered, not as not-found', function 
     app()->forgetScopedInstances();
 
     // The route is discovered (discover() stays unfiltered) and explained as excluded by the
-    // global filter, never reported as not-found. The summary assertion already names the filter
-    // class, so a separate bare class-name assertion would be redundant.
+    // global filter, never reported as not-found. Both fragments include the filter class so the
+    // stage label and the summary wording are each pinned, not loosely matched.
     $this
         ->artisan('openapi:why api/v1/flights')
         ->expectsOutputToContain('Route:')
-        ->expectsOutputToContain('global-filter')
+        ->expectsOutputToContain('global-filter ' . FlightsRouteFilter::class)
         ->expectsOutputToContain('excluded by global filter ' . FlightsRouteFilter::class)
         ->assertSuccessful();
 });
