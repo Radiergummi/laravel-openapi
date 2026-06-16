@@ -265,10 +265,7 @@ final readonly class InlineJsonCallReader
     {
         return array_find(
             $arguments,
-            fn(
-                $argument,
-                $index,
-            )
+            fn(Arg $argument, int $index): bool
                 => $argument->name === null ? $index === $position : $argument->name->toString() === $name,
         );
     }
@@ -282,7 +279,6 @@ final readonly class InlineJsonCallReader
     {
         $dataArgument = $this->argument($arguments, 'data', self::DATA_ARGUMENT_POSITION);
 
-        // Absent argument == empty body; readable but no shape to document.
         if ($dataArgument === null) {
             return [null, true, null];
         }

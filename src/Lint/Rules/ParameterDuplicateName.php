@@ -24,7 +24,7 @@ final class ParameterDuplicateName implements Rule, OperationRuleVisitor
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $names = array_map(static fn($param): string => $param->name, $operation->parameters);
+        $names = array_map(static fn(\Radiergummi\OpenApi\Lint\Tree\ParameterNode $param): string => $param->name, $operation->parameters);
 
         $counts = array_count_values($names);
 

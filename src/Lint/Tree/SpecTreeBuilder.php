@@ -849,7 +849,7 @@ final class SpecTreeBuilder
         return array_values(
             array_filter(
                 $tags,
-                static fn($tag): bool => is_string($tag),
+                static fn(mixed $tag): bool => is_string($tag),
             ),
         );
     }

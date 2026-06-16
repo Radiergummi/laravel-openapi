@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Plugins\Core\Support\RequestFieldObjectBuilder;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
+use ReflectionAttribute;
 use ReflectionMethod;
 
 use function array_map;
@@ -63,7 +64,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         }
 
         $variants = array_map(
-            static fn($attribute): RequestVariant => $attribute->newInstance(),
+            static fn(ReflectionAttribute $attribute): RequestVariant => $attribute->newInstance(),
             $method->getAttributes(RequestVariant::class),
         );
 

@@ -280,7 +280,7 @@ final class TypeNodeResolver
 
         if (($node instanceof UnionTypeNode) && array_any(
             $node->types,
-            fn(TypeNode $member)
+            fn(TypeNode $member): bool
                     => $member instanceof IdentifierTypeNode
                     && strtolower($member->name) === 'null',
         )) {

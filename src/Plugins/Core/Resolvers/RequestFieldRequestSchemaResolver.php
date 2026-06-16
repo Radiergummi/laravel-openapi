@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Plugins\Core\Support\RequestFieldObjectBuilder;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
+use ReflectionAttribute;
 use ReflectionMethod;
 
 use function array_map;
@@ -50,7 +51,8 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
         }
 
         $fields = array_map(
-            static fn($attribute): RequestField => $attribute->newInstance(),
+            /** @param ReflectionAttribute<RequestField> $attribute */
+            static fn(ReflectionAttribute $attribute): RequestField => $attribute->newInstance(),
             $attributes,
         );
 

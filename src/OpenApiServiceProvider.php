@@ -66,10 +66,6 @@ use function sprintf;
 
 /**
  * Registers and wires all OpenAPI pipeline services.
- *
- * Everything is bound as `scoped` so Octane resets state between requests. Classes with
- * fully container-resolvable constructors use `#[Scoped]` and self-register; this provider
- * only handles bindings that need explicit closures.
  */
 class OpenApiServiceProvider extends ServiceProvider
 {
@@ -218,7 +214,7 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->app->scoped(DocBlockParser::class, static fn(): DocBlockParser => DocBlockParser::create());
         $this->app->scoped(TypeNodeResolver::class, static fn(): TypeNodeResolver => TypeNodeResolver::create());
 
-        $this->app->scoped(TypeResolver::class, static fn() => TypeResolver::create());
+        $this->app->scoped(TypeResolver::class, static fn(): TypeResolver => TypeResolver::create());
     }
 
     /**
@@ -512,7 +508,7 @@ class OpenApiServiceProvider extends ServiceProvider
         // FilePropertyChecker is implemented by SchemaFromDataClass; reuse the same instance.
         $this->app->scoped(
             Plugins\SpatieData\Support\FilePropertyChecker::class,
-            static fn(Container $app) => $app->make(Plugins\SpatieData\Support\SchemaFromDataClass::class),
+            static fn(Container $app): Plugins\SpatieData\Support\SchemaFromDataClass => $app->make(Plugins\SpatieData\Support\SchemaFromDataClass::class),
         );
     }
 

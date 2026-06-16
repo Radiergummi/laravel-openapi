@@ -17,9 +17,8 @@ use function array_intersect;
 use function array_map;
 
 /**
- * Reports routes whose effective #[Spec] list resolves to no declared spec (i.e., every
- * name they reference is unknown). Such routes are silently excluded from every
- * spec at generation time.
+ * Reports routes whose effective #[Spec] list resolves to no declared spec. Such routes are
+ * silently excluded from every spec at generation time.
  *
  * Uses {@see SpecResolver} so the route's effective name set matches what the
  * generator sees (method-level #[Spec] shadows class-level).
@@ -48,7 +47,7 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
         array $descriptors,
         FindingsCollector $findings,
     ): void {
-        $known = array_map(static fn($s) => $s->name, $specs->all());
+        $known = array_map(static fn(\Radiergummi\OpenApi\Support\Spec\SpecDefinition $s): string => $s->name, $specs->all());
 
         foreach ($descriptors as $descriptor) {
             $names = $this->resolver->resolve($descriptor->controller, $descriptor->method);

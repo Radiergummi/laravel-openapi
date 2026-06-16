@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Override;
 use PhpParser\Node;
+use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt;
@@ -202,7 +203,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     {
         $argument = array_find(
             $call->getArgs(),
-            static fn($arg, $index) => $arg->name === null ? $index === 0 : $arg->name->toString() === 'status',
+            static fn(Arg $arg, int $index): bool => $arg->name === null ? $index === 0 : $arg->name->toString() === 'status',
         );
 
         if ($argument === null) {
@@ -374,7 +375,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     {
         $statusArgument = array_find(
             $call->getArgs(),
-            static fn($arg, $index) => $arg->name === null ? $index === 1 : $arg->name->toString() === 'status',
+            static fn(Arg $arg, int $index): bool => $arg->name === null ? $index === 1 : $arg->name->toString() === 'status',
         );
 
         if ($statusArgument !== null) {

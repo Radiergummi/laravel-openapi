@@ -53,7 +53,7 @@ final class PayloadParameterScanner
     {
         return array_find(
             $this->candidates($method),
-            fn(string $class) => is_a($class, $base, allow_string: true),
+            fn(string $class): bool => is_a($class, $base, allow_string: true),
         );
     }
 

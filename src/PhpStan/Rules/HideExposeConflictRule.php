@@ -79,7 +79,7 @@ final class HideExposeConflictRule implements Rule
      */
     private static function firstUnconditional(array $attributes): ?Node\Attribute
     {
-        return array_find($attributes, fn($attribute)
+        return array_find($attributes, fn(Node\Attribute $attribute): bool
             => !AttributeHelpers::argumentIsProvided($attribute, 'only')
             && !AttributeHelpers::argumentIsProvided($attribute, 'except'));
     }

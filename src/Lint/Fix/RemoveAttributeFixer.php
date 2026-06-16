@@ -317,7 +317,7 @@ final readonly class RemoveAttributeFixer implements Fixer
 
     private function findMethod(ClassLike $class, string $member): ?ClassMethod
     {
-        return array_find($class->getMethods(), fn($method) => strcasecmp($method->name->toString(), $member) === 0);
+        return array_find($class->getMethods(), fn(ClassMethod $method): bool => strcasecmp($method->name->toString(), $member) === 0);
     }
 
     /**
@@ -343,7 +343,7 @@ final readonly class RemoveAttributeFixer implements Fixer
 
         return array_find(
             $constructor->params,
-            fn($param) => $param->var instanceof Node\Expr\Variable && $param->var->name === $member,
+            fn(Param $param): bool => $param->var instanceof Node\Expr\Variable && $param->var->name === $member,
         );
     }
 

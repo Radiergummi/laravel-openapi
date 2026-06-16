@@ -34,6 +34,7 @@
         "pestphp/pest-plugin-arch": "^3.0 || ^4.0",
         "pestphp/pest-plugin-laravel": "^3.2.0 || ^4.1.0",
         "phpstan/phpstan": "^2.1",
+        "rector/rector": "^2.0",
         "spatie/laravel-data": "^4.23.0",
         "spatie/laravel-fractal": "^6.4.0",
         "spatie/laravel-query-builder": "^7.3.0"
@@ -86,6 +87,9 @@
         "fmt": "@format",
         "lint": "phpstan analyse --memory-limit=4G",
         "analyse": "@lint",
+        "rector": "rector",
+        "rector:check": "@rector --dry-run",
+        "type-gaps": "@php tools/find-missing-type-hints.php src",
         "check": [
             "@format:check",
             "@lint",

@@ -18,8 +18,6 @@ use RuntimeException;
 use function spl_object_id;
 
 /**
- * Drives `openapi:lint --fix` / `--check`.
- *
  * Runs a normal lint, collects edits from every {@see FixableRule}'s {@see Fixer}, and applies
  * them as a single batch via {@see FixApplicator}. A finding is fixed only when all its edits
  * survive conflict resolution; dropped edits leave their finding in the remaining set.
@@ -112,6 +110,6 @@ final readonly class FixRunner
             return false;
         }
 
-        return array_all($fixes, fn($fix) => isset($appliedIds[spl_object_id($fix)]));
+        return array_all($fixes, fn(Fix $fix): bool => isset($appliedIds[spl_object_id($fix)]));
     }
 }

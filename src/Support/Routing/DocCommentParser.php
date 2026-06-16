@@ -37,7 +37,7 @@ final class DocCommentParser
         $allLines = Str::of($comment)
             ->explode("\n")
             ->slice(1, -1)
-            ->map(fn(string $line) => ltrim($line, ' *'))
+            ->map(fn(string $line): string => ltrim($line, ' *'))
             ->all();
 
         $lines = array_values(

@@ -25,7 +25,7 @@ final class SpecTimeRoute extends Route
      * @param null|object|string $default
      */
     #[Override]
-    public function parameter($name, $default = null): AnyValue
+    public function parameter(mixed $name, mixed $default = null): AnyValue
     {
         return AnyValue::instance();
     }
@@ -34,7 +34,7 @@ final class SpecTimeRoute extends Route
      * @param string $name
      */
     #[Override]
-    public function hasParameter($name): bool
+    public function hasParameter(mixed $name): bool
     {
         return true;
     }

@@ -227,7 +227,7 @@ final class CliFormatter implements Formatter
     {
         $lines = explode(PHP_EOL, wordwrap($text, min(120, terminal()->width()) - strlen($prefix)));
 
-        return implode(PHP_EOL, array_map(static fn(string $line) => $prefix . $line, $lines));
+        return implode(PHP_EOL, array_map(static fn(string $line): string => $prefix . $line, $lines));
     }
 
     /** When grouped by file, omits the path (already in the header) and shows only line + route. */

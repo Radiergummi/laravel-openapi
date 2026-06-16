@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
+use Radiergummi\OpenApi\Lint\Tree\HeaderNode;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
 use Radiergummi\OpenApi\Lint\Visitors\ResponseRule as ResponseRuleVisitor;
 
@@ -29,7 +30,7 @@ final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
             return;
         }
 
-        if (array_any($response->headers, fn($header) => strtolower($header->name) === 'location')) {
+        if (array_any($response->headers, fn(HeaderNode $header): bool => strtolower($header->name) === 'location')) {
             return;
         }
 
