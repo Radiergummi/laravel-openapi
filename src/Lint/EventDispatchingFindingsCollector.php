@@ -10,25 +10,14 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Events\LintFindingEmitted;
-use Radiergummi\OpenApi\OpenApiServiceProvider;
 use Throwable;
 
 /**
- * Decorator that dispatches {@see LintFindingEmitted} for every emitted finding before
- * delegating to the wrapped collector.
+ * Decorator that dispatches {@see LintFindingEmitted} before delegating to the wrapped collector.
  *
- * The bound {@see FindingsCollector} implementation; keeps the concrete collectors (logging,
- * in-memory) single-purpose and free of an event-dispatcher dependency. The dispatch is gated
- * on {@see Dispatcher::hasListeners()} so the per-finding cost is a single hash lookup when no
- * listener is registered.
- *
- * The {@see FindingsCollector} interface is mapped to this class via an explicit `scoped()`
- * alias in {@see OpenApiServiceProvider} (Testbench's `LoadConfiguration` skips the bootstrap
- * step `#[Bind]` depends on, so the attribute isn't viable here). The `#[Give]` annotation on
- * `$inner` pins the wrapped collector to {@see LoggingFindingsCollector}, which breaks the
- * would-be resolution cycle (resolving FindingsCollector → this class → FindingsCollector
- * inner). {@see LintRunner} still constructs this class manually with an
- * {@see ArrayFindingsCollector} inner during a lint run.
+ * Dispatch is gated on {@see Dispatcher::hasListeners()} to avoid overhead when unused. The
+ * `#[Give]` attribute pins `$inner` to {@see LoggingFindingsCollector}, breaking the resolution
+ * cycle caused by this class also implementing `FindingsCollector`.
  */
 #[Scoped]
 final readonly class EventDispatchingFindingsCollector implements FindingsCollector
@@ -43,8 +32,7 @@ final readonly class EventDispatchingFindingsCollector implements FindingsCollec
     #[Override]
     public function emit(Finding $finding): void
     {
-        // A host-app listener throwing must not abort the lint run and discard the findings
-        // collected so far — isolate it and log, then keep collecting.
+        // Isolate listener exceptions so a throwing listener cannot abort the lint run.
         if ($this->events->hasListeners(LintFindingEmitted::class)) {
             try {
                 $this->events->dispatch(new LintFindingEmitted($finding));

@@ -35,11 +35,11 @@ instances are resolved from the container when the pipeline runs.
 |---|---|---|
 | `addErrorResponseContributor(string $class)` | An inference source for error responses; called per operation, returns `ErrorDescriptor`s | `ErrorResponseContributor` |
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
-| `addOperationConventionResolver(string $class)` | An operation-level convention resolver (e.g. resourceful-action success codes and summaries derived from Tier-0 signals) | `OperationConventionResolver` |
+| `addOperationConventionResolver(string $class)` | An operation-level convention resolver (e.g., resourceful-action success codes and summaries derived from Tier-0 signals) | `OperationConventionResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
 | `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
 | `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
-| `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g. a DTO or resource) | `RefSchemaResolver` |
+| `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g., a DTO or resource) | `RefSchemaResolver` |
 | `addRequestSchemaResolver(string $class)` | A request-body schema builder | `RequestSchemaResolver` |
 | `addRule(string $class)` | A lint rule | `Contracts\Lint\Rule` + one or more visitor interfaces |
 | `addStage(string $class)` | A document-level pipeline stage. Plugin stages run after the pre-plugin baseline stages and before the post-plugin flush + terminal stages (see `SpecStage` below) | `Contracts\Generator\SpecStage` |
@@ -318,7 +318,7 @@ is only needed for standalone schema construction in tests.
 The canonical entry point is `buildOnce($className, fn(): OA\Schema => …)`.
 It reserves a component key for the class, calls the factory if no schema is
 registered yet, stores the result, and returns the qualified component key
-(e.g. `#/components/schemas/MyDto`) suitable for use as a `$ref`. Two related
+(e.g., `#/components/schemas/MyDto`) suitable for use as a `$ref`. Two related
 public methods:
 
 - `keyFor(string $className): ?string` — look up the component key for an

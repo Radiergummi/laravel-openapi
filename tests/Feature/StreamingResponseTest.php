@@ -31,7 +31,7 @@ class StreamingWithSchemaOrderedController extends Controller
         schema: [
             'type' => 'object',
             'properties' => [
-                'type'    => ['type' => 'string', 'enum' => ['match', 'done']],
+                'type' => ['type' => 'string', 'enum' => ['match', 'done']],
                 'payload' => ['type' => 'object'],
             ],
         ],
@@ -64,23 +64,28 @@ class NonStreamingController extends Controller
 
 // region OAPI-024: #[Response(status: 200, mediaType: 'text/event-stream', schema: [...])]
 
-it('OAPI-024: explicit Response attribute with text/event-stream mediaType and schema overrides auto-detection', function (): void {
-    Route::get('/oa-024/stream-with-schema', [StreamingWithSchemaOrderedController::class, 'stream']);
+it(
+    'OAPI-024: explicit Response attribute with text/event-stream mediaType and schema overrides auto-detection',
+    function (): void {
+        Route::get('/oa-024/stream-with-schema', [StreamingWithSchemaOrderedController::class, 'stream']);
 
-    $spec = generateSpec();
+        $spec = generateSpec();
 
-    $response = $spec['paths']['/oa-024/stream-with-schema']['get']['responses']['200'] ?? null;
+        $response = $spec['paths']['/oa-024/stream-with-schema']['get']['responses']['200'] ?? null;
 
-    expect($response)->not->toBeNull()
-        ->and($response['description'])->toBe('Server-Sent Events — one JSON object per line')
-        ->and($response['content'])->toHaveKey('text/event-stream');
+        expect($response)->not
+            ->toBeNull()
+            ->and($response['description'])->toBe('Server-Sent Events — one JSON object per line')
+            ->and($response['content'])->toHaveKey('text/event-stream');
 
-    $schema = $response['content']['text/event-stream']['schema'] ?? null;
+        $schema = $response['content']['text/event-stream']['schema'] ?? null;
 
-    expect($schema)->not->toBeNull()
-        ->and($schema['type'])->toBe('object')
-        ->and($schema['properties']['type']['enum'])->toBe(['match', 'done']);
-});
+        expect($schema)->not
+            ->toBeNull()
+            ->and($schema['type'])->toBe('object')
+            ->and($schema['properties']['type']['enum'])->toBe(['match', 'done']);
+    },
+);
 
 // endregion
 

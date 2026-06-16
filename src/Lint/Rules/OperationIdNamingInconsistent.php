@@ -16,11 +16,9 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use function sprintf;
 
 /**
- * Reports operation IDs that do not follow the configured naming convention.
- *
- * The expected casing is injected via {@see IdentifierCase} and defaults to {@see IdentifierCase::Dot}
- * (e.g. `api.v0.projects.index`). Operations without an operationId are skipped — that is caught
- * by `operation.id-missing`.
+ * Reports operation IDs that do not follow the configured naming convention. Defaults to
+ * {@see IdentifierCase::Dot} (e.g., `api.v0.projects.index`). Operations without an
+ * operationId are skipped (caught by `operation.id-missing`).
  */
 #[Scoped]
 final readonly class OperationIdNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpInheritance;
 
 use Illuminate\Routing\Controller;
-use OpenApi\Annotations as OA;
 
 /**
  * Test fixture — the `@OA\Get` operation is authored on this **parent** method; the routed

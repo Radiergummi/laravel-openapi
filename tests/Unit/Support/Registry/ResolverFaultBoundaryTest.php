@@ -26,22 +26,24 @@ function faultBoundaryDescriptor(string $uri = 'widgets/{id}'): ActionDescriptor
 // region Success passthrough
 
 it('returns the callable result when nothing is thrown', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $boundary = new ResolverFaultBoundary($logger);
 
     $result = $boundary->isolate('SomeResolver', faultBoundaryDescriptor(), fn(): string => 'ok');
 
-    expect($result)->toBe('ok')
+    expect($result)
+        ->toBe('ok')
         ->and($logger->records)->toBe([]);
 });
 
 it('passes through a null result without logging', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $boundary = new ResolverFaultBoundary($logger);
 
     $result = $boundary->isolate('SomeResolver', faultBoundaryDescriptor(), fn(): ?string => null);
 
-    expect($result)->toBeNull()
+    expect($result)
+        ->toBeNull()
         ->and($logger->records)->toBe([]);
 });
 
@@ -50,7 +52,7 @@ it('passes through a null result without logging', function (): void {
 // region Exception isolation
 
 it('returns null and logs a warning with route + resolver context when an Exception is thrown', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $boundary = new ResolverFaultBoundary($logger);
 
     $result = $boundary->isolate(
@@ -59,19 +61,21 @@ it('returns null and logs a warning with route + resolver context when an Except
         fn(): string => throw new RuntimeException('boom'),
     );
 
-    expect($result)->toBeNull()
+    expect($result)
+        ->toBeNull()
         ->and($logger->records)->toHaveCount(1);
 
     $record = $logger->records[0];
 
-    expect($record['level'])->toBe('warning')
+    expect($record['level'])
+        ->toBe('warning')
         ->and($record['message'])->toContain('My\\Failing\\Resolver')
         ->and($record['message'])->toContain('orders/{order}')
         ->and($record['message'])->toContain('boom');
 });
 
 it('isolates a ReflectionException', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $boundary = new ResolverFaultBoundary($logger);
 
     $result = $boundary->isolate(
@@ -80,7 +84,8 @@ it('isolates a ReflectionException', function (): void {
         fn(): string => throw new ReflectionException('missing'),
     );
 
-    expect($result)->toBeNull()
+    expect($result)
+        ->toBeNull()
         ->and($logger->records)->toHaveCount(1);
 });
 
@@ -89,27 +94,29 @@ it('isolates a ReflectionException', function (): void {
 // region Programming errors propagate
 
 it('lets a TypeError propagate instead of swallowing it', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $boundary = new ResolverFaultBoundary($logger);
 
-    expect(fn(): mixed => $boundary->isolate(
-        'R',
-        faultBoundaryDescriptor(),
-        fn(): string => throw new TypeError('logic bug'),
-    ))->toThrow(TypeError::class);
+    expect(fn(): mixed
+        => $boundary->isolate(
+            'R',
+            faultBoundaryDescriptor(),
+            fn(): string => throw new TypeError('logic bug'),
+        ))->toThrow(TypeError::class);
 
     expect($logger->records)->toBe([]);
 });
 
 it('lets a generic Error propagate', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $boundary = new ResolverFaultBoundary($logger);
 
-    expect(fn(): mixed => $boundary->isolate(
-        'R',
-        faultBoundaryDescriptor(),
-        fn(): string => throw new Error('fatal'),
-    ))->toThrow(Error::class);
+    expect(fn(): mixed
+        => $boundary->isolate(
+            'R',
+            faultBoundaryDescriptor(),
+            fn(): string => throw new Error('fatal'),
+        ))->toThrow(Error::class);
 });
 
 // endregion

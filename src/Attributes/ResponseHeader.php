@@ -8,7 +8,7 @@ use Attribute;
 
 /**
  * Documents an HTTP response header. Repeatable; `status` scopes the header to a matching
- * response (dropped silently if none). Class-level placement applies to every action — useful
+ * response (dropped silently if none). Class-level placement applies to every action, useful
  * for shared headers like `X-Request-Id`. Method-level wins on `(status, name)` collision.
  * For request headers, use {@see Header}.
  */

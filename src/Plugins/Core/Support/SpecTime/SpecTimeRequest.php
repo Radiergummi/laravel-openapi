@@ -16,7 +16,7 @@ use Throwable;
 /**
  * Instantiates a {@see FormRequest} subclass with a permissive route + user context for spec-time
  * introspection. Lets `rules()` bodies that read `$this->route('foo')->bar` or `$this->user()`
- * run to completion — both resolve to {@see AnyValue}, whose magic-method paths terminate any
+ * run to completion. Both resolve to {@see AnyValue}, whose magic-method paths terminate any
  * chained access without throwing.
  *
  * The schema generator only reads the rules array's structure (keys, types, required, file
@@ -46,16 +46,9 @@ final class SpecTimeRequest
     }
 
     /**
-     * Resolves a class's constructor parameter list against the container so the result can be
-     * splatted into `new $class(...$args)`. Used by {@see wire()} to handle FormRequests with
-     * typed constructor dependencies (a valid Laravel pattern — the framework injects them at
-     * request time via the container).
-     *
-     * Going through the container directly via `$container->make($class)` is not viable for
-     * FormRequests because `FormRequestServiceProvider` registers an `afterResolving` callback
-     * that runs `validateResolved()`, which fires the validator pipeline and throws at spec time
-     * (no HTTP input). Resolving each constructor arg separately and then `new`ing the class
-     * bypasses that callback while still satisfying constructor DI.
+     * Avoids `$container->make($class)` directly: that triggers `FormRequestServiceProvider`'s
+     * `afterResolving` callback, which fires `validateResolved()` and throws at spec time.
+     * Args are resolved individually and splatted into `new $class(...$args)` instead.
      *
      * @param class-string $class
      *
@@ -103,9 +96,8 @@ final class SpecTimeRequest
     }
 
     /**
-     * Configures the given FormRequest instance with permissive route + user resolvers in place.
-     * Use when the caller already holds a class-string-narrowed instance and {@see wire()}'s
-     * generic return would erase that narrowing.
+     * Installs permissive route and user resolvers. Call directly when the caller holds a
+     * narrowed instance and {@see wire()}'s generic return would erase the type.
      */
     public static function configure(FormRequest $instance): void
     {

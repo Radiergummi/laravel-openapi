@@ -14,9 +14,9 @@ beforeEach(function (): void {
 });
 
 dataset('envelopes', [
-    'none'     => ['none', null, null],
-    'laravel'  => ['laravel', 'application/json', 'Error'],
-    'rfc7807'  => ['rfc7807', 'application/problem+json', 'Problem'],
+    'none' => ['none', null, null],
+    'laravel' => ['laravel', 'application/json', 'Error'],
+    'rfc7807' => ['rfc7807', 'application/problem+json', 'Problem'],
     'json-api' => ['json-api', 'application/vnd.api+json', 'ErrorDocument'],
 ]);
 
@@ -42,7 +42,7 @@ it('renders the configured envelope on error responses', function (
     assert($preset === 'laravel' || $preset === 'rfc7807' || $preset === 'json-api');
 
     // When a resolver produces a body, responses are inlined per-operation to avoid
-    // first-write-wins collisions on shared components (e.g. two operations at 422
+    // first-write-wins collisions on shared components (e.g., two operations at 422
     // with different resolver outputs). Look up the inline path on the operation.
     $operation = $spec['paths']['/widgets/{id}']['get'];
 
@@ -65,8 +65,8 @@ it('renders the configured envelope on error responses', function (
 
     // laravel and rfc7807 use specialized validation schemas; json-api uses uniform ref
     $expectedValidationSchemaKey = match ($preset) {
-        'laravel'  => 'ValidationError',
-        'rfc7807'  => 'ValidationProblem',
+        'laravel' => 'ValidationError',
+        'rfc7807' => 'ValidationProblem',
         'json-api' => 'ErrorDocument',
     };
     expect($validationSchema['$ref'])->toBe('#/components/schemas/' . $expectedValidationSchemaKey);
@@ -81,8 +81,8 @@ it('renders the configured envelope on error responses', function (
 
     // Generic non-validation errors use the preset's base schema
     $expectedNotFoundSchemaKey = match ($preset) {
-        'laravel'  => 'Error',
-        'rfc7807'  => 'Problem',
+        'laravel' => 'Error',
+        'rfc7807' => 'Problem',
         'json-api' => 'ErrorDocument',
     };
     expect($notFoundSchema['$ref'])->toBe('#/components/schemas/' . $expectedNotFoundSchemaKey);

@@ -19,7 +19,7 @@ use function sprintf;
 /**
  * Reports root-level tag names that do not follow the configured naming convention.
  *
- * Tags are typically derived from controller class names (e.g. `Posts`, `Users`),
+ * Tags are typically derived from controller class names (e.g., `Posts`, `Users`),
  * so the default convention is {@see IdentifierCase::Pascal}.
  */
 #[Scoped]

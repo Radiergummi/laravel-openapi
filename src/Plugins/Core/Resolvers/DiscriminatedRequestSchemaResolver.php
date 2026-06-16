@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Plugins\Core\Support\RequestFieldObjectBuilder;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
+use ReflectionAttribute;
 use ReflectionMethod;
 
 use function array_map;
@@ -29,16 +30,14 @@ use function preg_replace;
 use function ucfirst;
 
 /**
- * Builds a discriminated (`oneOf` + `discriminator`) request body from a method-level
- * `#[RequestBody(discriminator: '…')]` plus repeatable `#[RequestVariant]`s. Each variant becomes
- * one branch — an inline object built from `#[RequestField]`s, or a class-string resolved through
- * the ref-resolver chain (Task 4). Registered ahead of the flat request-field/FormRequest
- * resolvers; defers (returns null) when the method carries no discriminator.
+ * Builds a discriminated (`oneOf` + `discriminator`) request body from
+ * `#[RequestBody(discriminator: '…')]` plus `#[RequestVariant]`s.
+ * Defers (returns null) when the method carries no discriminator.
  */
 final readonly class DiscriminatedRequestSchemaResolver implements RequestSchemaResolver
 {
     /**
-     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy chain consulted for class-string branches.
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers
      */
     public function __construct(
         private ComponentSchemaRegistry $registry,
@@ -65,7 +64,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         }
 
         $variants = array_map(
-            static fn($attribute): RequestVariant => $attribute->newInstance(),
+            static fn(ReflectionAttribute $attribute): RequestVariant => $attribute->newInstance(),
             $method->getAttributes(RequestVariant::class),
         );
 
@@ -85,8 +84,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
 
         $wrapperKey = $this->wrapperKey($method);
 
-        // Seed with the wrapper key so any branch that would produce the same component key is
-        // detected as a collision and emits a finding instead of silently clobbering the wrapper.
+        // Pre-seed with the wrapper key to detect branch key collisions with the wrapper itself.
         $usedBranchKeys = [$wrapperKey => true];
 
         foreach ($variants as $variant) {
@@ -189,8 +187,6 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
     }
 
     /**
-     * Walks the ref-resolver chain and returns the first matching `$ref` string, or null.
-     *
      * @param class-string $class
      */
     private function resolveClassRef(string $class): ?string
@@ -230,8 +226,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
             }
         }
 
-        // Auto-inject the discriminator property as a single-value enum string — author override
-        // wins, so only inject when the branch does not already declare it.
+        // Inject the discriminator property as a single-value enum unless the branch already declares it.
         if (!$hasDiscriminator) {
             array_unshift(
                 $fields,

@@ -8,12 +8,14 @@ namespace Radiergummi\OpenApi\Lint\Fix;
 /**
  * Outcome of a {@see FixApplicator::apply()} run.
  *
- * `$applied` are the fixes that were written (or, in dry-run, that would be written); `$skipped`
- * are fixes dropped because they overlapped an already-applied edit in the same file; and
- * `$modifiedFiles` lists the distinct paths touched.
+ * `$skipped` fixes were dropped due to overlap with an already-applied edit in the same file.
  */
 final class FixResult
 {
+    public bool $hasChanges {
+        get => $this->applied !== [];
+    }
+
     /**
      * @param list<Fix>    $applied
      * @param list<Fix>    $skipped
@@ -24,11 +26,4 @@ final class FixResult
         public readonly array $skipped,
         public readonly array $modifiedFiles,
     ) {}
-
-    /**
-     * Whether any fix was (or would be) applied.
-     */
-    public bool $hasChanges {
-        get => $this->applied !== [];
-    }
 }

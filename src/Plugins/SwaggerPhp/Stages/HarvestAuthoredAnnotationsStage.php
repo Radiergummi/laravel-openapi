@@ -30,22 +30,11 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Merges the hand-authored swagger-php annotations a host app already wrote into the generated
- * document, without taking over the operation skeleton the library inferred from routes.
- *
- * For each generated operation it either:
- *
- *  - copies the matching authored operation's `@OA\Response`s onto the operation (authored wins
- *    per status code; inferred responses for other statuses are kept), or
- *  - when the return type resolves to a class carrying an authored `#[OA\Schema]` / `@OA\Schema`
- *    and the operation has no response body yet, attaches that schema as the `200` body.
- *
- * Every referenced authored schema is registered into the shared {@see ComponentSchemaRegistry}
- * (transitively, under its exact authored name via {@see ComponentSchemaRegistry::registerNamed()}),
- * so the post-plugin `ComponentsStage` flush picks them up like any other contributor's schemas — no
- * direct document writes, O(1) dedup, and schema-transformer dispatch for free. A response
- * referencing a schema that cannot be resolved is skipped and logged rather than emitted as a
- * dangling `$ref`.
+ * Merges hand-authored swagger-php annotations into the generated document. Per operation it either
+ * merges authored responses (authored wins per status code) or, when the return type carries an
+ * authored schema and no response body exists yet, attaches that schema as the 200 body. Referenced
+ * schemas are registered into {@see ComponentSchemaRegistry} so the post-plugin flush picks them up
+ * like any other contributor; responses with unresolvable schema refs are skipped and logged.
  *
  * @internal
  */
@@ -112,9 +101,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Copies the authored operation's prose/metadata and responses onto the generated operation.
-     * Responses merge per status, authored winning; a response whose referenced schemas cannot all
-     * be resolved is skipped and logged.
+     * Merges authored responses onto the generated operation (authored wins per status code).
      */
     private function mergeAuthoredOperation(
         OA\Operation $operation,
@@ -164,10 +151,8 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Adopts the authored operation's prose and identity. The authored annotation is the source of
-     * truth for the operation it describes, so each field the author set replaces the library's
-     * inferred value; fields the author left unset keep whatever the library inferred (an authored
-     * `@OA` operation that documents only responses must not erase the route's docblock summary).
+     * Copies authored prose/identity onto the generated operation; inferred values are kept for
+     * any field the author did not set.
      */
     private function copyAuthoredMetadata(OA\Operation $operation, OA\Operation $authored): void
     {
@@ -203,8 +188,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Resolves every schema an authored response references, or null when any of them is unknown
-     * (the caller then skips the response). Logs each unresolvable name.
+     * Resolves every schema an authored response references; returns null (and logs) if any is unknown.
      *
      * @return null|list<OA\Schema>
      */
@@ -233,8 +217,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Collects the names of `#/components/schemas/*` refs reachable from an annotation's in-memory
-     * object tree (does not follow the refs themselves).
+     * Collects `#/components/schemas/*` ref names reachable from an annotation tree.
      *
      * @return list<string>
      */
@@ -302,17 +285,9 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Registers an authored schema into the shared {@see ComponentSchemaRegistry} under its authored
-     * name, then recurses into the schemas it references. The registry's name-keyed idempotency
-     * provides O(1) dedup and doubles as the cycle guard; the post-plugin `ComponentsStage` flush
-     * writes the accumulated schemas into the document.
-     *
-     * When the authored name is already held by a *different* schema — a convention-derived
-     * component, or another authored schema — the registry is first-wins, so the authored
-     * definition is dropped and references to that name resolve to the existing schema. That
-     * collision is reported (a warning plus a `component.schema-name-collision` finding) rather than
-     * shadowing the spec silently. An identical re-registration of the same schema object (the
-     * transitive dedup path) is not a collision.
+     * Registers an authored schema by name and recurses into its referenced schemas. First-wins:
+     * a name held by a different schema triggers a collision warning; an identical re-registration
+     * is a no-op.
      */
     private function registerSchema(OA\Schema $schema): void
     {
@@ -354,9 +329,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Warns and emits a `component.schema-name-collision` finding when an authored schema's name is
-     * already held by a different component. The finding carries the authored declaring class (so a
-     * class-scoped `#[IgnoreLint]` can match) and the colliding name.
+     * Emits a warning and a `component.schema-name-collision` finding for a colliding schema name.
      */
     private function reportSchemaNameCollision(string $name, OA\Schema $authored): void
     {
@@ -387,10 +360,8 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * Attaches an authored schema as the operation's success body when the typed return resolves to
-     * one. The schema fills the existing primary 2xx response (e.g. a convention `201 Created`) when
-     * that response has no body yet; only when there is no success response at all is a `200` added,
-     * so the operation never ends up with two success codes.
+     * Attaches the authored return-type schema as the success body. Fills the existing 2xx response
+     * if it has no body; adds a bare 200 when none exists.
      */
     private function applyReturnTypeSchema(
         OA\Operation $operation,
@@ -444,8 +415,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     }
 
     /**
-     * The operation's primary success response — the first declared `2xx` — or null when it
-     * declares none yet.
+     * Returns the first declared 2xx response, or null if none exists.
      */
     private function primarySuccessResponse(OA\Operation $operation): ?OA\Response
     {

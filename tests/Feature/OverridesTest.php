@@ -34,16 +34,17 @@ beforeEach(function (): void {
 it('applies a config override keyed by route name and beats the attribute value', function (): void {
     config()->set('openapi.overrides', [
         'overrides.users' => [
-            'summary'    => 'Summary from config override',
+            'summary' => 'Summary from config override',
             'deprecated' => true,
-            'tags'       => ['Identity'],
+            'tags' => ['Identity'],
         ],
     ]);
 
     $spec = generateSpec();
     $op = $spec['paths']['/api/overrides/users']['get'];
 
-    expect($op['summary'])->toBe('Summary from config override')
+    expect($op['summary'])
+        ->toBe('Summary from config override')
         ->and($op['deprecated'])->toBeTrue()
         ->and($op['tags'])->toBe(['Identity']);
 });
@@ -67,7 +68,8 @@ it('emits multiple tags as a sequential list', function (): void {
     $spec = generateSpec();
     $tags = $spec['paths']['/api/overrides/users']['get']['tags'];
 
-    expect($tags)->toBe(['Users', 'Admin'])
+    expect($tags)
+        ->toBe(['Users', 'Admin'])
         ->and(array_is_list($tags))->toBeTrue();
 });
 
@@ -82,7 +84,8 @@ it('re-indexes an associative-keyed tags override to a sequential list', functio
     $spec = generateSpec();
     $tags = $spec['paths']['/api/overrides/users']['get']['tags'];
 
-    expect($tags)->toBe(['Users', 'Admin'])
+    expect($tags)
+        ->toBe(['Users', 'Admin'])
         ->and(array_is_list($tags))->toBeTrue();
 });
 

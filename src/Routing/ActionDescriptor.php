@@ -18,16 +18,11 @@ use function is_a;
 use function str_contains;
 
 /**
- * Action Descriptor
- *
  * Holds metadata about a route action, including its attributes, docblock, and URI parameters.
  */
 final class ActionDescriptor
 {
     /**
-     * The list of parameters in the action's signature that are also present as URI parameters in
-     * the route's URI.
-     *
      * @var list<ReflectionParameter>
      */
     public array $uriParameters {
@@ -35,9 +30,7 @@ final class ActionDescriptor
     }
 
     /**
-     * The reflector that carries the action's attributes and docblock: a {@see ReflectionMethod}
-     * for controller actions, a {@see ReflectionFunction} for closure routes, or null when neither
-     * is available.
+     * Method for controller actions, closure for closure routes, null when neither is available.
      */
     public ?ReflectionFunctionAbstract $actionReflector {
         get => $this->method ?? $this->closure;
@@ -45,16 +38,10 @@ final class ActionDescriptor
     public ?HttpMethod $httpMethod {
         get => $this->httpMethodOverride ?? HttpMethod::fromString($this->route->methods[0] ?? '');
     }
-    /**
-     * Pins {@see $httpMethod} to one verb of a multi-verb route; see {@see withHttpMethod()}.
-     * Falls back to the route's first registered verb when null.
-     */
+    /** Pins {@see $httpMethod} to one verb of a multi-verb route; falls back to the route's first verb when null. */
     private ?HttpMethod $httpMethodOverride = null;
     /**
-     * Buckets of `ReflectionAttribute`s keyed by attribute FQCN. Built lazily on first access via
-     * a single `getAttributes()` call per reflector — every caller that asks for a specific
-     * attribute class then reads from the bucket rather than walking the reflector's attribute list
-     * again. Saves the ~17 attribute walks per route that `OperationBuilder` used to do.
+     * Lazily-built attribute buckets keyed by FQCN, to avoid repeated `getAttributes()` walks.
      *
      * @var array<int, array<string, list<ReflectionAttribute<object>>>>
      */
@@ -87,9 +74,7 @@ final class ActionDescriptor
     }
 
     /**
-     * Instantiate every `$attribute` declared on the action reflector and the controller class,
-     * action first. Convenience wrapper over {@see actionAttributes()} + {@see controllerAttributes()}
-     * for callers that want concrete attribute objects rather than `ReflectionAttribute` wrappers.
+     * Instantiates every `$attribute` on the action reflector and controller class, action first.
      *
      * @template T of object
      *
@@ -113,9 +98,6 @@ final class ActionDescriptor
     }
 
     /**
-     * Returns the `ReflectionAttribute`s of the given class declared on the action reflector
-     * (method or closure), or an empty list if there is no action reflector or none are declared.
-     *
      * @template T of object
      *
      * @param class-string<T> $attribute
@@ -157,9 +139,6 @@ final class ActionDescriptor
     }
 
     /**
-     * Returns the `ReflectionAttribute`s of the given class declared on the controller class, or an
-     * empty list if there is no controller or none are declared.
-     *
      * @template T of object
      *
      * @param class-string<T> $attribute
@@ -179,10 +158,8 @@ final class ActionDescriptor
     }
 
     /**
-     * Whether the action (or its controller class) declares any attribute whose class implements
-     * the given interface. Lets a resolver detect an authoring marker — e.g.
-     * `PrimaryResponseAuthoringAttribute` — without knowing the concrete attribute classes, which
-     * may live in plugins it must not depend on.
+     * Whether the action or controller declares any attribute implementing `$interface`, letting
+     * resolvers detect authoring markers without depending on concrete plugin attribute classes.
      *
      * @param class-string $interface
      */
@@ -205,18 +182,11 @@ final class ActionDescriptor
         return false;
     }
 
-    /**
-     * Returns the constraint for the given parameter name.
-     */
     public function constraintFor(string $parameterName): ?string
     {
         return $this->route->wheres[$parameterName] ?? null;
     }
 
-    /**
-     * Returns the custom binding field for the given parameter name (the `field` in a
-     * `{param:field}` route segment), or null when the parameter has no custom key.
-     */
     public function bindingFieldFor(string $parameterName): ?string
     {
         return $this->route->bindingFieldFor($parameterName);

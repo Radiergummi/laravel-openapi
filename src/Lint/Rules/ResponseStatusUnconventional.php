@@ -42,7 +42,6 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
             return;
         }
 
-        // Only emit if the ONLY 2xx response on the operation is 200
         $successCodes = [];
 
         foreach ($operation->responses as $operationResponse) {
@@ -55,7 +54,7 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
             return;
         }
 
-        // Returning the deleted/created resource as a body in 200 is valid REST — only flag
+        // Returning the deleted/created resource as a body in 200 is valid REST; only flag
         // when the 200 response carries no schema/body (truly empty success response).
         if ($response->fields !== [] || $response->schemaRef !== null) {
             return;

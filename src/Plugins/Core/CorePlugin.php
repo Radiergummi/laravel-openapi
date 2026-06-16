@@ -33,16 +33,13 @@ use Radiergummi\OpenApi\Plugins\Core\Resolvers\ResourceConventionResolver;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 
 /**
- * Registers the framework-agnostic built-ins (the core request-schema resolver and every core lint
- * rule) into the registry. Runs first, before plugins and config extras.
+ * Registers Core's request-schema resolvers, response resolvers, error contributors, and lint
+ * rules into the registry. Runs first, before other plugins.
  */
 final class CorePlugin implements Plugin
 {
     /**
-     * Core Linter rules
-     *
-     * Rules are listed here for registration only. The authoritative severity of each rule is its
-     * own `level()` method and is visible via `php artisan openapi:lint --list`.
+     * Rules registered by the Core plugin. Severity is defined by each rule's `level()` method.
      *
      * @var list<class-string<Rule>>
      */
@@ -60,49 +57,36 @@ final class CorePlugin implements Plugin
         $registry->addRequestSchemaResolver(RequestFieldRequestSchemaResolver::class);
         $registry->addRequestSchemaResolver(FormRequestRequestSchemaResolver::class);
 
-        // Tier-1 body scan runs last in the chain (first non-null wins), so it only fires on a
-        // Tier-0 miss — actions whose signature carries no typed payload parameter.
+        // Runs last in the chain so it only fires when no typed payload parameter was found.
         $registry->addRequestSchemaResolver(InlineValidationRequestSchemaResolver::class);
         $registry->addQueryParameterResolver(CoreQueryParameterResolver::class);
 
-        // Runs after the core resolver so an explicit #[QueryParam('page')] keeps its emission via
-        // OperationBuilder's (name, in) dedup; otherwise page/per_page/cursor simply compose.
+        // Runs after the core resolver so an explicit #[QueryParam('page')] wins via dedup.
         $registry->addQueryParameterResolver(PaginationQueryParameterResolver::class);
         $registry->addPrimaryResponseResolver(PaginatorResponseResolver::class);
         $registry->addPrimaryResponseResolver(EloquentModelResponseResolver::class);
 
-        // Tier-1 model-lookup scan: a directly-returned Model::find()/findOrFail()/firstOrFail()
-        // call. Runs after the Tier-0 reflection resolver (which stays authoritative for typed
-        // Model/Collection returns via the shared return-type guard) and before the inline-json
-        // scan, since a returned model lookup is a model return, not a response()->json() literal.
+        // Model-lookup scan (find/findOrFail/firstOrFail). Runs after the reflection resolver
+        // (typed Model/Collection returns) and before the inline-json scan.
         $registry->addPrimaryResponseResolver(FindReturnModelResponseResolver::class);
 
-        // Tier-1 body scan runs last among Core's response resolvers; its return-type guard
-        // additionally keeps it off any action whose signature carries schema information, so
-        // the Tier-0 resolvers (including later plugins') stay authoritative.
+        // Body scan runs last; skipped when the signature already carries schema information.
         $registry->addPrimaryResponseResolver(InlineJsonResponseResolver::class);
         $registry->addOperationConventionResolver(ResourceConventionResolver::class);
 
-        // Error-response inference contributors; the registration order is important: Throws
-        // first (most specific), then the abort() body scan (carries authored messages), then the
-        // convention-derived ones (Middleware, Validation, route-model binding), which emit
-        // distinct statuses an explicit @throws would otherwise win. The stage that drives these
-        // contributors is registered by BaselineRegistration so plugins that only contribute
-        // contributors can work without depending on Core.
+        // Registration order matters: most-specific first. @throws wins, then abort() (carries
+        // authored messages), then literal json() error bodies, then convention-derived contributors.
         $registry->addErrorResponseContributor(ThrowsErrorContributor::class);
         $registry->addErrorResponseContributor(AbortErrorContributor::class);
-        // After Abort (an authored abort() message is at least as specific), before the envelope-only
-        // contributors: a literal json() error body is more specific than the configured envelope.
         $registry->addErrorResponseContributor(InlineJsonErrorContributor::class);
         $registry->addErrorResponseContributor(MiddlewareErrorContributor::class);
         $registry->addErrorResponseContributor(ValidationErrorContributor::class);
         $registry->addErrorResponseContributor(RouteModelBindingErrorContributor::class);
-        // After the binding contributor: both source the same ModelNotFoundException config entry,
-        // so the 404 is byte-identical and the stage's first-contributor-wins dedup is order-safe.
+        // Both binding and findOrFail source the same ModelNotFoundException config entry;
+        // the 404 is byte-identical so first-contributor-wins dedup is order-safe.
         $registry->addErrorResponseContributor(FindOrFailErrorContributor::class);
 
-        // Register FormRequest so SuppressionCollector descends into its #[IgnoreLint] attributes
-        // via the param-walk path (fromDataParameter checks against registered payload classes).
+        // Required so SuppressionCollector descends into FormRequest's #[IgnoreLint] attributes.
         $registry->addPayloadClass(FormRequest::class);
 
         foreach (self::RULES as $rule) {

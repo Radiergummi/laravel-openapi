@@ -37,7 +37,8 @@ it('removes a whole line and leaves the rest byte-identical', function (): void 
         makeFix($file, new RemoveLines(2, 2)),
     ]);
 
-    expect(file_get_contents($file))->toBe("line1\nline3\n")
+    expect(file_get_contents($file))
+        ->toBe("line1\nline3\n")
         ->and($result->applied)->toHaveCount(1)
         ->and($result->skipped)->toBe([])
         ->and($result->modifiedFiles)->toBe([$file])
@@ -66,7 +67,8 @@ it('skips a later fix that overlaps an already-applied one', function (): void {
 
     // Bottom-to-top: the line-3 replace (higher offset) is applied first; the overlapping
     // 2–3 removal that follows is skipped rather than guessed at.
-    expect(file_get_contents($file))->toBe("a\nb\nX\nd\n")
+    expect(file_get_contents($file))
+        ->toBe("a\nb\nX\nd\n")
         ->and($result->applied)->toHaveCount(1)
         ->and($result->applied[0]->operation)->toBeInstanceOf(ReplaceLines::class)
         ->and($result->skipped)->toHaveCount(1)
@@ -80,7 +82,8 @@ it('writes nothing in dry-run but still reports the pending change', function ()
         makeFix($file, new RemoveLines(2, 2)),
     ], dryRun: true);
 
-    expect(file_get_contents($file))->toBe("keep\ndrop\n")
+    expect(file_get_contents($file))
+        ->toBe("keep\ndrop\n")
         ->and($result->hasChanges)->toBeTrue()
         ->and($result->modifiedFiles)->toBe([$file]);
 });

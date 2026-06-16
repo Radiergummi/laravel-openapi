@@ -17,9 +17,6 @@ use function trim;
 
 /**
  * Reports response headers that have no description.
- *
- * Headers without descriptions make it harder for API consumers to understand
- * what information each header conveys.
  */
 final class HeaderDescriptionMissing implements Rule, HeaderRuleVisitor
 {

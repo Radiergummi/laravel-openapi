@@ -10,8 +10,7 @@ use RuntimeException;
 use function sprintf;
 
 /**
- * Thrown by {@see AstLiteralEvaluator} when an expression is not a compile-time literal —
- * the signal for a Tier-1 reader to degrade gracefully instead of guessing.
+ * Thrown by {@see AstLiteralEvaluator} when an expression is not a compile-time literal.
  *
  * @internal
  */

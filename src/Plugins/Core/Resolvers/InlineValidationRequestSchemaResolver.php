@@ -28,16 +28,9 @@ use function sprintf;
 use function ucfirst;
 
 /**
- * Core request-schema resolver
- *
- * Recovers a request body from validation rules declared inside the controller method —
- * inline `validate()` calls and the controller-level `$rules` property / `rules()` method —
- * via the Tier-1 bounded scan in {@see InlineValidatorRulesReader}. Registered after the
- * FormRequest resolver, so it only runs on a Tier-0 miss (no typed payload parameter); the
- * `#[RequestBody]` / `#[RequestField]` attributes still win unconditionally.
- *
- * Fires for write methods only: on GET, inline-validate keys describe query parameters, not a
- * body — that routing belongs to the query-parameter resolver (#11).
+ * Recovers a request body from inline `validate()` / controller `$rules` via
+ * {@see InlineValidatorRulesReader}. Runs after the FormRequest resolver (no typed payload),
+ * but attributes still win. Write methods only: GET inline-validate keys are query parameters.
  */
 #[Scoped]
 final readonly class InlineValidationRequestSchemaResolver implements RequestSchemaResolver
@@ -104,10 +97,6 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
     }
 
     /**
-     * Mirrors the FormRequest schema assembly: rules → field descriptors → properties/required,
-     * with synthesized examples as the lowest-priority fallback. Trailing-comment descriptions
-     * are authored content and win over rule-derived ones.
-     *
      * @return array{0: OA\Schema, 1: bool} the schema and whether any field is a file upload
      */
     private function buildSchema(InlineValidationScanResult $scan, ReflectionMethod $method): array
@@ -184,11 +173,9 @@ final readonly class InlineValidationRequestSchemaResolver implements RequestSch
     }
 
     /**
-     * Derives the component key through the registry's collision machinery: reserving a
-     * synthetic class-like name (`{ControllerNamespace}\{ControllerShortName}{Method}Request`)
-     * makes {@see ComponentSchemaRegistry::reserveKey()} disambiguate same-short-name
-     * controllers with namespace segments instead of silently sharing one schema. `__invoke`
-     * contributes no method segment (`AgentControllerRequest`, not `AgentController__invokeRequest`).
+     * Derives `{Namespace}\{ControllerShortName}{Method}Request`; `__invoke` contributes no method
+     * segment. The namespace prefix lets {@see ComponentSchemaRegistry::reserveKey()} disambiguate
+     * same-short-name controllers.
      */
     private function componentKey(ReflectionMethod $method): string
     {

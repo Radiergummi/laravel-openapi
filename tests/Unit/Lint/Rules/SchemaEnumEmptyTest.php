@@ -11,7 +11,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new SchemaEnumEmpty();
 
-    expect($rule->id())->toBe('schema.enum-empty')
+    expect($rule->id())
+        ->toBe('schema.enum-empty')
         ->and($rule->level())->toBe(1);
 });
 
@@ -22,7 +23,8 @@ it('emits a finding for a field schema with an empty enum array', function (): v
         new SchemaEnumEmpty()->checkField($field, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-empty')
         ->and($findings[0]->level)->toBe(1);
 });
@@ -37,7 +39,7 @@ it('emits no finding for a field whose enum is non-empty or absent', function (?
     expect($findings)->toBe([]);
 })->with([
     'non-empty enum' => [['a', 'b']],
-    'null enum'      => [null],
+    'null enum' => [null],
 ]);
 
 it('emits a finding for a component schema with an empty enum array', function (): void {
@@ -50,7 +52,8 @@ it('emits a finding for a component schema with an empty enum array', function (
         new SchemaEnumEmpty()->checkComponentSchema($node, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.enum-empty')
         ->and($findings[0]->level)->toBe(1);
 });

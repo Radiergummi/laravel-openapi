@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpCollision;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use OpenApi\Annotations as OA;
 
 /**
  * Test fixture — an authored operation whose `@OA\Response` references `#/components/schemas/Invoice`,

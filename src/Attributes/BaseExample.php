@@ -7,24 +7,19 @@ namespace Radiergummi\OpenApi\Attributes;
 use InvalidArgumentException;
 
 /**
- * Shared payload shape for {@see Example} (request body) and {@see ResponseExample} (response).
- * Lets the extractor consume both kinds of attribute through a single type without a
- * callback dispatch.
+ * Shared payload for {@see Example} and {@see ResponseExample}.
  *
- * Exactly one of `value` or `file` must be provided. When `file` is given it is resolved relative
- * to the project root at spec-generation time — the attribute constructor itself performs no
- * I/O (attribute construction must stay side-effect-free).
+ * Exactly one of `value` or `file` must be provided. `file` is resolved relative to the project
+ * root at spec-generation time; the constructor performs no I/O.
  */
 abstract readonly class BaseExample
 {
     /**
      * @param non-empty-string      $name
-     * @param mixed                 $value       Inline example payload (PHP array / scalar).
-     *                                           Mutually exclusive with `$file`.
+     * @param mixed                 $value       Inline example payload. Mutually exclusive with `$file`.
      * @param null|non-empty-string $summary
      * @param null|non-empty-string $description
-     * @param null|non-empty-string $file        Path to a JSON file relative to the project root.
-     *                                           Mutually exclusive with `$value`.
+     * @param null|non-empty-string $file        JSON file path relative to the project root. Mutually exclusive with `$value`.
      *
      * @throws InvalidArgumentException When both or neither of `$value` / `$file` are provided.
      */

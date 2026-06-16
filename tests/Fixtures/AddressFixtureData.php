@@ -23,8 +23,8 @@ final class AddressFixtureData extends Data
     {
         return [
             'street' => ['required', 'string', 'max:200'],
-            'city'   => ['required', 'string', 'max:100'],
-            'zip'    => ['string', 'max:20'],
+            'city' => ['required', 'string', 'max:100'],
+            'zip' => ['string', 'max:20'],
         ];
     }
 }

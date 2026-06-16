@@ -16,9 +16,6 @@ use function trim;
 
 /**
  * Reports parameters that have no description.
- *
- * Parameters without descriptions make it harder for API consumers to understand what value to
- * provide and what effect it has.
  */
 final class ParameterDescriptionMissing implements Rule, ParameterRuleVisitor
 {

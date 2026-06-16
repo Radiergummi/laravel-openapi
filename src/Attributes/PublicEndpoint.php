@@ -7,9 +7,9 @@ namespace Radiergummi\OpenApi\Attributes;
 use Attribute;
 
 /**
- * Marks an operation as fully public — no security requirement is emitted.
+ * Marks an operation as fully public: no security requirement is emitted.
  *
- * Use this when middleware-based derivation misrepresents the endpoint, e.g. a route that has
+ * Use this when middleware-based derivation misrepresents the endpoint, e.g., a route that has
  * `auth:api` in the stack purely for context but is effectively reachable without a token. Emits
  * `security: []` in the spec.
  *

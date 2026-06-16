@@ -38,29 +38,12 @@ use function is_string;
 use function sprintf;
 
 /**
- * Infers the primary response from the `$this->itemResponse(…)` / `$this->listResponse(…)`
- * base-controller convention (InvoiceNinja's `BaseController`) — a Tier-1 bounded scan
- * (epic #5, issue #13).
+ * Infers the primary response from `$this->itemResponse(…)` / `$this->listResponse(…)`
+ * base-controller calls (InvoiceNinja's `BaseController` convention).
  *
- * The bounded case: within the first {@see self::STATEMENT_LIMIT} top-level statements, a
- * top-level `return $this->itemResponse(…)` or `return $this->listResponse(…)` appears (the
- * first one wins), and the controller's `$entity_transformer` property *default* (Tier-0,
- * {@see \ReflectionProperty::getDefaultValue()}) names a concrete `TransformerAbstract`
- * subclass. The transformer's schema comes from {@see SchemaFromTransformer} (attributes +
- * the `transform()` literal); `itemResponse` wraps it in the single `{data}` envelope,
- * `listResponse` in the collection envelope — `DataArraySerializer`, Fractal's default. The
- * method names are a literal whitelist by design; there is no configurable convention knob.
- *
- * Degradation contract: a method that reassigns `$entity_transformer` anywhere in the scanned
- * statements refuses with a note — the property default is no longer the honest answer. A
- * reassignment inside a *called* helper is invisible to the bounded scan (following calls is
- * Tier-2 dataflow), so the property default is documented — a deliberate boundary, not an
- * oversight. A matched call whose transformer cannot be resolved (no usable default, or no
- * documentable fields) is noted; a method without the call shape is skipped silently — most apps never use
- * this convention. An action carrying a {@see PrimaryResponseAuthoringAttribute}
- * (`#[FractalResponse]`, `#[ResponseResource]`) is never scanned: explicit authoring always
- * wins. The return-type guard keeps the scan away from actions whose signature already carries
- * schema information, so the Tier-0 resolvers stay authoritative regardless of chain order.
+ * Reads the controller's `$entity_transformer` property default to identify the transformer.
+ * Degrades when the method reassigns `$entity_transformer`, the transformer has no
+ * documentable fields, or a {@see PrimaryResponseAuthoringAttribute} is present.
  */
 #[Scoped]
 final readonly class EntityTransformerResponseResolver implements PrimaryResponseResolver
@@ -98,8 +81,8 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
             return null;
         }
 
-        // An explicit authoring attribute always wins (epic #5); #[FractalResponse] in
-        // particular is consumed by FractalResponseResolver earlier in the chain.
+        // An explicit authoring attribute always wins; #[FractalResponse] in particular is
+        // consumed by FractalResponseResolver earlier in the chain.
         if ($descriptor->declaresAttributeImplementing(PrimaryResponseAuthoringAttribute::class)) {
             return null;
         }
@@ -163,8 +146,7 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
 
     /**
      * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
-     * HTTP response class. Any other named type is Tier-0 territory the signature resolvers
-     * own; union and intersection types are refused rather than arbitrated.
+     * HTTP response class. Union/intersection types are refused rather than arbitrated.
      */
     private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
     {
@@ -183,9 +165,8 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
     }
 
     /**
-     * The first top-level `return $this->itemResponse(…)` / `$this->listResponse(…)` call.
-     * Only a return whose expression *is* the call matches — wrapping or chaining means the
-     * response is no longer the helper's envelope.
+     * The first unconditional `return $this->itemResponse(…)` / `$this->listResponse(…)` call.
+     * Only a return whose expression is the direct call matches; chaining or wrapping is not matched.
      *
      * @param list<Node\Stmt> $statements
      */
@@ -219,9 +200,8 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
     // region Transformer resolution
 
     /**
-     * Whether any scanned statement — including conditional contexts — assigns to
-     * `$this->entity_transformer`: once the method switches transformers at runtime, the
-     * property default must not be documented.
+     * Whether any statement (including conditional contexts) assigns to `$this->entity_transformer`.
+     * If so, the property default is no longer authoritative.
      *
      * @param list<Node\Stmt> $statements
      */
@@ -260,8 +240,7 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
     // region Guards & logging
 
     /**
-     * The controller's `$entity_transformer` property default, when it names a concrete
-     * `TransformerAbstract` subclass (Tier-0 — the declared default, never a runtime value).
+     * The declared `$entity_transformer` default when it names a concrete `TransformerAbstract` subclass.
      *
      * @param ReflectionClass<object> $controller
      *
@@ -285,9 +264,8 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
     }
 
     /**
-     * Whether the transformer yields any documentable fields — declared `#[TransformerField]`
-     * attributes or a readable `transform()` literal. Binding an envelope around a genuinely
-     * empty item schema would document nothing while claiming authority over the response.
+     * Whether the transformer has any documentable fields: `#[TransformerField]` attributes
+     * or a readable `transform()` literal.
      *
      * @param class-string $transformerClass
      *

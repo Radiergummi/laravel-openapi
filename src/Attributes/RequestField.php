@@ -12,9 +12,9 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
  * Documents a request-body input field.
  *
  * Place on a Spatie Data class property / promoted constructor parameter, or on a FormRequest
- * `PARAM_*` class constant — there the field name is taken from the target. Or stack it
+ * `PARAM_*` class constant (there the field name is taken from the target). Or stack it
  * (repeatable) on a controller action to document a request body field-by-field when the action
- * validates outside a FormRequest/Data class (e.g. in an Action/service); there `$name` is
+ * validates outside a FormRequest/Data class (e.g., in an Action/service); there `$name` is
  * required and composes with `#[RequestBody]` for the envelope. Request fields support `writeOnly`
  * but not `readOnly` (a request field is never read-only).
  *
@@ -32,15 +32,27 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 final readonly class RequestField extends FieldAttribute
 {
     /**
-     * @param null|non-empty-string                                                        $name                 Field name; required
-     *                                                                                                           on a method, derived
-     *                                                                                                           from the target
+     * @param null|non-empty-string                                                        $name                 Field
+     *                                                                                                           name;
+     *                                                                                                           required
+     *                                                                                                           on a
+     *                                                                                                           method,
+     *                                                                                                           derived
+     *                                                                                                           from
+     *                                                                                                           the
+     *                                                                                                           target
      *                                                                                                           otherwise
      * @param null|non-empty-string                                                        $title
      * @param null|non-empty-string                                                        $description
-     * @param null|class-string|OpenApiPrimitiveType                                       $type                 A JSON-Schema scalar
-     *                                                                                                           type, or a class-string
-     *                                                                                                           for a nested `$ref`.
+     * @param null|class-string|OpenApiPrimitiveType                                       $type                 A
+     *                                                                                                           JSON-Schema
+     *                                                                                                           scalar
+     *                                                                                                           type,
+     *                                                                                                           or a
+     *                                                                                                           class-string
+     *                                                                                                           for a
+     *                                                                                                           nested
+     *                                                                                                           `$ref`.
      * @param null|non-empty-string                                                        $format
      * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum
      * @param null|int<0, max>                                                             $minLength
@@ -48,8 +60,10 @@ final readonly class RequestField extends FieldAttribute
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`).
-     * @param null|bool|string                                                             $additionalProperties Map-value override.
+     * @param null|array<string, mixed>                                                    $x                    Vendor
+     *                                                                                                           extensions (`x-*`).
+     * @param null|bool|string                                                             $additionalProperties Map-value
+     *                                                                                                           override.
      */
     public function __construct(
         public ?string $name = null,

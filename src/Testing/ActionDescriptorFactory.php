@@ -12,23 +12,8 @@ use ReflectionMethod;
 use Throwable;
 
 /**
- * Constructs {@see ActionDescriptor} instances for plugin tests with a one-line call.
- *
- * Without this helper, every plugin test rebuilds the descriptor by hand:
- *
- * ```php
- * $route = new Route(['GET'], '/test', ['controller' => Foo::class . '@bar']);
- * $method = new ReflectionMethod(Foo::class, 'bar');
- * $descriptor = new ActionDescriptor($route, new ReflectionClass(Foo::class), $method, null, null, []);
- * ```
- *
- * The helper collapses this to:
- *
- * ```php
- * $descriptor = ActionDescriptorFactory::make(Foo::class, 'bar');
- * ```
- *
- * Any field can be overridden by passing a named argument.
+ * Builds {@see ActionDescriptor} instances for tests in a single call.
+ * Any field can be overridden via named arguments.
  */
 final class ActionDescriptorFactory
 {

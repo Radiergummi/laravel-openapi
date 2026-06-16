@@ -18,10 +18,8 @@ use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 use function assert;
 
 /**
- * Flags `#[Example]` and `#[ResponseExample]` usages that don't set exactly one of `value` or
- * `file`. The `BaseExample` constructor throws on both/neither at runtime, but only when
- * attributes are reflected — which doesn't happen until spec generation. This lifts the check to
- * edit time.
+ * Flags `#[Example]` and `#[ResponseExample]` that don't set exactly one of `value` or `file`.
+ * The constructor throws at runtime; this lifts the check to edit time.
  *
  * @implements Rule<Node\Attribute>
  */

@@ -13,11 +13,6 @@ use Radiergummi\OpenApi\PhpStan\Rules\HideOnlyExceptRule;
  */
 final class HideOnlyExceptRuleTest extends RuleTestCase
 {
-    protected function getRule(): Rule
-    {
-        return new HideOnlyExceptRule();
-    }
-
     public function testFlagsBothOnlyAndExcept(): void
     {
         $this->analyse([__DIR__ . '/Data/hide-only-except.php'], [
@@ -26,5 +21,10 @@ final class HideOnlyExceptRuleTest extends RuleTestCase
                 20,
             ],
         ]);
+    }
+
+    protected function getRule(): Rule
+    {
+        return new HideOnlyExceptRule();
     }
 }

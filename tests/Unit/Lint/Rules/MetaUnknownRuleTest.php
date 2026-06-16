@@ -56,7 +56,8 @@ it('emits for unknown rule ids in suppressions', function (): void {
         suppressions: [metaUnknownRuleDirective('nonexistent.rule')],
     );
     $findings = iterator_to_array(new MetaUnknownRule()->checkApi($api, $context));
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.unknown-rule')
         ->and($findings[0]->context['unknown_id'])->toBe('nonexistent.rule');
 });

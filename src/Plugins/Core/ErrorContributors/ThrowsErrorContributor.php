@@ -85,10 +85,6 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
     }
 
     /**
-     * Returns null when the class cannot be loaded or carries no {@see ExceptionResponse} attribute.
-     *
-     * `IS_INSTANCEOF` matches user-defined subclasses of {@see ExceptionResponse}.
-     *
      * @return null|array{status: int, description: string}
      */
     private function resolveFromAttribute(string $fqcn): ?array
@@ -152,13 +148,7 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
         );
     }
 
-    /**
-     * Build a context-aware fix hint for the throws.unmapped finding.
-     *
-     * For vendor/built-in exceptions (where we can't add attributes), the hint
-     * directs users to the config map only. For app exceptions, it suggests
-     * either approach.
-     */
+    /** Vendor/built-in exceptions point to config only; app exceptions get both options. */
     private function buildThrowsUnmappedHint(string $exception): string
     {
         $basename = class_basename($exception);
@@ -187,10 +177,7 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
         );
     }
 
-    /**
-     * Determine whether an exception class is a vendor or PHP built-in class
-     * (i.e., not part of the application source).
-     */
+    /** Whether the exception lives outside the application source tree. */
     private function isVendorOrBuiltin(string $fqcn): bool
     {
         try {
@@ -203,7 +190,7 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
             return true;
         }
 
-        // Built-in classes (e.g., RuntimeException) have no file.
+        // Built-in classes have no file.
         if ($file === false) {
             return true;
         }

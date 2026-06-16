@@ -6,11 +6,7 @@ namespace Radiergummi\OpenApi\Enums;
 
 use OpenApi\Annotations as OA;
 
-/**
- * Canonical media-type strings used across the OpenAPI extraction pipeline.
- *
- * Centralized so that the value can't drift between extractors and the operation builder.
- */
+/** Canonical media-type strings used across the extraction pipeline. */
 enum MediaType: string
 {
     case Json = 'application/json';

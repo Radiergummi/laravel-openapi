@@ -18,12 +18,8 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Reports component schemas that have no example value.
- *
- * Examples help API consumers understand the expected format and content of data structures. This
- * rule checks for either the `example` (singular) or `examples` (plural, OAS 3.1) property on each
- * component schema. Schemas that declare an `enum` are exempt — their allowed values already
- * document the expected content.
+ * Reports component schemas that carry neither `example` nor `examples`. Enum schemas are exempt
+ * as their allowed values already document the expected content.
  */
 final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
 {

@@ -28,7 +28,8 @@ it('types an int-keyed model binding as integer', function (): void {
 
     $schema = pathParameterSchema(generateSpec(), '/articles/{article}', 'article');
 
-    expect($schema['type'])->toBe('integer')
+    expect($schema['type'])
+        ->toBe('integer')
         ->and($schema)->not->toHaveKey('format');
 });
 
@@ -37,7 +38,8 @@ it('types a HasUuids model binding as a uuid-formatted string', function (): voi
 
     $schema = pathParameterSchema(generateSpec(), '/articles/{article}', 'article');
 
-    expect($schema['type'])->toBe('string')
+    expect($schema['type'])
+        ->toBe('string')
         ->and($schema['format'])->toBe('uuid');
 });
 
@@ -47,7 +49,8 @@ it('keeps a custom-key binding a bare string, not the primary key type', functio
 
     $schema = pathParameterSchema(generateSpec(), '/articles/{article}', 'article');
 
-    expect($schema['type'])->toBe('string')
+    expect($schema['type'])
+        ->toBe('string')
         ->and($schema)->not->toHaveKey('format');
 });
 
@@ -58,7 +61,8 @@ it('refs an enum-backed binding to a shared enum component (#24, #35)', function
     $schema = pathParameterSchema($doc, '/articles/{status}', 'status');
     $component = $doc['components']['schemas']['ArticleStatus'];
 
-    expect($schema['$ref'])->toBe('#/components/schemas/ArticleStatus')
+    expect($schema['$ref'])
+        ->toBe('#/components/schemas/ArticleStatus')
         ->and($component['type'])->toBe('string')
         ->and($component['enum'])->toBe(['draft', 'published']);
 });

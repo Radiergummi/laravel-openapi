@@ -23,13 +23,15 @@ function makeRoute(?string $name): Route
 }
 
 it('skips routes named under the passport. prefix', function (): void {
-    expect($this->filter->shouldSkip(makeRoute('passport.tokens.index')))->toBeTrue()
+    expect($this->filter->shouldSkip(makeRoute('passport.tokens.index')))
+        ->toBeTrue()
         ->and($this->filter->shouldSkip(makeRoute('passport.clients.store')))->toBeTrue()
         ->and($this->filter->shouldSkip(makeRoute('passport.authorizations.approve')))->toBeTrue();
 });
 
 it('keeps routes whose name does not start with passport.', function (): void {
-    expect($this->filter->shouldSkip(makeRoute('flights.index')))->toBeFalse()
+    expect($this->filter->shouldSkip(makeRoute('flights.index')))
+        ->toBeFalse()
         ->and($this->filter->shouldSkip(makeRoute('bookings.show')))->toBeFalse()
         ->and($this->filter->shouldSkip(makeRoute('api.passport')))->toBeFalse()
         ->and($this->filter->shouldSkip(makeRoute('passportish.thing')))->toBeFalse();

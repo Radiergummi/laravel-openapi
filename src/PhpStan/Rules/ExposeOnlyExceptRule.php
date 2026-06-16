@@ -17,9 +17,8 @@ use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 use function assert;
 
 /**
- * Flags `#[Expose]` usages that set both `only` and `except`. The attribute constructor itself
- * throws `LogicException` at runtime, but only when reflection reads the attribute — which is at
- * spec generation, not test time. This lifts the check to edit time.
+ * Flags `#[Expose]` usages that set both `only` and `except`, lifting the runtime `LogicException`
+ * to edit time.
  *
  * @implements Rule<Node\Attribute>
  */

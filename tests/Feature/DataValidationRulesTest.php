@@ -63,7 +63,8 @@ beforeEach(function (): void {
 it('applies maxLength=250 to the name property from max:250 rule', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
 
-    expect($props['name']['maxLength'])->toBe(250)
+    expect($props['name']['maxLength'])
+        ->toBe(250)
         ->and($props['name']['type'])->toBe('string');
 });
 
@@ -90,7 +91,8 @@ it('does NOT mark description as required despite being in rules payload', funct
 it('applies minimum=0 and maximum=100 to the score property', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
 
-    expect($props['score']['minimum'])->toBe(0)
+    expect($props['score']['minimum'])
+        ->toBe(0)
         ->and($props['score']['maximum'])->toBe(100)
         ->and($props['score']['type'])->toBe('integer');
 });
@@ -98,7 +100,8 @@ it('applies minimum=0 and maximum=100 to the score property', function (): void 
 it('does NOT set minLength/maxLength on the integer score property', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
 
-    expect($props['score'])->not->toHaveKey('minLength')
+    expect($props['score'])->not
+        ->toHaveKey('minLength')
         ->and($props['score'])->not->toHaveKey('maxLength');
 });
 
@@ -109,7 +112,8 @@ it('does NOT set minLength/maxLength on the integer score property', function ()
 it('applies format=email to the email property', function (): void {
     $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
 
-    expect($props['email']['format'])->toBe('email')
+    expect($props['email']['format'])
+        ->toBe('email')
         ->and($props['email']['type'])->toBe('string');
 });
 
@@ -156,7 +160,8 @@ it('applies maxLength=100 to city in the AddressFixtureData schema', function ()
 it('marks street and city as required in AddressFixtureData', function (): void {
     $required = schemaRequired($this->spec, 'AddressFixtureData');
 
-    expect($required)->toContain('street')
+    expect($required)
+        ->toContain('street')
         ->and($required)->toContain('city');
 });
 
@@ -170,14 +175,18 @@ it('does NOT mark zip as required in AddressFixtureData (has default null)', fun
 
 // region OAPI-003: required + nullable must keep field in required AND nullable
 
-it('keeps notes in required[] AND marks it nullable via OAS 3.1 type array (OAPI-003 required+nullable)', function (): void {
-    $props    = schemaProperties($this->spec, 'ValidationRulesFixtureData');
-    $required = schemaRequired($this->spec, 'ValidationRulesFixtureData');
+it(
+    'keeps notes in required[] AND marks it nullable via OAS 3.1 type array (OAPI-003 required+nullable)',
+    function (): void {
+        $props = schemaProperties($this->spec, 'ValidationRulesFixtureData');
+        $required = schemaRequired($this->spec, 'ValidationRulesFixtureData');
 
-    // OAS 3.1: nullable is expressed as type: ['string', 'null'] instead of nullable: true.
-    expect($required)->toContain('notes')
-        ->and($props['notes']['type'])->toBe(['string', 'null']);
-});
+        // OAS 3.1: nullable is expressed as type: ['string', 'null'] instead of nullable: true.
+        expect($required)
+            ->toContain('notes')
+            ->and($props['notes']['type'])->toBe(['string', 'null']);
+    },
+);
 
 // endregion
 
@@ -189,7 +198,8 @@ it('still emits a schema for ThrowingRulesFixtureData even though rules() throws
     $props = schemaProperties($this->spec, 'ThrowingRulesFixtureData');
 
     // The type-derived schema must still be present.
-    expect($props)->toHaveKey('name')
+    expect($props)
+        ->toHaveKey('name')
         ->and($props['name']['type'])->toBe('string');
 
     // @phpstan-ignore staticMethod.notFound (Mockery's facade spy macros aren't visible to PHPStan)
@@ -204,7 +214,8 @@ it('still emits a schema for ThrowingRulesFixtureData even though rules() throws
 it('populates tags items with type=string from tags.* rules (OAPI-016)', function (): void {
     $props = schemaProperties($this->spec, 'TagsWithItemsFixtureData');
 
-    expect($props['tags']['type'])->toBe('array')
+    expect($props['tags']['type'])
+        ->toBe('array')
         ->and($props['tags']['items']['type'])->toBe('string');
 });
 

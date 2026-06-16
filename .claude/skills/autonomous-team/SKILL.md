@@ -31,13 +31,13 @@ Common forms (combine as needed):
 - **Dry-run / supervised** — *"stop before the first merge"* → take PRs all the way to green but
   escalate (label `agent:needs-human`) instead of auto-merging, so the human inspects first.
 
-Echo the interpreted directive back as the first line of your run summary so it's on record.
+Echo the interpreted directive back as the first line of your run summary, so it's on record.
 Anything not covered by a directive falls back to the defaults below.
 
 ## Prime directives
 
 1. **GitHub + git are the only durable state.** The shared task list is a convenience cache,
-   reconstructable at any time from GitHub. Never let in-memory state be load-bearing. A fresh
+   reconstructable at any time from GitHub. Never let in-memory state be critical. A fresh
    session must be able to resume from `git` and `gh` alone.
 2. **Every transition and finding is a GitHub comment.** `SendMessage` wakes the next agent;
    the comment is the record. If it isn't on the issue/PR, it didn't happen.

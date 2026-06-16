@@ -60,27 +60,30 @@ it('does not match when the structural class context names a different class', f
     expect($directive->suppresses($finding))->toBeFalse();
 });
 
-it('does not match a class-scope directive by file path alone when no source-class context is present', function (): void {
-    // Class-scope suppression requires CONTEXT_SOURCE_CLASS on the finding; file-path matching
-    // alone is not sufficient and would incorrectly suppress all classes in the same file.
-    $directive = new SuppressionDirective(
-        ruleId: 'response.no-error',
-        reason: null,
-        scope: SuppressionScope::ClassScope,
-        file: __FILE__,
-        line: 1,
-        targetClass: 'App\\Controller',
-    );
+it(
+    'does not match a class-scope directive by file path alone when no source-class context is present',
+    function (): void {
+        // Class-scope suppression requires CONTEXT_SOURCE_CLASS on the finding; file-path matching
+        // alone is not sufficient and would incorrectly suppress all classes in the same file.
+        $directive = new SuppressionDirective(
+            ruleId: 'response.no-error',
+            reason: null,
+            scope: SuppressionScope::ClassScope,
+            file: __FILE__,
+            line: 1,
+            targetClass: 'App\\Controller',
+        );
 
-    $finding = new Finding(
-        ruleId: 'response.no-error',
-        level: 1,
-        message: 'no error response',
-        location: new FindingLocation(file: __FILE__),
-    );
+        $finding = new Finding(
+            ruleId: 'response.no-error',
+            level: 1,
+            message: 'no error response',
+            location: new FindingLocation(file: __FILE__),
+        );
 
-    expect($directive->suppresses($finding))->toBeFalse();
-});
+        expect($directive->suppresses($finding))->toBeFalse();
+    },
+);
 
 it('suppresses a rule.unknown finding via class scope using its source class', function (): void {
     // rule.unknown is emitted by ValidationRulesToSchema with no source file on the finding, so a

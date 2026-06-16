@@ -13,6 +13,22 @@ use function str_starts_with;
 
 final class ResponseNode implements Node
 {
+    public bool $isSuccess {
+        get => str_starts_with((string) $this->statusCode, '2');
+    }
+    public bool $isError {
+        get {
+            $status = (string) $this->statusCode;
+
+            return str_starts_with($status, '4') || str_starts_with($status, '5');
+        }
+    }
+    public bool $isRedirect {
+        get => str_starts_with((string) $this->statusCode, '3');
+    }
+    public bool $isDefault {
+        get => (string) $this->statusCode === 'default';
+    }
     private ?Node $parent = null;
 
     /**
@@ -35,7 +51,7 @@ final class ResponseNode implements Node
     /**
      * @throws LogicException if called more than once.
      *
-     * @internal Called exactly once by SpecTreeBuilder.
+     * @internal
      */
     public function linkParent(Node $parent): void
     {
@@ -60,26 +76,6 @@ final class ResponseNode implements Node
         $base = ($this->parent?->pointer() ?? '') . '/responses/' . $this->statusCode;
 
         return $append !== '' ? $base . '/' . $append : $base;
-    }
-
-    public bool $isSuccess {
-        get => str_starts_with((string) $this->statusCode, '2');
-    }
-
-    public bool $isError {
-        get {
-            $status = (string) $this->statusCode;
-
-            return str_starts_with($status, '4') || str_starts_with($status, '5');
-        }
-    }
-
-    public bool $isRedirect {
-        get => str_starts_with((string) $this->statusCode, '3');
-    }
-
-    public bool $isDefault {
-        get => (string) $this->statusCode === 'default';
     }
 
     /** The enclosing operation. */

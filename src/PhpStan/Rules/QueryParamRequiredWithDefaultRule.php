@@ -18,16 +18,9 @@ use function assert;
 use function count;
 
 /**
- * Flags `#[QueryParam(required: true, default: …)]`. OpenAPI parameters with a `default` are
- * implicitly optional — when the client omits the value, the server falls back to the default —
- * so `required: true` contradicts the very fact a default exists. Tooling routinely picks the
- * winner inconsistently (some flag the parameter as required and ignore the default; some accept
- * the default and treat the parameter as optional), making this an authoring smell worth catching
- * statically.
- *
- * Only fires when `required` resolves to constant `true` and `default` is provided with a non-null
- * literal value. Literal `null` is treated as absent — it matches the constructor default and
- * carries no semantic intent.
+ * Flags `#[QueryParam(required: true, default: …)]`. A parameter with a default is implicitly
+ * optional; combining it with `required: true` is contradictory and handled inconsistently by
+ * tooling. Only fires when `required` is constant `true` and `default` is a non-null literal.
  *
  * @implements Rule<Node\Attribute>
  */

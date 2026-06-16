@@ -31,7 +31,8 @@ function makePropertyWithConstraints(string $propertyName, string $type, array $
 it('has the correct rule id and level', function (): void {
     $rule = new SchemaConstraintsMissing();
 
-    expect($rule->id())->toBe('schema.constraints-missing')
+    expect($rule->id())
+        ->toBe('schema.constraints-missing')
         ->and($rule->level())->toBe(4);
 });
 
@@ -47,36 +48,40 @@ it('emits a finding for fields lacking the expected constraint', function (strin
 
     $findings = iterator_to_array($rule->checkField($field, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.constraints-missing')
         ->and($findings[0]->level)->toBe(4)
         ->and($findings[0]->message)->toContain($name);
 })->with([
-    'string without maxLength'        => ['name', 'string'],
-    'array without maxItems'          => ['tags', 'array'],
-    'integer without min/max bounds'  => ['count', 'integer'],
+    'string without maxLength' => ['name', 'string'],
+    'array without maxItems' => ['tags', 'array'],
+    'integer without min/max bounds' => ['count', 'integer'],
 ]);
 
-it('emits no finding when a constraint or escape hatch is present', function (string $name, string $type, ?string $format, ?array $enum, array $rawExtras): void {
-    $rule = new SchemaConstraintsMissing();
-    $field = OperationNodeFactory::makeField(
-        name: $name,
-        type: $type,
-        format: $format,
-        enum: $enum,
-        raw: makePropertyWithConstraints($name, $type, $rawExtras),
-    );
+it(
+    'emits no finding when a constraint or escape hatch is present',
+    function (string $name, string $type, ?string $format, ?array $enum, array $rawExtras): void {
+        $rule = new SchemaConstraintsMissing();
+        $field = OperationNodeFactory::makeField(
+            name: $name,
+            type: $type,
+            format: $format,
+            enum: $enum,
+            raw: makePropertyWithConstraints($name, $type, $rawExtras),
+        );
 
-    $findings = iterator_to_array($rule->checkField($field, OperationNodeFactory::emptyContext()));
+        $findings = iterator_to_array($rule->checkField($field, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toBe([]);
-})->with([
-    'string with maxLength'   => ['name', 'string', null, null, ['maxLength' => 255]],
-    'string with format'      => ['createdAt', 'string', 'date-time', null, ['format' => 'date-time']],
-    'string with enum'        => ['status', 'string', null, ['active', 'archived'], ['enum' => ['active', 'archived']]],
-    'array with maxItems'     => ['tags', 'array', null, null, ['maxItems' => 20]],
-    'integer with minimum'    => ['count', 'integer', null, null, ['minimum' => 0]],
-    'unconstrained boolean'   => ['active', 'boolean', null, null, []],
+        expect($findings)->toBe([]);
+    },
+)->with([
+    'string with maxLength' => ['name', 'string', null, null, ['maxLength' => 255]],
+    'string with format' => ['createdAt', 'string', 'date-time', null, ['format' => 'date-time']],
+    'string with enum' => ['status', 'string', null, ['active', 'archived'], ['enum' => ['active', 'archived']]],
+    'array with maxItems' => ['tags', 'array', null, null, ['maxItems' => 20]],
+    'integer with minimum' => ['count', 'integer', null, null, ['minimum' => 0]],
+    'unconstrained boolean' => ['active', 'boolean', null, null, []],
 ]);
 
 it('emits no finding for a field with null raw (no OA\\Property available)', function (): void {
@@ -103,7 +108,8 @@ it('emits a finding via checkComponentSchema for a string schema with no maxLeng
 
     $findings = iterator_to_array($rule->checkComponentSchema($node, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.constraints-missing')
         ->and($findings[0]->message)->toContain('ShortName');
 });

@@ -16,21 +16,23 @@ it('removes the duplicate #[QueryParam] attribute', function (): void {
         discriminator: 'q',
     );
 
-    expect($result['fixes'])->toHaveCount(1)
-        ->and($result['after'])->toBe(<<<'PHP'
-        <?php
-
-        declare(strict_types=1);
-
-        namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix;
-
-        use Radiergummi\OpenApi\Attributes\QueryParam;
-
-        class DuplicateQueryParamFixtureController
-        {
-            #[QueryParam(name: 'q')]
-            public function index(): void {}
-        }
-
-        PHP);
+    expect($result['fixes'])
+        ->toHaveCount(1)
+        ->and($result['after'])->toBe(
+            <<<'PHP'
+                <?php
+                
+                declare(strict_types=1);
+                
+                namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix;
+                
+                use Radiergummi\OpenApi\Attributes\QueryParam;
+                
+                class DuplicateQueryParamFixtureController
+                {
+                    #[QueryParam(name: 'q')]
+                    public function index(): void {}
+                }
+                PHP . "\n",
+        );
 });

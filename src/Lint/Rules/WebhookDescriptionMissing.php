@@ -16,11 +16,10 @@ use function sprintf;
 use function trim;
 
 /**
- * Reports webhook operations that have no description.
+ * Reports webhook operations missing a description.
  *
- * Webhook consumers need more context than REST consumers because they receive unexpected
- * incoming requests. Each webhook operation should include a description explaining when and why
- * the webhook fires.
+ * Webhook consumers receive unexpected incoming requests; a description explaining when and why
+ * the webhook fires is essential context for them.
  */
 final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
 {

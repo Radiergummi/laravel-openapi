@@ -10,11 +10,8 @@ use Override;
 /**
  * Replace the byte span `[$startPos, $endPos)` with `$replacement`.
  *
- * The byte-precise escape hatch for sub-line edits the line operations cannot express: dropping a
- * single attribute from a shared `#[A('x'), A('x')]` group, or (in later phases) rewriting one
- * argument of an attribute. The originating fixer computes the span from php-parser node positions
- * (`getStartFilePos()` / `getEndFilePos() + 1`) and renders the replacement text itself, so the
- * rest of the line is left byte-identical.
+ * For sub-line edits (e.g. dropping one attribute from a shared group) that line-level operations
+ * cannot express. The span comes from php-parser node positions.
  */
 final class ModifyAttribute extends FixOperation
 {

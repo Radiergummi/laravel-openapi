@@ -20,14 +20,8 @@ use Throwable;
 use function assert;
 
 /**
- * Flags `#[ExceptionResponse]` on a class that doesn't implement {@see Throwable}. The
- * {@see \Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor} only consults the attribute
- * when resolving `@throws` FQCNs to response shapes, so an attribute on a non-throwable class
- * is dead documentation that the generator silently skips.
- *
- * Only `Stmt\Class_` nodes are visited. Anonymous classes (no `namespacedName`) and unresolvable
- * names are skipped — PHPStan's own checks catch missing classes, and the per-class hierarchy
- * lookup requires a known FQN.
+ * Flags `#[ExceptionResponse]` on a class that doesn't implement {@see Throwable}. The generator
+ * only reads this attribute on throwable types; on anything else it is silently ignored.
  *
  * @implements Rule<Class_>
  */

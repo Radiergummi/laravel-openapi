@@ -23,16 +23,9 @@ use function str_contains;
 /**
  * Reports path and query parameter names that do not follow the configured naming convention.
  *
- * Two independent cases apply, reflecting Laravel + JSON:API convention:
- * - Path parameters default to {@see IdentifierCase::Camel} (e.g. `deviceId`), matching
- *   controller-method variable names like `$deviceId`.
- * - Query parameters default to {@see IdentifierCase::Snake} (e.g. `per_page`), matching the
- *   conventional JSON:API / Spatie QueryBuilder shape.
- *
- * Query parameter exclusions (framework-generated, not author-controlled):
- * - Names containing `[` — JSON:API bracket notation such as `filter[id]` or `page[number]`.
- * - The exact names `page`, `per_page`, `sort`, and `include` — standard JSON:API / Spatie
- *   QueryBuilder parameters injected by the request layer.
+ * Path parameters default to camelCase; query parameters default to snake_case.
+ * Framework-injected query params (`page`, `per_page`, `sort`, `include`, bracket notation)
+ * are excluded.
  */
 #[Scoped]
 final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule implements
@@ -55,8 +48,6 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
         $this->pathCase = IdentifierCase::fromConfig($pathCase);
         $this->queryCase = IdentifierCase::fromConfig($queryCase);
 
-        // Pass the path case to the parent as the "primary" case — drives label()/fixHint()
-        // defaults inherited from AbstractNamingRule.
         parent::__construct($this->pathCase);
     }
 
@@ -84,7 +75,7 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
                 $case->label(),
             ),
             fixHint: sprintf(
-                'Use %s for parameter names (e.g. %s).',
+                'Use %s for parameter names (e.g., %s).',
                 $case->label(),
                 $case->example(),
             ),

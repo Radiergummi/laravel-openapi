@@ -137,7 +137,7 @@ pending, for `--check`), `1` when unfixed findings remain or a fix is pending.
 
 It edits PHP source only — never the generated JSON/YAML, and never method
 bodies or business logic. After a `--fix` run it prints the files it touched;
-run your formatter over them (e.g. `vendor/bin/pint --dirty`) to match your
+run your formatter over them (e.g., `vendor/bin/pint --dirty`) to match your
 project style. A finding is only auto-fixable when its owning rule opts in
 (by implementing `Lint\Fix\FixableRule`); everything else is reported as before.
 
@@ -156,7 +156,7 @@ covered operations / total operations
 
 Every run prints the metric — a one-line summary in `cli` output, a `coverage` block in `json`,
 and a `::notice` in `github` output. Operations are counted from the in-scope route set, so the
-metric respects `--uri`, `--path`, and `--diff`. With no in-scope operations (e.g. a `--diff` with
+metric respects `--uri`, `--path`, and `--diff`. With no in-scope operations (e.g., a `--diff` with
 no API changes) coverage is reported as `100%`.
 
 Findings that cannot be attributed to a single operation (schema-level, configuration-level) are
@@ -214,7 +214,7 @@ the generator already derives from its typed properties. The decision is **prove
 class's authored schema is compared, by source class, against what inference produces for the same
 class in a second, inference-only generation — it fires only when inference reproduces *everything*
 the annotation said (a description or `additionalProperties: false` inference can't derive keeps the
-annotation load-bearing, so it stays), and never when another surviving annotation still `$ref`s the
+annotation essential, so it stays), and never when another surviving annotation still `$ref`s the
 schema. `--fix` removes the whole `#[OA\Schema]`+`#[OA\Property]` set, or the whole `@OA\Schema`
 docblock block.
 
@@ -365,7 +365,7 @@ includes:
 PHPStan identifiers cannot contain dashes, so the static identifiers use
 camelCase. Where a static rule has a runtime counterpart, that counterpart's
 ID is listed below — the static one fires first, the runtime one is the
-backstop for cases the static analysis can't see (e.g. environment-scoped
+backstop for cases the static analysis can't see (e.g., environment-scoped
 visibility).
 
 | Static identifier | Catches | Runtime counterpart |
@@ -515,6 +515,7 @@ is enabled.
 | `query-builder.filter-duplicate` | 3 | Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.) |
 | `query-builder.filter-type-missing` | 3 | An #[AllowedFilter] is declared without an explicit value type. (QueryBuilder plugin.) |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
+| `schema.class-attribute-conflicts-with-field-attributes` | 3 | A class carries a class-level #[RawSchema] together with field attributes (#[RequestField]/#[ResponseField]/#[ResourceField]); the raw schema replaces the inferred body wholesale, so the field attributes have no effect. |
 | `schema.composite-fields-uninspected` | 3 | Schema is a oneOf/anyOf of multiple alternatives whose fields are not inspected by field-level rules (property, component schema, response body, or request body). |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
 | `spec.config-orphaned` | 3 | A configured spec has zero assigned routes after evaluation. |

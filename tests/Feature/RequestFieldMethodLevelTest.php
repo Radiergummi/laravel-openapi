@@ -23,7 +23,8 @@ it('builds a request body schema from method-level #[RequestField] attributes', 
     $key = substr((string) $ref, strlen('#/components/schemas/'));
     $schema = $this->spec['components']['schemas'][$key] ?? [];
 
-    expect($schema['type'])->toBe('object')
+    expect($schema['type'])
+        ->toBe('object')
         ->and($schema['properties'])->toHaveKeys(['domain', 'php_version', 'aliases'])
         ->and($schema['properties']['domain']['type'])->toBe('string')
         ->and($schema['properties']['domain']['format'])->toBe('hostname')
@@ -34,7 +35,10 @@ it('builds a request body schema from method-level #[RequestField] attributes', 
 });
 
 it('resolves a class-string #[RequestField] type/items to a $ref end-to-end', function (): void {
-    Route::post('/oa-fixture/request-field/store-with-ref', [RequestFieldMethodFixtureController::class, 'storeWithRef']);
+    Route::post(
+        '/oa-fixture/request-field/store-with-ref',
+        [RequestFieldMethodFixtureController::class, 'storeWithRef'],
+    );
     $spec = generateSpec();
 
     $op = $spec['paths']['/oa-fixture/request-field/store-with-ref']['post'] ?? [];
@@ -42,7 +46,8 @@ it('resolves a class-string #[RequestField] type/items to a $ref end-to-end', fu
     $key = substr((string) $ref, strlen('#/components/schemas/'));
     $schema = $spec['components']['schemas'][$key] ?? [];
 
-    expect($schema['properties']['owner']['$ref'])->toBe('#/components/schemas/CircleData')
+    expect($schema['properties']['owner']['$ref'])
+        ->toBe('#/components/schemas/CircleData')
         ->and($schema['properties']['shapes']['type'])->toBe('array')
         ->and($schema['properties']['shapes']['items']['$ref'])->toBe('#/components/schemas/CircleData')
         ->and($spec['components']['schemas'])->toHaveKey('CircleData');

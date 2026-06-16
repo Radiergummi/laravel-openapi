@@ -11,7 +11,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseRedirectWithoutLocation();
 
-    expect($rule->id())->toBe('response.redirect-without-location')
+    expect($rule->id())
+        ->toBe('response.redirect-without-location')
         ->and($rule->level())->toBe(2);
 });
 
@@ -49,7 +50,8 @@ it('emits a finding when a 302 response has no Location header', function (): vo
         new ResponseRedirectWithoutLocation()->checkResponse($response, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.redirect-without-location')
         ->and($findings[0]->level)->toBe(2)
         ->and($findings[0]->message)->toContain('302')

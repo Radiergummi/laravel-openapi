@@ -22,10 +22,8 @@ use UnexpectedValueException;
 /**
  * Yields one {@see ActionDescriptor} per Laravel route, unconditionally.
  *
- * Route exclusion lives entirely in {@see InclusionEvaluator}: Global filters
- * (`config('openapi.filters')`), spec membership, and visibility are all applied there. Keeping
- * introspection unfiltered means every exclusion produces a {@see RouteSkipped} event and a trace
- * entry visible to `openapi:why`, with no hidden "first the introspector also dropped some" stage.
+ * Filtering is deferred entirely to {@see InclusionEvaluator} so every exclusion emits a
+ * {@see RouteSkipped} event and appears in `openapi:why` traces.
  *
  * @internal
  */
@@ -112,19 +110,15 @@ final readonly class RouteIntrospector
 
         $classReflection = new ReflectionClass($controllerClass);
 
-        // Invocable controller: getActionMethod() returns the class name itself. The action is
-        // its __invoke() method — reflect that so its docblock, return type, parameters and
-        // attributes describe the endpoint (the class docblock describes the class, not the action).
+        // Invocable controller: getActionMethod() returns the class name. Reflect __invoke() so
+        // its docblock, return type, and parameters describe the endpoint, not the class.
         if ($controllerClass === $actionMethod) {
             $methodReflection = $classReflection->hasMethod('__invoke')
                 ? $classReflection->getMethod('__invoke')
                 : null;
             $reflector = $methodReflection ?? $classReflection;
         } elseif (!$classReflection->hasMethod($actionMethod)) {
-            // The route points at a method that does not exist on the class
-            // (stale route definition, a method handled via __call, etc.).
-            // Degrade like the non-existent-class case rather than aborting the
-            // whole run with a ReflectionException.
+            // Stale route or __call-handled method: degrade rather than throw ReflectionException.
             return new ActionDescriptor(
                 route: $route,
                 controller: null,

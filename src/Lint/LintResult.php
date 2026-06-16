@@ -5,28 +5,16 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint;
 
 /**
- * Output of a single {@see LintRunner::run()} invocation.
- *
- * Carries the filtered, suppressed, threshold-applied finding list plus the resolved level the
- * findings were filtered against, the process exit code, and (when computed) the
- * {@see CoverageSummary}. `exitCode` mirrors the convention used by the artisan command
- * (`0` clean, `1` findings present) so direct CLI integrations can pass it through without
- * re-deriving it.
+ * Output of a single {@see LintRunner::run()} invocation: filtered findings, resolved level,
+ * process exit code, and optional coverage summary.
  */
 final readonly class LintResult
 {
     /**
-     * @param list<Finding>    $findings Findings remaining after merging suppressions, --only/--skip,
-     *                                   config disabled rules, severity overrides, and the level
-     *                                   threshold.
-     * @param int              $level    The integer level used for the threshold filter (after
-     *                                   resolution of the 'max' sentinel and any --only widening).
-     * @param int              $exitCode Process exit code. With no coverage gate: 0 when $findings is
-     *                                   empty, 1 otherwise. With a gate active: 0 unless coverage is
-     *                                   below the floor or the finding count exceeds the budget.
-     * @param ?CoverageSummary $coverage The documentation-coverage summary. Always computed by
-     *                                   LintRunner::run(); null only when a caller constructs a
-     *                                   result without it (the --fix/--check path discards it).
+     * @param list<Finding>    $findings Findings after suppressions, rule filters, and level threshold.
+     * @param int              $level    Resolved threshold level (after 'max' sentinel and --only widening).
+     * @param int              $exitCode 0 = clean, 1 = findings present (or coverage gate failed).
+     * @param ?CoverageSummary $coverage Null when the caller discards coverage (e.g. --fix/--check path).
      */
     public function __construct(
         public array $findings,

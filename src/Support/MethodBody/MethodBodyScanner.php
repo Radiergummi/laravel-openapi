@@ -29,36 +29,21 @@ use function strpos;
 use function substr;
 
 /**
- * Bounded method-body scanner — the shared Tier-1 primitive.
+ * Parses a controller source file once per generation run, locates the AST node of a reflected
+ * method, and returns its first N top-level statements.
  *
- * Parses a controller source file with php-parser (names resolved, original written names
- * preserved as the `originalName` attribute), locates the AST node of a reflected method, and
- * hands out its first N top-level statements. Callers match their own whitelisted call shapes
- * against those statements; nothing here tracks variables across statements or follows values
- * into other methods — Tier-2 dataflow is refused by design (see epic #5).
- *
- * Performance invariants: each file is parsed at most once per generation run — the AST and
- * source caches are keyed by file path, and the scoped lifecycle resets them between runs.
- * Callers must only invoke the scanner on a Tier-0 miss (after signature-based resolution
- * yielded nothing).
+ * Callers match their own whitelisted call shapes against those statements. Variable tracking
+ * across statements or into other methods is intentionally out of scope.
  *
  * @internal
  */
 #[Scoped]
 final class MethodBodyScanner
 {
-    /**
-     * Parsed, name-resolved ASTs keyed by file path; null marks a file that failed to parse.
-     *
-     * @var array<string, null|list<Stmt>>
-     */
+    /** @var array<string, null|list<Stmt>> null marks a parse failure */
     private array $astCache = [];
 
-    /**
-     * Raw file contents keyed by file path, kept for trailing-comment lookups.
-     *
-     * @var array<string, string>
-     */
+    /** @var array<string, string> kept for trailing-comment lookups */
     private array $sourceCache = [];
 
     private readonly Parser $parser;
@@ -71,12 +56,7 @@ final class MethodBodyScanner
         $this->nodeFinder = new NodeFinder();
     }
 
-    /**
-     * Returns the first `$limit` top-level statements of the method's body, or an empty list when
-     * the source cannot be read or parsed, or the method node cannot be located.
-     *
-     * @return list<Stmt>
-     */
+    /** @return list<Stmt> */
     public function firstStatements(ReflectionMethod $method, int $limit): array
     {
         $methodNode = $this->methodNode($method);
@@ -131,8 +111,6 @@ final class MethodBodyScanner
         try {
             $statements = $this->parser->parse($source);
         } catch (Throwable $exception) {
-            // A file that won't parse yields no Tier-1 inference for any of its methods. Degrade
-            // (cache the miss) but log it — otherwise the empty result is silent.
             $this->logger->notice(
                 'Tier-1 body scan skipped a file that failed to parse.',
                 ['file' => $file, 'exception' => $exception],
@@ -154,9 +132,8 @@ final class MethodBodyScanner
     }
 
     /**
-     * Returns the text of a trailing `//` line comment directly after the given node (on the
-     * node's last source line), or null when there is none. Lets callers read per-entry
-     * annotations such as `'email' => 'required|email', // The contact address.`.
+     * Returns the text of a trailing `//` comment on the node's last source line, or null.
+     * Lets callers read inline annotations like `'email' => 'required|email', // The contact address.`
      */
     public function trailingCommentAfter(string $file, Node $node): ?string
     {

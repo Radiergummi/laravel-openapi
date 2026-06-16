@@ -80,6 +80,7 @@ use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
 use Radiergummi\OpenApi\Lint\Rules\ResponseStatusUnconventional;
 use Radiergummi\OpenApi\Lint\Rules\ResponseSuccessEmptyBody;
 use Radiergummi\OpenApi\Lint\Rules\SchemaAllOfTypeConflict;
+use Radiergummi\OpenApi\Lint\Rules\SchemaClassAttributeConflictsWithFieldAttributes;
 use Radiergummi\OpenApi\Lint\Rules\SchemaCompositeFieldsUninspected;
 use Radiergummi\OpenApi\Lint\Rules\SchemaConstraintsMissing;
 use Radiergummi\OpenApi\Lint\Rules\SchemaDescriptionMissing;
@@ -118,34 +119,16 @@ use Radiergummi\OpenApi\Support\Generator\Stages\SecurityStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\TransformersStage;
 
 /**
- * Assembles the {@see OpenApiRegistry}: the ordered stage pipeline, the baseline lint rules, and
- * the configured error-envelope resolver, then seals it.
- *
- * The stage order is the single top-to-bottom sequence in {@see assemble()}: pre-plugin baseline
- * stages (`RootStage` → `PathsStage` → `ErrorResponseInferenceStage`), then each plugin in the
- * given order, then post-plugin stages (`ComponentsStage` flush → `SecurityStage` → terminal
- * `OverridesStage` → `TransformersStage`). That is the one place stage order is expressed.
- *
- * This class lives in `Support` and must stay plugin-agnostic, so the plugin list and envelope
- * resolver arrive as class-strings from {@see \Radiergummi\OpenApi\OpenApiServiceProvider} (which
- * owns the Laravel/config glue): assembly iterates the {@see Plugin} contract without ever
- * referencing a concrete plugin.
- *
- * The baseline rules include those whose findings are emitted by baseline stages — e.g.
- * `errors.resolver-failed`, emitted by `ErrorResponseInferenceStage` when an
- * {@see ErrorResponseResolver} throws. Tying these rule registrations to the baseline avoids the
- * "Core was disabled and now my suppression annotation trips meta.unknown-rule" failure mode.
+ * Assembles the {@see OpenApiRegistry}: the ordered stage pipeline, baseline lint rules, and the
+ * configured error-envelope resolver, then seals it. {@see assemble()} is the single authoritative
+ * stage order. Plugin list and envelope resolver arrive as class-strings from the service provider,
+ * so this class never references a concrete plugin.
  *
  * @internal
  */
 final class BaselineRegistration
 {
     /**
-     * Baseline Linter rules
-     *
-     * Rules are listed here for registration only. The authoritative severity of each rule is its
-     * own `level()` method and is visible via `php artisan openapi:lint --list`.
-     *
      * @var list<class-string<Rule>>
      */
     public const array RULES = [
@@ -185,6 +168,7 @@ final class BaselineRegistration
         OperationIdMissing::class,
         SchemaAllOfTypeConflict::class,
         SchemaRawKeywordUnsupported::class,
+        SchemaClassAttributeConflictsWithFieldAttributes::class,
         ParameterQueryNoSchema::class,
         TagDuplicate::class,
         ResponseDescriptionMissing::class,
@@ -264,10 +248,7 @@ final class BaselineRegistration
     ];
 
     /**
-     * Builds, populates, and seals the registry.
-     *
-     * The body is the authoritative stage order, read top-to-bottom. The plugin list and envelope
-     * resolver are passed in as class-strings, so this class never references a concrete plugin.
+     * Builds, populates, and seals the registry. Read top-to-bottom for the authoritative stage order.
      *
      * @param array<class-string<Plugin>>         $plugins
      * @param array<class-string<Rule>>           $configRules
@@ -283,20 +264,15 @@ final class BaselineRegistration
     ): OpenApiRegistry {
         $registry = new OpenApiRegistry();
 
-        // Pre-plugin baseline stages: build the operation skeleton and emit contributions.
         $registry->addStage(RootStage::class);
         $registry->addStage(PathsStage::class);
         $registry->addStage(ErrorResponseInferenceStage::class);
 
-        // Plugins mutate operations and contribute schemas, in the order given.
         foreach ($plugins as $pluginClass) {
             $container->make($pluginClass)->register($registry);
         }
 
-        // Post-plugin stages: the ComponentsStage flush runs *after* the plugin loop, so late
-        // contributors register schemas like any other. The two terminal stages run last; the
-        // config-driven override escape hatch beats plugin and convention values, then
-        // user-registered document transformers get the final word.
+        // ComponentsStage runs after the plugin loop so late schema contributors are included.
         $registry->addStage(ComponentsStage::class);
         $registry->addStage(SecurityStage::class);
         $registry->addStage(OverridesStage::class);
@@ -310,7 +286,6 @@ final class BaselineRegistration
 
         $registry->addErrorResponseResolver($errorEnvelopeResolver);
 
-        // Build-once, then read-only: no further registration is accepted out-of-band.
         $registry->seal();
 
         return $registry;

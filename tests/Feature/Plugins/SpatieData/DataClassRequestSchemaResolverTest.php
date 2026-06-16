@@ -41,7 +41,8 @@ it('emits an application/json request body $ref for a directly type-hinted Data 
 
     $body = $spec['paths']['/spatie-data/request']['post']['requestBody'] ?? null;
 
-    expect($body)->not->toBeNull()
+    expect($body)->not
+        ->toBeNull()
         ->and($body['required'])->toBeTrue()
         ->and($body['content']['application/json']['schema']['$ref'])
         ->toBe('#/components/schemas/ScalarOnlyData');
@@ -69,7 +70,8 @@ it('emits a multipart/form-data body when a Data class carries an UploadedFile f
 
     $body = $spec['paths']['/spatie-data/upload']['post']['requestBody'] ?? null;
 
-    expect($body)->not->toBeNull()
+    expect($body)->not
+        ->toBeNull()
         ->and($body['content'])->toHaveKey('multipart/form-data')
         ->and($body['content'])->not->toHaveKey('application/json');
 });
@@ -79,11 +81,12 @@ it('emits the file field as type=string format=binary while scalars keep their t
 
     $spec = generateSpec();
 
-    $body       = $spec['paths']['/spatie-data/upload']['post']['requestBody'];
+    $body = $spec['paths']['/spatie-data/upload']['post']['requestBody'];
     $schemaName = spatieSchemaNameFromRef($body['content']['multipart/form-data']['schema']['$ref']);
-    $props      = $spec['components']['schemas'][$schemaName]['properties'];
+    $props = $spec['components']['schemas'][$schemaName]['properties'];
 
-    expect($props['file']['type'])->toBe('string')
+    expect($props['file']['type'])
+        ->toBe('string')
         ->and($props['file']['format'])->toBe('binary')
         ->and($props['name']['type'])->toBe('string')
         ->and($props['name'])->not->toHaveKey('format');
@@ -96,7 +99,8 @@ it('emits multipart/form-data when the file lives in a nested Data class', funct
 
     $body = $spec['paths']['/spatie-data/upload-nested']['post']['requestBody'] ?? null;
 
-    expect($body)->not->toBeNull()
+    expect($body)->not
+        ->toBeNull()
         ->and($body['content'])->toHaveKey('multipart/form-data')
         ->and($body['content'])->not->toHaveKey('application/json');
 });
@@ -108,7 +112,8 @@ it('keeps the body as application/json for a file-free Data class', function ():
 
     $body = $spec['paths']['/spatie-data/request']['post']['requestBody'];
 
-    expect($body['content'])->toHaveKey('application/json')
+    expect($body['content'])
+        ->toHaveKey('application/json')
         ->and($body['content'])->not->toHaveKey('multipart/form-data');
 });
 

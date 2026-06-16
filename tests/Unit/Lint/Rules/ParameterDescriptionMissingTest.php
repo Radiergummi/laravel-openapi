@@ -24,7 +24,8 @@ function makeParameterForDescription(?string $description): ParameterNode
 it('has the correct rule id and level', function (): void {
     $rule = new ParameterDescriptionMissing();
 
-    expect($rule->id())->toBe('parameter.description-missing')
+    expect($rule->id())
+        ->toBe('parameter.description-missing')
         ->and($rule->level())->toBe(2);
 });
 
@@ -35,8 +36,8 @@ it('emits a finding when a parameter has a missing or blank description', functi
     expect($rule->checkParameter($parameter, OperationNodeFactory::emptyContext()))
         ->toEmitFinding(ruleId: 'parameter.description-missing', messageContains: 'filter');
 })->with([
-    'null'            => [null],
-    'empty string'    => [''],
+    'null' => [null],
+    'empty string' => [''],
     'whitespace only' => ['   '],
 ]);
 

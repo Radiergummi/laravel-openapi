@@ -60,8 +60,7 @@ use function ucwords;
 final class EloquentModelToSchema
 {
     /**
-     * Per-model metadata memo for {@see propertyFor()} and {@see schemaFor()}; null marks a
-     * non-instantiable model (warned once on first access).
+     * Per-model metadata memo; null marks a non-instantiable model (warned once).
      *
      * @var array<class-string<Model>, null|array{
      *     reflection: ReflectionClass<Model>,
@@ -88,13 +87,11 @@ final class EloquentModelToSchema
     ) {}
 
     /**
-     * The schema for one model property by name — typed from `$casts`, a `@property` /
-     * `@property-read` tag, or an appended accessor, in that order — or null when the model
-     * carries no metadata under that name.
+     * Schema for one model property by name (from `$casts`, `@property`/`@property-read`, or
+     * appended accessor), or null when the model carries no metadata under that name.
      *
-     * Unlike {@see schemaFor()}, no `$hidden`/`$visible` filtering applies: those govern the
-     * *model's own* serialization, while a caller resolving a name it found elsewhere (a
-     * Resource `toArray()` key) has already decided the property is output.
+     * No `$hidden`/`$visible` filtering: those govern the model's own serialization, while a
+     * caller resolving a name it found elsewhere has already decided the property is output.
      *
      * @param class-string<Model> $modelClass
      *
@@ -125,8 +122,8 @@ final class EloquentModelToSchema
                 return $property;
             }
 
-            // An unrecognised cast (a custom CastsAttributes) is unknowable at Tier 0, but its
-            // `@property` tag still has a say. Falls back to an untyped property when no tag resolves.
+            // Unrecognised cast (custom CastsAttributes): defer to the `@property` tag, or fall
+            // back to an untyped property.
             if ($tag !== null) {
                 $property = $this->propertyFromTag($propertyName, $tag->type, $metadata['reflection']);
 
@@ -154,14 +151,12 @@ final class EloquentModelToSchema
             }
         }
 
-        // Framework-managed timestamp columns carry no explicit metadata; type them below any
-        // explicit cast or tag, but above the untyped fallback.
+        // Timestamp columns carry no explicit metadata; type below cast/tag, above untyped fallback.
         if (in_array($propertyName, $metadata['timestamps'], strict: true)) {
             return $this->timestampProperty($propertyName);
         }
 
-        // The name is known to the model (tagged, appended, or fillable) but its type is not
-        // derivable — an untyped property, the same fallback schemaFor() uses.
+        // Name is known but type is not derivable: emit an untyped property.
         if (
             $tag !== null
             || in_array($propertyName, $metadata['appends'], strict: true)
@@ -174,13 +169,9 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Gathers (and memoises) the reflection-level metadata for a model class, or null when the
-     * model is not instantiable.
-     *
-     * An abstract or otherwise non-instantiable model (reachable as a return type or a
-     * docblock relation annotation) would throw an Error from `new $modelClass()` — which the
-     * resolver fault boundary deliberately does not catch. Callers degrade gracefully instead,
-     * so one such model does not abort the whole generation run.
+     * Gathers (and memoises) reflection-level metadata for a model class, or null when
+     * the model is not instantiable. Non-instantiable models (abstract, etc.) would throw
+     * from `new $modelClass()`; returning null lets callers degrade without aborting the run.
      *
      * @param class-string<Model> $modelClass
      *
@@ -205,10 +196,6 @@ final class EloquentModelToSchema
 
         $reflection = new ReflectionClass($modelClass);
 
-        // An abstract or otherwise non-instantiable model (reachable as a return type or a
-        // `@property-read` relation) would throw an Error from `new $modelClass()`, which the
-        // resolver fault boundary deliberately does not catch. Degrade to an unknown-shape schema
-        // here instead, so one such model does not abort the whole generation run.
         if (!$reflection->isInstantiable()) {
             $this->logger->warning('EloquentModelToSchema: model is not instantiable, using empty fallback', [
                 'model' => $modelClass,
@@ -264,9 +251,6 @@ final class EloquentModelToSchema
 
     /**
      * Converts an OA\Schema into a named OA\Property by copying every defined JSON-Schema field.
-     *
-     * OA\Property extends OA\Schema, so the field set is identical; swagger-php internals are
-     * underscore-prefixed and skipped, as is the component-key `schema` field.
      */
     private function propertyFromSchema(string $name, OA\Schema $schema): OA\Property
     {
@@ -277,40 +261,34 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Maps an Eloquent cast string to an OA\Property with the given name, or returns null when
-     * the cast type is not recognised. For the JSON casts whose serialized shape is ambiguous
-     * (`array` / `json` / `collection`), the model's `@property` tag type — when present —
-     * disambiguates a list from a map ({@see jsonCastDefinition()}).
+     * Maps an Eloquent cast string to an OA\Property, or null when the cast type is not
+     * recognised. The model's `@property` tag disambiguates list from map for JSON casts.
      */
     private function castToProperty(string $name, string $cast, ?TypeNode $declaredType = null): ?OA\Property
     {
-        // The part before `:` — a parameterised cast (`decimal:2`, `AsCollection:Foo`) or the
-        // bare keyword / class-string. `?: $cast` keeps the type a non-false string for an empty cast.
+        // The part before `:` is the bare keyword or class-string; `?: $cast` guards against an
+        // empty token when strtok returns false.
         $castHead = strtok($cast, ':') ?: $cast;
 
-        // Class-form object casts (the modern `casts()` style spells the JSON casts as castable
-        // class-strings: `AsCollection::class`, `AsArrayObject::class`, …). getCasts() reports the
-        // caster FQCN, which the keyword match below would never recognise.
+        // Modern `casts()` style spells JSON casts as class-strings; getCasts() returns the FQCN,
+        // which the keyword match below would never recognise.
         $classFormDefinition = $this->classFormCastDefinition($castHead, $declaredType);
 
         if ($classFormDefinition !== null) {
             return new OA\Property(['property' => $name, ...$classFormDefinition]);
         }
 
-        // Normalise the keyword form: lowercase the head (e.g. `decimal:2` → `decimal`).
+        // Normalise to lowercase keyword (e.g. `decimal:2` → `decimal`).
         $normalised = strtolower($castHead);
 
-        // `encrypted:array`, `encrypted:collection`, `encrypted:json`, `encrypted:object` decrypt
-        // to their inner type at runtime — delegate to the same resolution as the bare inner cast.
-        // Bare `encrypted` (no parameter) stays as-is: it decrypts to a string.
+        // `encrypted:<type>` decrypts to the inner type; bare `encrypted` is just a string.
         if ($normalised === 'encrypted' && str_starts_with($cast, 'encrypted:')) {
             $inner = substr($cast, strlen('encrypted:'));
 
             return $this->castToProperty($name, $inner, $declaredType);
         }
 
-        // Shared scalar keywords (int/float/string/bool) resolve via the common map; the cast-only
-        // keywords (decimal/date/datetime/array/…) are handled here.
+        // Scalar keywords resolve via the common map; cast-only keywords are handled here.
         $definition = $this->scalarKeywordToDefinition($normalised) ?? match ($normalised) {
             'real' => ['type' => 'number'],
             'decimal',
@@ -337,18 +315,8 @@ final class EloquentModelToSchema
     }
 
     /**
-     * The schema definition for a class-form object cast — the modern `casts()` style spelling the
-     * JSON casts as castable class-strings. `getCasts()` reports the caster FQCN, so these never
-     * match the lowercase keyword map in {@see castToProperty()}.
-     *
-     * - `AsCollection` / `AsEncryptedCollection` / `AsArrayObject` / `AsEncryptedArrayObject` → the
-     *   JSON object/list shape, inheriting the same `@property`-tag list disambiguation as the
-     *   string-form casts ({@see jsonCastDefinition()}).
-     * - `AsStringable` → string.
-     *
-     * Any other castable (a custom `CastsAttributes`, the enum collections that carry an
-     * enum-class parameter) is unknowable at Tier 0 — null, so the caller defers to the
-     * `@property` tag.
+     * Schema definition for a class-form object cast (modern `casts()` style using class-strings).
+     * Returns null for unknown castables; the caller falls back to the `@property` tag.
      *
      * @return null|array<string, mixed>
      */
@@ -371,10 +339,8 @@ final class EloquentModelToSchema
     }
 
     /**
-     * The schema definition for an `array` / `json` / `collection` cast: a list when the
-     * `@property` tag for the column is list-shaped (`list<T>`, `array<int, T>`, `T[]` — one
-     * level, no deep generic descent; `items` only when `T` is a scalar keyword), otherwise
-     * the conservative `object` default.
+     * Schema definition for an `array`/`json`/`collection` cast: a list when the `@property`
+     * tag is list-shaped, otherwise `object`. Items typed only for scalar element keywords.
      *
      * @return array<string, mixed>
      */
@@ -388,8 +354,7 @@ final class EloquentModelToSchema
             return ['type' => 'object'];
         }
 
-        // A non-scalar element (list<Carbon>) still needs an items object: swagger-php's
-        // validator rejects an items-less array on both supported majors.
+        // swagger-php rejects an items-less array; provide an empty OA\Items for non-scalar elements.
         $definition = ['type' => 'array', 'items' => new OA\Items([])];
 
         if ($elementNode instanceof IdentifierTypeNode) {
@@ -404,8 +369,7 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Maps a scalar PHPDoc/cast keyword to an OpenAPI type definition array,
-     * or returns null for class names and non-scalar keywords.
+     * Maps a scalar PHPDoc/cast keyword to an OpenAPI type definition, or null for non-scalars.
      *
      * @return null|array<string, string>
      */
@@ -422,10 +386,7 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Builds a named OA\Property from a docblock type node via {@see TypeNodeToSchema}.
-     *
-     * Returns null when the node is unresolvable, so the caller falls through to the empty-property
-     * fallback.
+     * Builds a named OA\Property from a docblock type node, or null when unresolvable.
      *
      * @param ReflectionClass<Model> $reflection
      *
@@ -436,9 +397,8 @@ final class EloquentModelToSchema
         TypeNode $node,
         ReflectionClass $reflection,
     ): ?OA\Property {
-        // Array shapes (array{…}), list/array-of forms, and string-keyed maps are resolved by
-        // TypeNodeToSchema; scalar keywords, related-model `$ref`s, and non-model classes are
-        // resolved through the class-schema strategy below. Nullability is applied by the resolver.
+        // TypeNodeToSchema handles array shapes and list/map forms; classTagSchema handles
+        // model $refs and non-model classes. Nullability is applied by the resolver.
         $schema = $this->typeNodeToSchema->resolve(
             $node,
             $reflection,
@@ -459,12 +419,9 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Resolves the return type of accessor method to an OA\Property, or returns null when no
-     * reflectable typed accessor exists for the property name.
-     *
-     * Checks the new-style studly cased method (e.g. `readingTime`) and the legacy
-     * `getReadingTimeAttribute` form. If the return type is `Attribute` (the new
-     * `Attribute::get(...)` style), the value type is not reflectable, so null is returned.
+     * Resolves an accessor's return type to an OA\Property, checking both the studly-cased and
+     * legacy `get…Attribute` forms. Returns null when no typed accessor exists, or when the
+     * return type is `Attribute` (new-style `Attribute::get()`; value type is not reflectable).
      *
      * @param ReflectionClass<Model> $reflection
      *
@@ -504,8 +461,7 @@ final class EloquentModelToSchema
     }
 
     /**
-     * The default property for a framework-managed timestamp column: nullable date-time, the
-     * runtime reality (unsaved models and NULL columns carry no value).
+     * Nullable date-time property for a timestamp column (unsaved models and NULL columns carry no value).
      */
     private function timestampProperty(string $name): OA\Property
     {
@@ -513,9 +469,8 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Maps a resolved leaf class to a schema: a related model becomes a pooled `$ref`, any other
-     * class is shaped by {@see JsonSchemaFromType}. Supplied as the class-schema strategy to
-     * {@see TypeNodeToSchema}.
+     * Related models become a pooled `$ref`; other classes are shaped by JsonSchemaFromType.
+     * Supplied as the class-schema strategy to TypeNodeToSchema.
      *
      * @throws ReflectionException
      */
@@ -532,8 +487,6 @@ final class EloquentModelToSchema
     }
 
     /**
-     * Registers the model's schema and returns the component key.
-     *
      * @param class-string<Model> $modelClass
      *
      * @throws ReflectionException
@@ -568,7 +521,6 @@ final class EloquentModelToSchema
         $propertyTags = $metadata['propertyTags'];
         $timestamps = $metadata['timestamps'];
 
-        // Union of all known property names.
         $allNames = array_unique(
             array_merge(
                 array_keys($casts),
@@ -579,7 +531,6 @@ final class EloquentModelToSchema
             ),
         );
 
-        // Apply visibility/hidden filters.
         if ($visible !== []) {
             $allNames = array_values(
                 array_filter(
@@ -598,7 +549,6 @@ final class EloquentModelToSchema
             $tag = $propertyTags[$name] ?? null;
 
             if ($castString !== null) {
-                // Enum-class cast takes priority: reference the shared reusable enum component.
                 /** @noinspection NotOptimalIfConditionsInspection */
                 if (
                     enum_exists($castString)
@@ -614,8 +564,7 @@ final class EloquentModelToSchema
 
                 $property = $this->castToProperty($name, $castString, $tag?->type);
 
-                // An unrecognised cast (a custom CastsAttributes) defers to the `@property` tag
-                // rather than swallowing it; falls back to an untyped property otherwise.
+                // Unrecognised cast: defer to the `@property` tag, or fall back to untyped.
                 if ($property === null && $tag !== null) {
                     $property = $this->propertyFromTag($name, $tag->type, $reflection);
                 }
@@ -635,7 +584,6 @@ final class EloquentModelToSchema
                 }
             }
 
-            // For appended attributes not typed via @property, try the accessor method.
             if (in_array($name, $appends, strict: true)) {
                 $property = $this->propertyFromAccessor($reflection, $name);
 
@@ -646,8 +594,7 @@ final class EloquentModelToSchema
                 }
             }
 
-            // Framework-managed timestamp columns carry no explicit metadata; type them below
-            // any explicit cast or tag, but above the untyped fallback.
+            // Timestamp columns carry no explicit metadata; type below cast/tag, above untyped.
             if (in_array($name, $timestamps, strict: true)) {
                 $properties[] = $this->timestampProperty($name);
 
@@ -657,8 +604,6 @@ final class EloquentModelToSchema
             $properties[] = new OA\Property(['property' => $name]);
         }
 
-        // Seed examples from the model's factory definition() (when one exists and is deterministic);
-        // leaves untouched any property the factory does not produce.
         if ($examples !== []) {
             foreach ($properties as $property) {
                 if (array_key_exists($property->property, $examples)) {
@@ -667,8 +612,7 @@ final class EloquentModelToSchema
             }
         }
 
-        // A property is required when it has a @property/@property-read annotation whose type is
-        // non-nullable - regardless of whether the schema type came from a cast.
+        // Non-nullable @property tags mark the property required, regardless of the cast type.
         $required = [];
 
         foreach ($names as $name) {

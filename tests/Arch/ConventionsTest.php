@@ -16,17 +16,21 @@ arch('test files declare strict types')
 $plugins = ['ApiResources', 'Core', 'Fractal', 'QueryBuilder', 'SpatieData'];
 
 foreach ($plugins as $plugin) {
-    $siblings = array_values(array_filter(
-        $plugins,
-        static fn(string $other): bool => $other !== $plugin,
-    ));
+    $siblings = array_values(
+        array_filter(
+            $plugins,
+            static fn(string $other): bool => $other !== $plugin,
+        ),
+    );
 
     arch("plugin {$plugin} must not import a sibling plugin")
         ->expect("Radiergummi\\OpenApi\\Plugins\\{$plugin}")
-        ->not->toUse(array_map(
-            static fn(string $sibling): string => "Radiergummi\\OpenApi\\Plugins\\{$sibling}",
-            $siblings,
-        ));
+        ->not->toUse(
+            array_map(
+                static fn(string $sibling): string => "Radiergummi\\OpenApi\\Plugins\\{$sibling}",
+                $siblings,
+            ),
+        );
 }
 
 // @internal isolation — the documented public extension surface (Contracts/) must not leak
@@ -49,9 +53,9 @@ function srcPath(string $relative = ''): string
 }
 
 /**
- * Every PHP file under src/ that declares a class-level @internal tag, mapped to its FQCN.
+ * Every PHP file under src/ that declares a class-level @return list<string>
  *
- * @return list<string>
+ * @internal tag, mapped to its FQCN.
  */
 function internalSourceClasses(): array
 {
@@ -60,7 +64,7 @@ function internalSourceClasses(): array
     foreach (phpFilesUnder(srcPath()) as $file) {
         $contents = file_get_contents($file);
 
-        if ($contents === false || ! hasClassLevelInternalTag($contents)) {
+        if ($contents === false || !hasClassLevelInternalTag($contents)) {
             continue;
         }
 
@@ -77,7 +81,7 @@ function internalSourceClasses(): array
 /**
  * Whether the file's type declaration carries a class-level @internal tag in its own docblock.
  * A bare str_contains('@internal') would also match method- and property-level @internal tags
- * (e.g. the `linkParent()` methods on Lint\Tree nodes), wrongly marking otherwise-public classes
+ * (e.g., the `linkParent()` methods on Lint\Tree nodes), wrongly marking otherwise-public classes
  * as internal. We require the @internal docblock to immediately precede the class/interface/enum/
  * trait declaration (allowing intervening attributes and modifiers).
  */
@@ -85,7 +89,7 @@ function hasClassLevelInternalTag(string $contents): bool
 {
     return preg_match(
         '~/\*\*(?:[^*]|\*(?!/))*?@internal\b(?:[^*]|\*(?!/))*?\*/\s*'
-        . '(?:#\[[^\]]*\]\s*)*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+~',
+            . '(?:#\[[^\]]*\]\s*)*(?:(?:final|abstract|readonly)\s+)*(?:class|interface|enum|trait)\s+\w+~',
         $contents,
     ) === 1;
 }
@@ -147,7 +151,11 @@ function fqcnFromFile(string $contents): ?string
 {
     if (
         preg_match('/^namespace\s+([^\s;]+)\s*;/m', $contents, $namespace) !== 1
-        || preg_match('/^(?:final\s+|abstract\s+|readonly\s+)*(?:class|interface|enum|trait)\s+(\w+)/m', $contents, $type) !== 1
+        || preg_match(
+            '/^(?:final\s+|abstract\s+|readonly\s+)*(?:class|interface|enum|trait)\s+(\w+)/m',
+            $contents,
+            $type,
+        ) !== 1
     ) {
         return null;
     }

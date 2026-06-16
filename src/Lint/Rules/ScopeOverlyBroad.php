@@ -36,8 +36,7 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
     {
         $knownScopes = $this->registeredScopes ?? $context->index->registeredScopes;
 
-        // If there are no specific scopes registered (empty, or only the wildcard regardless of
-        // its position), there is nothing to flag.
+        // No specific scopes registered (or only the wildcard): nothing to flag.
         if (array_diff($knownScopes, ['*']) === []) {
             return;
         }
@@ -45,8 +44,7 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
         $schemeTypes = SecuritySchemeTypes::fromSpec($context->rawSpec);
 
         foreach ($operation->security as $requirement) {
-            // Only oauth2/oidc schemes carry a scope registry. Skip non-scope-bearing schemes
-            // (e.g. Sanctum's http/bearer scheme, whose abilities surface as scopes).
+            // Only oauth2/oidc schemes carry a scope registry.
             if (!$schemeTypes->carriesScopes($requirement['scheme'])) {
                 continue;
             }

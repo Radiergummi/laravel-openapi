@@ -61,37 +61,19 @@ use function Radiergummi\OpenApi\is_undefined;
 use function str_contains;
 
 /**
- * Orchestrates one lint run against the application's routes.
- *
- * Extracted from {@see LintCommand} so the lint pipeline is unit-testable independent of the
- * artisan command and reusable from other entry points (programmatic consumers, custom CLI
- * wrappers, HTTP endpoints). The command becomes a thin adapter: it parses options into
- * {@see LintOptions}, calls {@see run()}, and renders the resulting {@see LintResult} via a
- * {@see Formatters\Formatter}.
- *
- * The runner binds an {@see ArrayFindingsCollector} as the active {@see FindingsCollector}
- * before resolving the generator so extractor-emitted findings are captured rather than logged.
- * The previous binding is restored after the run completes.
- *
- * The run has two phases:
- *  1. Pre-build: {@see Visitors\PreBuildRule} instances inspect config + descriptors once.
- *  2. Per-spec: for each target spec, the generator builds the document and the tree walker
- *     dispatches visitor rules; findings are tagged with the spec name via
- *     {@see Finding::withSpec()}.
+ * Extracted from {@see LintCommand} so the pipeline is testable. Two phases: pre-build
+ * ({@see Visitors\PreBuildRule}) and per-spec (generate + tree-walk, findings tagged via
+ * {@see Finding::withSpec()}).
  */
 #[Scoped]
 final readonly class LintRunner
 {
     /**
-     * @param null|list<string> $enabledRules          `openapi.lint.enabled_rules` — null when unset
-     *                                                 (distinct from `[]`, which means "all disabled").
+     * @param null|list<string> $enabledRules          `openapi.lint.enabled_rules`; null = unset (distinct from `[]` = all disabled).
      * @param list<string>      $disabledRules         `openapi.lint.disabled_rules`.
-     * @param int|string        $configuredLevel       `openapi.lint.level` — numeric or the literal
-     *                                                 string `"max"`.
-     * @param ?float            $configuredMinCoverage `openapi.lint.min_coverage` — gate floor, null
-     *                                                 when unset.
-     * @param ?int              $configuredMaxFindings `openapi.lint.max_findings` — gate budget, null
-     *                                                 when unset.
+     * @param int|string        $configuredLevel       `openapi.lint.level`; numeric or `"max"`.
+     * @param ?float            $configuredMinCoverage `openapi.lint.min_coverage`; null when unset.
+     * @param ?int              $configuredMaxFindings `openapi.lint.max_findings`; null when unset.
      */
     public function __construct(
         private Container $container,
@@ -167,19 +149,11 @@ final readonly class LintRunner
 
         $descriptors = $this->collectDescriptors($options);
 
-        // When --path or --diff narrows the route set, build the allowed-URI set up front so
-        // post-processing can drop findings emitted by generation stages (e.g. RequestBodyExtractor,
-        // ValidationRulesToSchema) that target routes outside the filter. The tree-walk path
-        // restricts $document->paths before walking, but stage-emitted findings bypass that gate.
+        // Stage-emitted findings bypass the tree-walk path restriction, so they need a URI gate.
         $allowedRouteUris = null;
 
-        // Schema-derived generation-time findings (rule.unknown, rule.invalid-enum-value,
-        // request-body.schema-degraded) carry no routeUri — the schema is built once and shared
-        // across routes — so they cannot be scoped by URI. Instead they are scoped by reachability:
-        // $allowedSchemaClasses holds the component classes referenced by in-scope routes, and
-        // $allComponentClasses holds every component class seen (the confidence gate that stops us
-        // dropping a finding whose source class we cannot place as a component). Both are populated
-        // per spec inside the loop below, and only consulted when a route filter is active.
+        // Schema findings carry no routeUri; scope them by reachability instead.
+        // $allComponentClasses is the confidence gate: unknown = route-agnostic = keep.
         $allowedSchemaClasses = [];
         $allComponentClasses = [];
 
@@ -195,7 +169,7 @@ final readonly class LintRunner
         $skip = $this->resolveSkip($options->skip);
         $level = $this->resolveLevel($options);
 
-        // When --only targets specific rules, surface them regardless of the severity preset.
+        // --only: surface targeted rules at any severity.
         if ($only !== []) {
             $level = max($level, $this->registry->maxLevel());
         }
@@ -211,14 +185,12 @@ final readonly class LintRunner
             );
         }
 
-        // Stages to exclude when building the inference-only control document for this run, unioned
-        // across every active rule that compares against inference (the migration family). Empty
-        // when no such rule is active, so the control generation stays unbuilt and unpaid.
+        // Empty when no active rule needs inference; skips control generation entirely.
         $inferenceExcludedStages = $this->inferenceExcludedStages($rules);
 
         // endregion
 
-        // region Pre-build phase — runs once, findings carry spec: null
+        // region Pre-build phase: runs once, findings carry spec: null
 
         foreach ($this->registry->preBuildRules() as $preBuildRule) {
             $preBuildRule->checkConfiguration($this->specRegistry, $descriptors, $emit);
@@ -235,38 +207,27 @@ final readonly class LintRunner
         $descriptorDirectives = $this->suppressionCollector->collect($descriptors);
         $suppressionsAll = $descriptorDirectives;
 
-        // Operation key => tag list, accumulated across every target spec. Feeds the coverage
-        // calculator. Built from the same in-scope tree the walk uses, so it honours --path/--diff.
+        // Accumulated across every target spec; feeds the coverage calculator.
+        // Built from the same in-scope tree the walk uses, so it honours --path/--diff.
         /** @var array<string, list<string>> $operationTags */
         $operationTags = [];
 
-        // Operation key => controller source location, for the line-keyed coverage reports
-        // (Cobertura/LCOV). Collected in the same pass; null file/line for closure routes.
+        // Source locations for line-keyed coverage reports (Cobertura/LCOV). Null file/line for closure routes.
         /** @var array<string, array{file: ?string, line: ?int}> $operationLocations */
         $operationLocations = [];
 
         foreach ($targets as $spec) {
-            // Bind a spec-local collector BEFORE generateOne so stage-emitted findings
-            // (e.g. ValidationRulesToSchema, ErrorResponseInferenceStage) land alongside the
-            // tree-walk findings. The orchestrator's forgetScopedInstances() preserves the
-            // current FindingsCollector binding, so this instance survives generation.
-            // Spec-local stays un-decorated; the drain below goes through $emit so each
-            // finding fires LintFindingEmitted exactly once, with the spec tag attached.
+            // Spec-local collector survives forgetScopedInstances(); drained via $emit below.
             $specLocal = new ArrayFindingsCollector();
             $this->container->forgetInstance(FindingsCollector::class);
             $this->container->instance(FindingsCollector::class, $specLocal);
 
             $document = $this->orchestrator->generateOne($spec->name);
 
-            // generateOne() calls forgetScopedInstances() internally, which replaces the
-            // ComponentSchemaRegistry scoped instance. Re-resolve so componentClassMap() reflects
-            // the schemas registered during generation, not the stale pre-generation instance.
+            // Re-resolve so the class map reflects schemas registered during this run.
             $liveRegistry = $this->container->make(ComponentSchemaRegistry::class);
             $classMap = $liveRegistry->componentClassMap();
 
-            // Accumulate the schema-class scoping sets for this spec's document. Reachability
-            // selects in-scope path items by URI (shared inScopePathItems helper), so it is
-            // independent of whether the tree walk has already restricted $document->paths.
             if ($allowedRouteUris !== null) {
                 foreach ($classMap as $componentClass) {
                     $allComponentClasses[$componentClass] = true;
@@ -285,10 +246,7 @@ final readonly class LintRunner
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
 
-            // Build the inference-only view for the migration family, at this safe boundary (after
-            // the lint document and its class map are captured as locals, before the walk). The
-            // orchestrator owns the scoped-state reset; no rule re-enters the pipeline. The same
-            // control document feeds both the schema-level and operation-level redundancy rules.
+            // Build inference control document before the walk; skipped when no rule needs it.
             $inference = $inferenceExcludedStages !== []
                 ? InferenceView::from($this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages))
                 : new InferenceView();
@@ -350,10 +308,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Discover every Laravel route, drop global-filter rejects (vendor routes like Telescope, Nova,
-     * Passport, Ignition and any user-configured filter), then apply the --path/--files/--diff
-     * narrowing. Per-spec {@see InclusionEvaluator::decide()} still re-filters per (route × spec)
-     * inside the generator, so this is the single-pass equivalent.
+     * Discovers routes, drops global-filter rejects, then applies --path/--files/--diff narrowing.
      *
      * @return list<ActionDescriptor>
      *
@@ -386,10 +341,7 @@ final readonly class LintRunner
     }
 
     /**
-     * In-scope route URIs (leading slash trimmed) for the given descriptors. The single source of
-     * the "which routes are in scope" set — shared by the `--path`/`--diff` finding filter, the
-     * tree-walk path restriction, and schema reachability — so they cannot diverge on slash
-     * handling.
+     * URI set (leading slash trimmed) shared by the finding filter, tree-walk, and schema reachability.
      *
      * @param list<ActionDescriptor> $descriptors
      *
@@ -407,12 +359,8 @@ final readonly class LintRunner
     }
 
     /**
-     * Resolve the effective --only list, merging CLI input with config('openapi.lint.enabled_rules').
-     *
-     * - If config is a non-null array AND CLI is non-empty: intersection.
-     * - If only config is set: use config list.
-     * - If only CLI is set: use CLI list.
-     * - Neither set: empty (no restriction).
+     * Resolves the effective --only list, merging CLI with `openapi.lint.enabled_rules`.
+     * Both set: intersection. Only one set: use it. Neither: empty (no restriction).
      *
      * @param list<string> $cli
      *
@@ -439,10 +387,8 @@ final readonly class LintRunner
     }
 
     /**
-     * Expand `*`-globbed rule-ID patterns against the registered rule IDs, so a family pattern like
-     * `migration.*` selects every rule in that family. Non-glob entries pass through verbatim
-     * (an unknown exact ID still matches nothing, as before); a glob that matches no registered
-     * rule is kept literally, so it too matches nothing rather than collapsing to "no filter".
+     * Expands `*`-glob patterns against registered rule IDs (e.g. `migration.*`). Non-glob entries
+     * pass through verbatim. A glob matching nothing is kept literally so it still constrains.
      *
      * @param list<string> $patterns
      *
@@ -479,9 +425,8 @@ final readonly class LintRunner
     }
 
     /**
-     * Resolve the effective --skip list, merging CLI input with config('openapi.lint.disabled_rules').
-     *
-     * spec.invalid is unconditionally removed — it cannot be disabled.
+     * Resolves the effective --skip list, merging CLI with `openapi.lint.disabled_rules`.
+     * `spec.invalid` is unconditionally excluded; it cannot be disabled.
      *
      * @param list<string> $cli
      *
@@ -516,9 +461,8 @@ final readonly class LintRunner
     }
 
     /**
-     * The union of stages to exclude when building the inference-only control document, gathered
-     * from every active rule that declares it compares against inference. Empty when no such rule is
-     * active — the signal for the per-spec loop to skip the control generation entirely.
+     * Stages to exclude when building the inference-only control document. Empty when no active
+     * rule declares inference comparison, skipping control generation entirely.
      *
      * @param list<Rule> $rules
      *
@@ -538,14 +482,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Component classes reachable from the in-scope operations, transitively through
-     * component-to-component `$ref`s. Schema-derived findings are class-keyed (a FormRequest or
-     * Data class is built once and `$ref`'d by many routes), so they are scoped by membership in
-     * this set rather than by a single routeUri.
-     *
-     * Seeding from in-scope path items only — not the whole document, whose component pool still
-     * holds out-of-scope schemas — keeps a schema in scope exactly when an in-scope route reaches
-     * it.
+     * Component classes transitively reachable from in-scope operations via `$ref` chains.
      *
      * @param array<string, true>         $allowedRouteUris  in-scope route URIs, leading slash trimmed
      * @param array<string, class-string> $componentClassMap component schema name → class
@@ -608,8 +545,6 @@ final readonly class LintRunner
     }
 
     /**
-     * The document's path items whose URI is in `$allowedRouteUris` (leading slash trimmed).
-     *
      * @param array<string, true> $allowedRouteUris
      *
      * @return list<OA\PathItem>
@@ -632,7 +567,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Schema-component names referenced via `$ref` anywhere within the given annotation subtree.
+     * Component names referenced via `$ref` anywhere in the annotation subtree.
      *
      * @return list<string>
      */
@@ -662,12 +597,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Run the tree walk, RouteRule pass, and MetaSuppressionStale for one spec.
-     *
-     * The caller is responsible for binding {@see $specLocal} as the active
-     * {@see FindingsCollector} before generation so extractor-emitted findings land in the same
-     * bucket as the tree-walk findings; this method only emits into the bucket and leaves draining
-     * to the caller.
+     * Runs the tree walk, RouteRule pass, and MetaSuppressionStale for one spec.
      *
      * @param list<Rule>                  $rules
      * @param list<ActionDescriptor>      $descriptors
@@ -701,10 +631,7 @@ final readonly class LintRunner
             MetaSuppressionStale::ID,
         ];
 
-        // When a path filter is active, $descriptors contains only the allowed routes.
-        // The generated document includes all routes. Restrict $document->paths to only those whose
-        // URI appears in the allowed set so rules don't fire on routes that were excluded by
-        // `--path` or `--diff`.
+        // Restrict to the allowed set so rules don't fire on routes excluded by --path/--diff.
         if ($descriptors !== [] && is_array($document->paths)) {
             $document->paths = self::inScopePathItems($document, self::descriptorUriSet($descriptors));
         }
@@ -779,8 +706,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Decide whether a manually-instantiated meta rule should run, honoring the requested
-     * severity level and the --only/--skip allow/deny lists.
+     * Whether a manually-instantiated meta rule should run given level and --only/--skip.
      *
      * @param list<string> $only
      * @param list<string> $skip
@@ -795,20 +721,13 @@ final readonly class LintRunner
     }
 
     /**
-     * Map in-scope operations to their tag lists for the coverage denominator. When a route filter
-     * is active, an out-of-scope operation must not count: {@see walkSpec()} already restricts
-     * $document->paths when descriptors match, but an empty match (e.g. a glob that hits nothing)
-     * leaves every operation in place, so the URI is gated explicitly here.
+     * Maps in-scope operations to tag lists for the coverage denominator.
+     * Gates by URI because walkSpec()'s path restriction alone can't exclude empty-glob routes.
      *
      * @param list<OperationNode>      $operations
      * @param null|array<string, true> $allowedRouteUris
      *
      * @return array{0: array<string, list<string>>, 1: array<string, array{file: ?string, line: ?int}>}
-     *                                                                                                   [operation key
-     *                                                                                                   => tags,
-     *                                                                                                   operation key
-     *                                                                                                   => source
-     *                                                                                                   location]
      */
     private function collectOperationCoverage(array $operations, ?array $allowedRouteUris, string $specName): array
     {
@@ -836,8 +755,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Apply the post-walk finding pipeline: severity overrides, route/schema scope filtering (when
-     * --path/--diff is active), --only/--skip, suppressions, and the level cutoff.
+     * Post-walk pipeline: severity overrides, scope filter, --only/--skip, suppressions, level cutoff.
      *
      * @param list<Finding>              $rawFindings
      * @param list<string>               $only
@@ -876,11 +794,7 @@ final readonly class LintRunner
                         return isset($allowedRouteUris[ltrim($uri, '/')]);
                     }
 
-                    // No routeUri: this is either a schema-derived generation finding (scope it by
-                    // the schema's reachability from in-scope routes) or a genuinely route-agnostic
-                    // finding (pre-build, spec-level — always kept). A source class we don't
-                    // recognise as a component is treated as route-agnostic and kept, so an
-                    // in-scope finding is never hidden because we couldn't place its schema.
+                    // No routeUri: scope by reachability; unknown class = route-agnostic = keep.
                     $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
 
                     if (is_string($sourceClass) && isset($allComponentClasses[$sourceClass])) {
@@ -948,9 +862,7 @@ final readonly class LintRunner
     }
 
     /**
-     * The installed generator version, stamped into the coverage report so cross-version coverage
-     * deltas are recognised as non-comparable. Falls back to 'dev' when the package is not resolvable
-     * as a Composer dependency.
+     * Installed generator version for the coverage report. Falls back to 'dev' when unresolvable.
      */
     private function generatorVersion(): string
     {
@@ -962,10 +874,7 @@ final readonly class LintRunner
     }
 
     /**
-     * Exit code for the run. With no coverage gate configured the legacy rule applies (any finding
-     * → 1). When a gate is active (--min-coverage / --max-findings, from CLI or config) the gate
-     * replaces that rule: non-zero only when coverage is below the floor or findings exceed the
-     * budget — findings alone no longer fail.
+     * Without a coverage gate: any finding → 1. With a gate: non-zero when below floor or over budget.
      *
      * @param list<Finding> $findings
      */

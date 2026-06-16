@@ -43,7 +43,14 @@ function makeScopeSchemeContext(array $schemeTypes, array $registeredScopes): Li
     ]);
 
     return new LintContext(
-        api: new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec),
+        api: new ApiNode(
+            operations: [],
+            components: [],
+            webhooks: [],
+            declaredTags: [],
+            tagDescriptions: [],
+            raw: $spec,
+        ),
         index: new TreeIndex(
             operationsByOperationId: [],
             operationsByRouteKey: [],

@@ -25,16 +25,13 @@ use function is_a;
 use function is_string;
 
 /**
- * Resolves the API Resource an action returns. Used by both
- * {@see ResourceResponseResolver} (to build the response) and the ApiResources
- * lint rules (to flag undeclared/ambiguous resources) so resolution is defined
- * exactly once.
+ * Resolves the API Resource class an action returns. Used by both
+ * {@see ResourceResponseResolver} and the ApiResources lint rules so resolution is defined once.
  *
- * Resolution is signature-first: `#[ResponseResource]` wins, then a concrete return type (or a
- * collection type's `#[Collects]` / `$collects`). Only when the signature names a *base* resource
- * type — a collection whose item class is undeclared, or exactly `JsonResource` — does the
- * {@see ReturnExpressionResourceReader} read the method body's return expression (issue #108);
- * its refusal keeps today's behaviour.
+ * Resolution order: `#[ResponseResource]`, then concrete return type (or `#[Collects]` /
+ * `$collects`). Only when the signature names a base resource type does
+ * {@see ReturnExpressionResourceReader} inspect the return expression; refusal leaves the
+ * endpoint ambiguous.
  */
 final readonly class ResourceClassLocator implements ResourceTargetLocator
 {
@@ -97,17 +94,14 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
                 );
             }
 
-            // Collection return type with no #[ResponseResource], #[Collects], or
-            // $collects: the item class is not recoverable from the signature — the return
-            // expression is the last resort before reporting the endpoint as ambiguous.
+            // No #[ResponseResource], #[Collects], or $collects: fall back to the return
+            // expression before reporting the endpoint as ambiguous.
             return $this->locateFromReturnExpression($descriptor)
                 ?? new ResourceTarget(resourceClass: null, isCollection: true);
         }
 
         if ($name === JsonResource::class) {
-            // The base class itself carries no shape; only the return expression can name the
-            // concrete resource (or the wrapped model). Refusal keeps the base-class target —
-            // an empty placeholder schema, today's behavior.
+            // Base class has no shape; try the return expression to get a concrete resource.
             $bodyTarget = $this->locateFromReturnExpression($descriptor);
 
             if ($bodyTarget !== null) {
@@ -198,9 +192,6 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
     }
 
     /**
-     * The target resolved from the action's return expression (Tier-1; issue #108), or null for
-     * closure routes and refused bodies.
-     *
      * @throws ReflectionException
      */
     private function locateFromReturnExpression(ActionDescriptor $descriptor): ?ResourceTarget

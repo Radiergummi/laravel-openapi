@@ -5,7 +5,7 @@
 
 parameters:
     # Shipped with the extension so the type aliases referenced by this package's attribute
-    # PHPDocs (e.g. #[Response(status:)], #[Header(type:)]) resolve in consumer PHPStan runs,
+    # PHPDocs (e.g., #[Response(status:)], #[Header(type:)]) resolve in consumer PHPStan runs,
     # not just the package's own analysis.
     typeAliases:
         OpenApiPrimitiveType: "'array'|'boolean'|'integer'|'null'|'number'|'object'|'string'"

@@ -27,7 +27,8 @@ it('renders the catalog as JSON sorted by level then id', function (): void {
     $json = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Json);
     $rows = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
 
-    expect($rows)->toBeArray()->not->toBeEmpty()
+    expect($rows)->toBeArray()->not
+        ->toBeEmpty()
         ->and($rows[0])->toHaveKeys(['id', 'level', 'description']);
 
     $levels = array_column($rows, 'level');
@@ -40,7 +41,8 @@ it('renders a Markdown table with a header row', function (): void {
     $md = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Markdown);
 
     // The table is column-padded by Symfony, so assert on row shape rather than exact spacing.
-    expect($md)->toMatch('/\| Rule ID +\| Level +\| Description +\|/')
+    expect($md)
+        ->toMatch('/\| Rule ID +\| Level +\| Description +\|/')
         ->and($md)->toMatch('/\|-+\|-+\|-+\|/')
         ->and($md)->toMatch('/\| `spec\.invalid` +\| 0 +\|/');
 });
@@ -55,7 +57,8 @@ it('aliases the GitHub format to Markdown', function (): void {
 it('renders a CLI table containing every rule id', function (): void {
     $cli = renderCatalog($this->renderer, $this->registry, LinterOutputFormat::Cli);
 
-    expect($cli)->toContain('Rule ID')
+    expect($cli)
+        ->toContain('Rule ID')
         ->and($cli)->toContain('Level')
         ->and($cli)->toContain('Description')
         ->and($cli)->toContain('spec.invalid');

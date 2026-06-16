@@ -18,9 +18,6 @@ use Spatie\LaravelData\Data;
 interface FilePropertyChecker
 {
     /**
-     * Returns true when any public property of `$dataClass` (or any nested
-     * Data class it transitively references) is typed as UploadedFile.
-     *
      * @param class-string<Data> $dataClass
      *
      * @throws ReflectionException

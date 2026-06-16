@@ -74,9 +74,7 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
     }
 
     /**
-     * Collect all property names reachable from a component schema, including
-     * those inherited through `allOf` composition (resolving `$ref` links to
-     * other component schemas).
+     * All property names reachable from the schema, including via `allOf` `$ref` composition.
      *
      * @return list<string>
      */
@@ -149,9 +147,6 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
         }
     }
 
-    /**
-     * Resolve a local schema `$ref` (`#/components/schemas/Foo`) to its name.
-     */
     private function refToName(string $ref): ?string
     {
         return ComponentReference::name($ref);

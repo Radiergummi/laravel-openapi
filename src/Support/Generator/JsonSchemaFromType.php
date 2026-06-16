@@ -39,9 +39,7 @@ use const PHP_EOL;
 /**
  * Converts a symfony/type-info {@see Type} tree into a swagger-php {@see OA\Schema}.
  *
- * Dispatch order matters because of the symfony/type-info inheritance hierarchy:
- *   - NullableType extends UnionType  → check NullableType BEFORE UnionType
- *   - BackedEnumType extends EnumType extends ObjectType → check BackedEnumType BEFORE ObjectType
+ * NullableType must be checked before UnionType (it extends it); BackedEnumType before ObjectType.
  *
  * @internal
  */
@@ -55,7 +53,6 @@ final readonly class JsonSchemaFromType
 
     public function fromType(Type $type): OA\Schema
     {
-        // NullableType MUST come before UnionType (it extends it).
         if ($type instanceof NullableType) {
             return NullableSchema::wrap($this->fromType($type->getWrappedType()));
         }
@@ -105,9 +102,7 @@ final readonly class JsonSchemaFromType
     }
 
     /**
-     * Promotes a backed enum to a single reusable component and returns a `$ref` schema pointing at
-     * it. Every reference to the same enum class resolves to one pooled definition rather than an
-     * inlined copy. The inline schema is built once by {@see fromBackedEnumClass()}.
+     * Promotes a backed enum to a reusable component and returns a `$ref` schema.
      *
      * @param class-string<BackedEnum> $enumClass
      */
@@ -117,8 +112,7 @@ final readonly class JsonSchemaFromType
     }
 
     /**
-     * Registers the backed enum's reusable component (idempotently) and returns the `$ref` pointer
-     * string to it — for callers that need the pointer rather than a wrapping {@see OA\Schema}.
+     * Registers the backed enum's component (idempotently) and returns the `$ref` pointer string.
      *
      * @param class-string<BackedEnum> $enumClass
      */
@@ -133,11 +127,8 @@ final readonly class JsonSchemaFromType
     }
 
     /**
-     * Builds an inline enum schema from a backed-enum class-string.
-     *
-     * Determines integer-vs-string backing via reflection so the caller does not need a
-     * symfony/type-info {@see BackedEnumType} in hand — useful when the enum class name
-     * comes from a cast string rather than a resolved type tree.
+     * Useful when the class name comes from a cast string rather than a resolved type tree;
+     * determines integer-vs-string backing via reflection.
      *
      * @param class-string<BackedEnum> $enumClass
      */
@@ -167,10 +158,7 @@ final readonly class JsonSchemaFromType
     }
 
     /**
-     * Reads per-case PHPDoc from a BackedEnum and returns a Markdown description listing each case
-     * with its doc comment summary, or null when no case carries any documentation.
-     *
-     * Format: "- `value`: Summary line\n- `value2`: Summary line 2"
+     * Returns a Markdown list of enum cases with their PHPDoc summaries, or null if none are documented.
      *
      * @param class-string<BackedEnum> $enumClass
      * @param list<BackedEnum>         $cases
@@ -181,15 +169,14 @@ final readonly class JsonSchemaFromType
 
         foreach ($cases as $case) {
             $constant = new ReflectionEnumBackedCase($enumClass, $case->name);
-            $doc = $constant->getDocComment();
+            $comment = $constant->getDocComment();
 
-            if ($doc === false) {
+            if ($comment === false) {
                 continue;
             }
 
-            // Strip /** … */ scaffolding and leading * from each line, then join non-empty non-tag
-            // lines into a single summary sentence.
-            $raw = preg_replace('/^\s*\/\*\*|\*\/\s*$/', '', $doc) ?? $doc;
+            // Strip /** … */ scaffolding and leading * from each line.
+            $raw = preg_replace('/^\s*\/\*\*|\*\/\s*$/', '', $comment) ?? $comment;
             $stripped = array_map(
                 static fn(string $line): string => trim(ltrim($line, " \t*")),
                 explode(PHP_EOL, $raw),
@@ -217,8 +204,6 @@ final readonly class JsonSchemaFromType
     {
         $className = $type->getClassName();
 
-        // DateTimeInterface covers DateTime, DateTimeImmutable, Carbon, and CarbonImmutable,
-        // as well as properties typed against the interface itself.
         if (is_a($className, DateTimeInterface::class, allow_string: true)) {
             return new OA\Schema(['type' => 'string', 'format' => 'date-time']);
         }
@@ -227,7 +212,6 @@ final readonly class JsonSchemaFromType
             return new OA\Schema(['type' => 'string', 'format' => 'uuid']);
         }
 
-        // The binding key is documented in the parameter description, not the schema.
         if (is_a($className, UrlRoutable::class, allow_string: true)) {
             return new OA\Schema(['type' => 'string']);
         }

@@ -24,12 +24,13 @@ Attach to controller classes or methods.
 | `Description` | class, method | no | Same as `#[Summary]` but for the long-form description. On a Data / JsonResource class it sets the component schema's `description`. |
 | `Tag` | class, method | yes | Add a tag to the already-derived set (merge, not replace). |
 | `QueryParam` | class, method | yes | Document an ad-hoc query string parameter. Each instance defines one parameter. |
-| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (a `Radiergummi\OpenApi\Enums\MediaType` case, e.g. `MediaType::MultipartFormData`). Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
+| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (a `Radiergummi\OpenApi\Enums\MediaType` case, e.g., `MediaType::MultipartFormData`). Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
 | `RequestVariant` | method | yes | Declare one branch of a discriminated request body. Requires `#[RequestBody(discriminator: '…')]` on the same method. See [Discriminated request bodies](#discriminated-request-bodies). |
 | `ResponseResource` | class, method | no | Explicit response-resource class for the 200 response. `collection: true/false` overrides envelope detection; `null` auto-detects. |
 | `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. |
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
+| `ResponseExampleFile` | method | yes | Attach a JSON file's contents as the example for a response (primary by default; `status:` targets a specific one). Path is relative to the project root and must be valid JSON. |
 | `Header` | class, method | yes | Document a custom request header parameter on the operation. |
 | `CookieParam` | class, method | yes | Document a cookie parameter read off the request at runtime (`$request->cookie('…')`). Each instance defines one `in: cookie` parameter; the schema type defaults to `string`. |
 | `ResponseHeader` | class, method | yes | Document a custom response header. Set `status:` to scope to a specific response status (defaults to the primary 2xx). |
@@ -150,7 +151,7 @@ a single field. Directive lines are stripped from the rendered description; when
 ### Discriminated request bodies
 
 When an action validates a plain `Request` and the body shape depends on a discriminator field
-(e.g. `provider` or `type`), use `#[RequestBody(discriminator: '…')]` together with one
+(e.g., `provider` or `type`), use `#[RequestBody(discriminator: '…')]` together with one
 repeatable `#[RequestVariant]` per branch to emit a `oneOf` + `discriminator` body:
 
 ```php
@@ -169,7 +170,7 @@ Each `#[RequestVariant]` supplies exactly one of:
 
 **Inline branches** — the discriminator property (`provider` above) is auto-injected into each
 inline branch as a required `string` whose `enum` is restricted to that branch's value. To
-override (e.g. to attach a description), declare a `#[RequestField]` with the same name in that
+override (e.g., to attach a description), declare a `#[RequestField]` with the same name in that
 branch — the explicit field wins.
 
 **Class-string branches** — the variant emits an opaque `$ref` to the resolved component schema.

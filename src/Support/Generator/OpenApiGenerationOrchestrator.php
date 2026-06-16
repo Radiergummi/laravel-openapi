@@ -15,7 +15,6 @@ use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use ReflectionException;
@@ -27,12 +26,8 @@ use function is_array;
 use function Radiergummi\OpenApi\is_defined;
 
 /**
- * Drives multi-spec generation in a single process.
- *
- * Per-run state in {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} is reset between
- * specs by calling {@see Container::forgetScopedInstances()} and re-resolving
- * {@see OpenApiGenerator} fresh. This is the same scoped-rebinding pattern {@see LintRunner} uses
- * for its findings collector.
+ * Drives multi-spec generation. Resets scoped state between specs via
+ * {@see Container::forgetScopedInstances()} so per-run state cannot leak.
  *
  * Used by {@see GenerateCommand} and {@see DocsController}.
  *
@@ -79,14 +74,9 @@ final readonly class OpenApiGenerationOrchestrator
     }
 
     /**
-     * Run `$generate` against fresh scoped state: a {@see Container::forgetScopedInstances()} reset so
-     * per-run state in {@see ComponentSchemaRegistry} / {@see ExampleFileLoader} can't leak across
-     * generations.
-     *
-     * That reset also wipes any explicit {@see FindingsCollector} the caller pinned (e.g. LintRunner
-     * binds an {@see ArrayFindingsCollector} to capture extractor-emitted findings), so it is captured
-     * and restored. With `$discardFindings`, a throwaway collector receives the run's findings instead
-     * — for control runs whose findings must not reach the caller.
+     * Resets scoped instances, then runs `$generate`. The {@see FindingsCollector} is captured
+     * before the reset and restored after; when `$discardFindings` is true a throwaway collector
+     * absorbs findings instead.
      *
      * @template T
      *
@@ -151,13 +141,8 @@ final readonly class OpenApiGenerationOrchestrator
     }
 
     /**
-     * Generate the named spec with the given stages excluded, yielding the resulting document and
-     * its source-class → component-schema index.
-     *
-     * This is the "what would inference produce without these contributions?" oracle the lint layer
-     * uses to decide annotation redundancy. It runs the pipeline directly (no lifecycle events — a
-     * control run is not a real generation) and discards its generation findings through a throwaway
-     * collector ({@see withFreshScopedState()}).
+     * Generates the named spec with the given stages excluded. Used by the lint layer to determine
+     * what inference alone would produce. Findings from this control run are discarded.
      *
      * @param list<class-string<SpecStage>> $excludedStages
      *
@@ -182,8 +167,7 @@ final readonly class OpenApiGenerationOrchestrator
                     ->withoutStage(...$excludedStages)
                     ->run($spec, $environment ?? $this->environment);
 
-                // The pipeline repopulated the scoped registry during the run; re-resolve it to read
-                // the class → component-name map this control produced.
+                // Re-resolve the registry: the pipeline repopulated it during the run.
                 $schemasByClass = $this->indexSchemasByClass(
                     $document,
                     $this->container->make(ComponentSchemaRegistry::class)->componentClassMap(),
@@ -196,8 +180,6 @@ final readonly class OpenApiGenerationOrchestrator
     }
 
     /**
-     * Invert the component-name → class map and resolve each to its schema in the document.
-     *
      * @param array<string, class-string> $classMap component name → source class
      *
      * @return array<class-string, OA\Schema>

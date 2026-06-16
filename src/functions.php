@@ -15,10 +15,8 @@ use function in_array;
 /**
  * Whether a swagger-php annotation value is still the {@see Generator::UNDEFINED} sentinel.
  *
- * swagger-php leaves unset annotation fields as the magic string `Generator::UNDEFINED` rather
- * than `null`. Comparing that sentinel against a property whose declared type does not include
- * it makes PHPStan report `identical.alwaysFalse`; routing the check through this `mixed`-typed
- * predicate keeps the comparison out of static analysis' reach, so call sites stay clean.
+ * swagger-php leaves unset fields as `Generator::UNDEFINED` instead of `null`. Routing the
+ * check through this `mixed`-typed predicate keeps it out of PHPStan's reach (`identical.alwaysFalse`).
  *
  * @internal
  */
@@ -40,13 +38,9 @@ function is_defined(mixed $value): bool
 }
 
 /**
- * Turns a class name into a human-readable resource label for consumer-facing prose.
- *
- * Strips the namespace and splits the StudlyCase basename into words, so
- * `App\Models\GroupMembership` becomes `Group Membership` and `App\Models\User` stays `User`.
- * Use this anywhere a class would otherwise surface verbatim in the generated spec
- * (descriptions, summaries) — the fully qualified name is an internal source detail that
- * must not leak to spec consumers.
+ * Turns a class name into a human-readable label: strips the namespace and splits StudlyCase
+ * into words (`App\Models\GroupMembership` → `Group Membership`). Use in descriptions and
+ * summaries to avoid leaking fully-qualified names into the spec.
  *
  * @internal
  */
@@ -56,12 +50,9 @@ function class_resource_name(string $class): string
 }
 
 /**
- * Copies the defined JSON-Schema fields of one {@see Schema} onto another.
- *
- * Since `OA\Property` and `OA\Items` both extend `OA\Schema`, this is how a resolved schema is
- * re-homed as a named property or an array item.
- * swagger-php internals (underscore-prefixed fields) and the component-key fields (`property`,
- * `schema`) are skipped, as are {@see is_undefined()} values.
+ * Copies defined JSON-Schema fields from one {@see Schema} onto another, skipping swagger-php
+ * internals (underscore-prefixed), component-key fields (`property`, `schema`), and undefined values.
+ * Used to re-home a resolved schema as a named property or array item.
  *
  * @template T of Schema
  *

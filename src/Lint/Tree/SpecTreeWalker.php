@@ -79,22 +79,19 @@ final class SpecTreeWalker
      */
     public function walk(ApiNode $api, LintContext $context): iterable
     {
-        // Step 0: Reset stateful rules for clean state in long-lived processes
+        // Reset stateful rules so long-lived processes get a clean slate per run.
         $this->forEachUniqueRule(static function (Rule $rule): void {
             if ($rule instanceof Resettable) {
                 $rule->reset();
             }
         });
 
-        // Step 1: ApiRules
         yield from $this->dispatchApi($api, $context);
 
-        // Step 2: Operations
         foreach ($api->operations as $operation) {
             yield from $this->walkOperation($operation, $context);
         }
 
-        // Step 3: Component schemas
         foreach ($api->components as $component) {
             yield from $this->dispatchComponentSchema($component, $context);
             yield from $this->walkFields(
@@ -104,19 +101,15 @@ final class SpecTreeWalker
             );
         }
 
-        // Step 4: Webhooks
         foreach ($api->webhooks as $webhook) {
             yield from $this->dispatchWebhook($webhook, $context);
             yield from $this->walkOperation($webhook->operation, $context);
         }
 
-        // Step 5: Finalize
         yield from $this->dispatchFinalize($context);
     }
 
     /**
-     * Call $callback once for every registered rule (deduplicated).
-     *
      * @param callable(Rule): void $callback
      */
     private function forEachUniqueRule(callable $callback): void
@@ -127,8 +120,7 @@ final class SpecTreeWalker
     }
 
     /**
-     * Iterate over every registered rule exactly once, regardless of how many visitor interfaces it
-     * implements. Uses `spl_object_id` to deduplicate across buckets.
+     * Yields each registered rule exactly once, deduplicated across visitor buckets.
      *
      * @return iterable<Rule>
      */
@@ -170,7 +162,7 @@ final class SpecTreeWalker
 
         // Every finding produced under this operation is stamped (as a fallback) with the
         // controller class, so a controller-level #[IgnoreLint] can match it structurally. Findings
-        // that already carry a more-specific source class (e.g. response/request-body fields
+        // that already carry a more-specific source class (e.g., response/request-body fields
         // attributed to their component schema) keep theirs.
         yield from $this->stampSourceClass(
             $this->walkOperationNodes($operation, $context),
@@ -179,9 +171,31 @@ final class SpecTreeWalker
     }
 
     /**
-     * Emit all findings for an operation and its sub-nodes (operation, path/query parameters,
-     * request body, responses, headers, links, and their examples), enriched with location
-     * defaults but without source-class stamping — that is applied by {@see walkOperation}.
+     * Stamps `CONTEXT_SOURCE_CLASS` on each finding as a fallback. Findings that already carry
+     * the key keep their more-specific value.
+     *
+     * @param iterable<Finding> $findings
+     *
+     * @return iterable<Finding>
+     */
+    private function stampSourceClass(iterable $findings, ?string $sourceClass): iterable
+    {
+        if ($sourceClass === null) {
+            yield from $findings;
+
+            return;
+        }
+
+        foreach ($findings as $finding) {
+            yield isset($finding->context[Finding::CONTEXT_SOURCE_CLASS])
+                ? $finding
+                : $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
+        }
+    }
+
+    /**
+     * Emits findings for an operation and all sub-nodes, without source-class stamping (see
+     * {@see walkOperation}).
      *
      * @return iterable<Finding>
      */
@@ -286,10 +300,7 @@ final class SpecTreeWalker
     }
 
     /**
-     * Enrich each finding with contextual location defaults.
-     *
-     * When `$defaults` is null (e.g., component schema context without an operation), findings pass
-     * through unchanged.
+     * Merges location defaults into each finding; passes through unchanged when `$defaults` is null.
      *
      * @param iterable<Finding> $findings
      *
@@ -305,31 +316,6 @@ final class SpecTreeWalker
 
         foreach ($findings as $finding) {
             yield $finding->withLocationDefaults($defaults);
-        }
-    }
-
-    /**
-     * Stamp the controller `CONTEXT_SOURCE_CLASS` on each finding when `$sourceClass` is non-null,
-     * as a fallback only. Findings that already carry the key (e.g. a request-body or response field
-     * stamped with its component schema's source class) keep their more-specific value; the
-     * controller class merely fills in operation-level findings that have none.
-     *
-     * @param iterable<Finding> $findings
-     *
-     * @return iterable<Finding>
-     */
-    private function stampSourceClass(iterable $findings, ?string $sourceClass): iterable
-    {
-        if ($sourceClass === null) {
-            yield from $findings;
-
-            return;
-        }
-
-        foreach ($findings as $finding) {
-            yield isset($finding->context[Finding::CONTEXT_SOURCE_CLASS])
-                ? $finding
-                : $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
         }
     }
 
@@ -389,14 +375,8 @@ final class SpecTreeWalker
     }
 
     /**
-     * Walk a list of FieldNode subtrees and dispatch each registered FieldRule / ExampleRule.
-     *
-     * @param list<FieldNode>      $fields           Fields to walk
-     * @param null|FindingLocation $locationDefaults Contextual defaults to merge into findings
-     * @param null|class-string    $sourceClass      When set, findings are stamped with
-     *                                               CONTEXT_SOURCE_CLASS so a class-scope
-     *                                               #[IgnoreLint] directive can match
-     *                                               structurally.
+     * @param list<FieldNode>   $fields
+     * @param null|class-string $sourceClass When set, stamps findings with CONTEXT_SOURCE_CLASS.
      *
      * @return iterable<Finding>
      */
@@ -406,7 +386,7 @@ final class SpecTreeWalker
         ?FindingLocation $locationDefaults = null,
         ?string $sourceClass = null,
     ): iterable {
-        // Lazy skip: no field or example rules registered → skip entire subtree
+        // No rules registered for fields or examples: skip entire subtree.
         if (
             ($this->visitors[FieldRule::class] ?? []) === []
             && ($this->visitors[ExampleRule::class] ?? []) === []
@@ -415,9 +395,8 @@ final class SpecTreeWalker
         }
 
         foreach ($fields as $field) {
-            // Extend defaults with the field's JSON pointer so rules don't have to construct it
-            // manually. Rules that set a more specific pointer (e.g., ".../enum/0") will still win
-            // via null-coalescing.
+            // Extend defaults with the field's JSON pointer; rules may still override with a
+            // more specific pointer.
             $fieldDefaults = $locationDefaults !== null
                 ? new FindingLocation(jsonPointer: $field->pointer())->withDefaults($locationDefaults)
                 : new FindingLocation(jsonPointer: $field->pointer());
@@ -439,9 +418,7 @@ final class SpecTreeWalker
                 }
             }
 
-            // Recurse into nested object fields, carrying the same sourceClass — nested fields
-            // belong to the same component schema. The MEMBER part is overwritten at each level
-            // by the next iteration's $contextStamp.
+            // Recurse carrying the same sourceClass; MEMBER is overwritten at each level.
             yield from $this->walkFields(
                 $field->children,
                 $context,
@@ -518,9 +495,6 @@ final class SpecTreeWalker
     }
 
     /**
-     * Dispatch Finalize to all Finalizable rules (deduplicated — a rule implementing multiple
-     * interfaces is only finalized once).
-     *
      * @return iterable<Finding>
      */
     private function dispatchFinalize(LintContext $context): iterable

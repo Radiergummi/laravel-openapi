@@ -14,7 +14,11 @@ it('returns a bodyless ErrorResponse for every descriptor', function (): void {
     $envelope = new NoneEnvelope();
 
     $cases = [
-        new ErrorDescriptor(status: 401, exceptionClass: AuthenticationException::class, description: 'Unauthenticated'),
+        new ErrorDescriptor(
+            status: 401,
+            exceptionClass: AuthenticationException::class,
+            description: 'Unauthenticated',
+        ),
         new ErrorDescriptor(status: 422, exceptionClass: ValidationException::class, description: 'Validation failed'),
         new ErrorDescriptor(status: 500, exceptionClass: null, description: 'Server error'),
     ];

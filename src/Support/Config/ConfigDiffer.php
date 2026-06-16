@@ -12,10 +12,8 @@ use function is_array;
 use function sort;
 
 /**
- * Compares the package's default `config/openapi.php` against a user-published copy and reports
- * drift — added keys, removed keys, and changed default values. Recurses into associative
- * nested arrays. Treats list-valued keys (sequential integer indices) as leaf values, since
- * diffing list contents are meaningless for config (plugin lists, route patterns, etc.).
+ * Compares the package's default config against a user-published copy, reporting added, removed,
+ * and changed keys. Recurses into associative sub-arrays; list values are treated as leaves.
  *
  * @phpstan-type DiffEntry array{
  *     kind: 'added'|'removed'|'changed',

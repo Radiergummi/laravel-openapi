@@ -15,16 +15,11 @@ use function count;
 use function ksort;
 
 /**
- * Emits documentation coverage as a Cobertura XML report keyed to controller source lines, for
- * Codecov / Coveralls / SonarQube to consume.
+ * Emits documentation coverage as a Cobertura XML report (for Codecov / Coveralls / SonarQube).
  *
- * Each in-scope operation maps to one line (its controller action's start line); covered → `hits=1`,
- * uncovered → `hits=0`. Operations with no single source line (closure routes, inference-only facts)
- * carry null file/line and are excluded — coverage gutters pointing at the wrong line erode trust.
- * When two operations share a file+line (a multi-verb route on one method), the line is reported
- * uncovered if any of them is uncovered, so the gap surfaces rather than hides.
- *
- * Only `$result->coverage` is used; findings and level are irrelevant to this format.
+ * Each operation maps to its controller action's source line (`hits=1` covered, `hits=0` not).
+ * Operations without a source line are excluded. When two operations share a file+line, the line
+ * is uncovered if any of them is uncovered.
  *
  * @internal
  */
@@ -88,8 +83,7 @@ final class CoberturaFormatter implements Formatter
     }
 
     /**
-     * Collapse perOperation into file => (lineNumber => covered), dropping null file/line and
-     * AND-ing the covered flag when several operations land on the same line.
+     * Groups operations by file and line, ANDing the covered flag for shared lines.
      *
      * @return array<string, array<int, bool>>
      */

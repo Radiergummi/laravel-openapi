@@ -7,9 +7,8 @@ namespace Radiergummi\OpenApi\Attributes;
 use Attribute;
 
 /**
- * Attaches a named example payload to the request body. Repeatable. For response examples see
- * {@see ResponseExample}. Values must be PHP attribute constants (scalars, arrays of scalars,
- * enum cases) since they're emitted verbatim into the spec.
+ * Attaches a named example payload to the request body. Repeatable. See {@see ResponseExample}
+ * for response examples. Values must be PHP attribute constants (scalars, arrays, enum cases).
  *
  * ```php
  * #[OpenApi\Example(name: 'minimal', value: ['name' => 'Aerospace Q1'])]

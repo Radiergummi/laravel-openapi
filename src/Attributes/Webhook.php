@@ -7,7 +7,7 @@ namespace Radiergummi\OpenApi\Attributes;
 use Attribute;
 
 /**
- * Marks an inbound webhook handler — third-party POSTs (Stripe, Mailgun, …) that the generator
+ * Marks an inbound webhook handler for third-party POSTs (Stripe, Mailgun, …) that the generator
  * emits under the OpenAPI 3.1 top-level `webhooks` block instead of `paths`. Method-level only,
  * since each method handles its own logical event name. All standard operation-level attributes
  * still apply.
@@ -22,9 +22,8 @@ use Attribute;
 final readonly class Webhook
 {
     /**
-     * @param non-empty-string $name Logical webhook name used as the map key under `webhooks` in
-     *                               the generated spec. Use the provider's event name convention,
-     *                               e.g. `stripe.payment_intent.succeeded` or `mailgun.delivered`.
+     * @param non-empty-string $name Map key under `webhooks` in the spec; use the provider's event
+     *                               name convention, e.g., `stripe.payment_intent.succeeded`.
      */
     public function __construct(
         public string $name,

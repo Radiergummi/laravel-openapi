@@ -17,14 +17,9 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 /**
  * Reports `#[Response(ref:)]` arguments that no registered {@see RefSchemaResolver} can resolve.
  *
- * When a ref points to a class outside every registered convention (e.g. a Spatie Data class
- * while the SpatieData plugin is disabled, or a plain class no resolver recognises), the generator
- * silently drops the body: `OperationBuilder` emits the response with no content and no broken
- * `$ref` for `ref.broken` to catch. This rule surfaces that silent degradation at lint time,
- * mirroring `spec.unknown-reference` for `#[Spec]`.
- *
- * Uses the side-effect-free {@see RefSchemaResolver::canResolve()} so the check never builds or
- * registers a component schema.
+ * When a ref class is outside every registered convention, the generator silently emits the
+ * response with no body schema (no broken `$ref` for `ref.broken` to catch). This rule surfaces
+ * that silent degradation at lint time, using the side-effect-free `canResolve()` check.
  */
 final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
 {
@@ -54,10 +49,8 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
         FindingsCollector $findings,
     ): void {
         foreach ($descriptors as $descriptor) {
-            // Mirror the generator: only action-level Response attributes produce output, and an
-            // inline `schema:` wins over `ref:` (see OperationBuilder::buildResponseFromAttribute).
-            // Flagging class-level attributes or refs shadowed by an inline schema is a false
-            // positive — those refs are never resolved, so no body is dropped.
+            // Only action-level attributes; an inline `schema:` wins over `ref:`, so flagging
+            // class-level or shadowed refs would be a false positive.
             foreach ($descriptor->actionAttributes(Response::class) as $reflectionAttribute) {
                 $response = $reflectionAttribute->newInstance();
                 $ref = $response->ref;

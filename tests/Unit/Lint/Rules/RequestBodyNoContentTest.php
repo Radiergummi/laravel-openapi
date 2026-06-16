@@ -10,7 +10,8 @@ uses()->group('openapi', 'lint');
 it('reports the correct id and level', function (): void {
     $rule = new RequestBodyNoContent();
 
-    expect($rule->id())->toBe('request-body.no-content')
+    expect($rule->id())
+        ->toBe('request-body.no-content')
         ->and($rule->level())->toBe(1);
 });
 
@@ -22,7 +23,8 @@ it('emits a finding when a request body has no media-type entries', function ():
         $rule->checkRequestBody($requestBody, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('request-body.no-content')
         ->and($findings[0]->level)->toBe(1);
 });

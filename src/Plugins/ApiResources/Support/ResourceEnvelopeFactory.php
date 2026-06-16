@@ -7,9 +7,8 @@ namespace Radiergummi\OpenApi\Plugins\ApiResources\Support;
 use OpenApi\Annotations as OA;
 
 /**
- * Builds the `data` / `data+links+meta` envelope Laravel serializes API Resource responses into.
- * The single shape is `{data}`; the collection shape models the paginated `{data, links, meta}`
- * form (the dominant convention).
+ * Builds the envelope schemas for Laravel API Resource responses: `{data}` for single resources
+ * and `{data, links, meta}` for paginated collections.
  */
 final readonly class ResourceEnvelopeFactory
 {
@@ -24,9 +23,7 @@ final readonly class ResourceEnvelopeFactory
     }
 
     /**
-     * The `{data: [...]}` envelope of an *unpaginated* resource collection —
-     * `X::collection($query->get())` serializes without `links`/`meta`. Chosen when return-
-     * expression resolution shows the collection source is not visibly paginated.
+     * The `{data: [...]}` envelope for an unpaginated collection (no `links`/`meta`).
      */
     public function unpaginatedCollection(string $ref): OA\Schema
     {

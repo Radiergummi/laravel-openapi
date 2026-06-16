@@ -17,11 +17,7 @@ use function sprintf;
 
 /**
  * Reports response header names that do not follow the configured naming convention.
- *
- * Note: HTTP header names are case-insensitive per RFC 7230, so this rule is
- * a documentation-consistency house-style check only — it does not affect
- * protocol correctness. The default convention is {@see IdentifierCase::Train}
- * (e.g. `X-Request-Id`), which matches conventional HTTP header style.
+ * HTTP header names are case-insensitive (RFC 7230), so this is a documentation consistency check.
  */
 #[Scoped]
 final readonly class HeaderNameNamingInconsistent extends AbstractNamingRule implements HeaderRuleVisitor

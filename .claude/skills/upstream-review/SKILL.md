@@ -64,7 +64,7 @@ Isolate so `composer.json` / `composer.lock` stay pristine:
 
 Each finding is one of:
 - **breaks-us** — a current capability regresses or errors. File an issue.
-- **new-opportunity** — the release unblocks something we deferred (e.g. swagger-php now
+- **new-opportunity** — the release unblocks something we deferred (e.g., swagger-php now
   models a keyword that was blocking #140). File an issue, link the unblocked one.
 - **benign** — no coupling-point impact. Note it in the report; no issue.
 

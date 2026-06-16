@@ -17,11 +17,13 @@ use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 uses()->group('openapi', 'plugin:fractal');
 
 beforeEach(function (): void {
-    config(['openapi.plugins' => [
-        SpatieDataPlugin::class,
-        ApiResourcesPlugin::class,
-        FractalPlugin::class,
-    ]]);
+    config([
+        'openapi.plugins' => [
+            SpatieDataPlugin::class,
+            ApiResourcesPlugin::class,
+            FractalPlugin::class,
+        ],
+    ]);
 });
 
 #[TransformerField('id', type: 'integer')]
@@ -86,7 +88,8 @@ it('documents a single Fractal response wrapped in data', function (): void {
     $spec = generateSpec();
     $schema = $spec['paths']['/books/{book}']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema['type'])->toBe('object')
         ->and($schema['properties'])->toHaveKey('data');
 });
@@ -97,7 +100,8 @@ it('documents a collection Fractal response as a data array', function (): void 
     $spec = generateSpec();
     $schema = $spec['paths']['/books']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema['properties']['data']['type'])->toBe('array')
+    expect($schema['properties']['data']['type'])
+        ->toBe('array')
         ->and($schema['properties'])->not->toHaveKey('meta');
 });
 
@@ -107,9 +111,10 @@ it('documents a paginated Fractal response with pagination meta', function (): v
     $spec = generateSpec();
     $schema = $spec['paths']['/books/page']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema['properties']['data']['type'])->toBe('array')
+    expect($schema['properties']['data']['type'])
+        ->toBe('array')
         ->and($schema['properties']['meta']['properties']['pagination']['properties'])
-            ->toHaveKeys(['total', 'count', 'per_page', 'current_page', 'total_pages']);
+        ->toHaveKeys(['total', 'count', 'per_page', 'current_page', 'total_pages']);
 });
 
 it('registers the transformer as a reusable component schema', function (): void {
@@ -126,7 +131,8 @@ it('documents an ArraySerializer single response as a bare $ref', function (): v
     $spec = generateSpec();
     $schema = $spec['paths']['/books/{book}/array']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema)->toHaveKey('$ref')
         ->and($schema['$ref'])->toBe('#/components/schemas/BookTransformer')
         ->and($schema)->not->toHaveKey('properties');
@@ -138,7 +144,8 @@ it('documents an ArraySerializer collection as a top-level array', function (): 
     $spec = generateSpec();
     $schema = $spec['paths']['/books/array']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema['type'])->toBe('array')
+    expect($schema['type'])
+        ->toBe('array')
         ->and($schema['items']['$ref'])->toBe('#/components/schemas/BookTransformer');
 });
 
@@ -148,13 +155,15 @@ it('documents a JsonApi single under application/vnd.api+json with type/id/attri
     $spec = generateSpec();
     $content = $spec['paths']['/books/{book}/jsonapi']['get']['responses']['200']['content'] ?? [];
 
-    expect($content)->toHaveKey('application/vnd.api+json')
+    expect($content)
+        ->toHaveKey('application/vnd.api+json')
         ->and($content)->not->toHaveKey('application/json');
 
     $schema = $content['application/vnd.api+json']['schema'];
     $data = $schema['properties']['data'];
 
-    expect(array_keys($data['properties']))->toBe(['type', 'id', 'attributes'])
+    expect(array_keys($data['properties']))
+        ->toBe(['type', 'id', 'attributes'])
         ->and($data['properties']['attributes']['$ref'])->toBe('#/components/schemas/BookTransformer');
 });
 
@@ -164,8 +173,9 @@ it('documents a JsonApi paginated response with hyphenated pagination keys', fun
     $spec = generateSpec();
     $schema = $spec['paths']['/books/jsonapi']['get']['responses']['200']['content']['application/vnd.api+json']['schema'] ?? null;
 
-    expect($schema['properties']['data']['type'])->toBe('array')
+    expect($schema['properties']['data']['type'])
+        ->toBe('array')
         ->and($schema['properties']['data']['items']['properties'])->toHaveKeys(['type', 'id', 'attributes'])
         ->and($schema['properties']['meta']['properties']['pagination']['properties'])
-            ->toHaveKeys(['total', 'count', 'per-page', 'current-page', 'total-pages']);
+        ->toHaveKeys(['total', 'count', 'per-page', 'current-page', 'total-pages']);
 });

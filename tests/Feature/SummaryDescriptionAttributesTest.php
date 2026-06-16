@@ -104,7 +104,8 @@ it('uses #[Summary] and #[Description] attributes for operation metadata', funct
 
     $operation = generateSpec()['paths']['/oa-sd/search']['get'];
 
-    expect($operation['summary'])->toBe('Search products')
+    expect($operation['summary'])
+        ->toBe('Search products')
         ->and($operation['description'])->toBe('Returns paginated results matching the given query.');
 });
 
@@ -116,7 +117,8 @@ it('lets method-level #[Summary] override the docblock', function (): void {
 
     $operation = generateSpec()['paths']['/oa-sd/override']['get'];
 
-    expect($operation['summary'])->toBe('Attribute summary wins')
+    expect($operation['summary'])
+        ->toBe('Attribute summary wins')
         ->and($operation['description'])->toBe('Docblock description.');
 });
 
@@ -128,7 +130,8 @@ it('reads #[Summary] and #[Description] from the controller class', function ():
 
     $operation = generateSpec()['paths']['/oa-sd/class-level']['get'];
 
-    expect($operation['summary'])->toBe('Class-level summary')
+    expect($operation['summary'])
+        ->toBe('Class-level summary')
         ->and($operation['description'])->toBe('Class-level description.');
 });
 
@@ -140,7 +143,8 @@ it('prefers standalone #[Summary]/#[Description] over #[Operation] fields', func
 
     $operation = generateSpec()['paths']['/oa-sd/combined']['get'];
 
-    expect($operation['summary'])->toBe('Standalone summary')
+    expect($operation['summary'])
+        ->toBe('Standalone summary')
         ->and($operation['description'])->toBe('Standalone description.');
 });
 
@@ -152,7 +156,8 @@ it('lets method-level #[Operation] outrank class-level standalone attributes', f
 
     $operation = generateSpec()['paths']['/oa-sd/method-beats-class']['get'];
 
-    expect($operation['summary'])->toBe('Method op summary')
+    expect($operation['summary'])
+        ->toBe('Method op summary')
         ->and($operation['description'])->toBe('Method op description.');
 });
 
@@ -164,7 +169,8 @@ it('lets a method docblock outrank class-level standalone attributes', function 
 
     $operation = generateSpec()['paths']['/oa-sd/method-docblock-beats-class']['get'];
 
-    expect($operation['summary'])->toBe('Method docblock summary.')
+    expect($operation['summary'])
+        ->toBe('Method docblock summary.')
         ->and($operation['description'])->toBe('Method docblock description.');
 });
 
@@ -178,6 +184,7 @@ it('reads the __invoke docblock as the action docblock, outranking class-level a
 
     // A single-action controller's action is its __invoke() method, so its docblock describes the
     // operation — same precedence as any method docblock over class-level attributes.
-    expect($operation['summary'])->toBe('Invocable docblock summary.')
+    expect($operation['summary'])
+        ->toBe('Invocable docblock summary.')
         ->and($operation['description'])->toBe('Invocable docblock description.');
 });

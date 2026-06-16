@@ -54,13 +54,9 @@ final readonly class InclusionEvaluator
     ) {}
 
     /**
-     * Fast spec-independent global-filter check.
-     *
-     * Used by callers that need to discard vendor routes (Telescope/Nova/Ignition/Passport
-     * and any user-configured filter) before per-spec evaluation runs — the lint pipeline
-     * iterates descriptors once for pre-build rules and the tree walk, regardless of which
-     * specs they end up in, so it filters here rather than running {@see decide()} once per
-     * (route × spec) just to drop the same routes from every spec.
+     * Spec-independent global-filter check. Used by callers that need to discard vendor routes
+     * before per-spec evaluation, and by the lint pipeline which iterates descriptors once
+     * regardless of spec membership.
      */
     public function passesGlobalFilters(ActionDescriptor $descriptor): bool
     {

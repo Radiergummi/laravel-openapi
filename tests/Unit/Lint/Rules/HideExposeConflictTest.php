@@ -22,7 +22,8 @@ function hideExposeConflictFindings(string $method): array
 it('has the correct rule id and level', function (): void {
     $rule = new HideExposeConflict();
 
-    expect($rule->id())->toBe('visibility.hide-expose-conflict')
+    expect($rule->id())
+        ->toBe('visibility.hide-expose-conflict')
         ->and($rule->level())->toBe(1);
 });
 

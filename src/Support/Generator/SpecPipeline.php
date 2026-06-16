@@ -21,7 +21,7 @@ use function in_array;
 /**
  * Runs the registered stages against a shared {@see OpenApi} document, in registration order.
  *
- * A pure executor that holds no stages of its own — the pipeline order lives in
+ * A pure executor that holds no stages of its own; the pipeline order lives in
  * {@see BaselineRegistration::assemble()}.
  *
  * @internal
@@ -32,9 +32,7 @@ final readonly class SpecPipeline
     public const string VERSION = OpenApi::VERSION_3_1_0;
 
     /**
-     * @param array<class-string<SpecStage>> $excludedStages Stages to skip on this run; autowired
-     *                                                       as `[]` for the container-managed
-     *                                                       instance.
+     * @param array<class-string<SpecStage>> $excludedStages Stages to skip; defaults to `[]`.
      */
     public function __construct(
         private OpenApiRegistry $registry,
@@ -43,9 +41,8 @@ final readonly class SpecPipeline
     ) {}
 
     /**
-     * A copy of this pipeline that skips the given stages on {@see run()}, leaving the registry
-     * untouched. Used to build an inference-only control document by excluding a single
-     * schema-contributing stage; see the swagger-php migration rules.
+     * Returns a copy that skips the given stages, leaving the registry untouched.
+     * Used to build an inference-only control document for the swagger-php migration rules.
      *
      * @param class-string<SpecStage> ...$stages
      */
@@ -61,8 +58,8 @@ final readonly class SpecPipeline
      */
     public function run(SpecDefinition $spec, string $environment): OpenApi
     {
-        // Pin swagger-php's global Context to OpenAPI 3.1 for the run so nullable unions serialize
-        // as 3.1 `type: ['…','null']` rather than the 3.0 `nullable: true` keyword; restored below.
+        // Pin swagger-php's global Context to 3.1 so nullable unions serialize as
+        // `type: ['…','null']` rather than the 3.0 `nullable: true`; restored in finally.
         $previousContext = Generator::$context;
         Generator::$context = new Context(['version' => self::VERSION]);
 

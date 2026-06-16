@@ -40,8 +40,8 @@ final readonly class Discriminator
     ) {}
 
     /**
-     * Callers must register each variant as its own component schema before calling this — the
-     * helper only assembles the wrapper once the keys are known.
+     * Assemble the oneOf+discriminator schema. Each variant must be registered as a component
+     * before this is called.
      *
      * @param array<class-string, string> $variantKeys
      *

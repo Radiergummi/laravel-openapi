@@ -17,7 +17,8 @@ function returnLiteralFinder(): SingleReturnArrayLiteralFinder
 it('finds the array literal of a single top-level return', function (): void {
     $literal = returnLiteralFinder()->find(new ReflectionMethod(ReturnLiteralFixture::class, 'singleLiteral'));
 
-    expect($literal)->toBeInstanceOf(Array_::class)
+    expect($literal)
+        ->toBeInstanceOf(Array_::class)
         ->and($literal->items)->toHaveCount(2);
 });
 

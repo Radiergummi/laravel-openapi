@@ -132,7 +132,7 @@ For the registry surface and a worked plugin example, see
 or more visitor interfaces (`Rules/Visitors/*Rule`) and emits `Finding`s into
 a `FindingsCollector`. `RuleRegistry` holds the active rules with
 config-driven severity overrides. `SuppressionCollector` reads `#[IgnoreLint]`
-attributes. Each lint rule has a stable string ID (e.g. `operation.id-missing`).
+attributes. Each lint rule has a stable string ID (e.g., `operation.id-missing`).
 
 For the rule catalog and severity scale, see [Linting](linting.md).
 

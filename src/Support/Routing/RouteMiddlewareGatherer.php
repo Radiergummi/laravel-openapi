@@ -19,42 +19,21 @@ use function spl_object_id;
 use function sprintf;
 
 /**
- * The single seam through which the generator reads a route's middleware list.
+ * Reads a route's effective middleware list, with a fallback for non-instantiable controllers.
  *
- * The happy path is Laravel's own `Route::gatherMiddleware()`, which already resolves controller
- * middleware: the static `HasMiddleware::middleware()` form without instantiation, and classic
- * constructor `$this->middleware(...)` registrations by instantiating the controller through the
- * container. Both honour `only` / `except` scoping — for instantiable controllers nothing more is
- * needed.
- *
- * The instantiation path is the failure mode this class exists for: a controller whose
- * constructor cannot run in the generation context (unbound dependency, runtime side effects)
- * makes `gatherMiddleware()` throw, which previously crashed the whole run — and poisons the
- * route's internal middleware cache, so a retry silently returns `[]`. On a throw, this gatherer
- * logs a notice and falls back to the route-declared middleware merged with a bounded static scan
- * of the constructor body ({@see ConstructorMiddlewareScanner}), deduplicated, so security
- * schemes, implicit 401/403 responses, spec matching, and `openapi:why` all keep seeing one
- * uniform list. Results are cached per route, immune to the poisoned-cache footgun.
+ * Delegates to `Route::gatherMiddleware()`. When that throws (e.g., a controller that cannot be
+ * instantiated in the generation context, which also poisons the route's cache), falls back to
+ * route-declared middleware merged with a static constructor scan ({@see ConstructorMiddlewareScanner}).
  *
  * @internal
  */
 #[Scoped]
 final class RouteMiddlewareGatherer
 {
-    /**
-     * Gathered middleware keyed by route object id. Route objects live in the router for the
-     * whole generation run, so ids are stable.
-     *
-     * @var array<int, array<int, mixed>>
-     */
+    /** @var array<int, array<int, mixed>> */
     private array $middlewareByRoute = [];
 
-    /**
-     * Controller classes for which degrade notices have been emitted, so a controller with many
-     * routes logs once.
-     *
-     * @var array<class-string, true>
-     */
+    /** @var array<class-string, true> */
     private array $notedControllers = [];
 
     public function __construct(
@@ -63,8 +42,7 @@ final class RouteMiddlewareGatherer
     ) {}
 
     /**
-     * Same shape as `Route::gatherMiddleware()`: middleware names plus any closure middleware
-     * the route carries — callers already filter for strings.
+     * Same shape as `Route::gatherMiddleware()`.
      *
      * @return array<int, mixed>
      */
@@ -84,10 +62,6 @@ final class RouteMiddlewareGatherer
     }
 
     /**
-     * Route-declared middleware plus the literal constructor registrations that apply to the
-     * route's action method, deduplicated. Runs only when the runtime gather threw — the Tier-0
-     * miss that licenses a body scan.
-     *
      * @return array<int, mixed>
      */
     private function staticallyGatheredFallback(Route $route, Throwable $exception): array
@@ -105,7 +79,7 @@ final class RouteMiddlewareGatherer
 
         $actionMethod = $route->getActionMethod();
 
-        // Invokable controllers report the class name as the action method.
+        // Laravel reports the class name itself as the action method for invokable controllers.
         if ($actionMethod === $controllerClass) {
             $actionMethod = '__invoke';
         }

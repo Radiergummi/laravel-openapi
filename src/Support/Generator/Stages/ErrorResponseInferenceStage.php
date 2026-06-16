@@ -31,31 +31,19 @@ use function sprintf;
 /**
  * Drives the contributor chain and writes inferred error responses into each operation.
  *
- * Iterates every path item and operation in the assembled document. For each operation that
- * has a bound {@see ActionDescriptor}, it collects {@see ErrorDescriptor}s from every
- * registered {@see ErrorResponseContributor}, deduplicates by status (first contributor wins),
- * drops any status already declared by an explicit {@see OA\Response} attribute, resolves the
- * error envelope body via the {@see ErrorResponseResolver} chain, and appends the produced
- * responses to the operation.
- *
  * @internal
  */
 #[Scoped]
 final readonly class ErrorResponseInferenceStage implements SpecStage
 {
     /**
-     * Fix hint emitted with every `errors.resolver-failed` finding. Public, so the lint rule
-     * stub ({@see ErrorsResolverFailed}) can reference it without forcing a Support → Lint import.
+     * Public so {@see ErrorsResolverFailed} can reference it without a Support → Lint import.
      */
     public const string RESOLVER_FAILED_FIX_HINT
         = 'Fix the throwing ErrorResponseResolver — implementations must catch internally and'
         . ' return null on failure.';
 
-    /**
-     * Maps HTTP status codes to stable `components.responses` component names.
-     *
-     * Derived from the description text in `config('openapi.exception_responses')`.
-     */
+    /** Maps HTTP status codes to stable `components.responses` component names. */
     private const array STATUS_COMPONENT_NAMES = [
         400 => 'BadRequest',
         401 => 'Unauthorized',
@@ -118,7 +106,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
             return;
         }
 
-        // region Collect descriptors — first contributor wins per status (Precedence rule 2)
+        // region Collect descriptors (first contributor wins per status)
 
         /** @var array<int, ErrorDescriptor> $byStatus */
         $byStatus = [];
@@ -131,7 +119,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
 
         // endregion
 
-        // region Drop statuses already declared by explicit #[Response] (Precedence rule 1)
+        // region Drop statuses already declared by explicit #[Response]
 
         $existing = is_array($operation->responses) ? $operation->responses : [];
 
@@ -172,18 +160,20 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
 
     // region Body resolution helpers
 
+    /** Literal body from the controller; inlined, never hoisted to a shared component. */
+    private function buildLiteralBodyResponse(ErrorDescriptor $descriptor): OA\Response
+    {
+        return new OA\Response([
+            'response' => (string) $descriptor->status,
+            'description' => $descriptor->description,
+            'content' => [MediaType::Json->schema($descriptor->bodySchema)],
+        ]);
+    }
+
     /**
-     * Walks the resolver chain for one descriptor. First non-null wins. Returns null when every
-     * resolver passes — the stage then emits a bodyless response.
-     *
-     * The {@see ErrorResponseResolver} contract requires implementations to catch internally and
-     * return null on failure, but the stage defends against misbehaving resolvers anyway: a
-     * thrown {@see Exception} emits a `errors.resolver-failed` finding and the chain continues,
-     * matching the spec's promise that a single bad resolver does not abort the full generation run.
-     *
-     * {@see \Error}/`TypeError` — programming bugs in first-party or plugin resolver code — are
-     * intentionally not caught: they propagate as a loud stack trace rather than disappearing into
-     * a silently missing body, matching the policy of {@see \Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary}.
+     * Walks the resolver chain; first non-null wins. A thrown {@see Exception} emits a finding
+     * and continues (a bad resolver must not abort the run). {@see \Error}/TypeError propagates:
+     * programming bugs surface loudly rather than as silently missing bodies.
      */
     private function resolveBody(ErrorDescriptor $descriptor): ?ErrorResponse
     {
@@ -227,15 +217,9 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     }
 
     /**
-     * Composes the resolver's body slice with the stage-owned fields: response key, default
-     * description, named-component registration.
-     *
-     * A named component is only used when the body is empty (description-only). When a resolver
-     * produces content, headers, or links, the response is inlined per operation to avoid
-     * first-write-wins collisions on the shared component — e.g. two operations at 422 with
-     * different resolver outputs (generic Error vs. ValidationError) would otherwise silently share
-     * the first registration. The shared schemas referenced inside the content (e.g.
-     * `$ref: '#/components/schemas/Error'`) are still reused; only the response wrapper is inlined.
+     * Builds the final response, hoisting to a named component only when the body is empty
+     * (description-only). Resolver-produced bodies are inlined per operation to avoid
+     * first-write-wins collisions on the shared component (e.g., two 422s with different envelopes).
      */
     private function buildResponse(
         ErrorDescriptor $descriptor,
@@ -246,8 +230,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         $content = $headers = $links = null;
 
         if ($body !== null) {
-            // Only override the curated default description when the resolver supplied a non-empty
-            // string; OpenAPI 3.1 requires response.description to be non-empty.
+            // OpenAPI 3.1 requires response.description to be non-empty.
             if ($body->description !== null && $body->description !== '') {
                 $description = $body->description;
             }
@@ -267,11 +250,7 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
 
         $hasBody = $content !== null || $headers !== null || $links !== null;
 
-        // Share via a named response component only when the body is empty (description-only)
-        // and the description is canonical for the status. Resolver-produced bodies may vary by
-        // descriptor — e.g., validation vs. generic at status 422 — and route-authored
-        // descriptions (an abort() message) vary by operation, so both are inlined per operation
-        // to avoid first-write-wins collisions on the shared component.
+        // Only share a named component when there is no body and the description is canonical.
         if ($componentName !== null && !$hasBody && $descriptor->shareableDescription) {
             $this->registry->registerNamedResponse(
                 $componentName,
@@ -305,20 +284,6 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         }
 
         return new OA\Response($properties);
-    }
-
-    /**
-     * Composes a response from a literal body schema the contributor read from the controller,
-     * inlined on the operation with a JSON media type. The literal wins over the envelope chain,
-     * so this path never consults a resolver or registers a shared component.
-     */
-    private function buildLiteralBodyResponse(ErrorDescriptor $descriptor): OA\Response
-    {
-        return new OA\Response([
-            'response' => (string) $descriptor->status,
-            'description' => $descriptor->description,
-            'content' => [MediaType::Json->schema($descriptor->bodySchema)],
-        ]);
     }
 
     // endregion

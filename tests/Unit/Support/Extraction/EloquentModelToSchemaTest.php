@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Support\Extraction;
 
+use Illuminate\Database\Eloquent\Model;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\NullLogger;
@@ -14,9 +15,18 @@ use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\AbstractModel;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\FactoryArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\OverriddenTimestampsArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\VisibleArticle;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
@@ -27,7 +37,7 @@ uses()->group('openapi');
  * json_encode down-converts those to the 3.0 `nullable: true` form, so {@see readModelSchema()}
  * (the array view) is only suitable for version-agnostic assertions.
  *
- * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+ * @param class-string<Model> $modelClass
  */
 function buildModelSchema(string $modelClass): OA\Schema
 {
@@ -54,7 +64,7 @@ function buildModelSchema(string $modelClass): OA\Schema
 }
 
 /**
- * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+ * @param class-string<Model> $modelClass
  *
  * @return array<string, mixed>
  */
@@ -77,7 +87,8 @@ function modelProperty(OA\Schema $schema, string $name): OA\Property
 it('maps datetime casts to string/date-time', function (): void {
     $schema = readModelSchema(Article::class);
 
-    expect($schema['type'])->toBe('object')
+    expect($schema['type'])
+        ->toBe('object')
         ->and($schema['properties']['published_at']['type'])->toBe('string')
         ->and($schema['properties']['published_at']['format'])->toBe('date-time');
 });
@@ -99,15 +110,18 @@ it('types scalar @property fields and expresses nullable ones via the OAS 3.1 id
 
     // OAS 3.1 removed `nullable`; a nullable scalar widens its `type` to include 'null'. Asserted
     // on the object because swagger-php's json_encode down-converts the union to `nullable: true`.
-    expect(modelProperty($schema, 'title')->type)->toBe('string')
+    expect(modelProperty($schema, 'title')->type)
+        ->toBe('string')
         ->and(modelProperty($schema, 'subtitle')->type)->toBe(['string', 'null']);
 });
 
 it('marks non-nullable @property fields required and omits nullable ones', function (): void {
     $schema = readModelSchema(Article::class);
 
-    expect($schema['required'] ?? [])->toContain('title')
-        ->and($schema['required'] ?? [])->not->toContain('subtitle')
+    expect($schema['required'] ?? [])
+        ->toContain('title')
+        ->and($schema['required'] ?? [])->not
+        ->toContain('subtitle')
         ->and($schema['required'] ?? [])->not->toContain('internal_notes');
 });
 
@@ -137,7 +151,8 @@ it('maps an enum cast to a $ref into a shared reusable enum component', function
     $article = json_decode(json_encode(collect($registry->all())->firstWhere('schema', 'Article')), true);
     $component = json_decode(json_encode(collect($registry->all())->firstWhere('schema', 'ArticleStatus')), true);
 
-    expect($article['properties']['status']['$ref'])->toBe('#/components/schemas/ArticleStatus')
+    expect($article['properties']['status']['$ref'])
+        ->toBe('#/components/schemas/ArticleStatus')
         ->and($component['type'])->toBe('string')
         ->and($component['enum'])->toBe(['draft', 'published']);
 });
@@ -149,9 +164,10 @@ it('types an $appends accessor from its return type', function (): void {
 });
 
 it('restricts the property set to $visible when the allow-list is non-empty', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\VisibleArticle::class);
+    $schema = readModelSchema(VisibleArticle::class);
 
-    expect(array_keys($schema['properties'] ?? []))->toContain('title')
+    expect(array_keys($schema['properties'] ?? []))
+        ->toContain('title')
         ->and(array_keys($schema['properties'] ?? []))->toContain('reading_time')
         ->and($schema['properties'] ?? [])->not->toHaveKey('secret');
 });
@@ -176,7 +192,8 @@ it('emits a $ref for a @property-read model relation and registers the nested co
     $article = json_decode(json_encode(collect($registry->all())->firstWhere('schema', 'Article')), true);
     $authorRegistered = collect($registry->all())->firstWhere('schema', 'Author');
 
-    expect($article['properties']['author']['$ref'])->toBe('#/components/schemas/Author')
+    expect($article['properties']['author']['$ref'])
+        ->toBe('#/components/schemas/Author')
         ->and($authorRegistered)->not->toBeNull();
 });
 
@@ -187,8 +204,10 @@ it('wraps a nullable relation $ref in oneOf (OAS 3.1) rather than a dropped sibl
     // oneOf of the ref and a null type — not `{$ref, nullable: true}`.
     $editor = $schema['properties']['editor'];
 
-    expect($editor)->not->toHaveKey('$ref')
-        ->and($editor)->not->toHaveKey('nullable')
+    expect($editor)->not
+        ->toHaveKey('$ref')
+        ->and($editor)->not
+        ->toHaveKey('nullable')
         ->and($editor['oneOf'])->toBe([
             ['$ref' => '#/components/schemas/Author'],
             ['type' => 'null'],
@@ -198,7 +217,8 @@ it('wraps a nullable relation $ref in oneOf (OAS 3.1) rather than a dropped sibl
 it('types created_at/updated_at as nullable date-time when the model uses timestamps', function (): void {
     $schema = buildModelSchema(Article::class);
 
-    expect(modelProperty($schema, 'created_at')->type)->toBe(['string', 'null'])
+    expect(modelProperty($schema, 'created_at')->type)
+        ->toBe(['string', 'null'])
         ->and(modelProperty($schema, 'created_at')->format)->toBe('date-time')
         ->and(modelProperty($schema, 'updated_at')->type)->toBe(['string', 'null'])
         ->and(modelProperty($schema, 'updated_at')->format)->toBe('date-time');
@@ -207,31 +227,36 @@ it('types created_at/updated_at as nullable date-time when the model uses timest
 it('never marks default-typed timestamp columns required', function (): void {
     $schema = readModelSchema(Article::class);
 
-    expect($schema['required'] ?? [])->not->toContain('created_at')
+    expect($schema['required'] ?? [])->not
+        ->toContain('created_at')
         ->and($schema['required'] ?? [])->not->toContain('updated_at');
 });
 
 it('omits timestamp columns when $timestamps is disabled', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle::class);
+    $schema = readModelSchema(UntimestampedArticle::class);
 
-    expect($schema['properties'] ?? [])->not->toHaveKey('created_at')
+    expect($schema['properties'] ?? [])->not
+        ->toHaveKey('created_at')
         ->and($schema['properties'] ?? [])->not->toHaveKey('updated_at');
 });
 
 it('respects renamed and disabled timestamp columns via the framework constants', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle::class);
+    $schema = readModelSchema(CustomTimestampColumnsArticle::class);
 
-    expect($schema['properties'])->toHaveKey('creation_date')
+    expect($schema['properties'])
+        ->toHaveKey('creation_date')
         ->and($schema['properties']['creation_date']['format'])->toBe('date-time')
-        ->and($schema['properties'])->not->toHaveKey('created_at')
+        ->and($schema['properties'])->not
+        ->toHaveKey('created_at')
         ->and($schema['properties'] ?? [])->not->toHaveKey('updated_at');
 });
 
 it('lets an explicit @property tag or cast win over the timestamp default', function (): void {
-    $schema = buildModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\OverriddenTimestampsArticle::class);
+    $schema = buildModelSchema(OverriddenTimestampsArticle::class);
 
     // `@property Carbon $created_at` is non-nullable: plain string, required.
-    expect(modelProperty($schema, 'created_at')->type)->toBe('string')
+    expect(modelProperty($schema, 'created_at')->type)
+        ->toBe('string')
         ->and(modelProperty($schema, 'created_at')->format)->toBe('date-time')
         // The explicit `date` cast beats the date-time default.
         ->and(modelProperty($schema, 'updated_at')->type)->toBe('string')
@@ -243,10 +268,11 @@ it('lets an explicit @property tag or cast win over the timestamp default', func
 });
 
 it('types array/json/collection casts as lists when the @property generic is list-shaped', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $schema = readModelSchema(JsonColumnArticle::class);
     $properties = $schema['properties'];
 
-    expect($properties['aliases'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+    expect($properties['aliases'])
+        ->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['flags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['ranks'])->toEqual(['type' => 'array', 'items' => ['type' => 'integer']]);
@@ -256,143 +282,163 @@ it('treats single-arg array<T>, non-empty-list<T>, and non-empty-array<T> casts 
     // Cast path must agree with the pure-tag path: single-argument array<T> is a list,
     // not an object. Before the fix, listValueType() returned null for these forms,
     // causing jsonCastDefinition() to fall back to type: object.
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $schema = readModelSchema(JsonColumnArticle::class);
     $properties = $schema['properties'];
 
-    expect($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+    expect($properties['labels'])
+        ->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['scores'])->toEqual(['type' => 'array', 'items' => ['type' => 'integer']])
         ->and($properties['slugs'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']]);
 });
 
 it('keeps map-shaped and untagged array casts as objects', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $schema = readModelSchema(JsonColumnArticle::class);
     $properties = $schema['properties'];
 
-    expect($properties['options'])->toEqual(['type' => 'object'])
+    expect($properties['options'])
+        ->toEqual(['type' => 'object'])
         ->and($properties['meta'])->toEqual(['type' => 'object']);
 });
 
 it('keeps the object cast an object even when the tag is list-shaped', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $schema = readModelSchema(JsonColumnArticle::class);
 
     expect($schema['properties']['settings'])->toEqual(['type' => 'object']);
 });
 
 it('finds the list shape through a nullable @property tag', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $schema = readModelSchema(JsonColumnArticle::class);
 
     expect($schema['properties']['maybe_tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']]);
 });
 
 it('emits an array with unconstrained items when the list element is not a scalar keyword', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class);
+    $schema = readModelSchema(JsonColumnArticle::class);
 
     // The element type is unknown, but swagger-php validation requires items on every array.
     expect($schema['properties']['milestones'])->toEqual(['type' => 'array', 'items' => []]);
 });
 
-it('types class-form JSON casts (AsCollection / AsArrayObject / AsEncryptedCollection) via the @property generic (#252)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class);
-    $properties = $schema['properties'];
+it(
+    'types class-form JSON casts (AsCollection / AsArrayObject / AsEncryptedCollection) via the @property generic (#252)',
+    function (): void {
+        $schema = readModelSchema(ClassFormCastArticle::class);
+        $properties = $schema['properties'];
 
-    // List-shaped @property → array of the scalar element.
-    expect($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
-        ->and($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
-        ->and($properties['secrets'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
-        // Map-shaped @property keeps the conservative object default.
-        ->and($properties['options'])->toEqual(['type' => 'object']);
-});
+        // List-shaped @property → array of the scalar element.
+        expect($properties['tags'])
+            ->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+            ->and($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+            ->and($properties['secrets'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+            // Map-shaped @property keeps the conservative object default.
+            ->and($properties['options'])->toEqual(['type' => 'object']);
+    },
+);
 
 it('types the AsStringable class-form cast as a string (#252)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class);
+    $schema = readModelSchema(ClassFormCastArticle::class);
 
     expect($schema['properties']['slug'])->toEqual(['type' => 'string']);
 });
 
-it('lets the @property tag type a column behind an unrecognised custom cast instead of swallowing it (#252)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class);
-    $properties = $schema['properties'];
+it(
+    'lets the @property tag type a column behind an unrecognised custom cast instead of swallowing it (#252)',
+    function (): void {
+        $schema = readModelSchema(ClassFormCastArticle::class);
+        $properties = $schema['properties'];
 
-    // A custom CastsAttributes is unknowable at Tier 0, but its @property tag still has a say.
-    expect($properties['custom'])->toEqual(['type' => 'string'])
-        // No tag → genuinely untyped, the unchanged fallback for an opaque cast.
-        ->and($properties['custom_untyped'])->toEqual([]);
-});
+        // A custom CastsAttributes is unknowable at Tier 0, but its @property tag still has a say.
+        expect($properties['custom'])
+            ->toEqual(['type' => 'string'])
+            // No tag → genuinely untyped, the unchanged fallback for an opaque cast.
+            ->and($properties['custom_untyped'])->toEqual([]);
+    },
+);
 
 it('degrades to an unknown-shape schema for a non-instantiable model instead of throwing', function (): void {
     // Regression for #100: `new $modelClass()` on an abstract model throws an Error, which the
     // resolver fault boundary does not catch. The reader must guard instantiation and fall back.
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\AbstractModel::class);
+    $schema = readModelSchema(AbstractModel::class);
 
-    expect($schema['type'])->toBe('object')
+    expect($schema['type'])
+        ->toBe('object')
         ->and($schema)->not->toHaveKey('properties');
 });
 
 it('resolves array-shape @property annotations into object schemas (#127)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle::class);
+    $schema = readModelSchema(ShapedArticle::class);
     $properties = $schema['properties'];
 
     // Sealed shape → object with required keys.
-    expect($properties['coordinates']['type'])->toBe('object')
+    expect($properties['coordinates']['type'])
+        ->toBe('object')
         ->and($properties['coordinates']['properties']['lat']['type'])->toBe('number')
         ->and($properties['coordinates']['required'])->toBe(['lat', 'lng']);
 
     // Optional key omitted from required.
-    expect($properties['address']['properties'])->toHaveKeys(['street', 'unit'])
+    expect($properties['address']['properties'])
+        ->toHaveKeys(['street', 'unit'])
         ->and($properties['address']['required'])->toBe(['street']);
 
     // Nested shape → nested object.
     expect($properties['envelope']['properties']['meta']['properties']['source']['type'])->toBe('string');
 
     // list<array{…}> → array of objects.
-    expect($properties['tags']['type'])->toBe('array')
+    expect($properties['tags']['type'])
+        ->toBe('array')
         ->and($properties['tags']['items']['type'])->toBe('object')
         ->and($properties['tags']['items']['properties']['id']['type'])->toBe('integer');
 });
 
 it('resolves a non-model class @property via JsonSchemaFromType', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle::class);
+    $schema = readModelSchema(ShapedArticle::class);
 
     // DateTimeImmutable is a class, not a Model, so it flows through JsonSchemaFromType.
     expect($schema['properties']['observed_at'])->toBe(['type' => 'string', 'format' => 'date-time']);
 });
 
 it('falls back to an empty property for an unresolvable @property type', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle::class);
+    $schema = readModelSchema(ShapedArticle::class);
 
     // `mixed` resolves to no schema, so the property is present but untyped.
-    expect($schema['properties'])->toHaveKey('payload')
+    expect($schema['properties'])
+        ->toHaveKey('payload')
         ->and($schema['properties']['payload'])->toBe([]);
 });
 
-it('maps encrypted:array/json/collection casts to the same schema as their non-encrypted counterparts (#283)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
-    $properties = $schema['properties'];
+it(
+    'maps encrypted:array/json/collection casts to the same schema as their non-encrypted counterparts (#283)',
+    function (): void {
+        $schema = readModelSchema(EncryptedCastArticle::class);
+        $properties = $schema['properties'];
 
-    // Without a list-shaped @property tag, these default to object (same as plain array/json/collection).
-    expect($properties['settings'])->toEqual(['type' => 'object'])
-        ->and($properties['preferences'])->toEqual(['type' => 'object'])
-        ->and($properties['data'])->toEqual(['type' => 'object']);
-});
+        // Without a list-shaped @property tag, these default to object (same as plain array/json/collection).
+        expect($properties['settings'])
+            ->toEqual(['type' => 'object'])
+            ->and($properties['preferences'])->toEqual(['type' => 'object'])
+            ->and($properties['data'])->toEqual(['type' => 'object']);
+    },
+);
 
 it('maps encrypted:object cast to type: object (#283)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+    $schema = readModelSchema(EncryptedCastArticle::class);
 
     expect($schema['properties']['payload'])->toEqual(['type' => 'object']);
 });
 
 it('keeps bare encrypted cast as type: string (#283)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+    $schema = readModelSchema(EncryptedCastArticle::class);
 
     expect($schema['properties']['secret'])->toEqual(['type' => 'string']);
 });
 
 it('respects @property list hints for encrypted:array and encrypted:collection casts (#283)', function (): void {
-    $schema = readModelSchema(\Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle::class);
+    $schema = readModelSchema(EncryptedCastArticle::class);
     $properties = $schema['properties'];
 
     // A list-shaped @property tag disambiguates to an array, exactly as with plain array/collection.
-    expect($properties['tags'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
+    expect($properties['tags'])
+        ->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['labels'])->toEqual(['type' => 'array', 'items' => ['type' => 'string']])
         ->and($properties['options'])->toEqual(['type' => 'object']);
 });
@@ -400,7 +446,8 @@ it('respects @property list hints for encrypted:array and encrypted:collection c
 it('seeds property examples from the model factory definition', function (): void {
     $schema = buildModelSchema(FactoryArticle::class);
 
-    expect(modelProperty($schema, 'title')->example)->toBeString()
+    expect(modelProperty($schema, 'title')->example)
+        ->toBeString()
         ->and(modelProperty($schema, 'views')->example)->toBeInt();
 });
 

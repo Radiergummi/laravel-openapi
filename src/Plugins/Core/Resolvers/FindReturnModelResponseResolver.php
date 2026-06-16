@@ -34,28 +34,10 @@ use function is_a;
 use function sprintf;
 
 /**
- * Infers the success-response model schema from a directly-returned `Model::find()` /
- * `findOrFail()` / `firstOrFail()` static call in the controller body — a Tier-1 bounded scan
- * (epic #5, issue #97), feeding the same Tier-0 model→schema reader as
- * {@see EloquentModelResponseResolver}.
- *
- * The class must be statically resolvable: only a `Model::method()` static call whose class is a
- * literal name (NameResolver-resolved to an FQCN) and whose lowercased method is in the whitelist
- * is matched. `$class::find()` (dynamic class), a wrapped result (`new UserResource(User::find())`,
- * `response()->json(User::find())`), a `find()` assigned to a variable and returned indirectly, or a
- * non-whitelist call (`User::all()`, `->where()->first()`) are all refused — the latter cases with a
- * generation-log NOTICE so the author learns why nothing was inferred.
- *
- * Scans the first {@see self::STATEMENT_LIMIT} statements under
- * {@see ConditionalContextPolicy::SkipConditionalContexts}: a model return inside an `if`/ternary is
- * not unambiguously the canonical success body (same reasoning as the primary-slot json scan,
- * opposite of the error scans). The return-type guard defers any signature that already carries
- * schema information (a typed Model/Collection/Data return) to the Tier-0 resolvers registered
- * earlier, so this scan only fires on untyped/builtin/HTTP-response returns.
- *
- * `find()` may return null where `findOrFail()`/`firstOrFail()` throw; the success schema is the
- * same model `$ref` in all three cases, and nullability of the 200 body is not modeled (consistent
- * with {@see EloquentModelResponseResolver}, which accepts `?Model` without a nullable schema).
+ * Infers the success-response schema from a directly-returned `Model::find()` /
+ * `findOrFail()` / `firstOrFail()` static call. Only a literal-FQCN, unconditional,
+ * direct-return call is matched; dynamic classes, wrappers, and conditional returns degrade
+ * gracefully. All three methods produce the same model `$ref`; nullability is not modeled.
  *
  * @internal
  */
@@ -103,7 +85,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
         $modelClass = $this->resolveModelClass($call);
 
         if ($modelClass === null) {
-            // The class is dynamic (`$class::find()`) — lookup-shaped but not statically
+            // The class is dynamic (`$class::find()`): lookup-shaped but not statically
             // resolvable. A non-Model literal class is handled separately (silent).
             if (!$call->class instanceof Name) {
                 $this->noteUnmatchedLookup($statements, $method);
@@ -132,11 +114,8 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     /**
-     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an HTTP
-     * response class. Any other named type — a Model, Collection, Data class, Resource, or
-     * paginator — is Tier-0 territory {@see EloquentModelResponseResolver} (and the other signature
-     * resolvers) own; union and intersection types are refused rather than arbitrated. Mirrors
-     * {@see InlineJsonResponseResolver::returnTypeAllowsBodyScan}.
+     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
+     * HTTP response class. Union/intersection types and named non-response types are refused.
      */
     private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
     {
@@ -155,12 +134,8 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     /**
-     * The first lookup call that is the *direct* expression of an unconditional `return` — i.e.
-     * `return User::find($id);`, where the static call is the whole returned value, not nested
-     * inside another expression. A wrapped lookup (`return new UserResource(User::find())`,
-     * `return response()->json(User::find())`) or one assigned to a variable is therefore not
-     * matched here; those degrade via {@see noteUnmatchedLookup}. Only top-level `Return_`
-     * statements participate, so a `return` inside an `if` (nested in an `If_` node) is skipped.
+     * The first directly-returned lookup call, e.g. `return User::find($id);`.
+     * Wrapped, assigned, or conditional returns are skipped.
      *
      * @param list<Stmt> $statements
      */
@@ -179,10 +154,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
         return null;
     }
 
-    /**
-     * Whether the node is a static call whose method (lowercased) is a lookup method. The class is
-     * not constrained here — {@see resolveModelClass} decides whether it resolves to a Model.
-     */
+    /** Whether the node is a whitelisted lookup static call. Class resolution is left to {@see resolveModelClass}. */
     private function isLookupStaticCall(Node $node): bool
     {
         return $node instanceof StaticCall
@@ -192,31 +164,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     /**
-     * The resolved Model subclass behind the static call's class reference, or null when the class
-     * is dynamic (`$class::find()` — not a literal `Name`), unknown, or not a Model.
-     *
-     * @return null|class-string<Model>
-     */
-    private function resolveModelClass(StaticCall $call): ?string
-    {
-        if (!$call->class instanceof Name) {
-            return null;
-        }
-
-        $class = $call->class->toString();
-
-        if (!class_exists($class) || !is_a($class, Model::class, true)) {
-            return null;
-        }
-
-        /** @var class-string<Model> $class */
-        return $class;
-    }
-
-    /**
-     * Notes (once) when a lookup-shaped call exists in the body but was not a direct return — the
-     * author learns why nothing was inferred. A body with no lookup call at all stays silent: there
-     * is nothing unreadable to report.
+     * Logs a notice when a lookup call exists but was not a direct return. Silent when no lookup is found.
      *
      * @param list<Stmt> $statements
      */
@@ -244,10 +192,27 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     /**
-     * Wraps a schema in the `200 OK application/json` response — the same shape
-     * {@see EloquentModelResponseResolver} emits (its `jsonResponse()` is private, so this
-     * three-line shape is replicated rather than shared, keeping the scope surgical).
+     * The Model subclass named by the static call, or null when the class is dynamic, unknown, or not a Model.
+     *
+     * @return null|class-string<Model>
      */
+    private function resolveModelClass(StaticCall $call): ?string
+    {
+        if (!$call->class instanceof Name) {
+            return null;
+        }
+
+        $class = $call->class->toString();
+
+        if (!class_exists($class) || !is_a($class, Model::class, true)) {
+            return null;
+        }
+
+        /** @var class-string<Model> $class */
+        return $class;
+    }
+
+    /** Wraps a schema in a `200 OK application/json` response. */
     private function jsonResponse(OA\Schema $schema): OA\Response
     {
         return new OA\Response([

@@ -28,7 +28,7 @@ it('subsumes with an empty candidate exactly as plain subsumption does', functio
 
 it('does not subsume on inference alone when the author carries a property description inference lacks', function (): void {
     // Inference produced the property but no description; the authored block adds one. Without a
-    // candidate replacement this is load-bearing — not redundant.
+    // candidate replacement this is essential — not redundant.
     $inferred = new OA\Schema(['type' => 'object', 'properties' => [
         new OA\Property(['property' => 'name', 'type' => 'string']),
     ]]);

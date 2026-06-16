@@ -8,20 +8,15 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
 
 /**
- * Builds the flat OpenAPI schema Laravel serializes a bare paginator to via its
- * `toArray()` method. This is the raw-paginator shape; the `{data, links,
- * meta}` resource envelope is a separate shape produced only when a
- * `ResourceCollection` wraps a paginator, and is handled by the ApiResources
- * plugin.
+ * Builds the flat OpenAPI schema for a bare Laravel paginator (`toArray()` shape).
  *
- * Nullable paginator fields (cursors, page URLs) are modelled as non-nullable for this first cut; OpenAPI 3.1
- * nullability would be layered in via NullableSchema later.
+ * The `{data, links, meta}` resource envelope is a separate shape produced only when a
+ * `ResourceCollection` wraps a paginator; that is handled by the ApiResources plugin.
  */
 final class PaginatorSchemaFactory
 {
     /**
-     * Builds the response-body schema for one paginator kind, wrapping the
-     * supplied per-item schema in the `data` array.
+     * Builds the response-body schema for the given paginator kind, wrapping the item schema in `data`.
      */
     public function envelope(PaginatorKind $kind, OA\Items $items): OA\Schema
     {

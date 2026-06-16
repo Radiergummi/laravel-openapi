@@ -15,9 +15,6 @@ use function trim;
 
 /**
  * Reports request bodies that have no description.
- *
- * A description on the request body helps consumers understand the overall purpose and structure
- * of the payload they must supply.
  */
 final class RequestBodyDescriptionMissing implements Rule, RequestBodyRuleVisitor
 {

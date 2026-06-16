@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Events;
 
 /**
- * Dispatched immediately before the document for one spec begins assembly.
+ * Dispatched before a spec document begins assembly.
  *
- * Has no guaranteed paired {@see SpecGenerationCompleted}: if assembly throws, this event
- * still fires but no completion event follows. Listeners that allocate resources (tracing
- * spans, profiler frames) should handle that via the framework's exception handlers, not
- * by relying on a matching end event.
+ * Has no guaranteed paired {@see SpecGenerationCompleted}: if assembly throws, this event fires
+ * but no completion event follows. Listeners must not rely on a matching end event.
  */
 final readonly class SpecGenerationStarted
 {

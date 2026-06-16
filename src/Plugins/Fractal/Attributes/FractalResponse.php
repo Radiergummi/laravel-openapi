@@ -14,7 +14,7 @@ use Radiergummi\OpenApi\Plugins\Fractal\Support\Serializer;
  * Method-level: a Fractal transformer is applied inside a method body, which
  * the generator never reads, so the binding is declared explicitly.
  *
- * `paginated: true` implies a paginated collection — the envelope gains
+ * `paginated: true` implies a paginated collection: the envelope gains
  * `meta.pagination` matching Fractal's `IlluminatePaginatorAdapter` shape, and
  * the resolver treats the response as a collection regardless of the
  * `collection` flag.
@@ -38,7 +38,7 @@ final readonly class FractalResponse implements PrimaryResponseAuthoringAttribut
     /**
      * @param class-string $transformer The transformer class shaping the response.
      * @param bool         $collection  True when the endpoint returns a (non-paginated) collection.
-     * @param bool         $paginated   True for a paginated collection — implies `collection: true`.
+     * @param bool         $paginated   True for a paginated collection (implies `collection: true`).
      * @param Serializer   $serializer  The Fractal serializer the endpoint uses; defaults to `DataArray`.
      */
     public function __construct(

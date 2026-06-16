@@ -36,7 +36,7 @@ property schema, and appends the description text.
 ## Gap-filling semantics
 
 Rule self-documentation **fills gaps** — it does not overwrite a constraint already set by
-another rule on the same field. If a sibling rule (e.g. `'string'`) has already established
+another rule on the same field. If a sibling rule (e.g., `'string'`) has already established
 `type: string`, `SelfDocumentingRule::documentation()` returning `type: 'string'` is a no-op for
 that field. The same applies to every other field (`format`, `pattern`, `enum`,
 `minLength`/`maxLength`, `minimum`/`maximum`, `example`).
@@ -50,13 +50,13 @@ human-readable context alongside an already-derived description.
 |---|---|---|
 | `description` | `string\|null` | Appended to any pre-existing description. |
 | `type` | `string\|null` | `string`, `integer`, `number`, `boolean`, `array`. |
-| `format` | `string\|null` | e.g. `date`, `uuid`, `email`. |
+| `format` | `string\|null` | e.g., `date`, `uuid`, `email`. |
 | `pattern` | `string\|null` | ECMA regex pattern (no delimiter). |
 | `enum` | `list<string\|int\|float>\|null` | Allowed values. |
 | `minLength` | `int\|null` | Minimum string length. |
 | `maxLength` | `int\|null` | Maximum string length. |
 | `minimum` | `int\|float\|null` | Numeric minimum. |
 | `maximum` | `int\|float\|null` | Numeric maximum. |
-| `example` | `mixed` | A concrete example value (e.g. `'978-3-16-148410-0'`). Written only when no example is set yet. |
+| `example` | `mixed` | A concrete example value (e.g., `'978-3-16-148410-0'`). Written only when no example is set yet. |
 
 `minItems` and `maxItems` are intentionally absent: array-typed custom rules are best served by combining the built-in `array` rule with `min`/`max`/`size` rules on the array field itself, rather than embedding array-length constraints inside a custom rule object.

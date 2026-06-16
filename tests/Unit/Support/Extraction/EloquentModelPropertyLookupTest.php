@@ -14,6 +14,9 @@ use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
@@ -58,7 +61,8 @@ it('types a cast property', function (): void {
 it('types an enum-cast property with its case values', function (): void {
     $property = lookupProperty('status');
 
-    expect($property['type'])->toBe('string')
+    expect($property['type'])
+        ->toBe('string')
         ->and($property['enum'])->toContain('draft');
 });
 
@@ -87,14 +91,15 @@ it('returns null for a property the model does not know', function (): void {
 it('types a timestamp column the model declares no explicit metadata for', function (): void {
     $property = modelPropertyReader()->propertyFor(Article::class, 'created_at');
 
-    expect($property)->not->toBeNull()
+    expect($property)->not
+        ->toBeNull()
         ->and($property->type)->toBe(['string', 'null'])
         ->and($property->format)->toBe('date-time');
 });
 
 it('returns null for a timestamp column when $timestamps is disabled', function (): void {
     $property = modelPropertyReader()->propertyFor(
-        \Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle::class,
+        UntimestampedArticle::class,
         'created_at',
     );
 
@@ -103,33 +108,36 @@ it('returns null for a timestamp column when $timestamps is disabled', function 
 
 it('types a list-shaped array-cast property as an array of its element type', function (): void {
     $property = modelPropertyReader()->propertyFor(
-        \Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle::class,
+        JsonColumnArticle::class,
         'aliases',
     );
 
-    expect($property)->not->toBeNull()
+    expect($property)->not
+        ->toBeNull()
         ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
         ->toEqual(['property' => 'aliases', 'type' => 'array', 'items' => ['type' => 'string']]);
 });
 
 it('types a class-form AsCollection cast via its @property generic on the lookup path (#252)', function (): void {
     $property = modelPropertyReader()->propertyFor(
-        \Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class,
+        ClassFormCastArticle::class,
         'tags',
     );
 
-    expect($property)->not->toBeNull()
+    expect($property)->not
+        ->toBeNull()
         ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
         ->toEqual(['property' => 'tags', 'type' => 'array', 'items' => ['type' => 'string']]);
 });
 
 it('defers a custom-cast column to its @property tag on the lookup path (#252)', function (): void {
     $property = modelPropertyReader()->propertyFor(
-        \Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle::class,
+        ClassFormCastArticle::class,
         'custom',
     );
 
-    expect($property)->not->toBeNull()
+    expect($property)->not
+        ->toBeNull()
         ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
         ->toEqual(['property' => 'custom', 'type' => 'string']);
 });
@@ -140,6 +148,7 @@ it('memoises the model metadata across lookups', function (): void {
     $first = $reader->propertyFor(Article::class, 'title');
     $second = $reader->propertyFor(Article::class, 'subtitle');
 
-    expect($first)->toBeInstanceOf(OA\Property::class)
+    expect($first)
+        ->toBeInstanceOf(OA\Property::class)
         ->and($second)->toBeInstanceOf(OA\Property::class);
 });

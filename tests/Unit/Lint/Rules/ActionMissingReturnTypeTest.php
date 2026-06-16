@@ -22,14 +22,16 @@ function returnTypeNudgeFindings(string $method): array
 it('reports its id and level', function (): void {
     $rule = new ActionMissingReturnType();
 
-    expect($rule->id())->toBe('operation.return-type-missing')
+    expect($rule->id())
+        ->toBe('operation.return-type-missing')
         ->and($rule->level())->toBe(3);
 });
 
 it('emits a finding when the action has no return type and no response attribute', function (): void {
     $findings = returnTypeNudgeFindings('untyped');
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.return-type-missing')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)->toContain('ReturnTypeNudgeController')

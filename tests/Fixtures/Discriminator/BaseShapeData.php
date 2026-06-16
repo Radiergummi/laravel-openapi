@@ -14,7 +14,7 @@ use Spatie\LaravelData\Data;
 #[Discriminator(
     propertyName: 'type',
     mapping: [
-        'circle'    => CircleData::class,
+        'circle' => CircleData::class,
         'rectangle' => RectangleData::class,
     ],
 )]

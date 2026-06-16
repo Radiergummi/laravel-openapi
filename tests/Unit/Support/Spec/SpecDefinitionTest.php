@@ -23,7 +23,8 @@ it('holds the spec name, info, servers, tags, match config, paths', function ():
         playgroundUri: 'docs/v1',
     );
 
-    expect($spec->name)->toBe('v1')
+    expect($spec->name)
+        ->toBe('v1')
         ->and($spec->info)->toBe($info)
         ->and($spec->servers)->toBe([$server])
         ->and($spec->tags)->toBe([$tag])
@@ -45,6 +46,7 @@ it('allows null route_uri and playground_uri to opt out of HTTP serving', functi
         playgroundUri: null,
     );
 
-    expect($spec->routeUri)->toBeNull()
+    expect($spec->routeUri)
+        ->toBeNull()
         ->and($spec->playgroundUri)->toBeNull();
 });

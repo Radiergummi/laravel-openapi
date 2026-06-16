@@ -8,9 +8,8 @@ use Illuminate\Routing\Route;
 use Override;
 
 /**
- * {@see Route} subclass used during FormRequest introspection. Its only purpose is to return
- * {@see AnyValue} from {@see Route::parameter()} regardless of which name is asked for, so a
- * `rules()` body that calls `$this->route('foo')->bar` resolves without throwing.
+ * Stub {@see Route} used during FormRequest introspection. Returns {@see AnyValue} from
+ * `parameter()` for any name, so a `rules()` body that calls `$this->route('foo')->bar` resolves.
  *
  * @internal
  */
@@ -26,7 +25,7 @@ final class SpecTimeRoute extends Route
      * @param null|object|string $default
      */
     #[Override]
-    public function parameter($name, $default = null): AnyValue
+    public function parameter(mixed $name, mixed $default = null): AnyValue
     {
         return AnyValue::instance();
     }
@@ -35,7 +34,7 @@ final class SpecTimeRoute extends Route
      * @param string $name
      */
     #[Override]
-    public function hasParameter($name): bool
+    public function hasParameter(mixed $name): bool
     {
         return true;
     }

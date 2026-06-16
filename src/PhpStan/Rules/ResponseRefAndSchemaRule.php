@@ -18,7 +18,7 @@ use function assert;
 
 /**
  * Flags `#[Response]` usages that set both `ref` and `schema`. `schema` wins at runtime so the
- * `ref` is silently ignored — almost always a copy-paste mistake or an unfinished migration from
+ * `ref` is silently ignored, almost always a copy-paste mistake or an unfinished migration from
  * a literal schema to a class reference (or vice versa). The constructor accepts both, so the
  * conflict is only visible once the generator picks the winner.
  *

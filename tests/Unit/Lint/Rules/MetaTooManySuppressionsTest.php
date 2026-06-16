@@ -50,7 +50,8 @@ function tooManyDirectives(int $count, string $file): array
 it('reports its id and level', function (): void {
     $rule = new MetaTooManySuppressions();
 
-    expect($rule->id())->toBe('meta.too-many-suppressions')
+    expect($rule->id())
+        ->toBe('meta.too-many-suppressions')
         ->and($rule->level())->toBe(3);
 });
 
@@ -83,7 +84,8 @@ it('emits a finding when suppressions exceed the threshold', function (): void {
     $rule = new MetaTooManySuppressions(threshold: 5);
     $findings = iterator_to_array($rule->checkApi($api, $context));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.too-many-suppressions')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)->toContain('Controller.php')
@@ -108,7 +110,8 @@ it('groups suppressions by file and emits per file', function (): void {
     $rule = new MetaTooManySuppressions(threshold: 5);
     $findings = iterator_to_array($rule->checkApi($api, $context));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('FileB.php');
 });
 
@@ -125,7 +128,8 @@ it('respects a custom threshold', function (): void {
     $rule = new MetaTooManySuppressions(threshold: 2);
     $findings = iterator_to_array($rule->checkApi($api, $context));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('3')
         ->and($findings[0]->message)->toContain('threshold: 2');
 });

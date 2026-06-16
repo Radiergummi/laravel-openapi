@@ -31,7 +31,7 @@ final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
     {
         $knownScopes = $this->registeredScopes ?? $context->index->registeredScopes;
 
-        // An empty scope list means scope coverage cannot be verified — either no scopes are
+        // An empty scope list means scope coverage cannot be verified: either no scopes are
         // registered or Passport is not installed. Skip the check rather than flagging every
         // spec scope as undefined (false positives).
         if ($knownScopes === []) {
@@ -42,7 +42,7 @@ final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
 
         foreach ($operation->security as $requirement) {
             // Only oauth2/oidc schemes carry a scope registry. Skip non-scope-bearing schemes
-            // (e.g. Sanctum's http/bearer scheme, whose abilities surface as scopes).
+            // (e.g., Sanctum's http/bearer scheme, whose abilities surface as scopes).
             if (!$schemeTypes->carriesScopes($requirement['scheme'])) {
                 continue;
             }

@@ -36,14 +36,9 @@ final readonly class UriParametersExtractor
     ) {}
 
     /**
-     * Builds swagger-php path parameter annotations from descriptor/parameter pairs.
-     *
-     * @param list<array{UriParameterDescriptor, ?ReflectionParameter}> $parameters Each pair is a
-     *                                                                              descriptor and the
-     *                                                                              ReflectionParameter it was resolved
-     *                                                                              from (used to read FieldAttribute
-     *                                                                              annotations); the parameter is null
-     *                                                                              when none is available.
+     * @param list<array{UriParameterDescriptor, ?ReflectionParameter}> $parameters Descriptor/reflection pairs.
+     *                                                                              ReflectionParameter is null when
+     *                                                                              unavailable.
      *
      * @return list<OA\Parameter>
      */
@@ -61,9 +56,8 @@ final readonly class UriParametersExtractor
     ): OA\Parameter {
         $schema = $this->schemaFromType->fromType($descriptor->type);
 
-        // Apply WhereKind overrides — the constraint semantics take precedence over what the type
-        // alone would produce (e.g., a plain string type with a WhereUuid constraint should expose
-        // `format: uuid`).
+        // WhereKind constraints take precedence over the bare type (e.g., a string with WhereUuid
+        // gets `format: uuid`).
         $schema = $this->applyWhereKindOverrides($schema, $descriptor);
 
         $fieldDescriptor = $this->resolveFieldDescriptor($reflectionParameter);
@@ -75,10 +69,9 @@ final readonly class UriParametersExtractor
         $fieldDescriptor?->applyAdditionalProperties($schema);
         $fieldDescriptor?->applyVendorExtensions($schema);
 
-        // OpenAPI 3.x §4.8.12.1: path parameters MUST have `required: true`. Laravel's `{param?}`
-        // optional-segment signal is not expressible in OAS on a single operation; we preserve it
-        // as a description suffix instead. A future release may expand `{param?}` into two
-        // operations (long form with the segment, short form without) to describe both surfaces.
+        // OAS 3.x §4.8.12.1: path parameters MUST have `required: true`. Laravel's `{param?}`
+        // optional segments are not expressible in OAS on a single operation; preserved as a
+        // description suffix instead.
         $props = [
             'name' => $descriptor->name,
             'in' => 'path',
@@ -108,14 +101,14 @@ final readonly class UriParametersExtractor
         OA\Schema $schema,
         UriParameterDescriptor $descriptor,
     ): OA\Schema {
-        // A backed-enum parameter resolves to a `$ref` component; the enum already fully describes
-        // the value set, and inline keywords alongside a `$ref` are ignored in OAS 3.1.
+        // A backed-enum parameter resolves to a `$ref`; inline keywords alongside a `$ref` are
+        // ignored in OAS 3.1.
         if (is_defined($schema->ref)) {
             return $schema;
         }
 
-        // An explicit route `where*` constraint is the author's stated intent and wins. Only when
-        // none is present (whereKind === null) do we fall back to the bound model's key metadata.
+        // An explicit `where*` constraint wins; fall back to bound model key metadata only when
+        // none is present.
         match ($descriptor->whereKind) {
             WhereKind::Uuid => $schema->format = 'uuid',
             WhereKind::Number => $schema->type = 'integer',
@@ -132,9 +125,8 @@ final readonly class UriParametersExtractor
     }
 
     /**
-     * Types a model-bound parameter from its binding metadata. The resolver populates the key
-     * type/format only when the route binds by the model's typed primary key, so it is applied
-     * unconditionally here — a custom `{param:field}` or non-Eloquent binding carries a null type.
+     * Applies key type/format from binding metadata. A custom `{param:field}` or non-Eloquent
+     * binding carries a null type and is a no-op.
      */
     private function applyModelBindingType(
         OA\Schema $schema,
@@ -154,8 +146,7 @@ final readonly class UriParametersExtractor
     }
 
     /**
-     * Reads a FieldAttribute subclass (e.g. #[PathParam]) off the ReflectionParameter to obtain
-     * description and example for the path parameter.
+     * Reads a FieldAttribute subclass (e.g., `#[PathParam]`) off the parameter for description/example.
      */
     private function resolveFieldDescriptor(?ReflectionParameter $parameter): ?SchemaDescriptor
     {
@@ -174,8 +165,7 @@ final readonly class UriParametersExtractor
     private function buildDescription(UriParameterDescriptor $descriptor): string
     {
         if ($descriptor->modelBinding !== null) {
-            // Render the model by a human-readable resource name — the FQCN is an internal source
-            // detail that should not leak into a public spec.
+            // Use a human-readable resource name; the FQCN should not leak into the spec.
             return sprintf(
                 'Bound by %s of %s.',
                 $descriptor->modelBinding->key,

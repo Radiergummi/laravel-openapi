@@ -17,13 +17,15 @@ function makeBroadcastingRoute(string $uri): Route
 }
 
 it('skips the broadcasting channel-authorization endpoints', function (): void {
-    expect($this->filter->shouldSkip(makeBroadcastingRoute('broadcasting/auth')))->toBeTrue()
+    expect($this->filter->shouldSkip(makeBroadcastingRoute('broadcasting/auth')))
+        ->toBeTrue()
         ->and($this->filter->shouldSkip(makeBroadcastingRoute('broadcasting/user-auth')))->toBeTrue()
         ->and($this->filter->shouldSkip(makeBroadcastingRoute('/broadcasting/auth')))->toBeTrue();
 });
 
 it('keeps other routes, including unrelated broadcasting-prefixed URIs', function (): void {
-    expect($this->filter->shouldSkip(makeBroadcastingRoute('broadcasting/channels')))->toBeFalse()
+    expect($this->filter->shouldSkip(makeBroadcastingRoute('broadcasting/channels')))
+        ->toBeFalse()
         ->and($this->filter->shouldSkip(makeBroadcastingRoute('flights/index')))->toBeFalse()
         ->and($this->filter->shouldSkip(makeBroadcastingRoute('auth')))->toBeFalse();
 });

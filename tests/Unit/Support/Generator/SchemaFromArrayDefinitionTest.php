@@ -17,7 +17,8 @@ it('builds nested properties and items as object graphs', function (): void {
         ],
     ]);
 
-    expect($schema->properties)->toHaveCount(2)
+    expect($schema->properties)
+        ->toHaveCount(2)
         ->and($schema->properties[1]->items)->toBeInstanceOf(OA\Items::class)
         ->and($schema->properties[1]->items->type)->toBe('string');
 });
@@ -55,7 +56,8 @@ it('converts oneOf/anyOf/allOf members into OA\Schema graphs that validate', fun
         ],
     ]);
 
-    expect($schema->oneOf)->toHaveCount(2)
+    expect($schema->oneOf)
+        ->toHaveCount(2)
         ->and($schema->oneOf[0])->toBeInstanceOf(OA\Schema::class)
         ->and($schema->oneOf[0]->properties[0])->toBeInstanceOf(OA\Property::class)
         ->and($schema->oneOf[1])->toBeInstanceOf(OA\Schema::class)
@@ -67,7 +69,8 @@ it('converts not into a nested OA\Schema that validates', function (): void {
         'not' => ['type' => 'string'],
     ]);
 
-    expect($schema->not)->toBeInstanceOf(OA\Schema::class)
+    expect($schema->not)
+        ->toBeInstanceOf(OA\Schema::class)
         ->and($schema->not->type)->toBe('string')
         ->and($schema->validate())->toBeTrue();
 });

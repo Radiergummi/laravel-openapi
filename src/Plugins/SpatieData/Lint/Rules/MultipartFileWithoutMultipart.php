@@ -11,7 +11,6 @@ use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use Radiergummi\OpenApi\Plugins\SpatieData\Support\FilePropertyChecker;
-use Radiergummi\OpenApi\Plugins\SpatieData\Support\SchemaFromDataClass;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use ReflectionException;
 use ReflectionMethod;
@@ -20,15 +19,9 @@ use Spatie\LaravelData\Data;
 use function sprintf;
 
 /**
- * Contradiction guard: the generator already emits `multipart/form-data` for any Data class that
- * carries an `UploadedFile` property, so the auto-generated path can never trip this rule. It fires
- * only when a `#[RequestBody]` override forces a non-multipart media type onto an operation whose
- * Data object still carries a file — leaving a `format: binary` field under, say, `application/json`,
- * a spec that contradicts the code.
- *
- * File-property detection is delegated to {@see SchemaFromDataClass::hasFileProperties()},
- * which uses the same TypeInfo-based traversal as schema generation and caches results
- * per Data-class FQCN so deep nested checks are not repeated.
+ * Fires when a `#[RequestBody]` override forces a non-multipart media type onto an operation
+ * whose Data class carries an `UploadedFile` property, contradicting the code. The auto-generated
+ * path never trips this rule; it only catches explicit overrides.
  */
 final readonly class MultipartFileWithoutMultipart implements Rule, OperationRuleVisitor
 {
@@ -76,12 +69,7 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
     }
 
     /**
-     * Check whether the method (or a Domain Action it injects) carries a Data
-     * subclass with an UploadedFile property.
-     *
-     * Uses {@see PayloadParameterScanner} so Action-indirected Data classes
-     * (controller → CreateXAction → constructor → CreateXData) are reached the
-     * same way the schema resolver finds them.
+     * Whether the method (or an injected Domain Action) carries a Data subclass with a file property.
      *
      * @throws ReflectionException
      */

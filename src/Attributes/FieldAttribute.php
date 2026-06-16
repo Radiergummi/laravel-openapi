@@ -17,17 +17,12 @@ use function is_string;
 use function sprintf;
 
 /**
- * Abstract base for the scope-specific field attributes.
+ * Abstract base for scope-specific field attributes ({@see PathParam}, {@see QueryParam},
+ * {@see RequestField}, {@see ResponseField}). Not an `#[Attribute]` itself.
  *
- * Holds the full JSON-Schema parameter surface and the {@see self::descriptor()} mapping. It is
- * intentionally NOT an `#[Attribute]` — only its concrete subclasses ({@see PathParam},
- * {@see QueryParam}, {@see RequestField}, {@see ResponseField}) may be written in source.
- * Each subclass exposes only the parameters meaningful in its scope and forwards them to
- * this constructor.
- *
- * `example` and `enum` accept the {@see FieldDefault::Unset} sentinel as their default. This lets
- * {@see descriptor()} tell "author did not pass the argument" apart from "author explicitly passed
- * null" — only the former falls back to a value supplied by an inline description directive.
+ * `example` and `enum` use {@see FieldDefault::Unset} as their default so {@see descriptor()}
+ * can distinguish "not passed" from "explicitly null", falling back to description directives
+ * only for the former.
  */
 abstract readonly class FieldAttribute
 {
@@ -39,45 +34,24 @@ abstract readonly class FieldAttribute
      * @param null|non-empty-string                                                        $description
      * @param null|class-string|OpenApiPrimitiveType                                       $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum                 A list of
-     *                                                                                                           allowed values,
-     *                                                                                                           or a
-     *                                                                                                           backed-enum
-     *                                                                                                           class-string
-     *                                                                                                           resolved to its
-     *                                                                                                           cases.
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum                 A list
+     *                                                                                                           of allowed values, or a
+     *                                                                                                           backed-enum class-string
+     *                                                                                                           resolved to its cases.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param bool                                                                         $conditional          When true, the
-     *                                                                                                           field is kept
-     *                                                                                                           in
-     *                                                                                                           `properties`
-     *                                                                                                           but removed
-     *                                                                                                           from `required`
-     *                                                                                                           — used by
-     *                                                                                                           response fields
-     *                                                                                                           emitted via
-     *                                                                                                           `$this->when()`
-     *                                                                                                           /
+     * @param bool                                                                         $conditional          When true, the field is kept in `properties` but
+     *                                                                                                           removed from `required`; for response fields
+     *                                                                                                           emitted conditionally via `$this->when()` /
      *                                                                                                           `$this->whenLoaded()`.
-     * @param null|array<string, mixed>                                                    $x                    Vendor extensions
-     *                                                                                                           (`x-*`); keys are
-     *                                                                                                           written with the
-     *                                                                                                           `x-` prefix and
-     *                                                                                                           emitted verbatim,
-     *                                                                                                           matching the
-     *                                                                                                           `openapi.overrides`
-     *                                                                                                           contract.
-     * @param null|bool|string                                                             $additionalProperties Map-value
-     *                                                                                                           override: `true`/
-     *                                                                                                           `false`, or a type
-     *                                                                                                           string wrapped into
-     *                                                                                                           a nested value
-     *                                                                                                           schema. Wins over
-     *                                                                                                           inferred map values.
+     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`); keys must carry the
+     *                                                                                                           `x-` prefix and are emitted verbatim.
+     * @param null|bool|string                                                             $additionalProperties Map-value override: `true`/`false`, or a type
+     *                                                                                                           string wrapped into a nested value schema.
+     *                                                                                                           Wins over inferred map values.
      *
      * @throws InvalidArgumentException When `$enum` is a string that is not a backed-enum class-string.
      */
@@ -108,8 +82,6 @@ abstract readonly class FieldAttribute
         public ?array $x = null,
         public bool|string|null $additionalProperties = null,
     ) {
-        // A backed-enum class-string is resolved to its cases here, so every downstream reader
-        // (descriptor, lint rules) sees a uniform value list rather than a bare class name.
         if (is_string($enum)) {
             if (!is_a($enum, BackedEnum::class, true)) {
                 throw new InvalidArgumentException(
@@ -127,11 +99,7 @@ abstract readonly class FieldAttribute
     }
 
     /**
-     * Returns the explicit `example:` argument, or `null` when the author did not pass one.
-     *
-     * `null` is the conventional way to suppress a value in PHP, so this collapses the sentinel
-     * "unset" state to `null` for downstream readers (lint rules, AST walkers) that don't care
-     * about distinguishing the two.
+     * Returns the explicit `example:` value, or `null` when the author did not pass one.
      */
     public function explicitExample(): mixed
     {
@@ -139,7 +107,7 @@ abstract readonly class FieldAttribute
     }
 
     /**
-     * Returns the explicit `enum:` argument, or `null` when the author did not pass one.
+     * Returns the explicit `enum:` value, or `null` when the author did not pass one.
      *
      * @return null|array<int, BackedEnum|int|string>
      */
@@ -152,10 +120,7 @@ abstract readonly class FieldAttribute
     {
         $parsed = DescriptionDirectives::parse($this->description);
 
-        // Precedence: explicit attribute argument always wins over a description directive — even
-        // when the explicit argument is `null`, which is the conventional way to suppress a value
-        // in PHP. `@no-example` only suppresses an `@example` directive on the same description; it
-        // does not override an explicit `example:` argument.
+        // Explicit attribute argument wins over description directives, even when null.
         $example = match (true) {
             $this->example instanceof FieldDefault => $parsed->example,
             $this->example === null => null,
@@ -167,8 +132,7 @@ abstract readonly class FieldAttribute
             default => array_values($this->enum),
         };
 
-        // Infer the scalar type from a resolved backed-enum list when the author left it unset, so
-        // a class-string enum carries the correct `string`/`integer` type without a redundant `type:`.
+        // Infer scalar type from the resolved enum list so `type:` need not be set explicitly.
         $type = $this->type;
 
         if ($type === null && isset($enum[0]) && $enum[0] instanceof BackedEnum) {

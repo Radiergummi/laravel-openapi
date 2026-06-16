@@ -18,7 +18,8 @@ it('OAPI-034: BackedEnum with per-case PHPDoc produces a markdown description on
     $schemaFromType = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry());
     $schema = $schemaFromType->fromBackedEnumClass(StatusFixtureEnum::class);
 
-    expect($schema->description)->toBeString()
+    expect($schema->description)
+        ->toBeString()
         ->and($schema->description)->toContain('active')
         ->and($schema->description)->toContain('Active and visible to all users.')
         ->and($schema->description)->toContain('archived')

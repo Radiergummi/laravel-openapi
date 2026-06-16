@@ -8,7 +8,7 @@ use Attribute;
 use Radiergummi\OpenApi\Enums\MediaType;
 
 /**
- * Overrides the auto-derived request body — useful for opaque webhook payloads, multipart
+ * Overrides the auto-derived request body. Useful for opaque webhook payloads, multipart
  * uploads, or marking a required body optional. Null properties fall through to the auto-derived
  * value (attached `Data` schema, `application/json`, `required: true`).
  */

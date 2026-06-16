@@ -20,7 +20,8 @@ function explicitClassSchema(): ExplicitClassSchema
 it('reads the #[RawSchema] attribute when present', function (): void {
     $attribute = explicitClassSchema()->read(new ReflectionClass(RawSchemaData::class));
 
-    expect($attribute)->toBeInstanceOf(RawSchema::class)
+    expect($attribute)
+        ->toBeInstanceOf(RawSchema::class)
         ->and($attribute->schema['properties'])->toHaveKey('kind');
 });
 
@@ -39,7 +40,8 @@ it('builds a valid object schema from the literal definition', function (): void
 
     $schema = explicitClassSchema()->toSchema($attribute, new ReflectionClass(RawSchemaData::class));
 
-    expect($schema->type)->toBe('object')
+    expect($schema->type)
+        ->toBe('object')
         ->and($schema->required)->toBe(['a'])
         ->and($schema->properties[0]->property)->toBe('a')
         ->and($schema->validate())->toBeTrue();
@@ -55,7 +57,8 @@ it('preserves composition (oneOf) and const keywords and validates', function ()
 
     $schema = explicitClassSchema()->toSchema($attribute, new ReflectionClass(RawSchemaResource::class));
 
-    expect($schema->oneOf)->toHaveCount(2)
+    expect($schema->oneOf)
+        ->toHaveCount(2)
         ->and($schema->validate())->toBeTrue();
 });
 

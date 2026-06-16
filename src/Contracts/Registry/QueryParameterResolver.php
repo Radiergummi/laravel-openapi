@@ -10,10 +10,7 @@ use ReflectionException;
 
 /**
  * Resolves query parameters for a single controller action.
- *
- * Implementations examine the action descriptor (controller method, attributes, etc.)
- * and return the `OA\Parameter` objects that should be added to the operation.
- * Return an empty array when this resolver has nothing to contribute for the given action.
+ * Return an empty array when the resolver has nothing to contribute.
  */
 interface QueryParameterResolver
 {

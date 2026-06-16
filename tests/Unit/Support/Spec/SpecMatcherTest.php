@@ -17,7 +17,8 @@ it('empty / missing match config matches nothing — catch-all semantics live in
 it('matches a single prefix as fnmatch glob', function (): void {
     $match = ['prefix' => 'api/v1/*'];
 
-    expect($this->matcher->matches('api/v1/flights', [], null, $match))->toBeTrue()
+    expect($this->matcher->matches('api/v1/flights', [], null, $match))
+        ->toBeTrue()
         ->and($this->matcher->matches('api/v2/flights', [], null, $match))->toBeFalse();
 });
 
@@ -30,7 +31,8 @@ it('matches list of prefixes with OR semantics', function (): void {
 it('matches middleware literally or by prefix-before-colon', function (): void {
     $match = ['middleware' => 'auth'];
 
-    expect($this->matcher->matches('x', ['auth:api'], null, $match))->toBeTrue()
+    expect($this->matcher->matches('x', ['auth:api'], null, $match))
+        ->toBeTrue()
         ->and($this->matcher->matches('x', ['auth'], null, $match))->toBeTrue()
         ->and($this->matcher->matches('x', ['throttle'], null, $match))->toBeFalse();
 });
@@ -38,25 +40,28 @@ it('matches middleware literally or by prefix-before-colon', function (): void {
 it('matches a middleware literal with its own colon-suffix', function (): void {
     $match = ['middleware' => 'auth:partner'];
 
-    expect($this->matcher->matches('x', ['auth:partner'], null, $match))->toBeTrue()
+    expect($this->matcher->matches('x', ['auth:partner'], null, $match))
+        ->toBeTrue()
         ->and($this->matcher->matches('x', ['auth:api'], null, $match))->toBeFalse();
 });
 
 it('matches namespace prefix on controller FQCN', function (): void {
     $match = ['namespace' => 'App\\Http\\Controllers\\V1\\'];
 
-    expect($this->matcher->matches('x', [], 'App\\Http\\Controllers\\V1\\FlightController', $match))->toBeTrue()
+    expect($this->matcher->matches('x', [], 'App\\Http\\Controllers\\V1\\FlightController', $match))
+        ->toBeTrue()
         ->and($this->matcher->matches('x', [], 'App\\Http\\Controllers\\V2\\FlightController', $match))->toBeFalse()
         ->and($this->matcher->matches('x', [], null, $match))->toBeFalse();
 });
 
 it('ANDs the three keys — every present key must match', function (): void {
     $match = [
-        'prefix'     => 'api/v1/*',
+        'prefix' => 'api/v1/*',
         'middleware' => 'auth:partner',
     ];
 
-    expect($this->matcher->matches('api/v1/flights', ['auth:partner'], null, $match))->toBeTrue()
+    expect($this->matcher->matches('api/v1/flights', ['auth:partner'], null, $match))
+        ->toBeTrue()
         ->and($this->matcher->matches('api/v1/flights', ['auth:api'], null, $match))->toBeFalse()
         ->and($this->matcher->matches('api/v2/flights', ['auth:partner'], null, $match))->toBeFalse();
 });

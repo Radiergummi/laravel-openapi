@@ -9,9 +9,8 @@ use BackedEnum;
 use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 
 /**
- * Documents an ad-hoc query parameter not covered by JSON:API filter/sort/include/page extraction —
- * for parameters read directly off the request or driven by a non-JSON:API form request.
- * Repeatable; method-level wins over class-level on `name` collision.
+ * Documents a query parameter not covered by structured extraction. Repeatable; method-level wins
+ * over class-level on `name` collision.
  *
  * ```php
  * #[QueryParam('q', description: 'Free-text search query.', example: 'cnc machining')]
@@ -27,17 +26,13 @@ final readonly class QueryParam extends FieldAttribute
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum                 Allowed values,
-     *                                                                                                           or a backed-enum
-     *                                                                                                           class-string; renders as a
-     *                                                                                                           dropdown.
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`).
-     * @param null|bool|string                                                             $additionalProperties Map-value override.
+     * @param null|array<string, mixed>                                                    $x
      */
     public function __construct(
         public string $name,

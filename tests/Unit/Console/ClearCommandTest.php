@@ -15,7 +15,8 @@ it('clears every spec output path when no arg passed', function (): void {
 
     $this->artisan('openapi:clear')->assertSuccessful();
 
-    expect(file_exists($default))->toBeFalse()
+    expect(file_exists($default))
+        ->toBeFalse()
         ->and(file_exists($v1))->toBeFalse();
 });
 
@@ -29,7 +30,8 @@ it('clears only the named spec', function (): void {
 
     $this->artisan('openapi:clear v1')->assertSuccessful();
 
-    expect(file_exists($default))->toBeTrue()
+    expect(file_exists($default))
+        ->toBeTrue()
         ->and(file_exists($v1))->toBeFalse();
 });
 

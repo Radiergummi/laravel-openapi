@@ -22,10 +22,7 @@ use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
- * Reports broken `$ref` references that point to non-existent components.
- *
- * Walks all annotations recursively and checks every `$ref` string against the available component
- * maps (schemas, responses, parameters, etc.).
+ * Reports `$ref` references that point to non-existent components.
  */
 final class RefBroken implements Rule, ApiRuleVisitor
 {
@@ -70,9 +67,7 @@ final class RefBroken implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Convert the shared defined-components map into a set for O(1) existence checks.
-     *
-     * @param array<string, list<string>> $defined Output of AnnotationWalker::collectDefinedComponents
+     * @param array<string, list<string>> $defined
      *
      * @return array<string, array<string, true>>
      */
@@ -85,8 +80,6 @@ final class RefBroken implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Check whether a `$ref` string points to an existing component.
-     *
      * @param array<string, array<string, true>> $componentIndex
      */
     private function refExists(string $ref, array $componentIndex): bool
@@ -94,15 +87,13 @@ final class RefBroken implements Rule, ApiRuleVisitor
         $parsed = ComponentReference::parse($ref);
 
         if ($parsed === null) {
-            // Not a local component ref (could be external) – skip
+            // Not a local component ref (may be external).
             return true;
         }
 
         ['type' => $type, 'name' => $name] = $parsed;
 
-        // pathItems are not indexed as components (they live inline on
-        // operations as callbacks), so skip ref validation for them rather
-        // than report a false positive.
+        // pathItems live inline on operations, not in the components index.
         if ($type === ComponentType::PathItems->value) {
             return true;
         }

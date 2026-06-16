@@ -42,7 +42,7 @@ final readonly class QueryBuilderFilterDuplicate implements Rule, OperationRule
             $nameCount[$name] = ($nameCount[$name] ?? 0) + 1;
         }
 
-        $duplicatedNames = array_keys(array_filter($nameCount, static fn(int $count) => $count > 1));
+        $duplicatedNames = array_keys(array_filter($nameCount, static fn(int $count): bool => $count > 1));
 
         foreach ($duplicatedNames as $name) {
             yield new Finding(

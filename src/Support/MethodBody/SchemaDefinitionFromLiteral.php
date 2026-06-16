@@ -16,30 +16,18 @@ use function is_int;
 use function is_string;
 
 /**
- * Maps literal AST expressions onto plain JSON-Schema definition arrays — the shared
- * value-typing half of the Tier-1 body scans (epic #5). The inline-JSON response scan (#14) and
- * the Resource `toArray()` reader (#12) are both walk array literals whose values are typed by the
- * same rules:
+ * Maps literal AST expressions onto plain JSON-Schema definition arrays.
  *
- * - Nested literal arrays recurse (keyed → object, unkeyed or sequential-integer-keyed → list),
- * - Literal scalars map to their JSON type,
- * - A dynamic *value* stays an unconstrained (empty) definition — dropping a response property
- *   would be silently wrong for spec consumers,
- * - A dynamic *key*, a spread entry, or a keyed/unkeyed mix throw
- *   {@see NonLiteralValueException} — the surrounding structure is unknowable, so callers
- *   degrade their whole match.
- *
- * Definition arrays convert to `OA\Schema` via `Support\Generator\SchemaFromArrayDefinition`.
+ * Shared by the inline-JSON response scan and the Resource `toArray()` reader.
+ * Keyed arrays become objects, unkeyed or sequential-integer-keyed become lists,
+ * scalars map to their JSON type, and dynamic values become empty (unconstrained) definitions.
+ * A dynamic key, spread, or mixed keyed/unkeyed array throws {@see NonLiteralValueException}.
  *
  * @internal
  */
 final readonly class SchemaDefinitionFromLiteral
 {
     /**
-     * Walks a literal array AST node into a schema definition. A dynamic value under a literal
-     * key — including a nested array that is itself unreadable — keeps the property with an
-     * unconstrained schema; a dynamic key, a spread entry, or a keyed/unkeyed mix throws.
-     *
      * @return array<string, mixed>
      *
      * @throws NonLiteralValueException
@@ -82,7 +70,7 @@ final readonly class SchemaDefinitionFromLiteral
         }
 
         // Explicit sequential integer keys are a JSON array, exactly as `json_encode` treats
-        // them — the same `array_is_list` semantics as the evaluated-literal path.
+        // them, using the same `array_is_list` semantics as the evaluated-literal path.
         if ($properties !== [] && array_is_list($properties)) {
             return self::listDefinition($properties);
         }
@@ -97,10 +85,6 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
-     * The definition for one property value: nested literal arrays recurse, literal scalars map
-     * to their JSON type, and anything dynamic stays as an unconstrained (empty) schema rather
-     * than dropping the property.
-     *
      * @return array<string, mixed>
      */
     public static function fromValue(Expr $value): array
@@ -127,9 +111,8 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
-     * An array whose item schema is unknown — empty literals and heterogeneous or unreadable
-     * lists. The `items` key is always present: swagger-php's validator rejects a `type: array`
-     * without `@OA\Items` on both supported majors, and `openapi:generate` validates by default.
+     * An array with unknown item schema. `items` is always present: swagger-php rejects
+     * `type: array` without `@OA\Items` and `openapi:generate` validates by default.
      *
      * @return array{type: 'array', items: array<never, never>}
      */
@@ -139,11 +122,6 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
-     * Maps an already-evaluated literal (a scalar, or an array reached through a class constant)
-     * onto its schema definition, with the same semantics as the AST branch: `null` yields an
-     * unconstrained definition, an empty array is an array of unknown items, and list items are
-     * only claimed when every element agrees on a type (see {@see self::listDefinition()}).
-     *
      * @return array<string, mixed>
      */
     public static function fromLiteralValue(mixed $literal): array
@@ -176,10 +154,8 @@ final readonly class SchemaDefinitionFromLiteral
     }
 
     /**
-     * Items are derived from the first element; when a later element disagrees, the items stay
-     * unconstrained — a heterogeneous literal list has no single item schema. Disagreement is on
-     * the top-level `type`, and additionally on the property shape for object elements (two objects
-     * with differing keys must not have the first one's shape imposed on the whole list).
+     * Derives item schema from the first element; falls back to unconstrained items on type or
+     * property-shape mismatch.
      *
      * @param non-empty-list<array<string, mixed>> $definitions
      *

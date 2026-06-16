@@ -14,39 +14,28 @@ use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
 
 /**
- * Decides whether one swagger-php annotation subtree is structurally **contained in** another, by
- * reducing both to a canonical form and testing recursive containment.
+ * Tests whether one swagger-php annotation subtree is structurally contained in another.
  *
- * This is the redundancy test for the migration rules: an authored annotation is redundant when
- * inference reproduces *everything it says* — and inference may say *more* (a synthesised `example`,
- * a discovered property), so strict equality would almost never hold. Subsumption
- * (`authored ⊆ inferred`) is the sound test: removing an annotation fully contained in inference's
- * output loses nothing, while a genuine restriction the author added (`additionalProperties: false`,
- * a `description` inference cannot derive) is a key inference never emits — containment fails and the
- * annotation is correctly kept.
+ * Used by migration rules to detect redundant authored annotations: `authored ⊆ inferred` means
+ * removing the annotation loses nothing. A genuine restriction inference cannot derive
+ * (`additionalProperties: false`, etc.) fails containment and the annotation is kept.
  *
- * The canonical form drops swagger-php's `UNDEFINED` sentinels and `_`-prefixed bookkeeping, and is
- * order-insensitive on collections so declaration order never affects the verdict. `$ref`s are
- * compared by literal string; a differing target fails containment (the conservative direction).
+ * Canonical form drops `UNDEFINED` sentinels and `_`-prefixed internals; collections are
+ * compared order-insensitively. `$ref` targets are compared by literal string (conservative).
  *
  * @internal
  */
 final readonly class SchemaEquivalence
 {
     /**
-     * Whether `$narrower` is structurally contained in `$broader` — every value the narrower side
-     * specifies is present and equal in the broader side, which may carry more.
+     * Whether every value in `$narrower` is present and equal in `$broader` (which may carry more).
      */
     public function subsumes(?OA\AbstractAnnotation $broader, ?OA\AbstractAnnotation $narrower): bool
     {
         return $this->contains($this->normalize($broader), $this->normalize($narrower));
     }
 
-    /**
-     * Recursive containment over canonical values. Maps: every narrower key present and contained
-     * in the broader value. Lists: every narrower element contained in *some* broader element
-     * (order-insensitive). Scalars: equal.
-     */
+    /** Recursive containment: maps check key-by-key, lists are order-insensitive, scalars use ==. */
     private function contains(mixed $broader, mixed $narrower): bool
     {
         if (!is_array($narrower)) {
@@ -57,11 +46,8 @@ final readonly class SchemaEquivalence
             return false;
         }
 
-        // Compare as an unordered value-collection when either side is a list. swagger-php
-        // serialises keyed collections like `content` (by media type) and `responses` (by status)
-        // as a list on one side and a keyed map on the other; the key is redundant with a property
-        // on each element, so matching by value is correct. Only when *both* sides are keyed maps do
-        // keys carry meaning (a schema's `properties`, keyed by property name).
+        // swagger-php sometimes serialises keyed collections as lists; treat either-list as
+        // an unordered collection. Keys only matter when both sides are keyed maps.
         if (array_is_list($narrower) || array_is_list($broader)) {
             foreach ($narrower as $narrowerElement) {
                 foreach ($broader as $broaderElement) {
@@ -86,8 +72,7 @@ final readonly class SchemaEquivalence
     }
 
     /**
-     * Reduce an annotation, array, or scalar to a canonical, comparable value: annotations become
-     * key-sorted maps of their set properties; lists are normalized element-wise and sorted; the
+     * Reduce to a canonical comparable value: annotations become key-sorted property maps; the
      * `UNDEFINED` sentinel and `_`-prefixed internals are dropped.
      */
     private function normalize(mixed $value): mixed
@@ -115,17 +100,13 @@ final readonly class SchemaEquivalence
         $normalized = [];
 
         foreach (get_object_vars($annotation) as $key => $value) {
-            // Skip swagger-php's internal bookkeeping (_context, _unmerged, _analysis, …) and any
-            // property the author never set.
+            // Skip swagger-php internals (_context, _unmerged, …) and unset properties.
             if (str_starts_with($key, '_') || is_undefined($value)) {
                 continue;
             }
 
-            // On an `OA\Schema`, the `schema` property is the component *name* — an implementation
-            // detail of the serialized document, not part of what the schema describes; comparison
-            // is provenance-based (by source class), so a differing authored vs inferred name must
-            // not affect the verdict. On other annotations (`OA\MediaType`, `OA\Parameter`) the
-            // `schema` property is the nested schema itself, which must be compared.
+            // On OA\Schema, `schema` is the component name (not a descriptor); skip it so
+            // differing authored vs inferred names don't affect the verdict.
             if ($key === 'schema' && $annotation instanceof OA\Schema) {
                 continue;
             }
@@ -154,8 +135,6 @@ final readonly class SchemaEquivalence
             $normalized[$key] = $this->normalize($element);
         }
 
-        // Re-key a list so dropping an UNDEFINED element keeps it a list; `contains()` matches both
-        // lists and maps order-insensitively, so no canonical ordering is needed here.
         return $wasList ? array_values($normalized) : $normalized;
     }
 }

@@ -27,7 +27,7 @@ class RedundantAnnotationController
         throw new LogicException('Signature-only fixture; never invoked.');
     }
 
-    public function loadBearing(): LoadBearingAttributeData
+    public function essential(): EssentialAttributeData
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }

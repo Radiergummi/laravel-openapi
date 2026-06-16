@@ -9,10 +9,8 @@ use BackedEnum;
 use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 
 /**
- * Documents a cookie parameter read off the request at runtime (`$request->cookie('x')`).
- * Cookies are never typed in the action signature, so this attribute supplies the name and the
- * documented shape that reflection cannot recover. Repeatable; method-level wins over class-level
- * on `name` collision.
+ * Documents a cookie parameter (`$request->cookie('x')`). Repeatable; method-level wins on
+ * `name` collision.
  *
  * ```php
  * #[CookieParam('session', description: 'Opaque session token.')]
@@ -28,10 +26,7 @@ final readonly class CookieParam extends FieldAttribute
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        Allowed values,
-     *                                                                                                  or a backed-enum
-     *                                                                                                  class-string; renders as a
-     *                                                                                                  dropdown.
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum        Allowed values or a backed-enum class-string.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern

@@ -10,7 +10,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new OperationDescriptionMissing();
 
-    expect($rule->id())->toBe('operation.description-missing')
+    expect($rule->id())
+        ->toBe('operation.description-missing')
         ->and($rule->level())->toBe(2);
 });
 
@@ -25,7 +26,8 @@ it('emits a finding when operation has a summary but no description', function (
         $rule->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.description-missing')
         ->and($findings[0]->level)->toBe(2)
         ->and($findings[0]->message)->toContain('GET')
