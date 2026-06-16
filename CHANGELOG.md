@@ -70,6 +70,7 @@ All notable changes to this project are documented here.
 - `#[RequestField]` ref support: a class-string `type:` resolves to a `$ref`, and a class-string `items:` on a `type: 'array'` field resolves to `items: { $ref }` — mirroring the response-side `#[ResourceField]`; an unresolvable class degrades to a permissive object. (#150)
 - A non-paginator action whose body unconditionally calls `paginate()`/`simplePaginate()`/`cursorPaginate()` now gets the matching paginated response envelope, with a declared item class (`#[ResponseResource(Model::class)]` or `@return Paginator<Item>`). Guarded so it never overrides a response API Resources or Spatie Data would shape — a resource/`Data` return type or a resource-naming `#[ResponseResource]` defers to those plugins. (#353)
 - **Fortify plugin** (opt-in): documents Laravel Fortify's headless core-auth endpoints (login/logout/register/password/profile) from a stock-contract table, with request bodies always emitted and response bodies gated on the Fortify response contract being unmodified. (#134)
+- `schema.class-attribute-conflicts-with-field-attributes` now also flags class-level `#[ResourceField]` declarations on a `JsonResource` that carries a class-level `#[RawSchema]`, alongside the property-level `#[RequestField]`/`#[ResponseField]` it already detected. (#374)
 
 ## [0.1.0] - 2026-05-18
 
