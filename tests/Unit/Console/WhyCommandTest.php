@@ -44,9 +44,8 @@ it('explains a globally-filtered route as filtered, not as not-found', function 
     app()->forgetScopedInstances();
 
     // The route is discovered (discover() stays unfiltered) and explained as excluded by the
-    // global filter, never reported as not-found. Chained expectsOutputToContain matches the
-    // buffer in document order, so the summary line (which already names the filter class) is
-    // asserted last; a separate class-name assertion would consume the trace-line occurrence first.
+    // global filter, never reported as not-found. The summary assertion already names the filter
+    // class, so a separate bare class-name assertion would be redundant.
     $this
         ->artisan('openapi:why api/v1/flights')
         ->expectsOutputToContain('Route:')
