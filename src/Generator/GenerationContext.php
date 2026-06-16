@@ -32,7 +32,6 @@ final class GenerationContext
 
     public function actionFor(OA\Operation $operation): ?ActionDescriptor
     {
-        /** @var null|ActionDescriptor */
         return $this->actions[$operation] ?? null;
     }
 }

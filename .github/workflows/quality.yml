@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
         with:
           path: .ci-marker
-          key: quality-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
+          key: quality-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'rector.php', 'phpunit.xml', '.github/workflows/**') }}
           lookup-only: true
       - name: Setup PHP
         if: steps.marker.outputs.cache-hit != 'true'
@@ -73,6 +73,14 @@ jobs:
           key: pint-${{ runner.os }}-${{ github.sha }}
           restore-keys: |
             pint-${{ runner.os }}-
+      - name: Cache Rector result cache
+        if: steps.marker.outputs.cache-hit != 'true'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: .cache/rector
+          key: rector-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            rector-${{ runner.os }}-
       - name: Install dependencies
         if: steps.marker.outputs.cache-hit != 'true'
         shell: bash
@@ -94,6 +102,12 @@ jobs:
         # language=bash
         run: |
           composer run lint
+      - name: Rector
+        if: steps.marker.outputs.cache-hit != 'true'
+        shell: bash
+        # language=bash
+        run: |
+          composer run rector:check
       - name: Record result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
         shell: bash

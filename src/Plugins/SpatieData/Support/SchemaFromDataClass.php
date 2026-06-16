@@ -169,7 +169,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
             $hasOptional = $this->containsOptional($type);
 
-            // Strip Optional from the union before schema generation.
             $effectiveType = $hasOptional ? $this->stripOptional($type) : $type;
 
             // DataCollection erases the value type; #[DataCollectionOf] is the only way to recover the item class.
@@ -191,7 +190,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
         }
 
-        // Merge validation-rule constraints onto the type-derived properties.
         [$properties, $required] = $this->applyValidationRules($dataClass, $properties, $required);
 
         // Field attribute overrides applied last so authoring annotations win.
@@ -479,7 +477,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         if ($type instanceof ObjectType) {
-            return $this->resolveObjectSchema($type, $propertyName);
+            return $this->resolveObjectSchema($type);
         }
 
         if ($type instanceof UnionType) {
@@ -587,7 +585,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    private function resolveObjectSchema(ObjectType $type, string $propertyName): OA\Schema
+    private function resolveObjectSchema(ObjectType $type): OA\Schema
     {
         $className = $type->getClassName();
 

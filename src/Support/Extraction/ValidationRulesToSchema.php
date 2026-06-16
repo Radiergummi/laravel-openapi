@@ -104,7 +104,7 @@ final readonly class ValidationRulesToSchema
             // Collision: merge both rule lists (unique, re-indexed).
             $existing = is_string($out[$normalised])
                 ? explode('|', $out[$normalised])
-                : (array) $out[$normalised];
+                : $out[$normalised];
 
             $incoming = is_string($fieldRules)
                 ? explode('|', $fieldRules)
@@ -575,8 +575,8 @@ final readonly class ValidationRulesToSchema
 
     /**
      * Handles the `in:` rule (hand-written CSV or `In`/`Enum::__toString()` re-dispatched from
-     * {@see applyObjectRule()}). `str_getcsv` parses both plain and RFC-4180 quoted forms.
-     * Numeric strings are coerced so int/float values survive the string round-trip.
+     * {@see applyObjectRule()}). Numeric strings are coerced so int/float values survive the string
+     * round-trip.
      */
     private function applyIn(FieldDescriptor $field, string $arg): void
     {

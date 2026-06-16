@@ -260,7 +260,6 @@ final class SecurityExtractor
             return $this->configSchemesCache;
         }
 
-        /** @var mixed $raw */
         $raw = config('openapi.security_schemes', []);
 
         if (!is_array($raw)) {
@@ -410,7 +409,6 @@ final class SecurityExtractor
             return $this->middlewareSchemeMapCache;
         }
 
-        /** @var mixed $raw */
         $raw = config('openapi.security_middleware_map', []);
 
         if (!is_array($raw)) {
@@ -495,7 +493,6 @@ final class SecurityExtractor
      */
     private function configuredDefaultSchemeNames(): array
     {
-        /** @var mixed $raw */
         $raw = config('openapi.security_default_scheme');
 
         if (is_string($raw) && $raw !== '') {
