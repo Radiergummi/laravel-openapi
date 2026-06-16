@@ -22,6 +22,7 @@ use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
 use Radiergummi\OpenApi\Attributes\ResponseExample as ResponseExampleAttribute;
+use Radiergummi\OpenApi\Attributes\ResponseFile as ResponseFileAttribute;
 use Radiergummi\OpenApi\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
@@ -213,6 +214,7 @@ final readonly class OperationBuilder
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
         $responses = [$primaryResponse, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
+        $this->applyResponseFiles($action, $responses, $primaryResponse);
         $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
@@ -732,6 +734,71 @@ final readonly class OperationBuilder
             foreach ($content as $media) {
                 if ($media instanceof OA\MediaType) {
                     $media->examples = $examples;
+                }
+            }
+        }
+    }
+
+    /**
+     * Attaches `#[ResponseFile]` payloads as the singular media-type `example` on a response.
+     *
+     * `status: null` targets the already-resolved primary response. Files for a status with no
+     * matching response are dropped silently; so are files for a conventionally bodyless status
+     * (204/205/304) that has no content, since scaffolding a JSON body there is invalid OpenAPI.
+     * When a media type already carries named `examples` (e.g. from `#[ResponseExample]`), the
+     * singular `example` is left unset: the two are mutually exclusive on one media type.
+     *
+     * @param list<OA\Response> $responses
+     *
+     * @throws RuntimeException When a referenced file is missing or not valid JSON.
+     */
+    private function applyResponseFiles(
+        ActionDescriptor $descriptor,
+        array $responses,
+        OA\Response $primaryResponse,
+    ): void {
+        $attributes = $descriptor->actionAttributes(ResponseFileAttribute::class);
+
+        if ($attributes === []) {
+            return;
+        }
+
+        /** @var array<string, OA\Response> $byStatus */
+        $byStatus = [];
+
+        foreach ($responses as $response) {
+            $byStatus[(string) $response->response] = $response;
+        }
+
+        foreach ($attributes as $attribute) {
+            $instance = $attribute->newInstance();
+
+            $response = $instance->status !== null
+                ? ($byStatus[(string) $instance->status] ?? null)
+                : $primaryResponse;
+
+            if ($response === null) {
+                continue;
+            }
+
+            $content = $response->content;
+
+            if (!is_array($content) || $content === []) {
+                // A bodyless status must not gain a JSON body just to carry an example.
+                if (in_array((int) $response->response, [204, 205, 304], true)) {
+                    continue;
+                }
+
+                $content = [MediaType::Json->schema()];
+                $response->content = $content;
+            }
+
+            $example = $this->fileLoader->load($instance->file);
+
+            foreach ($content as $media) {
+                // Named examples and a singular example are mutually exclusive on one media type.
+                if ($media instanceof OA\MediaType && !is_array($media->examples)) {
+                    $media->example = $example;
                 }
             }
         }
