@@ -41,9 +41,9 @@ it(
         expect($findings)->toBe([]);
     },
 )->with([
-    'only operationId'  => ['foo.show', null],
+    'only operationId' => ['foo.show', null],
     'only operationRef' => [null, '#/paths/~1foo/get'],
-    'neither'           => [null, null],
+    'neither' => [null, null],
 ]);
 
 it('emits a finding when a link has both operationId and operationRef', function (): void {

@@ -67,7 +67,8 @@ it('enriches a path parameter with description and example from #[PathParam]', f
 
     [$parameter] = $this->extractor->extract([[stringDescriptor('company'), $param]]);
 
-    expect($parameter->description)->toBe('The company to retrieve.')
+    expect($parameter->description)
+        ->toBe('The company to retrieve.')
         ->and($parameter->schema->example)->toBe('01HFP-EXAMPLE');
 });
 
@@ -76,7 +77,8 @@ it('omits the description when no #[PathParam] attribute is present', function (
 
     [$parameter] = $this->extractor->extract([[stringDescriptor('company'), $param]]);
 
-    expect($parameter->description)->toBe(Generator::UNDEFINED)
+    expect($parameter->description)
+        ->toBe(Generator::UNDEFINED)
         ->and($parameter->name)->toBe('company')
         ->and($parameter->required)->toBeTrue();
 });
@@ -84,14 +86,16 @@ it('omits the description when no #[PathParam] attribute is present', function (
 it('tolerates a missing reflection parameter', function (): void {
     [$parameter] = $this->extractor->extract([[stringDescriptor('company'), null]]);
 
-    expect($parameter->name)->toBe('company')
+    expect($parameter->name)
+        ->toBe('company')
         ->and($parameter->description)->toBe(Generator::UNDEFINED);
 });
 
 it('always emits required:true for optional path parameters per OAS 3.x §4.8.12.1', function (): void {
     [$parameter] = $this->extractor->extract([[stringDescriptor('path', optional: true), null]]);
 
-    expect($parameter->required)->toBeTrue()
+    expect($parameter->required)
+        ->toBeTrue()
         ->and($parameter->description)
         ->toBe('Optional in URL — the segment may be omitted when calling this route.');
 });
@@ -133,7 +137,8 @@ it('types an int-keyed model binding as integer', function (): void {
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
-    expect($parameter->schema->type)->toBe('integer')
+    expect($parameter->schema->type)
+        ->toBe('integer')
         ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
 });
 
@@ -142,7 +147,8 @@ it('types a uuid-keyed model binding as string with format uuid', function (): v
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
-    expect($parameter->schema->type)->toBe('string')
+    expect($parameter->schema->type)
+        ->toBe('string')
         ->and($parameter->schema->format)->toBe('uuid');
 });
 
@@ -151,7 +157,8 @@ it('types a string-keyed model binding as a bare string', function (): void {
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
-    expect($parameter->schema->type)->toBe('string')
+    expect($parameter->schema->type)
+        ->toBe('string')
         ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
 });
 
@@ -164,7 +171,8 @@ it('leaves the schema untouched when the binding key carries no type', function 
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
-    expect($parameter->schema->type)->toBe('string')
+    expect($parameter->schema->type)
+        ->toBe('string')
         ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
 });
 
@@ -178,7 +186,8 @@ it('lets an explicit where constraint win over model binding metadata', function
 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
 
-    expect($parameter->schema->type)->toBe('integer')
+    expect($parameter->schema->type)
+        ->toBe('integer')
         ->and($parameter->schema->format)->toBe(Generator::UNDEFINED);
 });
 
@@ -193,7 +202,8 @@ it('appends the optional-in-URL note to an existing #[PathParam] description', f
 
     [$parameter] = $this->extractor->extract([[stringDescriptor('path', optional: true), $param]]);
 
-    expect($parameter->required)->toBeTrue()
+    expect($parameter->required)
+        ->toBeTrue()
         ->and($parameter->description)->toBe(
             'The trailing segment. Optional in URL — the segment may be omitted when calling this route.',
         );
@@ -219,16 +229,23 @@ function enumDescriptor(string $enum, array $cases): UriParameterDescriptor
     );
 }
 
-it('refs a string-backed enum binding to a shared string-enum component, without a where constraint', function (): void {
-    $descriptor = enumDescriptor(ArticleStatus::class, ['draft', 'published']);
+it(
+    'refs a string-backed enum binding to a shared string-enum component, without a where constraint',
+    function (): void {
+        $descriptor = enumDescriptor(ArticleStatus::class, ['draft', 'published']);
 
-    [$parameter] = $this->extractor->extract([[$descriptor, null]]);
-    $component = json_decode(json_encode(collect($this->registry->all())->firstWhere('schema', 'ArticleStatus')), true);
+        [$parameter] = $this->extractor->extract([[$descriptor, null]]);
+        $component = json_decode(
+            json_encode(collect($this->registry->all())->firstWhere('schema', 'ArticleStatus')),
+            true,
+        );
 
-    expect($parameter->schema->ref)->toBe('#/components/schemas/ArticleStatus')
-        ->and($component['type'])->toBe('string')
-        ->and($component['enum'])->toBe(['draft', 'published']);
-});
+        expect($parameter->schema->ref)
+            ->toBe('#/components/schemas/ArticleStatus')
+            ->and($component['type'])->toBe('string')
+            ->and($component['enum'])->toBe(['draft', 'published']);
+    },
+);
 
 it('refs an int-backed enum binding to a shared integer-enum component, without a where constraint', function (): void {
     $descriptor = enumDescriptor(PriorityLevel::class, ['1', '2', '3']);
@@ -236,7 +253,8 @@ it('refs an int-backed enum binding to a shared integer-enum component, without 
     [$parameter] = $this->extractor->extract([[$descriptor, null]]);
     $component = json_decode(json_encode(collect($this->registry->all())->firstWhere('schema', 'PriorityLevel')), true);
 
-    expect($parameter->schema->ref)->toBe('#/components/schemas/PriorityLevel')
+    expect($parameter->schema->ref)
+        ->toBe('#/components/schemas/PriorityLevel')
         ->and($component['type'])->toBe('integer')
         ->and($component['enum'])->toBe([1, 2, 3]);
 });

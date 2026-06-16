@@ -17,11 +17,13 @@ use Radiergummi\OpenApi\Plugins\SpatieData\SpatieDataPlugin;
 uses()->group('openapi', 'plugin:query-builder');
 
 beforeEach(function (): void {
-    config(['openapi.plugins' => [
-        SpatieDataPlugin::class,
-        ApiResourcesPlugin::class,
-        QueryBuilderPlugin::class,
-    ]]);
+    config([
+        'openapi.plugins' => [
+            SpatieDataPlugin::class,
+            ApiResourcesPlugin::class,
+            QueryBuilderPlugin::class,
+        ],
+    ]);
 });
 
 class QbFixtureController extends Controller
@@ -44,7 +46,8 @@ it('documents filter, sort, and include query parameters', function (): void {
 
     $names = array_map(static fn(array $p): string => $p['name'], $parameters);
 
-    expect($names)->toContain('filter[status]')
+    expect($names)
+        ->toContain('filter[status]')
         ->and($names)->toContain('sort')
         ->and($names)->toContain('include');
 

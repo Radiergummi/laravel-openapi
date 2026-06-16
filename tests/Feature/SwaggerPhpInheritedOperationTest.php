@@ -70,7 +70,8 @@ it('merges an @OA operation authored on a parent class onto the inheriting route
 
     $operation = inheritanceOperation(inheritanceHarvest(), '/reports/sales');
 
-    expect($operation)->not->toBeNull()
+    expect($operation)->not
+        ->toBeNull()
         ->and($operation->summary)->toBe('Authored on the parent controller')
         ->and(inheritancePrimaryRef($operation))->toBe('#/components/schemas/SalesReport');
 });
@@ -80,7 +81,8 @@ it('merges an @OA operation authored in a trait onto a route using that trait', 
 
     $operation = inheritanceOperation(inheritanceHarvest(), '/widgets');
 
-    expect($operation)->not->toBeNull()
+    expect($operation)->not
+        ->toBeNull()
         ->and($operation->summary)->toBe('Authored in a trait')
         ->and(inheritancePrimaryRef($operation))->toBe('#/components/schemas/Widget');
 });

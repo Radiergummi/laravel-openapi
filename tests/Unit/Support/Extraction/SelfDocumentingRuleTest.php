@@ -33,7 +33,8 @@ it('applies self-documenting rule metadata to the field descriptor', function ()
 
     $field = $result['fields']['isbn'];
 
-    expect($field->required)->toBeTrue()
+    expect($field->required)
+        ->toBeTrue()
         ->and($field->type)->toBe('string')
         ->and($field->pattern)->toBe('^(\\d{9}[\\dX]|\\d{13})$')
         ->and($field->minLength)->toBe(10)

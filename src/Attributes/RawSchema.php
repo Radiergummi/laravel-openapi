@@ -23,8 +23,9 @@ use Attribute;
  * final class WidgetData extends Data { … }
  * ```
  *
- * Keywords are bounded to what swagger-php can serialise (see {@see \Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema::ACCEPTED_KEYWORDS}).
- * Unsupported keywords (`if`/`then`/`else`, `dependentRequired`/`dependentSchemas`,
+ * Keywords are bounded to what swagger-php can serialise (see
+ * {@see \Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema::ACCEPTED_KEYWORDS}). Unsupported keywords
+ * (`if`/`then`/`else`, `dependentRequired`/`dependentSchemas`,
  * `dependencies`) are dropped at build time and flagged by the `schema.raw-keyword-unsupported`
  * lint rule.
  *

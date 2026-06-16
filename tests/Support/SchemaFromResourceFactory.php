@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Tests\Support;
 
 use Closure;
 use Psr\Log\NullLogger;
+use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceToArrayReader;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\WrappedModelLocator;
@@ -28,10 +29,12 @@ use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 final class SchemaFromResourceFactory
 {
     /**
-     * @param null|Closure(): list<\Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver> $refSchemaResolvers
+     * @param null|Closure(): list<RefSchemaResolver> $refSchemaResolvers
      */
-    public static function create(ComponentSchemaRegistry $registry, ?Closure $refSchemaResolvers = null): SchemaFromResource
-    {
+    public static function create(
+        ComponentSchemaRegistry $registry,
+        ?Closure $refSchemaResolvers = null,
+    ): SchemaFromResource {
         return new SchemaFromResource(
             registry: $registry,
             refSchemaResolvers: $refSchemaResolvers ?? static fn(): array => [],

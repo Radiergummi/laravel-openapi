@@ -23,7 +23,8 @@ it('wraps a single resource in a data object', function (): void {
     $schema = new ResourceEnvelopeFactory()->single('#/components/schemas/Project');
     $properties = envelopeProperties($schema);
 
-    expect($schema->type)->toBe('object')
+    expect($schema->type)
+        ->toBe('object')
         ->and($properties)->toHaveKeys(['data'])
         ->and($properties['data']->ref)->toBe('#/components/schemas/Project');
 });
@@ -32,7 +33,8 @@ it('wraps a collection in data/links/meta', function (): void {
     $schema = new ResourceEnvelopeFactory()->collection('#/components/schemas/Project');
     $properties = envelopeProperties($schema);
 
-    expect($properties)->toHaveKeys(['data', 'links', 'meta'])
+    expect($properties)
+        ->toHaveKeys(['data', 'links', 'meta'])
         ->and($properties['data']->type)->toBe('array')
         ->and($properties['data']->items->ref)->toBe('#/components/schemas/Project');
 });

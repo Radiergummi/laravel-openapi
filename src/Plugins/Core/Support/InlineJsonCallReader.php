@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
+use OpenApi\Annotations\Schema;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
@@ -71,6 +72,14 @@ final readonly class InlineJsonCallReader
     // region Call-shape matching
 
     /**
+     * Whether the node is a `->json(...)` method call on a zero-argument `response()` helper call.
+     */
+    public function isJsonHelperCall(Node $node): bool
+    {
+        return $this->isFactoryMethodCall($node, 'json');
+    }
+
+    /**
      * Whether the node is a `->{$method}(...)` call (method name lowercased) on a zero-argument
      * `response()` helper call.
      */
@@ -81,14 +90,6 @@ final readonly class InlineJsonCallReader
             && $node->name instanceof Identifier
             && $node->name->toLowerString() === $method
             && $this->isResponseHelperCall($node->var);
-    }
-
-    /**
-     * Whether the node is a `->json(...)` method call on a zero-argument `response()` helper call.
-     */
-    public function isJsonHelperCall(Node $node): bool
-    {
-        return $this->isFactoryMethodCall($node, 'json');
     }
 
     /**
@@ -193,7 +194,7 @@ final readonly class InlineJsonCallReader
             return new InlineJsonCallResult(
                 status: null,
                 statusDegradeReason: 'has no statically readable status code, so the body must not '
-                    . 'be documented under a guessed status',
+                . 'be documented under a guessed status',
             );
         }
 
@@ -223,7 +224,7 @@ final readonly class InlineJsonCallReader
                     return new InlineJsonCallResult(
                         status: null,
                         statusDegradeReason: 'is chained into ->setStatusCode() with no statically '
-                            . 'readable status code, so the body must not be documented under a guessed status',
+                        . 'readable status code, so the body must not be documented under a guessed status',
                     );
                 }
 
@@ -250,6 +251,23 @@ final readonly class InlineJsonCallReader
     }
 
     /**
+     * The method call whose receiver is exactly the given call (the next link outwards in a
+     * fluent chain), or null when the call is not chained into another method call.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function chainParentOf(array $statements, MethodCall $call): ?MethodCall
+    {
+        $parent = $this->statementNodeFinder->findFirst(
+            $statements,
+            ConditionalContextPolicy::IncludeConditionalContexts,
+            static fn(Node $node): bool => $node instanceof MethodCall && $node->var === $call,
+        );
+
+        return $parent instanceof MethodCall ? $parent : null;
+    }
+
+    /**
      * The literal integer argument of a `->setStatusCode(<literal|class-constant>)` link, or null
      * when absent, unpacked, or not statically readable.
      */
@@ -266,6 +284,32 @@ final readonly class InlineJsonCallReader
         return is_int($status) ? $status : null;
     }
 
+    private function literalValueOf(Expr $expression): mixed
+    {
+        try {
+            return AstLiteralEvaluator::evaluate($expression);
+        } catch (NonLiteralValueException) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
+     *
+     * @param array<int, Arg> $arguments
+     */
+    private function argument(array $arguments, string $name, int $position): ?Arg
+    {
+        return array_find(
+            $arguments,
+            fn(
+                $argument,
+                $index,
+            )
+                => $argument->name === null ? $index === $position : $argument->name->toString() === $name,
+        );
+    }
+
     /**
      * The literal body schema for the call's `data` argument plus its readability flag and degrade
      * phrase: a literal array/scalar becomes a schema; an empty literal or absent argument carries
@@ -273,7 +317,7 @@ final readonly class InlineJsonCallReader
      *
      * @param array<int, Arg> $arguments
      *
-     * @return array{0: ?\OpenApi\Annotations\Schema, 1: bool, 2: ?string}
+     * @return array{0: ?Schema, 1: bool, 2: ?string}
      */
     private function readBody(array $arguments): array
     {
@@ -317,48 +361,6 @@ final readonly class InlineJsonCallReader
         return $definition === []
             ? [null, true, null]
             : [SchemaFromArrayDefinition::build($definition), true, null];
-    }
-
-    /**
-     * The method call whose receiver is exactly the given call (the next link outwards in a
-     * fluent chain), or null when the call is not chained into another method call.
-     *
-     * @param list<Stmt> $statements
-     */
-    private function chainParentOf(array $statements, MethodCall $call): ?MethodCall
-    {
-        $parent = $this->statementNodeFinder->findFirst(
-            $statements,
-            ConditionalContextPolicy::IncludeConditionalContexts,
-            static fn(Node $node): bool => $node instanceof MethodCall && $node->var === $call,
-        );
-
-        return $parent instanceof MethodCall ? $parent : null;
-    }
-
-    /**
-     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
-     *
-     * @param array<int, Arg> $arguments
-     */
-    private function argument(array $arguments, string $name, int $position): ?Arg
-    {
-        return array_find(
-            $arguments,
-            fn(
-                $argument,
-                $index,
-            ) => $argument->name === null ? $index === $position : $argument->name->toString() === $name,
-        );
-    }
-
-    private function literalValueOf(Expr $expression): mixed
-    {
-        try {
-            return AstLiteralEvaluator::evaluate($expression);
-        } catch (NonLiteralValueException) {
-            return null;
-        }
     }
 
     // endregion

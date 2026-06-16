@@ -119,12 +119,15 @@ final readonly class ExplicitClassSchema
         $unsupported = self::unsupportedKeywords($attribute->schema);
 
         if ($unsupported !== []) {
-            $this->logger->warning(sprintf(
-                'ExplicitClassSchema: dropping unsupported keyword(s) [%s] from #[RawSchema] on %s '
-                . '— swagger-php cannot serialise them.',
-                implode(', ', $unsupported),
-                $class->getName(),
-            ), ['class' => $class->getName(), 'keywords' => $unsupported]);
+            $this->logger->warning(
+                sprintf(
+                    'ExplicitClassSchema: dropping unsupported keyword(s) [%s] from #[RawSchema] on %s '
+                    . '— swagger-php cannot serialise them.',
+                    implode(', ', $unsupported),
+                    $class->getName(),
+                ),
+                ['class' => $class->getName(), 'keywords' => $unsupported],
+            );
         }
 
         $definition = array_filter(
@@ -146,10 +149,12 @@ final readonly class ExplicitClassSchema
      */
     public static function unsupportedKeywords(array $schema): array
     {
-        return array_values(array_filter(
-            array_keys($schema),
-            static fn(string $key): bool => !self::isAccepted($key),
-        ));
+        return array_values(
+            array_filter(
+                array_keys($schema),
+                static fn(string $key): bool => !self::isAccepted($key),
+            ),
+        );
     }
 
     private static function isAccepted(string $keyword): bool

@@ -24,6 +24,7 @@ it('invokes registered document transformers on the assembled document', functio
 
     (new TransformersStage())->apply($doc, $ctx);
 
-    expect($doc->x)->toBeArray()
+    expect($doc->x)
+        ->toBeArray()
         ->and($doc->x['touched'] ?? null)->toBeTrue();
 });

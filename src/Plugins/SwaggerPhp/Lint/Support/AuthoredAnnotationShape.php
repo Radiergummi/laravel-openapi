@@ -41,10 +41,11 @@ enum AuthoredAnnotationShape: string
     {
         if (array_any(
             $reflector->getAttributes(),
-            fn(ReflectionAttribute $attribute): bool => str_starts_with(
-                $attribute->getName(),
-                self::ATTRIBUTE_NAMESPACE,
-            ),
+            fn(ReflectionAttribute $attribute): bool
+                => str_starts_with(
+                    $attribute->getName(),
+                    self::ATTRIBUTE_NAMESPACE,
+                ),
         )) {
             return self::Attribute;
         }

@@ -52,12 +52,6 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
     }
 
     #[Override]
-    public function level(): int
-    {
-        return 1;
-    }
-
-    #[Override]
     public function description(): string
     {
         return 'A #[RawSchema] uses a keyword swagger-php cannot serialise '
@@ -126,9 +120,15 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
                 implode(', ', $unsupported),
             ),
             fixHint: 'swagger-php cannot serialise these keywords; remove them or express the '
-                . 'shape with a supported keyword (see docs/attributes.md). Arbitrary keywords '
-                . 'await the IR (#189).',
+            . 'shape with a supported keyword (see docs/attributes.md). Arbitrary keywords '
+            . 'await the IR (#189).',
             context: [Finding::CONTEXT_SOURCE_CLASS => $className],
         );
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 1;
     }
 }

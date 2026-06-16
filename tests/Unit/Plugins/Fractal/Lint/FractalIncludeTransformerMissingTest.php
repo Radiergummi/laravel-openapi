@@ -35,12 +35,15 @@ it('flags a #[TransformerInclude] with no transformer class', function (): void 
     $descriptor = ActionDescriptorFactory::forControllerMethod(IncludeLintController::class, 'bare');
 
     $rule = new FractalIncludeTransformerMissing();
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('fractal.include-transformer-missing')
         ->and($findings[0]->message)->toContain('comments');
 });
@@ -49,10 +52,12 @@ it('does not flag an include that names a transformer', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(IncludeLintController::class, 'bound');
 
     $rule = new FractalIncludeTransformerMissing();
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)->toBe([]);
 });

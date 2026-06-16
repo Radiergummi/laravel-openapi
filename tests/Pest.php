@@ -32,7 +32,8 @@ expect()->extend('toEmitFinding', function (string $ruleId, ?string $messageCont
 
     $matched = array_any(
         $findings,
-        static fn(Finding $finding): bool => $finding->ruleId === $ruleId
+        static fn(Finding $finding): bool
+            => $finding->ruleId === $ruleId
             && ($messageContains === null || str_contains($finding->message, $messageContains)),
     );
 
@@ -42,10 +43,13 @@ expect()->extend('toEmitFinding', function (string $ruleId, ?string $messageCont
 
     $emitted = $findings === []
         ? 'no findings were emitted'
-        : "the findings emitted were:\n  - " . implode("\n  - ", array_map(
-            static fn(Finding $finding): string => "{$finding->ruleId}: {$finding->message}",
-            $findings,
-        ));
+        : "the findings emitted were:\n  - " . implode(
+            "\n  - ",
+            array_map(
+                static fn(Finding $finding): string => "{$finding->ruleId}: {$finding->message}",
+                $findings,
+            ),
+        );
 
     Assert::assertTrue(
         $matched,

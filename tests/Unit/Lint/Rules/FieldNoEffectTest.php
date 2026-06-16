@@ -21,19 +21,25 @@ function makeDirectScannerForNoEffect(): PayloadParameterScanner
 it('reports its id and level', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
 
-    expect($rule->id())->toBe('field.no-effect')
+    expect($rule->id())
+        ->toBe('field.no-effect')
         ->and($rule->level())->toBe(3);
 });
 
 it('emits a finding when RequestField has all default values', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withNoEffect', '/fixture');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        NoEffectFixtureController::class,
+        'withNoEffect',
+        '/fixture',
+    );
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.no-effect')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)->toContain('$noEffect')
@@ -52,7 +58,11 @@ it('emits no findings when there is no descriptor on the operation', function ()
 
 it('emits no findings when the method has no Data class parameters', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withoutData', '/fixture');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        NoEffectFixtureController::class,
+        'withoutData',
+        '/fixture',
+    );
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
@@ -63,31 +73,46 @@ it('emits no findings when the method has no Data class parameters', function ()
 
 it('does not flag RequestField attributes that have at least one parameter set', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withNoEffect', '/fixture');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        NoEffectFixtureController::class,
+        'withNoEffect',
+        '/fixture',
+    );
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
     // Only $noEffect should fire; $hasDescription and $hasWriteOnly should not.
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('$noEffect');
 });
 
 it('provides a fix hint suggesting removal or adding a parameter', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
-    $descriptor = ActionDescriptorFactory::forControllerMethod(NoEffectFixtureController::class, 'withNoEffect', '/fixture');
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        NoEffectFixtureController::class,
+        'withNoEffect',
+        '/fixture',
+    );
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
     $findings = iterator_to_array($rule->checkOperation($operation, $context));
 
-    expect($findings[0]->fixHint)->toContain('Remove')
+    expect($findings[0]->fixHint)
+        ->toContain('Remove')
         ->and($findings[0]->fixHint)->toContain('description');
 });
 
 it('emits a finding for a Data class injected through a Domain Action', function (): void {
-    $descriptor = ActionDescriptorFactory::forControllerMethod(ActionWithNoEffectDataController::class, 'create', '/fixture', ['POST']);
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        ActionWithNoEffectDataController::class,
+        'create',
+        '/fixture',
+        ['POST'],
+    );
     $operation = OperationNodeFactory::forDescriptor($descriptor, pathUri: '/api/v0/test');
     $context = OperationNodeFactory::emptyContext(payloadClasses: [Data::class]);
 
@@ -97,7 +122,8 @@ it('emits a finding for a Data class injected through a Domain Action', function
         new FieldNoEffect($scanner)->checkOperation($operation, $context),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('field.no-effect')
         ->and($findings[0]->message)->toContain('$noEffect');
 });

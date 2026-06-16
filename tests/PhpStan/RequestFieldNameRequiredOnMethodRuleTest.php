@@ -14,11 +14,6 @@ use Radiergummi\OpenApi\PhpStan\Rules\RequestFieldNameRequiredOnMethodRule;
  */
 final class RequestFieldNameRequiredOnMethodRuleTest extends RuleTestCase
 {
-    protected function getRule(): Rule
-    {
-        return new RequestFieldNameRequiredOnMethodRule(Node\FunctionLike::class);
-    }
-
     public function testFlagsMissingNameOnMethod(): void
     {
         $this->analyse([__DIR__ . '/Data/requestfield-name-required-on-method.php'], [
@@ -31,5 +26,10 @@ final class RequestFieldNameRequiredOnMethodRuleTest extends RuleTestCase
                 24,
             ],
         ]);
+    }
+
+    protected function getRule(): Rule
+    {
+        return new RequestFieldNameRequiredOnMethodRule(Node\FunctionLike::class);
     }
 }

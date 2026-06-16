@@ -15,6 +15,14 @@ namespace Radiergummi\OpenApi\Lint;
 final class LintOptions
 {
     /**
+     * Whether any route-scoping flag (`--uri`, `--path`, or `--diff`) narrowed the linted route
+     * set, so callers know to compute the in-scope URI set for finding scoping.
+     */
+    public bool $isScoped {
+        get => $this->uriGlob !== null || $this->files !== [] || $this->diff !== null;
+    }
+
+    /**
      * @param null|int|string $level             Severity preset. Integer 0..N, the sentinel
      *                                           'max' to use the rule with the highest defined
      *                                           level, or null to fall back to the configured
@@ -62,12 +70,4 @@ final class LintOptions
         public readonly ?float $minCoverage = null,
         public readonly ?int $maxFindings = null,
     ) {}
-
-    /**
-     * Whether any route-scoping flag (`--uri`, `--path`, or `--diff`) narrowed the linted route
-     * set, so callers know to compute the in-scope URI set for finding scoping.
-     */
-    public bool $isScoped {
-        get => $this->uriGlob !== null || $this->files !== [] || $this->diff !== null;
-    }
 }

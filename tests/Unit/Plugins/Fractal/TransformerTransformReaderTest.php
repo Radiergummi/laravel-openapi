@@ -82,13 +82,16 @@ it('reads the literal keys of a single-return transform() in literal order', fun
     $fields = readTransformerFields(InferredArticleTransformer::class);
 
     expect(array_map(static fn(InferredTransformerField $field): string => $field->name, $fields))
-        ->toBe(['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'tags', 'kind', 'flags', 'permalink']);
+        ->toBe(
+            ['id', 'title', 'published_at', 'word_count', 'price', 'archived', 'tags', 'kind', 'flags', 'permalink'],
+        );
 });
 
 it('resolves $model->field values against the typed transform() parameter', function (): void {
     $fields = readTransformerFields(InferredArticleTransformer::class);
 
-    expect(transformerField($fields, 'id')->unconstrainedPaths)->toBe([])
+    expect(transformerField($fields, 'id')->unconstrainedPaths)
+        ->toBe([])
         ->and(transformerField($fields, 'title')->property->type)->toBe('string')
         ->and(transformerField($fields, 'published_at')->property->format)->toBe('date-time');
 });
@@ -96,7 +99,8 @@ it('resolves $model->field values against the typed transform() parameter', func
 it('types cast values by the cast', function (): void {
     $fields = readTransformerFields(InferredArticleTransformer::class);
 
-    expect(transformerField($fields, 'word_count')->property->type)->toBe('integer')
+    expect(transformerField($fields, 'word_count')->property->type)
+        ->toBe('integer')
         ->and(transformerField($fields, 'price')->property->type)->toBe('number')
         ->and(transformerField($fields, 'archived')->property->type)->toBe('boolean');
 });
@@ -108,7 +112,8 @@ it('emits unconstrained items alongside an (array) cast', function (): void {
 
     // swagger-php's Analysis::validate() rejects `type: array` without `items`; an `(array)`
     // cast guarantees an array of unknown items, so the honest schema is `items: {}`.
-    expect($tags->property->type)->toBe('array')
+    expect($tags->property->type)
+        ->toBe('array')
         ->and(Generator::isDefault($tags->property->items))->toBeFalse();
 });
 
@@ -117,7 +122,8 @@ it('types literal scalar and nested literal array values', function (): void {
 
     $flags = transformerField($fields, 'flags');
 
-    expect(transformerField($fields, 'kind')->property->type)->toBe('string')
+    expect(transformerField($fields, 'kind')->property->type)
+        ->toBe('string')
         ->and($flags->property->type)->toBe('object')
         ->and($flags->property->properties[0]->property)->toBe('featured')
         ->and($flags->property->properties[0]->type)->toBe('boolean')
@@ -131,14 +137,16 @@ it('keeps an unresolvable value as an unconstrained property', function (): void
 
     $permalink = transformerField($fields, 'permalink');
 
-    expect($permalink->unconstrainedPaths)->toBe(['permalink'])
+    expect($permalink->unconstrainedPaths)
+        ->toBe(['permalink'])
         ->and(Generator::isDefault($permalink->property->type))->toBeTrue();
 });
 
 it('keeps model fetches unconstrained when the parameter carries no model type', function (): void {
     $fields = readTransformerFields(UntypedParameterTransformer::class);
 
-    expect(transformerField($fields, 'id')->unconstrainedPaths)->toBe(['id'])
+    expect(transformerField($fields, 'id')->unconstrainedPaths)
+        ->toBe(['id'])
         ->and(transformerField($fields, 'kind')->property->type)->toBe('string');
 });
 
@@ -155,13 +163,15 @@ it('refuses a literal with a spread entry', function (): void {
 });
 
 it('refuses a class without a transform() method', function (): void {
-    expect(transformReader()->read(Article::class))->toBeNull()
+    expect(transformReader()->read(Article::class))
+        ->toBeNull()
         ->and(transformReader()->declaresTransform(Article::class))->toBeFalse();
 });
 
 it('recognises league/fractal transformer subclasses', function (): void {
     $reader = transformReader();
 
-    expect($reader->isTransformerSubclass(InferredArticleTransformer::class))->toBeTrue()
+    expect($reader->isTransformerSubclass(InferredArticleTransformer::class))
+        ->toBeTrue()
         ->and($reader->isTransformerSubclass(Article::class))->toBeFalse();
 });

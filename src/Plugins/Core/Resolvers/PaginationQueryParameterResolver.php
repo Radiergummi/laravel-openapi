@@ -50,6 +50,16 @@ final readonly class PaginationQueryParameterResolver implements QueryParameterR
         };
     }
 
+    private function cursorParameter(): OA\Parameter
+    {
+        return new OA\Parameter([
+            'name' => 'cursor',
+            'in' => 'query',
+            'required' => false,
+            'schema' => new OA\Schema(['type' => 'string']),
+        ]);
+    }
+
     /**
      * @return list<OA\Parameter>
      */
@@ -68,16 +78,6 @@ final readonly class PaginationQueryParameterResolver implements QueryParameterR
             'in' => 'query',
             'required' => false,
             'schema' => new OA\Schema(['type' => 'integer', 'minimum' => 1]),
-        ]);
-    }
-
-    private function cursorParameter(): OA\Parameter
-    {
-        return new OA\Parameter([
-            'name' => 'cursor',
-            'in' => 'query',
-            'required' => false,
-            'schema' => new OA\Schema(['type' => 'string']),
         ]);
     }
 }

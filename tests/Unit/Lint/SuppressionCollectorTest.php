@@ -29,13 +29,17 @@ it('collects a class-level IgnoreLint directive from a FormRequest method parame
 
     $directives = app(SuppressionCollector::class)->collect([$descriptor]);
 
-    $classDirectives = array_values(array_filter(
-        $directives,
-        static fn($d) => $d->scope === SuppressionScope::ClassScope
-            && $d->targetClass === SnakeCasedFormRequest::class,
-    ));
+    $classDirectives = array_values(
+        array_filter(
+            $directives,
+            static fn($d)
+                => $d->scope === SuppressionScope::ClassScope
+                && $d->targetClass === SnakeCasedFormRequest::class,
+        ),
+    );
 
-    expect($classDirectives)->toHaveCount(1)
+    expect($classDirectives)
+        ->toHaveCount(1)
         ->and($classDirectives[0]->ruleId)->toBe('field.name-naming-inconsistent');
 });
 
@@ -56,12 +60,16 @@ it('collects class-level IgnoreLint from a JsonResource registered in the compon
         $registry->componentClassMap(),
     );
 
-    $matching = array_values(array_filter(
-        $directives,
-        static fn($d) => $d->scope === SuppressionScope::ClassScope
-            && $d->targetClass === Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint\SnakeCasedJsonResource::class,
-    ));
+    $matching = array_values(
+        array_filter(
+            $directives,
+            static fn($d)
+                => $d->scope === SuppressionScope::ClassScope
+                && $d->targetClass === Radiergummi\OpenApi\Tests\Fixtures\Lint\IgnoreLint\SnakeCasedJsonResource::class,
+        ),
+    );
 
-    expect($matching)->toHaveCount(1)
+    expect($matching)
+        ->toHaveCount(1)
         ->and($matching[0]->ruleId)->toBe('field.name-naming-inconsistent');
 });

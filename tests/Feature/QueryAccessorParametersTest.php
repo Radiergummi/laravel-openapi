@@ -40,7 +40,8 @@ it('documents request-accessor reads as query parameters end to end', function (
     $spec = generateSpec();
     $parameters = accessorQueryParameters($spec, '/oa-fixture/accessors', 'get');
 
-    expect(array_keys($parameters))->toBe(['sort', 'q', 'name', 'page', 'active'])
+    expect(array_keys($parameters))
+        ->toBe(['sort', 'q', 'name', 'page', 'active'])
         ->and($parameters['page']['schema']['type'])->toBe('integer')
         ->and($parameters['active']['schema']['type'])->toBe('boolean')
         ->and($parameters['sort']['required'])->toBeFalse();
@@ -52,7 +53,8 @@ it('documents accessor defaults on the parameter schema', function (): void {
     $spec = generateSpec();
     $parameters = accessorQueryParameters($spec, '/oa-fixture/defaults', 'get');
 
-    expect($parameters['per_page']['schema']['default'])->toBe(25)
+    expect($parameters['per_page']['schema']['default'])
+        ->toBe(25)
         ->and($parameters['sort']['schema']['default'])->toBe('asc')
         ->and($parameters['page']['schema'])->not->toHaveKey('default');
 });
@@ -72,7 +74,8 @@ it('lets an explicit #[QueryParam] win over an accessor read of the same name', 
     $spec = generateSpec();
     $parameters = accessorQueryParameters($spec, '/oa-fixture/override', 'get');
 
-    expect(array_keys($parameters))->toBe(['sort', 'q'])
+    expect(array_keys($parameters))
+        ->toBe(['sort', 'q'])
         ->and($parameters['sort']['schema']['description'])->toBe('Sort order.')
         ->and($parameters['sort']['schema']['enum'])->toBe(['asc', 'desc']);
 });
@@ -88,7 +91,8 @@ it('routes inline validate() keys on a GET route into query parameters, not a re
     $operation = $spec['paths']['/oa-fixture/search']['get'];
     $parameters = accessorQueryParameters($spec, '/oa-fixture/search', 'get');
 
-    expect($operation)->not->toHaveKey('requestBody')
+    expect($operation)->not
+        ->toHaveKey('requestBody')
         ->and(array_keys($parameters))->toBe(['q', 'page'])
         ->and($parameters['q']['required'])->toBeTrue()
         ->and($parameters['q']['schema']['maxLength'])->toBe(100)
@@ -105,14 +109,20 @@ it('maps nested validate() keys to wire notation and notes dropped object arrays
     $spec = generateSpec();
     $parameters = accessorQueryParameters($spec, '/oa-fixture/nested-search', 'get');
 
-    expect(array_keys($parameters))->toBe(['filter[name]', 'ids[]'])
+    expect(array_keys($parameters))
+        ->toBe(['filter[name]', 'ids[]'])
         ->and($parameters['filter[name]']['required'])->toBeTrue()
         ->and($parameters['ids[]']['schema']['type'])->toBe('array')
         ->and($parameters['ids[]']['schema']['items']['type'])->toBe('integer')
-        ->and(array_any(
-            $logger->records,
-            static fn(array $record): bool => str_contains($record['message'], 'cannot be expressed as query parameters'),
-        ))->toBeTrue();
+        ->and(
+            array_any(
+                $logger->records,
+                static fn(array $record): bool => str_contains(
+                    $record['message'],
+                    'cannot be expressed as query parameters',
+                ),
+            ),
+        )->toBeTrue();
 });
 
 it('keeps the validate() request body on a POST route instead of emitting query parameters', function (): void {
@@ -121,7 +131,8 @@ it('keeps the validate() request body on a POST route instead of emitting query 
     $spec = generateSpec();
     $operation = $spec['paths']['/oa-fixture/search']['post'];
 
-    expect($operation)->toHaveKey('requestBody')
+    expect($operation)
+        ->toHaveKey('requestBody')
         ->and(accessorQueryParameters($spec, '/oa-fixture/search', 'post'))->toBe([]);
 });
 

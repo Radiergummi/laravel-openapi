@@ -72,7 +72,8 @@ function collectSpecUnknownReferenceFindings(SpecRegistry $registry, array $desc
 it('has the correct id and level', function (): void {
     $rule = new SpecUnknownReference(new SpecResolver());
 
-    expect($rule->id())->toBe('spec.unknown-reference')
+    expect($rule->id())
+        ->toBe('spec.unknown-reference')
         ->and($rule->level())->toBe(0);
 });
 
@@ -110,7 +111,8 @@ it('emits a finding when a #[Spec] argument references an undeclared spec name',
 
     $findings = collectSpecUnknownReferenceFindings($registry, [$descriptor]);
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('spec.unknown-reference')
         ->and($findings[0]->level)->toBe(0)
         ->and($findings[0]->message)->toContain('ghost');

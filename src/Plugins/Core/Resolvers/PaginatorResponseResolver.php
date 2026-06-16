@@ -142,15 +142,17 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
      */
     private function isResourceOrDataType(string $class): bool
     {
-        foreach ([
-            'Illuminate\\Http\\Resources\\Json\\JsonResource',
-            'Illuminate\\Http\\Resources\\Json\\ResourceCollection',
-            'Illuminate\\Http\\Resources\\Json\\AnonymousResourceCollection',
-            'Spatie\\LaravelData\\Data',
-            'Spatie\\LaravelData\\DataCollection',
-            'Spatie\\LaravelData\\PaginatedDataCollection',
-            'Spatie\\LaravelData\\CursorPaginatedDataCollection',
-        ] as $type) {
+        foreach (
+            [
+                'Illuminate\\Http\\Resources\\Json\\JsonResource',
+                'Illuminate\\Http\\Resources\\Json\\ResourceCollection',
+                'Illuminate\\Http\\Resources\\Json\\AnonymousResourceCollection',
+                'Spatie\\LaravelData\\Data',
+                'Spatie\\LaravelData\\DataCollection',
+                'Spatie\\LaravelData\\PaginatedDataCollection',
+                'Spatie\\LaravelData\\CursorPaginatedDataCollection',
+            ] as $type
+        ) {
             if (is_a($class, $type, allow_string: true)) {
                 return true;
             }

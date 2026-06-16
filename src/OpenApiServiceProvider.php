@@ -442,7 +442,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     // Disabled (null seed) when auto-examples are switched off or no fixed seed is
                     // configured — factory fake() values would otherwise be non-deterministic.
                     seed: (bool) (config('openapi.examples.synthesise') ?? true)
-                        && config('openapi.examples.faker_seed') !== null
+                    && config('openapi.examples.faker_seed') !== null
                         ? (int) config('openapi.examples.faker_seed')
                         : null,
                     logger: $app->make(LoggerInterface::class),

@@ -133,20 +133,6 @@ final readonly class SchemaDescriptor
     }
 
     /**
-     * The `additionalProperties` value for a map override: a bool passes through; a type string is
-     * wrapped into a nested value schema (mirroring {@see itemsSchema()}). `null` means "not set",
-     * leaving any inferred value in place.
-     */
-    private function additionalPropertiesValue(): bool|OA\AdditionalProperties|null
-    {
-        return match (true) {
-            $this->additionalProperties === null => null,
-            is_bool($this->additionalProperties) => $this->additionalProperties,
-            default => new OA\AdditionalProperties(['type' => $this->additionalProperties]),
-        };
-    }
-
-    /**
      * The `items` schema for an `array` type. Always present for an array (a permissive `{}` when
      * no element type is declared), because swagger-php rejects an items-less array and would
      * hard-fail generation.
@@ -205,6 +191,20 @@ final readonly class SchemaDescriptor
         if ($value !== null) {
             $target->additionalProperties = $value;
         }
+    }
+
+    /**
+     * The `additionalProperties` value for a map override: a bool passes through; a type string is
+     * wrapped into a nested value schema (mirroring {@see itemsSchema()}). `null` means "not set",
+     * leaving any inferred value in place.
+     */
+    private function additionalPropertiesValue(): bool|OA\AdditionalProperties|null
+    {
+        return match (true) {
+            $this->additionalProperties === null => null,
+            is_bool($this->additionalProperties) => $this->additionalProperties,
+            default => new OA\AdditionalProperties(['type' => $this->additionalProperties]),
+        };
     }
 
     /**

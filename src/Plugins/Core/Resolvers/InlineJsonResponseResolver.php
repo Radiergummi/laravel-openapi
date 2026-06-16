@@ -169,38 +169,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     // region Call-shape matching
 
     /**
-     * The matched `response()->json(...)` call, preferring *returned* calls: a `return`ed json()
-     * is the response the action actually emits, while one assigned to a variable may never be.
-     * Among returned matches the first wins; without any, the first match anywhere in the
-     * scanned statements is taken.
-     *
-     * @param list<Stmt> $statements
-     */
-    private function findJsonCall(array $statements): ?MethodCall
-    {
-        $returnStatements = array_values(
-            array_filter(
-                $statements,
-                static fn(Stmt $statement): bool => $statement instanceof Return_,
-            ),
-        );
-
-        foreach ([$returnStatements, $statements] as $candidates) {
-            $call = $this->statementNodeFinder->findFirst(
-                $candidates,
-                ConditionalContextPolicy::SkipConditionalContexts,
-                fn(Node $node): bool => $this->callReader->isJsonHelperCall($node),
-            );
-
-            if ($call instanceof MethodCall) {
-                return $call;
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * The matched `response()->noContent()` call, preferring a *returned* call over one only
      * assigned to a variable, mirroring {@see self::findJsonCall}. `noContent()` always documents
      * a body-less response; {@see self::statusFromNoContent()} reads its status argument.
@@ -230,27 +198,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         return null;
     }
-
-    private function note(
-        ReflectionMethod $method,
-        string $reason,
-        string $callExpression = 'response()->json()',
-    ): void {
-        $this->logger->notice(
-            sprintf(
-                '%s call in %s::%s %s; no response inferred. '
-                . 'Annotate the action with #[Response] to document it.',
-                $callExpression,
-                $method->getDeclaringClass()->getName(),
-                $method->getName(),
-                $reason,
-            ),
-        );
-    }
-
-    // endregion
-
-    // region Response construction
 
     /**
      * The status of a matched `response()->noContent(<status>)`: 204 when the argument is absent
@@ -309,6 +256,104 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         return false;
     }
+
+    // endregion
+
+    // region Response construction
+
+    private function note(
+        ReflectionMethod $method,
+        string $reason,
+        string $callExpression = 'response()->json()',
+    ): void {
+        $this->logger->notice(
+            sprintf(
+                '%s call in %s::%s %s; no response inferred. '
+                . 'Annotate the action with #[Response] to document it.',
+                $callExpression,
+                $method->getDeclaringClass()->getName(),
+                $method->getName(),
+                $reason,
+            ),
+        );
+    }
+
+    /**
+     * The status itself when it is a 2xx, or null (refusal, with a note) otherwise. Only a success
+     * status may claim the primary response: a straight-line non-2xx literal (`json([...], 403)`,
+     * or a `->setStatusCode(403)`) is an error response, and taking it as primary would evict the
+     * operation's success response.
+     */
+    private function ensureSuccessStatus(
+        int $status,
+        ReflectionMethod $method,
+        string $callExpression = 'response()->json()',
+    ): ?int {
+        if ($status < 200 || $status > 299) {
+            $this->note(
+                $method,
+                sprintf(
+                    'has a literal non-2xx status (%d) — an error response must not claim the primary response',
+                    $status,
+                ),
+                $callExpression,
+            );
+
+            return null;
+        }
+
+        return $status;
+    }
+
+    /**
+     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
+     * author-written status win over the resource convention. The marker never reaches the
+     * serialized document — OperationBuilder strips it.
+     */
+    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
+    {
+        if ($explicit) {
+            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
+        }
+
+        return $response;
+    }
+
+    /**
+     * The matched `response()->json(...)` call, preferring *returned* calls: a `return`ed json()
+     * is the response the action actually emits, while one assigned to a variable may never be.
+     * Among returned matches the first wins; without any, the first match anywhere in the
+     * scanned statements is taken.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function findJsonCall(array $statements): ?MethodCall
+    {
+        $returnStatements = array_values(
+            array_filter(
+                $statements,
+                static fn(Stmt $statement): bool => $statement instanceof Return_,
+            ),
+        );
+
+        foreach ([$returnStatements, $statements] as $candidates) {
+            $call = $this->statementNodeFinder->findFirst(
+                $candidates,
+                ConditionalContextPolicy::SkipConditionalContexts,
+                fn(Node $node): bool => $this->callReader->isJsonHelperCall($node),
+            );
+
+            if ($call instanceof MethodCall) {
+                return $call;
+            }
+        }
+
+        return null;
+    }
+
+    // endregion
+
+    // region Guards & logging
 
     /**
      * Builds the primary response from a matched `json()` call by reading its facts via the shared
@@ -390,57 +435,13 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         $setStatusCode = $this->statementNodeFinder->findFirst(
             $statements,
             ConditionalContextPolicy::IncludeConditionalContexts,
-            static fn(Node $node): bool => $node instanceof MethodCall
+            static fn(Node $node): bool
+                => $node instanceof MethodCall
                 && $node->name instanceof Identifier
                 && $node->name->toLowerString() === 'setstatuscode',
         );
 
         return $setStatusCode !== null;
-    }
-
-    // endregion
-
-    // region Guards & logging
-
-    /**
-     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
-     * author-written status win over the resource convention. The marker never reaches the
-     * serialized document — OperationBuilder strips it.
-     */
-    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
-    {
-        if ($explicit) {
-            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
-        }
-
-        return $response;
-    }
-
-    /**
-     * The status itself when it is a 2xx, or null (refusal, with a note) otherwise. Only a success
-     * status may claim the primary response: a straight-line non-2xx literal (`json([...], 403)`,
-     * or a `->setStatusCode(403)`) is an error response, and taking it as primary would evict the
-     * operation's success response.
-     */
-    private function ensureSuccessStatus(
-        int $status,
-        ReflectionMethod $method,
-        string $callExpression = 'response()->json()',
-    ): ?int {
-        if ($status < 200 || $status > 299) {
-            $this->note(
-                $method,
-                sprintf(
-                    'has a literal non-2xx status (%d) — an error response must not claim the primary response',
-                    $status,
-                ),
-                $callExpression,
-            );
-
-            return null;
-        }
-
-        return $status;
     }
 
     // endregion

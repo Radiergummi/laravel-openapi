@@ -84,7 +84,9 @@ it('returns null when neither class nor method carries #[Spec]', function (): vo
 it('handles a null class reflector (closure routes)', function (): void {
     $method = new ReflectionMethod(FxClassOnly::class, 'handle');
 
-    expect($this->resolver->resolve(null, $method))->toBe(['v1']);  // method's class wins via $method->getDeclaringClass()
+    expect($this->resolver->resolve(null, $method))->toBe(
+        ['v1'],
+    );  // method's class wins via $method->getDeclaringClass()
 });
 
 it('handles a null method reflector', function (): void {

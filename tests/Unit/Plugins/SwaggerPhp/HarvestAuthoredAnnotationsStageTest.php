@@ -102,7 +102,8 @@ it('attaches a $ref response when the return type carries an authored schema', f
     $schemaRegistry = new ComponentSchemaRegistry();
     harvestStage($schemaRegistry)->apply($doc, $ctx);
 
-    expect(harvestPrimaryRef($operation))->toBe('#/components/schemas/Server')
+    expect(harvestPrimaryRef($operation))
+        ->toBe('#/components/schemas/Server')
         ->and(harvestSchemaNames($schemaRegistry))->toContain('Server');
 });
 
@@ -124,7 +125,8 @@ it('merges an authored operation response and registers its schemas transitively
     $schemaRegistry = new ComponentSchemaRegistry();
     harvestStage($schemaRegistry)->apply($doc, $ctx);
 
-    expect(harvestPrimaryRef($operation))->toBe('#/components/schemas/Invoice')
+    expect(harvestPrimaryRef($operation))
+        ->toBe('#/components/schemas/Invoice')
         ->and(harvestSchemaNames($schemaRegistry))->toContain('Invoice')->toContain('InvoiceLine');
 
     // Pre-existing inferred responses for other statuses survive the merge.
@@ -132,7 +134,8 @@ it('merges an authored operation response and registers its schemas transitively
     expect($statuses)->toContain('500');
 
     // The authored operation is the source of truth for its own prose/metadata.
-    expect($operation->summary)->toBe('Show an invoice.')
+    expect($operation->summary)
+        ->toBe('Show an invoice.')
         ->and($operation->operationId)->toBe('showInvoice');
 });
 
@@ -150,7 +153,8 @@ it('skips an authored response with an unresolvable ref and logs it', function (
     $schemaRegistry = new ComponentSchemaRegistry();
     harvestStage($schemaRegistry, $logger)->apply($doc, $ctx);
 
-    expect(harvestPrimaryRef($operation))->toBeNull()
+    expect(harvestPrimaryRef($operation))
+        ->toBeNull()
         ->and(harvestSchemaNames($schemaRegistry))->not->toContain('DoesNotExist');
 
     $messages = array_map(static fn(array $r): string => $r['message'], $logger->records);
@@ -169,7 +173,8 @@ it('leaves an operation untouched when it has no bound action', function (): voi
     $schemaRegistry = new ComponentSchemaRegistry();
     harvestStage($schemaRegistry)->apply($doc, $ctx);
 
-    expect(harvestPrimaryRef($operation))->toBeNull()
+    expect(harvestPrimaryRef($operation))
+        ->toBeNull()
         ->and(harvestSchemaNames($schemaRegistry))->toBe([]);
 });
 
@@ -181,7 +186,11 @@ it('does not overwrite a 200 that already has a response body', function (): voi
     $existing = new OA\Response([
         'response' => '200',
         'description' => 'OK',
-        'content' => [new OA\MediaType(['mediaType' => 'application/json', 'schema' => new OA\Schema(['type' => 'string'])])],
+        'content' => [
+            new OA\MediaType(
+                ['mediaType' => 'application/json', 'schema' => new OA\Schema(['type' => 'string'])],
+            ),
+        ],
     ]);
     $operation = new OA\Get(['responses' => [$existing]]);
     $doc = harvestDoc($operation);
@@ -191,7 +200,8 @@ it('does not overwrite a 200 that already has a response body', function (): voi
     $schemaRegistry = new ComponentSchemaRegistry();
     harvestStage($schemaRegistry)->apply($doc, $ctx);
 
-    expect(harvestPrimaryRef($operation))->toBeNull()
+    expect(harvestPrimaryRef($operation))
+        ->toBeNull()
         ->and(harvestSchemaNames($schemaRegistry))->toBe([]);
 });
 
@@ -229,7 +239,8 @@ it('fills an existing non-200 success response instead of adding a second 200', 
 
     $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $operation->responses);
 
-    expect($statuses)->toBe(['201'])
+    expect($statuses)
+        ->toBe(['201'])
         ->and(harvestPrimaryRef($operation, '201'))->toBe('#/components/schemas/Server');
 });
 
@@ -259,11 +270,14 @@ it('keeps the existing component and reports a finding when an authored schema n
     expect($schemaRegistry->schemaForKey('Invoice'))->toBe($convention);
 
     // The collision is surfaced as a finding carrying the colliding name…
-    $collision = array_values(array_filter(
-        $findings->all(),
-        static fn($f): bool => $f->ruleId === 'component.schema-name-collision',
-    ));
-    expect($collision)->toHaveCount(1)
+    $collision = array_values(
+        array_filter(
+            $findings->all(),
+            static fn($f): bool => $f->ruleId === 'component.schema-name-collision',
+        ),
+    );
+    expect($collision)
+        ->toHaveCount(1)
         ->and($collision[0]->context['schema'])->toBe('Invoice');
 
     // …and as a warning naming the schema.

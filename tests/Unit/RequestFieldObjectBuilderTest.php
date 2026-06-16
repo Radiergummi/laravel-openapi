@@ -48,7 +48,8 @@ it('builds properties and collects required names', function (): void {
         new RequestField('php_version', type: 'string'),
     ]);
 
-    expect($properties)->toHaveCount(2)
+    expect($properties)
+        ->toHaveCount(2)
         ->and($properties[0]->property)->toBe('domain')
         ->and($properties[1]->property)->toBe('php_version')
         ->and($required)->toBe(['domain']);
@@ -60,7 +61,8 @@ it('skips a field with no name', function (): void {
         new RequestField('keep'),
     ]);
 
-    expect($properties)->toHaveCount(1)
+    expect($properties)
+        ->toHaveCount(1)
         ->and($properties[0]->property)->toBe('keep')
         ->and($required)->toBe([]);
 });
@@ -70,7 +72,8 @@ it('leaves a scalar field untouched', function (): void {
         new RequestField('domain', type: 'string', format: 'hostname'),
     ]);
 
-    expect($properties[0]->property)->toBe('domain')
+    expect($properties[0]->property)
+        ->toBe('domain')
         ->and($properties[0]->type)->toBe('string')
         ->and($properties[0]->format)->toBe('hostname');
 });
@@ -82,7 +85,8 @@ it('resolves a class-string `type` to a $ref', function (): void {
         new RequestField('owner', type: RequestFieldRefTarget::class),
     ]);
 
-    expect($properties[0]->property)->toBe('owner')
+    expect($properties[0]->property)
+        ->toBe('owner')
         ->and($properties[0]->ref)->toBe('#/components/schemas/RequestFieldRefTarget');
 });
 
@@ -91,7 +95,8 @@ it('degrades an unresolvable class-string `type` to a permissive object', functi
         new RequestField('owner', type: RequestFieldRefTarget::class),
     ]);
 
-    expect($properties[0]->property)->toBe('owner')
+    expect($properties[0]->property)
+        ->toBe('owner')
         ->and($properties[0]->type)->toBe('object');
 });
 
@@ -102,7 +107,8 @@ it('resolves a class-string `items` on an array field to items: { $ref }', funct
         new RequestField('owners', type: 'array', items: RequestFieldRefTarget::class),
     ]);
 
-    expect($properties[0]->property)->toBe('owners')
+    expect($properties[0]->property)
+        ->toBe('owners')
         ->and($properties[0]->type)->toBe('array')
         ->and($properties[0]->items)->toBeInstanceOf(OA\Items::class)
         ->and($properties[0]->items->ref)->toBe('#/components/schemas/RequestFieldRefTarget');
@@ -113,7 +119,8 @@ it('degrades an unresolvable class-string `items` to a permissive object item', 
         new RequestField('owners', type: 'array', items: RequestFieldRefTarget::class),
     ]);
 
-    expect($properties[0]->property)->toBe('owners')
+    expect($properties[0]->property)
+        ->toBe('owners')
         ->and($properties[0]->type)->toBe('array')
         ->and($properties[0]->items)->toBeInstanceOf(OA\Items::class)
         ->and($properties[0]->items->type)->toBe('object');

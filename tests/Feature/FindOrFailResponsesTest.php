@@ -52,7 +52,8 @@ it('emits exactly one 404 when binding and findOrFail both fire', function (): v
     $spec = generateSpec();
     $responses = $spec['paths']['/oa-fixture/articles/{article}/related/{id}']['get']['responses'];
 
-    expect($responses)->toHaveKey('404')
+    expect($responses)
+        ->toHaveKey('404')
         // The binding contributor and the body scan source the same config entry, so the single
         // emitted 404 reuses the shared component rather than duplicating the status.
         ->and($responses['404']['$ref'])->toBe('#/components/responses/NotFound');

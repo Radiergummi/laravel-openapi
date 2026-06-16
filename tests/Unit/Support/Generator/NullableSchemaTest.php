@@ -14,7 +14,8 @@ it('widens a plain string schema to type: [string, null] (Bug 1)', function (): 
     $schema = new OA\Schema(['type' => 'string']);
     $result = NullableSchema::wrap($schema);
 
-    expect($result->type)->toBe(['string', 'null'])
+    expect($result->type)
+        ->toBe(['string', 'null'])
         ->and($result->ref)->toBe(Generator::UNDEFINED);
 });
 
@@ -65,13 +66,15 @@ it('wraps a $ref schema in oneOf with a null sibling (Bug 1)', function (): void
     $schema = new OA\Schema(['ref' => '#/components/schemas/MyModel']);
     $result = NullableSchema::wrap($schema);
 
-    expect($result->ref)->toBe(Generator::UNDEFINED)
+    expect($result->ref)
+        ->toBe(Generator::UNDEFINED)
         ->and($result->oneOf)->toHaveCount(2);
 
     $refBranch = collect($result->oneOf)->first(fn($s) => $s->ref !== Generator::UNDEFINED);
     $nullBranch = collect($result->oneOf)->first(fn($s) => $s->type === 'null');
 
-    expect($refBranch?->ref)->toBe('#/components/schemas/MyModel')
+    expect($refBranch?->ref)
+        ->toBe('#/components/schemas/MyModel')
         ->and($nullBranch?->type)->toBe('null');
 });
 
@@ -83,14 +86,16 @@ it('applyTo wraps a $ref schema in oneOf instead of writing type: [null]', funct
     $target = new OA\Schema(['ref' => '#/components/schemas/MyModel']);
     NullableSchema::applyTo($target);
 
-    expect($target->ref)->toBe(Generator::UNDEFINED)
+    expect($target->ref)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->type)->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toHaveCount(2);
 
     $refBranch = collect($target->oneOf)->first(fn($s) => $s->ref !== Generator::UNDEFINED);
     $nullBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'null');
 
-    expect($refBranch?->ref)->toBe('#/components/schemas/MyModel')
+    expect($refBranch?->ref)
+        ->toBe('#/components/schemas/MyModel')
         ->and($nullBranch?->type)->toBe('null');
 });
 
@@ -102,14 +107,16 @@ it('applyTo migrates object structural keywords into the oneOf inner schema', fu
     ]);
     NullableSchema::applyTo($target);
 
-    expect($target->type)->toBe(Generator::UNDEFINED)
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->properties)->toBe(Generator::UNDEFINED)
         ->and($target->required)->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toHaveCount(2);
 
     $objectBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'object');
 
-    expect($objectBranch?->properties)->toHaveCount(1)
+    expect($objectBranch?->properties)
+        ->toHaveCount(1)
         ->and($objectBranch?->required)->toBe(['id']);
 });
 
@@ -123,7 +130,8 @@ it('applyTo migrates array validation constraints into the oneOf inner schema (#
     ]);
     NullableSchema::applyTo($target);
 
-    expect($target->type)->toBe(Generator::UNDEFINED)
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->items)->toBe(Generator::UNDEFINED)
         ->and($target->minItems)->toBe(Generator::UNDEFINED)
         ->and($target->maxItems)->toBe(Generator::UNDEFINED)
@@ -132,7 +140,8 @@ it('applyTo migrates array validation constraints into the oneOf inner schema (#
 
     $arrayBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'array');
 
-    expect($arrayBranch?->minItems)->toBe(1)
+    expect($arrayBranch?->minItems)
+        ->toBe(1)
         ->and($arrayBranch?->maxItems)->toBe(10)
         ->and($arrayBranch?->uniqueItems)->toBeTrue();
 });
@@ -153,7 +162,8 @@ it('applyTo migrates numeric and string constraints into the oneOf inner schema 
     ]);
     NullableSchema::applyTo($target);
 
-    expect($target->minimum)->toBe(Generator::UNDEFINED)
+    expect($target->minimum)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->maximum)->toBe(Generator::UNDEFINED)
         ->and($target->exclusiveMinimum)->toBe(Generator::UNDEFINED)
         ->and($target->exclusiveMaximum)->toBe(Generator::UNDEFINED)
@@ -166,7 +176,8 @@ it('applyTo migrates numeric and string constraints into the oneOf inner schema 
 
     $objectBranch = collect($target->oneOf)->first(fn($s) => $s->type === 'object');
 
-    expect($objectBranch?->minimum)->toBe(1)
+    expect($objectBranch?->minimum)
+        ->toBe(1)
         ->and($objectBranch?->maximum)->toBe(100)
         ->and($objectBranch?->exclusiveMinimum)->toBe(0)
         ->and($objectBranch?->exclusiveMaximum)->toBe(101)
@@ -188,7 +199,8 @@ it('applyTo keeps description and example on the outer schema (#279)', function 
     ]);
     NullableSchema::applyTo($target);
 
-    expect($target->description)->toBe('A list')
+    expect($target->description)
+        ->toBe('A list')
         ->and($target->example)->toBe(['x'])
         ->and($target->minItems)->toBe(Generator::UNDEFINED);
 
@@ -216,7 +228,8 @@ it('wraps a schema with no explicit type in oneOf with a null sibling', function
 
     $nullBranch = collect($result->oneOf)->first(fn($s) => $s->type === 'null');
 
-    expect($result->oneOf)->toHaveCount(2)
+    expect($result->oneOf)
+        ->toHaveCount(2)
         ->and($nullBranch?->type)->toBe('null');
 });
 

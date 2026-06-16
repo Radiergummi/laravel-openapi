@@ -179,6 +179,31 @@ final class SpecTreeWalker
     }
 
     /**
+     * Stamp the controller `CONTEXT_SOURCE_CLASS` on each finding when `$sourceClass` is non-null,
+     * as a fallback only. Findings that already carry the key (e.g. a request-body or response field
+     * stamped with its component schema's source class) keep their more-specific value; the
+     * controller class merely fills in operation-level findings that have none.
+     *
+     * @param iterable<Finding> $findings
+     *
+     * @return iterable<Finding>
+     */
+    private function stampSourceClass(iterable $findings, ?string $sourceClass): iterable
+    {
+        if ($sourceClass === null) {
+            yield from $findings;
+
+            return;
+        }
+
+        foreach ($findings as $finding) {
+            yield isset($finding->context[Finding::CONTEXT_SOURCE_CLASS])
+                ? $finding
+                : $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
+        }
+    }
+
+    /**
      * Emit all findings for an operation and its sub-nodes (operation, path/query parameters,
      * request body, responses, headers, links, and their examples), enriched with location
      * defaults but without source-class stamping — that is applied by {@see walkOperation}.
@@ -305,31 +330,6 @@ final class SpecTreeWalker
 
         foreach ($findings as $finding) {
             yield $finding->withLocationDefaults($defaults);
-        }
-    }
-
-    /**
-     * Stamp the controller `CONTEXT_SOURCE_CLASS` on each finding when `$sourceClass` is non-null,
-     * as a fallback only. Findings that already carry the key (e.g. a request-body or response field
-     * stamped with its component schema's source class) keep their more-specific value; the
-     * controller class merely fills in operation-level findings that have none.
-     *
-     * @param iterable<Finding> $findings
-     *
-     * @return iterable<Finding>
-     */
-    private function stampSourceClass(iterable $findings, ?string $sourceClass): iterable
-    {
-        if ($sourceClass === null) {
-            yield from $findings;
-
-            return;
-        }
-
-        foreach ($findings as $finding) {
-            yield isset($finding->context[Finding::CONTEXT_SOURCE_CLASS])
-                ? $finding
-                : $finding->withMergedContext([Finding::CONTEXT_SOURCE_CLASS => $sourceClass]);
         }
     }
 

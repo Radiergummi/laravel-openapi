@@ -37,8 +37,10 @@ final readonly class ResponseField extends FieldAttribute
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`).
-     * @param null|bool|string                                                             $additionalProperties Map-value override.
+     * @param null|array<string, mixed>                                                    $x                    Vendor
+     *                                                                                                           extensions (`x-*`).
+     * @param null|bool|string                                                             $additionalProperties Map-value
+     *                                                                                                           override.
      */
     public function __construct(
         ?string $title = null,

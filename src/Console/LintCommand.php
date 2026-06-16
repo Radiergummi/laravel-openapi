@@ -172,6 +172,51 @@ class LintCommand extends Command
     }
 
     /**
+     * Open the destination for one target: the command's stdout, its stderr, or a file stream.
+     *
+     * @throws RuntimeException when the target file cannot be opened for writing
+     */
+    private function openOutput(OutputTarget $target): OutputInterface
+    {
+        $console = $this->output->getOutput();
+
+        return match ($target->channel) {
+            // Write stdout through the OutputStyle, not the unwrapped OutputInterface: Laravel's
+            // PendingCommand captures writeln/write on the OutputStyle for expectsOutput() assertions.
+            OutputChannel::Stdout => $this->output,
+            OutputChannel::Stderr => $console instanceof ConsoleOutputInterface
+                ? $console->getErrorOutput()
+                : $console,
+            OutputChannel::File => $this->openFile((string) $target->path),
+        };
+    }
+
+    /**
+     * @throws RuntimeException when the file cannot be opened or wrapped as an output stream
+     */
+    private function openFile(string $path): StreamOutput
+    {
+        $handle = @fopen($path, 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException(sprintf('Cannot open %s for writing.', $path));
+        }
+
+        try {
+            return new StreamOutput($handle);
+        } catch (ConsoleInvalidArgumentException $exception) {
+            throw new RuntimeException(sprintf('Cannot write to %s.', $path), previous: $exception);
+        }
+    }
+
+    private function closeOutput(OutputInterface $output): void
+    {
+        if ($output instanceof StreamOutput && is_resource($output->getStream())) {
+            fclose($output->getStream());
+        }
+    }
+
+    /**
      * Apply (`--fix`) or preview (`--check`) the fixable findings, then report what remains.
      *
      * @throws \LogicException
@@ -451,50 +496,5 @@ class LintCommand extends Command
             LinterOutputFormat::Cobertura => $this->laravel->make(CoberturaFormatter::class),
             LinterOutputFormat::Lcov => $this->laravel->make(LcovFormatter::class),
         };
-    }
-
-    /**
-     * Open the destination for one target: the command's stdout, its stderr, or a file stream.
-     *
-     * @throws RuntimeException when the target file cannot be opened for writing
-     */
-    private function openOutput(OutputTarget $target): OutputInterface
-    {
-        $console = $this->output->getOutput();
-
-        return match ($target->channel) {
-            // Write stdout through the OutputStyle, not the unwrapped OutputInterface: Laravel's
-            // PendingCommand captures writeln/write on the OutputStyle for expectsOutput() assertions.
-            OutputChannel::Stdout => $this->output,
-            OutputChannel::Stderr => $console instanceof ConsoleOutputInterface
-                ? $console->getErrorOutput()
-                : $console,
-            OutputChannel::File => $this->openFile((string) $target->path),
-        };
-    }
-
-    /**
-     * @throws RuntimeException when the file cannot be opened or wrapped as an output stream
-     */
-    private function openFile(string $path): StreamOutput
-    {
-        $handle = @fopen($path, 'wb');
-
-        if ($handle === false) {
-            throw new RuntimeException(sprintf('Cannot open %s for writing.', $path));
-        }
-
-        try {
-            return new StreamOutput($handle);
-        } catch (ConsoleInvalidArgumentException $exception) {
-            throw new RuntimeException(sprintf('Cannot write to %s.', $path), previous: $exception);
-        }
-    }
-
-    private function closeOutput(OutputInterface $output): void
-    {
-        if ($output instanceof StreamOutput && is_resource($output->getStream())) {
-            fclose($output->getStream());
-        }
     }
 }

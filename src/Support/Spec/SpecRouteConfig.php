@@ -47,20 +47,6 @@ final readonly class SpecRouteConfig
     /**
      * @param array<string, mixed> $overrides
      */
-    public function playgroundUri(string $specName, array $overrides): false|string
-    {
-        return $this->resolve(
-            $overrides,
-            'playground_uri',
-            $specName === 'default'
-                ? $this->rootPlaygroundUri
-                : sprintf('docs/%s', $specName),
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $overrides
-     */
     private function resolve(array $overrides, string $key, string $default): false|string
     {
         if (!array_key_exists($key, $overrides)) {
@@ -74,5 +60,19 @@ final readonly class SpecRouteConfig
         }
 
         return (string) $value;
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    public function playgroundUri(string $specName, array $overrides): false|string
+    {
+        return $this->resolve(
+            $overrides,
+            'playground_uri',
+            $specName === 'default'
+                ? $this->rootPlaygroundUri
+                : sprintf('docs/%s', $specName),
+        );
     }
 }

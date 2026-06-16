@@ -24,7 +24,8 @@ it('writes openapi version, info, servers, and tags from the spec', function ():
     $doc = new OA\OpenApi([]);
     (new RootStage())->apply($doc, new GenerationContext($spec, 'testing'));
 
-    expect($doc->openapi)->toBe('3.1.0')
+    expect($doc->openapi)
+        ->toBe('3.1.0')
         ->and($doc->info)->toBe($spec->info)
         ->and($doc->servers)->toBe($spec->servers)
         ->and($doc->tags)->toBe($spec->tags);
@@ -47,6 +48,7 @@ it('falls back to app.url when no servers are configured', function (): void {
     $doc = new OA\OpenApi([]);
     (new RootStage())->apply($doc, new GenerationContext($spec, 'testing'));
 
-    expect($doc->servers)->toHaveCount(1)
+    expect($doc->servers)
+        ->toHaveCount(1)
         ->and($doc->servers[0]->url)->toBe('https://fallback.example.test');
 });

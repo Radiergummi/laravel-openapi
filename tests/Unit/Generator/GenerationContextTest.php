@@ -46,6 +46,7 @@ it('distinguishes operations by object identity, not by data', function (): void
 
     $ctx->bindAction($opA, $action);
 
-    expect($ctx->actionFor($opA))->toBe($action)
+    expect($ctx->actionFor($opA))
+        ->toBe($action)
         ->and($ctx->actionFor($opB))->toBeNull();
 });

@@ -40,7 +40,8 @@ function cookieParameters(array $parameters): array
 it('emits a single optional, string-typed cookie parameter', function (): void {
     $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/simple']['get']['parameters'] ?? []);
 
-    expect($cookies)->toHaveKey('session')
+    expect($cookies)
+        ->toHaveKey('session')
         ->and($cookies['session']['in'])->toBe('cookie')
         ->and($cookies['session']['required'])->toBeFalse()
         ->and($cookies['session']['schema']['type'])->toBe('string');
@@ -49,21 +50,24 @@ it('emits a single optional, string-typed cookie parameter', function (): void {
 it('honors required and an explicit type', function (): void {
     $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/required']['get']['parameters'] ?? []);
 
-    expect($cookies['uid']['required'])->toBeTrue()
+    expect($cookies['uid']['required'])
+        ->toBeTrue()
         ->and($cookies['uid']['schema']['type'])->toBe('integer');
 });
 
 it('forwards a backed-enum class-string into schema.enum', function (): void {
     $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/enum']['get']['parameters'] ?? []);
 
-    expect($cookies['theme']['schema']['enum'])->toBe(['active', 'archived', 'draft'])
+    expect($cookies['theme']['schema']['enum'])
+        ->toBe(['active', 'archived', 'draft'])
         ->and($cookies['theme']['schema']['type'])->toBe('string');
 });
 
 it('forwards description and example', function (): void {
     $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/described']['get']['parameters'] ?? []);
 
-    expect($cookies['locale']['schema']['description'])->toBe('Preferred UI locale.')
+    expect($cookies['locale']['schema']['description'])
+        ->toBe('Preferred UI locale.')
         ->and($cookies['locale']['schema']['example'])->toBe('en-US');
 });
 
@@ -80,7 +84,8 @@ it('emits one entry per cookie, declaration order preserved', function (): void 
 
     $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/multiple']['get']['parameters'] ?? []);
 
-    expect(array_values(array_intersect($names, ['first', 'second'])))->toBe(['first', 'second'])
+    expect(array_values(array_intersect($names, ['first', 'second'])))
+        ->toBe(['first', 'second'])
         ->and($cookies['second']['required'])->toBeTrue()
         ->and($cookies['first']['required'])->toBeFalse();
 });
@@ -89,7 +94,8 @@ it('lets a method-level cookie override the class-level entry of the same name',
     $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/override']['get']['parameters'] ?? []);
 
     // Class-level `tracking` is optional; the method-level one wins and is required.
-    expect($cookies)->toHaveCount(1)
+    expect($cookies)
+        ->toHaveCount(1)
         ->and($cookies['tracking']['required'])->toBeTrue();
 });
 

@@ -60,6 +60,19 @@ final class SchemaCompositeFieldsUninspected implements
         );
     }
 
+    #[Override]
+    public function id(): string
+    {
+        return 'schema.composite-fields-uninspected';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        // A coverage gap, not invalid documentation.
+        return 3;
+    }
+
     /**
      * @return iterable<Finding>
      */
@@ -73,6 +86,26 @@ final class SchemaCompositeFieldsUninspected implements
         yield from $this->flagUninspectedComposite(
             $componentSchema->raw,
             sprintf('Component schema "%s"', $componentSchema->name),
+        );
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function flagUninspectedComposite(OA\Schema $schema, string $subject): iterable
+    {
+        if (!SchemaAccessor::classifyComposition($schema)['uninspectedComposite']) {
+            return;
+        }
+
+        yield new Finding(
+            ruleId: $this->id(),
+            level: $this->level(),
+            message: sprintf(
+                '%s is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
+                $subject,
+            ),
+            fixHint: 'Document each alternative by hand, or restructure the schema so the body resolves to a single concrete shape.',
         );
     }
 
@@ -115,39 +148,6 @@ final class SchemaCompositeFieldsUninspected implements
         }
 
         yield from $this->flagUninspectedComposite($schema, 'Request body');
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function flagUninspectedComposite(OA\Schema $schema, string $subject): iterable
-    {
-        if (!SchemaAccessor::classifyComposition($schema)['uninspectedComposite']) {
-            return;
-        }
-
-        yield new Finding(
-            ruleId: $this->id(),
-            level: $this->level(),
-            message: sprintf(
-                '%s is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
-                $subject,
-            ),
-            fixHint: 'Document each alternative by hand, or restructure the schema so the body resolves to a single concrete shape.',
-        );
-    }
-
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.composite-fields-uninspected';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        // A coverage gap, not invalid documentation.
-        return 3;
     }
 
     #[Override]

@@ -16,23 +16,25 @@ it('removes a no-op field attribute from a promoted constructor parameter', func
         'noEffect',
     );
 
-    expect($result['fixes'])->toHaveCount(1)
-        ->and($result['after'])->toBe(<<<'PHP'
-        <?php
-
-        declare(strict_types=1);
-
-        namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix;
-
-        use Radiergummi\OpenApi\Attributes\RequestField;
-        use Spatie\LaravelData\Data;
-
-        final class NoEffectFieldFixtureData extends Data
-        {
-            public function __construct(
-                public string $noEffect,
-            ) {}
-        }
-
-        PHP);
+    expect($result['fixes'])
+        ->toHaveCount(1)
+        ->and($result['after'])->toBe(
+            <<<'PHP'
+                <?php
+                
+                declare(strict_types=1);
+                
+                namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix;
+                
+                use Radiergummi\OpenApi\Attributes\RequestField;
+                use Spatie\LaravelData\Data;
+                
+                final class NoEffectFieldFixtureData extends Data
+                {
+                    public function __construct(
+                        public string $noEffect,
+                    ) {}
+                }
+                PHP,
+        );
 });

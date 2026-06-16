@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\WrappedModelLocator;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
@@ -16,7 +17,7 @@ uses()->group('openapi', 'plugin:api-resources');
 /**
  * The app-side generic resource base larastan-style codebases declare.
  *
- * @template TModel of \Illuminate\Database\Eloquent\Model
+ * @template TModel of Model
  */
 abstract class GenericBaseResource extends JsonResource {}
 

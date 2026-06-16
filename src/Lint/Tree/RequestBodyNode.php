@@ -13,6 +13,12 @@ use function sprintf;
 
 final class RequestBodyNode implements Node
 {
+    public bool $isMultipart {
+        get => in_array('multipart/form-data', $this->contentTypes, true);
+    }
+    public bool $isJson {
+        get => in_array('application/json', $this->contentTypes, true);
+    }
     private ?Node $parent = null;
 
     /**
@@ -58,13 +64,5 @@ final class RequestBodyNode implements Node
         $base = ($this->parent?->pointer() ?? '') . '/requestBody';
 
         return $append !== '' ? $base . '/' . $append : $base;
-    }
-
-    public bool $isMultipart {
-        get => in_array('multipart/form-data', $this->contentTypes, true);
-    }
-
-    public bool $isJson {
-        get => in_array('application/json', $this->contentTypes, true);
     }
 }

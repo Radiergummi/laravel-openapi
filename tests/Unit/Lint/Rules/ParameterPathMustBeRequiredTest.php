@@ -27,7 +27,8 @@ function makePathParameter(string $name, bool $required): ParameterNode
 it('reports its id and level', function (): void {
     $rule = new ParameterPathMustBeRequired();
 
-    expect($rule->id())->toBe('parameter.path-must-be-required')
+    expect($rule->id())
+        ->toBe('parameter.path-must-be-required')
         ->and($rule->level())->toBe(0);
 });
 
@@ -46,7 +47,8 @@ it('emits a finding when a path parameter is not required', function (): void {
 
     $findings = iterator_to_array($rule->checkParameter($param, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.path-must-be-required')
         ->and($findings[0]->level)->toBe(0)
         ->and($findings[0]->message)->toContain('userId')
@@ -65,7 +67,8 @@ it('emits one finding per non-required path parameter across operations', functi
         ...iterator_to_array($rule->checkParameter($paramB, $context)),
     ];
 
-    expect($findings)->toHaveCount(2)
+    expect($findings)
+        ->toHaveCount(2)
         ->and($findings[0]->message)->toContain('userId')
         ->and($findings[1]->message)->toContain('postId');
 });

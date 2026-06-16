@@ -26,8 +26,10 @@ beforeEach(function (): void {
 it('OAPI-027: base Data class with #[Discriminator] emits oneOf instead of a flat object', function (): void {
     $schema = generateSpec()['components']['schemas']['BaseShapeData'];
 
-    expect($schema)->toHaveKey('oneOf')
-        ->and($schema)->not->toHaveKey('properties')
+    expect($schema)
+        ->toHaveKey('oneOf')
+        ->and($schema)->not
+        ->toHaveKey('properties')
         ->and($schema)->not->toHaveKey('type');
 });
 
@@ -36,14 +38,16 @@ it('OAPI-027: base Data class oneOf lists $ref entries for each variant', functi
 
     $refs = array_column($schema['oneOf'], '$ref');
 
-    expect($refs)->toContain('#/components/schemas/CircleData')
+    expect($refs)
+        ->toContain('#/components/schemas/CircleData')
         ->and($refs)->toContain('#/components/schemas/RectangleData');
 });
 
 it('OAPI-027: base Data class emits discriminator.propertyName', function (): void {
     $schema = generateSpec()['components']['schemas']['BaseShapeData'];
 
-    expect($schema)->toHaveKey('discriminator')
+    expect($schema)
+        ->toHaveKey('discriminator')
         ->and($schema['discriminator'])->toHaveKey('propertyName')
         ->and($schema['discriminator']['propertyName'])->toBe('type');
 });
@@ -53,7 +57,8 @@ it('OAPI-027: base Data class discriminator.mapping points to $ref strings', fun
 
     $mapping = $schema['discriminator']['mapping'] ?? [];
 
-    expect($mapping)->toHaveKey('circle')
+    expect($mapping)
+        ->toHaveKey('circle')
         ->and($mapping['circle'])->toBe('#/components/schemas/CircleData')
         ->and($mapping)->toHaveKey('rectangle')
         ->and($mapping['rectangle'])->toBe('#/components/schemas/RectangleData');
@@ -62,14 +67,16 @@ it('OAPI-027: base Data class discriminator.mapping points to $ref strings', fun
 it('OAPI-027: variant Data classes are registered as their own component schemas', function (): void {
     $schemas = generateSpec()['components']['schemas'];
 
-    expect($schemas)->toHaveKey('CircleData')
+    expect($schemas)
+        ->toHaveKey('CircleData')
         ->and($schemas)->toHaveKey('RectangleData');
 });
 
 it('OAPI-027: variant Data class schemas are flat objects with their own properties', function (): void {
     $schemas = generateSpec()['components']['schemas'];
 
-    expect($schemas['CircleData'])->toHaveKey('properties')
+    expect($schemas['CircleData'])
+        ->toHaveKey('properties')
         ->and($schemas['CircleData']['properties'])->toHaveKey('radius')
         ->and($schemas['RectangleData'])->toHaveKey('properties')
         ->and($schemas['RectangleData']['properties'])->toHaveKey('width')

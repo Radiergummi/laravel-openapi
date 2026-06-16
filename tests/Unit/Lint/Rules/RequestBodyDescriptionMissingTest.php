@@ -10,7 +10,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new RequestBodyDescriptionMissing();
 
-    expect($rule->id())->toBe('request-body.description-missing')
+    expect($rule->id())
+        ->toBe('request-body.description-missing')
         ->and($rule->level())->toBe(2);
 });
 
@@ -22,13 +23,14 @@ it('emits a finding when a request body has a missing or blank description', fun
         $rule->checkRequestBody($requestBody, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('request-body.description-missing')
         ->and($findings[0]->level)->toBe(2);
 })->with([
-    'null'             => [null],
-    'empty string'     => [''],
-    'whitespace only'  => ['   '],
+    'null' => [null],
+    'empty string' => [''],
+    'whitespace only' => ['   '],
 ]);
 
 it('emits no findings when a request body has a description', function (): void {

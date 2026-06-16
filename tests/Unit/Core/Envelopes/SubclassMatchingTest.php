@@ -14,11 +14,13 @@ it('LaravelEnvelope matches subclasses of ValidationException', function (): voi
     $registry = new ComponentSchemaRegistry();
     $envelope = new LaravelEnvelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 422,
-        exceptionClass: CustomValidationException::class,
-        description: 'Validation failed',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 422,
+            exceptionClass: CustomValidationException::class,
+            description: 'Validation failed',
+        ),
+    );
 
     expect($response->content[0]->schema->ref)->toBe($registry->qualifyKey('ValidationError'));
 });
@@ -27,11 +29,13 @@ it('Rfc7807Envelope matches subclasses of ValidationException', function (): voi
     $registry = new ComponentSchemaRegistry();
     $envelope = new Rfc7807Envelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 422,
-        exceptionClass: CustomValidationException::class,
-        description: 'Validation failed',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 422,
+            exceptionClass: CustomValidationException::class,
+            description: 'Validation failed',
+        ),
+    );
 
     expect($response->content[0]->schema->ref)->toBe($registry->qualifyKey('ValidationProblem'));
 });

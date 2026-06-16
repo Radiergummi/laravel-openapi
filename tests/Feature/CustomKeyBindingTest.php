@@ -15,13 +15,15 @@ it('emits a valid path template and surfaces the custom binding field', function
 
     $spec = generateSpec();
 
-    expect($spec['paths'])->toHaveKey('/posts/{post}')
+    expect($spec['paths'])
+        ->toHaveKey('/posts/{post}')
         ->and($spec['paths'])->not->toHaveKey('/posts/{post:slug}');
 
     $post = collect($spec['paths']['/posts/{post}']['get']['parameters'])
         ->firstWhere('name', 'post');
 
-    expect($post)->not->toBeNull()
+    expect($post)->not
+        ->toBeNull()
         ->and($post['in'])->toBe('path')
         ->and($post['required'])->toBeTrue()
         ->and($post['description'])->toBe('Bound by slug of Article.');
@@ -47,7 +49,8 @@ it('strips the field from an optional custom-key segment and never emits a colon
 
     $spec = generateSpec();
 
-    expect($spec['paths'])->toHaveKey('/posts/{post?}')
+    expect($spec['paths'])
+        ->toHaveKey('/posts/{post?}')
         ->and($spec['paths'])->toHaveKey('/plain/{post}');
 
     foreach (array_keys($spec['paths']) as $path) {

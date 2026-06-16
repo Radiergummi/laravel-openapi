@@ -21,7 +21,8 @@ function makeTelescopeRoute(string $uri, ?string $domain = null): Route
 it('skips routes whose URI starts with the configured Telescope path', function (): void {
     $filter = new SkipTelescopeRoutes(telescopePath: 'telescope', telescopeDomain: null);
 
-    expect($filter->shouldSkip(makeTelescopeRoute('telescope/requests')))->toBeTrue()
+    expect($filter->shouldSkip(makeTelescopeRoute('telescope/requests')))
+        ->toBeTrue()
         ->and($filter->shouldSkip(makeTelescopeRoute('telescope')))->toBeTrue()
         ->and($filter->shouldSkip(makeTelescopeRoute('flights/index')))->toBeFalse();
 });
@@ -29,13 +30,15 @@ it('skips routes whose URI starts with the configured Telescope path', function 
 it('skips routes that match the configured Telescope domain', function (): void {
     $filter = new SkipTelescopeRoutes(telescopePath: 'admin', telescopeDomain: 'telescope.example.test');
 
-    expect($filter->shouldSkip(makeTelescopeRoute('flights', 'telescope.example.test')))->toBeTrue()
+    expect($filter->shouldSkip(makeTelescopeRoute('flights', 'telescope.example.test')))
+        ->toBeTrue()
         ->and($filter->shouldSkip(makeTelescopeRoute('flights', 'api.example.test')))->toBeFalse();
 });
 
 it('tolerates Telescope being absent by leaving regular routes alone', function (): void {
     $filter = new SkipTelescopeRoutes(telescopePath: '', telescopeDomain: null);
 
-    expect($filter->shouldSkip(makeTelescopeRoute('flights')))->toBeFalse()
+    expect($filter->shouldSkip(makeTelescopeRoute('flights')))
+        ->toBeFalse()
         ->and($filter->shouldSkip(makeTelescopeRoute('bookings/show')))->toBeFalse();
 });

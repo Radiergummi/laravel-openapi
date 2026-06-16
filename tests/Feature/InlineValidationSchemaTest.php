@@ -22,8 +22,12 @@ uses()->group('openapi');
  *
  * @return array<string, mixed>
  */
-function inlineValidationBodySchema(array $spec, string $path, string $verb, string $mediaType = 'application/json'): array
-{
+function inlineValidationBodySchema(
+    array $spec,
+    string $path,
+    string $verb,
+    string $mediaType = 'application/json',
+): array {
     $reference = $spec['paths'][$path][$verb]['requestBody']['content'][$mediaType]['schema']['$ref'];
     $schemaName = str_replace('#/components/schemas/', '', (string) $reference);
 
@@ -40,9 +44,11 @@ it('emits a request body from an inline $request->validate([...]) call', functio
     $spec = generateSpec();
     $schema = inlineValidationBodySchema($spec, '/oa-fixture/inline', 'post');
 
-    expect($schema['properties'])->toHaveKeys(['name', 'email', 'age', 'tags'])
+    expect($schema['properties'])
+        ->toHaveKeys(['name', 'email', 'age', 'tags'])
         ->and($schema['required'])->toContain('name', 'email')
-        ->and($schema['required'])->not->toContain('age')
+        ->and($schema['required'])->not
+        ->toContain('age')
         ->and($schema['properties']['name']['type'])->toBe('string')
         ->and($schema['properties']['name']['maxLength'])->toBe(255)
         ->and($schema['properties']['age']['type'])->toBe(['integer', 'null'])
@@ -64,7 +70,8 @@ it('uses trailing rule comments as field descriptions', function (): void {
     $spec = generateSpec();
     $schema = inlineValidationBodySchema($spec, '/oa-fixture/inline', 'post');
 
-    expect($schema['properties']['name']['description'])->toBe('The display name.')
+    expect($schema['properties']['name']['description'])
+        ->toBe('The display name.')
         ->and($schema['properties']['email']['description'])->toBe('The contact address.');
 });
 
@@ -74,7 +81,8 @@ it('resolves class-constant rules: string ruleset, array ruleset, and array elem
     $spec = generateSpec();
     $schema = inlineValidationBodySchema($spec, '/oa-fixture/constant-rules', 'post');
 
-    expect($schema['properties'])->toHaveKeys(['title', 'status', 'body'])
+    expect($schema['properties'])
+        ->toHaveKeys(['title', 'status', 'body'])
         ->and($schema['properties']['title']['type'])->toBe('string')
         ->and($schema['properties']['title']['maxLength'])->toBe(120)
         ->and($schema['properties']['status']['enum'])->toBe(['draft', 'published'])
@@ -102,7 +110,8 @@ it('emits a request body from the controller $rules property', function (): void
     $spec = generateSpec();
     $schema = inlineValidationBodySchema($spec, '/oa-fixture/from-property', 'put');
 
-    expect($schema['properties'])->toHaveKeys(['title', 'body'])
+    expect($schema['properties'])
+        ->toHaveKeys(['title', 'body'])
         ->and($schema['required'])->toBe(['title'])
         ->and($schema['properties']['title']['maxLength'])->toBe(120);
 });
@@ -113,7 +122,8 @@ it('emits a request body from a keyed rules() method — the BookStack idiom', f
     $spec = generateSpec();
     $schema = inlineValidationBodySchema($spec, '/oa-fixture/from-method', 'post');
 
-    expect($schema['properties'])->toHaveKeys(['name', 'description'])
+    expect($schema['properties'])
+        ->toHaveKeys(['name', 'description'])
         ->and($schema['required'])->toBe(['name']);
 });
 
@@ -132,7 +142,8 @@ it('disambiguates component keys for same-short-name controllers', function (): 
     $adminReference = $spec['paths']['/oa-fixture/admin/coupon']['post']['requestBody']['content']['application/json']['schema']['$ref'];
     $shopReference = $spec['paths']['/oa-fixture/shop/coupon']['post']['requestBody']['content']['application/json']['schema']['$ref'];
 
-    expect($adminReference)->not->toBe($shopReference)
+    expect($adminReference)->not
+        ->toBe($shopReference)
         ->and($adminSchema['properties'])->toHaveKeys(['code', 'discount'])
         ->and($shopSchema['properties'])->toHaveKeys(['code', 'cart_id']);
 });

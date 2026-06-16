@@ -58,7 +58,8 @@ it('still detects a plain binding and an optional segment (regression guard)', f
     $plain = descriptorForClosureRoute('posts/{post}', static fn(string $post): null => null);
     $optional = descriptorForClosureRoute('tags/{tag?}', static fn(?string $tag = null): null => null);
 
-    expect(array_map(static fn($p): string => $p->getName(), $plain->uriParameters))->toBe(['post'])
+    expect(array_map(static fn($p): string => $p->getName(), $plain->uriParameters))
+        ->toBe(['post'])
         ->and(array_map(static fn($p): string => $p->getName(), $optional->uriParameters))->toBe(['tag']);
 });
 

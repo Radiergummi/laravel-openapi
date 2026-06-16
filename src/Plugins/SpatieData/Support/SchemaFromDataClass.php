@@ -589,6 +589,17 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
+     * Whether the collection key is a pure `string` identifier (a map key). The reflected-type path
+     * surfaces a bare `array` / `array<array-key, T>` as an int|string {@see UnionType}, which is
+     * deliberately not a map; `non-empty-string` normalizes to a `string` {@see BuiltinType}.
+     */
+    private function isStringKey(Type $keyType): bool
+    {
+        return $keyType instanceof BuiltinType
+            && $keyType->isIdentifiedBy(TypeIdentifier::STRING);
+    }
+
+    /**
      * Schema for a map's value. Reuses the full property-schema resolution (Data → `$ref`, scalar,
      * nullable/union → `oneOf`, nested collection), so a map value gets the same fidelity as any
      * other property. An opaque `mixed` value has no useful schema, so it degrades to a permissive
@@ -610,17 +621,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         return $this->resolvePropertySchema($valueType, $propertyName);
-    }
-
-    /**
-     * Whether the collection key is a pure `string` identifier (a map key). The reflected-type path
-     * surfaces a bare `array` / `array<array-key, T>` as an int|string {@see UnionType}, which is
-     * deliberately not a map; `non-empty-string` normalizes to a `string` {@see BuiltinType}.
-     */
-    private function isStringKey(Type $keyType): bool
-    {
-        return $keyType instanceof BuiltinType
-            && $keyType->isIdentifiedBy(TypeIdentifier::STRING);
     }
 
     /**

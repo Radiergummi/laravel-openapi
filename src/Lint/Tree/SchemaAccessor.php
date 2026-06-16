@@ -26,24 +26,6 @@ use function Radiergummi\OpenApi\is_undefined;
 final class SchemaAccessor
 {
     /**
-     * @param null|array<string, mixed>|OA\Schema|string $schema
-     */
-    public static function extractRef(OA\Schema|array|string|null $schema): ?string
-    {
-        if ($schema === null || is_undefined($schema)) {
-            return null;
-        }
-
-        $ref = $schema->ref ?? Generator::UNDEFINED;
-
-        if (!is_string($ref) || is_undefined($ref)) {
-            return null;
-        }
-
-        return ComponentReference::name($ref);
-    }
-
-    /**
      * Extract the component name from a Response Reference Object
      * (`$ref: '#/components/responses/{name}'`), or null when the response is not a ref.
      */
@@ -150,10 +132,12 @@ final class SchemaAccessor
             return ['branch' => null, 'uninspectedComposite' => false];
         }
 
-        $nonNullBranches = array_values(array_filter(
-            $branches,
-            static fn(OA\Schema $branch): bool => !self::isPureNullSchema($branch),
-        ));
+        $nonNullBranches = array_values(
+            array_filter(
+                $branches,
+                static fn(OA\Schema $branch): bool => !self::isPureNullSchema($branch),
+            ),
+        );
 
         // One concrete branch (with or without null branches): the nullable shape — unwrap it.
         if (count($nonNullBranches) === 1) {
@@ -216,6 +200,24 @@ final class SchemaAccessor
         }
 
         return is_array($type) && !is_undefined($type) && $type === ['null'];
+    }
+
+    /**
+     * @param null|array<string, mixed>|OA\Schema|string $schema
+     */
+    public static function extractRef(OA\Schema|array|string|null $schema): ?string
+    {
+        if ($schema === null || is_undefined($schema)) {
+            return null;
+        }
+
+        $ref = $schema->ref ?? Generator::UNDEFINED;
+
+        if (!is_string($ref) || is_undefined($ref)) {
+            return null;
+        }
+
+        return ComponentReference::name($ref);
     }
 
     /**

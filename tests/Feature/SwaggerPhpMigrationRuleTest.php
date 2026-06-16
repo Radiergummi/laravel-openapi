@@ -10,13 +10,21 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\LoadBearingAttributeData;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\PlainStructData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAnnotationController;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantDocblockData;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RefChildData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\ServerController;
 
 uses()->group('openapi', 'plugin:spatie-data');
@@ -97,10 +105,12 @@ it('leaves the affected operations unchanged once the redundant annotations are 
         ->document;
 
     expect(responseRefFor($control, 'redundant-attribute'))
-        ->not->toBeNull()
+        ->not
+        ->toBeNull()
         ->toBe(responseRefFor($harvested, 'redundant-attribute'))
         ->and(responseRefFor($control, 'redundant-docblock'))
-        ->not->toBeNull()
+        ->not
+        ->toBeNull()
         ->toBe(responseRefFor($harvested, 'redundant-docblock'));
 });
 
@@ -110,7 +120,7 @@ it('flags an attribute-shape annotation inference reproduces, under --only migra
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData::class);
+        ->toContain(RedundantAttributeData::class);
 });
 
 it('flags a docblock-shape annotation inference reproduces, under --only migration.*', function (): void {
@@ -119,7 +129,7 @@ it('flags a docblock-shape annotation inference reproduces, under --only migrati
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantDocblockData::class);
+        ->toContain(RedundantDocblockData::class);
 });
 
 it('stays off an ordinary (default-level) lint run', function (): void {
@@ -149,7 +159,7 @@ it('does not flag an annotation inference cannot reproduce', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer::class);
+        ->not->toContain(AttributeServer::class);
 });
 
 it('does not flag a class that has no authored annotation', function (): void {
@@ -160,7 +170,7 @@ it('does not flag a class that has no authored annotation', function (): void {
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\PlainStructData::class);
+        ->not->toContain(PlainStructData::class);
 });
 
 it('keeps an annotation carrying a description inference cannot derive', function (): void {
@@ -172,7 +182,7 @@ it('keeps an annotation carrying a description inference cannot derive', functio
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\LoadBearingAttributeData::class);
+        ->not->toContain(LoadBearingAttributeData::class);
 });
 
 it('does not flag a schema another authored annotation still references by name', function (): void {
@@ -184,7 +194,7 @@ it('does not flag a schema another authored annotation still references by name'
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RefChildData::class);
+        ->not->toContain(RefChildData::class);
 });
 
 it('expands a family glob configured in openapi.lint.enabled_rules', function (): void {
@@ -195,15 +205,15 @@ it('expands a family glob configured in openapi.lint.enabled_rules', function ()
     $result = app(LintRunner::class)->run(new LintOptions());
 
     expect(migrationFindingClasses($result))
-        ->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData::class);
+        ->toContain(RedundantAttributeData::class);
 });
 
 it('exposes its fixer and human-readable description', function (): void {
     migrationRuleSetup();
 
-    $rule = app(\Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference::class);
+    $rule = app(OaRedundantWithInference::class);
 
     expect($rule->fixer())
-        ->toBeInstanceOf(\Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer::class)
+        ->toBeInstanceOf(RedundantOaAnnotationFixer::class)
         ->and($rule->description())->toContain('inference');
 });

@@ -46,12 +46,6 @@ final class OverrideMatcher
         'tags',
         'deprecated',
     ];
-
-    /**
-     * @param array<string, array<string, mixed>> $overrides
-     */
-    public function __construct(private readonly array $overrides) {}
-
     /**
      * Whether any override is configured at all. Lets callers skip work entirely on the default
      * install, where `openapi.overrides` is empty.
@@ -59,6 +53,11 @@ final class OverrideMatcher
     public bool $hasOverrides {
         get => $this->overrides !== [];
     }
+
+    /**
+     * @param array<string, array<string, mixed>> $overrides
+     */
+    public function __construct(private readonly array $overrides) {}
 
     /**
      * The override lookup key for a webhook descriptor: the logical webhook name from its

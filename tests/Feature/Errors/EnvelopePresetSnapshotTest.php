@@ -14,9 +14,9 @@ beforeEach(function (): void {
 });
 
 dataset('envelopes', [
-    'none'     => ['none', null, null],
-    'laravel'  => ['laravel', 'application/json', 'Error'],
-    'rfc7807'  => ['rfc7807', 'application/problem+json', 'Problem'],
+    'none' => ['none', null, null],
+    'laravel' => ['laravel', 'application/json', 'Error'],
+    'rfc7807' => ['rfc7807', 'application/problem+json', 'Problem'],
     'json-api' => ['json-api', 'application/vnd.api+json', 'ErrorDocument'],
 ]);
 
@@ -65,8 +65,8 @@ it('renders the configured envelope on error responses', function (
 
     // laravel and rfc7807 use specialized validation schemas; json-api uses uniform ref
     $expectedValidationSchemaKey = match ($preset) {
-        'laravel'  => 'ValidationError',
-        'rfc7807'  => 'ValidationProblem',
+        'laravel' => 'ValidationError',
+        'rfc7807' => 'ValidationProblem',
         'json-api' => 'ErrorDocument',
     };
     expect($validationSchema['$ref'])->toBe('#/components/schemas/' . $expectedValidationSchemaKey);
@@ -81,8 +81,8 @@ it('renders the configured envelope on error responses', function (
 
     // Generic non-validation errors use the preset's base schema
     $expectedNotFoundSchemaKey = match ($preset) {
-        'laravel'  => 'Error',
-        'rfc7807'  => 'Problem',
+        'laravel' => 'Error',
+        'rfc7807' => 'Problem',
         'json-api' => 'ErrorDocument',
     };
     expect($notFoundSchema['$ref'])->toBe('#/components/schemas/' . $expectedNotFoundSchemaKey);

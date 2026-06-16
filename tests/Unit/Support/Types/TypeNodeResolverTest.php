@@ -95,7 +95,8 @@ class TypeNodeResolverFixture
     public function throwsUnion(): void {}
 
     /**
-     * @throws NotARealClassXyz @phpstan-ignore throws.notThrowable (fixture: intentionally unresolvable class to test written-name fallback in throwsClasses())
+     * @throws NotARealClassXyz @phpstan-ignore throws.notThrowable (fixture: intentionally unresolvable class to test
+     *                          written-name fallback in throwsClasses())
      */
     public function throwsUnresolved(): void {}
 }
@@ -211,7 +212,8 @@ it('reports nullability of `?T`, `T|null`, and a non-nullable union', function (
     [$unionNull] = returnTypeNode('unionNullableClass');
     [$multi] = returnTypeNode('multiClass');
 
-    expect($resolver->isNullable($nullable))->toBeTrue()
+    expect($resolver->isNullable($nullable))
+        ->toBeTrue()
         ->and($resolver->isNullable($unionNull))->toBeTrue()
         ->and($resolver->isNullable($multi))->toBeFalse();
 });
@@ -221,7 +223,8 @@ it('unwraps a `T|null` union to its inner type but leaves a multi-class union un
     [$multiNull] = returnTypeNode('multiClassNullable');
 
     // T|null collapses to T (a different node); A|B|null is not a simple nullable, returned as-is.
-    expect($resolver->unwrapNullable($unionNull))->not->toBe($unionNull)
+    expect($resolver->unwrapNullable($unionNull))->not
+        ->toBe($unionNull)
         ->and($resolver->unwrapNullable($multiNull))->toBe($multiNull);
 });
 
@@ -244,14 +247,16 @@ function listElement(string $expression): ?TypeNode
 it('resolves the element type of T[] shorthand', function (): void {
     $element = listElement('string[]');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('string');
 });
 
 it('resolves the element type of list<T>', function (): void {
     $element = listElement('list<int>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('int');
 });
 
@@ -260,28 +265,32 @@ it('resolves single-arg array<T> as a list', function (): void {
     // TypeNodeToSchema::fromGeneric which already does this on the pure-tag path.
     $element = listElement('array<string>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('string');
 });
 
 it('resolves non-empty-list<T> as a list', function (): void {
     $element = listElement('non-empty-list<int>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('int');
 });
 
 it('resolves single-arg non-empty-array<T> as a list', function (): void {
     $element = listElement('non-empty-array<string>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('string');
 });
 
 it('resolves array<int, T> (integer key) as a list', function (): void {
     $element = listElement('array<int, string>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('string');
 });
 
@@ -300,14 +309,16 @@ it('returns null for a bare scalar identifier', function (): void {
 it('resolves the element type through a nullable wrapper', function (): void {
     $element = listElement('?list<string>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('string');
 });
 
 it('resolves single-arg array<T> through a nullable wrapper', function (): void {
     $element = listElement('?array<string>');
 
-    expect($element)->toBeInstanceOf(IdentifierTypeNode::class)
+    expect($element)
+        ->toBeInstanceOf(IdentifierTypeNode::class)
         ->and($element->name)->toBe('string');
 });
 

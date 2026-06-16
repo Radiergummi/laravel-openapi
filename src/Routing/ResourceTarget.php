@@ -13,6 +13,10 @@ namespace Radiergummi\OpenApi\Routing;
  */
 final class ResourceTarget
 {
+    public bool $isAmbiguous {
+        get => $this->resourceClass === null && $this->modelClass === null;
+    }
+
     /**
      * @param null|class-string $resourceClass
      * @param null|class-string $modelClass    Model wrapped by a base `JsonResource`, mutually
@@ -28,8 +32,4 @@ final class ResourceTarget
         public readonly ?string $modelClass = null,
         public readonly bool $paginated = true,
     ) {}
-
-    public bool $isAmbiguous {
-        get => $this->resourceClass === null && $this->modelClass === null;
-    }
 }

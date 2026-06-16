@@ -192,28 +192,6 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     /**
-     * The resolved Model subclass behind the static call's class reference, or null when the class
-     * is dynamic (`$class::find()` — not a literal `Name`), unknown, or not a Model.
-     *
-     * @return null|class-string<Model>
-     */
-    private function resolveModelClass(StaticCall $call): ?string
-    {
-        if (!$call->class instanceof Name) {
-            return null;
-        }
-
-        $class = $call->class->toString();
-
-        if (!class_exists($class) || !is_a($class, Model::class, true)) {
-            return null;
-        }
-
-        /** @var class-string<Model> $class */
-        return $class;
-    }
-
-    /**
      * Notes (once) when a lookup-shaped call exists in the body but was not a direct return — the
      * author learns why nothing was inferred. A body with no lookup call at all stays silent: there
      * is nothing unreadable to report.
@@ -241,6 +219,28 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
                 $method->getName(),
             ),
         );
+    }
+
+    /**
+     * The resolved Model subclass behind the static call's class reference, or null when the class
+     * is dynamic (`$class::find()` — not a literal `Name`), unknown, or not a Model.
+     *
+     * @return null|class-string<Model>
+     */
+    private function resolveModelClass(StaticCall $call): ?string
+    {
+        if (!$call->class instanceof Name) {
+            return null;
+        }
+
+        $class = $call->class->toString();
+
+        if (!class_exists($class) || !is_a($class, Model::class, true)) {
+            return null;
+        }
+
+        /** @var class-string<Model> $class */
+        return $class;
     }
 
     /**

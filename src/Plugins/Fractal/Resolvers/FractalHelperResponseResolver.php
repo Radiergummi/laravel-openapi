@@ -183,6 +183,27 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     // region Call-shape matching
 
     /**
+     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
+     * HTTP response class. Any other named type is Tier-0 territory the signature resolvers own;
+     * union and intersection types are refused rather than arbitrated.
+     */
+    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
+    {
+        $returnType = $method->getReturnType();
+
+        if ($returnType === null) {
+            return true;
+        }
+
+        if (!$returnType instanceof ReflectionNamedType) {
+            return false;
+        }
+
+        return $returnType->isBuiltin()
+            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
+    }
+
+    /**
      * The first recognised Fractal call shape within the scanned statements, or null. The helper
      * and facade shapes resolve from the first top-level `return` expression; the injected-Manager
      * shape resolves from a `new Item(…)` / `new Collection(…)` resource anywhere in the
@@ -265,6 +286,30 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     }
 
     /**
+     * The modelled serializer named by a `->serializeWith(new …Serializer())` argument, or null
+     * when the argument names a serializer outside the three modelled cases — which refuses
+     * rather than documenting the wrong envelope.
+     *
+     * @param array<int, Arg|Node\VariadicPlaceholder> $args
+     */
+    private function serializerFrom(array $args): ?Serializer
+    {
+        $argument = $args[0] ?? null;
+
+        if (!$argument instanceof Arg || !$argument->value instanceof New_) {
+            return null;
+        }
+
+        $class = $argument->value->class;
+
+        if (!$class instanceof Name) {
+            return null;
+        }
+
+        return self::SERIALIZER_CLASSES[$class->toString()] ?? null;
+    }
+
+    /**
      * Whether the receiver of an `->item(…)` / `->collection(…)` link is a Fractal entrypoint:
      * the `fractal()` helper call or the `Fractal::create()` / facade static call. Asserting the
      * concrete root is what keeps the same method names on unrelated receivers from matching.
@@ -289,6 +334,36 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     private function isFacadeClass(string $class): bool
     {
         return in_array($class, self::FACADE_CLASSES, true);
+    }
+
+    /**
+     * The class named by the argument at the given index, when it is a literal `new T(…)` or
+     * `T::class`. Anything else (a variable, a method call, a property) is not statically knowable.
+     *
+     * @param array<int, Arg|Node\VariadicPlaceholder> $args
+     *
+     * @return null|class-string
+     */
+    private function transformerArgument(array $args, int $index): ?string
+    {
+        $argument = $args[$index] ?? null;
+
+        if (!$argument instanceof Arg) {
+            return null;
+        }
+
+        $value = $argument->value;
+
+        $name = match (true) {
+            $value instanceof New_ && $value->class instanceof Name => $value->class->toString(),
+            $value instanceof ClassConstFetch
+            && $value->class instanceof Name
+            && $value->name instanceof Node\Identifier
+            && $value->name->toString() === 'class' => $value->class->toString(),
+            default => null,
+        };
+
+        return $name !== null && class_exists($name) ? $name : null;
     }
 
     /**
@@ -327,90 +402,15 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
         );
     }
 
+    // endregion
+
+    // region Guards & logging
+
     private function isResourceClass(Node $class): bool
     {
         return $class instanceof Name
             && ($class->toString() === self::RESOURCE_ITEM_CLASS
                 || $class->toString() === self::RESOURCE_COLLECTION_CLASS);
-    }
-
-    /**
-     * The class named by the argument at the given index, when it is a literal `new T(…)` or
-     * `T::class`. Anything else (a variable, a method call, a property) is not statically knowable.
-     *
-     * @param array<int, Arg|Node\VariadicPlaceholder> $args
-     *
-     * @return null|class-string
-     */
-    private function transformerArgument(array $args, int $index): ?string
-    {
-        $argument = $args[$index] ?? null;
-
-        if (!$argument instanceof Arg) {
-            return null;
-        }
-
-        $value = $argument->value;
-
-        $name = match (true) {
-            $value instanceof New_ && $value->class instanceof Name => $value->class->toString(),
-            $value instanceof ClassConstFetch
-                && $value->class instanceof Name
-                && $value->name instanceof Node\Identifier
-                && $value->name->toString() === 'class' => $value->class->toString(),
-            default => null,
-        };
-
-        return $name !== null && class_exists($name) ? $name : null;
-    }
-
-    /**
-     * The modelled serializer named by a `->serializeWith(new …Serializer())` argument, or null
-     * when the argument names a serializer outside the three modelled cases — which refuses
-     * rather than documenting the wrong envelope.
-     *
-     * @param array<int, Arg|Node\VariadicPlaceholder> $args
-     */
-    private function serializerFrom(array $args): ?Serializer
-    {
-        $argument = $args[0] ?? null;
-
-        if (!$argument instanceof Arg || !$argument->value instanceof New_) {
-            return null;
-        }
-
-        $class = $argument->value->class;
-
-        if (!$class instanceof Name) {
-            return null;
-        }
-
-        return self::SERIALIZER_CLASSES[$class->toString()] ?? null;
-    }
-
-    // endregion
-
-    // region Guards & logging
-
-    /**
-     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
-     * HTTP response class. Any other named type is Tier-0 territory the signature resolvers own;
-     * union and intersection types are refused rather than arbitrated.
-     */
-    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
-    {
-        $returnType = $method->getReturnType();
-
-        if ($returnType === null) {
-            return true;
-        }
-
-        if (!$returnType instanceof ReflectionNamedType) {
-            return false;
-        }
-
-        return $returnType->isBuiltin()
-            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
     }
 
     /**

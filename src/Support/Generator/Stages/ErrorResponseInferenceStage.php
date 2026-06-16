@@ -173,6 +173,20 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
     // region Body resolution helpers
 
     /**
+     * Composes a response from a literal body schema the contributor read from the controller,
+     * inlined on the operation with a JSON media type. The literal wins over the envelope chain,
+     * so this path never consults a resolver or registers a shared component.
+     */
+    private function buildLiteralBodyResponse(ErrorDescriptor $descriptor): OA\Response
+    {
+        return new OA\Response([
+            'response' => (string) $descriptor->status,
+            'description' => $descriptor->description,
+            'content' => [MediaType::Json->schema($descriptor->bodySchema)],
+        ]);
+    }
+
+    /**
      * Walks the resolver chain for one descriptor. First non-null wins. Returns null when every
      * resolver passes — the stage then emits a bodyless response.
      *
@@ -183,7 +197,8 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
      *
      * {@see \Error}/`TypeError` — programming bugs in first-party or plugin resolver code — are
      * intentionally not caught: they propagate as a loud stack trace rather than disappearing into
-     * a silently missing body, matching the policy of {@see \Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary}.
+     * a silently missing body, matching the policy of {@see
+     * \Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary}.
      */
     private function resolveBody(ErrorDescriptor $descriptor): ?ErrorResponse
     {
@@ -305,20 +320,6 @@ final readonly class ErrorResponseInferenceStage implements SpecStage
         }
 
         return new OA\Response($properties);
-    }
-
-    /**
-     * Composes a response from a literal body schema the contributor read from the controller,
-     * inlined on the operation with a JSON media type. The literal wins over the envelope chain,
-     * so this path never consults a resolver or registers a shared component.
-     */
-    private function buildLiteralBodyResponse(ErrorDescriptor $descriptor): OA\Response
-    {
-        return new OA\Response([
-            'response' => (string) $descriptor->status,
-            'description' => $descriptor->description,
-            'content' => [MediaType::Json->schema($descriptor->bodySchema)],
-        ]);
     }
 
     // endregion

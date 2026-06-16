@@ -14,44 +14,60 @@ beforeEach(function (): void {
     Route::get('ignore-lint/json-resource', [IgnoreLintFixtureController::class, 'viaJsonResource']);
 });
 
-it('suppresses field.name-naming-inconsistent findings on a FormRequest with a class-level IgnoreLint', function (): void {
-    $withoutSuppress = app(LintRunner::class)->run(new LintOptions(
-        level: 3,
-        only: ['field.name-naming-inconsistent'],
-        uriGlob: 'ignore-lint/form-request*',
-        applySuppressions: false,
-    ));
+it(
+    'suppresses field.name-naming-inconsistent findings on a FormRequest with a class-level IgnoreLint',
+    function (): void {
+        $withoutSuppress = app(LintRunner::class)->run(
+            new LintOptions(
+                level: 3,
+                only: ['field.name-naming-inconsistent'],
+                uriGlob: 'ignore-lint/form-request*',
+                applySuppressions: false,
+            ),
+        );
 
-    $this->app->forgetScopedInstances();
+        $this->app->forgetScopedInstances();
 
-    $withSuppress = app(LintRunner::class)->run(new LintOptions(
-        level: 3,
-        only: ['field.name-naming-inconsistent'],
-        uriGlob: 'ignore-lint/form-request*',
-        applySuppressions: true,
-    ));
+        $withSuppress = app(LintRunner::class)->run(
+            new LintOptions(
+                level: 3,
+                only: ['field.name-naming-inconsistent'],
+                uriGlob: 'ignore-lint/form-request*',
+                applySuppressions: true,
+            ),
+        );
 
-    expect($withoutSuppress->findings)->not->toBe([])
-        ->and($withSuppress->findings)->toBe([]);
-});
+        expect($withoutSuppress->findings)->not
+            ->toBe([])
+            ->and($withSuppress->findings)->toBe([]);
+    },
+);
 
-it('suppresses field.name-naming-inconsistent findings on a JsonResource with a class-level IgnoreLint', function (): void {
-    $withoutSuppress = app(LintRunner::class)->run(new LintOptions(
-        level: 3,
-        only: ['field.name-naming-inconsistent'],
-        uriGlob: 'ignore-lint/json-resource*',
-        applySuppressions: false,
-    ));
+it(
+    'suppresses field.name-naming-inconsistent findings on a JsonResource with a class-level IgnoreLint',
+    function (): void {
+        $withoutSuppress = app(LintRunner::class)->run(
+            new LintOptions(
+                level: 3,
+                only: ['field.name-naming-inconsistent'],
+                uriGlob: 'ignore-lint/json-resource*',
+                applySuppressions: false,
+            ),
+        );
 
-    $this->app->forgetScopedInstances();
+        $this->app->forgetScopedInstances();
 
-    $withSuppress = app(LintRunner::class)->run(new LintOptions(
-        level: 3,
-        only: ['field.name-naming-inconsistent'],
-        uriGlob: 'ignore-lint/json-resource*',
-        applySuppressions: true,
-    ));
+        $withSuppress = app(LintRunner::class)->run(
+            new LintOptions(
+                level: 3,
+                only: ['field.name-naming-inconsistent'],
+                uriGlob: 'ignore-lint/json-resource*',
+                applySuppressions: true,
+            ),
+        );
 
-    expect($withoutSuppress->findings)->not->toBe([])
-        ->and($withSuppress->findings)->toBe([]);
-});
+        expect($withoutSuppress->findings)->not
+            ->toBe([])
+            ->and($withSuppress->findings)->toBe([]);
+    },
+);

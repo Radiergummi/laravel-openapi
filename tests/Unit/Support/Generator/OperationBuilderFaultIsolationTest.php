@@ -51,11 +51,14 @@ function faultIsolationDescriptor(): ActionDescriptor
 {
     Route::get('/fault-isolation', [AuthoringFixtureController::class, 'publicAction']);
 
-    $descriptors = array_values(array_filter(
-        iterator_to_array(app(RouteIntrospector::class)->discover(), false),
-        static fn(ActionDescriptor $d): bool => $d->method?->getName() === 'publicAction'
-            && $d->controller?->getName() === AuthoringFixtureController::class,
-    ));
+    $descriptors = array_values(
+        array_filter(
+            iterator_to_array(app(RouteIntrospector::class)->discover(), false),
+            static fn(ActionDescriptor $d): bool
+                => $d->method?->getName() === 'publicAction'
+                && $d->controller?->getName() === AuthoringFixtureController::class,
+        ),
+    );
 
     expect($descriptors)->toHaveCount(1);
 
@@ -67,7 +70,7 @@ function faultIsolationDescriptor(): ActionDescriptor
 // region Exception isolation
 
 it('skips a primary-response resolver that throws and still emits the fallback 200', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $throwing = new class () implements PrimaryResponseResolver {
         public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
         {
@@ -82,7 +85,8 @@ it('skips a primary-response resolver that throws and still emits the fallback 2
 
     $op = $builder->build(faultIsolationDescriptor(), []);
 
-    expect($op->responses[0]->response)->toBe('200')
+    expect($op->responses[0]->response)
+        ->toBe('200')
         ->and($logger->records)->toHaveCount(1)
         ->and($logger->records[0]['message'])->toContain('fault-isolation')
         ->and($logger->records[0]['message'])->toContain('resolver blew up');
@@ -114,7 +118,8 @@ it('keeps the surviving resolvers output when one query-parameter resolver throw
 
     $names = array_map(static fn(OA\Parameter $p): string => (string) $p->name, $op->parameters);
 
-    expect($names)->toContain('survivor')
+    expect($names)
+        ->toContain('survivor')
         ->and($logger->records)->toHaveCount(1);
 });
 
@@ -147,16 +152,21 @@ it('dedups query parameters colliding on name+in across resolvers, last resolver
 
     $op = $builder->build(faultIsolationDescriptor(), []);
 
-    $queryParams = array_values(array_filter(
-        $op->parameters,
-        static fn(OA\Parameter $p): bool => $p->in === 'query',
-    ));
-    $sort = array_values(array_filter(
-        $queryParams,
-        static fn(OA\Parameter $p): bool => $p->name === 'sort',
-    ));
+    $queryParams = array_values(
+        array_filter(
+            $op->parameters,
+            static fn(OA\Parameter $p): bool => $p->in === 'query',
+        ),
+    );
+    $sort = array_values(
+        array_filter(
+            $queryParams,
+            static fn(OA\Parameter $p): bool => $p->name === 'sort',
+        ),
+    );
 
-    expect($sort)->toHaveCount(1)
+    expect($sort)
+        ->toHaveCount(1)
         ->and($sort[0]->description)->toBe('from second')
         ->and(array_map(static fn(OA\Parameter $p): string => (string) $p->name, $queryParams))
         ->toContain('only-first');
@@ -167,7 +177,7 @@ it('dedups query parameters colliding on name+in across resolvers, last resolver
 // region Programming errors propagate
 
 it('lets a TypeError from a resolver abort the build instead of swallowing it', function (): void {
-    $logger   = recordingLogger();
+    $logger = recordingLogger();
     $throwing = new class () implements PrimaryResponseResolver {
         public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
         {
@@ -175,7 +185,7 @@ it('lets a TypeError from a resolver abort the build instead of swallowing it', 
         }
     };
 
-    $builder    = builderWithResolvers(new ResolverFaultBoundary($logger), primaryResponseResolvers: [$throwing]);
+    $builder = builderWithResolvers(new ResolverFaultBoundary($logger), primaryResponseResolvers: [$throwing]);
     $descriptor = faultIsolationDescriptor();
 
     expect(fn(): mixed => $builder->build($descriptor, []))->toThrow(TypeError::class);

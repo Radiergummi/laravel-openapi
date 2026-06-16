@@ -45,9 +45,9 @@ it('emits no finding when paths are consistent', function (array $pathUris): voi
     expect($findings)->toBe([]);
 })->with([
     'all without trailing slash' => [['/users', '/posts', '/comments']],
-    'all with trailing slash'    => [['/users/', '/posts/', '/comments/']],
-    'root path is skipped'       => [['/', '/users']],
-    'no paths at all'            => [[]],
+    'all with trailing slash' => [['/users/', '/posts/', '/comments/']],
+    'root path is skipped' => [['/', '/users']],
+    'no paths at all' => [[]],
 ]);
 
 it('emits a finding when paths are inconsistent', function (): void {

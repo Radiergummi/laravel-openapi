@@ -217,6 +217,32 @@ final class ReturnExpressionResourceReader
     }
 
     /**
+     * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
+     * `JsonResource` subclass that is not a `ResourceCollection` (a collection class names no
+     * item resource). The base `JsonResource` and abstract subclasses carry no field shape, so
+     * accepting them would silently document an empty schema where refusing keeps the
+     * `resource.response-ambiguous` signal alive.
+     *
+     * @return null|class-string<JsonResource>
+     */
+    private function concreteResourceClass(?string $candidate): ?string
+    {
+        if (
+            $candidate === null
+            || $candidate === JsonResource::class
+            || !class_exists($candidate)
+            || !is_a($candidate, JsonResource::class, allow_string: true)
+            || is_a($candidate, ResourceCollection::class, allow_string: true)
+            || new ReflectionClass($candidate)->isAbstract()
+        ) {
+            return null;
+        }
+
+        /** @var class-string<JsonResource> $candidate */
+        return $candidate;
+    }
+
+    /**
      * Derives pagination evidence from the method body: `true` only when the body's single
      * unconditional return expression is (or unwraps to) a recognised collection shape whose
      * source visibly ends in a `paginate()`-family call. Recognised shapes:
@@ -276,32 +302,6 @@ final class ReturnExpressionResourceReader
         }
 
         return false;
-    }
-
-    /**
-     * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
-     * `JsonResource` subclass that is not a `ResourceCollection` (a collection class names no
-     * item resource). The base `JsonResource` and abstract subclasses carry no field shape, so
-     * accepting them would silently document an empty schema where refusing keeps the
-     * `resource.response-ambiguous` signal alive.
-     *
-     * @return null|class-string<JsonResource>
-     */
-    private function concreteResourceClass(?string $candidate): ?string
-    {
-        if (
-            $candidate === null
-            || $candidate === JsonResource::class
-            || !class_exists($candidate)
-            || !is_a($candidate, JsonResource::class, allow_string: true)
-            || is_a($candidate, ResourceCollection::class, allow_string: true)
-            || new ReflectionClass($candidate)->isAbstract()
-        ) {
-            return null;
-        }
-
-        /** @var class-string<JsonResource> $candidate */
-        return $candidate;
     }
 
     /**
@@ -481,6 +481,33 @@ final class ReturnExpressionResourceReader
     }
 
     /**
+     * Whether the expression's outermost call is a `paginate()`-family method.
+     */
+    private function endsInPaginatingCall(Expr $expression): bool
+    {
+        while (
+            $expression instanceof MethodCall
+            && $expression->name instanceof Identifier
+            && in_array(
+                $expression->name->toLowerString(),
+                self::PAGINATOR_PRESERVING_CHAIN_METHODS,
+                true,
+            )
+        ) {
+            $expression = $expression->var;
+        }
+
+        $name = match (true) {
+            $expression instanceof MethodCall => $expression->name,
+            $expression instanceof StaticCall => $expression->name,
+            default => null,
+        };
+
+        return $name instanceof Identifier
+            && PaginatorKind::fromPaginatingMethod($name->toString()) !== null;
+    }
+
+    /**
      * Matches the return expression against the whitelisted shapes, unwrapping
      * resource-preserving chain links first. Every refusal path notes its reason.
      *
@@ -543,6 +570,10 @@ final class ReturnExpressionResourceReader
         }
     }
 
+    // endregion
+
+    // region Class & type resolution
+
     /**
      * `X::collection(...)` → collection of `X`; `X::make(...)` → single `X`.
      */
@@ -578,37 +609,6 @@ final class ReturnExpressionResourceReader
         }
 
         return new ResourceTarget($resourceClass, isCollection: false);
-    }
-
-    // endregion
-
-    // region Class & type resolution
-
-    /**
-     * Whether the expression's outermost call is a `paginate()`-family method.
-     */
-    private function endsInPaginatingCall(Expr $expression): bool
-    {
-        while (
-            $expression instanceof MethodCall
-            && $expression->name instanceof Identifier
-            && in_array(
-                $expression->name->toLowerString(),
-                self::PAGINATOR_PRESERVING_CHAIN_METHODS,
-                true,
-            )
-        ) {
-            $expression = $expression->var;
-        }
-
-        $name = match (true) {
-            $expression instanceof MethodCall => $expression->name,
-            $expression instanceof StaticCall => $expression->name,
-            default => null,
-        };
-
-        return $name instanceof Identifier
-            && PaginatorKind::fromPaginatingMethod($name->toString()) !== null;
     }
 
     /**

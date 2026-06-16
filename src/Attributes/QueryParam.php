@@ -27,17 +27,19 @@ final readonly class QueryParam extends FieldAttribute
      * @param null|non-empty-string                                                        $description
      * @param null|OpenApiPrimitiveType                                                    $type
      * @param null|non-empty-string                                                        $format
-     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum                 Allowed values,
-     *                                                                                                           or a backed-enum
-     *                                                                                                           class-string; renders as a
-     *                                                                                                           dropdown.
+     * @param null|array<int, BackedEnum|int|string>|class-string<BackedEnum>|FieldDefault $enum
+     *                                                                                                           Allowed values, or a
+     *                                                                                                           backed-enum class-string;
+     *                                                                                                           renders as a dropdown.
      * @param null|int<0, max>                                                             $minLength
      * @param null|int<0, max>                                                             $maxLength
      * @param null|non-empty-string                                                        $pattern
      * @param null|int<0, max>                                                             $minItems
      * @param null|int<0, max>                                                             $maxItems
-     * @param null|array<string, mixed>                                                    $x                    Vendor extensions (`x-*`).
-     * @param null|bool|string                                                             $additionalProperties Map-value override.
+     * @param null|array<string, mixed>                                                    $x                    Vendor
+     *                                                                                                           extensions (`x-*`).
+     * @param null|bool|string                                                             $additionalProperties Map-value
+     *                                                                                                           override.
      */
     public function __construct(
         public string $name,

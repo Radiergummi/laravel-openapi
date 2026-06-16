@@ -7,8 +7,8 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 
-use function array_map;
 use function array_values;
+use function is_array;
 use function is_array;
 
 /**

@@ -50,7 +50,8 @@ function makeComponentForRequiredProps(string $schemaName, array $properties, ?a
 it('reports its id and level', function (): void {
     $rule = new SchemaRequiredWithoutProperty();
 
-    expect($rule->id())->toBe('schema.required-without-property')
+    expect($rule->id())
+        ->toBe('schema.required-without-property')
         ->and($rule->level())->toBe(0);
 });
 
@@ -71,7 +72,8 @@ it('emits a finding when a required property does not exist', function (): void 
         new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.required-without-property')
         ->and($findings[0]->level)->toBe(0)
         ->and($findings[0]->message)->toContain('User')
@@ -86,7 +88,8 @@ it('emits a finding per missing required property', function (): void {
         new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(2)
+    expect($findings)
+        ->toHaveCount(2)
         ->and($findings[0]->message)->toContain('total')
         ->and($findings[1]->message)->toContain('currency');
 });
@@ -108,6 +111,7 @@ it('emits a finding when schema has required but no properties at all', function
         new SchemaRequiredWithoutProperty()->checkComponentSchema($component, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('phantom');
 });

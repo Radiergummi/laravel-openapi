@@ -43,7 +43,8 @@ it('emits a 404 for a static Model::findOrFail()', function (): void {
         findOrFailActionDescriptor(FindOrFailFixtureController::class, 'staticFindOrFail'),
     );
 
-    expect($result)->toHaveCount(1)
+    expect($result)
+        ->toHaveCount(1)
         ->and($result[0]->status)->toBe(404)
         ->and($result[0]->description)->toBe('Resource not found')
         ->and($result[0]->exceptionClass)->toBe(ModelNotFoundException::class);
@@ -54,7 +55,8 @@ it('emits a 404 for a query-builder ->findOrFail()', function (): void {
         findOrFailActionDescriptor(FindOrFailFixtureController::class, 'queryFindOrFail'),
     );
 
-    expect($result)->toHaveCount(1)
+    expect($result)
+        ->toHaveCount(1)
         ->and($result[0]->status)->toBe(404);
 });
 
@@ -63,7 +65,8 @@ it('emits a 404 for a ->firstOrFail()', function (): void {
         findOrFailActionDescriptor(FindOrFailFixtureController::class, 'firstOrFail'),
     );
 
-    expect($result)->toHaveCount(1)
+    expect($result)
+        ->toHaveCount(1)
         ->and($result[0]->status)->toBe(404);
 });
 
@@ -72,7 +75,8 @@ it('finds a findOrFail inside an if guard', function (): void {
         findOrFailActionDescriptor(FindOrFailFixtureController::class, 'findOrFailInGuard'),
     );
 
-    expect($result)->toHaveCount(1)
+    expect($result)
+        ->toHaveCount(1)
         ->and($result[0]->status)->toBe(404);
 });
 
@@ -81,7 +85,8 @@ it('matches the method name case-insensitively', function (): void {
         findOrFailActionDescriptor(FindOrFailFixtureController::class, 'mixedCaseFindOrFail'),
     );
 
-    expect($result)->toHaveCount(1)
+    expect($result)
+        ->toHaveCount(1)
         ->and($result[0]->status)->toBe(404);
 });
 
@@ -91,7 +96,8 @@ it('emits a single 404 even when several failing lookups are present', function 
     );
 
     // The framework throws the same ModelNotFoundException regardless of which lookup fails.
-    expect($result)->toHaveCount(1)
+    expect($result)
+        ->toHaveCount(1)
         ->and($result[0]->status)->toBe(404);
 });
 

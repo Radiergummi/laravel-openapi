@@ -15,6 +15,13 @@ namespace Radiergummi\OpenApi\Lint\Fix;
 final class FixResult
 {
     /**
+     * Whether any fix was (or would be) applied.
+     */
+    public bool $hasChanges {
+        get => $this->applied !== [];
+    }
+
+    /**
      * @param list<Fix>    $applied
      * @param list<Fix>    $skipped
      * @param list<string> $modifiedFiles
@@ -24,11 +31,4 @@ final class FixResult
         public readonly array $skipped,
         public readonly array $modifiedFiles,
     ) {}
-
-    /**
-     * Whether any fix was (or would be) applied.
-     */
-    public bool $hasChanges {
-        get => $this->applied !== [];
-    }
 }

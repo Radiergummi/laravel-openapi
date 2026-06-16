@@ -46,6 +46,18 @@ final readonly class SuppressionDirective
     }
 
     /**
+     * Compare the directive's target class to the finding's recorded source class. The walker
+     * stamps `CONTEXT_SOURCE_CLASS` on findings that descend from a known controller class or
+     * component schema, so a class-scope directive can match them structurally.
+     */
+    private function classMatches(Finding $finding): bool
+    {
+        $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
+
+        return $sourceClass !== null && $sourceClass === $this->targetClass;
+    }
+
+    /**
      * Compare a finding's source file to the directive's, normalizing via realpath when the raw
      * strings differ.
      */
@@ -63,18 +75,6 @@ final readonly class SuppressionDirective
         $b = realpath($this->file);
 
         return $a !== false && $b !== false && $a === $b;
-    }
-
-    /**
-     * Compare the directive's target class to the finding's recorded source class. The walker
-     * stamps `CONTEXT_SOURCE_CLASS` on findings that descend from a known controller class or
-     * component schema, so a class-scope directive can match them structurally.
-     */
-    private function classMatches(Finding $finding): bool
-    {
-        $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
-
-        return $sourceClass !== null && $sourceClass === $this->targetClass;
     }
 
     /**
