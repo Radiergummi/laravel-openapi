@@ -80,6 +80,7 @@ use Radiergummi\OpenApi\Lint\Rules\ResponseRefUnresolvable;
 use Radiergummi\OpenApi\Lint\Rules\ResponseStatusUnconventional;
 use Radiergummi\OpenApi\Lint\Rules\ResponseSuccessEmptyBody;
 use Radiergummi\OpenApi\Lint\Rules\SchemaAllOfTypeConflict;
+use Radiergummi\OpenApi\Lint\Rules\SchemaClassAttributeConflictsWithFieldAttributes;
 use Radiergummi\OpenApi\Lint\Rules\SchemaCompositeFieldsUninspected;
 use Radiergummi\OpenApi\Lint\Rules\SchemaConstraintsMissing;
 use Radiergummi\OpenApi\Lint\Rules\SchemaDescriptionMissing;
@@ -167,6 +168,7 @@ final class BaselineRegistration
         OperationIdMissing::class,
         SchemaAllOfTypeConflict::class,
         SchemaRawKeywordUnsupported::class,
+        SchemaClassAttributeConflictsWithFieldAttributes::class,
         ParameterQueryNoSchema::class,
         TagDuplicate::class,
         ResponseDescriptionMissing::class,

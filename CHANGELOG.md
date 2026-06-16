@@ -33,6 +33,7 @@ All notable changes to this project are documented here.
 - Pagination query parameters from a `->paginate()`/`->simplePaginate()`/`->cursorPaginate()` body call (Tier-1): offset paginators emit `page`/`per_page`, cursor paginators emit `cursor`; an explicit `#[QueryParam]` wins for its name. (#31)
 - Success-response model schema inferred from a directly-returned `Model::find()`/`findOrFail()`/`firstOrFail()` call in the controller body (Tier-1), feeding the existing Eloquent model→schema reader; composes with the `findOrFail()` 404. (#97)
 - Fractal responses inferred from the `fractal()` helper, the `Spatie\Fractalistic\Fractal` facade, and injected-`Manager` `new Item`/`new Collection` resource construction (Tier-1 body scan), with `item`/`collection` envelopes and `serializeWith(...)` serializer detection; the bare two-argument `fractal($data, new T())` form, a variable transformer, and an unrecognised serializer all degrade with a note, and `#[FractalResponse]` remains authoritative. (#263)
+- `schema.class-attribute-conflicts-with-field-attributes` lint rule (advisory): flags a payload/return class carrying a class-level `#[RawSchema]` alongside property-level field attributes (`#[RequestField]`/`#[ResponseField]`/`#[ResourceField]`), which the raw schema replaces wholesale, leaving the field attributes dead. (#351)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.

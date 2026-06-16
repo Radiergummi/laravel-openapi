@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Fixtures\RawSchema;
 
 use Illuminate\Routing\Controller;
+use Radiergummi\OpenApi\Tests\Fixtures\PropertyFixtureData;
 
 class RawSchemaController extends Controller
 {
@@ -34,6 +35,11 @@ class RawSchemaController extends Controller
     }
 
     public function noPayload(): array
+    {
+        return [];
+    }
+
+    public function fieldAttributeOnly(PropertyFixtureData $payload): array
     {
         return [];
     }

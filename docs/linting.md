@@ -515,6 +515,7 @@ is enabled.
 | `query-builder.filter-duplicate` | 3 | Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.) |
 | `query-builder.filter-type-missing` | 3 | An #[AllowedFilter] is declared without an explicit value type. (QueryBuilder plugin.) |
 | `response.status-unconventional` | 3 | Response uses a status code that is unusual for the HTTP method. |
+| `schema.class-attribute-conflicts-with-field-attributes` | 3 | A class carries a class-level #[RawSchema] together with field-level attributes (#[RequestField]/#[ResponseField]/#[ResourceField]); the raw schema replaces the inferred body wholesale, so the field attributes have no effect. |
 | `schema.composite-fields-uninspected` | 3 | Schema is a oneOf/anyOf of multiple alternatives whose fields are not inspected by field-level rules (property, component schema, response body, or request body). |
 | `scope.overly-broad` | 3 | Operation requires a scope that is broader than the resource warrants. |
 | `spec.config-orphaned` | 3 | A configured spec has zero assigned routes after evaluation. |
