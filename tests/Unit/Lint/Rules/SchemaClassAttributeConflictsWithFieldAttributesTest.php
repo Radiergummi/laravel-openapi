@@ -42,8 +42,10 @@ it('flags a class carrying both #[RawSchema] and a field attribute', function ()
         ->and($findings[0]->ruleId)->toBe('schema.class-attribute-conflicts-with-field-attributes')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)
-        ->toContain('annotated')
-        ->and($findings[0]->message)->toContain('RequestField');
+        ->toContain('replaces the inferred body')
+        ->toContain('have no effect')
+        ->toContain('$annotated')
+        ->toContain('#[RequestField]');
 });
 
 it('stays silent for a #[RawSchema] without field attributes', function (): void {

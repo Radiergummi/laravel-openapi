@@ -100,6 +100,8 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
         $dead = [];
 
         foreach ($reflection->getProperties() as $property) {
+            // The FieldAttribute base catches any property-level field attribute. Only RequestField
+            // and ResponseField target properties; the param attributes cannot legally land here.
             $attributes = $property->getAttributes(
                 FieldAttribute::class,
                 ReflectionAttribute::IS_INSTANCEOF,
