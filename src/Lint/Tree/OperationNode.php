@@ -22,11 +22,10 @@ final class OperationNode implements Node
     private ?Node $parent = null;
 
     /**
-     * @param string                   $pathUri         For API operations: the route URI.
-     *                                                  For webhooks: the webhook name.
-     * @param list<ParameterNode>      $parameters      Path parameters
+     * @param string                   $pathUri         Route URI (or webhook name for webhooks).
+     * @param list<ParameterNode>      $parameters
      * @param list<QueryParameterNode> $queryParameters
-     * @param list<ResponseNode>       $responses       All responses
+     * @param list<ResponseNode>       $responses
      * @param list<array{
      *     scheme: string,
      *     scopes: list<string>
@@ -54,7 +53,7 @@ final class OperationNode implements Node
     /**
      * @throws LogicException if called more than once.
      *
-     * @internal Called exactly once by SpecTreeBuilder after construction.
+     * @internal
      */
     public function linkParent(Node $parent): void
     {
@@ -87,8 +86,6 @@ final class OperationNode implements Node
     }
 
     /**
-     * Success responses (2xx). "Default" responses are excluded.
-     *
      * @return list<ResponseNode>
      */
     public function successResponses(): array
@@ -102,8 +99,6 @@ final class OperationNode implements Node
     }
 
     /**
-     * Error responses (4xx/5xx). "Default" responses are excluded.
-     *
      * @return list<ResponseNode>
      */
     public function errorResponses(): array
@@ -116,9 +111,7 @@ final class OperationNode implements Node
         );
     }
 
-    /**
-     * Returns true when the controller method or its declaring class carries `#[PublicEndpoint]`.
-     */
+    /** True when the method or its declaring class carries `#[PublicEndpoint]`. */
     public function hasPublicEndpointAttribute(): bool
     {
         if ($this->descriptor?->method !== null) {
@@ -146,17 +139,13 @@ final class OperationNode implements Node
         return false;
     }
 
-    /**
-     * Convenience: source file path.
-     */
+    /** Source file path of the action, or null when unavailable. */
     public function file(): ?string
     {
         return $this->descriptor?->actionReflector?->getFileName() ?: null;
     }
 
-    /**
-     * Convenience: source line.
-     */
+    /** Starting line of the action in its source file, or null when unavailable. */
     public function line(): ?int
     {
         return $this->descriptor?->actionReflector?->getStartLine() ?: null;

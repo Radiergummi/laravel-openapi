@@ -14,8 +14,7 @@ use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 /**
  * Writes `components.securitySchemes` from {@see OperationBuilder::buildSecuritySchemes()}.
  *
- * Always runs (even if no schemes are emitted) because the existing generator always sets the
- * `securitySchemes` key — preserving that means downstream consumers' fixture diffs stay clean.
+ * Always runs even when no schemes are emitted, so downstream consumers always see the key.
  *
  * @internal
  */

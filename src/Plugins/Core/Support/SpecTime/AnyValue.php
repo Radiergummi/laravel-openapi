@@ -14,20 +14,12 @@ use Stringable;
 use Traversable;
 
 /**
- * A permissive stand-in value used while introspecting consumer code that expects an HTTP request
- * context — typically a {@see \Illuminate\Foundation\Http\FormRequest}'s `rules()` body reading
- * `$this->route('foo')->bar` or `$this->user()->customer_id`.
+ * Permissive stub used while calling a FormRequest's `rules()` outside of an HTTP context.
+ * Every magic-method chain returns the same singleton; callers never throw.
  *
- * Every magic-method path either returns the same singleton or an empty/zero value, so chains of
- * arbitrary depth resolve without throwing. The stub is meaningless as a value, but the rules
- * array's *structure* (keys, types, required-ness) is what the schema generator reads.
+ * Branches on runtime state (`if ($this->user()->isAdmin())`) always take the truthy path.
  *
- * Limitation: `rules()` bodies that branch on runtime state (`if ($this->user()->isAdmin())`)
- * will take the truthy branch (PHP's bool-cast of any non-null object). The spec then reflects
- * the truthy branch's rules; the falsy branch is not introspected. Document the FormRequest with
- * a non-branching `rules()` body, or accept the limitation and ship the truthy branch's schema.
- *
- * @internal Not part of the public extension surface.
+ * @internal
  *
  * @implements ArrayAccess<mixed, mixed>
  * @implements IteratorAggregate<mixed, mixed>
@@ -48,10 +40,7 @@ final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonS
         return $this;
     }
 
-    public function __set(mixed $offset, mixed $value): void
-    {
-        // No-op: writes are not meaningful on a stub.
-    }
+    public function __set(mixed $offset, mixed $value): void {}
 
     /**
      * @param array<int, mixed> $arguments
@@ -103,14 +92,8 @@ final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonS
     }
 
     #[Override]
-    public function offsetSet(mixed $offset, mixed $value): void
-    {
-        // No-op: writes are not meaningful on a stub.
-    }
+    public function offsetSet(mixed $offset, mixed $value): void {}
 
     #[Override]
-    public function offsetUnset(mixed $offset): void
-    {
-        // No-op: writes are not meaningful on a stub.
-    }
+    public function offsetUnset(mixed $offset): void {}
 }

@@ -7,7 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Attributes;
 use Attribute;
 
 /**
- * Declares one Fractal include — an `availableIncludes` entry, or a
+ * Declares one Fractal include: an `availableIncludes` entry, or a
  * `defaultIncludes` entry when `default` is true. Repeatable, class-level on
  * the transformer.
  *

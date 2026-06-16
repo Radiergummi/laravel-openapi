@@ -24,11 +24,6 @@ use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
  */
 final class RequestBodySchemaDegraded implements Rule
 {
-    /**
-     * fixHint: emitted by SchemaFromFormRequest alongside every finding.
-     */
-    public const string FIX_HINT = 'rules() threw during introspection. Common causes: a type-check against runtime state (e.g. `instanceof User`), a call into a container service that is not bound at spec-time, or a `match`/`switch` on a runtime value. Refactor rules() to depend only on the request payload, or suppress this finding on the FormRequest class with `#[IgnoreLint(\'request-body.schema-degraded\', reason: \'…\')]` and document the limitation in the API description.';
-
     #[Override]
     public function id(): string
     {

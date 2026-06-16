@@ -16,18 +16,21 @@ it('derives a pluralised tag from the controller short name, stripping the Contr
     expect((new TagDeriver())->derive($descriptor))->toBe('AuthFixtures');
 });
 
-it('falls back to the StudlyCased last route-group prefix segment for a controllerless route', function (string $prefix, string $expected): void {
-    $route = new Route(['GET'], $prefix . '/x', ['prefix' => $prefix]);
-    $descriptor = new ActionDescriptor(
-        route: $route,
-        controller: null,
-        method: null,
-        summary: null,
-        description: null,
-    );
+it(
+    'falls back to the StudlyCased last route-group prefix segment for a controllerless route',
+    function (string $prefix, string $expected): void {
+        $route = new Route(['GET'], $prefix . '/x', ['prefix' => $prefix]);
+        $descriptor = new ActionDescriptor(
+            route: $route,
+            controller: null,
+            method: null,
+            summary: null,
+            description: null,
+        );
 
-    expect((new TagDeriver())->derive($descriptor))->toBe($expected);
-})->with([
+        expect((new TagDeriver())->derive($descriptor))->toBe($expected);
+    },
+)->with([
     'single-segment prefix' => ['webhooks', 'Webhooks'],
     'multi-segment prefix uses the last segment' => ['api/v1/billing', 'Billing'],
 ]);

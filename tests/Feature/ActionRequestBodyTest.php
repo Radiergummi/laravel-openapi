@@ -36,7 +36,10 @@ class InlineSchemaController extends Controller
     #[OpenApi\Response(
         status: 200,
         description: 'Search result',
-        schema: ['type' => 'object', 'properties' => ['uuid' => ['type' => 'string'], 'status' => ['type' => 'string']]],
+        schema: [
+            'type' => 'object',
+            'properties' => ['uuid' => ['type' => 'string'], 'status' => ['type' => 'string']],
+        ],
     )]
     public function show(): JsonResponse
     {
@@ -76,7 +79,8 @@ it('OAPI-010: extracts request body from Action constructor Data parameter', fun
     // The POST operation must reference it as the request body.
     $requestBody = $spec['paths']['/oa-p1b2/action-pattern']['post']['requestBody'] ?? null;
 
-    expect($requestBody)->not->toBeNull()
+    expect($requestBody)->not
+        ->toBeNull()
         ->and($requestBody['content']['application/json']['schema']['$ref'])
         ->toBe('#/components/schemas/ActionFixtureData');
 });
@@ -91,7 +95,8 @@ it('OAPI-011: inline schema array on Response attribute produces inline 200 sche
 
     $response = $spec['paths']['/oa-p1b2/inline-schema']['get']['responses']['200'] ?? null;
 
-    expect($response)->not->toBeNull()
+    expect($response)->not
+        ->toBeNull()
         ->and($response['description'])->toBe('Search result')
         ->and($response['content']['application/json']['schema']['type'])->toBe('object')
         ->and($response['content']['application/json']['schema']['properties']['uuid']['type'])->toBe('string')
@@ -110,7 +115,8 @@ it('OAPI-011: inline schema wins over ref when both provided', function (): void
 
     $response = $spec['paths']['/oa-p1b2/inline-schema-ref']['get']['responses']['404'] ?? null;
 
-    expect($response)->not->toBeNull()
+    expect($response)->not
+        ->toBeNull()
         ->and($response['description'])->toBe('Not found')
         ->and($response['content']['application/json']['schema']['$ref'])
         ->toBe('#/components/schemas/ActionFixtureData');

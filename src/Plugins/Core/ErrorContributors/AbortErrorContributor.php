@@ -34,30 +34,16 @@ use function sprintf;
 
 /**
  * Infers error responses from `abort()`, `abort_if()`, and `abort_unless()` calls in the
- * controller method body — a Tier-1 bounded scan (epic #5).
- *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
- * {@see ConditionalContextPolicy::IncludeConditionalContexts}: an `abort(403)` inside an `if`
- * guard is exactly the outcome worth documenting. The literal integer status becomes the response
- * status; a literal string message becomes its description (otherwise the standard reason phrase
- * is used). The condition argument of `abort_if` / `abort_unless` is never analysed.
- *
- * Degradation contract: a matched call whose status is not a compile-time integer literal is
- * skipped with a generation-log note (`#[Response]` is the escape hatch); a literal status outside
- * 400–599 (e.g. `abort(302)` redirects) is silently out of scope. Explicit `#[Response]`
- * attributes win in the stage that drives the contributor chain — not re-implemented here.
+ * controller body. Scans the first {@see self::STATEMENT_LIMIT} statements including conditional
+ * contexts. Non-literal statuses are skipped with a log note; statuses outside 400-599 are
+ * ignored. Use `#[Response]` when inference is insufficient.
  */
 #[Scoped]
 final readonly class AbortErrorContributor implements ErrorResponseContributor
 {
     public const int STATEMENT_LIMIT = 10;
 
-    /**
-     * The whitelisted helpers, mapped to their parameter names in declared order. The position of
-     * `code` is the status argument and `message` follows it; `abort_if` / `abort_unless` carry a
-     * leading `boolean` condition that shifts both by one. The names let a named-argument call
-     * (`abort(code: 403)`) resolve to the same position as a positional one.
-     */
+    /** Parameters in declared order; `abort_if`/`abort_unless` have a leading `boolean` arg. */
     private const array HELPER_PARAMETERS = [
         'abort' => ['code', 'message'],
         'abort_if' => ['boolean', 'code', 'message'],
@@ -117,14 +103,8 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
     // region Call-shape matching
 
     /**
-     * Returns the whitelisted helper name the call resolves to, or null when it is not one.
-     *
-     * Names arrive resolved by the scanner's NameResolver pass. A fully-qualified name matches
-     * when it is the root-namespace helper itself (`\abort`); an import aliasing some other
-     * function resolves to that function's FQCN and falls through. An *unqualified* name in a
-     * namespaced file stays unresolved (PHP's runtime fallback), so it matches as Laravel's
-     * global helper — unless a same-namespace function of that name is actually defined, in
-     * which case PHP would call the user's function and we must not document it.
+     * Returns the whitelisted helper name, or null. A same-namespace function of the same name
+     * takes precedence at runtime, so we skip unqualified calls when one is defined.
      */
     private function helperName(FuncCall $call): ?string
     {
@@ -168,7 +148,6 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
         $status = $this->literalArgument($arguments, $parameters, 'code');
 
         if (!is_int($status)) {
-            // Abort-shaped call found, but the status is not statically readable — note it.
             $this->logger->notice(
                 sprintf(
                     '%s() call in %s::%s has no statically readable status code; no error response '
@@ -183,7 +162,6 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
         }
 
         if ($status < 400 || $status > 599) {
-            // Readable, but not an error status (e.g. an abort(302) redirect) — out of scope.
             return null;
         }
 
@@ -191,20 +169,17 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
 
         return new ErrorDescriptor(
             status: $status,
-            // Mirror what abort() actually throws, so envelope resolvers can branch on it.
             exceptionClass: $status === 404 ? NotFoundHttpException::class : HttpException::class,
             description: $description,
             action: $action,
-            // An authored message is specific to this route and must not be hoisted into the
-            // shared per-status response component.
+            // An authored message is route-specific; don't hoist it into a shared component.
             shareableDescription: !$authored,
         );
     }
 
     /**
-     * Evaluates the helper's `$parameterName` argument as a compile-time literal, resolving it
-     * either by name (`abort(code: 403)`) or by its declared position (`abort(403)`). Returns null
-     * when the argument is absent, unpacked, or not a literal.
+     * Evaluates an argument as a compile-time literal (by name or position). Returns null when
+     * absent, unpacked, or non-literal.
      *
      * @param array<int, Arg> $arguments
      * @param list<string>    $parameters the helper's parameter names in declared order
@@ -221,9 +196,7 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
     }
 
     /**
-     * Finds the argument bound to `$parameterName`: a matching named argument wins, otherwise the
-     * positional argument at the parameter's declared index — but only while no named argument has
-     * appeared (named arguments may not precede positional ones in a valid call).
+     * Resolves an argument by name first, then by positional index.
      *
      * @param array<int, Arg> $arguments
      * @param list<string>    $parameters the helper's parameter names in declared order
@@ -252,8 +225,8 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
     }
 
     /**
-     * The literal string message when present, otherwise the standard reason phrase. A dynamic
-     * message does not discard the response — the status is still a fact worth documenting.
+     * Returns the literal message when present, otherwise the standard reason phrase.
+     * A dynamic message does not discard the response.
      *
      * @param array<int, Arg> $arguments
      * @param list<string>    $parameters the helper's parameter names in declared order

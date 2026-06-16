@@ -21,8 +21,8 @@ use ReflectionException;
 use function sprintf;
 
 /**
- * Flags an operation whose resource response class declares no `#[ResourceField]` — and whose
- * shape the generator cannot infer either (no readable `toArray()` literal, no wrapped model) —
+ * Flags an operation whose resource response class declares no `#[ResourceField]` and whose
+ * shape the generator cannot infer either (no readable `toArray()` literal, no wrapped model),
  * so the response schema is genuinely empty.
  */
 final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
@@ -69,9 +69,7 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
             return;
         }
 
-        // Mirror the schema builder: a readable toArray() literal with fields, or the
-        // wrapped-model fallback (passthrough/dynamic body + resolvable model), produces a
-        // non-empty schema — "the response schema is empty" would be untrue.
+        // Either inference path produces a non-empty schema; rule would be a false positive.
         /** @var class-string<JsonResource> $resourceClass */
         $inferred = $this->toArrayReader->read($resourceClass);
 

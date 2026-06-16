@@ -19,13 +19,15 @@ it('assembles a valid OpenAPI 3.1 document from a minimal route set', function (
     $spec = app(SpecRegistry::class)->default();
     $document = app(OpenApiGenerator::class)->generate($spec, 'testing');
 
-    expect($document)->toBeInstanceOf(OA\OpenApi::class)
+    expect($document)
+        ->toBeInstanceOf(OA\OpenApi::class)
         ->and($document->openapi)->toBe('3.1.0')
         ->and($document->info)->toBeInstanceOf(OA\Info::class);
 
     $parsed = Yaml::parse($document->toYaml());
 
-    expect($parsed['openapi'])->toStartWith('3.1')
+    expect($parsed['openapi'])
+        ->toStartWith('3.1')
         ->and($parsed)->toHaveKeys(['info', 'paths'])
         ->and($parsed['paths'])->toHaveKey('/things');
 });
@@ -85,14 +87,16 @@ it('excludes a route when a RouteFilter in config returns shouldSkip=true', func
     Route::get('/drop', [SmokeController::class, 'plain']);
 
     // Register a filter via config — filters now live in the InclusionEvaluator, not generate().
-    config(['openapi.filters' => [
-        new class () implements RouteFilter {
-            public function shouldSkip(Illuminate\Routing\Route $route): bool
-            {
-                return $route->uri() === 'drop';
-            }
-        },
-    ]]);
+    config([
+        'openapi.filters' => [
+            new class () implements RouteFilter {
+                public function shouldSkip(Illuminate\Routing\Route $route): bool
+                {
+                    return $route->uri() === 'drop';
+                }
+            },
+        ],
+    ]);
 
     // Forget scoped instances so the InclusionEvaluator re-reads the config filter.
     app()->forgetScopedInstances();

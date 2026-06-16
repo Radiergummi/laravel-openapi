@@ -8,6 +8,9 @@ use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Writes lint findings to the PSR-3 logger, mapping level 0 → error, 1 → warning, rest → info.
+ */
 #[Scoped]
 final readonly class LoggingFindingsCollector implements FindingsCollector
 {

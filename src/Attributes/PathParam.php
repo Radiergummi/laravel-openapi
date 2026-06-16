@@ -11,7 +11,7 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
  * Documents a URI path parameter on a controller action parameter.
  *
  * The parameter type is inferred from the route binding / type-hint, so no
- * `type` is exposed. Path parameters are always present and scalar — only
+ * `type` is exposed. Path parameters are always present and scalar; only
  * `description`, `example`, `format`, and `pattern` apply.
  *
  * ```php

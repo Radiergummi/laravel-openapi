@@ -57,16 +57,13 @@ final readonly class OperationDescriptor implements Arrayable
     }
 
     /**
-     * Builds the method-specific {@see OA\Operation} and assigns it to the matching `$pathItem`
-     * property, returning the same instance (or null for verbs without a path-item slot, e.g.
-     * HEAD/TRACE). Assigning inside the match keeps the concrete operation type flowing into the
-     * concrete property, so the method → operation-class → property-name mapping lives in one place.
+     * Builds the method-specific {@see OA\Operation}, assigns it to `$pathItem`, and returns it.
+     * Returns null for verbs without a path-item slot (HEAD, TRACE, etc.).
      */
     public function attachTo(OA\PathItem $pathItem, HttpMethod $method): ?OA\Operation
     {
-        // swagger-php serialises explicit nulls verbatim, and OpenAPI 3.1 rejects null on optional
-        // fields (externalDocs, summary, …). Drop unset optionals so they are omitted rather than
-        // emitted as null.
+        // OpenAPI 3.1 rejects null on optional fields; drop them so swagger-php omits rather than
+        // emits null.
         $props = array_filter(
             $this->toArray(),
             static fn(mixed $value): bool => $value !== null,

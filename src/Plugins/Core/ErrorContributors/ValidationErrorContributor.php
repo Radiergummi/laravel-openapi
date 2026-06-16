@@ -16,18 +16,9 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionNamedType;
 
 /**
- * Infers a 422 Validation Failed error response from the presence of a FormRequest parameter
- * or a whitelisted inline validate() call in the method body.
- *
- * When a controller action declares a {@see FormRequest} subclass as a parameter, Laravel will
- * automatically validate the request and throw a {@see ValidationException} on failure. The same
- * exception is thrown by an inline `$request->validate([...])` (and the other call shapes the
- * Tier-1 body scan matches — see {@see InlineValidatorRulesReader}), so both patterns emit the
- * corresponding {@see ErrorDescriptor} based on
- * `config('openapi.exception_responses')[ValidationException::class]`. A *degraded* scan (the
- * call matched but its rules could not be read) still counts: the 422 is a fact of the call
- * itself, independent of whether the rules were recoverable. The body scan only runs when no
- * FormRequest parameter already answered the question.
+ * Infers a 422 error response from a {@see FormRequest} parameter or a whitelisted inline
+ * `validate()` call. A degraded scan (call matched, rules unreadable) still emits the 422:
+ * the call itself guarantees the {@see ValidationException}.
  */
 #[Scoped]
 final readonly class ValidationErrorContributor implements ErrorResponseContributor
@@ -91,8 +82,7 @@ final readonly class ValidationErrorContributor implements ErrorResponseContribu
     }
 
     /**
-     * Whether the method body contains one of the whitelisted inline validate() call shapes.
-     * Any match counts — recovered or degraded — since the call throws on failure either way.
+     * True when the method body contains a whitelisted inline `validate()` call shape.
      */
     private function hasInlineValidateCall(ActionDescriptor $descriptor): bool
     {

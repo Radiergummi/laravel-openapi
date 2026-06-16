@@ -27,28 +27,14 @@ use function in_array;
 use function sprintf;
 
 /**
- * Core query-parameter resolver.
+ * Composes query parameters from three sources (ascending precedence; later wins on name collision):
  *
- * Composes an operation's query parameters from three sources, in ascending precedence —
- * later sources replace earlier ones on a name collision, different names compose:
- *
- *  1. **Request-accessor reads** in the method body (`$request->query('sort')`,
- *     `->integer('page')`, …) via the Tier-1 bounded scan in {@see RequestQueryAccessorReader}.
- *     `query()` is matched on every verb (it can only read the query string); `input()` /
- *     `string()` / `integer()` / `boolean()` read the merged body+query input, so they count as
- *     query parameters only on GET/HEAD routes — on body-carrying verbs they overwhelmingly
- *     mean body fields. Typed accessors beat the untyped bag accessors for the same name.
- *  2. **Inline-validation rules** on GET/HEAD routes via {@see InlineValidatorRulesReader} —
- *     the #9 hand-off: on a bodyless verb, `validate()` keys describe query parameters, not a
- *     request body. Rules contribute schema (type, format, constraints) and `required`.
- *     Nested keys map to wire notation (`filter.name` → `filter[name]`, scalar `ids.*` →
- *     `ids[]`); shapes a parameter name cannot express honestly — arrays of objects, the bare
- *     `*` rule — are dropped with a generation-log note. A DELETE route gets neither body nor
- *     parameters from inline rules — the fields may live in either place — but leaves a
- *     generation-log note instead of vanishing silently.
- *  3. **`#[QueryParam]` attributes** on the action and its enclosing class. An attribute wins
- *     entirely for its name; class-level entries are emitted first, method-level entries
- *     replace class-level ones on the same name.
+ *  1. Request-accessor reads (`$request->query()`, typed accessors) via {@see RequestQueryAccessorReader}.
+ *     Typed accessors (`string()`/`integer()`/`boolean()`) count as query params only on GET/HEAD.
+ *  2. Inline `validate()` rules on GET/HEAD routes via {@see InlineValidatorRulesReader}.
+ *     Nested dotted keys map to wire notation (`filter[name]`, `ids[]`); arrays-of-objects are dropped.
+ *     DELETE routes are skipped (validated fields may be body or query string).
+ *  3. `#[QueryParam]` attributes on the action and its controller; method-level wins over class-level.
  */
 #[Scoped]
 final readonly class CoreQueryParameterResolver implements QueryParameterResolver
@@ -69,9 +55,10 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     public function resolveQueryParameters(ActionDescriptor $descriptor): array
     {
         /** @var array<string, OA\Parameter> $byName */
-        $byName = array_map(function ($parameter) {
-            return $parameter;
-        }, $this->accessorParameters($descriptor));
+        $byName = array_map(
+            static fn(OA\Parameter $parameter): OA\Parameter => $parameter,
+            $this->accessorParameters($descriptor),
+        );
 
         foreach ($this->inlineValidationParameters($descriptor) as $name => $parameter) {
             $byName[$name] = $parameter;
@@ -117,9 +104,8 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
             }
         }
 
-        // The degrade note obeys the same verb discipline as the reads: on a body-carrying
-        // verb a non-literal input()/string()/integer()/boolean() name is a body read, not an
-        // undocumented query parameter — only query() notes on every verb.
+        // On a body-carrying verb, non-literal input()/string()/integer()/boolean() names are
+        // body reads, not undocumented query parameters; only query() notes on every verb.
         $unreadableAccessors = array_values(
             array_filter(
                 $scan->unreadableAccessors,
@@ -198,9 +184,7 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         $actionName = $this->actionName($method);
 
         if ($descriptor->httpMethod === HttpMethod::Delete) {
-            // DELETE sits between the verb gates by design: the body scan covers
-            // POST/PUT/PATCH, the hand-off covers GET/HEAD, and on DELETE the validated
-            // fields may legitimately live in either place — refusing to guess, but saying so.
+            // DELETE validated fields may live in body or query string; refusing to guess.
             $this->logger->notice(
                 sprintf(
                     'Inline validation in %s is not documented: a DELETE route may carry the validated '
@@ -280,11 +264,9 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     // endregion
 
     /**
-     * Maps one rule field onto query parameters in wire notation. Object children recurse into
-     * bracket names (`filter[name]`), an array of scalars becomes a repeatable `name[]`
-     * parameter with an array schema, and an array of objects has no honest parameter-name
-     * representation — its key is reported back for the generation-log note. A parameter is
-     * `required` only when its own rules say so and every ancestor is required too.
+     * Maps a rule field to query parameters in wire notation. Objects recurse into bracket names
+     * (`filter[name]`); scalar arrays become `name[]`; arrays of objects are dropped (no valid
+     * representation). Required only when the field and all ancestors are required.
      *
      * @param array<string, string>       $descriptions
      * @param array<string, OA\Parameter> $parameters

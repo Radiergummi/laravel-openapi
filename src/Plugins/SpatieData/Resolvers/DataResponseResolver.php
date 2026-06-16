@@ -30,25 +30,10 @@ use function sprintf;
 /**
  * Resolves a Spatie Data return type into its `200 OK` response.
  *
- * Handles three cases:
- * - `FlightData` (a {@see Data} subclass) → `$ref` to the Data component schema.
- * - `DataCollection<int, FlightData>` → array of `$ref`s, item class read from
- *   the `@return DataCollection<T, Item>` PHPDoc generic.
- * - `FlightData|OtherData` (union) → `oneOf` of `$ref`s for the Data-class
- *   members; non-Data members are ignored. Collapses to a bare `$ref` when only
- *   one union member is a Data class.
- *
- * Paginated Spatie collections (`PaginatedDataCollection<…>` /
- * `CursorPaginatedDataCollection<…>`) are recognised by {@see PaginatorKind} and handled by
- * `PaginatorResponseResolver` via the shared `RefSchemaResolver` chain (which includes
- * {@see DataRefSchemaResolver}); this resolver returns null for them so the core resolver claims
- * the route.
- *
- * Returns null when the return type is not a Data class or non-paginating collection, or when the
- * collection's item generic is missing — the next resolver gets a turn.
- *
- * Mirror of {@see \Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver}
- * for the SpatieData plugin.
+ * Handles: a bare `Data` subclass (`$ref`), a `DataCollection` (array of `$ref`s, item class from
+ * the `@return` generic), and a union (`oneOf`, collapsing to a bare `$ref` for a single member).
+ * Paginated collections are deferred to `PaginatorResponseResolver`. Returns null when the return
+ * type is not a Data class or non-paginating collection, or the collection generic is missing.
  */
 #[Scoped]
 final readonly class DataResponseResolver implements PrimaryResponseResolver
@@ -75,9 +60,6 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
 
         $returnType = $reflector->getReturnType();
 
-        // Union return types: emit oneOf of $refs for the Data-class members
-        // (non-Data members are ignored). A single Data member collapses to
-        // a bare $ref; zero Data members defer to the next resolver.
         if ($returnType instanceof ReflectionUnionType) {
             return $this->resolveUnion($returnType);
         }
@@ -88,12 +70,11 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
 
         $returnClass = $returnType->getName();
 
-        // Paginated Spatie collections are claimed by PaginatorResponseResolver.
+        // Paginated collections are claimed by PaginatorResponseResolver.
         if (PaginatorKind::fromClass($returnClass) !== null) {
             return null;
         }
 
-        // Single Data return type.
         if (is_a($returnClass, Data::class, allow_string: true)) {
             /** @var class-string<Data> $returnClass */
             $ref = $this->refResolver->resolveRef($returnClass);
@@ -105,7 +86,6 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             return $this->response(new OA\Schema(['ref' => $ref]));
         }
 
-        // Non-paginating DataCollection<int, Item>.
         if (!is_a($returnClass, DataCollection::class, allow_string: true)) {
             return null;
         }

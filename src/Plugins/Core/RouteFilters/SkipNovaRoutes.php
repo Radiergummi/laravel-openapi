@@ -34,7 +34,7 @@ final readonly class SkipNovaRoutes implements RouteFilter
     public function shouldSkip(Route $route): bool
     {
         // Beyond the configured `nova.path`, Nova also registers internal tool and
-        // asset routes under a fixed `nova-` URI prefix (e.g. `nova-api/*`,
+        // asset routes under a fixed `nova-` URI prefix (e.g., `nova-api/*`,
         // `nova-vendor/*`). Those are independent of `nova.path`, so the literal
         // prefix is matched explicitly to exclude them as well.
         return

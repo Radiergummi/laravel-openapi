@@ -37,7 +37,7 @@ Anything not covered by a directive falls back to the defaults below.
 ## Prime directives
 
 1. **GitHub + git are the only durable state.** The shared task list is a convenience cache,
-   reconstructable at any time from GitHub. Never let in-memory state be load-bearing. A fresh
+   reconstructable at any time from GitHub. Never let in-memory state be critical. A fresh
    session must be able to resume from `git` and `gh` alone.
 2. **Every transition and finding is a GitHub comment.** `SendMessage` wakes the next agent;
    the comment is the record. If it isn't on the issue/PR, it didn't happen.

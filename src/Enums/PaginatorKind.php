@@ -12,14 +12,11 @@ use function is_a;
 use function strtolower;
 
 /**
- * The three Laravel paginator shapes, distinguished by the metadata each serializes via its
- * `toArray()` method.
+ * The three Laravel paginator shapes, distinguished by their `toArray()` envelope.
  *
- * Spatie's `PaginatedDataCollection` and `CursorPaginatedDataCollection` (matched by FQCN string
- * to keep Core free of plugin imports) are recognised as `LengthAware` and `Cursor` respectively:
- * they delegate `toArray()` to the underlying Laravel paginator with `Data`-transformed items, so
- * the envelope shape is identical. This lets `PaginatorResponseResolver` model both Laravel-native
- * and Spatie-collection return types from a single code path.
+ * Spatie's `PaginatedDataCollection` / `CursorPaginatedDataCollection` are matched by FQCN string
+ * (to keep Core free of plugin imports) and map to `LengthAware` / `Cursor` respectively, since
+ * they delegate `toArray()` to the underlying Laravel paginator.
  */
 enum PaginatorKind
 {
@@ -34,9 +31,7 @@ enum PaginatorKind
     case Cursor;
 
     /**
-     * Maps a class name to its paginator kind, or null when the class is not a paginator. Order
-     * matters: `LengthAwarePaginator` extends `Paginator`, so the more specific contract must be
-     * tested first.
+     * `LengthAwarePaginator` extends `Paginator`, so the more specific contract is tested first.
      */
     public static function fromClass(string $class): ?self
     {
@@ -50,11 +45,7 @@ enum PaginatorKind
         };
     }
 
-    /**
-     * Maps a paginating builder method to its paginator kind, or null when the (lowercased) name
-     * is not a paginate-family call: `paginate` → length-aware, `simplePaginate` → simple,
-     * `cursorPaginate` → cursor. The canonical method-name mapping, sibling to {@see fromClass}.
-     */
+    /** Sibling to {@see fromClass}; maps a builder method name to its kind. */
     public static function fromPaginatingMethod(string $method): ?self
     {
         return match (strtolower($method)) {

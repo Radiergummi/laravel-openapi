@@ -14,18 +14,12 @@ use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
- * OAS 3.1-compatible nullable schema wrapping.
+ * OAS 3.1-compatible nullable schema wrapping (OAS 3.1 removed `nullable`).
  *
- * OAS 3.1 removed the `nullable` keyword. The correct representations are:
- *
- * - **Scalar schema** (has a concrete scalar `type` — `string`, `integer`, `number`, `boolean`):
- *   make `type` an array that includes `'null'`, e.g. `type: ['string', 'null']`.
- * - **Structured schema** (type is `array` or `object`, or the schema carries `items`/`properties`):
- *   wrap in `oneOf: [<inner>, {type: 'null'}]` so that swagger-php's validation of `OA\Items`
- *   (which requires `type === 'array'` as an exact string) continues to pass on the inner schema.
- * - **`$ref` schema** (bare reference, where extra keywords are ignored): wrap in
- *   `oneOf: [{$ref: …}, {type: 'null'}]`.
- * - **Other** (oneOf/allOf/enum without an explicit type): wrap in `oneOf` as well.
+ * - Scalar type (`string`/`integer`/`number`/`boolean`): widened to a type array including `'null'`.
+ * - Structured type (`array`/`object`) or `$ref`: wrapped in `oneOf: [<inner>, {type: 'null'}]`
+ *   so that swagger-php's `OA\Items` parent check (requires `type === 'array'` as a string) passes.
+ * - All other cases (no type, already composed): wrapped in `oneOf`.
  *
  * @internal
  */
@@ -38,20 +32,11 @@ final class NullableSchema
     private function __construct() {}
 
     /**
-     * Returns a nullable version of `$schema` using the OAS 3.1 idiom.
-     *
-     * - Scalar `type` (string/integer/number/boolean): widened to `['type', 'null']`.
-     * - Structured `type` (array/object) or schema with `items`/`properties`: wrapped in
-     *   `oneOf: [<inner>, {type: 'null'}]` to preserve the `type: 'array'` string that
-     *   swagger-php's `OA\Items` parent check requires.
-     * - `$ref` schema: wrapped in `oneOf` because extra keywords alongside `$ref` are ignored.
-     * - All other cases (no type, already a composition): wrapped in `oneOf`.
-     *
-     * The input schema is never mutated — a new {@see OA\Schema} is always returned.
+     * Returns a nullable copy of `$schema` using the OAS 3.1 idiom. Never mutates the input.
      */
     public static function wrap(OA\Schema $schema): OA\Schema
     {
-        // $ref branch: extra fields alongside $ref are ignored by validators in OAS 3.1.
+        // Extra keywords alongside $ref are ignored in OAS 3.1; must use oneOf.
         if (is_defined($schema->ref) && is_string($schema->ref)) {
             return new OA\Schema([
                 'oneOf' => [
@@ -61,7 +46,7 @@ final class NullableSchema
             ]);
         }
 
-        // Scalar plain-type branch: widen to a type array that includes 'null'.
+        // Scalar type: widen to include 'null'.
         if (
             is_defined($schema->type)
             && is_string($schema->type)
@@ -73,8 +58,7 @@ final class NullableSchema
             return $clone;
         }
 
-        // Already a type array (caller passed a pre-widened scalar schema): add 'null' if absent.
-        // Only safe when all existing types are scalars (no 'array' or 'object' mixed in).
+        // Already a type array: append 'null' if absent (only safe when all-scalar).
         if (is_defined($schema->type) && is_array($schema->type)) {
             $hasStructured = false;
 
@@ -97,9 +81,7 @@ final class NullableSchema
             }
         }
 
-        // Structured schema (array/object type, or carries items/properties): wrap in oneOf so
-        // the inner schema keeps type: 'array' as an exact string, satisfying swagger-php's
-        // OA\Items parent-type check.
+        // Structured/untyped: wrap in oneOf to keep type: 'array' as a string (OA\Items check).
         return new OA\Schema([
             'oneOf' => [
                 $schema,
@@ -109,25 +91,13 @@ final class NullableSchema
     }
 
     /**
-     * Applies OAS 3.1 nullability to `$target` **in place**.
+     * Applies OAS 3.1 nullability to `$target` in place.
      *
-     * Use this when the schema object is already referenced in a collection (e.g. a properties
-     * list) and cannot be replaced with the new object that {@see wrap()} would return.
-     *
-     * The same branching logic as {@see wrap()} applies:
-     * - `$ref` schema → wrapped in `oneOf` (a bare `type: ['null']` alongside `$ref` would be an
-     *   impossible constraint in OAS 3.1, where `$ref` is no longer exclusive).
-     * - Scalar type → widened to `['type', 'null']`.
-     * - Already a type array of scalars → `'null'` appended if absent.
-     * - Structured type (array/object) → type and its structural keywords (`items`, `properties`,
-     *   `additionalProperties`, `required`) moved into a `oneOf` inner schema.
-     * - No type / already composed → `type` set to `['null']` (fallback; callers should avoid this).
+     * Use when the schema is already held by reference in a collection and cannot be replaced.
      */
     public static function applyTo(OA\Schema $target): void
     {
-        // $ref branch: extra keywords alongside $ref are ignored in OAS 3.1, so writing
-        // type: ['null'] onto a $ref schema yields a constraint nothing can satisfy. Wrap in oneOf,
-        // mirroring wrap().
+        // Extra keywords alongside $ref are ignored in OAS 3.1; must use oneOf.
         if (is_defined($target->ref) && is_string($target->ref)) {
             $target->oneOf = [
                 new OA\Schema(['ref' => $target->ref]),
@@ -162,10 +132,7 @@ final class NullableSchema
                     $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                 }
 
-                // Migrate validation constraint keywords into the inner branch so per-branch
-                // validators apply them. SchemaDescriptor writes these onto the outer schema before
-                // calling applyTo(); without this they strand on the typeless outer oneOf schema
-                // where JSON Schema validators ignore them.
+                // Validation constraints strand on a typeless outer schema; move them inside.
                 if (is_defined($target->minItems)) {
                     $inner->minItems = $target->minItems;
                     $target->minItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
@@ -237,7 +204,6 @@ final class NullableSchema
                     new OA\Schema(['type' => 'null']),
                 ];
             } else {
-                // Scalar type: widen to a type array.
                 $target->type = [$target->type, 'null'];
             }
         } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {

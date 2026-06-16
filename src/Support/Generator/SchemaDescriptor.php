@@ -6,10 +6,6 @@ namespace Radiergummi\OpenApi\Support\Generator;
 
 use BackedEnum;
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Attributes\PathParam;
-use Radiergummi\OpenApi\Attributes\QueryParam;
-use Radiergummi\OpenApi\Attributes\RequestField;
-use Radiergummi\OpenApi\Attributes\ResponseField;
 
 use function is_bool;
 use function Radiergummi\OpenApi\is_undefined;
@@ -17,12 +13,8 @@ use function str_starts_with;
 use function substr;
 
 /**
- * Carries all JSON-Schema field metadata expressible via scoped field
- * attributes ({@see RequestField}, {@see ResponseField}, {@see PathParam}, {@see QueryParam}).
- *
- * Null means "not set": {@see toOpenApi()} omits null keys so extractors' inferred values are
- * preserved. `enum` entries are any JSON-Schema scalar (`bool`, `float`, `int`, `string`) or a
- * {@see BackedEnum} case; {@see toOpenApi()} converts BackedEnum cases to their backing values.
+ * Carries JSON-Schema field metadata from scoped field attributes. Null means "not set":
+ * {@see toOpenApi()} omits null keys so extractors' inferred values are preserved.
  *
  * @internal
  */
@@ -30,15 +22,12 @@ final readonly class SchemaDescriptor
 {
     /**
      * @param null|list<BackedEnum|bool|float|int|string> $enum
-     * @param null|array<string, mixed>                   $x                    Vendor extensions; keys are passed
-     *                                                                          with the `x-` prefix and stored
-     *                                                                          stripped (swagger-php re-adds it on
-     *                                                                          serialize), matching `OverridesStage`.
-     * @param null|bool|string                            $additionalProperties Map-value override: `true`/`false`
-     *                                                                          for the boolean form, or a type string
-     *                                                                          wrapped into a nested value schema
-     *                                                                          (mirroring `$items`). `null` leaves
-     *                                                                          inference untouched.
+     * @param null|array<string, mixed>                   $x                    Vendor extensions (`x-*`); keys stored
+     *                                                                          stripped (swagger-php re-adds `x-` on
+     *                                                                          serialize).
+     * @param null|bool|string                            $additionalProperties Map-value override: bool or a type
+     *                                                                          string wrapped into a value schema.
+     *                                                                          `null` leaves inference untouched.
      */
     public function __construct(
         public ?string $title = null,
@@ -68,18 +57,11 @@ final readonly class SchemaDescriptor
     ) {}
 
     /**
-     * Builds a standalone `OA\Schema` from this descriptor, applying the OAS 3.1
-     * `type: [..., 'null']` shape when `$this->nullable === true`. An untyped descriptor
-     * produces an open schema (no `type`) rather than defaulting to `string`.
-     *
-     * `toOpenApi()` deliberately omits `nullable`; this helper is the canonical
-     * place to apply it for callers that produce a `Schema` (parameter resolvers)
-     * rather than a `Property` ({@see applyTo()}).
+     * Builds a standalone `OA\Schema`, applying the OAS 3.1 `type: [..., 'null']` shape when
+     * nullable. Use this for parameter resolvers; use {@see applyTo()} for properties.
      */
     public function toSchema(): OA\Schema
     {
-        // No `type` seed: an untyped descriptor yields an open schema, not a string one. A typed
-        // descriptor carries its own `type` through toOpenApi().
         $schema = new OA\Schema($this->toOpenApi());
 
         if (($items = $this->itemsSchema()) !== null) {
@@ -119,7 +101,7 @@ final readonly class SchemaDescriptor
             'uniqueItems' => $this->uniqueItems,
             'readOnly' => $this->readOnly,
             'writeOnly' => $this->writeOnly,
-        ], static fn($value) => $value !== null);
+        ], static fn(mixed $value): bool => $value !== null);
 
         if ($this->enum !== null) {
             $out['enum'] = array_map(
@@ -132,25 +114,7 @@ final readonly class SchemaDescriptor
         return $out;
     }
 
-    /**
-     * The `additionalProperties` value for a map override: a bool passes through; a type string is
-     * wrapped into a nested value schema (mirroring {@see itemsSchema()}). `null` means "not set",
-     * leaving any inferred value in place.
-     */
-    private function additionalPropertiesValue(): bool|OA\AdditionalProperties|null
-    {
-        return match (true) {
-            $this->additionalProperties === null => null,
-            is_bool($this->additionalProperties) => $this->additionalProperties,
-            default => new OA\AdditionalProperties(['type' => $this->additionalProperties]),
-        };
-    }
-
-    /**
-     * The `items` schema for an `array` type. Always present for an array (a permissive `{}` when
-     * no element type is declared), because swagger-php rejects an items-less array and would
-     * hard-fail generation.
-     */
+    /** swagger-php rejects an items-less array; falls back to a permissive `{}` when no type. */
     private function itemsSchema(): ?OA\Items
     {
         if ($this->type !== 'array') {
@@ -163,13 +127,7 @@ final readonly class SchemaDescriptor
     }
 
     /**
-     * Applies this descriptor's non-null fields onto an existing `OA\Property`, and switches the
-     * property to the nullable shape when `$this->nullable === true`.
-     *
-     * Used by the field-attribute consumers ({@see RequestField}, {@see ResponseField},
-     * {@see ResourceField}, {@see RequestField}-on-constants) to mutate a `new OA\Property([…])`
-     * into its fully-described form without each caller re-implementing the `toOpenApi()` + nullable
-     * dance.
+     * Applies this descriptor's non-null fields onto an existing `OA\Property`, including nullable.
      */
     public function applyTo(OA\Property $property): void
     {
@@ -190,13 +148,8 @@ final readonly class SchemaDescriptor
     }
 
     /**
-     * Writes an explicit `additionalProperties` override onto the target, unconditionally when the
-     * descriptor carries one. The write must overwrite — an inferred map value (e.g. from
-     * `array<string, T>` map inference) is already on the property by the time this runs, and the
-     * author's override wins by being applied last; a skip-if-defined guard would invert that.
-     *
-     * Public so callers that build a parameter schema directly ({@see UriParametersExtractor})
-     * can honor a `#[PathParam]` override without routing through {@see applyTo()}.
+     * Writes `additionalProperties` onto the target unconditionally (author override wins).
+     * Public for {@see UriParametersExtractor}, which builds parameter schemas directly.
      */
     public function applyAdditionalProperties(OA\Schema|OA\Property $target): void
     {
@@ -207,13 +160,19 @@ final readonly class SchemaDescriptor
         }
     }
 
+    /** Bool passes through; a type string is wrapped into a value schema. `null` means "not set". */
+    private function additionalPropertiesValue(): bool|OA\AdditionalProperties|null
+    {
+        return match (true) {
+            $this->additionalProperties === null => null,
+            is_bool($this->additionalProperties) => $this->additionalProperties,
+            default => new OA\AdditionalProperties(['type' => $this->additionalProperties]),
+        };
+    }
+
     /**
-     * Merges the vendor extensions onto swagger-php's `$x` bag. Keys arrive `x-`-prefixed (the
-     * author-facing contract shared with `OverridesStage`) and are stored stripped, because
-     * swagger-php re-adds the `x-` prefix on serialize — storing them prefixed would emit `x-x-…`.
-     *
-     * Public so callers that build a parameter schema directly ({@see UriParametersExtractor})
-     * can apply `x-*` from a `#[PathParam]` without routing through {@see applyTo()}.
+     * Merges vendor extensions onto swagger-php's `$x` bag. Keys are stored `x-`-stripped because
+     * swagger-php re-adds the prefix on serialize. Public for {@see UriParametersExtractor}.
      */
     public function applyVendorExtensions(OA\Schema|OA\Property $target): void
     {

@@ -16,10 +16,7 @@ use function sprintf;
 use function trim;
 
 /**
- * Reports top-level tags that have no description.
- *
- * Tags without descriptions reduce the usefulness of generated API documentation. Every tag
- * declared in the root `tags` array should include a meaningful description.
+ * Reports top-level tags declared in the root `tags` array without a description.
  */
 final class TagsNoDescription implements Rule, ApiRuleVisitor
 {

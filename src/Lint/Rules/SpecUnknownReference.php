@@ -14,13 +14,9 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Support\Spec\SpecResolver;
 
 /**
- * Reports every #[Spec(name:)] argument that does not match any spec declared
- * in config('openapi.specs'). These references are silently dropped at generation
- * time; the rule makes them visible at lint time.
- *
- * Uses {@see SpecResolver} so the same method-shadows-class precedence the generator
- * applies at runtime is also applied here — a class-level #[Spec] that the method
- * overrides is not flagged, because it never reaches generation.
+ * Reports `#[Spec(name:)]` arguments that do not match any spec in `config('openapi.specs')`.
+ * Uses {@see SpecResolver} to apply the same method-shadows-class precedence as generation,
+ * so overridden class-level attributes are not flagged.
  */
 final readonly class SpecUnknownReference implements Rule, PreBuildRule
 {

@@ -39,7 +39,8 @@ it('reports 100% when every operation is clean', function (): void {
         generatorVersion: '1.2.3',
     );
 
-    expect($summary->totalOperations)->toBe(2)
+    expect($summary->totalOperations)
+        ->toBe(2)
         ->and($summary->coveredOperations)->toBe(2)
         ->and($summary->coveragePercent)->toBe(100.00)
         ->and($summary->generatorVersion)->toBe('1.2.3')
@@ -57,7 +58,8 @@ it('marks an operation uncovered when it carries an attributed finding', functio
         generatorVersion: 'dev',
     );
 
-    expect($summary->coveredOperations)->toBe(1)
+    expect($summary->coveredOperations)
+        ->toBe(1)
         ->and($summary->coveragePercent)->toBe(50.00);
 });
 
@@ -73,7 +75,8 @@ it('counts findings with no operation as unattributed without lowering coverage'
         generatorVersion: 'dev',
     );
 
-    expect($summary->coveredOperations)->toBe(1)
+    expect($summary->coveredOperations)
+        ->toBe(1)
         ->and($summary->coveragePercent)->toBe(100.00)
         ->and($summary->unattributedFindings)->toBe(1);
 });
@@ -92,7 +95,8 @@ it('rolls up per-tag coverage, double-counting multi-tag operations and bucketin
 
     $byTag = collect($summary->perTag)->keyBy('tag');
 
-    expect($byTag['Users'])->toMatchArray(['total' => 2, 'covered' => 1, 'percent' => 50.00])
+    expect($byTag['Users'])
+        ->toMatchArray(['total' => 2, 'covered' => 1, 'percent' => 50.00])
         ->and($byTag['Admin'])->toMatchArray(['total' => 1, 'covered' => 1, 'percent' => 100.00])
         ->and($byTag['(untagged)'])->toMatchArray(['total' => 1, 'covered' => 1, 'percent' => 100.00]);
 });
@@ -105,7 +109,8 @@ it('defines empty scope as 100%', function (): void {
         generatorVersion: 'dev',
     );
 
-    expect($summary->totalOperations)->toBe(0)
+    expect($summary->totalOperations)
+        ->toBe(0)
         ->and($summary->coveragePercent)->toBe(100.00);
 });
 
@@ -163,6 +168,7 @@ it('matches a finding whose URI has a leading slash to an operation key without 
 
     $summary = new CoverageCalculator()->calculate([$k => $t], [$finding], 1, 'dev');
 
-    expect($summary->coveredOperations)->toBe(0)
+    expect($summary->coveredOperations)
+        ->toBe(0)
         ->and($summary->unattributedFindings)->toBe(0);
 });

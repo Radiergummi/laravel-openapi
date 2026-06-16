@@ -5,15 +5,8 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Inclusion;
 
 /**
- * One line in an inclusion-decision trace.
- *
- * Composed by {@see InclusionEvaluator} and rendered by the `openapi:why` command and
- * `openapi:generate --explain`. Pure data — no formatting decisions live here.
- *
- * `stage` identifies the conceptual phase (e.g. `'global-filter'`, `'spec-attribute'`,
- * `'spec-match'`, `'visibility'`); `name` identifies the specific thing under that stage
- * (the filter class name, the matched key, etc.); `passed` is the boolean outcome; `reason`
- * is a one-line human-readable explanation.
+ * One step in an inclusion-decision trace, emitted by {@see InclusionEvaluator} and rendered
+ * by `openapi:why` / `openapi:generate --explain`. Pure data.
  *
  * @internal
  */

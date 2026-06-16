@@ -27,14 +27,16 @@ function rawKeywordFindings(string $method): array
 it('reports its id and level 1', function (): void {
     $rule = rawKeywordRule();
 
-    expect($rule->id())->toBe('schema.raw-keyword-unsupported')
+    expect($rule->id())
+        ->toBe('schema.raw-keyword-unsupported')
         ->and($rule->level())->toBe(1);
 });
 
 it('flags a #[RawSchema] carrying an unsupported keyword', function (): void {
     $findings = rawKeywordFindings('unsupported');
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.raw-keyword-unsupported')
         ->and($findings[0]->level)->toBe(1)
         ->and($findings[0]->message)->toContain('if');

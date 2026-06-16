@@ -28,7 +28,8 @@ it('produces a swagger-php-valid document for a nested literal #[Response(schema
 it('emits a nested object/array schema from a literal #[Response(schema:)]', function (): void {
     $schema = $this->spec['paths']['/oa-fixture/nested-response']['get']['responses'][200]['content']['application/json']['schema'] ?? [];
 
-    expect($schema['type'])->toBe('object')
+    expect($schema['type'])
+        ->toBe('object')
         ->and($schema['properties'])->toHaveKeys(['message', 'tags'])
         ->and($schema['properties']['message']['type'])->toBe('string')
         ->and($schema['properties']['tags']['type'])->toBe('array')

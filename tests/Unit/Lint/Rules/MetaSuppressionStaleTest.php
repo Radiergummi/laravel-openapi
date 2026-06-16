@@ -50,7 +50,8 @@ function staleDirective(
 it('reports its id and level', function (): void {
     $rule = new MetaSuppressionStale();
 
-    expect($rule->id())->toBe('meta.suppression-stale')
+    expect($rule->id())
+        ->toBe('meta.suppression-stale')
         ->and($rule->level())->toBe(3);
 });
 
@@ -60,7 +61,8 @@ it('emits a finding when a suppression did not match any finding', function (): 
     $rule = new MetaSuppressionStale();
     $findings = iterator_to_array($rule->check($context, []));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.suppression-stale')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)->toContain('response.empty')
@@ -102,7 +104,8 @@ it('emits when finding ruleId does not match the directive', function (): void {
     $rule = new MetaSuppressionStale();
     $findings = iterator_to_array($rule->check($context, [$unrelatedFinding]));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('response.empty');
 });
 

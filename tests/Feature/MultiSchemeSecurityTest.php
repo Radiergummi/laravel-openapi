@@ -12,8 +12,8 @@ uses()->group('openapi');
 
 it('mixes default-scheme and per-operation-scheme requirements in the same document', function (): void {
     config()->set('openapi.security_schemes.bearer', [
-        'type'         => 'http',
-        'scheme'       => 'bearer',
+        'type' => 'http',
+        'scheme' => 'bearer',
         'bearerFormat' => 'JWT',
     ]);
 
@@ -34,6 +34,7 @@ it('mixes default-scheme and per-operation-scheme requirements in the same docum
         ['bearer' => []],
     ]);
 
-    expect($spec['components']['securitySchemes'])->toHaveKey('bearer')
+    expect($spec['components']['securitySchemes'])
+        ->toHaveKey('bearer')
         ->and($spec['components']['securitySchemes']['bearer']['type'])->toBe('http');
 });

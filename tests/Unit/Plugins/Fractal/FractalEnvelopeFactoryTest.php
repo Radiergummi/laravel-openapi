@@ -25,7 +25,8 @@ it('builds a DataArray single-item envelope with a data ref', function (): void 
     $schema = new FractalEnvelopeFactory()->single('#/components/schemas/Book');
     $properties = envelopeProperties($schema);
 
-    expect($schema->type)->toBe('object')
+    expect($schema->type)
+        ->toBe('object')
         ->and($properties)->toHaveKeys(['data'])
         ->and($properties['data']->ref)->toBe('#/components/schemas/Book');
 });
@@ -34,7 +35,8 @@ it('builds a DataArray collection envelope with a data array', function (): void
     $schema = new FractalEnvelopeFactory()->collection('#/components/schemas/Book');
     $properties = envelopeProperties($schema);
 
-    expect($properties)->toHaveKeys(['data'])
+    expect($properties)
+        ->toHaveKeys(['data'])
         ->and($properties['data']->type)->toBe('array');
 });
 
@@ -42,7 +44,8 @@ it('builds a DataArray paginated envelope with pagination meta', function (): vo
     $schema = new FractalEnvelopeFactory()->paginated('#/components/schemas/Book');
     $properties = envelopeProperties($schema);
 
-    expect($properties)->toHaveKeys(['data', 'meta'])
+    expect($properties)
+        ->toHaveKeys(['data', 'meta'])
         ->and($properties['data']->type)->toBe('array');
 
     $metaProperties = envelopeProperties($properties['meta']);
@@ -61,8 +64,10 @@ it('builds an ArraySerializer single response as a bare $ref', function (): void
 it('builds an ArraySerializer collection as a top-level array', function (): void {
     $schema = new FractalEnvelopeFactory()->collection('#/components/schemas/Book', Serializer::ArraySerializer);
 
-    expect($schema->type)->toBe('array')
-        ->and($schema->items)->not->toBeNull()
+    expect($schema->type)
+        ->toBe('array')
+        ->and($schema->items)->not
+        ->toBeNull()
         ->and($schema->items->ref)->toBe('#/components/schemas/Book');
 });
 
@@ -80,7 +85,8 @@ it('builds a JsonApi single resource object', function (): void {
 
     $dataProperties = envelopeProperties($properties['data']);
 
-    expect($dataProperties)->toHaveKeys(['type', 'id', 'attributes'])
+    expect($dataProperties)
+        ->toHaveKeys(['type', 'id', 'attributes'])
         ->and($dataProperties['attributes']->ref)->toBe('#/components/schemas/Book');
 });
 
@@ -88,7 +94,8 @@ it('builds a JsonApi collection of resource objects', function (): void {
     $schema = new FractalEnvelopeFactory()->collection('#/components/schemas/Book', Serializer::JsonApi);
     $properties = envelopeProperties($schema);
 
-    expect($properties['data']->type)->toBe('array')
+    expect($properties['data']->type)
+        ->toBe('array')
         ->and(array_keys(envelopeProperties($properties['data']->items)))->toContain('type', 'id', 'attributes');
 });
 

@@ -18,17 +18,11 @@ use function sprintf;
 use function storage_path;
 
 /**
- * Materialises {@see SpecDefinition} value objects from the application's
- * `config('openapi.*')` keys plus the optional `config('openapi.specs')` map.
+ * Materialises {@see SpecDefinition} value objects from `config('openapi.*')`.
  *
- * The default spec is implicit: it is always present and built from root keys
- * (`info`, `servers`, `tags`, `output_path`, `routes.spec.uri`, `routes.playground.uri`).
- * An explicit `'default'` entry in `'specs'` may add a `match` config or override any of
- * the per-spec fields; missing keys fall back to root.
- *
- * Resolved lazily on first call and memoised for the lifetime of the registry
- * instance (which is bound `scoped` by the service provider — one instance per
- * generation run / per request).
+ * The default spec is always present, built from root config keys. An explicit `'default'`
+ * entry in `config('openapi.specs')` may override any per-spec field; missing keys fall
+ * back to root. Results are memoised for the scoped lifetime.
  *
  * @internal
  */
@@ -114,10 +108,8 @@ final class SpecRegistry
      */
     private function buildSpec(string $name, array $overrides): SpecDefinition
     {
-        // Deep-merge so a per-spec override of a single nested field (e.g. `info.contact.email`)
-        // patches that field and leaves its siblings (`info.contact.name`, `info.license`) intact,
-        // rather than clobbering the whole nested group as a shallow `array_merge` would. Scoped to
-        // `info`; `servers`/`tags` are intentionally replaced wholesale above.
+        // Deep-merge info so a nested override (e.g. `info.contact.email`) patches without
+        // clobbering siblings. `servers`/`tags` are replaced wholesale.
         $infoArray = is_array($overrides['info'] ?? null)
             ? array_replace_recursive($this->rootInfo, $overrides['info'])
             : $this->rootInfo;
@@ -144,7 +136,7 @@ final class SpecRegistry
         $outputPath = $this->resolveOutputPath($name, $overrides);
         $routes = new SpecRouteConfig($this->rootRouteUri, $this->rootPlaygroundUri);
 
-        // `SpecDefinition` opts out of HTTP serving with `null`; the helper signals it with `false`.
+        // `SpecDefinition` uses null to opt out of HTTP serving; the helper signals it with false.
         $routeUri = $routes->routeUri($name, $overrides);
         $playgroundUri = $routes->playgroundUri($name, $overrides);
 

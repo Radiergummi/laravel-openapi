@@ -8,7 +8,13 @@ use Radiergummi\OpenApi\Lint\Finding;
 uses()->group('openapi', 'lint');
 
 it('passes when a matching finding was emitted', function (): void {
-    $findings = [new Finding(ruleId: 'field.description-missing', level: 2, message: 'Field "status" has no description.')];
+    $findings = [
+        new Finding(
+            ruleId: 'field.description-missing',
+            level: 2,
+            message: 'Field "status" has no description.',
+        ),
+    ];
 
     expect($findings)->toEmitFinding(ruleId: 'field.description-missing', messageContains: 'status');
 });

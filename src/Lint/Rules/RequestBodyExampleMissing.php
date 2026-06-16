@@ -13,9 +13,6 @@ use Radiergummi\OpenApi\Lint\Visitors\RequestBodyRule as RequestBodyRuleVisitor;
 
 /**
  * Reports request bodies whose media-type content has no example.
- *
- * Examples on request bodies let API consumers copy-paste a working payload instead of guessing
- * the expected structure from the schema alone.
  */
 final class RequestBodyExampleMissing implements Rule, RequestBodyRuleVisitor
 {

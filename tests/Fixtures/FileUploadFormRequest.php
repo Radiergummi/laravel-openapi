@@ -17,10 +17,10 @@ class FileUploadFormRequest extends FormRequest
     {
         return [
             'attachment' => ['required', 'file'],
-            'avatar'     => ['required', 'image'],
-            'document'   => ['required', 'mimes:pdf,doc'],
-            'banner'     => ['required', 'dimensions:min_width=100,min_height=100'],
-            'label'      => ['required', 'string', 'max:100'],
+            'avatar' => ['required', 'image'],
+            'document' => ['required', 'mimes:pdf,doc'],
+            'banner' => ['required', 'dimensions:min_width=100,min_height=100'],
+            'label' => ['required', 'string', 'max:100'],
         ];
     }
 }

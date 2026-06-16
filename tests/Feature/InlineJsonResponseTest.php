@@ -47,7 +47,8 @@ it('emits an object response schema from a literal response()->json() body', fun
     $spec = generateSpec();
     $response = $spec['paths']['/oa-fixture/inline-json']['get']['responses']['200'];
 
-    expect($response['description'])->toBe('OK')
+    expect($response['description'])
+        ->toBe('OK')
         ->and($response['content']['application/json']['schema']['type'])->toBe('object')
         ->and($response['content']['application/json']['schema']['properties'])
         ->toHaveKeys(['message', 'success', 'attempts', 'score'])
@@ -60,7 +61,8 @@ it('documents the body under the literal status argument', function (): void {
     $spec = generateSpec();
     $responses = $spec['paths']['/oa-fixture/inline-json']['post']['responses'];
 
-    expect($responses)->toHaveKey('201')
+    expect($responses)
+        ->toHaveKey('201')
         ->and($responses['201']['description'])->toBe('Created')
         ->and($responses['201']['content']['application/json']['schema']['properties'])->toHaveKey('id');
 });
@@ -70,9 +72,10 @@ it('keeps a partial literal property as an unconstrained schema end to end', fun
 
     $spec = generateSpec();
     $properties = $spec['paths']['/oa-fixture/inline-json']['get']['responses']['200']
-        ['content']['application/json']['schema']['properties'];
+    ['content']['application/json']['schema']['properties'];
 
-    expect($properties)->toHaveKeys(['logs', 'success'])
+    expect($properties)
+        ->toHaveKeys(['logs', 'success'])
         ->and($properties['logs'])->toBe([])
         ->and($properties['success']['type'])->toBe('boolean');
 });
@@ -83,7 +86,8 @@ it('resolves named data and status arguments', function (): void {
     $spec = generateSpec();
     $responses = $spec['paths']['/oa-fixture/inline-json']['post']['responses'];
 
-    expect($responses)->toHaveKey('201')
+    expect($responses)
+        ->toHaveKey('201')
         ->and($responses['201']['content']['application/json']['schema']['properties'])->toHaveKey('queued');
 });
 
@@ -97,7 +101,8 @@ it('prefers an explicit #[Response] attribute over the inferred body', function 
     $spec = generateSpec();
     $response = $spec['paths']['/oa-fixture/attributed']['get']['responses']['200'];
 
-    expect($response['description'])->toBe('Authored response that must win')
+    expect($response['description'])
+        ->toBe('Authored response that must win')
         ->and($response['content']['application/json']['schema']['properties'])->toHaveKey('authored')
         ->and($response['content']['application/json']['schema']['properties'])->not->toHaveKey('inferred');
 });
@@ -108,7 +113,8 @@ it('prefers the typed return value over the body scan', function (): void {
     $spec = generateSpec();
     $schema = $spec['paths']['/oa-fixture/typed']['get']['responses']['200']['content']['application/json']['schema'];
 
-    expect($schema['$ref'])->toBe('#/components/schemas/Article')
+    expect($schema['$ref'])
+        ->toBe('#/components/schemas/Article')
         ->and($schema)->not->toHaveKey('properties');
 });
 
@@ -117,11 +123,12 @@ it('lets an explicit #[ResponseResource] win over the literal json envelope', fu
 
     $spec = generateSpec();
     $schema = $spec['paths']['/oa-fixture/resource-authored']['get']['responses']['200']
-        ['content']['application/json']['schema'];
+    ['content']['application/json']['schema'];
 
     // The ApiResources resolver (later in the chain) consumes the attribute; the body scan must
     // step aside instead of documenting the partial `{data: {}}` literal.
-    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/InlineJsonProbeResource')
+    expect($schema['properties']['data']['$ref'])
+        ->toBe('#/components/schemas/InlineJsonProbeResource')
         ->and($spec['components']['schemas'])->toHaveKey('InlineJsonProbeResource');
 });
 
@@ -134,7 +141,8 @@ it('does not let a straight-line non-2xx literal evict the success response', fu
     // The guarded-success + terminal-403-fallback idiom: the operation keeps its (bare) success
     // response, and the terminal error literal is routed into a 403 error response by the error
     // machinery (#238) — the primary scan no longer evicts the success slot with it.
-    expect($responses)->toHaveKey('200')
+    expect($responses)
+        ->toHaveKey('200')
         ->and($responses)->toHaveKey('403');
 });
 
@@ -153,9 +161,10 @@ it('produces a swagger-php-valid document for an unreadable list body (#265)', f
     expect($document->validate())->toBeTrue();
 
     $items = generateSpec()['paths']['/oa-fixture/unreadable-list']['get']['responses']['200']
-        ['content']['application/json']['schema']['properties']['items'];
+    ['content']['application/json']['schema']['properties']['items'];
 
-    expect($items['type'])->toBe('array')
+    expect($items['type'])
+        ->toBe('array')
         ->and($items)->toHaveKey('items');
 });
 

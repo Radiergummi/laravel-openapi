@@ -66,14 +66,15 @@ function overridesUnusedCollect(array $overrides, array $descriptors): array
 it('has the correct id and a non-zero level', function (): void {
     $rule = new OverridesUnused(new OverrideMatcher([]));
 
-    expect($rule->id())->toBe('overrides.unused')
+    expect($rule->id())
+        ->toBe('overrides.unused')
         ->and($rule->level())->toBeGreaterThan(0);
 });
 
 it('stays silent when every key matches a route name or uri', function (): void {
     $findings = overridesUnusedCollect(
         [
-            'users.show'  => ['summary' => 'x'],
+            'users.show' => ['summary' => 'x'],
             'api/posts/*' => ['deprecated' => true],
         ],
         [
@@ -91,7 +92,8 @@ it('flags a key that matches no route or uri', function (): void {
         [overridesUnusedDescriptor('api/users/{user}', 'users.show')],
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('overrides.unused')
         ->and($findings[0]->message)->toContain('legacy.foo');
 });
@@ -101,7 +103,7 @@ it('does not flag an override keyed by a webhook name the stage applies', functi
     $findings = overridesUnusedCollect(
         [
             'payment.received' => ['summary' => 'x'],
-            'payment.*'        => ['deprecated' => true],
+            'payment.*' => ['deprecated' => true],
         ],
         [overridesUnusedWebhookDescriptor()],
     );
@@ -116,7 +118,8 @@ it('flags a key matching neither route, uri, nor webhook name', function (): voi
         [overridesUnusedWebhookDescriptor()],
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('overrides.unused')
         ->and($findings[0]->message)->toContain('webhooks/payment');
 });

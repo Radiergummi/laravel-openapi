@@ -34,11 +34,13 @@
         "pestphp/pest-plugin-arch": "^3.0 || ^4.0",
         "pestphp/pest-plugin-laravel": "^3.2.0 || ^4.1.0",
         "phpstan/phpstan": "^2.1",
+        "rector/rector": "^2.0",
         "spatie/laravel-data": "^4.23.0",
         "spatie/laravel-fractal": "^6.4.0",
         "spatie/laravel-query-builder": "^7.3.0"
     },
     "suggest": {
+        "ext-dom": "Enables support for generating Cobertura coverage reports.",
         "doctrine/annotations": "Enables the SwaggerPhpPlugin to harvest `@OA` PHPDoc annotations (in addition to `#[OA\\*]` attributes, which work without it) (^2.0).",
         "phpstan/extension-installer": "Auto-registers the bundled PHPStan rules that validate this package's attributes at edit time. Without it, include `vendor/radiergummi/laravel-openapi/extension.neon` in your phpstan.neon manually.",
         "fakerphp/faker": "Enables auto-generated examples for fields without an authored example. Already installed in any project shipping model factories.",
@@ -85,6 +87,9 @@
         "fmt": "@format",
         "lint": "phpstan analyse --memory-limit=4G",
         "analyse": "@lint",
+        "rector": "rector",
+        "rector:check": "@rector --dry-run",
+        "type-gaps": "@php tools/find-missing-type-hints.php src",
         "check": [
             "@format:check",
             "@lint",

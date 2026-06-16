@@ -12,7 +12,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedNoReplacement();
 
-    expect($rule->id())->toBe('deprecated.no-replacement')
+    expect($rule->id())
+        ->toBe('deprecated.no-replacement')
         ->and($rule->level())->toBe(4);
 });
 
@@ -27,12 +28,13 @@ it('emits a finding for deprecated operations missing replacement guidance', fun
         new DeprecatedNoReplacement()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('deprecated.no-replacement')
         ->and($findings[0]->level)->toBe(4)
         ->and($findings[0]->message)->toContain('replacement');
 })->with([
-    'no description'                       => [null],
+    'no description' => [null],
     'description does not mention anything' => ['This endpoint is old and should not be relied upon.'],
 ]);
 
@@ -49,11 +51,11 @@ it('emits no findings when description mentions a replacement keyword', function
 
     expect($findings)->toBe([]);
 })->with([
-    'use'                  => ['Deprecated. Use GET /v2/resource instead.'],
-    'replaced by'          => ['This endpoint has been replaced by the new v2 endpoint.'],
-    'replacement'          => ['A replacement endpoint is available at /v2/resource.'],
-    'sunset'               => ['This endpoint will sunset on 2025-12-31.'],
-    'case-insensitive'     => ['REPLACED BY the new endpoint.'],
+    'use' => ['Deprecated. Use GET /v2/resource instead.'],
+    'replaced by' => ['This endpoint has been replaced by the new v2 endpoint.'],
+    'replacement' => ['A replacement endpoint is available at /v2/resource.'],
+    'sunset' => ['This endpoint will sunset on 2025-12-31.'],
+    'case-insensitive' => ['REPLACED BY the new endpoint.'],
 ]);
 
 it('emits no findings for non-deprecated operations', function (): void {

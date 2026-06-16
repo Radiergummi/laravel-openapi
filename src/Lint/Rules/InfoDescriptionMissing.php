@@ -18,9 +18,6 @@ use function trim;
 
 /**
  * Reports documents whose info.description is missing or empty.
- *
- * The info object's description field gives consumers an overview of the API's purpose, audience,
- * and usage. Leaving it blank results in generated documentation that lacks essential context.
  */
 final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
 {
@@ -32,7 +29,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
     {
         $info = $context->rawSpec->info;
 
-        // info itself may be UNDEFINED if the spec is incomplete
+        // UNDEFINED when spec is incomplete, not merely null
         if (is_undefined($info) || $info === null) {
             yield new Finding(
                 ruleId: $this->id(),

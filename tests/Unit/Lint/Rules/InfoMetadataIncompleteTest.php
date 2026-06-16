@@ -19,7 +19,9 @@ function infoMetadataIncompleteFindings(bool $withContact, bool $withLicense, bo
         // info remains Generator::UNDEFINED — nothing for the rule to inspect
         $spec = new OA\OpenApi(['openapi' => '3.1.0', '_context' => $context]);
     } else {
-        $info = new OA\Info(['title' => 'Test API', 'version' => '1.0.0', 'description' => 'A test API.', '_context' => $context]);
+        $info = new OA\Info(
+            ['title' => 'Test API', 'version' => '1.0.0', 'description' => 'A test API.', '_context' => $context],
+        );
 
         if ($withContact) {
             $info->contact = new OA\Contact(['name' => 'Support', '_context' => $context]);
@@ -33,7 +35,13 @@ function infoMetadataIncompleteFindings(bool $withContact, bool $withLicense, bo
     }
 
     $api = new ApiNode(operations: [], components: [], webhooks: [], declaredTags: [], tagDescriptions: [], raw: $spec);
-    $lintCtx = new LintContext(api: $api, index: TreeIndex::empty(), rawSpec: $spec, actionDescriptors: [], suppressions: []);
+    $lintCtx = new LintContext(
+        api: $api,
+        index: TreeIndex::empty(),
+        rawSpec: $spec,
+        actionDescriptors: [],
+        suppressions: [],
+    );
 
     return iterator_to_array(new InfoMetadataIncomplete()->checkApi($api, $lintCtx));
 }
@@ -41,26 +49,32 @@ function infoMetadataIncompleteFindings(bool $withContact, bool $withLicense, bo
 it('has the correct rule id and level', function (): void {
     $rule = new InfoMetadataIncomplete();
 
-    expect($rule->id())->toBe('info.metadata-incomplete')
+    expect($rule->id())
+        ->toBe('info.metadata-incomplete')
         ->and($rule->level())->toBe(4);
 });
 
 it('emits a finding when both contact and license are absent', function (): void {
     $findings = infoMetadataIncompleteFindings(withContact: false, withLicense: false);
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('info.metadata-incomplete')
         ->and($findings[0]->level)->toBe(4)
         ->and($findings[0]->message)->toContain('contact')
         ->and($findings[0]->message)->toContain('license');
 });
 
-it('emits a finding mentioning the missing key', function (bool $withContact, bool $withLicense, string $expectedKeyword): void {
-    $findings = infoMetadataIncompleteFindings($withContact, $withLicense);
+it(
+    'emits a finding mentioning the missing key',
+    function (bool $withContact, bool $withLicense, string $expectedKeyword): void {
+        $findings = infoMetadataIncompleteFindings($withContact, $withLicense);
 
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->message)->toContain($expectedKeyword);
-})->with([
+        expect($findings)
+            ->toHaveCount(1)
+            ->and($findings[0]->message)->toContain($expectedKeyword);
+    },
+)->with([
     'only contact absent' => [false, true, 'contact'],
     'only license absent' => [true, false, 'license'],
 ]);

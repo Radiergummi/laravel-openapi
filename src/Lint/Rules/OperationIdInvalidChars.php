@@ -15,12 +15,8 @@ use function preg_match;
 use function sprintf;
 
 /**
- * Reports operations whose operationId contains characters that are not safe for code generation
- * — i.e. not matching `/^[A-Za-z][A-Za-z0-9._-]*$/`.
- *
- * The id must start with a letter; subsequent characters may be letters, digits, dots, hyphens,
- * or underscores. Operations without an operationId are skipped — that case is owned by
- * `operation.id-missing`.
+ * Reports operationIds that don't match `/^[A-Za-z][A-Za-z0-9._-]*$/` (not codegen-safe).
+ * Operations without an operationId are skipped; see `operation.id-missing`.
  */
 final class OperationIdInvalidChars implements Rule, OperationRuleVisitor
 {

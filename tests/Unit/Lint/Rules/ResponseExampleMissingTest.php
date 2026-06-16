@@ -10,7 +10,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new ResponseExampleMissing();
 
-    expect($rule->id())->toBe('response.example-missing')
+    expect($rule->id())
+        ->toBe('response.example-missing')
         ->and($rule->level())->toBe(4);
 });
 
@@ -25,7 +26,8 @@ it('emits a finding when a response has no examples and has content', function (
         $rule->checkResponse($response, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.example-missing')
         ->and($findings[0]->level)->toBe(4)
         ->and($findings[0]->message)->toContain('200');

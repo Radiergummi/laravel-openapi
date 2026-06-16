@@ -12,7 +12,6 @@ use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
-use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -29,30 +28,17 @@ use function sprintf;
 
 /**
  * Builds the `OA\Schema` (type: object) for an Eloquent API Resource and registers it as a
- * component. Two sources compose per field: class-level `#[ResourceField]` attributes (always
- * authoritative for the fields they name) and the Tier-1 `toArray()` literal read by
- * {@see ResourceToArrayReader} — inferred fields the attributes do not cover follow them in
- * literal order.
+ * component.
  *
- * When neither source yields a field and the resource wraps a resolvable model
- * ({@see WrappedModelLocator}), {@see buildRef()} references the *model's* component directly —
- * the passthrough/dynamic fallback of the folded #98 design; no empty `*Resource` component is
- * created.
- *
- * Nested `JsonResource` field types recurse through {@see build()} directly;
- * other class-string field types resolve via the injected resolver factory — a
- * `Closure` returning the registered resolvers minus this plugin's own
- * {@see ResourceRefSchemaResolver}. The list is lazy by design: the eager
- * equivalent forms a cross-plugin construction cycle with `SchemaFromTransformer`,
- * because each plugin's own `RefSchemaResolver` references the other plugin's
- * `SchemaFrom*` builder. Invoking the factory at use time lets the container
- * finish constructing both sides first.
+ * Field sources (in priority order): `#[ResourceField]` attributes, then `toArray()` literal keys.
+ * When neither yields anything and the resource wraps a resolvable model, the model's component is
+ * referenced directly instead. The resolver factory is a lazy `Closure` to avoid a cross-plugin
+ * construction cycle between the ApiResources and other plugins' `SchemaFrom*` builders.
  */
 final class SchemaFromResource
 {
     /**
-     * Memoised passthrough/dynamic fallback decision per resource class (the wrapped model's
-     * qualified ref, or null), so the degradation note fires once per generation run.
+     * Memoised wrapped-model ref per resource class; null means no fallback.
      *
      * @var array<class-string<JsonResource>, ?string>
      */
@@ -87,10 +73,7 @@ final class SchemaFromResource
     }
 
     /**
-     * The wrapped model's component ref when the resource yields no fields of its own — no
-     * `#[ResourceField]` attributes and no readable `toArray()` literal (a passthrough resource,
-     * or a dynamic body that degrades here with a note). Composition is fallback-only by design:
-     * a resource that declares or infers any field is authoritative, the model is ignored.
+     * Returns the wrapped model's component ref when the resource yields no fields of its own.
      *
      * @param class-string<JsonResource> $resourceClass
      *
@@ -289,11 +272,8 @@ final class SchemaFromResource
         $property = new OA\Property(['property' => $field->name]);
         $field->descriptor()->applyTo($property);
 
-        // array-of-$ref: a class-string `items:` on an array field resolves to `items: { $ref }`
-        // via the same resolver chain as `type:`. The descriptor above already set `type: array`
-        // plus any min/max/unique constraints and a scalar `items` placeholder — only the items
-        // schema is overridden here. An unresolvable class degrades to a permissive object item,
-        // symmetric with the single-ref `type: object` fallback above.
+        // Replace the scalar `items` placeholder from the descriptor with a $ref item.
+        // An unresolvable class degrades to a permissive object item.
         if ($type === 'array' && $field->items !== null && class_exists($field->items)) {
             $ref = $this->resolveClassRef($field->items);
 
@@ -329,9 +309,7 @@ final class SchemaFromResource
     }
 
     /**
-     * Converts an inferred field into its `OA\Property`: nested-resource references resolve to
-     * a `$ref` here (array-wrapped for `::collection()` values) — recursion into the nested
-     * resource's own schema is cycle-guarded by the component registry.
+     * Builds an `OA\Property` for an inferred field, resolving nested-resource `$ref`s.
      *
      * @throws ReflectionException
      */

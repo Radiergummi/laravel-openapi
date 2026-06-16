@@ -20,20 +20,10 @@ use function implode;
 use function sprintf;
 
 /**
- * Turns `spatie/laravel-query-builder` usage into OpenAPI query parameters, from two sources:
- * the plugin's `#[AllowedFilter]` / `#[AllowedSort]` / `#[AllowedInclude]` attributes, and the
- * literal `QueryBuilder::for(...)` fluent chain in the method body (the Tier-1 bounded scan in
- * {@see QueryBuilderChainReader}).
- *
- * Precedence is **per kind**: any attribute of a kind present means that kind comes from
- * attributes only, and the chain fills only the attribute-less kinds. The body scan runs only
- * when at least one kind has no attribute. Both sources funnel into the same parameter shapes
- * (`filter[...]`, `sort`, `include`), so chain and attributes converge on identical output —
- * chain-derived filters default to a string schema, since the chain carries no type information.
- *
- * A detected Spatie chain that yields nothing readable (a builder mutated across statements, a
- * dynamic allow-list, a chain inside a conditional) degrades to no chain parameters with a
- * generation-log notice pointing at the attributes as the escape hatch.
+ * Resolves query parameters from `spatie/laravel-query-builder` usage: from `#[AllowedFilter]` /
+ * `#[AllowedSort]` / `#[AllowedInclude]` attributes and from the literal `QueryBuilder::for(...)`
+ * chain (via {@see QueryBuilderChainReader}). Attributes win per kind; the chain fills only
+ * attribute-less kinds. Unreadable chains degrade gracefully with a notice.
  */
 #[Scoped]
 final readonly class QueryBuilderParameterResolver implements QueryParameterResolver
@@ -108,11 +98,7 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
     // region Chain scan
 
     /**
-     * Runs the bounded body scan when at least one kind has no attribute (the Tier-0-miss
-     * discipline: fully attributed actions never pay for parsing), and phrases the degrade
-     * notices off the scan's evidence. One notice per action: a detected-but-unreadable Spatie
-     * chain (empty scan despite a builder root *and* `allowed*` calls), or — when the scan did
-     * yield names — the matched calls that had to drop non-literal elements.
+     * Runs the body scan only when at least one kind lacks attributes. Fully attributed actions skip parsing.
      */
     private function scanChain(ActionDescriptor $descriptor, bool $everyKindAttributed): QueryBuilderChainScan
     {
@@ -165,8 +151,7 @@ final readonly class QueryBuilderParameterResolver implements QueryParameterReso
     }
 
     /**
-     * A chain-derived filter defaults to a string schema: the allow-list carries the wire name
-     * only, never a type. `#[AllowedFilter]` is the escape hatch for typed filters.
+     * Chain-derived filters default to string schema; use `#[AllowedFilter]` for typed filters.
      */
     private function chainFilterParameter(string $name): OA\Parameter
     {

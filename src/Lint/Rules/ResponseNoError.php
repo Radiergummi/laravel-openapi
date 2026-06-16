@@ -14,11 +14,7 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use function sprintf;
 
 /**
- * Reports when an operation has responses defined but none of them is a 4xx or 5xx error response.
- *
- * Consumers need error responses documented to plan error handling. A `default`
- * response counts as error coverage, since it applies to every status code not
- * otherwise listed.
+ * Reports when an operation has responses defined but none is a 4xx/5xx or `default` response.
  */
 final class ResponseNoError implements Rule, OperationRuleVisitor
 {
@@ -51,7 +47,7 @@ final class ResponseNoError implements Rule, OperationRuleVisitor
                     $operation->method->forDisplay(),
                     $operation->pathUri,
                 ),
-                fixHint: 'Add at least one error response (e.g. 400, 401, 404, 422, 500) to the operation.',
+                fixHint: 'Add at least one error response (e.g., 400, 401, 404, 422, 500) to the operation.',
             );
         }
     }

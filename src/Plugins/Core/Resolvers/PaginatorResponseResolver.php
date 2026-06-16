@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
+use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Override;
 use Psr\Log\LoggerInterface;
@@ -25,19 +26,11 @@ use function is_a;
 use function sprintf;
 
 /**
- * Resolves a paginator return type (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) into
- * its `200 OK` response.
+ * Resolves a paginator return type (`LengthAwarePaginator`, `Paginator`, `CursorPaginator`) into its `200 OK` response.
  *
- * The paginated item type is resolved with this precedence (attribute wins):
- *   1. A `#[ResponseResource]` attribute on the action.
- *   2. The `return Paginator<Item>` PHPDoc generic argument.
- * When neither is present the resolver logs a generation warning and returns null, deferring to
- * the next resolver (and ultimately the bare-200 fallback).
- *
- * When the return type is not itself a paginator, the resolver falls back to the body scan
- * ({@see PaginatorCallReader}) — but only for actions ApiResources / SpatieData would not claim
- * (their resource / Data return types and resource-naming `#[ResponseResource]`). Core runs first,
- * so without those guards it would steal responses those plugins shape better (issue #353).
+ * Item type precedence: `#[ResponseResource]` attribute, then `@return Paginator<Item>` generic.
+ * Falls back to the body scan ({@see PaginatorCallReader}) when the return type is not itself a
+ * paginator, but only for actions ApiResources / SpatieData would not claim.
  */
 final readonly class PaginatorResponseResolver implements PrimaryResponseResolver
 {
@@ -70,10 +63,6 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         $kind = PaginatorKind::fromClass($returnType->getName());
 
         if ($kind === null) {
-            // The return type is not itself a paginator. Fall back to the body scan only when the
-            // action is not one ApiResources / SpatieData would claim — otherwise Core (which runs
-            // first) would steal a response those plugins shape better. Both guards return null,
-            // preserving the pre-#353 behaviour.
             $kind = $this->kindFromBody($descriptor, $reflector, $returnType);
 
             if ($kind === null) {
@@ -105,30 +94,23 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     }
 
     /**
-     * The paginator kind from an unconditional `paginate()`-family call in the action body, but
-     * only when the action is not one ApiResources / SpatieData would claim. Both guards return
-     * null to leave the response to those plugins (and ultimately the bare-200 fallback).
+     * Detects paginator kind from the action body, skipping actions ApiResources / SpatieData would claim.
      */
     private function kindFromBody(
         ActionDescriptor $descriptor,
         ReflectionFunctionAbstract $reflector,
         ReflectionNamedType $returnType,
     ): ?PaginatorKind {
-        // Guard 1 — a resource / Data return type is the convention plugins' surface.
         if ($this->isResourceOrDataType($returnType->getName())) {
             return null;
         }
 
-        // Guard 2 — a method- or controller-level #[ResponseResource] naming a JsonResource is the
-        // ApiResources claiming surface. This deliberately mirrors
-        // ResourceClassLocator::readResponseResource()'s two-level read (documented coupling): Core
-        // may consume #[ResponseResource] for the item class only when it names a non-resource bare
-        // model, which resolveItemClass() handles below.
+        // Mirrors ResourceClassLocator's two-level read; Core only consumes #[ResponseResource] for bare models.
         if ($this->namesResponseResourceClass($reflector, $descriptor)) {
             return null;
         }
 
-        // The body scan needs a concrete method (closures carry no paginate() controller idiom).
+        // Closures don't use the paginate() idiom; body scan requires a concrete method.
         if (!$reflector instanceof ReflectionMethod) {
             return null;
         }
@@ -137,12 +119,12 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     }
 
     /**
-     * Whether the class is a Laravel API Resource or a Spatie Data type — matched by FQCN string so
-     * Core stays free of plugin / third-party imports (the same approach as {@see PaginatorKind}).
+     * Whether the class is a Laravel API Resource or Spatie Data type (matched by FQCN string to avoid imports).
      */
     private function isResourceOrDataType(string $class): bool
     {
-        foreach ([
+        /** @noinspection ClassConstantCanBeUsedInspection */
+        return array_any([
             'Illuminate\\Http\\Resources\\Json\\JsonResource',
             'Illuminate\\Http\\Resources\\Json\\ResourceCollection',
             'Illuminate\\Http\\Resources\\Json\\AnonymousResourceCollection',
@@ -150,19 +132,11 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             'Spatie\\LaravelData\\DataCollection',
             'Spatie\\LaravelData\\PaginatedDataCollection',
             'Spatie\\LaravelData\\CursorPaginatedDataCollection',
-        ] as $type) {
-            if (is_a($class, $type, allow_string: true)) {
-                return true;
-            }
-        }
-
-        return false;
+        ], fn(string $type): bool => is_a($class, $type, allow_string: true));
     }
 
     /**
      * Whether a method- or controller-level `#[ResponseResource]` names a `JsonResource` class.
-     * Mirrors {@see \Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator}'s
-     * two-level attribute read.
      */
     private function namesResponseResourceClass(
         ReflectionFunctionAbstract $reflector,
@@ -181,7 +155,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         $class = $attribute->newInstance()->class;
 
         return class_exists($class)
-            && is_a($class, 'Illuminate\\Http\\Resources\\Json\\JsonResource', allow_string: true);
+            && is_a($class, JsonResource::class, allow_string: true);
     }
 
     /**
@@ -194,8 +168,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         if ($attribute !== null) {
             $instance = $attribute->newInstance();
 
-            // $instance->collection is intentionally not consulted here — a paginator envelope is
-            // always a collection by definition.
+            // $instance->collection is not consulted: a paginator envelope is always a collection.
             if (class_exists($instance->class)) {
                 return $instance->class;
             }
@@ -218,8 +191,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     }
 
     /**
-     * Turns the item class into an `OA\Items`: a `$ref` when a registered resolver claims the
-     * class, otherwise a generic object item.
+     * Returns a `$ref` item when a resolver claims the class, otherwise a generic object item.
      *
      * @param class-string $itemClass
      */
@@ -233,9 +205,6 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             }
         }
 
-        // No registered ref resolver claimed the class (e.g. a plain model). Return a generic
-        // object schema — not a warning, as this is a valid outcome when the item type is outside
-        // the resolver chain.
         return new OA\Items(['type' => 'object']);
     }
 }

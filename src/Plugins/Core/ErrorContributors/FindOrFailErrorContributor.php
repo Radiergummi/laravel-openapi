@@ -22,22 +22,11 @@ use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use function in_array;
 
 /**
- * Infers a 404 Not Found error response from a `findOrFail()` / `firstOrFail()` lookup in the
- * controller method body — a Tier-1 bounded scan (epic #5).
+ * Infers a 404 from a `findOrFail()` / `firstOrFail()` call in the controller body.
  *
- * Both `Model::findOrFail()` (static) and `$query->firstOrFail()` (instance) throw a
- * {@see ModelNotFoundException} (→ 404 framework handler) when the record is absent. The presence
- * of the call is the entire signal: there is no argument to evaluate, so — unlike
- * {@see AbortErrorContributor} — there is no "matched but unreadable" degrade path. A single 404
- * covers the whole action; the framework throws the same exception regardless of which lookup
- * fails.
- *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
- * {@see ConditionalContextPolicy::IncludeConditionalContexts}, so a lookup inside an `if` guard
- * still counts. The status and description come from
- * `config('openapi.exception_responses')[ModelNotFoundException::class]` — the same entry
- * {@see RouteModelBindingErrorContributor} uses, so the emitted 404 is byte-identical and the
- * stage's first-contributor-wins dedup is order-independent.
+ * Uses the same `config('openapi.exception_responses')[ModelNotFoundException::class]` entry as
+ * `RouteModelBindingErrorContributor`, so the emitted response is identical and dedup is
+ * order-independent.
  */
 #[Scoped]
 final readonly class FindOrFailErrorContributor implements ErrorResponseContributor
@@ -99,15 +88,10 @@ final readonly class FindOrFailErrorContributor implements ErrorResponseContribu
         ];
     }
 
-    /**
-     * Whether the node is a `findOrFail()` / `firstOrFail()` call in either the static
-     * (`Model::findOrFail()`) or instance (`$query->firstOrFail()`) form.
-     */
     private function isThrowingLookup(Node $node): bool
     {
         if ($node instanceof MethodCall || $node instanceof StaticCall) {
-            // PHP method names are case-insensitive, so `->FindOrFail()` dispatches to the same
-            // method and throws the same exception — match case-insensitively, as Abort does.
+            // Method names are case-insensitive; compare lowercase.
             return $node->name instanceof Identifier
                 && in_array($node->name->toLowerString(), self::THROWING_METHODS, true);
         }

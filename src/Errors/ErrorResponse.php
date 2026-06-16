@@ -11,10 +11,8 @@ use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 /**
  * The body slice of an error response, produced by an {@see ErrorResponseResolver}.
  *
- * Carries only what a resolver can produce: media-type contents, response headers, links, and an
- * optional description that overrides the stage's default. The response key, named-component
- * registration, and default description are owned by {@see ErrorResponseInferenceStage} — there is
- * intentionally no slot for them on this type.
+ * Carries media-type contents, headers, links, and an optional description override.
+ * The response key and default description are owned by {@see ErrorResponseInferenceStage}.
  */
 final readonly class ErrorResponse
 {
@@ -30,9 +28,6 @@ final readonly class ErrorResponse
         public ?string $description = null,
     ) {}
 
-    /**
-     * Claim the response with no body.
-     */
     public static function bodyless(): self
     {
         return new self();

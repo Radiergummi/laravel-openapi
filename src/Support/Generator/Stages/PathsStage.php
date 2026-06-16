@@ -150,15 +150,8 @@ final readonly class PathsStage implements SpecStage
     }
 
     /**
-     * Builds an operation ID for the given route, dispatching on the configured
-     * `openapi.operation_id_strategy`:
-     *
-     * - `route-name` (default) → {@see routeNameOperationId}: named route verbatim (sanitised),
-     *   unnamed routes fall back to `{method}_{path}`.
-     * - `method-path` → {@see methodPathOperationId}: always `{method}_{path}`, ignoring names.
-     *
-     * Unknown values fall back to the default. Every strategy's output satisfies the
-     * `operation.id-invalid-chars` pattern.
+     * Derives an operation ID per `openapi.operation_id_strategy`: `route-name` (default) uses
+     * the named route, falling back to `{method}_{path}`; `method-path` always uses `{method}_{path}`.
      */
     private function buildOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
     {
@@ -178,9 +171,8 @@ final readonly class PathsStage implements SpecStage
     }
 
     /**
-     * Priority:
-     * 1. Named route → `{name}.{method}` for multi-method routes, plain `{name}` otherwise.
-     * 2. Generated/unnamed (`generated::*` prefix or null) → `{method}_{sanitised_path}`.
+     * Named route: `{name}.{method}` for multi-method routes, `{name}` otherwise.
+     * Generated/unnamed (`generated::*` or null): `{method}_{sanitised_path}`.
      */
     private function routeNameOperationId(ActionDescriptor $descriptor, HttpMethod $method): string
     {
@@ -202,15 +194,7 @@ final readonly class PathsStage implements SpecStage
         return $this->methodPathOperationId($descriptor, $method);
     }
 
-    /**
-     * Sanitises a route-name-derived operation ID so it satisfies the codegen-safe identifier
-     * pattern enforced by {@see \Radiergummi\OpenApi\Lint\Rules\OperationIdInvalidChars}
-     * (`^[A-Za-z][A-Za-z0-9._-]*$`): characters outside the allowed set (e.g. the `:` from
-     * namespaced names, the `{}` from bound segments) are replaced with `_`, and any leading
-     * non-letter characters are stripped so the id begins with a letter. The `.`/`-`/`_`
-     * characters the pattern permits are preserved, keeping dotted names like `api.users.show`
-     * intact.
-     */
+    /** Replaces invalid characters with `_` and strips leading non-letters; preserves dots. */
     private function sanitiseOperationId(string $operationId): string
     {
         $sanitised = preg_replace('/[^A-Za-z0-9._-]+/', '_', $operationId) ?? $operationId;

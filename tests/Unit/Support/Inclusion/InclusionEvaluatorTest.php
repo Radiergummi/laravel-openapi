@@ -14,6 +14,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Inclusion\TraceEntry;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Support\Spec\SpecMatcher;
 use Radiergummi\OpenApi\Support\Spec\SpecResolver;
@@ -32,7 +33,8 @@ final class FxSpecV1Class
 it('TraceEntry holds stage, name, passed, reason', function (): void {
     $entry = new TraceEntry('global-filter', 'SkipNovaRoutes', true, 'not a Nova route');
 
-    expect($entry->stage)->toBe('global-filter')
+    expect($entry->stage)
+        ->toBe('global-filter')
         ->and($entry->name)->toBe('SkipNovaRoutes')
         ->and($entry->passed)->toBeTrue()
         ->and($entry->reason)->toBe('not a Nova route');
@@ -41,7 +43,8 @@ it('TraceEntry holds stage, name, passed, reason', function (): void {
 it('InclusionDecision holds included, trace, summary, reason', function (): void {
     $included = new InclusionDecision(true, [], 'matches default spec');
 
-    expect($included->included)->toBeTrue()
+    expect($included->included)
+        ->toBeTrue()
         ->and($included->trace)->toBe([])
         ->and($included->summary)->toBe('matches default spec')
         ->and($included->reason)->toBeNull();
@@ -101,7 +104,7 @@ function makeEvaluator(array $globalFilters = []): InclusionEvaluator
         matcher: new SpecMatcher(),
         specResolver: new SpecResolver(),
         visibility: new VisibilityResolver(VisibilityMode::Public),
-        middlewareGatherer: app(\Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer::class),
+        middlewareGatherer: app(RouteMiddlewareGatherer::class),
     );
 }
 
@@ -127,7 +130,8 @@ it('excludes a route when any global RouteFilter returns shouldSkip=true', funct
 
     $decision = makeEvaluator([$filter])->decide($descriptor, $spec, 'local');
 
-    expect($decision->included)->toBeFalse()
+    expect($decision->included)
+        ->toBeFalse()
         ->and($decision->summary)->toContain('global filter')
         ->and($decision->reason)->toBe(SkipReason::GlobalFilter);
 });
@@ -147,7 +151,8 @@ it('excludes a route from a named spec when match config does not match', functi
 
     $decision = makeEvaluator()->decide($descriptor, $spec, 'local');
 
-    expect($decision->included)->toBeFalse()
+    expect($decision->included)
+        ->toBeFalse()
         ->and($decision->summary)->toContain('match')
         ->and($decision->reason)->toBe(SkipReason::SpecMembership);
 });
@@ -179,7 +184,8 @@ it('excludes a route with #[Spec(v1)] from spec v2 even if v2 match matches', fu
 
 it('excludes a route when #[Hide] applies in the current environment', function (): void {
     $hidden = new class () {
-        #[Hide] public function handle(): void {}
+        #[Hide]
+        public function handle(): void {}
     };
     $class = new ReflectionClass($hidden);
     $method = $class->getMethod('handle');
@@ -189,7 +195,8 @@ it('excludes a route when #[Hide] applies in the current environment', function 
 
     $decision = makeEvaluator()->decide($descriptor, $spec, 'production');
 
-    expect($decision->included)->toBeFalse()
+    expect($decision->included)
+        ->toBeFalse()
         ->and($decision->summary)->toContain('hidden')
         ->and($decision->reason)->toBe(SkipReason::Visibility);
 });
@@ -209,7 +216,8 @@ it('excludes every route from a named spec with no match config (matches nothing
 
     $decision = makeEvaluator()->decide($descriptor, $spec, 'local');
 
-    expect($decision->included)->toBeFalse()
+    expect($decision->included)
+        ->toBeFalse()
         ->and($decision->summary)->toContain("named spec 'partner' has no match config");
 });
 
@@ -220,6 +228,7 @@ it('produces a trace with one entry per check', function (): void {
     $decision = makeEvaluator()->decide($descriptor, $spec, 'local');
 
     $stages = array_column(array_map(fn($t) => (array) $t, $decision->trace), 'stage');
-    expect($stages)->toContain('spec-match')
+    expect($stages)
+        ->toContain('spec-match')
         ->and($stages)->toContain('visibility');
 });

@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Lint;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Support\Str;
-use Radiergummi\OpenApi\Console\LintCommand;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Symfony\Component\Process\Exception\LogicException;
 use Symfony\Component\Process\Exception\ProcessSignaledException;
@@ -30,33 +29,19 @@ use function trim;
 use const PHP_EOL;
 
 /**
- * Filters the discovered route set for {@see LintRunner} using the --uri glob and the file-based
- * --path / --diff scope. Extracted from {@see LintCommand} so the filter is unit-testable; the
- * runner uses it via composition.
+ * Filters the discovered route set for {@see LintRunner} by --uri glob and --path / --diff scope.
  *
- * The default-branch detection delegates to git itself:
- *  1. `git symbolic-ref refs/remotes/origin/HEAD` — the value `git clone` sets to the upstream
- *     default branch (usually `origin/main` or `origin/master`).
- *  2. The first existing local branch among `main`, `master`, `trunk`.
- *  3. Fallback: `HEAD~1`.
- *
- * Consumers supply the scope via a {@see DiffScope} on {@see LintOptions::$diff}; the default-ref
- * detection runs only for a {@see DiffMode::Ref} scope whose ref is null.
+ * Default-branch detection tries: `git symbolic-ref refs/remotes/origin/HEAD`, then
+ * the first local branch among `main`/`master`/`trunk`, then `HEAD~1`.
  */
 #[Scoped]
 class LintRouteFilter
 {
     /**
-     * Apply the scoping filters in order: --uri (glob match against route URI), then the
-     * file-based scope formed by --path (an explicit file list) unioned with --diff (files
-     * changed since the diff ref). Both file sources feed the same descriptor-affected check, so
-     * `--path Foo.php` is the manual form of `--diff`'s changed-file list. When the resulting
-     * changed-file set includes the published OpenAPI config, every route is preserved because a
-     * config change can affect every operation's output.
+     * Apply --uri glob, --path, and --diff filters. A config change widens scope to all routes.
      *
      * @param list<ActionDescriptor> $descriptors
-     * @param list<string>           $files       Explicit source files (`--path`), absolute or
-     *                                            base-relative; normalised to base-relative here.
+     * @param list<string>           $files       Explicit source files (`--path`), absolute or base-relative.
      * @param ?DiffScope             $diff        The `--diff` scope, or null when not requested.
      *
      * @return list<ActionDescriptor>
@@ -121,10 +106,7 @@ class LintRouteFilter
     }
 
     /**
-     * True for descriptors the lint pipeline must skip: closure routes (no controller),
-     * routes whose source file cannot be resolved, and routes whose controller lives in
-     * a vendor directory. Shared between the descriptor-level filter and the
-     * generator-level filter so the two cannot drift apart.
+     * True for closure routes (no controller), unresolvable source files, and vendor controllers.
      */
     private static function isVendorOrUnresolvable(ActionDescriptor $descriptor): bool
     {
@@ -162,9 +144,6 @@ class LintRouteFilter
     }
 
     /**
-     * The git argv for a diff scope. `WorkingTree`/`StagedIndex` select uncommitted edits; `Ref`
-     * diffs `<ref>...HEAD` and expects a concrete ref (see {@see resolveRef}).
-     *
      * @return list<string>
      */
     protected function diffCommand(DiffScope $diff): array
@@ -177,8 +156,7 @@ class LintRouteFilter
     }
 
     /**
-     * Resolve a `Ref`-mode scope with no ref to a concrete merge-base ref, so {@see diffCommand}
-     * stays a pure mode→argv mapping. Work-tree modes and explicit refs pass through unchanged.
+     * Resolves a `Ref`-mode scope with no ref to a concrete merge-base ref; passes through otherwise.
      *
      * @throws LogicException
      * @throws ProcessSignaledException
@@ -264,9 +242,6 @@ class LintRouteFilter
     }
 
     /**
-     * Returns true when a changed file is the published OpenAPI config — a change there can
-     * affect every operation's output, so the per-descriptor diff filter is bypassed.
-     *
      * @param list<string> $changedFiles
      */
     private function infraTouched(array $changedFiles): bool
@@ -277,9 +252,7 @@ class LintRouteFilter
     }
 
     /**
-     * Normalise a CLI-supplied `--path` value to the base-relative form `git diff --name-only`
-     * emits, so explicit files and diff-derived files compare identically. Absolute paths under
-     * the project root are made relative; values already relative pass through unchanged.
+     * Normalises to base-relative form so `--path` and `git diff --name-only` outputs compare identically.
      */
     private function normaliseToBaseRelative(string $file): string
     {

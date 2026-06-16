@@ -42,28 +42,14 @@ use function is_a;
 use function sprintf;
 
 /**
- * Infers the primary response from the dominant Fractal invocation styles — a Tier-1 bounded scan
- * (epic #5, issue #263), the deferred binding half of #13.
+ * Infers the primary response from Fractal invocation styles via bounded body scan.
  *
- * Three call shapes are recognised within the first {@see self::STATEMENT_LIMIT} top-level
- * statements:
- *
- * - the `fractal()` helper chained into `->item(…)` / `->collection(…)`,
- * - the `Spatie\Fractalistic\Fractal` facade chained the same way (`Fractal::create()->item(…)`),
- * - an injected `League\Fractal\Manager` fed a `new Item(…)` / `new Collection(…)` resource.
- *
- * The transformer comes from the resource/chain-link argument when it is a literal `new T()` or
- * `T::class` naming a concrete `TransformerAbstract` subclass; `item` / `Item` binds the single
- * envelope, `collection` / `Collection` the collection envelope. A trailing `->serializeWith(new
- * …Serializer())` maps onto the modelled {@see Serializer} cases. All Fractal classes are matched
- * by FQCN string, so the plugin never depends on the packages being installed.
- *
- * Degradation contract (mirrors {@see EntityTransformerResponseResolver}): the bare two-argument
- * helper `fractal($data, new T())` is refused — item vs collection is not statically knowable from
- * the first argument. A variable/dynamic transformer, an unrecognised serializer, or a transformer
- * with no documentable fields all refuse with a generation-log note. An action carrying a
- * {@see PrimaryResponseAuthoringAttribute} (`#[FractalResponse]`) is never scanned, and the
- * return-type guard keeps the scan away from signatures the Tier-0 resolvers already own.
+ * Three call shapes are recognised within the first {@see self::STATEMENT_LIMIT} statements:
+ * `fractal()->item(…)`/`->collection(…)`, `Fractal::create()->item(…)`, and an injected
+ * `Manager` fed a `new Item(…)`/`new Collection(…)`. Classes are matched by FQCN string so
+ * the plugin never depends on the packages being installed. Actions carrying a
+ * {@see PrimaryResponseAuthoringAttribute} are skipped. The bare two-argument
+ * `fractal($data, new T())` is refused: item vs collection is not statically knowable.
  */
 #[Scoped]
 final readonly class FractalHelperResponseResolver implements PrimaryResponseResolver
@@ -72,11 +58,7 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
 
     private const string HELPER_FUNCTION = 'fractal';
 
-    /**
-     * The static entrypoint classes recognised for `Fractal::create()`: the Fractalistic base
-     * class, the laravel-fractal subclass, and laravel-fractal's facade alias. Matched by FQCN
-     * string so neither package need be installed.
-     */
+    /** FQCN strings accepted as the `Fractal::create()` entrypoint. */
     private const array FACADE_CLASSES = [
         'Spatie\\Fractalistic\\Fractal',
         'Spatie\\Fractal\\Fractal',
@@ -95,9 +77,7 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
 
     private const string SERIALIZE_WITH_METHOD = 'serializeWith';
 
-    /**
-     * `new` serializer FQCN → modelled enum case. An unrecognised serializer refuses.
-     */
+    /** `new` serializer FQCN → modelled enum case. An unrecognised serializer refuses. */
     private const array SERIALIZER_CLASSES = [
         'League\\Fractal\\Serializer\\DataArraySerializer' => Serializer::DataArray,
         'League\\Fractal\\Serializer\\ArraySerializer' => Serializer::ArraySerializer,
@@ -125,8 +105,6 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
             return null;
         }
 
-        // An explicit authoring attribute always wins; #[FractalResponse] is consumed by
-        // FractalResponseResolver earlier in the chain.
         if ($descriptor->declaresAttributeImplementing(PrimaryResponseAuthoringAttribute::class)) {
             return null;
         }
@@ -183,10 +161,28 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     // region Call-shape matching
 
     /**
-     * The first recognised Fractal call shape within the scanned statements, or null. The helper
-     * and facade shapes resolve from the first top-level `return` expression; the injected-Manager
-     * shape resolves from a `new Item(…)` / `new Collection(…)` resource anywhere in the
-     * statements (a single one, or it is ambiguous and refused).
+     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
+     * HTTP response class. Any other named type is owned by signature resolvers; union and
+     * intersection types are refused.
+     */
+    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
+    {
+        $returnType = $method->getReturnType();
+
+        if ($returnType === null) {
+            return true;
+        }
+
+        if (!$returnType instanceof ReflectionNamedType) {
+            return false;
+        }
+
+        return $returnType->isBuiltin()
+            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
+    }
+
+    /**
+     * The first recognised Fractal call shape within the scanned statements, or null.
      *
      * @param list<Node\Stmt> $statements
      */
@@ -205,11 +201,7 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
         return $this->matchManagerResourceShape($statements);
     }
 
-    /**
-     * The expression of the first top-level `return` statement.
-     *
-     * @param list<Node\Stmt> $statements
-     */
+    /** @param list<Node\Stmt> $statements */
     private function firstReturnExpression(array $statements): ?Expr
     {
         foreach ($statements as $statement) {
@@ -222,10 +214,9 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     }
 
     /**
-     * Walks a method-call chain from its outer terminal links inward, collecting the serializer
-     * named by `->serializeWith(…)`, until it reaches an `->item(…)` / `->collection(…)` link
-     * whose chain root is the `fractal()` helper or the Fractalistic facade. Any other root — an
-     * unrelated service or query builder exposing the same method names — does not match.
+     * Matches a chained `fractal()->item(…)` / `Fractal::create()->collection(…)` shape.
+     * Only the `fractal()` helper or the Fractalistic facade qualify as the root, preventing
+     * false positives on unrelated services with the same method names.
      */
     private function matchChainedShape(Expr $expression): ?FractalCallShape
     {
@@ -265,10 +256,28 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     }
 
     /**
-     * Whether the receiver of an `->item(…)` / `->collection(…)` link is a Fractal entrypoint:
-     * the `fractal()` helper call or the `Fractal::create()` / facade static call. Asserting the
-     * concrete root is what keeps the same method names on unrelated receivers from matching.
+     * The serializer from a `->serializeWith(new …Serializer())` call, or null if unrecognised.
+     *
+     * @param array<int, Arg|Node\VariadicPlaceholder> $args
      */
+    private function serializerFrom(array $args): ?Serializer
+    {
+        $argument = $args[0] ?? null;
+
+        if (!$argument instanceof Arg || !$argument->value instanceof New_) {
+            return null;
+        }
+
+        $class = $argument->value->class;
+
+        if (!$class instanceof Name) {
+            return null;
+        }
+
+        return self::SERIALIZER_CLASSES[$class->toString()] ?? null;
+    }
+
+    /** Whether the expression is the `fractal()` helper call or the `Fractal::create()` facade call. */
     private function isFractalEntrypoint(Expr $receiver): bool
     {
         if ($receiver instanceof FuncCall) {
@@ -292,9 +301,38 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     }
 
     /**
-     * The single `new Item(…)` / `new Collection(…)` resource construction across the scanned
-     * statements (the injected-Manager shape). Two or more resource constructions are ambiguous
-     * and refused.
+     * The class at the given argument index when it is a literal `new T(…)` or `T::class`.
+     * Variables, method calls, and properties are not statically knowable.
+     *
+     * @param array<int, Arg|Node\VariadicPlaceholder> $args
+     *
+     * @return null|class-string
+     */
+    private function transformerArgument(array $args, int $index): ?string
+    {
+        $argument = $args[$index] ?? null;
+
+        if (!$argument instanceof Arg) {
+            return null;
+        }
+
+        $value = $argument->value;
+
+        $name = match (true) {
+            $value instanceof New_ && $value->class instanceof Name => $value->class->toString(),
+            $value instanceof ClassConstFetch
+            && $value->class instanceof Name
+            && $value->name instanceof Node\Identifier
+            && $value->name->toString() === 'class' => $value->class->toString(),
+            default => null,
+        };
+
+        return $name !== null && class_exists($name) ? $name : null;
+    }
+
+    /**
+     * Matches the injected-Manager shape: exactly one `new Item(…)` / `new Collection(…)`.
+     * Two or more are ambiguous and refused.
      *
      * @param list<Node\Stmt> $statements
      */
@@ -327,6 +365,10 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
         );
     }
 
+    // endregion
+
+    // region Guards & logging
+
     private function isResourceClass(Node $class): bool
     {
         return $class instanceof Name
@@ -335,88 +377,7 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     }
 
     /**
-     * The class named by the argument at the given index, when it is a literal `new T(…)` or
-     * `T::class`. Anything else (a variable, a method call, a property) is not statically knowable.
-     *
-     * @param array<int, Arg|Node\VariadicPlaceholder> $args
-     *
-     * @return null|class-string
-     */
-    private function transformerArgument(array $args, int $index): ?string
-    {
-        $argument = $args[$index] ?? null;
-
-        if (!$argument instanceof Arg) {
-            return null;
-        }
-
-        $value = $argument->value;
-
-        $name = match (true) {
-            $value instanceof New_ && $value->class instanceof Name => $value->class->toString(),
-            $value instanceof ClassConstFetch
-                && $value->class instanceof Name
-                && $value->name instanceof Node\Identifier
-                && $value->name->toString() === 'class' => $value->class->toString(),
-            default => null,
-        };
-
-        return $name !== null && class_exists($name) ? $name : null;
-    }
-
-    /**
-     * The modelled serializer named by a `->serializeWith(new …Serializer())` argument, or null
-     * when the argument names a serializer outside the three modelled cases — which refuses
-     * rather than documenting the wrong envelope.
-     *
-     * @param array<int, Arg|Node\VariadicPlaceholder> $args
-     */
-    private function serializerFrom(array $args): ?Serializer
-    {
-        $argument = $args[0] ?? null;
-
-        if (!$argument instanceof Arg || !$argument->value instanceof New_) {
-            return null;
-        }
-
-        $class = $argument->value->class;
-
-        if (!$class instanceof Name) {
-            return null;
-        }
-
-        return self::SERIALIZER_CLASSES[$class->toString()] ?? null;
-    }
-
-    // endregion
-
-    // region Guards & logging
-
-    /**
-     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
-     * HTTP response class. Any other named type is Tier-0 territory the signature resolvers own;
-     * union and intersection types are refused rather than arbitrated.
-     */
-    private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
-    {
-        $returnType = $method->getReturnType();
-
-        if ($returnType === null) {
-            return true;
-        }
-
-        if (!$returnType instanceof ReflectionNamedType) {
-            return false;
-        }
-
-        return $returnType->isBuiltin()
-            || is_a($returnType->getName(), HttpFoundationResponse::class, true);
-    }
-
-    /**
-     * Whether the transformer yields any documentable fields — declared `#[TransformerField]`
-     * attributes or a readable `transform()` literal. Binding an envelope around a genuinely empty
-     * item schema would document nothing while claiming authority over the response.
+     * Whether the transformer has documentable fields.
      *
      * @param class-string $transformerClass
      *

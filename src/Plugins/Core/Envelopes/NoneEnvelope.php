@@ -10,9 +10,7 @@ use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Errors\ErrorResponse;
 
 /**
- * The explicit "no body" preset — claims every standard error response without emitting
- * content. Selected via `config('openapi.error_envelope') = 'none'` (the package default,
- * preserving today's bodyless behavior).
+ * Claims every standard error response without emitting a body. The package default.
  */
 final readonly class NoneEnvelope implements ErrorResponseResolver
 {

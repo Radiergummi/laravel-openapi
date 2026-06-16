@@ -16,7 +16,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 use function sprintf;
 
 /**
- * Flags a `#[ResourceField]` declared with no `type` — its schema cannot be derived, so the
+ * Flags a `#[ResourceField]` declared with no `type`; its schema cannot be derived, so the
  * field is emitted untyped.
  */
 final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisitor
@@ -43,7 +43,7 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
 
         $resourceClass = $target->resourceClass;
 
-        // A wrapped-model target documents the model's schema; there is no resource to inspect.
+        // A wrapped-model target uses the model's schema directly; no resource to inspect.
         if ($resourceClass === null) {
             return;
         }

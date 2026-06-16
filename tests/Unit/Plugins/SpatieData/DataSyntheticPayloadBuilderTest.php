@@ -38,7 +38,8 @@ it('recurses into nested Data objects one level deep', function (): void {
 it('emits a single-item array for plain array properties', function (): void {
     $payload = makeBuilder()->build(PlainArrayData::class);
 
-    expect($payload)->toHaveKey('tags')
+    expect($payload)
+        ->toHaveKey('tags')
         ->and($payload['tags'])->toBe([null]);
 });
 
@@ -57,16 +58,16 @@ it('emits correct keys for ValidationRulesFixtureData', function (): void {
     // Nested Data → sub-array with address properties (all scalars synthesised as null).
     expect($payload['address'])->toBe([
         'street' => null,
-        'city'   => null,
-        'zip'    => null,
+        'city' => null,
+        'zip' => null,
     ]);
 });
 
 it('emits null for each scalar property of a flat nested Data class', function (): void {
     expect(makeBuilder()->build(AddressFixtureData::class))->toBe([
         'street' => null,
-        'city'   => null,
-        'zip'    => null,
+        'city' => null,
+        'zip' => null,
     ]);
 });
 

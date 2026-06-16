@@ -33,7 +33,7 @@ parameters:
         # RuleTestCase data fixtures carry intentional attribute misuse for the PHPStan rules to
         # catch; they are analysed by the rule tests in isolation, not the main pass.
         - tests/PhpStan/Data/*
-        # Fixtures carrying intentionally-malformed PHPDoc (e.g. a broken @phpstan-import-type)
+        # Fixtures carrying intentionally-malformed PHPDoc (e.g., a broken @phpstan-import-type)
         # to exercise resolver error paths — the broken annotation is the point of the fixture.
         - tests/Fixtures/Types/*
     tmpDir: .cache/phpstan
@@ -43,7 +43,7 @@ parameters:
 
     ignoreErrors:
         # Test fixtures intentionally read attributes off the typed returns of $this->user() /
-        # $this->route(...) to mirror real-world consumer patterns (e.g. $this->user()->customer_id).
+        # $this->route(...) to mirror real-world consumer patterns (e.g., $this->user()->customer_id).
         # The lib stubs these accesses at runtime via AnyValue + SpecTimeRequest; PHPStan cannot
         # model that statically. property.notFound fires when the typed return is an interface
         # without the accessed property; property.nonObject fires when the typed return is nullable.
@@ -89,7 +89,7 @@ parameters:
             paths:
                 - tests/
         # Lint-rule fixtures intentionally pass empty strings to attribute slots typed
-        # `non-empty-string` (e.g. `#[Header('')]`, `#[ExternalDocs(url: '')]`) so the runtime
+        # `non-empty-string` (e.g., `#[Header('')]`, `#[ExternalDocs(url: '')]`) so the runtime
         # lint rules that flag empty values have something to catch. The static rejection is the
         # point everywhere else; here the empty literal is the test input.
         -
@@ -193,7 +193,7 @@ parameters:
             identifier: argument.type
             paths:
                 - tests/
-        # Tests pass string literals (e.g. controller / service-provider FQNs typed by the user)
+        # Tests pass string literals (e.g., controller / service-provider FQNs typed by the user)
         # to parameters typed `class-string` or `class-string<T>|T`. The literals resolve at
         # runtime; PHPStan can't track them statically.
         -
@@ -230,7 +230,7 @@ parameters:
             identifier: argument.type
             paths:
                 - tests/
-        # Tests pass values from optional-return APIs (e.g. swagger-php Schema|null) into
+        # Tests pass values from optional-return APIs (e.g., swagger-php Schema|null) into
         # helpers that demand the non-null type — they've just primed the value.
         -
             message: '~^Parameter (#\d+ )?\$\w+ of function [^ ]+ expects OpenApi\\Annotations\\\w+, OpenApi\\Annotations\\\w+\|null given\.$~'
@@ -250,7 +250,7 @@ parameters:
             identifier: argument.type
             paths:
                 - tests/
-        # Helpers / fixtures return `list<X>` while builders return `array<X>` (e.g. array_keys);
+        # Helpers / fixtures return `list<X>` while builders return `array<X>` (e.g., array_keys);
         # the values are still well-typed.
         -
             message: '#should return list<[^>]+> but returns array<[^>]+>\.$#'

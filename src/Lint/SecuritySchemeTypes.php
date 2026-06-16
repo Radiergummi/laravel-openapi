@@ -57,13 +57,10 @@ final readonly class SecuritySchemeTypes
     }
 
     /**
-     * Whether a requirement targeting `$schemeName` should have its scopes validated.
+     * Whether `$schemeName` carries a scope registry (`oauth2` / `openIdConnect`).
      *
-     * Scopes only have a document-level registry for `oauth2` / `openIdConnect` schemes; `http` /
-     * `apiKey` / `mutualTLS` schemes (e.g. Sanctum's bearer scheme, whose `abilities:` surface as
-     * scopes) carry no scope catalogue, so their scopes must not be validated against it. A scheme
-     * that is not declared at all has an unknown type — keep validating it (and let
-     * `security.scheme-undefined` flag the missing declaration).
+     * Returns true for unknown schemes so `security.scheme-undefined` can flag the missing
+     * declaration rather than silently skipping scope validation.
      */
     public function carriesScopes(string $schemeName): bool
     {

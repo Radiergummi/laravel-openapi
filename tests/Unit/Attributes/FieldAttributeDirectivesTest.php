@@ -14,7 +14,8 @@ it('strips directives from the description in RequestField::descriptor()', funct
 
     $descriptor = $field->descriptor();
 
-    expect($descriptor->description)->toBe('The product price.')
+    expect($descriptor->description)
+        ->toBe('The product price.')
         ->and($descriptor->example)->toBe(1999);
 });
 

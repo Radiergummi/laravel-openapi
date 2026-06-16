@@ -38,14 +38,18 @@ function operationSecurityFindings(
         : OperationNodeFactory::forDescriptor($descriptor, raw: $raw);
 
     return iterator_to_array(
-        new OperationSecurityMissing(app(RouteMiddlewareGatherer::class))->checkOperation($operation, OperationNodeFactory::emptyContext()),
+        new OperationSecurityMissing(app(RouteMiddlewareGatherer::class))->checkOperation(
+            $operation,
+            OperationNodeFactory::emptyContext(),
+        ),
     );
 }
 
 it('reports its id and level', function (): void {
     $rule = new OperationSecurityMissing(app(RouteMiddlewareGatherer::class));
 
-    expect($rule->id())->toBe('operation.security-missing')
+    expect($rule->id())
+        ->toBe('operation.security-missing')
         ->and($rule->level())->toBe(1);
 });
 
@@ -57,7 +61,8 @@ it('emits a finding when a route has auth middleware and no security is declared
         new OA\Get(['_context' => new Context()]),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.security-missing')
         ->and($findings[0]->level)->toBe(1);
 });
@@ -70,25 +75,30 @@ it('emits a finding when a route has scope middleware and no security is declare
         new OA\Get(['_context' => new Context()]),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.security-missing');
 });
 
-it('emits a finding when controller-applied (HasMiddleware) auth is present but no security is declared (#260)', function (): void {
-    // No route-declared middleware; `auth:sanctum` is wired on the controller via HasMiddleware.
-    // The linter must read the gathered (controller-aware) list, matching the generator.
-    $findings = operationSecurityFindings(
-        '/controller-authed',
-        'protectedAction',
-        [],
-        new OA\Get(['_context' => new Context()]),
-        false,
-        ControllerMiddlewareAuthController::class,
-    );
+it(
+    'emits a finding when controller-applied (HasMiddleware) auth is present but no security is declared (#260)',
+    function (): void {
+        // No route-declared middleware; `auth:sanctum` is wired on the controller via HasMiddleware.
+        // The linter must read the gathered (controller-aware) list, matching the generator.
+        $findings = operationSecurityFindings(
+            '/controller-authed',
+            'protectedAction',
+            [],
+            new OA\Get(['_context' => new Context()]),
+            false,
+            ControllerMiddlewareAuthController::class,
+        );
 
-    expect($findings)->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('operation.security-missing');
-});
+        expect($findings)
+            ->toHaveCount(1)
+            ->and($findings[0]->ruleId)->toBe('operation.security-missing');
+    },
+);
 
 it('emits no finding', function (
     string $uri,

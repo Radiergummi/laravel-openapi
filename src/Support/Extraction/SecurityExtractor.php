@@ -26,33 +26,12 @@ use function str_starts_with;
 use function substr;
 
 /**
- * Builds the security schemes for the OpenAPI document and derives per-operation `security`
- * requirements from route middleware.
+ * Builds security schemes (Passport, Sanctum, config) and derives per-operation `security`
+ * requirements from route middleware. Config entries win on name collision.
  *
- * Three sources contribute to the scheme catalogue:
- *
- * 1. The `openapi.security_schemes` config map. Each entry maps a scheme name to the OAS 3.1
- *    security-scheme shape; the array is passed through to {@see OA\SecurityScheme} unchanged.
- * 2. Passport's `oauth2` / `oauth2ClientCredentials` Authorization-Code and Client-Credentials
- *    flows, auto-derived when Laravel Passport is installed and its routes are registered.
- * 3. A Sanctum `sanctum` http/bearer scheme, auto-derived when any discovered route carries the
- *    `auth:sanctum` middleware token. Detection keys off the token, not `class_exists`, because
- *    Sanctum ships by default in fresh Laravel apps and is not always used for API auth.
- *
- * Config entries win on name collision. When no source yields a scheme the catalogue is
- * empty — the generator still emits a valid document; operations simply reference whatever
- * scheme names callers point at via `#[Security(scheme:)]`.
- *
- * Per-operation requirements (`forRoute()`) come from `auth:*` / `scope:*` / `scopes:*`
- * middleware. Routes with `auth:api` but no `scope:*` middleware emit an empty scope list —
- * meaning "a valid token is required but no specific scope is checked". This is distinct from
- * `security: []` (public). Routes with neither auth nor scope middleware emit `security: []`.
- * A route that *is* authed but for which no scheme can be derived (e.g. `auth:web` with Passport
- * absent and no config scheme) returns `null` so the caller omits `security` entirely — emitting
- * `[]` there would mislabel a protected route as public.
- *
- * swagger-php: `OA\Operation::$security` is a plain `array` of associative arrays
- * `['schemeName' => ['scope']]` — there is no `OA\SecurityRequirement` class.
+ * `forRoute()` returns `[]` (public), `null` (authenticated but no derivable scheme, so
+ * `operation.security-missing` can fire), or a populated list. Sanctum detection keys off
+ * `auth:sanctum` usage rather than `class_exists` to avoid registering an unused scheme.
  *
  * @internal
  */
@@ -69,22 +48,9 @@ final class SecurityExtractor
 
     private const int MAX_GROUP_EXPANSION_DEPTH = 10;
 
-    /**
-     * Lazily computed and reused across `forRoute()` / `requirementForScopes()` / `buildSchemes()`
-     * calls within a single generation run. The extractor is bound as a scoped singleton, so the
-     * cache is reset between requests under Octane. None of the inputs change during a run:
-     * Passport's class presence is a static fact, the router's middleware groups are sealed by
-     * the time generation starts, and the config catalogue is read once per process.
-     */
+    /** Lazily computed; reset between Octane requests via the scoped lifecycle. */
     private ?bool $passportAvailable = null;
 
-    /**
-     * Whether any discovered route carries the `auth:sanctum` middleware token — the only
-     * reliable signal that Sanctum is used for API auth. Detection is deliberately not
-     * `class_exists(Sanctum::class)`: Sanctum ships by default in fresh Laravel apps, so class
-     * presence would register an unreferenced scheme in the majority of apps that don't use it.
-     * Lazily computed and cached for the run, like {@see $passportAvailable}.
-     */
     private ?bool $sanctumInUse = null;
 
     /** @var ?array<string, array<int, string>> */
@@ -128,9 +94,6 @@ final class SecurityExtractor
     }
 
     /**
-     * Build the two Passport-derived OAuth2 schemes. Returns an empty array if Passport is
-     * not installed or its named routes are not registered.
-     *
      * @return list<OA\SecurityScheme>
      */
     private function passportSchemes(): array
@@ -196,9 +159,7 @@ final class SecurityExtractor
     }
 
     /**
-     * The Sanctum-derived bearer scheme, returned only when a route actually uses
-     * `auth:sanctum`. Sanctum tokens are opaque `id|plaintext` strings, not JWTs, so no
-     * `bearerFormat` is set.
+     * Sanctum tokens are opaque `id|plaintext` strings, not JWTs, so no `bearerFormat` is set.
      *
      * @return list<OA\SecurityScheme>
      */
@@ -222,15 +183,16 @@ final class SecurityExtractor
     {
         return $this->sanctumInUse ??= array_any(
             $this->router->getRoutes()->getRoutes(),
-            fn(Route $route): bool => in_array('auth:sanctum', $this->expandedMiddlewareFor($route), true),
+            fn(Route $route): bool
+                => in_array(
+                    'auth:sanctum',
+                    $this->expandedMiddlewareFor($route),
+                    true,
+                ),
         );
     }
 
     /**
-     * Gathers a route's middleware — via the crash-safe {@see RouteMiddlewareGatherer}, so
-     * constructor-applied middleware of non-instantiable controllers participates — and expands
-     * any group names to their members.
-     *
      * @return list<string>
      */
     private function expandedMiddlewareFor(Route $route): array
@@ -242,9 +204,7 @@ final class SecurityExtractor
     }
 
     /**
-     * Recursively expands middleware group names in $middleware against $groups.
-     * Entries that are not group keys are left untouched. A depth cap guards against
-     * cyclic group definitions.
+     * Depth cap guards against cyclic group definitions.
      *
      * @param list<string>            $middleware
      * @param array<string, string[]> $groups
@@ -260,15 +220,19 @@ final class SecurityExtractor
         $result = [];
 
         foreach ($middleware as $entry) {
-            // Routes may carry closure (or other non-string) middleware, which
-            // can neither name a group nor map to a security scheme. Skip it
-            // rather than crashing on the non-string array key.
+            // Closure middleware cannot name a group or map to a scheme; skip it.
             if (!is_string($entry)) {
                 continue;
             }
 
             if (isset($groups[$entry])) {
-                foreach ($this->expandGroups(array_values($groups[$entry]), $groups, $depth + 1) as $expanded) {
+                foreach (
+                    $this->expandGroups(
+                        array_values($groups[$entry]),
+                        $groups,
+                        $depth + 1,
+                    ) as $expanded
+                ) {
                     $result[] = $expanded;
                 }
             } else {
@@ -288,9 +252,6 @@ final class SecurityExtractor
     }
 
     /**
-     * Schemes registered via `openapi.security_schemes`. Each value is passed through to
-     * {@see OA\SecurityScheme} verbatim; the map key becomes `securityScheme`.
-     *
      * @return array<string, OA\SecurityScheme>
      */
     private function configSchemes(): array
@@ -299,7 +260,6 @@ final class SecurityExtractor
             return $this->configSchemesCache;
         }
 
-        /** @var mixed $raw */
         $raw = config('openapi.security_schemes', []);
 
         if (!is_array($raw)) {
@@ -323,8 +283,7 @@ final class SecurityExtractor
     }
 
     /**
-     * @return null|list<array<string, list<string>>> `null` = authed route, no derivable scheme
-     *                                                (caller omits `security`); see class docblock
+     * @return null|list<array<string, list<string>>> null = authenticated but no derivable scheme
      */
     public function forRoute(Route $route): ?array
     {
@@ -340,25 +299,26 @@ final class SecurityExtractor
             return [];
         }
 
-        // An explicit `openapi.security_middleware_map` entry fully describes how this route
-        // authenticates, so it takes precedence over the auto-derived default scheme(s) for this
-        // route.
+        // Explicit middleware map takes precedence over auto-derived defaults.
         if ($mappedSchemes !== []) {
-            return $this->buildRequirement($mappedSchemes, $allOfScopes, $anyOfScopes);
+            return $this->buildRequirement(
+                $mappedSchemes,
+                $allOfScopes,
+                $anyOfScopes,
+            );
         }
 
-        $requirement = $this->buildRequirement($this->defaultSchemeNames(), $allOfScopes, $anyOfScopes);
+        $requirement = $this->buildRequirement(
+            $this->defaultSchemeNames(),
+            $allOfScopes,
+            $anyOfScopes,
+        );
 
-        // No derivable scheme for an authed/scoped route: return null to omit `security`
-        // (not `[]`, which means public), so `operation.security-missing` can fire.
+        // null omits `security` (distinct from `[]` = public) so operation.security-missing fires.
         return $requirement === [] ? null : $requirement;
     }
 
     /**
-     * All-of scopes: a token must carry every one of these. Sourced from Passport `scope:` /
-     * `scopes:` and Sanctum's all-of `abilities:` middleware. Sanctum's any-of `ability:` is
-     * handled separately by {@see extractAnyOfScopes}.
-     *
      * @param list<string> $middleware
      *
      * @return list<string>
@@ -371,13 +331,12 @@ final class SecurityExtractor
             if (str_starts_with($entry, 'scope:')) {
                 $scopes[] = substr($entry, 6);
             } elseif (str_starts_with($entry, 'scopes:')) {
-                foreach (explode(',', substr($entry, 7)) as $s) {
-                    $scopes[] = $s;
+                foreach (explode(',', substr($entry, 7)) as $scope) {
+                    $scopes[] = $scope;
                 }
             } elseif (str_starts_with($entry, 'abilities:')) {
-                // Sanctum's `abilities:` middleware — all-of, the Sanctum analogue of Passport scopes.
-                foreach (explode(',', substr($entry, 10)) as $s) {
-                    $scopes[] = $s;
+                foreach (explode(',', substr($entry, 10)) as $scope) {
+                    $scopes[] = $scope;
                 }
             }
         }
@@ -386,9 +345,6 @@ final class SecurityExtractor
     }
 
     /**
-     * Deduplicate and drop empty segments left by argument-less or trailing-comma tokens
-     * (e.g. `ability:`, `scopes:read,`) so they never leak an empty-string scope.
-     *
      * @param list<string> $scopes
      *
      * @return list<string>
@@ -399,8 +355,7 @@ final class SecurityExtractor
     }
 
     /**
-     * Any-of scopes from Sanctum's `ability:` middleware (token needs *any one* of the listed
-     * abilities). Each becomes its own OR-alternative requirement in {@see buildRequirement}.
+     * Any-of scopes from Sanctum `ability:` (each becomes an OR alternative).
      *
      * @param list<string> $middleware
      *
@@ -422,9 +377,6 @@ final class SecurityExtractor
     }
 
     /**
-     * Scheme names mapped from a route's middleware via `openapi.security_middleware_map`.
-     * Matches the full middleware token (including any `guard` parameter) against the map keys.
-     *
      * @param list<string> $middleware
      *
      * @return list<string>
@@ -449,9 +401,6 @@ final class SecurityExtractor
     }
 
     /**
-     * The `openapi.security_middleware_map` config: middleware name → an already-declared
-     * scheme name. Non-string keys/values and empty scheme names are dropped.
-     *
      * @return array<string, string>
      */
     private function middlewareSchemeMap(): array
@@ -460,25 +409,24 @@ final class SecurityExtractor
             return $this->middlewareSchemeMapCache;
         }
 
-        /** @var mixed $raw */
         $raw = config('openapi.security_middleware_map', []);
 
         if (!is_array($raw)) {
             return $this->middlewareSchemeMapCache = [];
         }
 
-        $map = array_filter($raw, function ($scheme, $middleware) {
-            return is_string($middleware) && is_string($scheme) && $scheme !== '';
-        }, ARRAY_FILTER_USE_BOTH);
+        $map = array_filter(
+            $raw,
+            static fn(mixed $scheme, mixed $middleware): bool
+                => is_string($middleware) && is_string($scheme) && $scheme !== '',
+            ARRAY_FILTER_USE_BOTH,
+        );
 
         return $this->middlewareSchemeMapCache = $map;
     }
 
     /**
-     * Builds the per-operation `security` block for a set of scheme names. `$allOf` scopes must all
-     * be present (one requirement, AND semantics); each `$anyOf` scope (Sanctum `ability:`, an
-     * any-of check) becomes its own OR-alternative requirement carrying the all-of scopes too. With
-     * no any-of scopes this is one requirement per scheme name, as before.
+     * `$allOf` uses AND semantics; each `$anyOf` scope becomes its own OR-alternative.
      *
      * @param list<string> $schemeNames
      * @param list<string> $allOf
@@ -545,7 +493,6 @@ final class SecurityExtractor
      */
     private function configuredDefaultSchemeNames(): array
     {
-        /** @var mixed $raw */
         $raw = config('openapi.security_default_scheme');
 
         if (is_string($raw) && $raw !== '') {
@@ -568,17 +515,6 @@ final class SecurityExtractor
     }
 
     /**
-     * Build the per-operation `security` block targeting a specific scheme (when given) or the
-     * project default. Default resolution order, threaded through one single lookup:
-     *
-     * 1. Explicit `scheme:` argument — wins.
-     * 2. `openapi.security_default_scheme` config (string or list of strings) — each entry becomes
-     *    one OR-alternative.
-     * 3. Passport's `oauth2` + `oauth2ClientCredentials` pair, if Passport is installed and its
-     *    routes are registered.
-     * 4. The first scheme declared in `openapi.security_schemes`.
-     * 5. `[]` (empty requirement).
-     *
      * @param list<string> $scopes
      *
      * @return list<array<string, list<string>>>

@@ -30,8 +30,7 @@ final class RuleRegistry
         iterable $rules,
         private readonly array $severityOverrides = [],
     ) {
-        // Materialize eagerly: the registry is queried multiple times (forLevel/knownIds/maxLevel),
-        // which a one-shot generator could not survive.
+        // Materialize eagerly: the registry is queried multiple times and a generator would not survive.
         $this->rules = $rules instanceof Traversable
             ? iterator_to_array($rules, false)
             : array_values($rules);
@@ -86,19 +85,12 @@ final class RuleRegistry
         return $kept;
     }
 
-    /**
-     * Returns the effective level for a rule instance, applying any configured override.
-     * `spec.invalid` is always exempt from remapping.
-     */
     private function effectiveLevel(Rule $rule): int
     {
         return $this->effectiveLevelFor($rule->id(), $rule->level());
     }
 
-    /**
-     * Returns the effective level for a rule ID, applying any configured override.
-     * `spec.invalid` is always exempt from remapping.
-     */
+    /** `spec.invalid` is always exempt from severity remapping. */
     public function effectiveLevelFor(string $ruleId, int $fallback): int
     {
         if ($ruleId === self::EXEMPT_RULE_ID) {
@@ -133,9 +125,6 @@ final class RuleRegistry
     }
 
     /**
-     * Returns a copy of each finding with its level remapped per the configured
-     * severity overrides. Findings without an override are returned unchanged.
-     *
      * @param list<Finding> $findings
      *
      * @return list<Finding>

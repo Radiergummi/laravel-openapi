@@ -23,7 +23,7 @@ uses()->group('openapi');
 beforeEach(function (): void {
     $this->registry = new ComponentSchemaRegistry();
     $this->findings = new ArrayFindingsCollector();
-    $this->builder  = new SchemaFromFormRequest(
+    $this->builder = new SchemaFromFormRequest(
         rulesMapper: new ValidationRulesToSchema(),
         registry: $this->registry,
         logger: new NullLogger(),
@@ -75,9 +75,11 @@ it('marks required fields in the required list', function (): void {
 
     $schema = $this->registry->all()[0];
 
-    expect($schema->required)->toContain('url')
+    expect($schema->required)
+        ->toContain('url')
         ->and($schema->required)->toContain('name')
-        ->and($schema->required)->not->toContain('count')
+        ->and($schema->required)->not
+        ->toContain('count')
         ->and($schema->required)->not->toContain('note');
 });
 
@@ -85,9 +87,10 @@ it('sets correct type and constraints on string fields', function (): void {
     $this->builder->build(SimpleFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
-    expect($props['name']->type)->toBe('string')
+    expect($props['name']->type)
+        ->toBe('string')
         ->and($props['name']->maxLength)->toBe(100);
 });
 
@@ -95,9 +98,10 @@ it('sets correct type and constraints on integer fields', function (): void {
     $this->builder->build(SimpleFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
-    expect($props['count']->type)->toBe('integer')
+    expect($props['count']->type)
+        ->toBe('integer')
         ->and($props['count']->minimum)->toBe(1)
         ->and($props['count']->maximum)->toBe(50);
 });
@@ -106,7 +110,7 @@ it('marks nullable fields using OAS 3.1 type array (Bug 1: no nullable keyword)'
     $this->builder->build(SimpleFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
     // OAS 3.1 idiom: type: ['string', 'null'] instead of the removed nullable: true keyword.
     expect($props['note']->type)->toBe(['string', 'null']);
@@ -120,10 +124,11 @@ it('merges RequestField attribute from PARAM_* constant onto the property', func
     $this->builder->build(SimpleFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
     // PARAM_URL carries #[RequestField(description: 'The target URL.', example: 'https://example.com', format: 'uri')]
-    expect($props['url']->description)->toBe('The target URL.')
+    expect($props['url']->description)
+        ->toBe('The target URL.')
         ->and($props['url']->example)->toBe('https://example.com')
         ->and($props['url']->format)->toBe('uri');
 });
@@ -144,9 +149,10 @@ it('builds file field with type=string and format=binary', function (): void {
     $this->builder->build(FileUploadFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
-    expect($props['attachment']->type)->toBe('string')
+    expect($props['attachment']->type)
+        ->toBe('string')
         ->and($props['attachment']->format)->toBe('binary');
 });
 
@@ -156,7 +162,8 @@ it('builds file field with type=string and format=binary', function (): void {
 
 it('registers a placeholder schema, logs a warning, and emits a finding when rules() throws', function (): void {
     $logger = Mockery::mock(LoggerInterface::class);
-    $logger->shouldReceive('warning')
+    $logger
+        ->shouldReceive('warning')
         ->once()
         ->withArgs(static fn(string $msg): bool => str_contains($msg, 'SchemaFromFormRequest failed'));
 
@@ -183,12 +190,14 @@ it('registers a placeholder schema, logs a warning, and emits a finding when rul
     $builder->build($brokenClassName);
 
     $schemas = $this->registry->all();
-    expect($schemas)->toHaveCount(1)
+    expect($schemas)
+        ->toHaveCount(1)
         ->and($schemas[0]->type)->toBe('object')
         ->and($schemas[0]->description)->toContain('Schema introspection failed');
 
     $emitted = $findings->all();
-    expect($emitted)->toHaveCount(1)
+    expect($emitted)
+        ->toHaveCount(1)
         ->and($emitted[0]->ruleId)->toBe('request-body.schema-degraded')
         ->and($emitted[0]->level)->toBe(1)
         ->and($emitted[0]->message)->toContain('DB not available')
@@ -212,12 +221,14 @@ it('degrades gracefully when rules() raises an Error or TypeError', function ():
     $this->builder->build($brokenClassName);
 
     $schemas = $this->registry->all();
-    expect($schemas)->toHaveCount(1)
+    expect($schemas)
+        ->toHaveCount(1)
         ->and($schemas[0]->type)->toBe('object')
         ->and($schemas[0]->description)->toContain('Schema introspection failed');
 
     $emitted = $this->findings->all();
-    expect($emitted)->toHaveCount(1)
+    expect($emitted)
+        ->toHaveCount(1)
         ->and($emitted[0]->ruleId)->toBe('request-body.schema-degraded')
         ->and($emitted[0]->message)->toContain('AnyValue given');
 });
@@ -237,7 +248,8 @@ it('builds a schema for a FormRequest whose rules() reads a route binding', func
 
     $properties = formRequestPropertiesByName($schemas[0]);
 
-    expect($properties)->toHaveKeys(['status', 'request_uuid', 'group_uuid', 'error'])
+    expect($properties)
+        ->toHaveKeys(['status', 'request_uuid', 'group_uuid', 'error'])
         ->and($properties['request_uuid']->type)->toBe('string')
         ->and($properties['request_uuid']->format)->toBe('uuid');
 
@@ -252,7 +264,8 @@ it('builds a schema for a FormRequest whose rules() reads $this->user()', functi
     $schemas = $this->registry->all();
     $properties = formRequestPropertiesByName($schemas[0]);
 
-    expect($properties)->toHaveKeys(['email', 'customer_id'])
+    expect($properties)
+        ->toHaveKeys(['email', 'customer_id'])
         ->and($properties['email']->type)->toBe('string')
         ->and($properties['customer_id']->type)->toBe('integer');
 
@@ -267,7 +280,8 @@ it('builds a schema for a FormRequest whose rules() chains deeply through $this-
     $schemas = $this->registry->all();
     $properties = formRequestPropertiesByName($schemas[0]);
 
-    expect($properties)->toHaveKeys(['assigned_to', 'note'])
+    expect($properties)
+        ->toHaveKeys(['assigned_to', 'note'])
         ->and($properties['assigned_to']->type)->toBe('integer');
 
     expect($this->findings->all())->toBe([]);
@@ -300,7 +314,7 @@ it('attaches OA\Items from foo.* rules to the parent array property', function (
         public function rules(): array
         {
             return [
-                'tags'   => ['array'],
+                'tags' => ['array'],
                 'tags.*' => ['string', 'max:10'],
             ];
         }
@@ -309,9 +323,10 @@ it('attaches OA\Items from foo.* rules to the parent array property', function (
     $this->builder->build($request::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
-    expect($props)->toHaveKey('tags')
+    expect($props)
+        ->toHaveKey('tags')
         ->and($props['tags']->type)->toBe('array')
         ->and($props['tags']->items)->toBeInstanceOf(OA\Items::class)
         ->and($props['tags']->items->type)->toBe('string')
@@ -336,7 +351,7 @@ it('attaches a fallback OA\Items to a nullable array property (Bug 1: OAS 3.1 on
     $this->builder->build($request::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
     expect($props)->toHaveKey('filters');
 
@@ -355,7 +370,8 @@ it('attaches a fallback OA\Items to a nullable array property (Bug 1: OAS 3.1 on
     expect($arrayBranch)->toBeInstanceOf(OA\Schema::class);
     assert($arrayBranch instanceof OA\Schema);
 
-    expect($arrayBranch->items)->toBeInstanceOf(OA\Items::class)
+    expect($arrayBranch->items)
+        ->toBeInstanceOf(OA\Items::class)
         ->and($nullBranch)->not->toBeNull();
 });
 
@@ -367,7 +383,7 @@ it('translates a bare "*" rule key into additionalProperties, not a literal "*" 
     $this->builder->build(Radiergummi\OpenApi\Tests\Fixtures\WildcardFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
     expect($props)->not->toHaveKey('*');
 
@@ -380,7 +396,8 @@ it('translates a bare "*" rule key into additionalProperties, not a literal "*" 
     expect($schema->additionalProperties)->toBeInstanceOf(OA\AdditionalProperties::class);
     assert($schema->additionalProperties instanceof OA\AdditionalProperties);
 
-    expect($schema->additionalProperties->type)->toBe('string')
+    expect($schema->additionalProperties->type)
+        ->toBe('string')
         ->and($schema->additionalProperties->format)->toBe('uuid');
 });
 
@@ -388,17 +405,19 @@ it('synthesises a type:array parent property for "foo.*" rules without a separat
     $this->builder->build(Radiergummi\OpenApi\Tests\Fixtures\BareWildcardArrayFormRequest::class);
 
     $schema = $this->registry->all()[0];
-    $props  = formRequestPropertiesByName($schema);
+    $props = formRequestPropertiesByName($schema);
 
     expect($props)->toHaveKey('attachments');
 
     $attachments = $props['attachments'];
 
-    expect($attachments->type)->toBe('array')
+    expect($attachments->type)
+        ->toBe('array')
         ->and($attachments->items)->toBeInstanceOf(OA\Items::class);
     assert($attachments->items instanceof OA\Items);
 
-    expect($attachments->items->type)->toBe('string')
+    expect($attachments->items->type)
+        ->toBe('string')
         ->and($attachments->items->maxLength)->toBe(2048);
 });
 

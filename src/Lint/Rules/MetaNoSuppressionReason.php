@@ -14,6 +14,9 @@ use Radiergummi\OpenApi\Lint\Visitors\ApiRule as ApiRuleVisitor;
 
 use function sprintf;
 
+/**
+ * Reports `#[IgnoreLint]` suppressions that carry no `reason` argument.
+ */
 final class MetaNoSuppressionReason implements Rule, ApiRuleVisitor
 {
     /**

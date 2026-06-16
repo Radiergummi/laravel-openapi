@@ -12,7 +12,7 @@ declare(strict_types=1);
  *
  * Run as a CLI it reads the corpus pin registry, the existing results.json (if any), and a
  * file of the current run's entries, then prints the merged array as validated JSON. A
- * pre-existing results.json that does not parse (e.g. truncated/garbled by an aborted or
+ * pre-existing results.json that does not parse (e.g., truncated/garbled by an aborted or
  * concurrent run, #231) is discarded with a warning and rebuilt from this run.
  *
  * Usage: php aggregate.php <corpus.json> <results.json> <fresh-entries.json>

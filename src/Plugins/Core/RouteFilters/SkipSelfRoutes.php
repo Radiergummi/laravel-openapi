@@ -12,13 +12,9 @@ use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
 use function str_starts_with;
 
 /**
- * Excludes the library's own spec/playground routes from the generated OpenAPI spec.
+ * Excludes the library's own spec/playground routes (prefixed `openapi.`) from the generated spec.
  *
- * Matches on the `openapi.` Laravel-route-name prefix set by
- * {@see \Radiergummi\OpenApi\Support\Spec\SpecDefinition::specRouteNameFor()} and
- * {@see \Radiergummi\OpenApi\Support\Spec\SpecDefinition::playgroundRouteNameFor()}.
- * Default-on so a stock install does not document its own spec endpoint; remove
- * the entry from `config('openapi.filters')` to opt in.
+ * Remove from `config('openapi.filters')` to include them.
  */
 #[Scoped]
 final readonly class SkipSelfRoutes implements RouteFilter

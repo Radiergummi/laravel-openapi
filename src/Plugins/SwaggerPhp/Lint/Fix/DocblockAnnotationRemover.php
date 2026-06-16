@@ -20,22 +20,17 @@ use function trim;
 use const PHP_EOL;
 
 /**
- * Removes `@OA\…` annotation blocks from a PHPDoc docblock — a class's or a controller method's.
+ * Removes `@OA\…` annotation blocks from a PHPDoc docblock.
  *
- * `@OA` annotations live in comments, outside reflection's attribute model, so this works on physical
- * lines: it locates each contiguous `@OA\…` block (tracking parenthesis depth across lines, ignoring
- * parens inside quoted strings so a `description="see (note)"` doesn't unbalance it) and emits a
- * {@see RemoveLines} per block. When the annotations were the docblock's only meaningful content the
- * whole docblock is dropped; when prose or other tags remain, only the annotation lines go.
+ * Works on physical lines, tracking parenthesis depth (ignoring parens inside quoted strings).
+ * When annotations are the only content the whole docblock is dropped; otherwise only the
+ * annotation lines go.
  *
  * @internal
  */
 final readonly class DocblockAnnotationRemover
 {
     /**
-     * Emit the edits removing every `@OA\…` block from `$doc`: the whole docblock when nothing else
-     * meaningful remains, otherwise one {@see RemoveLines} per block. A null `$doc` yields nothing.
-     *
      * @return list<Fix>
      */
     public function removeBlocks(
@@ -73,9 +68,6 @@ final readonly class DocblockAnnotationRemover
     }
 
     /**
-     * Every `@OA\…` annotation block in the docblock, as 1-based `[startLine, endLine]` spans, in
-     * source order; empty when none is present.
-     *
      * @param list<string> $lines
      *
      * @return list<array{int, int}>
@@ -100,9 +92,6 @@ final readonly class DocblockAnnotationRemover
     }
 
     /**
-     * The 1-based `[startLine, endLine]` of the first `@OA\…` annotation at or after `$from`, or
-     * null when none is present. The end is where the annotation's outermost parenthesis closes.
-     *
      * @param list<string> $lines
      *
      * @return null|array{int, int}
@@ -134,13 +123,12 @@ final readonly class DocblockAnnotationRemover
             }
         }
 
-        // A parenthesis-less annotation (e.g. bare `@OA\Schema`) spans only its own line.
+        // A parenthesis-less annotation (e.g., bare `@OA\Schema`) spans only its own line.
         return [$blockStart, $blockStart];
     }
 
     /**
-     * Net parenthesis depth change across a line, ignoring parens inside single/double-quoted
-     * strings. Flags via `$sawParen` once any opening parenthesis has been seen.
+     * Net parenthesis depth change for a line, ignoring parens inside quoted strings.
      */
     private function parenDelta(string $line, bool &$sawParen): int
     {
@@ -174,9 +162,6 @@ final readonly class DocblockAnnotationRemover
     }
 
     /**
-     * Whether the docblock holds meaningful content (prose or other tags) outside the annotation
-     * blocks — in which case only the blocks are removed, not the whole comment.
-     *
      * @param list<string>          $lines
      * @param list<array{int, int}> $blocks
      */
@@ -187,7 +172,6 @@ final readonly class DocblockAnnotationRemover
                 continue;
             }
 
-            // Strip the comment scaffolding (`/**`, ` * `, ` */`); anything left is real content.
             if (trim(ltrim(trim($lines[$line - 1] ?? ''), '/*')) !== '') {
                 return true;
             }

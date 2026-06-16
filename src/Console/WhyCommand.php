@@ -23,13 +23,10 @@ use function implode;
 use function str_contains;
 
 /**
- * OpenAPI Why Command
- *
  * Explains whether and why a given route is included or excluded across all defined specs.
+ *
  * Accepts a route name (exact match) or a URI substring. If the substring matches multiple
  * routes, the command lists the candidates and exits non-zero.
- *
- * @bundle Radiergummi\OpenApi\Console
  */
 class WhyCommand extends Command
 {
@@ -49,9 +46,7 @@ class WhyCommand extends Command
         SpecRegistry $registry,
         InclusionEvaluator $evaluator,
     ): int {
-        // --env is reserved by Laravel for the global "boot in environment X" switch, so we
-        // cannot reuse it. --for-env carries the same intent: override the environment used for
-        // #[Hide] / #[Expose] resolution without changing APP_ENV for the rest of the run.
+        // --env is reserved by Laravel; --for-env overrides the environment for #[Hide]/#[Expose] without changing APP_ENV.
         $query = (string) $this->argument('route');
         $env = (string) ($this->option('for-env') ?? app()->environment());
 

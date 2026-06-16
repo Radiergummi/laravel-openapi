@@ -35,33 +35,12 @@ use function is_string;
 use function str_starts_with;
 
 /**
- * Reads the response fields of an Eloquent API Resource from its `toArray()` array literal —
- * the Tier-1 bounded scan of issue #12 (epic #5).
+ * Reads the response fields of an Eloquent API Resource from its `toArray()` array literal.
  *
- * The bounded case: `toArray()` is overridden (outside the framework) and its body is a single
- * straight-line `return [...]` literal ({@see SingleReturnArrayLiteralFinder}). The literal's
- * string keys become fields; each value resolves best-effort, refusing per value:
- *
- * - `$this->field` / `$this->resource->field` → the wrapped model's property schema
- *   ({@see WrappedModelLocator} + {@see EloquentModelToSchema::propertyFor()}),
- * - literal scalars and arrays → typed via {@see SchemaDefinitionFromLiteral},
- * - `new OtherResource(...)` / `OtherResource::make(...)` / `OtherResource::collection(...)` →
- *   a nested-resource reference the schema builder turns into a `$ref` (collection-wrapped for
- *   `::collection`); a conditional wrapper inside the constructor argument
- *   (`new X($this->whenLoaded('relation'))`) marks the field optional,
- * - `$this->when(...)` / `$this->whenLoaded(...)` → the inner value, optional — the condition
- *   is never analysed; a bare `whenLoaded('relation')` resolves the relation against the model,
- * - `$this->whenCounted(...)` → `integer`, optional; any other `when*` wrapper → an
- *   unconstrained optional field,
- * - `$this->merge([...])` / `$this->mergeWhen(..., [...])` → the literal payload's keys inlined
- *   at the top level (optional for `mergeWhen`); a non-literal payload is skipped and flagged,
- * - anything else (method calls, ternaries, unknown fields) → the key is kept with an
- *   unconstrained schema — dropping a response property would be silently wrong.
- *
- * Returns null when the bounded case does not hold (no override, a dynamic body, an unreadable
- * key or spread); callers decide the fallback and the generation-log note — the reader is pure
- * and registry-free, so the `resource.fields-undeclared` lint rule can consult it without side
- * effects. Results are memoised per class for the scoped lifetime.
+ * Applies only when `toArray()` is overridden outside the framework and its body is a single
+ * straight-line `return [...]` literal ({@see SingleReturnArrayLiteralFinder}). Returns null
+ * when that bounded case does not hold. Pure and registry-free; results are memoised per class
+ * for the scoped lifetime.
  *
  * @internal
  */
@@ -138,9 +117,7 @@ final class ResourceToArrayReader
     }
 
     /**
-     * Whether the resource overrides `toArray()` outside the framework — the discriminator
-     * between the passthrough base case (no override; the wrapped model is the only source)
-     * and a dynamic body the reader had to refuse.
+     * Whether the resource overrides `toArray()` outside the framework.
      *
      * @param class-string<JsonResource> $resourceClass
      */
@@ -154,10 +131,9 @@ final class ResourceToArrayReader
     // region Literal walking
 
     /**
-     * Walks the keyed entries of the literal into fields. An unkeyed entry is only meaningful
-     * as a `merge()` / `mergeWhen()` spread of further keyed entries; any other unkeyed entry,
-     * a spread, or a non-literal key makes the structure unknowable — the whole literal is
-     * refused (null) rather than partially documented under guessed keys.
+     * Walks the keyed entries of the literal into fields. An unkeyed entry must be a
+     * `merge()`/`mergeWhen()` spread; any other unkeyed entry, a spread, or a non-literal key
+     * causes the whole literal to be refused (null) rather than partially documented.
      *
      * @param null|class-string<Model> $modelClass
      *
@@ -207,10 +183,9 @@ final class ResourceToArrayReader
     }
 
     /**
-     * The fields a `$this->merge([...])` / `$this->mergeWhen(..., [...])` entry inlines at the
-     * top level, or an empty list when the payload is not a literal array (the skip is flagged —
-     * those keys exist at runtime but cannot be documented). Returns null when the entry is not
-     * a merge call at all: a plain unkeyed entry makes the whole literal unknowable.
+     * Fields inlined by a `$this->merge([...])` / `$this->mergeWhen(..., [...])` call, or an
+     * empty list when the payload is not a literal (flagged as unreadable). Returns null when
+     * the entry is not a merge call: a plain unkeyed entry makes the whole literal unknowable.
      *
      * @param null|class-string<Model> $modelClass
      *
@@ -273,8 +248,7 @@ final class ResourceToArrayReader
     }
 
     /**
-     * Whether the receiver is `$this` or `$this->resource` — the two spellings of "the wrapped
-     * model" inside a resource (`JsonResource` forwards unknown property reads to `resource`).
+     * Whether the receiver is `$this` or `$this->resource` (both refer to the wrapped model).
      */
     private function isResourceReceiver(Expr $receiver): bool
     {
@@ -332,10 +306,8 @@ final class ResourceToArrayReader
     }
 
     /**
-     * Resolves the canonical conditional-field idioms — `$this->when()`, `$this->whenLoaded()`,
-     * `$this->whenCounted()` — and treats any other `when`-prefixed resource method
-     * (`whenHas`, `whenNotNull`, `whenPivotLoaded`, …) as an unconstrained conditional field:
-     * its presence is runtime-decided, so claiming it as required would over-promise.
+     * Resolves `$this->when()`, `$this->whenLoaded()`, `$this->whenCounted()`, and any other
+     * `when`-prefixed resource method as an optional field (presence is runtime-decided).
      *
      * @param null|class-string<Model> $modelClass
      *
@@ -353,12 +325,11 @@ final class ResourceToArrayReader
         $arguments = $value->getArgs();
 
         if ($methodName === self::WHEN && isset($arguments[1])) {
-            // The condition argument is never analysed (the abort_if rule); only the value is.
+            // Condition is never analysed; use the value argument only.
             return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
         }
 
         if ($methodName === self::WHEN_LOADED) {
-            // A two-argument whenLoaded supplies the value via a callback or expression.
             if (isset($arguments[1])) {
                 return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
             }
@@ -386,8 +357,7 @@ final class ResourceToArrayReader
     // region Node shapes
 
     /**
-     * A bare `whenLoaded('relation')` value: the relation name resolves against the wrapped
-     * model's metadata — typically a `@property-read` relation annotation yielding a `$ref`.
+     * Resolves a bare `whenLoaded('relation')` call against the wrapped model's metadata.
      *
      * @param null|class-string<Model> $modelClass
      *
@@ -433,9 +403,8 @@ final class ResourceToArrayReader
     }
 
     /**
-     * A nested-resource value: `new X(...)`, `X::make(...)`, or `X::collection(...)` where `X`
-     * is a concrete `JsonResource` subclass. A conditional wrapper inside the single argument
-     * (`new X($this->whenLoaded('relation'))`) marks the field optional.
+     * Resolves `new X(...)`, `X::make(...)`, or `X::collection(...)` where `X` is a
+     * `JsonResource` subclass. A conditional wrapper in the first argument marks the field optional.
      */
     private function resolveNestedResource(string $name, Expr $value, bool $optional): ?InferredResourceField
     {
@@ -473,8 +442,8 @@ final class ResourceToArrayReader
     }
 
     /**
-     * A `$this->field` or `$this->resource->field` reference, resolved against the wrapped
-     * model's metadata. An unknown model or field keeps the key as an unconstrained property.
+     * Resolves a `$this->field` / `$this->resource->field` reference against the wrapped model's
+     * metadata. Falls back to unconstrained when the model or field is unknown.
      *
      * @param null|class-string<Model> $modelClass
      *
@@ -504,8 +473,8 @@ final class ResourceToArrayReader
     }
 
     /**
-     * The model field name of a `$this->field` or `$this->resource->field` fetch, or null.
-     * `$this->resource` itself is the whole model object — not a single resolvable field.
+     * The field name from a `$this->field` or `$this->resource->field` fetch, or null.
+     * `$this->resource` itself is not a resolvable field.
      */
     private function modelFieldName(Expr $value): ?string
     {

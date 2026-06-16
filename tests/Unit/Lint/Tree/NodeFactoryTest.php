@@ -19,7 +19,8 @@ describe('exampleNode', function (): void {
 
         $node = NodeFactory::exampleNode($raw);
 
-        expect($node->name)->toBe('first')
+        expect($node->name)
+            ->toBe('first')
             ->and($node->value)->toBe(['id' => 1])
             ->and($node->summary)->toBe('A summary')
             ->and($node->description)->toBe('A description')
@@ -29,7 +30,8 @@ describe('exampleNode', function (): void {
     it('nulls out undefined fields rather than leaking the UNDEFINED sentinel', function (): void {
         $node = NodeFactory::exampleNode(new OA\Examples([]));
 
-        expect($node->name)->toBeNull()
+        expect($node->name)
+            ->toBeNull()
             ->and($node->value)->toBeNull()
             ->and($node->summary)->toBeNull()
             ->and($node->description)->toBeNull();
@@ -38,7 +40,8 @@ describe('exampleNode', function (): void {
 
 describe('examplesFromParameter / examplesFromSchema', function (): void {
     it('returns an empty list when no examples are defined', function (): void {
-        expect(NodeFactory::examplesFromParameter(new OA\Parameter(['name' => 'q', 'in' => 'query'])))->toBe([])
+        expect(NodeFactory::examplesFromParameter(new OA\Parameter(['name' => 'q', 'in' => 'query'])))
+            ->toBe([])
             ->and(NodeFactory::examplesFromSchema(new OA\Schema(['type' => 'string'])))->toBe([]);
     });
 
@@ -54,7 +57,8 @@ describe('examplesFromParameter / examplesFromSchema', function (): void {
 
         $nodes = NodeFactory::examplesFromParameter($parameter);
 
-        expect($nodes)->toHaveCount(2)
+        expect($nodes)
+            ->toHaveCount(2)
             ->and($nodes[0]->name)->toBe('one')
             ->and($nodes[1]->name)->toBe('two');
     });
@@ -71,7 +75,8 @@ describe('examplesFromParameter / examplesFromSchema', function (): void {
 
         $nodes = NodeFactory::examplesFromSchema($schema);
 
-        expect($nodes)->toHaveCount(1)
+        expect($nodes)
+            ->toHaveCount(1)
             ->and($nodes[0]->name)->toBe('valid');
     });
 });
@@ -87,7 +92,8 @@ describe('header', function (): void {
 
         $node = NodeFactory::header($raw);
 
-        expect($node->name)->toBe('X-Rate-Limit')
+        expect($node->name)
+            ->toBe('X-Rate-Limit')
             ->and($node->schema)->toBe('integer')
             ->and($node->description)->toBe('Requests left')
             ->and($node->required)->toBeTrue()
@@ -97,7 +103,8 @@ describe('header', function (): void {
     it('falls back to "(unknown)" and safe defaults when fields are undefined', function (): void {
         $node = NodeFactory::header(new OA\Header([]));
 
-        expect($node->name)->toBe('(unknown)')
+        expect($node->name)
+            ->toBe('(unknown)')
             ->and($node->schema)->toBeNull()
             ->and($node->description)->toBeNull()
             ->and($node->required)->toBeFalse();
@@ -125,7 +132,8 @@ describe('link', function (): void {
 
         $node = NodeFactory::link($raw);
 
-        expect($node->name)->toBe('GetUserById')
+        expect($node->name)
+            ->toBe('GetUserById')
             ->and($node->operationId)->toBe('getUser')
             ->and($node->operationRef)->toBe('#/paths/~1users~1{id}/get')
             ->and($node->description)->toBe('Follow to the user')
@@ -136,7 +144,8 @@ describe('link', function (): void {
     it('falls back to "(unnamed)" and empty parameters when fields are undefined', function (): void {
         $node = NodeFactory::link(new OA\Link([]));
 
-        expect($node->name)->toBe('(unnamed)')
+        expect($node->name)
+            ->toBe('(unnamed)')
             ->and($node->operationId)->toBeNull()
             ->and($node->operationRef)->toBeNull()
             ->and($node->description)->toBeNull()

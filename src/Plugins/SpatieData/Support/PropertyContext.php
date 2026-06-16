@@ -8,11 +8,7 @@ use ReflectionParameter;
 use ReflectionProperty;
 
 /**
- * Identity, reflection and constructor-parameter data for one Data-class property.
- *
- * Built once per property at the start of schema generation so the per-property loop and
- * the scoped-attribute pass work from a single source instead of three parallel maps
- * (`phpName → ctorParam`, `phpName → wireName`, `wireName → ReflectionProperty`).
+ * Identity, reflection, and constructor-parameter data for one Data-class property.
  */
 final readonly class PropertyContext
 {

@@ -32,7 +32,8 @@ function makeFieldForNullableTest(string $name, bool $setNullableOnRaw): FieldNo
 it('reports its id and level', function (): void {
     $rule = new SchemaNullableViaDeprecatedKeyword();
 
-    expect($rule->id())->toBe('schema.nullable-via-deprecated-keyword')
+    expect($rule->id())
+        ->toBe('schema.nullable-via-deprecated-keyword')
         ->and($rule->level())->toBe(1);
 });
 
@@ -80,7 +81,8 @@ it('emits findings for multiple nullable fields', function (): void {
         ...iterator_to_array($rule->checkField(makeFieldForNullableTest('Age', setNullableOnRaw: true), $context)),
     ];
 
-    expect($findings)->toHaveCount(2)
+    expect($findings)
+        ->toHaveCount(2)
         ->and($findings[0]->message)->toContain('Name')
         ->and($findings[1]->message)->toContain('Age');
 });

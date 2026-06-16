@@ -22,11 +22,8 @@ use Radiergummi\OpenApi\Lint\Visitors\ResponseRule as ResponseRuleVisitor;
 use function sprintf;
 
 /**
- * Reports schemas whose `oneOf` / `anyOf` is a union of two or more genuine alternatives, which
- * field-level rules cannot descend into. This covers both a property using such a shape and a
- * top-level schema that is itself the union — a component schema, a response body, or a request
- * body. Without this, such a schema produces no field findings at all, leaving the coverage gap
- * invisible.
+ * Reports schemas whose `oneOf`/`anyOf` is a union of multiple alternatives that field-level
+ * rules cannot descend into, making the coverage gap visible.
  */
 final class SchemaCompositeFieldsUninspected implements
     Rule,
@@ -60,6 +57,18 @@ final class SchemaCompositeFieldsUninspected implements
         );
     }
 
+    #[Override]
+    public function id(): string
+    {
+        return 'schema.composite-fields-uninspected';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 3; // coverage gap, not invalid documentation
+    }
+
     /**
      * @return iterable<Finding>
      */
@@ -73,6 +82,26 @@ final class SchemaCompositeFieldsUninspected implements
         yield from $this->flagUninspectedComposite(
             $componentSchema->raw,
             sprintf('Component schema "%s"', $componentSchema->name),
+        );
+    }
+
+    /**
+     * @return iterable<Finding>
+     */
+    private function flagUninspectedComposite(OA\Schema $schema, string $subject): iterable
+    {
+        if (!SchemaAccessor::classifyComposition($schema)['uninspectedComposite']) {
+            return;
+        }
+
+        yield new Finding(
+            ruleId: $this->id(),
+            level: $this->level(),
+            message: sprintf(
+                '%s is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
+                $subject,
+            ),
+            fixHint: 'Document each alternative by hand, or restructure the schema so the body resolves to a single concrete shape.',
         );
     }
 
@@ -115,39 +144,6 @@ final class SchemaCompositeFieldsUninspected implements
         }
 
         yield from $this->flagUninspectedComposite($schema, 'Request body');
-    }
-
-    /**
-     * @return iterable<Finding>
-     */
-    private function flagUninspectedComposite(OA\Schema $schema, string $subject): iterable
-    {
-        if (!SchemaAccessor::classifyComposition($schema)['uninspectedComposite']) {
-            return;
-        }
-
-        yield new Finding(
-            ruleId: $this->id(),
-            level: $this->level(),
-            message: sprintf(
-                '%s is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
-                $subject,
-            ),
-            fixHint: 'Document each alternative by hand, or restructure the schema so the body resolves to a single concrete shape.',
-        );
-    }
-
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.composite-fields-uninspected';
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        // A coverage gap, not invalid documentation.
-        return 3;
     }
 
     #[Override]

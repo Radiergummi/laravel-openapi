@@ -12,7 +12,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseNoSuccess();
 
-    expect($rule->id())->toBe('response.no-success')
+    expect($rule->id())
+        ->toBe('response.no-success')
         ->and($rule->level())->toBe(2);
 });
 
@@ -41,7 +42,8 @@ it('emits a finding when an operation has only error responses', function (): vo
         new ResponseNoSuccess()->checkOperation($operation, OperationNodeFactory::emptyContext()),
     );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.no-success')
         ->and($findings[0]->level)->toBe(2)
         ->and($findings[0]->message)->toContain('GET')
@@ -83,7 +85,8 @@ it('emits a finding per operation missing a success response', function (): void
         ...iterator_to_array(new ResponseNoSuccess()->checkOperation($op2, $context)),
     ];
 
-    expect($findings)->toHaveCount(2)
+    expect($findings)
+        ->toHaveCount(2)
         ->and($findings[0]->message)->toContain('GET')
         ->and($findings[1]->message)->toContain('POST');
 });

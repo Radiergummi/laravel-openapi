@@ -14,10 +14,7 @@ namespace Radiergummi\OpenApi\Contracts\Registry;
 interface RefSchemaResolver
 {
     /**
-     * Whether this resolver handles the given class. Must be side-effect-free — unlike
-     * {@see resolveRef()}, it must not build or register any component schema. Callers that only
-     * need to know whether a `$ref` would resolve (e.g. the `response.ref-unresolvable` lint rule)
-     * use this to avoid the schema-building side effects of {@see resolveRef()}.
+     * Whether this resolver handles the given class. Must be side-effect-free (no schema building).
      *
      * @param class-string $class
      */

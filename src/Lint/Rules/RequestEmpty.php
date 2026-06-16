@@ -24,9 +24,6 @@ use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
  */
 final class RequestEmpty implements Rule
 {
-    /**
-     * fixHint: emitted by RequestBodyExtractor alongside every request.empty finding.
-     */
     public const string FIX_HINT = 'Type-hint a Data class or FormRequest on the controller or injected Action.';
 
     #[Override]

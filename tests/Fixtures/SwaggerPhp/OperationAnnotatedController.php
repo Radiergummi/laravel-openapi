@@ -30,13 +30,13 @@ class OperationAnnotatedController
 
     /**
      * @OA\Get(
-     *     path="/op-load-bearing",
+     *     path="/op-essential",
      *     description="Prose that lives only in the annotation; inference cannot derive it.",
      *
      *     @OA\Response(response=200, description="OK")
      * )
      */
-    public function loadBearing(): PlainStructData
+    public function essential(): PlainStructData
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }

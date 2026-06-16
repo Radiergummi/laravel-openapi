@@ -39,12 +39,15 @@ it('flags a method injecting Fractal Manager with no #[FractalResponse]', functi
     $descriptor = ActionDescriptorFactory::forControllerMethod(FractalUnboundController::class, 'unbound');
 
     $rule = new FractalResponseUnbound(new PayloadParameterScanner());
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('fractal.response-unbound');
 });
 
@@ -52,10 +55,12 @@ it('does not flag a method that declares #[FractalResponse]', function (): void 
     $descriptor = ActionDescriptorFactory::forControllerMethod(FractalUnboundController::class, 'bound');
 
     $rule = new FractalResponseUnbound(new PayloadParameterScanner());
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)->toBe([]);
 });
@@ -64,10 +69,12 @@ it('does not flag a method that does not inject a Manager', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(FractalUnboundController::class, 'plain');
 
     $rule = new FractalResponseUnbound(new PayloadParameterScanner());
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)->toBe([]);
 });

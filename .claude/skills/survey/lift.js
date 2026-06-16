@@ -11,9 +11,9 @@ export const meta = {
 const ARGS = typeof args === 'string' ? JSON.parse(args) : (args ?? {})
 
 const APP = ARGS?.app
-if (!APP) throw new Error('survey-lift requires args.app (e.g. {app:"Vito"})')
+if (!APP) throw new Error('survey-lift requires args.app (e.g., {app:"Vito"})')
 const WS = ARGS?.ws
-if (!WS) throw new Error('survey-lift requires args.ws (absolute dogfood workspace, e.g. "/Users/.../laravel-openapi-dogfood")')
+if (!WS) throw new Error('survey-lift requires args.ws (absolute dogfood workspace, e.g., "/Users/.../laravel-openapi-dogfood")')
 const LIB = ARGS?.lib
 if (!LIB) throw new Error('survey-lift requires args.lib (absolute library/worktree checkout root)')
 const REPO = ARGS?.repoPath ?? `${WS}/apps/${APP}/repo`

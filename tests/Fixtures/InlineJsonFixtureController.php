@@ -58,19 +58,24 @@ class InlineJsonFixtureController extends Controller
         ]);
     }
 
+    private function buildLogs(): string
+    {
+        return 'log output';
+    }
+
     public function chainedCall(): JsonResponse
     {
         return response()->json(['cached' => true])->header('X-Cache', 'hit');
     }
 
-    public function noContent(): SymfonyResponse
-    {
-        return response()->noContent();
-    }
-
     public function noContentExplicitStatus(): SymfonyResponse
     {
         return response()->noContent(200);
+    }
+
+    public function noContent(): SymfonyResponse
+    {
+        return response()->noContent();
     }
 
     public function noContentNamedStatus(): SymfonyResponse
@@ -123,16 +128,16 @@ class InlineJsonFixtureController extends Controller
         return response()->json(LiteralConstantsFixture::LIST_WITH_EXPLICIT_INTEGER_KEYS);
     }
 
+    // endregion
+
+    // region Status arguments
+
     public function assignedThenReturned(): JsonResponse
     {
         $preview = response()->json(['first' => true]);
 
         return response()->json(['second' => true], 201);
     }
-
-    // endregion
-
-    // region Status arguments
 
     public function literalStatus(): JsonResponse
     {
@@ -168,6 +173,15 @@ class InlineJsonFixtureController extends Controller
         return response()->json(['message' => 'Unauthorized'], 403);
     }
 
+    private function buildFallback(): JsonResponse
+    {
+        return new JsonResponse(['fallback' => true]);
+    }
+
+    // endregion
+
+    // region Refused shapes
+
     public function noContentStatus(): JsonResponse
     {
         return response()->json(['gone' => true], 204);
@@ -177,10 +191,6 @@ class InlineJsonFixtureController extends Controller
     {
         return response()->json(['gone' => true], 999);
     }
-
-    // endregion
-
-    // region Refused shapes
 
     public function variableBody(): JsonResponse
     {
@@ -193,6 +203,10 @@ class InlineJsonFixtureController extends Controller
     {
         return response()->json(Article::query()->firstOrFail());
     }
+
+    // endregion
+
+    // region Silent skips
 
     public function dynamicKey(Request $request): JsonResponse
     {
@@ -209,10 +223,6 @@ class InlineJsonFixtureController extends Controller
 
         return $this->buildFallback();
     }
-
-    // endregion
-
-    // region Silent skips
 
     public function emptyJson(): JsonResponse
     {
@@ -239,6 +249,10 @@ class InlineJsonFixtureController extends Controller
         return $this->buildFallback();
     }
 
+    // endregion
+
+    // region Helpers
+
     public function beyondStatementLimit(): JsonResponse
     {
         $first = 1;
@@ -252,8 +266,10 @@ class InlineJsonFixtureController extends Controller
         $ninth = 9;
         $tenth = 10;
 
-        return response()->json(['sum' => $first + $second + $third + $fourth + $fifth
-            + $sixth + $seventh + $eighth + $ninth + $tenth, ]);
+        return response()->json([
+            'sum' => $first + $second + $third + $fourth + $fifth
+                + $sixth + $seventh + $eighth + $ninth + $tenth,
+        ]);
     }
 
     /**
@@ -265,20 +281,6 @@ class InlineJsonFixtureController extends Controller
     {
         /** @phpstan-ignore return.type (deliberately contradicts the declared type: the return-type guard must win) */
         return response()->json(['stolen' => true]);
-    }
-
-    // endregion
-
-    // region Helpers
-
-    private function buildLogs(): string
-    {
-        return 'log output';
-    }
-
-    private function buildFallback(): JsonResponse
-    {
-        return new JsonResponse(['fallback' => true]);
     }
 
     // endregion

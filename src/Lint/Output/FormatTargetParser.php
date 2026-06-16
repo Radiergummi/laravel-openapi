@@ -14,11 +14,8 @@ use function strpos;
 use function substr;
 
 /**
- * Parses repeatable `--format=<format>[:<target>]` tokens into resolved {@see FormatTarget}s.
- *
- * Each token names a format and, after the first colon, an optional target (`stdout` default,
- * `stderr`, or a file path — see {@see OutputTarget::fromToken()}). Two formats may not share a
- * destination: writing two streams to one stdout/stderr/file would interleave into garbage.
+ * Parses repeatable `--format=<format>[:<target>]` tokens into {@see FormatTarget}s. Two formats
+ * may not share a destination (interleaved output).
  *
  * @internal
  */
@@ -55,7 +52,7 @@ final readonly class FormatTargetParser
                 throw new InvalidArgumentException(
                     sprintf(
                         'Cannot write two formats to %s; give each a distinct target, '
-                        . 'e.g. --format=cobertura:coverage.xml.',
+                        . 'e.g., --format=cobertura:coverage.xml.',
                         $destination,
                     ),
                 );

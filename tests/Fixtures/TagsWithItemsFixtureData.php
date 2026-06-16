@@ -20,7 +20,7 @@ final class TagsWithItemsFixtureData extends Data
     public static function rules(): array
     {
         return [
-            'tags'   => ['array'],
+            'tags' => ['array'],
             'tags.*' => ['string', 'max:10'],
         ];
     }

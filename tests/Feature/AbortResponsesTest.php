@@ -22,7 +22,8 @@ it('emits the 4xx responses for each whitelisted abort call shape', function ():
     $spec = generateSpec();
     $responses = $spec['paths']['/oa-fixture/aborts']['get']['responses'];
 
-    expect($responses)->toHaveKeys(['401', '403', '404'])
+    expect($responses)
+        ->toHaveKeys(['401', '403', '404'])
         ->and($responses['403']['description'])->toBe('Admins only')
         ->and($responses['404']['description'])->toBe('Order not found')
         // No message on the abort_if(…, 401) — the default description shares the named component.
@@ -35,7 +36,8 @@ it('keeps route-authored messages inlined instead of poisoning the shared status
 
     $spec = generateSpec();
 
-    expect($spec['paths']['/oa-fixture/aborts']['get']['responses']['403']['description'])->toBe('Admins only')
+    expect($spec['paths']['/oa-fixture/aborts']['get']['responses']['403']['description'])
+        ->toBe('Admins only')
         ->and($spec['paths']['/oa-fixture/plain-403']['get']['responses']['403']['$ref'])
         ->toBe('#/components/responses/Forbidden')
         ->and($spec['components']['responses']['Forbidden']['description'])->toBe('Forbidden');
@@ -47,7 +49,8 @@ it('emits the response for an abort with a class-constant status', function (): 
     $spec = generateSpec();
     $responses = $spec['paths']['/oa-fixture/prospects']['put']['responses'];
 
-    expect($responses)->toHaveKey('403')
+    expect($responses)
+        ->toHaveKey('403')
         ->and($responses['403']['description'])->toBe('Cannot update a user prospect.');
 });
 
@@ -57,7 +60,8 @@ it('emits a 404 with the abort message as description', function (): void {
     $spec = generateSpec();
     $responses = $spec['paths']['/oa-fixture/orders/abort']['delete']['responses'];
 
-    expect($responses)->toHaveKey('404')
+    expect($responses)
+        ->toHaveKey('404')
         ->and($responses['404']['description'])->toBe('Order not found');
 });
 

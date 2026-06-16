@@ -14,17 +14,12 @@ use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Stateless converters from swagger-php annotation objects to leaf domain-tree nodes. Split out of
- * {@see SpecTreeBuilder} so the builder keeps only the stateful, component-index-aware traversal;
- * these conversions depend on nothing but their argument. Companion to the equally stateless
- * {@see SchemaAccessor}.
+ * {@see SpecTreeBuilder} so the builder keeps only the stateful, component-index-aware traversal.
+ * Companion to the equally stateless {@see SchemaAccessor}.
  */
 final class NodeFactory
 {
-    /**
-     * Build example nodes from a parameter's `examples` map.
-     *
-     * @return list<ExampleNode>
-     */
+    /** @return list<ExampleNode> */
     public static function examplesFromParameter(OA\Parameter $parameter): array
     {
         // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
@@ -70,11 +65,7 @@ final class NodeFactory
         );
     }
 
-    /**
-     * Build example nodes from a schema's `examples` map.
-     *
-     * @return list<ExampleNode>
-     */
+    /** @return list<ExampleNode> */
     public static function examplesFromSchema(OA\Schema $schema): array
     {
         // @phpstan-ignore nullCoalesce.property (swagger-php may leave property unset at runtime)
@@ -83,10 +74,8 @@ final class NodeFactory
 
     public static function header(OA\Header $header): HeaderNode
     {
-        // Latent: a `$ref`'d header would carry no inline description and false-fire
-        // `header.description-missing`, mirroring the response-ref bug fixed in SpecTreeBuilder. The
-        // generator never emits `components.headers`/`$ref` headers today (headers are always
-        // inlined on responses), so no dereference is wired in. Add one here if that changes.
+        // $ref'd headers are not dereferenced; the generator never emits them today (headers are
+        // always inlined on responses). Add dereference here if that changes.
         return new HeaderNode(
             name: is_defined($header->header)
                 ? $header->header

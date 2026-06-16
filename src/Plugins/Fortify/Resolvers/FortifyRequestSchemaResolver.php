@@ -38,7 +38,7 @@ final readonly class FortifyRequestSchemaResolver implements RequestSchemaResolv
             return null;
         }
 
-        // Use the clean, framework-agnostic component name — never a Fortify/namespace string.
+        // Use the clean component name, not a Fortify class-string.
         $key = $this->registry->reserveKey($entry->requestSchemaName);
         $this->registry->registerNamed($key, $entry->requestSchema);
 

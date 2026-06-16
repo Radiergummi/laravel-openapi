@@ -22,15 +22,9 @@ use function sprintf;
 use function str_starts_with;
 
 /**
- * Reports when a route has auth or scope middleware but the generated operation declares no
- * `security` requirement, implying the endpoint is public while the runtime enforces
- * authentication. The forward mirror of {@see PublicEndpointContradictsMiddleware}.
- *
- * The rule fires only when ALL of the following hold:
- *  1. The route carries `auth:*`, `scope:*`, or `scopes:*` middleware.
- *  2. The operation's `security` field is `UNDEFINED` (never set — not even an explicit empty
- *     array which signals a intentional public override).
- *  3. The controller method or class is NOT marked `#[PublicEndpoint]`.
+ * Reports when a route has auth/scope middleware but the operation declares no `security`
+ * requirement. Fires only when `security` is `UNDEFINED` (not even an explicit empty array)
+ * and the action lacks `#[PublicEndpoint]`.
  */
 final readonly class OperationSecurityMissing implements Rule, OperationRuleVisitor
 {
@@ -76,11 +70,7 @@ final readonly class OperationSecurityMissing implements Rule, OperationRuleVisi
         );
     }
 
-    /**
-     * Whether the route carries any `auth:*`, `scope:*`, `scopes:*`, or Sanctum `abilities:*` /
-     * `ability:*` middleware. Reads the gathered (controller-aware) list, matching the generator;
-     * filters to strings since the gathered list may contain closure middleware.
-     */
+    /** Filters to strings because the gathered middleware list may contain closures. */
     private function hasAuthMiddleware(ActionDescriptor $descriptor): bool
     {
         $middleware = array_filter(
@@ -99,14 +89,7 @@ final readonly class OperationSecurityMissing implements Rule, OperationRuleVisi
         );
     }
 
-    /**
-     * Returns true when the operation has `security` set in the raw annotation — either an
-     * explicit empty array (`security: []`, the OpenAPI "public" signal emitted by
-     * `#[PublicEndpoint]`) or a non-empty list of requirements.
-     *
-     * `Generator::UNDEFINED` means the property was never written, i.e. the spec has no
-     * `security` key for this operation.
-     */
+    /** `UNDEFINED` means the key was never written; an explicit empty array is a public signal. */
     private function hasSecurityDeclared(OperationNode $operation): bool
     {
         $security = $operation->raw->security;

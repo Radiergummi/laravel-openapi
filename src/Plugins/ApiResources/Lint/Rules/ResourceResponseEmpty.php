@@ -21,15 +21,9 @@ use function sprintf;
 
 /**
  * Flags an operation whose resource response resolves to the base `JsonResource` or an abstract
- * subclass — the case {@see ResourceFieldsUndeclared} deliberately skips (there is no concrete
- * class to carry `#[ResourceField]`). The generator emits a `200` with an empty `{data: {}}`
- * envelope, so the endpoint silently ships an undocumented payload.
- *
- * The complement of {@see ResourceFieldsUndeclared} (concrete resource, empty shape) and
- * {@see ResourceResponseAmbiguous} (collection with no item class): together the three cover every
- * way a resource response ends up shapeless. Both this rule and `fields-undeclared` apply the same
- * emptiness gate, so a base/abstract resource that *does* carry an inferable shape (a readable
- * `toArray()` literal or a resolvable wrapped model) is not flagged.
+ * subclass, resulting in an empty `{data: {}}` envelope. Complements {@see ResourceFieldsUndeclared}
+ * (concrete resource, empty shape) and {@see ResourceResponseAmbiguous} (collection, no item class).
+ * Skips when the shape is actually inferable from `toArray()` or a wrapped model.
  */
 final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
 {
@@ -59,19 +53,17 @@ final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
 
         $resourceClass = $target->resourceClass;
 
-        // A wrapped-model target documents the model's schema, not an empty envelope.
+        // Wrapped-model targets document the model's schema, not an empty envelope.
         if ($resourceClass === null) {
             return;
         }
 
-        // Only the base/abstract case — a concrete resource is `resource.fields-undeclared`'s job.
+        // Concrete resources are `resource.fields-undeclared`'s job.
         if ($resourceClass !== JsonResource::class && !new ReflectionClass($resourceClass)->isAbstract()) {
             return;
         }
 
-        // Same emptiness gate as `fields-undeclared`: a readable toArray() literal with fields, or
-        // a resolvable wrapped model, produces a non-empty schema — "the schema is empty" would be
-        // untrue. The bare base `JsonResource` has neither, so it falls through to the finding.
+        // Same emptiness gate as `fields-undeclared`: skip when the shape is inferable.
         /** @var class-string<JsonResource> $resourceClass */
         $inferred = $this->toArrayReader->read($resourceClass);
 
@@ -113,6 +105,6 @@ final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
     public function description(): string
     {
         return 'A resource response resolves to the base or an abstract JsonResource with no inferable '
-            . 'shape — it ships an empty {data: {}} envelope.';
+            . 'shape. It ships an empty {data: {}} envelope.';
     }
 }

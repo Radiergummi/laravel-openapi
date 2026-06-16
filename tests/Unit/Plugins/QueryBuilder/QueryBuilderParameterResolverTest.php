@@ -277,7 +277,8 @@ it('emits a filter[...] parameter per #[AllowedFilter]', function (): void {
     $descriptor = chainDescriptor(QbResolverController::class, 'index');
     $params = makeQueryBuilderParameterResolver()->resolveQueryParameters($descriptor);
 
-    expect(parameterNames($params))->toContain('filter[status]')
+    expect(parameterNames($params))
+        ->toContain('filter[status]')
         ->and(parameterNames($params))->toContain('filter[priority]');
 });
 
@@ -287,7 +288,8 @@ it('emits a single sort parameter with the allowed fields as enum', function ():
 
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
 
-    expect($sort)->not->toBeNull()
+    expect($sort)->not
+        ->toBeNull()
         ->and($sort->in)->toBe('query')
         ->and($sort->schema->items->enum)->toBe(['name', 'created_at']);
 });
@@ -298,7 +300,8 @@ it('emits a single include parameter with the allowed relations as enum', functi
 
     $include = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'include');
 
-    expect($include)->not->toBeNull()
+    expect($include)->not
+        ->toBeNull()
         ->and($include->in)->toBe('query')
         ->and($include->schema->items->enum)->toBe(['owner']);
 });
@@ -316,7 +319,8 @@ it('widens a nullable AllowedFilter schema to the [type, null] shape and forward
 
     $cursor = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'filter[cursor]');
 
-    expect($cursor)->not->toBeNull()
+    expect($cursor)->not
+        ->toBeNull()
         ->and($cursor->schema->type)->toBe(['string', 'null'])
         ->and($cursor->schema->minimum)->toBe(1)
         ->and($cursor->schema->maximum)->toBe(100);
@@ -333,7 +337,8 @@ it('documents filter, sort, and include parameters from a literal QueryBuilder::
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
     $include = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'include');
 
-    expect(parameterNames($params))->toBe(['filter[status]', 'filter[origin]', 'sort', 'include'])
+    expect(parameterNames($params))
+        ->toBe(['filter[status]', 'filter[origin]', 'sort', 'include'])
         ->and($sort->schema->items->enum)->toBe(['departs_at', 'number'])
         ->and($include->schema->items->enum)->toBe(['bookings']);
 });
@@ -344,7 +349,8 @@ it('defaults a chain-derived filter parameter schema to string', function (): vo
 
     $filter = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'filter[status]');
 
-    expect($filter->in)->toBe('query')
+    expect($filter->in)
+        ->toBe('query')
         ->and($filter->required)->toBeFalse()
         ->and($filter->schema->type)->toBe('string');
 });
@@ -356,7 +362,8 @@ it('reads the wire name from Spatie value-object constructors', function (): voi
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
     $include = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'include');
 
-    expect(parameterNames($params))->toContain('filter[status]')
+    expect(parameterNames($params))
+        ->toContain('filter[status]')
         ->and(parameterNames($params))->toContain('filter[name]')
         ->and(parameterNames($params))->toContain('filter[starts_before]')
         ->and(parameterNames($params))->toContain('filter[trashed]')
@@ -377,7 +384,8 @@ it('reads the variadic allow-list form', function (): void {
 
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
 
-    expect($sort)->not->toBeNull()
+    expect($sort)->not
+        ->toBeNull()
         ->and($sort->schema->items->enum)->toBe(['name', 'created_at']);
 });
 
@@ -387,9 +395,11 @@ it('reads through fluent modifiers wrapping value-object constructors', function
 
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
 
-    expect(parameterNames($params))->toContain('filter[healthy]')
+    expect(parameterNames($params))
+        ->toContain('filter[healthy]')
         ->and(parameterNames($params))->toContain('filter[q]')
-        ->and($sort)->not->toBeNull()
+        ->and($sort)->not
+        ->toBeNull()
         ->and($sort->schema->items->enum)->toBe(['created_at']);
 });
 
@@ -398,7 +408,8 @@ it('keeps literal, bare and modifier-wrapped elements together without a partial
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'mixedModifierAllowListChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect(parameterNames($params))->toBe(['filter[status]', 'filter[origin]', 'filter[healthy]'])
+    expect(parameterNames($params))
+        ->toBe(['filter[status]', 'filter[origin]', 'filter[healthy]'])
         ->and($logger->records)->toBe([]);
 });
 
@@ -411,7 +422,8 @@ it('keeps readable elements and drops non-literal ones with a notice', function 
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'partiallyReadableChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect(parameterNames($params))->toBe(['filter[status]'])
+    expect(parameterNames($params))
+        ->toBe(['filter[status]'])
         ->and(implode("\n", array_map(static fn(array $r): string => $r['message'], $logger->records)))
         ->toContain('allowedFilters');
 });
@@ -421,7 +433,8 @@ it('drops a modifier-wrapped non-Spatie root while keeping the readable element'
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'modifiedImpostorChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect(parameterNames($params))->toBe(['filter[status]'])
+    expect(parameterNames($params))
+        ->toBe(['filter[status]'])
         ->and(implode("\n", array_map(static fn(array $r): string => $r['message'], $logger->records)))
         ->toContain('allowedFilters');
 });
@@ -438,7 +451,8 @@ it('degrades a dynamic allow-list to no parameters with a notice', function (): 
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'dynamicAllowListChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect($params)->toBe([])
+    expect($params)
+        ->toBe([])
         ->and($logger->records)->toHaveCount(1)
         ->and($logger->records[0]['message'])->toContain('could not be read statically');
 });
@@ -448,7 +462,8 @@ it('refuses a builder assigned to a variable and mutated across statements', fun
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'mutatedBuilder');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect($params)->toBe([])
+    expect($params)
+        ->toBe([])
         ->and($logger->records)->toHaveCount(1)
         ->and($logger->records[0]['message'])->toContain('could not be read statically');
 });
@@ -458,7 +473,8 @@ it('refuses a chain inside a conditional context', function (): void {
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'conditionalChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect($params)->toBe([])
+    expect($params)
+        ->toBe([])
         ->and($logger->records)->toHaveCount(1);
 });
 
@@ -474,7 +490,8 @@ it('stays silent for a builder with no allowed-list calls at all', function (): 
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'lockedDownBuilder');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect($params)->toBe([])
+    expect($params)
+        ->toBe([])
         ->and($logger->records)->toBe([]);
 });
 
@@ -483,7 +500,8 @@ it('does not look past the first ten statements', function (): void {
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'chainBeyondScanWindow');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect($params)->toBe([])
+    expect($params)
+        ->toBe([])
         ->and($logger->records)->toBe([]);
 });
 
@@ -497,7 +515,8 @@ it('lets attributes win per kind while the chain fills attribute-less kinds', fu
 
     $sort = array_find($params, static fn(OA\Parameter $p): bool => $p->name === 'sort');
 
-    expect(parameterNames($params))->toBe(['filter[attribute_filter]', 'sort'])
+    expect(parameterNames($params))
+        ->toBe(['filter[attribute_filter]', 'sort'])
         ->and($sort->schema->items->enum)->toBe(['chain_sort']);
 });
 
@@ -506,7 +525,8 @@ it('skips the body scan entirely when every kind is attribute-covered', function
     $descriptor = chainDescriptor(QbChainFixtureController::class, 'fullyAttributedWithDynamicChain');
     $params = makeQueryBuilderParameterResolver($logger)->resolveQueryParameters($descriptor);
 
-    expect(parameterNames($params))->toBe(['filter[attribute_filter]', 'sort', 'include'])
+    expect(parameterNames($params))
+        ->toBe(['filter[attribute_filter]', 'sort', 'include'])
         ->and($logger->records)->toBe([]);
 });
 

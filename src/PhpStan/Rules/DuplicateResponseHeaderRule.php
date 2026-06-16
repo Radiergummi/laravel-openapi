@@ -20,14 +20,9 @@ use function is_string;
 use function strtolower;
 
 /**
- * Flags declarations that carry two or more `#[ResponseHeader]` attributes sharing the same
- * `(status, name)` pair. A header is keyed by both within a response, so the second declaration
- * is silently lost. Header names are compared case-insensitively to mirror HTTP semantics —
- * `X-Request-Id` and `x-request-id` collide. Pairs that don't resolve to a constant scalar are
- * skipped, including the case where the `status` argument is present but its value is not
- * statically resolvable (we can't tell which response slot it would occupy).
- *
- * One service is registered per declaration node kind (FunctionLike / ClassLike).
+ * Flags duplicate `#[ResponseHeader]` attributes sharing the same `(status, name)` pair, which
+ * would silently drop the second. Header names are compared case-insensitively. Pairs that don't
+ * resolve to a constant scalar are skipped. One instance is registered per node kind.
  *
  * @implements Rule<Node>
  */
@@ -117,10 +112,9 @@ final class DuplicateResponseHeaderRule implements Rule
     }
 
     /**
-     * Resolves the `status` argument to a constant integer. Returns the default 200 when the
-     * argument is absent, but null when it is present yet not statically resolvable — that case
-     * is genuine "unknown", not the default, and we must not collapse the two together (or
-     * unrelated `status: $dynamic` declarations would falsely dedupe against each other).
+     * Returns 200 when the `status` argument is absent, null when present but not statically
+     * resolvable. Absent and unresolvable must not be collapsed: dynamic status values must not
+     * falsely dedupe against each other.
      */
     private static function resolveStatus(Node\Attribute $attribute, Scope $scope): ?int
     {

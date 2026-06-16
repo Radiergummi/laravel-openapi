@@ -33,8 +33,11 @@ it('OAPI-035: ComponentSchemaRegistry is fresh after forgetScopedInstances', fun
 
     $second = app(ComponentSchemaRegistry::class);
 
-    expect($second)->not->toBe($first)
-        ->and($second->isRegisteredOrReserved($sentinel))->toBeFalse('state from the first run must not bleed into the second');
+    expect($second)->not
+        ->toBe($first)
+        ->and($second->isRegisteredOrReserved($sentinel))->toBeFalse(
+            'state from the first run must not bleed into the second',
+        );
 });
 
 it('OAPI-035: ExampleFileLoader is fresh after forgetScopedInstances', function (): void {
@@ -57,13 +60,16 @@ it('OAPI-035: OpenApiGenerator is fresh after forgetScopedInstances', function (
     expect($second)->not->toBe($first);
 });
 
-it('OAPI-035: within a single scope all resolutions return the same ComponentSchemaRegistry instance', function (): void {
-    // Ensures the graph is consistent — every class in the pipeline shares the same registry
-    // object within a single generation run.
-    $directRegistry = app(ComponentSchemaRegistry::class);
+it(
+    'OAPI-035: within a single scope all resolutions return the same ComponentSchemaRegistry instance',
+    function (): void {
+        // Ensures the graph is consistent — every class in the pipeline shares the same registry
+        // object within a single generation run.
+        $directRegistry = app(ComponentSchemaRegistry::class);
 
-    // Re-resolving within the same scope must return the identical instance.
-    $sameRegistry = app(ComponentSchemaRegistry::class);
+        // Re-resolving within the same scope must return the identical instance.
+        $sameRegistry = app(ComponentSchemaRegistry::class);
 
-    expect($sameRegistry)->toBe($directRegistry);
-});
+        expect($sameRegistry)->toBe($directRegistry);
+    },
+);

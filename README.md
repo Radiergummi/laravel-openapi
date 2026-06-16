@@ -203,7 +203,7 @@ app/Http/Controllers/BookingController.php (2)
  │      Operation POST /bookings has no error response (4xx/5xx)
  │      at app/Http/Controllers/BookingController.php:28 (POST /bookings)
  │
- │      Suggested Fix: Add at least one error response (e.g. 400, 401, 404, 422, 500) to the operation.
+ │      Suggested Fix: Add at least one error response (e.g., 400, 401, 404, 422, 500) to the operation.
  ╰─ ℹ️ operation.description-missing
         Operation POST /bookings has no description
         at app/Http/Controllers/BookingController.php:28 (POST /bookings)

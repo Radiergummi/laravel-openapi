@@ -18,9 +18,7 @@ use function count;
 use function sprintf;
 
 /**
- * Reports when two or more webhooks across the entire spec share the same name. Webhook names
- * must be globally unique because they become top-level map keys under `webhooks` in the
- * generated spec.
+ * Reports duplicate webhook names. Names must be unique as they become top-level `webhooks` keys.
  */
 final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizable, Resettable
 {

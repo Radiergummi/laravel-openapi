@@ -30,11 +30,13 @@ it('falls through to the next resolver when one returns null', function (): void
     $body = null;
 
     foreach ($resolvers as $resolver) {
-        $body = $resolver->resolveErrorResponse(new ErrorDescriptor(
-            status: 422,
-            exceptionClass: ValidationException::class,
-            description: 'Validation failed',
-        ));
+        $body = $resolver->resolveErrorResponse(
+            new ErrorDescriptor(
+                status: 422,
+                exceptionClass: ValidationException::class,
+                description: 'Validation failed',
+            ),
+        );
 
         if ($body !== null) {
             break;
@@ -113,22 +115,26 @@ it('exposes the route action descriptor for per-route resolver scoping', functio
         }
     };
 
-    $apiResponse = $jsonApiOnly->resolveErrorResponse(new ErrorDescriptor(
-        status: 404,
-        exceptionClass: null,
-        description: 'Not Found',
-        action: $action,
-    ));
+    $apiResponse = $jsonApiOnly->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 404,
+            exceptionClass: null,
+            description: 'Not Found',
+            action: $action,
+        ),
+    );
 
     expect($apiResponse)->not->toBeNull();
     expect($apiResponse->content[0]->mediaType)->toBe('application/vnd.api+json');
 
-    $defaultResponse = $jsonApiOnly->resolveErrorResponse(new ErrorDescriptor(
-        status: 404,
-        exceptionClass: null,
-        description: 'Not Found',
-        action: null,
-    ));
+    $defaultResponse = $jsonApiOnly->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 404,
+            exceptionClass: null,
+            description: 'Not Found',
+            action: null,
+        ),
+    );
 
     expect($defaultResponse)->toBeNull();
 });

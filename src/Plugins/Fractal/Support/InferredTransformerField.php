@@ -7,12 +7,10 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Support;
 use OpenApi\Annotations as OA;
 
 /**
- * One response field inferred from a transformer's `transform()` literal. Every inferred field
- * is required — `transform()` has no conditional-field idiom — but a value the bounded reader
- * refused to type keeps its key as an unconstrained property (dropping a response property
- * would be silently wrong) and carries the affected key paths — `permalink` for the field
- * itself, `flags.rating` for a value inside a nested literal — so the schema builder can
- * summarise the refusals.
+ * One field inferred from a transformer's `transform()` literal. All inferred fields are required.
+ * Values the bounded reader refused to type are kept as unconstrained properties (dropping them
+ * would be silently wrong); their key paths are collected in `$unconstrainedPaths` for the schema
+ * builder to summarise.
  *
  * @internal
  */

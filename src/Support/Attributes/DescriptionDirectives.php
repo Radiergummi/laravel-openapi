@@ -15,21 +15,15 @@ use function substr;
 use function trim;
 
 /**
- * Parses inline documentation directives out of a field description string.
+ * Parses inline directives out of a field description string.
  *
- * Recognized directives, one per line, case-sensitive. The `@` prefix is deliberate — it makes
- * directive lines visibly distinct from prose so a line like `Enum: see docs at /enums` cannot be
- * confused for a directive.
+ * One directive per line, case-sensitive (`@` prefix distinguishes them from prose):
+ * - `@example 42`: declare the field's example value.
+ * - `@no-example`: suppress example generation.
+ * - `@enum a, b, c`: declare enum values (coerced: `1` → int, `1.5` → float, `true`/`false` → bool).
  *
- * - `@example 42`           — declare the field's example value.
- * - `@no-example`           — suppress example generation entirely.
- * - `@enum a, b, c`         — declare the field's enum values. Tokens are coerced by lexical
- *                             shape (`1` → int, `1.5` → float, `true`/`false` → bool).
- *
- * Directives may appear anywhere in the description; their lines are stripped from the clean
- * output. Multiple `@example` / `@enum` lines: the *last* wins. `@no-example` always wins over
- * any `@example` directive (whether earlier or later in the description); an explicit `example:`
- * argument on the attribute beats both.
+ * Directive lines are stripped from the clean output. Last `@example`/`@enum` wins.
+ * `@no-example` always wins over `@example`; an explicit `example:` attribute argument beats both.
  *
  * @internal
  */

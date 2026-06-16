@@ -10,23 +10,16 @@ use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
 use Radiergummi\OpenApi\Lint\Tree\SpecTreeWalker;
 
 /**
- * Marker interface for rules that require post-walk execution.
+ * Rules that require post-walk execution (e.g., access to the full findings set).
  *
- * Post-walk rules need information not available during the tree walk—such as the complete set of
- * findings from all other rules or cross-references that are only fully populated after traversal.
- * They are NOT dispatched by {@see SpecTreeWalker} and must be invoked separately by the command
- * after the walk completes.
- *
- * Rules implementing this interface should NOT be registered in the container tag
- * `openapi.lint.rules` unless they also implement a visitor interface for the walk phase.
+ * Not dispatched by {@see SpecTreeWalker}; the command invokes them separately after the walk.
+ * Do not register in `openapi.lint.rules` unless also implementing a walk-phase visitor interface.
  *
  * @see MetaSuppressionStale
  */
 interface PostWalkRule extends Visitor
 {
     /**
-     * Execute the rule after all tree-walk rules have completed.
-     *
      * @param list<Finding> $walkFindings All findings produced during the tree walk
      *
      * @return iterable<Finding>

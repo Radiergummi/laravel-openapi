@@ -15,11 +15,13 @@ it('refs the Error schema for non-validation responses', function (): void {
     $registry = new ComponentSchemaRegistry();
     $envelope = new LaravelEnvelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 401,
-        exceptionClass: AuthenticationException::class,
-        description: 'Unauthenticated',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 401,
+            exceptionClass: AuthenticationException::class,
+            description: 'Unauthenticated',
+        ),
+    );
 
     expect($response->content)->toHaveCount(1);
     $media = $response->content[0];
@@ -32,11 +34,13 @@ it('refs the ValidationError schema when the exception is ValidationException', 
     $registry = new ComponentSchemaRegistry();
     $envelope = new LaravelEnvelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 422,
-        exceptionClass: ValidationException::class,
-        description: 'Validation failed',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 422,
+            exceptionClass: ValidationException::class,
+            description: 'Validation failed',
+        ),
+    );
 
     expect($response->content[0]->schema->ref)->toBe($registry->qualifyKey('ValidationError'));
 });
@@ -45,11 +49,13 @@ it('falls back to status 422 when no exception class is set', function (): void 
     $registry = new ComponentSchemaRegistry();
     $envelope = new LaravelEnvelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 422,
-        exceptionClass: null,
-        description: 'Validation failed',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 422,
+            exceptionClass: null,
+            description: 'Validation failed',
+        ),
+    );
 
     expect($response->content[0]->schema->ref)->toBe($registry->qualifyKey('ValidationError'));
 });

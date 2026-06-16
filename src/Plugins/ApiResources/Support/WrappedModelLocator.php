@@ -19,12 +19,10 @@ use function class_exists;
 use function is_a;
 
 /**
- * Resolves the Eloquent model a `JsonResource` wraps from the resource's class docblock.
+ * Resolves the Eloquent model a `JsonResource` wraps from its class docblock.
  *
- * An at-mixin User tag first, then a Generic at-extends Base<User>; only Model subclasses count.
- * Shared by the schema builder (the passthrough/dynamic `toArray()` fallback and `$this->field`
- * value resolution) and the `resource.fields-undeclared` lint rule, so resource→model resolution is
- * defined exactly once.
+ * Checks `@mixin` first, then the generic type argument of `@extends`. Shared by the schema
+ * builder and the `resource.fields-undeclared` lint rule.
  *
  * @internal
  */

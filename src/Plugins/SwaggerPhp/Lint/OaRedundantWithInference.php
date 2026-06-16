@@ -11,7 +11,6 @@ use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
-use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ComponentSchemaNode;
 use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule;
@@ -30,20 +29,12 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Flags a hand-authored `#[OA\Schema]` / `@OA\Schema` annotation on a class whose component schema
- * the generator now reproduces on its own, so it can be deleted as the codebase moves onto inference.
+ * Flags a hand-authored `#[OA\Schema]` / `@OA\Schema` whose schema the generator now reproduces
+ * via inference, making the annotation redundant.
  *
- * The verdict is provenance-based, not name-based: the class's authored schema (from the
- * {@see AuthoredAnnotationScanner}) is compared against inference's schema for the *same class*
- * ({@see InferenceView::schemaForClass()}), ignoring serialized names. It fires only when inference
- * **subsumes** the authored schema — reproduces everything the author wrote, and possibly more; a
- * description or restriction inference cannot derive keeps the annotation load-bearing. A schema
- * another surviving authored annotation still `$ref`s by name is never flagged, so the fix cannot
- * dangle a reference.
- *
- * Declares {@see NeedsInferenceDocument} so the runner builds the inference-only view once per spec,
- * only when the rule is active. Registered only by the off-by-default swagger-php plugin, at the
- * `migration.*` cleanup tier (level 4) — off ordinary runs until requested (`--only 'migration.*'`).
+ * Verdict is provenance-based: the authored schema is compared against the inferred schema for the
+ * same class, and fires only when inference subsumes everything the author wrote. A schema still
+ * `$ref`-ed by another surviving authored annotation is never flagged (avoids dangling refs).
  *
  * @internal
  */
@@ -83,9 +74,8 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
 
         $inferred = $context->inference->schemaForClass($class);
 
-        // Removing a schema another surviving authored annotation still references by name would
-        // dangle that reference.
-        $isLoadBearing = fn(): bool
+        // Removing a schema still referenced by name by another authored annotation would dangle it.
+        $isEssential = fn(): bool
             => is_defined($authored->schema)
             && $this->scanner->isSchemaReferencedByOtherAuthored($authored->schema, $class);
 
@@ -108,7 +98,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
                     AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
                 ],
             ),
-            $isLoadBearing,
+            $isEssential,
         );
 
         if ($finding !== null) {
@@ -125,8 +115,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     #[Override]
     public function level(): int
     {
-        // A redundant annotation is a cleanup opportunity, not a spec defect — the generated
-        // document is correct with or without it.
+        // Cleanup opportunity, not a spec defect: the document is correct either way.
         return 4;
     }
 
@@ -137,9 +126,6 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
     }
 
     /**
-     * The inference-only view this rule compares against is the document with the authored-annotation
-     * harvest excluded — i.e. pure inference, no harvested schemas.
-     *
      * @return list<class-string<SpecStage>>
      */
     #[Override]

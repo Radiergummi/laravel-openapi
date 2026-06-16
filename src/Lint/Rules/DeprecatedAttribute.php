@@ -22,12 +22,8 @@ use function str_contains;
 use function str_starts_with;
 
 /**
- * Flags usage of OpenAPI authoring attributes that have been marked as deprecated via the
- * at-deprecated PHPDoc tag on the attribute class.
- *
- * This rule exists so that future attribute renames or replacements have a smooth migration path:
- * Mark the old attribute class as at-deprecated, and this rule will emit warnings for every
- * remaining usage.
+ * Flags authoring attributes marked deprecated (`#[Deprecated]` or `@deprecated`), enabling smooth
+ * migration when an attribute is renamed or replaced.
  */
 final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettable
 {
@@ -38,13 +34,12 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
 
     public function __construct(?string $attributeNamespace = null)
     {
-        // Derive the default namespace from an actual Core attribute class so a future
-        // package-namespace rename does not require editing this constant.
+        // Derived from an actual attribute class so a package-namespace rename stays correct.
         $this->attributeNamespace = $attributeNamespace
             ?? (new ReflectionClass(FieldAttribute::class)->getNamespaceName() . '\\');
     }
 
-    /** Clears the per-attribute reflection cache so it cannot grow unbounded across walks. */
+    /** Clears the reflection cache between walks. */
     #[Override]
     public function reset(): void
     {
@@ -83,11 +78,8 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
     }
 
     /**
-     * Emits a finding for every deprecated authoring attribute in the list.
-     *
      * @param ReflectionAttribute<object>[] $attributes
-     * @param string                        $location   Where the attribute sits, for the message
-     *                                                  (e.g. `Controller::method()` or `class Controller`)
+     * @param string                        $location   Human-readable location for the message
      *
      * @return iterable<Finding>
      *
@@ -127,11 +119,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
         }
     }
 
-    /**
-     * Check whether the given attribute class is marked deprecated.
-     *
-     * @param ReflectionClass<object> $reflection
-     */
+    /** @param ReflectionClass<object> $reflection */
     private function isDeprecated(ReflectionClass $reflection): bool
     {
         if ($reflection->getAttributes(Deprecated::class) !== []) {
@@ -156,9 +144,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
     #[Override]
     public function level(): int
     {
-        // Using a deprecated authoring attribute is a convention issue, not a
-        // spec-validity error — the generated spec is still correct, but the
-        // author is leaning on a superseded attribute.
+        // Convention issue: spec is still valid, but author uses a superseded attribute.
         return 3;
     }
 

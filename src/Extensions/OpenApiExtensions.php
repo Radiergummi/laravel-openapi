@@ -11,7 +11,7 @@ use OpenApi\Annotations as OA;
  *
  * Three hook types are supported:
  *
- * **Operation transformer** — invoked per operation after assembly, before it is attached to
+ * **Operation transformer**: invoked per operation after assembly, before it is attached to
  * the document. Use this to add vendor extensions, mutate security requirements, change tags, etc.
  *
  * ```php
@@ -22,7 +22,7 @@ use OpenApi\Annotations as OA;
  * });
  * ```
  *
- * **Schema transformer** — invoked per component schema after extraction. Use this to add extra
+ * **Schema transformer**: invoked per component schema after extraction. Use this to add extra
  * constraints for custom Rule objects, mark properties as read-only, etc.
  *
  * ```php
@@ -38,7 +38,7 @@ use OpenApi\Annotations as OA;
  * });
  * ```
  *
- * **Document transformer** — invoked once on the assembled document at the end of the generation.
+ * **Document transformer**: invoked once on the assembled document at the end of the generation.
  * Use this to add top-level info, merge external spec fragments, set global extensions, etc.
  *
  * ```php
@@ -47,23 +47,12 @@ use OpenApi\Annotations as OA;
  * });
  * ```
  *
- * Vendor extensions go through the declared `$x` array property on swagger-php annotations.
- * Keys are emitted prefixed with `x-`, so `$doc->x = ['api-version' => …]` produces
- * `x-api-version: …` in the output. Avoid `$doc->{'x-api-version'} = …` — PHP 8.2+ deprecates
- * dynamic property assignment on classes without `#[AllowDynamicProperties]`, and PHP 9 will
- * turn it into a fatal error.
+ * Vendor extensions use the `$x` array property on swagger-php annotations: `$doc->x = ['api-version' => …]`
+ * produces `x-api-version: …`. Avoid dynamic property assignment; PHP 9 turns it into a fatal error.
  *
- * Register transformers in a service provider's `boot()` method or in `AppServiceProvider::boot()`.
- * All registered transformers survive for the lifetime of the process (Octane-safe, because
- * transformers are stateless callables, not per-request objects).
- *
- * WARNING — register each transformer exactly once, at boot time.
- * The three static arrays are never deduplicated. Calling a `transform*()` method outside a
- * service provider `boot()` — for example, inside a controller, middleware, or request lifecycle
- * hook — will append a duplicate on every request. Under Laravel Octane the process stays alive
- * across requests, so the arrays grow without bounds, and every transformer executes multiple times
- * per generation. If you need per-request behavior, pass a closure that reads request state
- * lazily rather than registering a new transformer on each request.
+ * Register transformers in a service provider's `boot()` method exactly once. The arrays are never
+ * deduplicated; registering inside a controller or middleware appends a duplicate on every request.
+ * Under Octane the process stays alive across requests, so the arrays grow without bounds.
  */
 final class OpenApiExtensions
 {
@@ -77,11 +66,7 @@ final class OpenApiExtensions
     private static array $documentTransformers = [];
 
     /**
-     * Register a callable that will be invoked for every assembled operation.
-     *
-     * The callable receives the mutable {@see OA\Operation} and an {@see OperationContext}
-     * carrying the source controller class, method name, HTTP verb, and route URI. Mutations to
-     * `$operation` are reflected in the final document.
+     * Register a callable invoked for every assembled operation.
      *
      * @param callable(OA\Operation, OperationContext): void $transformer
      */
@@ -91,15 +76,10 @@ final class OpenApiExtensions
     }
 
     /**
-     * Register a callable that will be invoked for every component schema after extraction.
+     * Register a callable invoked for every component schema after extraction.
      *
-     * The callable receives the mutable {@see OA\Schema} and a {@see SchemaContext} carrying
-     * the component key and the source PHP class (null for hand-built named schemas).
-     * Mutations to `$schema` — including its `properties` array — are reflected in the spec.
-     *
-     * This is the correct escape hatch for project-local rule objects: a transformer can inspect
-     * `$context->sourceClass` and the property name on a nested `OA\Schema` to inject constraints that
-     * the generic extractor cannot derive (e.g. for a custom `HexColor` rule, set `pattern`).
+     * Use this to inject constraints the generic extractor cannot derive (e.g., `pattern` for a
+     * custom `HexColor` rule).
      *
      * @param callable(OA\Schema, SchemaContext): void $transformer
      */
@@ -109,8 +89,7 @@ final class OpenApiExtensions
     }
 
     /**
-     * Register a callable that will be invoked once on the fully assembled OpenAPI document
-     * at the very end of the generation, before it is returned to the caller.
+     * Register a callable invoked once on the fully assembled document, at the end of generation.
      *
      * @param callable(OA\OpenApi): void $transformer
      */
@@ -150,9 +129,7 @@ final class OpenApiExtensions
     }
 
     /**
-     * Removes all registered transformers.
-     *
-     * Useful in tests to isolate transformer registrations between cases.
+     * Removes all registered transformers. Useful in tests to isolate registrations between cases.
      */
     public static function flush(): void
     {

@@ -72,9 +72,6 @@ final readonly class SuppressionCollector
     }
 
     /**
-     * Collect class-level directives — and, when requested, property-level
-     * directives — from a class.
-     *
      * @param ReflectionClass<*>         $class
      * @param list<SuppressionDirective> $directives
      * @param array<string, true>        $seen
@@ -129,11 +126,7 @@ final readonly class SuppressionCollector
         }
     }
 
-    /**
-     * Record a reflection target as visited; returns false if already seen.
-     *
-     * @param array<string, true> $seen
-     */
+    /** @param array<string, true> $seen */
     private function markSeen(string $key, array &$seen): bool
     {
         if (isset($seen[$key])) {
@@ -189,13 +182,8 @@ final readonly class SuppressionCollector
     }
 
     /**
-     * Descend into a parameter type-hinted as a Data class (or an Action whose
-     * constructor carries one) to collect class- and property-level directives —
-     * the `field.*` rules inspect exactly those Data properties.
-     *
-     * Direct payload parameters are collected with properties. Indirection classes
-     * (Domain Actions) are not collected themselves; instead their constructor is
-     * reflected and each constructor parameter that is a payload class is collected.
+     * Descends into a payload-class parameter (or an indirection Action) to collect
+     * class- and property-level directives for the `field.*` rules.
      *
      * @param list<SuppressionDirective> $directives
      * @param array<string, true>        $seen
@@ -254,14 +242,8 @@ final readonly class SuppressionCollector
     }
 
     /**
-     * Collect class- and property-level `#[IgnoreLint]` directives from every class that produced
-     * a registered component schema in the current generation run. Catches payload classes that
-     * are never observed as a controller-method parameter — typically Eloquent `JsonResource`
-     * subclasses, which are usually return-typed.
-     *
-     * Only classes whose type matches a registered payload class contribute directives. Other
-     * registered classes (e.g. an arbitrary DTO a plugin chose to register) are skipped because
-     * their `#[IgnoreLint]` attributes — if any — are not part of the documented contract.
+     * Collects `#[IgnoreLint]` directives from component-schema classes (e.g., `JsonResource`
+     * subclasses that are return-typed but never appear as controller parameters).
      *
      * @param array<string, class-string> $classToKey Pass {@see ComponentSchemaRegistry::componentClassMap()}.
      *

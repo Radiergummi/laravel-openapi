@@ -14,14 +14,17 @@ it('refs the Problem schema for non-validation responses with application/proble
     $registry = new ComponentSchemaRegistry();
     $envelope = new Rfc7807Envelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 404,
-        exceptionClass: ModelNotFoundException::class,
-        description: 'Resource not found',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 404,
+            exceptionClass: ModelNotFoundException::class,
+            description: 'Resource not found',
+        ),
+    );
 
     $media = $response->content[0];
-    expect($media->mediaType)->toBe('application/problem+json')
+    expect($media->mediaType)
+        ->toBe('application/problem+json')
         ->and($media->schema->ref)->toBe($registry->qualifyKey('Problem'));
 });
 
@@ -29,11 +32,13 @@ it('refs ValidationProblem for ValidationException', function (): void {
     $registry = new ComponentSchemaRegistry();
     $envelope = new Rfc7807Envelope($registry);
 
-    $response = $envelope->resolveErrorResponse(new ErrorDescriptor(
-        status: 422,
-        exceptionClass: ValidationException::class,
-        description: 'Validation failed',
-    ));
+    $response = $envelope->resolveErrorResponse(
+        new ErrorDescriptor(
+            status: 422,
+            exceptionClass: ValidationException::class,
+            description: 'Validation failed',
+        ),
+    );
 
     expect($response->content[0]->schema->ref)
         ->toBe($registry->qualifyKey('ValidationProblem'));
@@ -46,6 +51,7 @@ it('registers both Problem and ValidationProblem component schemas', function ()
     $envelope->resolveErrorResponse(new ErrorDescriptor(404, ModelNotFoundException::class, 'Not found'));
     $envelope->resolveErrorResponse(new ErrorDescriptor(422, ValidationException::class, 'Validation failed'));
 
-    expect($registry->hasKey('Problem'))->toBeTrue()
+    expect($registry->hasKey('Problem'))
+        ->toBeTrue()
         ->and($registry->hasKey('ValidationProblem'))->toBeTrue();
 });

@@ -104,12 +104,14 @@ class PluginSuiteController extends Controller
 }
 
 beforeEach(function (): void {
-    config(['openapi.plugins' => [
-        SpatieDataPlugin::class,
-        ApiResourcesPlugin::class,
-        QueryBuilderPlugin::class,
-        FractalPlugin::class,
-    ]]);
+    config([
+        'openapi.plugins' => [
+            SpatieDataPlugin::class,
+            ApiResourcesPlugin::class,
+            QueryBuilderPlugin::class,
+            FractalPlugin::class,
+        ],
+    ]);
 
     Route::get('/suite/paginated', [PluginSuiteController::class, 'paginated']);
     Route::get('/suite/resource', [PluginSuiteController::class, 'resource']);
@@ -130,24 +132,27 @@ function suiteParamNames(array $operation): array
     return array_map(static fn(array $p): string => $p['name'], $operation['parameters'] ?? []);
 }
 
-it('renders the paginator route with the core flat envelope and QueryBuilder params (but no Fractal envelope)', function (): void {
-    $paginated = suiteSpec()['paths']['/suite/paginated']['get'];
+it(
+    'renders the paginator route with the core flat envelope and QueryBuilder params (but no Fractal envelope)',
+    function (): void {
+        $paginated = suiteSpec()['paths']['/suite/paginated']['get'];
 
-    // Core paginator envelope: flat with data + total, not Fractal's {data, meta: {pagination}}.
-    $schema = $paginated['responses']['200']['content']['application/json']['schema'];
-    expect($schema['properties'])
-        ->toHaveKey('data')
-        ->toHaveKey('total')
-        ->toHaveKey('per_page')
-        ->toHaveKey('current_page');
-    expect($schema['properties'])->not->toHaveKey('meta'); // would be Fractal's pagination meta shape
+        // Core paginator envelope: flat with data + total, not Fractal's {data, meta: {pagination}}.
+        $schema = $paginated['responses']['200']['content']['application/json']['schema'];
+        expect($schema['properties'])
+            ->toHaveKey('data')
+            ->toHaveKey('total')
+            ->toHaveKey('per_page')
+            ->toHaveKey('current_page');
+        expect($schema['properties'])->not->toHaveKey('meta'); // would be Fractal's pagination meta shape
 
-    // QueryBuilder plugin contributes filter[status] + sort + include onto this operation.
-    expect(suiteParamNames($paginated))
-        ->toContain('filter[status]')
-        ->toContain('sort')
-        ->toContain('include');
-});
+        // QueryBuilder plugin contributes filter[status] + sort + include onto this operation.
+        expect(suiteParamNames($paginated))
+            ->toContain('filter[status]')
+            ->toContain('sort')
+            ->toContain('include');
+    },
+);
 
 it('renders the resource route with the ApiResources envelope and zero QueryBuilder params', function (): void {
     $resource = suiteSpec()['paths']['/suite/resource']['get'];

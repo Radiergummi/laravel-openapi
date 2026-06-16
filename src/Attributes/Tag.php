@@ -14,10 +14,10 @@ use function sprintf;
 
 /**
  * Adds an OpenAPI tag to an operation in addition to the controller-derived set. Use for purely
- * additive tagging — to replace the auto-derived set entirely, use {@see Operation::$tags} with
+ * additive tagging; to replace the auto-derived set entirely, use {@see Operation::$tags} with
  * `replace: true`. Class- and method-level entries merge; duplicates dedupe.
  *
- * The name may be a plain string or a string-backed {@see BackedEnum} case — the latter lets
+ * The name may be a plain string or a string-backed {@see BackedEnum} case; the latter lets
  * consumers centralise tag taxonomies in an enum. Int-backed enums are rejected at construction
  * time because numeric tag names ("1", "2") are surprising for consumers and trip tag-naming
  * lint rules.

@@ -10,14 +10,9 @@ namespace Radiergummi\OpenApi\Lint\Fix;
  */
 enum RemoveMode
 {
-    /**
-     * Keep the first attribute whose discriminator matches the finding's value and delete every
-     * later duplicate (e.g. a repeated `#[Tag('users')]`).
-     */
+    /** Keep the first matching attribute and delete every later duplicate. */
     case Dedupe;
 
-    /**
-     * Delete every matching attribute on the member (e.g. a `#[RequestField]` that has no effect).
-     */
+    /** Delete every matching attribute on the member. */
     case RemoveAll;
 }

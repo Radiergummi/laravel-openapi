@@ -94,6 +94,6 @@ it('accepts a parameter paired with a Laravel optional-segment placeholder', fun
 
     expect($findings)->toBe([]);
 })->with([
-    'optional only'     => '/foo/{path?}',
+    'optional only' => '/foo/{path?}',
     'static + optional' => '/.well-known/oauth-protected-resource/{path?}',
 ]);

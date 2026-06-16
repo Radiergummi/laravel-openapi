@@ -20,11 +20,8 @@ use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
- * Reports streaming endpoints that do not declare `text/event-stream` content type.
- *
- * When a controller method is annotated with `#[Operation(streaming: true)]`, its corresponding
- * OpenAPI operation should declare `text/event-stream` as a response content type so that clients
- * know to expect server-sent events.
+ * Reports operations annotated with `#[Operation(streaming: true)]` that lack a
+ * `text/event-stream` response content type.
  */
 final class StreamingNoContentType implements Rule, OperationRuleVisitor
 {
@@ -73,9 +70,6 @@ final class StreamingNoContentType implements Rule, OperationRuleVisitor
         );
     }
 
-    /**
-     * Check whether an operation's responses declare `text/event-stream` content.
-     */
     private function hasEventStreamContentType(OA\Operation $operation): bool
     {
         $responses = $operation->responses;

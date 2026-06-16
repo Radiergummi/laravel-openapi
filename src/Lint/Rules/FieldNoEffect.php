@@ -25,11 +25,7 @@ final class FieldNoEffect extends AbstractFieldRule implements FixableRule
         return 'A field attribute was applied but has no visible effect on the schema.';
     }
 
-    /**
-     * The no-op field attribute carries no information, so it is removed outright. The owning
-     * property is identified by the {@see Finding::CONTEXT_SOURCE_CLASS} /
-     * {@see Finding::CONTEXT_SOURCE_MEMBER} keys {@see AbstractFieldRule} already stamps.
-     */
+    /** Removes the no-op attribute; location is identified via context keys stamped by {@see AbstractFieldRule}. */
     #[Override]
     public function fixer(): Fixer
     {
@@ -63,7 +59,7 @@ final class FieldNoEffect extends AbstractFieldRule implements FixableRule
                 $property->getName(),
             ),
             fixHint: sprintf(
-                'Remove the #[%s] attribute or set at least one parameter (e.g. description).',
+                'Remove the #[%s] attribute or set at least one parameter (e.g., description).',
                 $this->attributeName($field),
             ),
         );

@@ -20,9 +20,9 @@ class SimpleFormRequest extends FormRequest
     {
         return [
             self::PARAM_URL => ['required', 'string', 'url:http,https', 'max:2048'],
-            'name'          => ['required', 'string', 'max:100'],
-            'count'         => ['sometimes', 'integer', 'min:1', 'max:50'],
-            'note'          => ['nullable', 'string'],
+            'name' => ['required', 'string', 'max:100'],
+            'count' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'note' => ['nullable', 'string'],
         ];
     }
 }

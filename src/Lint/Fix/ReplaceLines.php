@@ -10,9 +10,10 @@ use Override;
 use function strlen;
 
 /**
- * Replace the content of lines `[$startLine, $endLine]` with `$replacement`, preserving the
- * newline that terminates the range. Both bounds are 1-based and inclusive; `$replacement` is the
- * new line content without a trailing newline.
+ * Replace the content of lines `[$startLine, $endLine]` with `$replacement`.
+ *
+ * Both bounds are 1-based and inclusive. The newline terminating the range is preserved;
+ * `$replacement` must not include a trailing newline.
  */
 final class ReplaceLines extends FixOperation
 {

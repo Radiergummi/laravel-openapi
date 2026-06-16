@@ -12,7 +12,6 @@ use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Plugins\Core\Lint\RequestBodySchemaDegraded;
 use Radiergummi\OpenApi\Plugins\Core\Support\SpecTime\SpecTimeRequest;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
@@ -34,16 +33,9 @@ use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
- * Builds an {@see OA\Schema} for a {@see FormRequest} subclass by calling its `rules()` method
- * and mapping the result via {@see ValidationRulesToSchema}.
- *
- * The FormRequest is instantiated without the container (no DI, no auth, no route binding).
- * If instantiation or `rules()` throws, a placeholder schema is registered and a warning is
- * logged — one bad FormRequest must not abort the full generation run.
- *
- * FormRequests are flat — they do not contain other FormRequests — so the recursive cycle guard
- * inside {@see ComponentSchemaRegistry::buildOnce()} is a no-op in this caller. Using it anyway
- * keeps registration idempotent and consistent with the Data-class / API-Resource code paths.
+ * Builds an {@see OA\Schema} for a {@see FormRequest} by calling its `rules()` method via
+ * {@see ValidationRulesToSchema}. Instantiation failures emit a placeholder schema and a warning
+ * rather than aborting the generation run.
  */
 #[Scoped]
 final readonly class SchemaFromFormRequest
@@ -62,8 +54,7 @@ final readonly class SchemaFromFormRequest
      */
     public function hasFileFields(string $formRequestClass): bool
     {
-        // build() is idempotent (registry-cached) and always populates hasFileFields as a side
-        // effect, so we delegate to it rather than duplicating the instantiation logic here.
+        // build() is registry-cached and populates hasFileFields as a side effect.
         $this->build($formRequestClass);
 
         return $this->registry->getHasFileFields($formRequestClass) ?? false;
@@ -113,12 +104,8 @@ final readonly class SchemaFromFormRequest
         }
 
         try {
-            // SpecTimeRequest::resolveConstructorDeps() resolves any typed constructor args
-            // through the container so FormRequests with constructor DI build correctly; then
-            // SpecTimeRequest::configure() wires a permissive route + user resolver so rules()
-            // bodies that read $this->route('foo')->bar or $this->user()->bar resolve to
-            // AnyValue rather than throwing on null. The catch below still fires for the
-            // residual cases (rules() branching on type checks, calls into unbound services).
+            // configure() wires a permissive route + user resolver so rules() can call
+            // $this->route('foo') / $this->user() without throwing.
             $args = SpecTimeRequest::resolveConstructorDeps($formRequestClass);
             $instance = new $formRequestClass(...$args);
             SpecTimeRequest::configure($instance);
@@ -168,11 +155,8 @@ final readonly class SchemaFromFormRequest
                 $constantOverrides[$fieldName]->descriptor()->applyTo($property);
             }
 
-            // Lowest-priority fallback: synthesise an example when no authored source set one.
-            // Use the property's effective type/format (which may have been overridden by a
-            // #[RequestField] attribute on a PARAM_* constant) rather than the rules-derived
-            // descriptor values — otherwise a type change in the override produces a wrong-typed
-            // example.
+            // Use the effective type/format (may be overridden by #[RequestField] on a PARAM_*
+            // constant) rather than the rules-derived values when synthesising an example.
             if (is_undefined($property->example)) {
                 if (is_string($property->type) && is_defined($property->type)) {
                     $descriptor->type = $property->type;
@@ -227,8 +211,7 @@ final readonly class SchemaFromFormRequest
             $file = $reflection->getFileName() ?: null;
             $line = $reflection->getStartLine() ?: null;
         } catch (ReflectionException) {
-            // Reflection failure here is non-fatal — the finding is still useful without
-            // file/line, and we are already in a degraded path.
+            // Non-fatal: the finding is still useful without file/line.
         }
 
         $this->findings->emit(
@@ -241,20 +224,13 @@ final readonly class SchemaFromFormRequest
                     $exception->getMessage(),
                 ),
                 location: new FindingLocation(file: $file, line: $line),
-                fixHint: RequestBodySchemaDegraded::FIX_HINT,
+                fixHint: 'rules() threw during introspection. Common causes: a type-check against runtime state (e.g., `instanceof User`), a call into a container service that is not bound at spec-time, or a `match`/`switch` on a runtime value. Refactor rules() to depend only on the request payload, or suppress this finding on the FormRequest class with `#[IgnoreLint(\'request-body.schema-degraded\', reason: \'…\')]` and document the limitation in the API description.',
                 context: [Finding::CONTEXT_SOURCE_CLASS => $formRequestClass],
             ),
         );
     }
 
     /**
-     * Reads `#[RequestField]` attributes from `PARAM_*` class constants on the FormRequest.
-     * Allows authors to annotate constants:
-     * ```php
-     * #[RequestField(description: 'The target URL.', example: 'https://example.com')]
-     * public const string PARAM_URL = 'url';
-     * ```
-     *
      * @param class-string<FormRequest> $formRequestClass
      *
      * @return array<string, FieldAttribute>

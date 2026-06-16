@@ -17,13 +17,7 @@ use function preg_match;
 use function sprintf;
 
 /**
- * Reports deprecated operations that do not mention a sunset date or timeline.
- *
- * When an operation is marked as `deprecated: true`, its description should include a specific
- * date or timeline so that consumers know when the endpoint will be removed. This rule checks for
- * ISO dates (YYYY-MM-DD) or quarter notation (Q1 2025).
- *
- * A non-empty `x-sunset` OAS extension on the operation also satisfies the requirement.
+ * Reports deprecated operations missing a sunset date (ISO YYYY-MM-DD, quarter notation, or `x-sunset`).
  */
 final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
 {
@@ -39,7 +33,6 @@ final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
             return;
         }
 
-        // A non-empty x-sunset extension satisfies the requirement.
         $extensions = $operation->raw->x;
 
         if (is_array($extensions) && isset($extensions['x-sunset']) && is_string(

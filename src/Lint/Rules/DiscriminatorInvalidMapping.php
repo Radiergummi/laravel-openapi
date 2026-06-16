@@ -28,18 +28,10 @@ use function str_starts_with;
  */
 final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisitor, Finalizable, Resettable
 {
-    /**
-     * All component schemas collected during the walk, indexed by schema name.
-     *
-     * @var array<string, OA\Schema>
-     */
+    /** @var array<string, OA\Schema> */
     private array $schemaMap = [];
 
-    /**
-     * Schemas with a discriminator that need to be checked in finalize().
-     *
-     * @var list<OA\Schema>
-     */
+    /** @var list<OA\Schema> */
     private array $pending = [];
 
     #[Override]
@@ -63,12 +55,10 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             return [];
         }
 
-        // Index this schema for use in finalize()
         if (is_defined($schema->schema) && $schema->schema !== null) {
             $this->schemaMap[$schema->schema] = $schema;
         }
 
-        // Queue schemas with discriminators for the finalize pass
         if (
             is_defined($schema->discriminator)
             && $schema->discriminator !== null
@@ -164,10 +154,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         }
     }
 
-    /**
-     * Resolve a `$ref` string like `#/components/schemas/Foo` to the schema
-     * key `Foo`.
-     */
+    /** Resolve a `$ref` string like `#/components/schemas/Foo` to the schema key `Foo`. */
     private function resolveRefToSchemaName(string $ref): ?string
     {
         $name = ComponentReference::name($ref);
@@ -176,7 +163,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
             return $name;
         }
 
-        // Might be a plain schema name without $ref prefix
+        // Plain schema name without a $ref prefix.
         if (!str_starts_with($ref, '#/') && !str_starts_with($ref, '/')) {
             return $ref;
         }
@@ -197,11 +184,8 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
     }
 
     /**
-     * Check whether a schema (or any of its `allOf` sub-schemas, including
-     * those resolved via `$ref`) has a property with the given name.
-     *
-     * @param array<string, OA\Schema> $schemaMap All component schemas, for $ref resolution
-     * @param array<string, true>      $visited   Cycle guard keyed by schema name
+     * @param array<string, OA\Schema> $schemaMap
+     * @param array<string, true>      $visited   cycle guard
      */
     private function schemaHasProperty(
         OA\Schema $schema,
@@ -233,7 +217,6 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
                 continue;
             }
 
-            // If this allOf entry is a $ref, resolve it to the actual schema first
             $ref = $sub->ref;
 
             if (is_defined($ref) && is_string($ref)) {
@@ -260,7 +243,6 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
                 continue;
             }
 
-            // Inline allOf sub-schema (no $ref) — recurse directly
             $subName = is_defined($sub->schema) ? $sub->schema : null;
 
             if ($subName !== null) {

@@ -42,7 +42,7 @@ final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
                 'Field "%s" uses the deprecated nullable keyword; use type union with "null" instead',
                 $field->name,
             ),
-            fixHint: 'Replace nullable: true with a type union, e.g. type: ["string", "null"].',
+            fixHint: 'Replace nullable: true with a type union, e.g., type: ["string", "null"].',
         );
     }
 

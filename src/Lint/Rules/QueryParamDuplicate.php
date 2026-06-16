@@ -34,10 +34,8 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        // Detect on the source attributes via reflection, not on $operation->queryParameters: the
-        // query-parameter resolver keys merged parameters by name (last-wins), so a duplicate
-        // #[QueryParam('q')] silently drops the earlier declaration before it reaches the spec.
-        // Reflection on the method is where that data loss is still visible — and what the fixer removes.
+        // Use reflection rather than $operation->queryParameters: the resolver merges by name
+        // (last-wins), so duplicates are already dropped by the time they reach the spec.
         if ($operation->descriptor?->method === null) {
             return;
         }
@@ -85,9 +83,7 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     #[Override]
     public function level(): int
     {
-        // Degraded, not broken: the emitted document is valid (the resolver keeps one parameter per
-        // name), but the last-wins merge silently discards the earlier #[QueryParam]'s details —
-        // the document drops information the author declared. Level 1.
+        // Warning, not error: the spec is valid but the earlier #[QueryParam]'s details are silently dropped.
         return 1;
     }
 

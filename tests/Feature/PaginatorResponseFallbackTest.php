@@ -98,20 +98,25 @@ it('lets ApiResources shape a paginated ResourceCollection return rather than Co
 
     $schema = generateSpec()['paths']['/fallback/resource-collection']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
         ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
 });
 
-it('lets ApiResources shape a paginated AnonymousResourceCollection return rather than Core stealing it', function (): void {
-    Route::get('/fallback/anonymous-collection', [FallbackAnonymousCollectionController::class, 'index']);
+it(
+    'lets ApiResources shape a paginated AnonymousResourceCollection return rather than Core stealing it',
+    function (): void {
+        Route::get('/fallback/anonymous-collection', [FallbackAnonymousCollectionController::class, 'index']);
 
-    $schema = generateSpec()['paths']['/fallback/anonymous-collection']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
+        $schema = generateSpec()['paths']['/fallback/anonymous-collection']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema)->not->toBeNull()
-        ->and($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
-        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
-});
+        expect($schema)->not
+            ->toBeNull()
+            ->and($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+            ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+    },
+);
 
 it('keeps ApiResources for a resource return even when the item class is Core-resolvable (Guard 1)', function (): void {
     Route::get('/fallback/resolvable-item', [FallbackResolvableItemCollectionController::class, 'index']);
@@ -122,7 +127,8 @@ it('keeps ApiResources for a resource return even when the item class is Core-re
     // model, so Guard 2 passes and resolveItemClass() would succeed), so only the resource return
     // type stops Core. ApiResources shapes the envelope with the resource $ref and nested
     // pagination meta; without Guard 1 Core would emit a {data: [Author], ...} paginated array.
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
         ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
         ->and($schema['properties']['meta']['properties'] ?? null)->toHaveKey('total');
@@ -135,7 +141,8 @@ it('defers to ApiResources when a method-level #[ResponseResource] names a resou
 
     // ApiResources shapes the resource-typed `{data: $ref}` envelope. Core's paginated envelope
     // would instead make `data` an array of items with `links`/`meta` siblings — Guard 2 stops it.
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema['properties']['data']['$ref'] ?? null)->toBe('#/components/schemas/NestedAuthorResource')
         ->and($schema['properties'])->not->toHaveKeys(['links', 'meta']);
 });
@@ -145,7 +152,8 @@ it('defers to ApiResources when a controller-level #[ResponseResource] names a r
 
     $schema = generateSpec()['paths']['/fallback/controller-attribute']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema['properties']['data']['$ref'] ?? null)->toBe('#/components/schemas/NestedAuthorResource')
         ->and($schema['properties'])->not->toHaveKeys(['links', 'meta']);
 });
@@ -156,7 +164,8 @@ it('shapes a paginated envelope from the body scan when the item class is a bare
     $schema = generateSpec()['paths']['/fallback/model-item']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 
     // Length-aware envelope from the unconditional paginate() body, with the model as the item.
-    expect($schema)->not->toBeNull()
+    expect($schema)->not
+        ->toBeNull()
         ->and($schema['type'])->toBe('object')
         ->and($schema['properties'])->toHaveKeys(['data', 'current_page', 'per_page', 'total', 'links'])
         ->and($schema['properties']['data']['type'])->toBe('array');
@@ -167,6 +176,7 @@ it('falls back to a bare 200 when no item class is declared even though the body
 
     $response = generateSpec()['paths']['/fallback/no-item']['get']['responses']['200'] ?? null;
 
-    expect($response)->not->toBeNull()
+    expect($response)->not
+        ->toBeNull()
         ->and($response['content'] ?? [])->not->toHaveKey('application/json');
 });

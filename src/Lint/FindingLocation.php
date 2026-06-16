@@ -37,8 +37,7 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
     }
 
     /**
-     * Build a location from an OperationNode, pulling file/line from the descriptor (if available)
-     * and route info from the node itself.
+     * Builds a location from an OperationNode.
      */
     public static function fromOperation(OperationNode $operation): self
     {
@@ -63,10 +62,7 @@ final readonly class FindingLocation implements Arrayable, JsonSerializable
     }
 
     /**
-     * Return a new instance where any null fields are filled from `$defaults`.
-     *
-     * Explicit values on `$this` always win; only missing (null) fields are populated from
-     * the defaults.
+     * Returns a new instance with null fields filled from `$defaults`.
      */
     public function withDefaults(self $defaults): self
     {

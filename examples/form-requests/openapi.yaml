@@ -322,7 +322,7 @@ components:
         - aircraft_type
       properties:
         number:
-          description: 'IATA-style flight number, e.g. LH123.'
+          description: 'IATA-style flight number, e.g., LH123.'
           type: string
           pattern: '^[A-Z]{2}\d{1,4}$'
           example: LH123
@@ -399,7 +399,7 @@ components:
           maxLength: 200
           minLength: 1
         seat:
-          description: 'Seat assignment, e.g. 12A.'
+          description: 'Seat assignment, e.g., 12A.'
           type: string
           pattern: '^\d{1,3}[A-Z]$'
         created_at:

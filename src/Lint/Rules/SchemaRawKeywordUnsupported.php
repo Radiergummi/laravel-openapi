@@ -21,24 +21,14 @@ use function implode;
 use function sprintf;
 
 /**
- * Flags a `#[RawSchema]` whose definition carries a keyword swagger-php cannot serialise
- * ({@see ExplicitClassSchema::ACCEPTED_KEYWORDS}). Such keywords are silently dropped at build
- * time, so without this rule a `#[RawSchema(['if' => …])]` would produce a quietly-wrong spec.
- *
- * Discovers `#[RawSchema]`-bearing classes by reflecting each operation's request-payload
- * candidates ({@see PayloadParameterScanner}) and its action return type. The rule keys off the
- * attribute, not any plugin, so it lives in the baseline rule set.
+ * Flags `#[RawSchema]` definitions that contain keywords swagger-php cannot serialise
+ * ({@see ExplicitClassSchema::ACCEPTED_KEYWORDS}); without this rule they are silently dropped.
  */
 final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
 {
     public const string ID = 'schema.raw-keyword-unsupported';
 
-    /**
-     * Classes already inspected this run, so a `#[RawSchema]` referenced by several operations is
-     * reported once. The rule is scoped per generation run, so the set resets with the instance.
-     *
-     * @var array<class-string, true>
-     */
+    /** @var array<class-string, true> */
     private array $seen = [];
 
     public function __construct(
@@ -49,12 +39,6 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
     public function id(): string
     {
         return self::ID;
-    }
-
-    #[Override]
-    public function level(): int
-    {
-        return 1;
     }
 
     #[Override]
@@ -126,9 +110,15 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
                 implode(', ', $unsupported),
             ),
             fixHint: 'swagger-php cannot serialise these keywords; remove them or express the '
-                . 'shape with a supported keyword (see docs/attributes.md). Arbitrary keywords '
-                . 'await the IR (#189).',
+            . 'shape with a supported keyword (see docs/attributes.md). Arbitrary keywords '
+            . 'await the IR (#189).',
             context: [Finding::CONTEXT_SOURCE_CLASS => $className],
         );
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 1;
     }
 }
