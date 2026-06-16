@@ -19,6 +19,16 @@ class RawSchemaController extends Controller
         return new RawSchemaResource(null);
     }
 
+    public function resourceWithFieldAttribute(): RawSchemaResourceWithFieldAttribute
+    {
+        return new RawSchemaResourceWithFieldAttribute(null);
+    }
+
+    public function resourceFieldOnly(): ResourceFieldOnlyResource
+    {
+        return new ResourceFieldOnlyResource(null);
+    }
+
     public function formRequest(RawSchemaFormRequest $request): array
     {
         return [];

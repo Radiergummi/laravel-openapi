@@ -48,6 +48,25 @@ it('flags a class carrying both #[RawSchema] and a field attribute', function ()
         ->toContain('#[RequestField]');
 });
 
+it('flags a JsonResource carrying both #[RawSchema] and class-level #[ResourceField]', function (): void {
+    $findings = classAttributeConflictFindings('resourceWithFieldAttribute');
+
+    expect($findings)
+        ->toHaveCount(1)
+        ->and($findings[0]->ruleId)->toBe('schema.class-attribute-conflicts-with-field-attributes')
+        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->message)
+        ->toContain('replaces the inferred body')
+        ->toContain('have no effect')
+        ->toContain('#[ResourceField]')
+        ->toContain('id')
+        ->toContain('owner');
+});
+
+it('stays silent for class-level #[ResourceField] without a #[RawSchema]', function (): void {
+    expect(classAttributeConflictFindings('resourceFieldOnly'))->toBe([]);
+});
+
 it('stays silent for a #[RawSchema] without field attributes', function (): void {
     expect(classAttributeConflictFindings('data'))->toBe([]);
 });
