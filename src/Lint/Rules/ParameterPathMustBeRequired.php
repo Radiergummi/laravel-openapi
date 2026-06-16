@@ -15,10 +15,7 @@ use Radiergummi\OpenApi\Lint\Visitors\ParameterRule as ParameterRuleVisitor;
 use function sprintf;
 
 /**
- * Reports path parameters that are not marked as required.
- *
- * The OpenAPI specification mandates that parameters with `in: "path"` MUST have `required: true`.
- * This rule enforces that constraint.
+ * Reports path parameters missing `required: true` (mandated by OAS for `in: "path"`).
  */
 final class ParameterPathMustBeRequired implements Rule, ParameterRuleVisitor
 {

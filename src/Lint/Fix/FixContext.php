@@ -16,12 +16,8 @@ use PhpParser\ParserFactory;
 use function file_get_contents;
 
 /**
- * Per-run, read-only access to source files for {@see Fixer}s: their raw text and a parsed AST
- * whose nodes carry byte positions (`getStartFilePos()` / `getEndFilePos()`) and resolved names.
- *
- * Both are cached per file path so multiple fixers touching the same file parse it once. The
- * context never mutates files — it only locates the spans fixers turn into {@see Fix}es; writing
- * is {@see FixApplicator}'s job.
+ * Per-run read-only access to source files: raw text and a byte-positioned, name-resolved AST.
+ * Both are cached per path so multiple fixers touching the same file parse it once.
  *
  * @internal
  */
@@ -41,9 +37,7 @@ final class FixContext
     }
 
     /**
-     * The {@see ClassLike} node for `$class` (a fully-qualified name) within `$file`, or null when
-     * the file holds no such declaration. Resolved against the name-annotated AST, so partial and
-     * fully-qualified declarations both match.
+     * The {@see ClassLike} node for a fully-qualified `$class` within `$file`, or null if absent.
      */
     public function classNode(string $file, string $class): ?ClassLike
     {
@@ -58,8 +52,7 @@ final class FixContext
     }
 
     /**
-     * The parsed statements of `$file` with byte positions and resolved names attached. Returns an
-     * empty list when the file cannot be read or parsed, so fixers degrade to "no fix".
+     * Parsed statements with byte positions and resolved names. Returns an empty list on failure.
      *
      * @return array<Node>
      */
@@ -71,15 +64,14 @@ final class FixContext
 
         $statements = $this->parser->parse($this->source($file)) ?? [];
 
-        // Annotate without replacing nodes so byte positions stay intact; fixers read the
-        // `resolvedName` attribute to match attributes against their fully-qualified class.
+        // Annotate without replacing so byte positions stay intact.
         $traverser = new NodeTraverser(new NameResolver(options: ['replaceNodes' => false]));
 
         return $this->asts[$file] = $traverser->traverse($statements);
     }
 
     /**
-     * The raw, unmodified contents of `$file`, cached for the duration of the run.
+     * Raw, unmodified contents of `$file`, cached for the run.
      */
     public function source(string $file): string
     {

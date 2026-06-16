@@ -16,22 +16,9 @@ use function str_starts_with;
 /**
  * Evaluates a {@see SpecDefinition::$match} config block against a single route.
  *
- * Pure: no Laravel container access, no reflection. Stateless. Three supported keys:
- *
- * - `prefix`     — string|string[]: URI glob(s); matches if any matches via {@see fnmatch()}.
- * - `middleware` — string|string[]: middleware token(s); matches if any of the route's
- *                  middleware entries equals the token OR shares the token's pre-`:` prefix
- *                  (so `'auth'` matches `'auth:api'`).
- * - `namespace`  — string|string[]: controller FQCN prefix(es); matches if the controller's
- *                  class name starts with any prefix. Closure routes (controller === null)
- *                  never match a namespace constraint.
- *
- * AND across the three keys (every present key must match); OR within a single key's array.
- *
- * An empty/missing match block matches nothing — the higher-level catch-all semantics for the
- * implicit `default` spec live in {@see InclusionEvaluator}, which short-circuits before
- * reaching the matcher. This keeps {@see SpecMatcher} a pure predicate over the three config
- * keys.
+ * Three supported keys: `prefix` (URI globs via fnmatch), `middleware` (token or token prefix),
+ * `namespace` (controller FQCN prefix). AND across keys; OR within a key's array. An empty match
+ * block matches nothing (catch-all semantics live in {@see InclusionEvaluator}).
  *
  * @internal
  */
@@ -39,7 +26,7 @@ use function str_starts_with;
 final readonly class SpecMatcher
 {
     /**
-     * @param array<array-key, string> $middleware Resolved middleware tokens for the route; keys are ignored.
+     * @param array<array-key, string> $middleware
      * @param array<string, mixed>     $match
      */
     public function matches(

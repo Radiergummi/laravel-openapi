@@ -17,7 +17,7 @@ use Radiergummi\OpenApi\Attributes\RequestField;
  */
 final class StoreFlightRequest extends FormRequest
 {
-    #[RequestField(description: 'IATA-style flight number, e.g. LH123.', example: 'LH123', pattern: '^[A-Z]{2}\\d{1,4}$')]
+    #[RequestField(description: 'IATA-style flight number, e.g., LH123.', example: 'LH123', pattern: '^[A-Z]{2}\\d{1,4}$')]
     public const string PARAM_NUMBER = 'number';
 
     #[RequestField(description: 'Three-letter IATA code of the origin airport.', example: 'FRA')]

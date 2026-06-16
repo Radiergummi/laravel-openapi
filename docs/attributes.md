@@ -24,7 +24,7 @@ Attach to controller classes or methods.
 | `Description` | class, method | no | Same as `#[Summary]` but for the long-form description. On a Data / JsonResource class it sets the component schema's `description`. |
 | `Tag` | class, method | yes | Add a tag to the already-derived set (merge, not replace). |
 | `QueryParam` | class, method | yes | Document an ad-hoc query string parameter. Each instance defines one parameter. |
-| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (a `Radiergummi\OpenApi\Enums\MediaType` case, e.g. `MediaType::MultipartFormData`). Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
+| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (a `Radiergummi\OpenApi\Enums\MediaType` case, e.g., `MediaType::MultipartFormData`). Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
 | `RequestVariant` | method | yes | Declare one branch of a discriminated request body. Requires `#[RequestBody(discriminator: '…')]` on the same method. See [Discriminated request bodies](#discriminated-request-bodies). |
 | `ResponseResource` | class, method | no | Explicit response-resource class for the 200 response. `collection: true/false` overrides envelope detection; `null` auto-detects. |
 | `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. |
@@ -150,7 +150,7 @@ a single field. Directive lines are stripped from the rendered description; when
 ### Discriminated request bodies
 
 When an action validates a plain `Request` and the body shape depends on a discriminator field
-(e.g. `provider` or `type`), use `#[RequestBody(discriminator: '…')]` together with one
+(e.g., `provider` or `type`), use `#[RequestBody(discriminator: '…')]` together with one
 repeatable `#[RequestVariant]` per branch to emit a `oneOf` + `discriminator` body:
 
 ```php
@@ -169,7 +169,7 @@ Each `#[RequestVariant]` supplies exactly one of:
 
 **Inline branches** — the discriminator property (`provider` above) is auto-injected into each
 inline branch as a required `string` whose `enum` is restricted to that branch's value. To
-override (e.g. to attach a description), declare a `#[RequestField]` with the same name in that
+override (e.g., to attach a description), declare a `#[RequestField]` with the same name in that
 branch — the explicit field wins.
 
 **Class-string branches** — the variant emits an opaque `$ref` to the resolved component schema.

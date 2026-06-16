@@ -13,11 +13,8 @@ use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 /**
- * Flags `openapi.overrides` keys that match nothing across the discovered routes — no route name,
- * no path URI, and no webhook name. Catches typo'd route names and globs that match nothing.
- * Delegates to {@see OverrideMatcher::unusedKeys()} so the matching logic is not duplicated, and
- * derives each webhook's key via {@see OverrideMatcher::webhookKeyFor()} — the same source
- * {@see \Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage} matches against.
+ * Flags `openapi.overrides` keys that match no route name, path URI, or webhook name.
+ * Delegates to {@see OverrideMatcher::unusedKeys()} to avoid duplicating match logic.
  */
 final readonly class OverridesUnused implements PreBuildRule, Rule
 {
@@ -49,8 +46,7 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
             $routes[] = [
                 'name' => $descriptor->route->getName(),
                 'uri' => $descriptor->route->uri(),
-                // A webhook operation is matched by its webhook name, not its URI — keep the rule's
-                // key semantics aligned with OverridesStage via the shared derivation.
+                // Webhook operations are matched by name, not URI; use the shared derivation.
                 'webhook' => OverrideMatcher::webhookKeyFor($descriptor),
             ];
         }

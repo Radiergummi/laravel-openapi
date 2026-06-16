@@ -11,10 +11,10 @@ use Attribute;
  *
  * Place on a controller class, a controller action, or a Data-class property. Class scope silences
  * the rule for that class's findings (not the whole file); method scope for that action's findings;
- * property scope for findings derived from that property (e.g. the `field.*` rules). Stack the
+ * property scope for findings derived from that property (e.g., the `field.*` rules). Stack the
  * attribute to suppress several rules.
  *
- * Every directive should carry a `reason` — the `meta.no-suppression-reason` rule flags those that
+ * Every directive should carry a `reason`; the `meta.no-suppression-reason` rule flags those that
  * don't.
  */
 #[Attribute(

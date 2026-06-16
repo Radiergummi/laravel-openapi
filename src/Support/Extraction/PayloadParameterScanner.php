@@ -13,39 +13,21 @@ use ReflectionNamedType;
 use function is_a;
 
 /**
- * Scans a controller method's parameter list for injected class-strings.
+ * Scans a controller method's parameters for injected class-strings.
  *
- * Two passes are available:
- *
- * 1. **Direct params** ({@see self::directCandidates()}) — every parameter of `$method` whose
- *    type is a non-builtin {@see ReflectionNamedType} is returned as-is. This is the right
- *    pass for callers that ask "is X literally injected here?" (lint rules keying off
- *    `QueryBuilder`, `Request`, etc.).
- * 2. **Indirection descent** ({@see self::candidates()}) — additionally, for every direct param
- *    whose class `is_a()` one of the configured `$indirectionClasses`, that class's constructor
- *    is reflected and its non-builtin named-type parameters are appended. This is the right
- *    pass for callers that ask "what request-payload class does this method ultimately receive?".
+ * {@see directCandidates()} returns what the method literally injects; {@see candidates()} also
+ * descends into constructors of any class matching a configured indirection base (e.g. Domain
+ * Action objects that wrap a FormRequest).
  *
  * @internal
  */
 #[Scoped]
 final class PayloadParameterScanner
 {
-    /**
-     * Per-method `candidates()` cache, keyed by `Class::method`. The scanner is bound `scoped`,
-     * so the cache lives for a single generation run and is discarded with the instance.
-     *
-     * @var array<string, list<class-string>>
-     */
+    /** @var array<string, list<class-string>> */
     private array $memo = [];
 
-    /**
-     * Per-method `directCandidates()` cache, keyed by `Class::method`. Distinct from `$memo`
-     * because `directCandidates()` and `candidates()` return different lists (direct-only vs.
-     * direct + indirect) — one cache can't satisfy both, so each method memoizes its own result.
-     *
-     * @var array<string, list<class-string>>
-     */
+    /** @var array<string, list<class-string>> */
     private array $directMemo = [];
 
     /**
@@ -71,15 +53,12 @@ final class PayloadParameterScanner
     {
         return array_find(
             $this->candidates($method),
-            fn(string $class) => is_a($class, $base, allow_string: true),
+            fn(string $class): bool => is_a($class, $base, allow_string: true),
         );
     }
 
     /**
-     * Returns candidate request-payload class-strings in priority order.
-     *
-     * All direct method-parameter class-strings come first; indirection constructor class-strings
-     * follow. Within each group, the left-to-right declaration order is preserved.
+     * Direct parameters first, then indirection constructor parameters, preserving declaration order.
      *
      * @return list<class-string>
      */
@@ -92,10 +71,7 @@ final class PayloadParameterScanner
     }
 
     /**
-     * Returns class-strings appearing directly in the method's parameter list — no indirection
-     * descent. Use this when a caller cares about what the controller method literally injects
-     * (e.g. a lint rule keying off `QueryBuilder` or `Request`), independent of any
-     * Domain-Action constructor it might wrap.
+     * What the method literally injects, with no indirection descent.
      *
      * @return list<class-string>
      */

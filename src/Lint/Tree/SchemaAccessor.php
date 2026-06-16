@@ -25,28 +25,7 @@ use function Radiergummi\OpenApi\is_undefined;
  */
 final class SchemaAccessor
 {
-    /**
-     * @param null|array<string, mixed>|OA\Schema|string $schema
-     */
-    public static function extractRef(OA\Schema|array|string|null $schema): ?string
-    {
-        if ($schema === null || is_undefined($schema)) {
-            return null;
-        }
-
-        $ref = $schema->ref ?? Generator::UNDEFINED;
-
-        if (!is_string($ref) || is_undefined($ref)) {
-            return null;
-        }
-
-        return ComponentReference::name($ref);
-    }
-
-    /**
-     * Extract the component name from a Response Reference Object
-     * (`$ref: '#/components/responses/{name}'`), or null when the response is not a ref.
-     */
+    /** Returns the component name from a `$ref: '#/components/responses/{name}'`, or null. */
     public static function extractResponseRef(OA\Response $response): ?string
     {
         $ref = $response->ref;
@@ -78,8 +57,7 @@ final class SchemaAccessor
             return null;
         }
 
-        // OAS 3.1 allows `type` to be an array (e.g. ["string", "null"]). Collapse it to the first
-        // concrete (non-"null") type so downstream rules can still reason about the field.
+        // OAS 3.1: `type` may be an array; return the first non-"null" entry.
         if (is_array($type)) {
             return array_find(
                 $type,
@@ -133,12 +111,8 @@ final class SchemaAccessor
     }
 
     /**
-     * Classify a schema's `oneOf` / `anyOf` composition, separating the OAS 3.1 nullable encoding
-     * (one concrete branch plus pure `{type: 'null'}` branches) from a genuine multi-alternative
-     * union.
-     *
-     * `branch` is the single non-null branch to inspect for the nullable shape, null otherwise.
-     * `uninspectedComposite` is true when two or more genuine alternatives are present.
+     * Separates the OAS 3.1 nullable encoding (one concrete branch + pure null branches) from a
+     * genuine multi-alternative union. `branch` is the single non-null branch, null otherwise.
      *
      * @return array{branch: null|OA\Schema, uninspectedComposite: bool}
      */
@@ -150,17 +124,17 @@ final class SchemaAccessor
             return ['branch' => null, 'uninspectedComposite' => false];
         }
 
-        $nonNullBranches = array_values(array_filter(
-            $branches,
-            static fn(OA\Schema $branch): bool => !self::isPureNullSchema($branch),
-        ));
+        $nonNullBranches = array_values(
+            array_filter(
+                $branches,
+                static fn(OA\Schema $branch): bool => !self::isPureNullSchema($branch),
+            ),
+        );
 
-        // One concrete branch (with or without null branches): the nullable shape — unwrap it.
         if (count($nonNullBranches) === 1) {
             return ['branch' => $nonNullBranches[0], 'uninspectedComposite' => false];
         }
 
-        // Two or more genuine alternatives: not unwrappable.
         return [
             'branch' => null,
             'uninspectedComposite' => count($nonNullBranches) >= 2,
@@ -168,8 +142,7 @@ final class SchemaAccessor
     }
 
     /**
-     * Return the `oneOf` or `anyOf` branches of a schema as a list of concrete `OA\Schema` objects,
-     * or an empty list when the schema declares neither. `oneOf` is preferred when both exist.
+     * Returns `oneOf` or `anyOf` branches as concrete schema objects. `oneOf` wins when both exist.
      *
      * @return list<OA\Schema>
      */
@@ -198,11 +171,7 @@ final class SchemaAccessor
         return [];
     }
 
-    /**
-     * A branch is "pure null" when its only type is `null` — i.e. `type: 'null'` or
-     * `type: ['null']` — with no `$ref`, properties, or further composition. This is the null
-     * member of the OAS 3.1 nullable encoding.
-     */
+    /** Returns true for `{type: 'null'}` branches (the OAS 3.1 nullable null member). */
     private static function isPureNullSchema(OA\Schema $schema): bool
     {
         if (self::extractRef($schema) !== null) {
@@ -219,10 +188,24 @@ final class SchemaAccessor
     }
 
     /**
-     * Extract the first inline media-type schema from a response or request body, skipping
-     * `$ref` schemas (a referenced component is inspected at its own definition). Returns null
-     * when the body carries no inline schema.
+     * @param null|array<string, mixed>|OA\Schema|string $schema
      */
+    public static function extractRef(OA\Schema|array|string|null $schema): ?string
+    {
+        if ($schema === null || is_undefined($schema)) {
+            return null;
+        }
+
+        $ref = $schema->ref ?? Generator::UNDEFINED;
+
+        if (!is_string($ref) || is_undefined($ref)) {
+            return null;
+        }
+
+        return ComponentReference::name($ref);
+    }
+
+    /** Returns the first inline media-type schema; skips `$ref` schemas (inspected at their definition). */
     public static function bodySchema(OA\Response|OA\RequestBody $body): ?OA\Schema
     {
         $content = $body->content;
@@ -254,12 +237,12 @@ final class SchemaAccessor
 
     public static function isNullable(OA\Schema $schema): bool
     {
-        // OAS 3.0 style
+        // OAS 3.0: nullable flag
         if ($schema->nullable === true && is_defined($schema->nullable)) {
             return true;
         }
 
-        // OAS 3.1 style (type as array including "null")
+        // OAS 3.1: type array containing "null"
         $type = $schema->type;
 
         return is_array($type) && in_array('null', $type, true);

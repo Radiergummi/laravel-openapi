@@ -15,42 +15,29 @@ use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
- * Mutable accumulator for the JSON Schema fields derived from a single Laravel validation field's
- * rule list.
- *
- * All fields default to null / false — null means "not set" and causes the corresponding OpenAPI
- * annotation field to be omitted (preserving the annotation's `Generator::UNDEFINED` sentinel).
+ * Mutable accumulator for JSON Schema fields derived from a single validation field's rule list.
+ * Null means "not set"; the corresponding OpenAPI annotation field stays at `Generator::UNDEFINED`.
  *
  * @internal
  */
 final class FieldDescriptor
 {
-    /**
-     * JSON Schema `type` — string|integer|number|boolean|array|null
-     */
+    /** JSON Schema `type`: string|integer|number|boolean|array|null */
     public ?string $type = null;
 
-    /**
-     * JSON Schema `format` — email|uri|uuid|binary|date|date-time|ip|ipv4|ipv6|null
-     */
+    /** JSON Schema `format`: email|uri|uuid|binary|date|date-time|ip|ipv4|ipv6|null */
     public ?string $format = null;
 
-    /**
-     * Whether the field is nullable (`nullable` rule was present).
-     */
+    /** Whether the `nullable` rule was present. */
     public bool $nullable = false;
 
     /**
-     * Tristate signal for the rules-derived required state.
-     * - `null` → rules said nothing about required (caller must not change the structurally-derived state).
-     * - `true` → rules explicitly say the field is required (`required` / `present`).
-     * - `false` → rules explicitly say the field is optional (`sometimes`).
+     * Rules-derived required state: `null` = rules silent (don't change structural state),
+     * `true` = required/present, `false` = sometimes.
      */
     public ?bool $required = null;
 
-    /**
-     * Whether the field represents a file upload (`file` or `image` rule).
-     */
+    /** Whether the field represents a file upload (`file` or `image` rule). */
     public bool $isFile = false;
 
     /**
@@ -59,103 +46,68 @@ final class FieldDescriptor
     public ?array $enum = null;
 
     /**
-     * A `$ref` pointer (`#/components/schemas/…`) the field resolves to instead of an inline schema.
-     * Set when a `Rule::enum()` rule was promoted to a shared reusable enum component. When present,
-     * it takes precedence over inline type/enum keywords in {@see applyTo()}.
+     * A `$ref` pointer to a shared enum component (promoted from `Rule::enum()`).
+     * When set, takes precedence over inline type/enum in {@see applyTo()}.
      */
     public ?string $ref = null;
 
-    /**
-     * Minimum string length / numeric minimum / array minItems (string context).
-     */
+    /** Minimum string length / array minItems. */
     public ?int $minLength = null;
 
-    /**
-     * Maximum string length / numeric maximum / array maxItems (string context).
-     */
+    /** Maximum string length / array maxItems. */
     public ?int $maxLength = null;
 
-    /**
-     * Numeric minimum (set when type is integer or number).
-     */
     public int|float|null $minimum = null;
 
-    /**
-     * Numeric maximum (set when type is integer or number).
-     */
     public int|float|null $maximum = null;
 
-    /**
-     * Numeric multiple-of constraint (from the `multiple_of:N` rule).
-     */
+    /** From the `multiple_of:N` rule. */
     public int|float|null $multipleOf = null;
 
-    /**
-     * Array minimum items (set when type is array).
-     */
+    /** Minimum items (array type). */
     public ?int $minItems = null;
 
-    /**
-     * Array maximum items (set when type is array).
-     */
+    /** Maximum items (array type). */
     public ?int $maxItems = null;
 
-    /**
-     * ECMA regex pattern (from `regex:` rule, delimiters stripped).
-     */
+    /** ECMA regex pattern from the `regex:` rule (delimiters stripped). */
     public ?string $pattern = null;
 
     /**
-     * Human-readable description appended to the schema (used for constraints that have no
-     * direct JSON Schema equivalent, e.g. Password character-class requirements).
+     * Description for constraints with no direct JSON Schema equivalent
+     * (e.g., Password character-class requirements).
      */
     public ?string $description = null;
 
-    /**
-     * Example value for the field (e.g. supplied by a self-documenting custom rule). `null` means
-     * "not set" — distinct from a deliberate example, which `SelfDocumentingRule` cannot express.
-     */
+    /** Example value supplied by a self-documenting custom rule; `null` means not set. */
     public mixed $example = null;
 
     /**
-     * Nested object properties, keyed by property name, derived from dotted validation keys
-     * (`address.city`). Non-null marks this descriptor an `object`; each child is emitted as an
-     * `OA\Property` and required children populate the object's `required` list.
+     * Nested object properties from dotted validation keys (`address.city`).
+     * Non-null marks this descriptor as `object`.
      *
      * @var null|array<string, FieldDescriptor>
      */
     public ?array $properties = null;
 
     /**
-     * Nested array element descriptor, derived from wildcard validation keys (`items.*`). Non-null
-     * marks this descriptor an `array`; it is emitted as the schema's `items`.
+     * Nested array element descriptor from wildcard validation keys (`items.*`).
+     * Non-null marks this descriptor as `array`.
      */
     public ?FieldDescriptor $items = null;
 
     /**
      * Copies set descriptor fields onto `$target`.
      *
-     * Accepts any {@see OA\Schema} subclass (`OA\Property`, `OA\Items`, etc.) since they all share
-     * the same field bag for type/format/constraints.
-     *
-     * - `$overwrite = true`  (build-from-scratch): always set when the descriptor has a non-null /
-     *   non-false value.
-     * - `$overwrite = false` (merge): only set fields that are still `Generator::UNDEFINED` on
-     *   `$target` - preserves values already established by a prior type pass.
-     *
-     * Constraint fields (minLength, maxLength, minimum, maximum, minItems, maxItems) are always
-     * written when non-null because the type pass never sets them.
-     *
-     * Nullable: only set to `true` when descriptor->nullable is true AND `$target->nullable` is
-     * still `Generator::UNDEFINED` (we must not override a `false` set by the type pass).
-     *
-     * `required` is intentionally NOT touched, that is a list-level concern owned by the caller.
+     * `$overwrite = true`: always write non-null/non-false values.
+     * `$overwrite = false`: only fill fields still at `Generator::UNDEFINED`.
+     * Constraint fields are always written when non-null.
+     * `required` is not touched; that is a list-level concern owned by the caller.
      */
     public function applyTo(OA\Schema $target, bool $overwrite = true): void
     {
-        // A `$ref` to a shared component (a promoted `Rule::enum()`) resolves the whole field: it
-        // replaces inline type/enum keywords. A nullable ref widens to `oneOf: [{$ref}, {null}]` via
-        // NullableSchema, since keywords alongside a `$ref` are ignored in OAS 3.1.
+        // A $ref replaces inline type/enum. Nullable refs widen to oneOf via NullableSchema
+        // because OAS 3.1 ignores keywords alongside a $ref.
         if ($this->ref !== null && ($overwrite || is_undefined($target->ref))) {
             if ($this->nullable) {
                 $target->oneOf = NullableSchema::wrap(new OA\Schema(['ref' => $this->ref]))->oneOf;
@@ -166,10 +118,8 @@ final class FieldDescriptor
             return;
         }
 
-        // When merging (overwrite: false), skip type and nullable if the target already expresses
-        // its type via oneOf/allOf/anyOf — those compositions were laid down by the type-resolution
-        // pass and must not be clobbered by the validation-rules pass (e.g. Spatie Data emits
-        // type:'array' for nested Data classes even though the resolved schema is a $ref-in-oneOf).
+        // In merge mode, skip type/nullable when the target is already composed; those schemas
+        // were laid down by the type-resolution pass and must not be clobbered.
         $alreadyComposed = !$overwrite
             && (is_defined($target->oneOf)
                 || is_defined($target->allOf)
@@ -178,10 +128,7 @@ final class FieldDescriptor
         if (!$alreadyComposed && $this->type !== null && ($overwrite || is_undefined($target->type))) {
             $target->type = $this->type;
 
-            // swagger-php requires every `type: array` schema to carry an `items` annotation.
-            // Inject an empty fallback when no items has been set by the type-resolution pass or
-            // a foo.* wildcard rule. This covers both OA\Property and OA\Items targets. Skip it
-            // when this descriptor carries a nested items descriptor — the real items is emitted below.
+            // swagger-php requires items on every array schema; inject an empty fallback if none was set.
             if ($this->type === 'array' && $this->items === null && is_undefined($target->items)) {
                 $target->items = new OA\Items([]);
             }
@@ -207,7 +154,7 @@ final class FieldDescriptor
             $target->example = $this->example;
         }
 
-        // Constraints — always write when non-null (type pass never sets these).
+        // Constraint fields: always write when non-null.
         if ($this->minLength !== null) {
             $target->minLength = $this->minLength;
         }
@@ -236,12 +183,8 @@ final class FieldDescriptor
             $target->maxItems = $this->maxItems;
         }
 
-        // Nested object properties (from dotted validation keys). Emitted before the nullable
-        // block so a nullable object's properties/required migrate into the oneOf inner schema.
-        //
-        // In merge mode (overwrite: false — the Spatie type-pass-first path) only fill a bare
-        // object placeholder: never add properties to a schema the type pass already composed
-        // (oneOf/allOf/anyOf) or expressed as a `$ref`.
+        // Nested object properties. Emitted before the nullable block so they migrate into the
+        // oneOf inner schema. In merge mode, only fill a bare placeholder.
         $canFillProperties = $overwrite
             || (is_undefined($target->properties) && !$alreadyComposed && is_undefined($target->ref));
 
@@ -266,9 +209,6 @@ final class FieldDescriptor
             }
         }
 
-        // Nested array element (from wildcard validation keys). Skip when the target is already a
-        // map (`type: object` with `additionalProperties`): a string-keyed array resolves to a map,
-        // and a rule pass that read it as a plain `array` must not graft a stray `items` onto it.
         $targetIsMap = $target->type === 'object' && is_defined($target->additionalProperties);
 
         if ($this->items !== null && !$targetIsMap) {
@@ -277,27 +217,17 @@ final class FieldDescriptor
                 $this->items->applyTo($childItems);
                 $target->items = $childItems;
             } elseif ($target->items instanceof OA\Items && is_undefined($target->items->ref)) {
-                // Fill the empty placeholder items swagger-php requires on every array (the
-                // scalar-array case in the Spatie merge path) without clobbering a `$ref` element.
+                // Fill the empty placeholder without clobbering an existing $ref.
                 $this->items->applyTo($target->items, overwrite: false);
             }
         }
 
-        // Nullable (OAS 3.1): express nullability without the removed `nullable` keyword.
-        //
-        // - Scalar types (string/integer/number/boolean): widen type to an array including 'null',
-        //   e.g. type: ['string', 'null']. This is valid OAS 3.1 and swagger-php accepts it.
-        // - Structured types (array/object) or schemas carrying items/properties: swagger-php
-        //   strictly requires type === 'array' (exact string) when OA\Items is present. Widening
-        //   to ['array','null'] breaks that check. Instead, move the current type+items onto a
-        //   oneOf inner schema so the outer schema carries oneOf and the inner keeps type:'array'.
-        // - Already composed (oneOf/allOf/anyOf already set by the type-resolution pass): skip —
-        //   the nullable wrapping was already applied upstream (e.g. via NullableSchema::wrap).
+        // OAS 3.1 nullability: scalars widen type to ['string', 'null']; structured types (array/object)
+        // need a oneOf wrapper because swagger-php requires type === 'array' (exact string) when items
+        // is present. Skip when already composed (nullable wrapping was applied upstream).
         if ($this->nullable && !$alreadyComposed) {
             if (is_string($target->type) && is_defined($target->type)) {
                 if (in_array($target->type, ['array', 'object'], strict: true)) {
-                    // Structured type: pull type (and structured keywords if present) into a oneOf
-                    // inner schema so the outer schema carries oneOf and the inner keeps the type.
                     $inner = new OA\Schema(['type' => $target->type]);
 
                     if (is_defined($target->items)) {
@@ -320,9 +250,6 @@ final class FieldDescriptor
                         $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
-                    // Migrate validation constraint keywords into the inner branch so per-branch
-                    // validators apply them. Without this they strand on the typeless outer oneOf
-                    // schema where JSON Schema validators ignore them.
                     if (is_defined($target->minItems)) {
                         $inner->minItems = $target->minItems;
                         $target->minItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
@@ -379,7 +306,6 @@ final class FieldDescriptor
                         new OA\Schema(['type' => 'null']),
                     ];
                 } else {
-                    // Scalar type: widen to a type array.
                     $target->type = [$target->type, 'null'];
                 }
             } elseif (is_array($target->type) && !in_array('null', $target->type, strict: true)) {

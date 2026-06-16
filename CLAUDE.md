@@ -112,7 +112,7 @@ resolvers, extractors, error-response factories, payload class markers, lint rul
 handled by the SpatieData plugin.
 
 The `ComponentsStage` **flush runs after the plugin loop**, so a late stage that contributes
-schemas (e.g. the SwaggerPhp harvester) registers them on `ComponentSchemaRegistry` like any other
+schemas (e.g., the SwaggerPhp harvester) registers them on `ComponentSchemaRegistry` like any other
 contributor and gets dedup + schema-transformer dispatch — no direct `$document->components` writes.
 
 `SpecPipeline` is a **pure executor**: it loops `registry->stages` and applies each, nothing else.
@@ -128,7 +128,7 @@ enforces that funnel by rejecting out-of-band `addX()` on the built registry
 `SpecTreeWalker` walks it; each `Rules/*` rule implements one or more visitor interfaces
 (`Rules/Visitors/*Rule`) and emits `Finding`s into a `FindingsCollector`. `RuleRegistry` holds
 the active rules with config-driven severity overrides. `SuppressionCollector` reads
-`#[IgnoreLint]` attributes. Each lint rule has a stable string ID (e.g. `operation.id-missing`).
+`#[IgnoreLint]` attributes. Each lint rule has a stable string ID (e.g., `operation.id-missing`).
 
 ### Service lifecycle
 
@@ -148,7 +148,7 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
 - **The Core Plugin exists only to understand vanilla Laravel code patterns** (FormRequests,
   API Resources, validation rules). The package must stay fully functional with Core disabled —
   just without the smarts to read those structures. So config-driven, plugin-agnostic
-  infrastructure (e.g. the `openapi.overrides` escape hatch and its lint rules) belongs in the
+  infrastructure (e.g., the `openapi.overrides` escape hatch and its lint rules) belongs in the
   general package (`src/Support/`, `src/Lint/Rules/`, registered by `BaselineRegistration` or
   `SpecPipeline`), **never** in `src/Plugins/Core/` or gated behind a plugin.
 - The lint rule catalog in `docs/linting.md` (between the `lint-rule-catalog` markers) is
@@ -162,7 +162,20 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
   convention cannot derive.
 - Do not use abbreviations in class names, method names, or variable names. The codebase favors
   verbosity for clarity.
-- Keep code comments short and to the point.
+- Code comments — keep them short, and write them for the next reader:
+  - Comment the **why** (intent, rationale, a non-obvious decision or edge case), never the **how**.
+    Delete comments that merely restate what the code plainly does.
+  - No references to implementation process: no plan steps, tier numbers, phase numbers, or issue
+    numbers. An issue reference is acceptable only when the code does something genuinely unusual
+    for a reason that issue documents.
+  - No em-dashes in comments; reword with a comma, colon, parentheses, or a sentence break.
+  - Section/folding separators use `// region <title>` / `// endregion`, not banner-style rules.
+  - DocBlock bodies open with a concise one-line summary; add a longer description only when needed,
+    separated by a blank line. Never alter or remove the type-bearing tags (`@param`, `@return`,
+    `@var`, `@throws`, `@template`, etc.) — they are essential for PHPStan and extraction.
+  - Classes, methods, and properties relevant to end users or plugin developers (the `Contracts\`,
+    `Attributes\`, and registry surface) get a docblock saying what they are *for* — not
+    `getFoo() gets the foo` — but never ramble or pad with prose.
 - Write modern PHP 8.4: constructor property promotion, property hooks, asymmetric visibility, 
   readonly, enums, first-class callables, named arguments where they aid clarity, `match` over 
   `switch`, typed properties everywhere.

@@ -21,7 +21,8 @@ function makeNamedRoute(string $uri, ?string $name = null): Route
 it('skips routes whose name starts with the openapi. prefix', function (): void {
     $filter = new SkipSelfRoutes();
 
-    expect($filter->shouldSkip(makeNamedRoute('api/openapi.yaml', 'openapi.spec')))->toBeTrue()
+    expect($filter->shouldSkip(makeNamedRoute('api/openapi.yaml', 'openapi.spec')))
+        ->toBeTrue()
         ->and($filter->shouldSkip(makeNamedRoute('api/docs', 'openapi.playground')))->toBeTrue()
         ->and($filter->shouldSkip(makeNamedRoute('api/openapi-internal.yaml', 'openapi.spec.internal')))->toBeTrue()
         ->and($filter->shouldSkip(makeNamedRoute('api/docs/internal', 'openapi.playground.internal')))->toBeTrue();
@@ -30,7 +31,8 @@ it('skips routes whose name starts with the openapi. prefix', function (): void 
 it('lets through routes named with an unrelated prefix', function (): void {
     $filter = new SkipSelfRoutes();
 
-    expect($filter->shouldSkip(makeNamedRoute('flights', 'flights.index')))->toBeFalse()
+    expect($filter->shouldSkip(makeNamedRoute('flights', 'flights.index')))
+        ->toBeFalse()
         ->and($filter->shouldSkip(makeNamedRoute('openapi-fan-page', 'marketing.openapi')))->toBeFalse();
 });
 

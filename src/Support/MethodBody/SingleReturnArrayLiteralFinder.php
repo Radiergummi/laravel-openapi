@@ -15,15 +15,9 @@ use function in_array;
 use function is_array;
 
 /**
- * Locates the single `return [...]` array literal of a method body — the canonical shape of an
- * API Resource's `toArray()` (#12) and a Fractal transformer's `transform()` (#13).
- *
- * The bounded case (Tier-1, epic #5): within the first {@see self::STATEMENT_LIMIT} top-level
- * statements, the method contains exactly one `return` statement, that statement sits at the top
- * level (not inside an `if` guard — an early return means more than one possible shape), and its
- * expression is an array literal. Returns inside nested function-like scopes (closure values,
- * anonymous classes) belong to a different body and are ignored. Anything else returns null;
- * callers degrade gracefully.
+ * Locates the single top-level `return [...]` in a method body; the canonical shape for API
+ * Resource `toArray()` and Fractal `transform()`. Returns null if the method has zero or multiple
+ * top-level returns, or the return expression is not an array literal. Callers degrade gracefully.
  *
  * @internal
  */
@@ -64,9 +58,7 @@ final readonly class SingleReturnArrayLiteralFinder
     }
 
     /**
-     * Depth-first collection of `return` statements, skipping nested function-like scopes —
-     * a `return` inside a closure value or an anonymous-class method is not a return of the
-     * scanned method.
+     * Depth-first return collection, skipping nested function-like scopes (closures, anon classes).
      *
      * @param list<Return_> $returns
      */

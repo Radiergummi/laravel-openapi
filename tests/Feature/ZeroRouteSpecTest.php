@@ -11,7 +11,8 @@ it('generates a valid empty OpenAPI document when no routes are registered', fun
     // out by the default SkipSelfRoutes filter, so the discoverable route set is empty.
     $spec = generateSpec();
 
-    expect($spec['openapi'])->toBe('3.1.0')
+    expect($spec['openapi'])
+        ->toBe('3.1.0')
         ->and($spec['info'])->toBeArray()->toHaveKey('title')
         ->and($spec['paths'])->toBe([]);
 });

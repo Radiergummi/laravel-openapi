@@ -64,21 +64,13 @@ use function sprintf;
 
 /**
  * Builds an {@see OA\Schema} (type: object) from a {@see Data} subclass by reflecting its public
- * properties.
- *
- * - `#[Computed]` properties are skipped (derived, not input).
- * - `Spatie\LaravelData\Optional` in the union type → property excluded from `required`.
- * - A property is required iff it has no default value AND `Optional` is not in its union.
- * - Nested Data classes are registered as components and referenced via `$ref`.
+ * properties. `#[Computed]` properties are skipped; `Optional` in the union type removes the field
+ * from `required`; nested Data classes are registered as components and referenced via `$ref`.
  */
 #[Scoped]
 final class SchemaFromDataClass implements FilePropertyChecker
 {
-    /**
-     * Instance-local so the SpatieData plugin doesn't touch Core registries.
-     *
-     * @var array<class-string<Data>, bool>
-     */
+    /** @var array<class-string<Data>, bool> */
     private array $filePropertiesCache = [];
 
     public function __construct(
@@ -94,8 +86,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
     ) {}
 
     /**
-     * Idempotent — returns the existing component key if the class is already registered.
-     *
      * @param class-string<Data> $dataClass
      *
      * @throws ReflectionException
@@ -166,9 +156,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
 
             try {
-                // Resolve the property itself (not its ReflectionNamedType) so the docblock-aware
-                // resolver reads `@var` generics — `array<string, T>` key/value types collapse to a
-                // bare `array` when only the native type is resolved.
+                // Use the property reflector (not ReflectionNamedType) so `@var` generics are read.
                 $type = $this->typeResolver->resolve($context->reflection, $this->typeContextFor($context->reflection));
             } catch (UnsupportedException) {
                 $properties[] = new OA\Property([
@@ -181,12 +169,9 @@ final class SchemaFromDataClass implements FilePropertyChecker
 
             $hasOptional = $this->containsOptional($type);
 
-            // Strip Optional from the union before schema generation.
             $effectiveType = $hasOptional ? $this->stripOptional($type) : $type;
 
-            // DataCollection short-circuit — the property's #[DataCollectionOf] attribute names the
-            // item Data class; type-info has no other way to recover it because DataCollection
-            // erases the value type.
+            // DataCollection erases the value type; #[DataCollectionOf] is the only way to recover the item class.
             $dataCollectionSchema = $this->resolveDataCollectionSchema($context->reflection, $effectiveType);
 
             $schema = $dataCollectionSchema ?? $this->resolvePropertySchema($effectiveType, $context->wireName);
@@ -205,10 +190,9 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
         }
 
-        // Pass 2: merge validation-rule constraints onto the type-derived properties.
         [$properties, $required] = $this->applyValidationRules($dataClass, $properties, $required);
 
-        // Pass 3: apply scoped field attribute overrides last so authoring annotations win.
+        // Field attribute overrides applied last so authoring annotations win.
         $propsByWire = [];
 
         foreach ($properties as $prop) {
@@ -221,9 +205,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
         }
 
-        // Remove conditional fields from required[]: a conditional field stays in properties but
-        // must not appear in required, matching the semantics honored by the ApiResources and
-        // Fractal backends.
+        // Conditional fields stay in properties but must not appear in required[].
         foreach ($contexts as $context) {
             $attrs = $context->reflection->getAttributes(FieldAttribute::class, ReflectionAttribute::IS_INSTANCEOF);
 
@@ -235,10 +217,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
         }
 
-        // Pass 4: synthesise a Faker example for any property whose example slot is still
-        // unclaimed. Runs last so authored sources (type-derived examples, rule defaults, scoped
-        // field attributes) always win. Mirrors SchemaFromFormRequest::buildSchema() so the same
-        // logical field gets a consistent example on both FormRequest and equivalent Data class.
+        // Faker example synthesis runs last; authored sources always win.
         foreach ($propsByWire as $wireName => $property) {
             $this->synthesiseExample($wireName, $property);
         }
@@ -301,11 +280,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Builds one {@see PropertyContext} per public, non-computed property of the Data class.
-     *
-     * Pairs each property with its constructor parameter (looked up by PHP name) and resolves
-     * its wire name via {@see DataConfig}, so downstream code works from a single per-property
-     * record instead of three parallel maps.
+     * Builds one {@see PropertyContext} per public, non-computed property of the Data class,
+     * pairing each property with its constructor parameter and resolved wire name.
      *
      * @param ReflectionClass<Data> $reflection
      * @param class-string<Data>    $dataClass
@@ -323,16 +299,12 @@ final class SchemaFromDataClass implements FilePropertyChecker
             }
         }
 
-        // Wire-name resolution: Spatie DataConfig exposes the same input mapping (literal string or
-        // NameMapper class) that Data::from() / Data::getValidationRules() use, so the schema's
-        // property keys, the required[] list, and the rules-derived field map all line up on a
-        // single set of names.
         $wireNamesByPhpName = $this->buildWireNameMap($dataClass);
 
         $contexts = [];
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $prop) {
-            // Skip Computed properties — they are derived, not input.
+            // Computed properties are derived at runtime, not input fields.
             if (!empty($prop->getAttributes(Computed::class))) {
                 continue;
             }
@@ -350,12 +322,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Returns a `php_name => wire_name` map for the Data class's input mapping.
-     *
-     * Spatie's `DataConfig` already resolves `#[MapInputName]` (whether literal-string or
-     * NameMapper-class form) at metadata-collection time; reading from it avoids re-implementing
-     * the resolution logic and ensures schema names line up with the same names that
-     * `Data::from()` / `Data::getValidationRules()` consume.
+     * Returns a `php_name => wire_name` map via Spatie's `DataConfig` (resolves `#[MapInputName]`).
      *
      * @param class-string<Data> $dataClass
      *
@@ -373,9 +340,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Builds the type-resolution context for a reflected property. Without it, symfony/type-info
-     * (7.3+) throws when a property is typed `self`/`static`/`parent`, since those identifiers can
-     * only be resolved relative to their declaring class.
+     * Without this context, symfony/type-info throws for `self`/`static`/`parent` typed properties.
      */
     private function typeContextFor(ReflectionProperty $property): ?TypeContext
     {
@@ -396,11 +361,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Returns a new type with `Optional` removed from the union.
-     *
-     * If after removal only one member remains, that member is returned directly. If the sole
-     * remaining type is the null builtin, a `NullableType` wrapping `string` is returned as a
-     * fallback (edge case: `Optional|null` only).
+     * Removes `Optional` from the union; unwraps single-member remainders. `Optional|null`
+     * falls back to `string`.
      */
     private function stripOptional(Type $type): Type
     {
@@ -427,9 +389,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Returns an `array<DataClass>` schema for properties typed as {@see DataCollection} with a
-     * `#[DataCollectionOf]` attribute. Returns null when the property is not a `DataCollection`;
-     * the caller falls back to standard property-schema resolution.
+     * Returns an `array<DataClass>` schema for `DataCollection` properties (via `#[DataCollectionOf]`),
+     * or null when the property is not a `DataCollection`.
      *
      * @throws ReflectionException
      * @throws RuntimeException
@@ -516,7 +477,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
         }
 
         if ($type instanceof ObjectType) {
-            return $this->resolveObjectSchema($type, $propertyName);
+            return $this->resolveObjectSchema($type);
         }
 
         if ($type instanceof UnionType) {
@@ -542,9 +503,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     {
         $valueType = $type->getCollectionValueType();
 
-        // A pure string key denotes a map (`array<string, T>`) → `additionalProperties`. A bare
-        // `array` and `array<array-key, T>` both surface an int|string union key, which is the
-        // "unknown" case, not an asserted map — those fall through to the list/array branches.
+        // Pure string key → map (`additionalProperties`). int|string union key is the "unknown"
+        // case (bare `array` / `array<array-key, T>`), not an asserted map.
         if (!$type->isList() && $this->isStringKey($type->getCollectionKeyType())) {
             return new OA\Schema([
                 'type' => 'object',
@@ -589,10 +549,16 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Schema for a map's value. Reuses the full property-schema resolution (Data → `$ref`, scalar,
-     * nullable/union → `oneOf`, nested collection), so a map value gets the same fidelity as any
-     * other property. An opaque `mixed` value has no useful schema, so it degrades to a permissive
-     * `additionalProperties: true` rather than an empty schema.
+     * True when the collection key is a pure `string` (a map), not int|string (bare `array`).
+     */
+    private function isStringKey(Type $keyType): bool
+    {
+        return $keyType instanceof BuiltinType
+            && $keyType->isIdentifiedBy(TypeIdentifier::STRING);
+    }
+
+    /**
+     * Schema for a map's value type; degrades to `additionalProperties: true` for opaque `mixed`.
      *
      * @return OA\Schema|true permissive `additionalProperties` for an opaque `mixed` value
      *
@@ -613,24 +579,13 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Whether the collection key is a pure `string` identifier (a map key). The reflected-type path
-     * surfaces a bare `array` / `array<array-key, T>` as an int|string {@see UnionType}, which is
-     * deliberately not a map; `non-empty-string` normalizes to a `string` {@see BuiltinType}.
-     */
-    private function isStringKey(Type $keyType): bool
-    {
-        return $keyType instanceof BuiltinType
-            && $keyType->isIdentifiedBy(TypeIdentifier::STRING);
-    }
-
-    /**
      * @param ObjectType<class-string> $type
      *
      * @throws ReflectionException
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    private function resolveObjectSchema(ObjectType $type, string $propertyName): OA\Schema
+    private function resolveObjectSchema(ObjectType $type): OA\Schema
     {
         $className = $type->getClassName();
 
@@ -652,9 +607,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Converts an {@see OA\Schema} into an {@see OA\Property} by copying non-UNDEFINED JSON-Schema
-     * fields. Only JSON-Schema / OAS fields are transferred; swagger-php internals (e.g. `_context`,
-     * `schema`, `_unmerged`) are intentionally excluded.
+     * Copies non-UNDEFINED JSON-Schema/OAS fields from an {@see OA\Schema} into an {@see OA\Property}.
+     * swagger-php internals (`_context`, `_unmerged`, etc.) are excluded.
      */
     private function schemaToProperty(string $name, OA\Schema $schema): OA\Property
     {
@@ -705,17 +659,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Detects whether the property is deprecated.
-     *
-     * Three signals are honored, in order of authoring convenience:
-     *
-     * 1. The package's own `#[Deprecated]` attribute on the property or its promoted constructor
-     *    parameter — the symmetric authoring path.
-     * 2. The PHPDoc at-deprecated tag on the property — works on every Data class with a PHPDoc
-     *    block, and is what most IDEs surface in completion.
-     *
-     * PHP 8.4's native `#[\Deprecated]` is not consulted here because it does not support
-     * `TARGET_PROPERTY` or `TARGET_PARAMETER`.
+     * Checks `#[Deprecated]` (on property or promoted ctor param) or a `@deprecated` PHPDoc tag.
+     * PHP 8.4's native `#[\Deprecated]` is not consulted: it does not support `TARGET_PROPERTY`.
      */
     private function isPropertyDeprecated(ReflectionProperty $prop, ?ReflectionParameter $ctorParam): bool
     {
@@ -733,17 +678,9 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Merges validation-rule constraints onto the type-derived properties.
-     *
-     * Merge rules:
-     * - Type-derived `enum` (BackedEnum) takes precedence over rule-derived enum.
-     * - The PHP-type pass is authoritative for `$required` membership. Rules can only REMOVE a
-     *   field (descriptor `required === false`: `sometimes`) — they cannot add. `null` means the
-     *   rules said nothing about required and the structural decision stands.
-     * - Scoped field attributes (`#[RequestField]` / `#[ResponseField]`) are applied in a separate
-     *   pass after this one, so authoring annotations win.
-     *
-     * On any exception the method logs at debug and returns inputs unchanged.
+     * Merges validation-rule constraints onto the type-derived properties without overwriting them.
+     * A `sometimes` rule (`required === false`) is the only way rules can demote a required field.
+     * Logs at warning and returns inputs unchanged on any exception.
      *
      * @param class-string<Data> $dataClass
      * @param list<OA\Property>  $properties
@@ -792,13 +729,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
                 continue;
             }
 
-            // Merge mode: rule-derived constraints (including nested properties/items) fill gaps
-            // the PHP-type pass left undefined; they never clobber a type-pass decision.
             $descriptor->applyTo($propsByName[$fieldName], overwrite: false);
 
-            // Only an explicit `sometimes` rule (descriptor->required === false) demotes a
-            // structurally required field; `null` means rules said nothing and the PHP-type pass's
-            // decision stands.
             if ($descriptor->required === false) {
                 $required = array_values(
                     array_filter(
@@ -827,11 +759,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Lowest-priority example fallback — runs after every authored source.
-     *
-     * Skips composed schemas ($ref, oneOf/allOf/anyOf) and array/object types, where synthesising a
-     * scalar example makes no sense. The synthesiser itself returns null for unknown types/formats
-     * so the schema stays example-less rather than picking up lorem-ipsum.
+     * Lowest-priority example fallback; skips $ref/composed schemas and array/object types.
      */
     private function synthesiseExample(string $wireName, OA\Property $property): void
     {
@@ -839,7 +767,6 @@ final class SchemaFromDataClass implements FilePropertyChecker
             return;
         }
 
-        // Composed or referenced schemas — Faker has nothing useful to contribute.
         if (
             is_defined($property->ref)
             || is_defined($property->oneOf)
@@ -849,10 +776,7 @@ final class SchemaFromDataClass implements FilePropertyChecker
             return;
         }
 
-        // Only scalar leaves get synthesised; nested arrays/objects don't.
-        // `Generator::UNDEFINED` is itself a string sentinel, so `is_string()` is not enough —
-        // we must reject the sentinel explicitly or it leaks into the descriptor as a literal
-        // value (and silently bypasses the byFieldName guard which only fires for `null`/'string').
+        // `Generator::UNDEFINED` is a string sentinel; reject it or it leaks into the descriptor.
         $type = (is_string($property->type) && is_defined($property->type))
             ? $property->type
             : null;
@@ -894,12 +818,8 @@ final class SchemaFromDataClass implements FilePropertyChecker
     }
 
     /**
-     * Returns true when any public property of `$dataClass` (or any nested Data class it
-     * transitively references) is typed as {@see UploadedFile}.
-     *
-     * Used by {@see RequestBodyExtractor} to switch the request media type to
-     * `multipart/form-data`. Cached by class for the lifetime of the registry to keep deep nested
-     * checks cheap.
+     * True when any public property of `$dataClass` (or a transitively nested Data class) is typed
+     * as {@see UploadedFile}. Used by {@see RequestBodyExtractor} to switch to `multipart/form-data`.
      *
      * @param class-string<Data> $dataClass
      *

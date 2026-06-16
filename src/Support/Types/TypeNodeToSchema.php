@@ -24,16 +24,12 @@ use function Radiergummi\OpenApi\copy_schema_fields;
 use function strtolower;
 
 /**
- * Resolves a phpstan/phpdoc-parser {@see TypeNode} into a swagger-php {@see OA\Schema}, handling
- * the *structural* shapes that symfony/type-info's {@see \Symfony\Component\TypeInfo\Type} model
- * cannot represent — array shapes (`array{foo: string}`), list/array-of forms, and string-keyed
- * maps — recursively.
+ * Resolves a {@see TypeNode} into an {@see OA\Schema}, covering structural shapes symfony/type-info
+ * cannot represent: array shapes, list/array-of forms, and string-keyed maps.
  *
- * Leaf class identifiers are not resolved to schemas here: the caller supplies a strategy
- * (`callable(string $fqcn): ?OA\Schema`) so consumer-specific policy (e.g. a Model `$ref` vs. an
- * inline object schema) stays out of this resolver. This is the {@see TypeNode}-keyed companion to
- * {@see \Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType} (which is keyed on resolved
- * symfony types). Pure Tier-0: reflection/PHPDoc only, no method-body parsing.
+ * Leaf class identifiers are delegated to a caller-supplied `callable(string $fqcn): ?OA\Schema`
+ * so consumer policy (ref vs. inline) stays outside this class. Companion to
+ * {@see \Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType} (symfony-type-keyed).
  *
  * @internal
  */
@@ -54,9 +50,8 @@ final readonly class TypeNodeToSchema
     ) {}
 
     /**
-     * Resolves a type node to a schema, or null when the node is a shape this resolver does not
-     * model (so the caller falls through to its own fallback). Nullability is applied internally —
-     * `?T` / `T|null` is wrapped via the OAS 3.1 idiom ({@see NullableSchema}) — so callers must
+     * Returns null when the node shape is not modelled (caller falls through to its own fallback).
+     * Nullability (`?T` / `T|null`) is wrapped internally via {@see NullableSchema}; callers must
      * not wrap again.
      *
      * @param callable(string): ?OA\Schema $classSchema resolves a leaf FQCN to a schema
@@ -96,10 +91,8 @@ final readonly class TypeNodeToSchema
     }
 
     /**
-     * Resolves a nullable node (`?T` / `T|null`) by unwrapping it, resolving the inner type, and
-     * re-wrapping via the OAS 3.1 idiom. A multi-class union (`A|B|null`) is not a simple
-     * nullable (`unwrapNullable` returns it unchanged), so it falls through to the caller's
-     * fallback.
+     * A multi-class union (`A|B|null`) is not a simple nullable (`unwrapNullable` returns it
+     * unchanged), so it falls through to null.
      *
      * @param callable(string): ?OA\Schema $classSchema
      */
@@ -170,11 +163,7 @@ final readonly class TypeNodeToSchema
         );
     }
 
-    /**
-     * Wraps an element schema as an array schema. `items` is always emitted (an empty
-     * {@see OA\Items} when the element is unreadable) — swagger-php rejects `type: array`
-     * without `items`.
-     */
+    /** swagger-php rejects `type: array` without `items`, so items is always emitted. */
     private function listOf(?OA\Schema $element): OA\Schema
     {
         $items = new OA\Items([]);

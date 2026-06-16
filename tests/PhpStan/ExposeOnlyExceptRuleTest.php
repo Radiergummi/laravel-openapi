@@ -13,11 +13,6 @@ use Radiergummi\OpenApi\PhpStan\Rules\ExposeOnlyExceptRule;
  */
 final class ExposeOnlyExceptRuleTest extends RuleTestCase
 {
-    protected function getRule(): Rule
-    {
-        return new ExposeOnlyExceptRule();
-    }
-
     public function testFlagsBothOnlyAndExcept(): void
     {
         $this->analyse([__DIR__ . '/Data/expose-only-except.php'], [
@@ -26,5 +21,10 @@ final class ExposeOnlyExceptRuleTest extends RuleTestCase
                 20,
             ],
         ]);
+    }
+
+    protected function getRule(): Rule
+    {
+        return new ExposeOnlyExceptRule();
     }
 }

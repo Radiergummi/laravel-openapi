@@ -11,16 +11,10 @@ use Spatie\LaravelData\Support\DataConfig;
 
 /**
  * Builds a minimal synthetic payload for a {@see Data} subclass so that
- * {@see ValidateableData::getValidationRules()} returns the full compiled rule set rather than an
- * incomplete one.
+ * {@see ValidateableData::getValidationRules()} returns rules for all properties.
  *
- * The Spatie `DataValidationRulesResolver` skips properties that have default values when the
- * corresponding key is absent from the payload (`shouldSkipPropertyValidation`). Supplying a
- * payload where every property key is present (including nested Data objects) forces the resolver
- * to emit rules for all properties.
- *
- * A visited-set prevents infinite loops when a Data class references itself or forms a cycle.
- * On a cycle the offending property emits `null`, which is sufficient for `Arr::has()`.
+ * Spatie's `DataValidationRulesResolver` skips properties whose key is absent from the payload.
+ * Supplying every key forces the full rule set. A visited-set guards against self-referential cycles.
  */
 #[Scoped]
 final readonly class DataSyntheticPayloadBuilder
@@ -43,7 +37,7 @@ final readonly class DataSyntheticPayloadBuilder
 
     /**
      * @param class-string<Data>              $dataClass
-     * @param array<class-string<Data>, true> $visited   Recursion guard (by reference).
+     * @param array<class-string<Data>, true> $visited
      *
      * @return array<string, mixed>
      */
@@ -58,8 +52,7 @@ final readonly class DataSyntheticPayloadBuilder
         $payload = [];
 
         foreach ($dataClassMeta->properties as $dataProperty) {
-            // `inputMappedName` (not `outputMappedName`) — validation runs on the incoming payload,
-            // which is what Spatie's `Arr::has` checks.
+            // Use inputMappedName: validation runs on the incoming payload (what Arr::has checks).
             $name = $dataProperty->inputMappedName ?? $dataProperty->name;
             $kind = $dataProperty->type->kind;
 
@@ -79,7 +72,7 @@ final readonly class DataSyntheticPayloadBuilder
                 continue;
             }
 
-            // Single null item so `Arr::has` succeeds on dotted paths (e.g. `tags.0`).
+            // Single null item so Arr::has succeeds on dotted paths like `tags.0`.
             if ($kind->isNonDataIteratable()) {
                 $payload[$name] = [null];
 

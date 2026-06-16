@@ -15,12 +15,7 @@ use function array_count_values;
 use function array_map;
 use function sprintf;
 
-/**
- * Reports duplicate path parameters within a single operation.
- *
- * The OpenAPI specification requires that path parameter names be unique per operation. This
- * rule detects violations among path parameters only.
- */
+/** Reports parameters that share the same (name, in) within a single operation. */
 final class ParameterDuplicateName implements Rule, OperationRuleVisitor
 {
     /**
@@ -29,7 +24,7 @@ final class ParameterDuplicateName implements Rule, OperationRuleVisitor
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        $names = array_map(static fn($param): string => $param->name, $operation->parameters);
+        $names = array_map(static fn(\Radiergummi\OpenApi\Lint\Tree\ParameterNode $param): string => $param->name, $operation->parameters);
 
         $counts = array_count_values($names);
 

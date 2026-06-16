@@ -81,10 +81,8 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
             );
         }
 
-        // Round-trip through JSON encode/decode to strip swagger-php's UNDEFINED
-        // sentinel strings ("@OA\Generator::UNDEFINED🙈") that jsonSerialize()
-        // leaves on unset properties. Without this, the validator sees those
-        // sentinels as real values and emits false spec.invalid findings.
+        // Strip swagger-php's UNDEFINED sentinel strings that jsonSerialize() leaves on unset
+        // properties; without this the validator sees them as real values and emits false positives.
         $specJson = json_decode(
             json_encode($context->rawSpec->jsonSerialize(), JSON_THROW_ON_ERROR),
             flags: JSON_THROW_ON_ERROR,
@@ -109,7 +107,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
             return;
         }
 
-        // Index descriptors by normalized route for quick lookup
         $descriptorIndex = $this->buildDescriptorIndex($context->actionDescriptors);
 
         $seen = [];
@@ -119,8 +116,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
                 continue;
             }
 
-            // spec.invalid is the catch-all — defer issues a dedicated rule
-            // already reports so they aren't flagged twice.
             if ($this->isCoveredByGranularRule($leafError)) {
                 continue;
             }
@@ -139,8 +134,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Build an index of descriptors keyed by "METHOD /uri" for fast lookup.
-     *
      * @param list<ActionDescriptor> $descriptors
      *
      * @return array<string, ActionDescriptor>
@@ -185,21 +178,19 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Detect known false positives from the OAS 3.1 meta-schema's $dynamicRef behavior, which
-     * incorrectly propagates root-level constraints (like `required: ["openapi", "info"]`) to every
-     * nested Schema Object.
+     * Detect known false positives from the OAS 3.1 meta-schema's $dynamicRef behavior,
+     * which incorrectly propagates root-level constraints to nested Schema Objects.
      */
     private function isFalsePositive(ValidationError $error): bool
     {
         $path = $error->data()->fullPath();
 
-        // "required" at the root is legitimate (spec must have openapi + info)
+        // Root-level "required" is legitimate (openapi + info are genuinely required there).
         if ($path === []) {
             return false;
         }
 
-        // The classic false positive: "required" constraint with "openapi"/"info" at any nested
-        // path, caused by $dynamicRef resolving to the root schema.
+        // "openapi"/"info" required at a nested path means $dynamicRef resolved to the root schema.
         if ($error->keyword() === 'required') {
             $args = $error->args();
             $missing = $args['missing'] ?? [];
@@ -212,10 +203,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
         return false;
     }
 
-    /**
-     * Detect spec errors that a more granular lint rule already reports, so
-     * spec.invalid stays the catch-all for issues no dedicated rule covers.
-     */
     private function isCoveredByGranularRule(ValidationError $error): bool
     {
         if ($error->keyword() !== 'required') {
@@ -226,8 +213,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
         $path = $error->data()->fullPath();
         $section = $path[0] ?? null;
 
-        // A Response Object missing `description` is reported by
-        // response.description-missing for operation and webhook responses.
         return $missing === ['description']
             && in_array($section, ['paths', 'webhooks'], true)
             && in_array('responses', $path, true);
@@ -260,8 +245,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Parse the raw path array into structured components.
-     *
      * @param list<int|string> $path
      *
      * @return array{section: string, routeUri: ?string, method: ?string, trail: list<int|string>}
@@ -277,7 +260,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
             $method = isset($path[2]) ? (string) $path[2] : null;
             $trail = array_slice($path, 3);
         } elseif ($section === 'components' && isset($path[1], $path[2])) {
-            // e.g. ["components", "schemas", "FooSchema", ...]
             $trail = array_slice($path, 1);
         } else {
             $trail = array_slice($path, 1);
@@ -292,8 +274,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Build a proper RFC 6901 JSON Pointer (escaping ~ and /).
-     *
      * @param list<int|string> $path
      */
     private function buildJsonPointer(array $path): string
@@ -313,8 +293,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Resolve the ActionDescriptor for a parsed path (if it points to a route).
-     *
      * @param array{
      *     section: string,
      *     routeUri: ?string,
@@ -361,13 +339,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Format a human-readable path, preferring the route name when available.
-     *
-     * Examples:
-     *   "contacts.suggestions.apply → parameters[0].schema"
-     *   "GET /api/v0/foo → requestBody.content.application/json.schema" (no route name)
-     *   "components.schemas.FooSchema"
-     *
      * @param array{
      *     section: string,
      *     routeUri: ?string,
@@ -397,16 +368,12 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
             return "components.{$trailStr}";
         }
 
-        // Fallback: join all path segments
         $segments = array_merge([$parsed['section']], $parsed['trail']);
 
         return implode('.', $segments);
     }
 
     /**
-     * Format trail segments into a readable dotted path with array indices, e.g.
-     * ["parameters", 0, "schema"] → "parameters[0].schema"
-     *
      * @param list<int|string> $trail
      */
     private function formatTrail(array $trail): string
@@ -431,8 +398,6 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
     }
 
     /**
-     * Build a contextual fix hint based on what part of the spec is invalid.
-     *
      * @param array{
      *     section: string,
      *     routeUri: ?string,

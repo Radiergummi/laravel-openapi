@@ -18,13 +18,10 @@ use function count;
 use function is_int;
 
 /**
- * Flags methods (or functions) that carry two or more `#[Response]` attributes with the same
- * status code. Each status code can only appear once in an OpenAPI operation's `responses` map;
- * the second declaration is silently lost. Statuses that don't resolve to a constant integer
- * (e.g. a non-literal class constant) are skipped — we only flag pairs we can compare statically.
+ * Flags methods that carry two or more `#[Response]` attributes with the same HTTP status code.
  *
- * One service is registered per declaration node kind (FunctionLike); Response targets neither
- * classes nor properties so we don't need a ClassLike variant.
+ * Duplicate status codes are silently dropped from the generated spec. Only statically
+ * resolvable integers are compared.
  *
  * @implements Rule<Node>
  */

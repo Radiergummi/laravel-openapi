@@ -15,11 +15,8 @@ use function sprintf;
 use function trim;
 
 /**
- * Reports response objects that have no description.
- *
- * The OpenAPI 3.1 specification requires every Response Object to include a `description` field.
- * Missing descriptions make it harder for API consumers to understand what each status code means
- * for a given operation.
+ * Reports response objects that have no description. OAS 3.1 requires a `description` on every
+ * Response Object.
  */
 final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
 {
@@ -57,8 +54,6 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
     #[Override]
     public function level(): int
     {
-        // The OpenAPI 3.1 spec requires `description` on every Response Object —
-        // a missing one is a correctness error, not a documentation nicety.
         return 0;
     }
 

@@ -16,12 +16,8 @@ use function strcasecmp;
 use function trim;
 
 /**
- * Reports operations whose summary and description are identical after trimming and case-folding,
+ * Reports operations whose summary and description are identical (case-insensitive, trimmed),
  * making the description redundant.
- *
- * A description should add context beyond what the summary already says. When both fields carry
- * the same text, API consumers gain nothing extra and documentation tooling renders duplicated
- * content.
  */
 final class OperationSummaryEqualsDescription implements Rule, OperationRuleVisitor
 {

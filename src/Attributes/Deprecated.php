@@ -7,7 +7,7 @@ namespace Radiergummi\OpenApi\Attributes;
 use Attribute;
 
 /**
- * Marks an operation or schema property as deprecated — emits `deprecated: true`. Exists
+ * Marks an operation or schema property as deprecated, emitting `deprecated: true`. Exists
  * alongside PHP 8.4 native `#[\Deprecated]` and the PHPDoc `at-deprecated` tag because PHP's
  * native attribute isn't accepted on properties/parameters. `$reason` is informational only.
  */

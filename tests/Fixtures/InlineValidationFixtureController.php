@@ -97,6 +97,12 @@ class InlineValidationFixtureController extends Controller
 
     // region Shape 2: $this->validate($request, [...])
 
+    /** @return array<int, mixed> */
+    private function callbackRules(): array
+    {
+        return ['nullable', 'url'];
+    }
+
     public function update(Request $request): JsonResponse
     {
         $data = $this->validate($request, [
@@ -105,6 +111,10 @@ class InlineValidationFixtureController extends Controller
 
         return new JsonResponse($data);
     }
+
+    // endregion
+
+    // region Shape 3: Validator::make($request->all(), [...])
 
     public function viaRequestHelper(): JsonResponse
     {
@@ -117,7 +127,7 @@ class InlineValidationFixtureController extends Controller
 
     // endregion
 
-    // region Shape 3: Validator::make($request->all(), [...])
+    // region Shape 4: Request::validate([...]) (facade)
 
     public function viaValidatorFacade(Request $request): JsonResponse
     {
@@ -130,7 +140,7 @@ class InlineValidationFixtureController extends Controller
 
     // endregion
 
-    // region Shape 4: Request::validate([...]) (facade)
+    // region Controller-declared rules
 
     public function viaRequestFacade(): JsonResponse
     {
@@ -140,10 +150,6 @@ class InlineValidationFixtureController extends Controller
 
         return new JsonResponse($validated);
     }
-
-    // endregion
-
-    // region Controller-declared rules
 
     public function fromRulesProperty(Request $request): JsonResponse
     {
@@ -159,6 +165,10 @@ class InlineValidationFixtureController extends Controller
         return new JsonResponse($data, 201);
     }
 
+    // endregion
+
+    // region Conditional contexts (must not match)
+
     /** @return array<string, array<string, mixed>> */
     protected function rulesByAction(): array
     {
@@ -169,10 +179,6 @@ class InlineValidationFixtureController extends Controller
             ],
         ];
     }
-
-    // endregion
-
-    // region Conditional contexts (must not match)
 
     public function conditionalTernary(Request $request): JsonResponse
     {
@@ -188,6 +194,10 @@ class InlineValidationFixtureController extends Controller
         return new JsonResponse([]);
     }
 
+    // endregion
+
+    // region Degrade paths
+
     public function conditionalInsideClosure(Request $request): JsonResponse
     {
         $result = DB::transaction(function () use ($request): array {
@@ -200,10 +210,6 @@ class InlineValidationFixtureController extends Controller
 
         return new JsonResponse($result);
     }
-
-    // endregion
-
-    // region Degrade paths
 
     public function dynamicRules(Request $request): JsonResponse
     {
@@ -230,8 +236,16 @@ class InlineValidationFixtureController extends Controller
         ]);
 
         return new JsonResponse([
-            $first, $second, $third, $fourth, $fifth,
-            $sixth, $seventh, $eighth, $ninth, $tenth,
+            $first,
+            $second,
+            $third,
+            $fourth,
+            $fifth,
+            $sixth,
+            $seventh,
+            $eighth,
+            $ninth,
+            $tenth,
             $validated,
         ]);
     }
@@ -239,12 +253,6 @@ class InlineValidationFixtureController extends Controller
     public function withoutValidation(): JsonResponse
     {
         return new JsonResponse([]);
-    }
-
-    /** @return array<int, mixed> */
-    private function callbackRules(): array
-    {
-        return ['nullable', 'url'];
     }
 
     // endregion

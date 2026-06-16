@@ -7,8 +7,8 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes;
 use Attribute;
 
 /**
- * Declares the `spatie/laravel-query-builder` allowed includes for an endpoint — emitted as the
- * `include` query-string parameter. Method-level, not repeatable.
+ * Declares the `spatie/laravel-query-builder` allowed includes for an endpoint,
+ * emitted as the `include` query-string parameter.
  *
  * ```php
  * #[AllowedInclude(['owner', 'tags'])]

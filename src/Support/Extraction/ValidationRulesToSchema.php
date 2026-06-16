@@ -61,8 +61,8 @@ use const SORT_REGULAR;
 /**
  * Maps Laravel validation rules to JSON Schema field descriptors.
  *
- * Accepts the raw `rules()` output — pipe-string (`'required|string|max:250'`) or array
- * form (`['required', 'string', Rule::in([…]]`) — and produces one {@see FieldDescriptor} per
+ * Accepts the raw `rules()` output (pipe-string (`'required|string|max:250'`) or array
+ * form (`['required', 'string', Rule::in([…]]`)) and produces one {@see FieldDescriptor} per
  * field. Unknown rule objects emit a {@see Finding} with rule ID `rule.unknown` instead of being
  * silently dropped.
  *
@@ -81,7 +81,7 @@ final readonly class ValidationRulesToSchema
      *
      * The Spatie `DataValidationRulesResolver` emits concrete indices because it iterates over the
      * synthetic payload; schema generation needs wildcard paths. When two normalized paths collide,
-     * their rule lists are merged. Idempotent — already-wildcarded paths pass through unchanged.
+     * their rule lists are merged. Idempotent; already-wildcarded paths pass through unchanged.
      *
      * @param array<string, array<int, mixed>|string> $rules
      *
@@ -101,10 +101,10 @@ final readonly class ValidationRulesToSchema
                 continue;
             }
 
-            // Collision — merge both rule lists (unique, re-indexed).
+            // Collision: merge both rule lists (unique, re-indexed).
             $existing = is_string($out[$normalised])
                 ? explode('|', $out[$normalised])
-                : (array) $out[$normalised];
+                : $out[$normalised];
 
             $incoming = is_string($fieldRules)
                 ? explode('|', $fieldRules)
@@ -140,14 +140,14 @@ final readonly class ValidationRulesToSchema
 
         foreach ($rules as $field => $fieldRules) {
             // A field's ruleset may be a bare Rule object (`'x' => new SomeRule`) rather than a
-            // pipe-string or array — Laravel permits this. Wrap it so it flows through the same
+            // pipe-string or array; Laravel permits this. Wrap it so it flows through the same
             // path as an in-array rule object; an un-introspectable object then yields a bare
             // descriptor (and a `rule.unknown` finding) instead of a TypeError.
             if (!is_string($fieldRules) && !is_array($fieldRules)) {
                 $fieldRules = [$fieldRules];
             }
 
-            // A bare `*` rule key applies to every value in the request body — model this as JSON
+            // A bare `*` rule key applies to every value in the request body; model this as JSON
             // Schema's `additionalProperties` rather than emitting a property literally named
             // `*` (which is OAS-meaningless and trips downstream lint rules).
             if ($field === '*') {
@@ -178,9 +178,8 @@ final readonly class ValidationRulesToSchema
     /**
      * Maps a normalized list of rules to a single {@see FieldDescriptor}.
      *
-     * Two-pass design: quantifier rules (`min`, `max`, `between`, `size`) are deferred until every
-     * other rule has run, so the descriptor's `type` is resolved before they branch on it.
-     * Otherwise `['min:1', 'array']` would erroneously set `minLength` instead of `minItems`.
+     * Quantifier rules (`min`, `max`, `between`, `size`) are deferred so `type` is resolved first;
+     * otherwise `['min:1', 'array']` would set `minLength` instead of `minItems`.
      *
      * @param list<object|string> $rules
      */
@@ -232,16 +231,11 @@ final readonly class ValidationRulesToSchema
     /**
      * Maps a Laravel Rule object to schema constraints using only public APIs.
      *
-     * `In`, `Enum` and `Dimensions` implement `Stringable`; their `__toString()` output is the
-     * documented serialization Laravel itself feeds to the validator (`Enum::__toString()` even
-     * resolves `only()`/`except()` for us). It is re-dispatched through the string-rule path
-     * rather than reflecting into protected state, so a renamed internal property cannot silently
-     * break extraction.
+     * `In`, `Enum`, and `Dimensions` are `Stringable`; their `__toString()` is re-dispatched
+     * through the string-rule path to avoid reflecting into protected state.
      *
-     * `File`/`ImageFile` expose no public accessor and no `__toString()` — only the public
-     * `instanceof` marker is consumed (the field is a binary upload); their size/mimetype/
-     * dimension constraints are intentionally not read. Unknown rule objects emit a {@see Finding}
-     * so the gap is visible rather than silent.
+     * `File` exposes no public accessor; only the `instanceof` marker is consumed. Unknown rule
+     * objects emit a {@see Finding} so gaps are visible rather than silent.
      */
     private function applyObjectRule(
         object $rule,
@@ -336,11 +330,9 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Registers (idempotently) and returns the shared component `$ref` for a `Rule::enum()` rule —
-     * but only when it constrains the field to a backed enum's FULL case set. Returns null for unit
-     * enums, `only()`/`except()` subsets (a subset is not the canonical component), or when no
-     * {@see JsonSchemaFromType} is wired (direct, container-less instantiation), in which case the
-     * caller falls back to the inline value list.
+     * Returns the shared component `$ref` for a `Rule::enum()` that covers the full case set.
+     * Returns null for unit enums, `only()`/`except()` subsets, or when no
+     * {@see JsonSchemaFromType} is wired; the caller falls back to the inline value list.
      */
     private function backedEnumComponentReference(Enum $rule): ?string
     {
@@ -353,11 +345,11 @@ final readonly class ValidationRulesToSchema
         try {
             $enumClass = $reflection->getProperty('type')->getValue($rule);
 
-            // only()/except() narrow the rule to a subset of cases — not the full shared component.
+            // only()/except() narrow the rule to a subset of cases, not the full shared component.
             $only = $reflection->getProperty('only')->getValue($rule);
             $except = $reflection->getProperty('except')->getValue($rule);
         } catch (ReflectionException) {
-            // The rule's internals are not shaped as expected — fall back to the inline value list.
+            // The rule's internals are not shaped as expected; fall back to the inline value list.
             return null;
         }
 
@@ -412,13 +404,11 @@ final readonly class ValidationRulesToSchema
             default => null, // silently ignore
         };
 
-        // required_* variants (required_with, required_without, required_if, etc.)
-        // are conditional — do NOT set required=true.
+        // required_* conditional variants do NOT set required=true.
     }
 
     /**
-     * `present` requires the key to be present in the input but says nothing about nullability.
-     * Express this as required only; nullable must come from an explicit `nullable` rule.
+     * `present` requires the key in the input but says nothing about nullability.
      */
     private function applyPresent(FieldDescriptor $field): void
     {
@@ -426,10 +416,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Marks the field as nullable. Does NOT touch the rules-derived required state — `nullable` in
-     * isolation does not imply the field can be omitted from the payload (Laravel semantics:
-     * `nullable` only says the value may be null, the key still must be present unless `sometimes`
-     * or a default lets it through).
+     * Marks the field as nullable without touching the required state.
+     * `nullable` alone does not allow the key to be omitted; only `sometimes` does.
      */
     private function applyNullable(FieldDescriptor $field): void
     {
@@ -462,9 +450,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Maps `multiple_of:N` to JSON Schema's `multipleOf`. The argument keeps its numeric kind —
-     * integer-looking args stay ints, decimal args become floats — so the constraint matches the
-     * declared numeric type. The `type` is left to an explicit `integer`/`numeric` rule.
+     * Maps `multiple_of:N` to JSON Schema's `multipleOf`, preserving int vs. float kind.
+     * The `type` is left to an explicit `integer`/`numeric` rule.
      */
     private function applyMultipleOf(FieldDescriptor $field, string $arg): void
     {
@@ -478,8 +465,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Maps `mac_address` to a pattern. JSON Schema has no MAC-address `format`; the pattern accepts
-     * the colon- and hyphen-separated six-octet forms Laravel's validator allows.
+     * Maps `mac_address` to a pattern (JSON Schema has no MAC-address `format`).
+     * Accepts both colon- and hyphen-separated six-octet forms.
      */
     private function applyMacAddress(FieldDescriptor $field): void
     {
@@ -488,8 +475,7 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Maps `hex_color` to a pattern. No standard `format` exists; the pattern matches a six-digit
-     * hex color with an optional leading `#`.
+     * Maps `hex_color` to a pattern (no standard `format`); matches six-digit hex with optional `#`.
      */
     private function applyHexColor(FieldDescriptor $field): void
     {
@@ -524,7 +510,7 @@ final readonly class ValidationRulesToSchema
     private function applyDigits(FieldDescriptor $field, string $arg): void
     {
         $n = (int) $arg;
-        // type: 'string' because `digits` accepts leading zeros (e.g. "007"), which are not valid
+        // type: 'string' because `digits` accepts leading zeros (e.g., "007"), which are not valid
         // JSON integers. `pattern` is a string-only keyword in JSON Schema.
         $field->type = 'string';
         $field->pattern = "^\\d{{$n}}$";
@@ -537,22 +523,18 @@ final readonly class ValidationRulesToSchema
         if (count($parts) === 2) {
             $a = (int) trim($parts[0]);
             $b = (int) trim($parts[1]);
-            // type: 'string' — see applyDigits() above.
+            // type: 'string'; see applyDigits() above.
             $field->type = 'string';
             $field->pattern = "^\\d{{$a},{$b}}$";
         }
     }
 
     /**
-     * Strips the PCRE delimiter pair and trailing flags, producing a raw ECMA pattern suitable for
-     * OAS `pattern`.
-     *
-     * Laravel supports any non-alphanumeric delimiter; the most common is `/`. On parse failure,
-     * the rule is silently dropped.
+     * Strips the PCRE delimiter pair and flags, producing a raw ECMA pattern for OAS `pattern`.
+     * Supports any non-alphanumeric delimiter; silently drops the rule on parse failure.
      */
     private function applyRegex(FieldDescriptor $field, string $raw): void
     {
-        // The raw rule is `regex:/pattern/flags` or `regex:{pattern}flags`.
         $colonPos = strpos($raw, ':');
 
         if ($colonPos === false) {
@@ -582,7 +564,6 @@ final readonly class ValidationRulesToSchema
             return;
         }
 
-        // Strip flags after closing delimiter.
         $inner = substr($pattern, 1, $closingPos - 1);
 
         if ($inner === '') {
@@ -593,14 +574,9 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Handles the `in:` rule — hand-written `in:a,b,c`, or `In`/`Enum::__toString()` re-dispatched
-     * from {@see applyObjectRule()}.
-     *
-     * `In` and `Enum` serialise to RFC-4180 quoted CSV (`in:"a","b"`); hand-written rules use plain
-     * CSV. {@see str_getcsv()} parses both and keeps comma-containing values intact — so the
-     * comma-mangling that previously forced reflection no longer applies. Numeric strings are
-     * coerced so int/float enum values survive the string round-trip, and the field `type` is
-     * inferred from the value set when no explicit type rule established it.
+     * Handles the `in:` rule (hand-written CSV or `In`/`Enum::__toString()` re-dispatched from
+     * {@see applyObjectRule()}). Numeric strings are coerced so int/float values survive the string
+     * round-trip.
      */
     private function applyIn(FieldDescriptor $field, string $arg): void
     {
@@ -654,9 +630,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Infers the field `type` from a homogeneous enum value set, but only when no explicit type
-     * rule has already set it. A mixed-type set leaves `type` unset — JSON Schema enums need no
-     * declared type.
+     * Infers `type` from a homogeneous enum value set when no explicit type rule has set it.
+     * Mixed-type sets leave `type` unset.
      *
      * @param list<float|int|string> $values
      */
@@ -691,16 +666,9 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Classifies a PHP date-format string into an OpenAPI `format` value.
-     *
-     * Detection logic:
-     * - Time tokens (`H`, `G`, `h`, `g`, `i`, `s`, `u`, `v`) → has time component.
-     * - Date tokens (`Y`, `y`, `m`, `n`, `d`, `j`) → has date component.
-     * - Both present → `date-time`; only date → `date`; only time → `time`.
-     * - No recognisable tokens (unlikely) → fall back to `date-time`.
-     *
-     * Escaped characters (preceded by `\`) are intentionally not skipped; format
-     * strings like `Y-m-d\TH:i:sP` contain real time tokens after the literal `T`.
+     * Classifies a PHP date-format string into an OAS `format` (`date`, `time`, or `date-time`).
+     * Detects date tokens (`Yymndj`) and time tokens (`HGhgisuv`); defaults to `date-time`.
+     * Escaped characters are not skipped intentionally (`Y-m-d\TH:i:sP` contains real time tokens).
      */
     private function formatFromPhpDateFormat(string $format): string
     {
@@ -719,11 +687,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Handles the `dimensions:` rule — the string form, or `Dimensions::__toString()` re-dispatched
-     * from {@see applyObjectRule()}.
-     *
-     * `Dimensions` has no JSON Schema equivalent — it constrains image pixel dimensions. The field
-     * is treated as a binary upload and the constraints are surfaced as description text.
+     * Handles the `dimensions:` rule (no JSON Schema equivalent); marks the field as a binary
+     * upload and surfaces pixel-dimension constraints as description text.
      */
     private function applyDimensions(FieldDescriptor $field, string $arg): void
     {
@@ -737,9 +702,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Builds a human-readable description from a `dimensions:` rule argument
-     * (`width=800,height=600,ratio=1.5`). Keys map to plain-English descriptions; unknown keys are
-     * passed through verbatim so future Laravel additions are not silently swallowed.
+     * Builds a human-readable description from a `dimensions:` argument (`width=800,ratio=1.5`).
+     * Known keys are mapped to plain English; unknown keys pass through verbatim.
      */
     private function dimensionsDescription(string $arg): string
     {
@@ -799,18 +763,9 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Extracts constraints from a `Password` rule object.
-     *
-     * JSON Schema has no built-in equivalents for character-class requirements (letters, mixed
-     * case, numbers, symbols) or the HaveIBeenPwned check. We emit:
-     * - `type: string` + `format: password` (signals "render as password input" to UI tooling).
-     * - `minLength` from `Password::min(N)` (always present; defaults to 8 per Laravel).
-     * - `maxLength` from `Password::max(N)` when set.
-     * - `description` listing all active character-class requirements in plain English, so
-     *   client-side documentation can surface them even though JSON Schema can't enforce them.
-     *
-     * `appliedRules()` is a public method added in Laravel 10 that returns the current state of
-     * all flags, avoiding reflection entirely.
+     * Extracts constraints from a `Password` rule. JSON Schema cannot enforce character-class or
+     * breach checks, so those are surfaced as a `description` string. `appliedRules()` (Laravel 10+)
+     * returns all flags without reflection.
      */
     private function applyPasswordRule(Password $rule, FieldDescriptor $field): void
     {
@@ -887,8 +842,7 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Parses the leading `<rule>:<table>,<column>` segment of a DatabaseRule's `__toString()`
-     * output. Returns `[$table, $column]`; `$column` may be empty when no column was specified.
+     * Parses the `<rule>:<table>,<column>` segment of a DatabaseRule's `__toString()`.
      *
      * @return array{0: string, 1: string}
      */
@@ -924,9 +878,8 @@ final readonly class ValidationRulesToSchema
         $serialised = (string) $rule;
         $values = $this->ruleArg($serialised);
 
-        // Strip the wrapping double-quotes that NotIn emits around each value (and any
-        // doubled-quote escapes) so the description reads naturally. The empty $escape is required
-        // on PHP 8.4+ where the backslash default was deprecated.
+        // NotIn wraps each value in double-quotes; empty $escape avoids the PHP 8.4
+        // backslash-escape deprecation.
         $parsed = array_map(
             static fn(?string $value): string
                 => $value === null
@@ -964,10 +917,8 @@ final readonly class ValidationRulesToSchema
         }
 
         if ($doc->enum !== null && $field->enum === null) {
-            // PHPStan-types `RuleDocumentation::$enum` as `list<float|int|string>|null`, but user
-            // code can ignore PHPStan. Filter at runtime so non-scalars don't propagate to
-            // swagger-php's YAML emitter (where they fail with an opaque serialization error far
-            // from the source).
+            // User code may ignore the PHPStan type; filter at runtime so non-scalars
+            // don't reach swagger-php's YAML emitter with an opaque serialization error.
             $sanitised = [];
             $rejected = false;
 
@@ -1118,8 +1069,8 @@ final readonly class ValidationRulesToSchema
     }
 
     /**
-     * Walks a dotted/wildcard path into the intermediate {@see RuleTreeNode} tree, creating or
-     * reusing nodes so sibling paths (`address.city` + `address.zip`) merge onto shared parents.
+     * Walks a dotted/wildcard path into the {@see RuleTreeNode} tree, creating or reusing nodes
+     * so sibling paths merge onto shared parents.
      *
      * @param array<string, RuleTreeNode> $children the current object level (by reference)
      * @param list<string>                $segments remaining path segments
@@ -1142,12 +1093,11 @@ final readonly class ValidationRulesToSchema
         }
 
         if ($segments[0] === '*') {
-            // `$segment` is an array; descend into its element node.
             array_shift($segments);
             $node->items ??= new RuleTreeNode();
 
             if ($segments === []) {
-                // `foo.*` — the element itself carries these rules.
+                // `foo.*`: the element itself carries these rules.
                 $node->items->ownRules = array_merge(
                     $node->items->ownRules,
                     $this->normalizeRules($rules),
@@ -1156,22 +1106,19 @@ final readonly class ValidationRulesToSchema
                 return;
             }
 
-            // `foo.*.bar…` — the element is an object; recurse into its children.
+            // `foo.*.bar…`: the element is an object; recurse into its children.
             $this->insertPath($node->items->children, $segments, $rules);
 
             return;
         }
 
-        // Plain nested object — recurse into this node's children.
         $this->insertPath($node->children, $segments, $rules);
     }
 
     /**
-     * Converts an intermediate {@see RuleTreeNode} into a {@see FieldDescriptor}, recursing into
-     * nested object properties and array elements. A node with children is an `object`; a node
-     * with a wildcard element is an `array`. The wildcard element is authoritative about the
-     * type: `a.*` means `a` is a list, so it overrides a conflicting scalar rule on the same key
-     * (`'a' => 'string'`) rather than leaving `items` grafted onto a scalar type (#271).
+     * Converts a {@see RuleTreeNode} into a {@see FieldDescriptor}. A node with children is an
+     * `object`; a wildcard element forces `type = 'array'` even when a conflicting scalar rule
+     * is also present on the same key.
      */
     private function nodeToDescriptor(RuleTreeNode $node, string $name, ?string $sourceClass): FieldDescriptor
     {

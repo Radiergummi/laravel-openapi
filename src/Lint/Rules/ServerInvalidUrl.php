@@ -42,16 +42,12 @@ final class ServerInvalidUrl implements Rule, ApiRuleVisitor
                 continue;
             }
 
-            // Relative URL references (e.g. /v1, /api/v0) are explicitly
-            // permitted by OpenAPI 3.x — accept any non-empty path-rooted string.
+            // OpenAPI 3.x explicitly permits relative paths (e.g., /v1).
             if (str_starts_with($url, '/')) {
                 continue;
             }
 
-            // Replace {var} template segments with a placeholder before
-            // validation so that https://{region}.example.com is treated
-            // as a valid URL (stripping entirely would leave https://.example.com).
-            // Guard against preg_replace returning null on PCRE error.
+            // Replace {var} segments before validation; stripping them would leave an invalid host.
             $stripped = preg_replace('/\{[^}]+}/', 'placeholder', $url) ?? $url;
 
             if (filter_var($stripped, FILTER_VALIDATE_URL) !== false) {
@@ -62,7 +58,7 @@ final class ServerInvalidUrl implements Rule, ApiRuleVisitor
                 ruleId: $this->id(),
                 level: $this->level(),
                 message: sprintf('Server URL "%s" is not a valid URL.', $url),
-                fixHint: 'Provide a fully-qualified URL (e.g. https://api.example.com/v1), a relative path (e.g. /api/v0), or a valid URL template.',
+                fixHint: 'Provide a fully-qualified URL (e.g., https://api.example.com/v1), a relative path (e.g., /api/v0), or a valid URL template.',
             );
         }
     }

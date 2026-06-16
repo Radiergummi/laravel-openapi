@@ -14,11 +14,6 @@ use Radiergummi\OpenApi\PhpStan\Rules\HideExposeConflictRule;
  */
 final class HideExposeConflictOnClassRuleTest extends RuleTestCase
 {
-    protected function getRule(): Rule
-    {
-        return new HideExposeConflictRule(Node\Stmt\ClassLike::class);
-    }
-
     public function testFlagsClassLevelConflicts(): void
     {
         $this->analyse([__DIR__ . '/Data/hide-expose-conflict-class.php'], [
@@ -27,5 +22,10 @@ final class HideExposeConflictOnClassRuleTest extends RuleTestCase
                 10,
             ],
         ]);
+    }
+
+    protected function getRule(): Rule
+    {
+        return new HideExposeConflictRule(Node\Stmt\ClassLike::class);
     }
 }

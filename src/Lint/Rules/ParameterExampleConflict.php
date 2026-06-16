@@ -15,11 +15,8 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Reports parameters that set both `example` (singular) and `examples` (plural).
- *
- * The OpenAPI specification states these two fields are mutually exclusive. Having both present
- * on a parameter object is a spec violation that causes ambiguity for documentation and
- * code-generation tooling.
+ * Reports parameters that set both `example` and `examples`, which the OpenAPI spec treats as
+ * mutually exclusive.
  */
 final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
 {

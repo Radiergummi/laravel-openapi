@@ -77,6 +77,6 @@ it('produces byte-identical output across two independent generation runs', func
     $second = $render();
 
     // Compare the rendered YAML strings, not parsed arrays: a structural (array) comparison ignores
-    // map-key ordering, which is exactly the run-to-run drift (e.g. $ref ordering) this must catch.
+    // map-key ordering, which is exactly the run-to-run drift (e.g., $ref ordering) this must catch.
     expect($second)->toBe($first);
 });

@@ -46,8 +46,17 @@ final readonly class SuppressionDirective
     }
 
     /**
-     * Compare a finding's source file to the directive's, normalizing via realpath when the raw
-     * strings differ.
+     * Matches by source class stamped on the finding by the tree walker.
+     */
+    private function classMatches(Finding $finding): bool
+    {
+        $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
+
+        return $sourceClass !== null && $sourceClass === $this->targetClass;
+    }
+
+    /**
+     * Compares file paths, normalizing via realpath when the raw strings differ.
      */
     private function fileMatches(?string $findingFile): bool
     {
@@ -66,19 +75,7 @@ final readonly class SuppressionDirective
     }
 
     /**
-     * Compare the directive's target class to the finding's recorded source class. The walker
-     * stamps `CONTEXT_SOURCE_CLASS` on findings that descend from a known controller class or
-     * component schema, so a class-scope directive can match them structurally.
-     */
-    private function classMatches(Finding $finding): bool
-    {
-        $sourceClass = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
-
-        return $sourceClass !== null && $sourceClass === $this->targetClass;
-    }
-
-    /**
-     * Whether the given source line falls inside the targeted method's body.
+     * Whether the line falls inside the targeted method's body.
      */
     private function coversLine(?int $line): bool
     {
@@ -92,8 +89,7 @@ final readonly class SuppressionDirective
     }
 
     /**
-     * Property scope matches structurally: the finding must record the same source class and
-     * member in its context. `field.*` findings carry these keys for exactly this purpose.
+     * Matches by source class and member recorded in the finding's context.
      */
     private function structurallyMatches(Finding $finding): bool
     {

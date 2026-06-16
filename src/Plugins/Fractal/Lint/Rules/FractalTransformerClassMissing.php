@@ -16,7 +16,7 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Flags a `#[FractalResponse]` whose `transformer:` argument names a class that does not exist —
+ * Flags a `#[FractalResponse]` whose `transformer:` argument names a class that does not exist,
  * typically a typo (`BookTrnasformer::class`). The `FractalResponseResolver` logs a warning and
  * returns null in this case, so the operation silently loses its 200 response. This rule
  * surfaces it during `openapi:lint` instead.

@@ -8,7 +8,7 @@ use OpenApi\Attributes as OA;
 use Spatie\LaravelData\Data;
 
 // Its authored schema references RefChild by name; that surviving reference is what keeps RefChild's
-// own annotation load-bearing for the dangling-$ref guard.
+// own annotation essential for the dangling-$ref guard.
 #[OA\Schema(
     schema: 'RefParent',
     properties: [new OA\Property(property: 'child', ref: '#/components/schemas/RefChild')],

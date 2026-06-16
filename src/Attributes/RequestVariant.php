@@ -13,7 +13,7 @@ use function array_values;
  * action alongside `#[RequestBody(discriminator: '…')]`. Supply exactly one of:
  *
  * - inline `#[RequestField]`s describing the branch's shape, or
- * - `schema:` — a class-string the ref-resolver chain can build (a Spatie Data class, API
+ * - `schema:` a class-string the ref-resolver chain can build (a Spatie Data class, API
  *   Resource, …; not a FormRequest).
  *
  * ```php
@@ -45,8 +45,8 @@ final readonly class RequestVariant
     }
 
     /**
-     * True when the branch supplies neither or both of `schema` / `fields` — exactly one is
-     * required.
+     * True when the branch supplies neither or both of `schema` / `fields` (exactly one is
+     * required).
      */
     public function isMalformed(): bool
     {

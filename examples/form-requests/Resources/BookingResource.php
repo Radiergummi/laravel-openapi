@@ -17,7 +17,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField;
 #[ResourceField('id', description: 'Server-assigned booking identifier.', type: 'string', format: 'uuid')]
 #[ResourceField('flight_id', description: 'Identifier of the flight this booking belongs to.', type: 'string', format: 'uuid')]
 #[ResourceField('passenger_name', description: 'Full name of the passenger.', type: 'string', minLength: 1, maxLength: 200)]
-#[ResourceField('seat', description: 'Seat assignment, e.g. 12A.', type: 'string', pattern: '^\\d{1,3}[A-Z]$')]
+#[ResourceField('seat', description: 'Seat assignment, e.g., 12A.', type: 'string', pattern: '^\\d{1,3}[A-Z]$')]
 #[ResourceField('created_at', description: 'Booking creation timestamp.', type: 'string', format: 'date-time')]
 final class BookingResource extends JsonResource
 {

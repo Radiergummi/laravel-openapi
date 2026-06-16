@@ -30,10 +30,8 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
     #[Override]
     public function checkOperation(OperationNode $operation, LintContext $context): iterable
     {
-        // Detect on the source attributes via reflection, not on $operation->tags: the generator
-        // deduplicates tags (OperationBuilder::mergeTags) before they reach the spec, so a repeated
-        // #[Tag] never survives into the document. Reading the method's attributes is the only place
-        // the redundancy is still visible — and it matches what the method-scoped fixer removes.
+        // Read from source attributes, not $operation->tags: the generator deduplicates tags
+        // before they reach the spec, so duplicates are only visible on the reflection method.
         if ($operation->descriptor?->method === null) {
             return;
         }
@@ -94,10 +92,7 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
     #[Override]
     public function level(): int
     {
-        // Hygiene, not correctness: the generator deduplicates tags, so the emitted document is
-        // always valid — a repeated #[Tag] is a redundant source attribute that changes nothing in
-        // the output. Level 3 (Inconsistent), alongside the other no-op-attribute removal rules.
-        return 3;
+        return 3; // redundant but not incorrect (generator deduplicates before emitting)
     }
 
     #[Override]

@@ -19,13 +19,9 @@ use function usort;
 use const LOCK_EX;
 
 /**
- * Applies a batch of {@see Fix}es to the working tree.
- *
- * Fixes are grouped by file and lowered to byte-addressed {@see SourceEdit}s against that file's
- * current contents. Within a file the edits are applied **bottom-to-top** (descending start
- * offset) so each splice leaves the offsets of not-yet-applied edits valid; any edit that overlaps
- * one already accepted is **skipped** rather than guessed at. Each file is written atomically
- * (temp file + `rename()`), so a failure mid-batch never leaves a half-written source.
+ * Applies a batch of {@see Fix}es to the working tree. Edits are applied bottom-to-top per file
+ * so earlier offsets stay valid; overlapping edits are skipped. Each file is written atomically
+ * via a temp file + rename, so a failure never leaves a half-written source.
  *
  * @internal
  */
@@ -75,8 +71,6 @@ final readonly class FixApplicator
     }
 
     /**
-     * Resolve conflicts for one file and produce the rewritten source.
-     *
      * @param list<Fix> $fileFixes
      *
      * @return array{list<Fix>, list<Fix>, string}

@@ -13,11 +13,6 @@ use Radiergummi\OpenApi\PhpStan\Rules\ExceptionResponseOnNonThrowableRule;
  */
 final class ExceptionResponseOnNonThrowableRuleTest extends RuleTestCase
 {
-    protected function getRule(): Rule
-    {
-        return new ExceptionResponseOnNonThrowableRule(self::createReflectionProvider());
-    }
-
     public function testFlagsNonThrowableClasses(): void
     {
         $this->analyse(
@@ -32,5 +27,10 @@ final class ExceptionResponseOnNonThrowableRuleTest extends RuleTestCase
                 ],
             ],
         );
+    }
+
+    protected function getRule(): Rule
+    {
+        return new ExceptionResponseOnNonThrowableRule(self::createReflectionProvider());
     }
 }

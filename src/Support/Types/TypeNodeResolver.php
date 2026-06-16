@@ -29,11 +29,9 @@ use function ltrim;
 use function strtolower;
 
 /**
- * Resolves phpstan/phpdoc-parser type nodes to FQCNs, using symfony/type-info to resolve short
- * names against the declaring file's namespace and `use` imports.
+ * Resolves phpstan/phpdoc-parser type nodes to FQCNs via symfony/type-info.
  *
- * Returned names are not verified: Callers run `class_exists()` before trusting them. Bound as a
- * scoped singleton; the context cache resets between runs.
+ * Returned names are unverified; callers run `class_exists()` before trusting them.
  *
  * @internal
  */
@@ -58,12 +56,9 @@ final class TypeNodeResolver
     }
 
     /**
-     * FQCN (no leading backslash) of the *value* argument of a generic type: `Foo<Key, Value>`
-     * resolves to `Value` (the last argument). A leading `?` or a `|null` union is unwrapped first,
-     * so `?Foo<Bar>` and `Foo<Bar>|null` resolve too.
+     * FQCN of the last generic argument: `Foo<Key, Value>` → `Value`. Unwraps leading `?` / `|null`.
      *
-     * @return null|class-string Null when there is no generic, or its value argument is not a
-     *                           plain class.
+     * @return null|class-string Null when there is no generic, or its value argument is not a plain class.
      */
     public function genericValueClass(TypeNode $node, Reflector $context): ?string
     {
@@ -81,9 +76,7 @@ final class TypeNodeResolver
     }
 
     /**
-     * Locates the {@see GenericTypeNode} within a type node, descending through a nullable
-     * wrapper (`?Foo<Bar>`) or a union (`Foo<Bar>|null`).
-     * Returns null when there is none.
+     * Descends through `?` / `|null` to find the inner {@see GenericTypeNode}, or null if absent.
      */
     private function unwrapGeneric(TypeNode $node): ?GenericTypeNode
     {
@@ -118,10 +111,8 @@ final class TypeNodeResolver
         try {
             $type = $this->stringResolver->resolve($node->name, $typeContext);
         } catch (Throwable) {
-            // The identifier could not be resolved in the derived context (e.g., a bare class name
-            // inside a closure whose scope was inherited from an unrelated class, as Pest does with
-            // test closures). Retry with a null context so the resolver treats the identifier as a
-            // global class name — the only meaningful fallback for context-free annotations.
+            // Failed in the derived context (e.g., a closure inheriting an unrelated class scope,
+            // as Pest does). Retry with null context to treat the name as a global class name.
             if ($typeContext === null) {
                 return null;
             }
@@ -137,8 +128,7 @@ final class TypeNodeResolver
             return $this->asSpeculativeClassName($type->getClassName());
         }
 
-        // symfony/type-info wraps same-namespace class identifiers (no `use` import needed) in a
-        // CollectionType whose inner wrapped type is the ObjectType — unwrap one level.
+        // symfony/type-info wraps same-namespace identifiers (no `use` import) in CollectionType; unwrap one level.
         if ($type instanceof CollectionType) {
             $wrappedType = $type->getWrappedType();
 
@@ -161,11 +151,8 @@ final class TypeNodeResolver
         try {
             $resolved = $this->contextFactory->createFromReflection($context);
         } catch (Throwable) {
-            // Building the context tokenizes the declaring file and resolves every
-            // `@psalm-import-type`/`@phpstan-import-type` alias on the class — annotations this
-            // resolver never consumes. A malformed alias or an unreadable file must not abort the
-            // whole generation/lint run, so degrade to a context-free resolution (bare names
-            // simply won't resolve).
+            // A malformed import-type alias or unreadable file must not abort the run;
+            // degrade to context-free resolution (bare names won't resolve without context).
             $resolved = null;
         }
 
@@ -204,14 +191,9 @@ final class TypeNodeResolver
     }
 
     /**
-     * The element type node of a type that denotes a JSON list — `list<T>`, `non-empty-list<T>`,
-     * `array<T>`, `non-empty-array<T>`, `array<int, T>`, or `T[]` — descending one level only,
-     * after unwrapping a leading nullable. Returns null for map-shaped generics (`array<string, T>`)
-     * and every other shape.
-     *
-     * Single-argument `array<T>` and `non-empty-array<T>` are treated as lists (consistent with
-     * {@see TypeNodeToSchema::fromGeneric}, which resolves the
-     * same forms as arrays on the pure-tag path).
+     * Element type of a JSON-list type node: `list<T>`, `non-empty-list<T>`, `array<T>`,
+     * `non-empty-array<T>`, `array<int, T>`, or `T[]`, after unwrapping a leading nullable.
+     * Returns null for map-shaped generics (`array<string, T>`) and all other shapes.
      */
     public function listValueType(TypeNode $node): ?TypeNode
     {
@@ -227,7 +209,7 @@ final class TypeNodeResolver
 
         $name = strtolower($inner->type->name);
 
-        // list<T> and non-empty-list<T>: single argument is always the value type.
+        // list<T> / non-empty-list<T>: the single argument is the value type.
         if (in_array($name, ['list', 'non-empty-list'], strict: true)
             && count($inner->genericTypes) === 1
         ) {
@@ -235,7 +217,6 @@ final class TypeNodeResolver
         }
 
         if (in_array($name, ['array', 'non-empty-array'], strict: true)) {
-            // Single-argument array<T> / non-empty-array<T>: the one argument is the value type.
             if (count($inner->genericTypes) === 1) {
                 return $inner->genericTypes[0];
             }
@@ -258,13 +239,8 @@ final class TypeNodeResolver
     }
 
     /**
-     * Descends through a single nullable wrapper to reach the inner type node:
-     * - `?T` → `T`
-     * - `T|null` → `T` (only when there is exactly one non-null member)
-     * - Anything else → returned unchanged
-     *
-     * Shared by {@see resolveClassName()} and {@see EloquentModelToSchema} so the null-unwrap logic
-     * has a single canonical implementation.
+     * Strips one nullable wrapper: `?T` → `T`, `T|null` → `T` (single non-null member only).
+     * Returns the node unchanged for all other shapes.
      */
     public function unwrapNullable(TypeNode $node): TypeNode
     {
@@ -280,7 +256,6 @@ final class TypeNodeResolver
                     continue;
                 }
 
-                // Multi-class union, not a simple nullable; return unchanged.
                 if ($nonNull !== null) {
                     return $node;
                 }
@@ -295,8 +270,7 @@ final class TypeNodeResolver
     }
 
     /**
-     * Returns true when the type node represents a nullable type: a {@see NullableTypeNode}
-     * (`?T`) or a {@see UnionTypeNode} containing a bare `null` identifier (`T|null`).
+     * True for `?T` ({@see NullableTypeNode}) or a union containing a bare `null` (`T|null`).
      */
     public function isNullable(TypeNode $node): bool
     {
@@ -306,7 +280,7 @@ final class TypeNodeResolver
 
         if (($node instanceof UnionTypeNode) && array_any(
             $node->types,
-            fn(TypeNode $member)
+            fn(TypeNode $member): bool
                     => $member instanceof IdentifierTypeNode
                     && strtolower($member->name) === 'null',
         )) {
@@ -317,21 +291,16 @@ final class TypeNodeResolver
     }
 
     /**
-     * Resolves the FQCN (no leading backslash) of a type node that denotes a single class,
-     * unwrapping a leading `?` or a `T|null` union first.
+     * FQCN of a single-class type node, unwrapping `?` / `|null` first.
      *
-     * @return null|class-string Null for scalar keywords, generics, arrays, or unresolvable
-     *                           identifiers.
+     * @return null|class-string Null for scalars, generics, arrays, or unresolvable identifiers.
      */
     public function resolveClassName(TypeNode $node, Reflector $context): ?string
     {
         $inner = $this->unwrapNullable($node);
 
-        // If unwrapNullable returned the same node, it is either:
-        //   (a) a plain IdentifierTypeNode needing no unwrap, handled by the identifier check
-        //       below, or
-        //   (b) a multi-member union that cannot resolve to a single class, the instanceof check
-        //       returns null.
+        // If unwrapNullable returned the same node it is either a plain IdentifierTypeNode or a
+        // multi-member union; the instanceof check below handles both.
         if ($inner !== $node) {
             return $inner instanceof IdentifierTypeNode
                 ? $this->resolveClass($inner, $context)
@@ -344,10 +313,9 @@ final class TypeNodeResolver
     }
 
     /**
-     * FQCNs (no leading backslash) of every class in a (possibly union) `@throws` node, in
-     * source order.
+     * FQCNs of every class in a (possibly union) `@throws` node, in source order.
      *
-     * @return list<class-string> List of Exception FQCNs
+     * @return list<class-string>
      */
     public function throwsClasses(TypeNode $node, Reflector $context): array
     {
@@ -355,12 +323,9 @@ final class TypeNodeResolver
         $classes = [];
 
         foreach ($this->flatten($node) as $identifier) {
-            // Fall back to the written name when the class cannot be resolved to an existing class.
-            // `@throws` feeds error-response mapping and the throws.unmapped lint rule (both
-            // `class_exists()`-guard), so a documented-but-unresolvable exception name must still
-            // surface rather than vanish silently. Return-type generics intentionally do NOT do
-            // this (see genericValueClass): emitting an unresolvable class as a $ref target would
-            // produce a broken document, so omission is the safer choice there.
+            // Fall back to the written name: a documented-but-unresolvable exception must still
+            // surface for error-response mapping and the throws.unmapped lint rule. Unlike
+            // genericValueClass, where an unresolvable name would produce a broken $ref target.
             /** @var class-string $className */
             $className = $this->resolveClass($identifier, $context)
                 ?? $this->asSpeculativeClassName($identifier->name);

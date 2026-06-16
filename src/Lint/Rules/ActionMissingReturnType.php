@@ -19,13 +19,8 @@ use function in_array;
 use function sprintf;
 
 /**
- * Reports controller actions that carry neither a usable return type nor a response-declaring
- * attribute — the most common reason a generated operation ends up with no response schema.
- *
- * Response inference reads the action's return type; when that is absent, `mixed`, or `void`-like
- * and no `#[Response]` / `#[ResponseResource]` is present, there is nothing to infer from and the
- * operation silently emits a bare success response. This is a low-severity documentation nudge,
- * not a hard error: stay silent the moment either signal exists.
+ * Reports actions with no usable return type and no response attribute, the most common reason an
+ * operation ends up with no response schema. Stays silent the moment either signal exists.
  */
 final class ActionMissingReturnType implements Rule, OperationRuleVisitor
 {
@@ -64,8 +59,7 @@ final class ActionMissingReturnType implements Rule, OperationRuleVisitor
     }
 
     /**
-     * A return type is "usable" when it is declared and not `mixed`, `void`, or `never` — anything
-     * the generator could in principle shape a response from. An absent type is not usable.
+     * A return type is "usable" when declared and not `mixed`, `void`, or `never`.
      */
     private function hasUsableReturnType(ActionDescriptor $descriptor): bool
     {

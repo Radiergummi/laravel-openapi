@@ -380,7 +380,7 @@ components:
         - aircraft_type
       properties:
         number:
-          description: 'IATA-style flight number, e.g. LH123.'
+          description: 'IATA-style flight number, e.g., LH123.'
           type: string
           pattern: '^[A-Z]{2}\d{1,4}$'
           example: LH123

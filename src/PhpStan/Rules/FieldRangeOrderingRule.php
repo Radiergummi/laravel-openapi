@@ -23,22 +23,14 @@ use function is_float;
 use function is_int;
 
 /**
- * Flags `FieldAttribute` subclasses ({@see PathParam}, {@see QueryParam}, {@see RequestField},
- * {@see ResponseField}) where a `min*` bound exceeds its paired `max*` bound — an always-empty
- * domain the runtime accepts silently. Only literal numeric pairs are compared; non-constant
- * expressions are skipped because static analysis can't compare them.
- *
- * Three pairs are checked: `minimum`/`maximum`, `minLength`/`maxLength`, `minItems`/`maxItems`.
+ * Flags `FieldAttribute` subclasses where a `min*` bound exceeds its `max*` counterpart.
+ * Only literal numeric pairs are checked; non-constant expressions are skipped.
  *
  * @implements Rule<Node\Attribute>
  */
 final class FieldRangeOrderingRule implements Rule
 {
-    /**
-     * Each entry is [min argument name, max argument name].
-     *
-     * @var list<array{string, string}>
-     */
+    /** @var list<array{string, string}> */
     private const array PAIRS = [
         ['minimum', 'maximum'],
         ['minLength', 'maxLength'],
@@ -97,11 +89,7 @@ final class FieldRangeOrderingRule implements Rule
         return $errors;
     }
 
-    /**
-     * Returns the named argument's constant scalar numeric value, or `null` when the argument is
-     * absent, explicitly null, or non-constant. Casts integer literals to float for uniform
-     * comparison with `minimum`/`maximum` which accept `int|float`.
-     */
+    /** Returns the argument's constant numeric value, or null when absent, null, or non-constant. */
     private static function scalarValue(Node\Attribute $attribute, string $name, Scope $scope): ?float
     {
         $argument = AttributeHelpers::getArgument($attribute, $name);

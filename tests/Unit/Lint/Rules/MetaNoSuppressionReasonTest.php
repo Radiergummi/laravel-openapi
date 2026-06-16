@@ -48,7 +48,8 @@ it('emits for suppressions without a reason', function (): void {
         suppressions: [metaNoSuppressionReasonDirective(null)],
     );
     $findings = iterator_to_array(new MetaNoSuppressionReason()->checkApi($api, $context));
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.no-suppression-reason');
 });
 

@@ -5,17 +5,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Spec;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 
 /**
  * Immutable description of one OpenAPI specification produced by the generator.
  *
- * Built by {@see SpecRegistry} from `config('openapi.specs')` + root config keys. Consumed by
- * {@see OpenApiGenerator}, {@see InclusionEvaluator}, and the HTTP / CLI surfaces.
- *
- * `routeUri` / `playgroundUri` may be `null` to opt out of HTTP serving entirely (config sets
- * the entry to `false` or `null`).
+ * `routeUri` / `playgroundUri` may be `null` when HTTP serving is disabled for the spec.
  *
  * @internal
  */
@@ -53,9 +47,8 @@ final readonly class SpecDefinition
     }
 
     /**
-     * Laravel route name used for a spec's YAML endpoint. Bare `openapi.spec` for the
-     * implicit default; `openapi.spec.{name}` for named specs. Exposed statically so the
-     * service provider can mount routes during boot without resolving {@see SpecRegistry}.
+     * Route name for a spec's YAML endpoint. Static so the service provider can mount routes
+     * during boot without resolving {@see SpecRegistry}.
      */
     public static function specRouteNameFor(string $specName): string
     {

@@ -23,7 +23,8 @@ it('emits rule.unknown when an unknown Rule object cannot be introspected', func
         ->filter(static fn($f) => $f->ruleId === 'rule.unknown')
         ->values();
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings->first()->context['rule_class'])->toBe($customRule::class)
         ->and($findings->first()->context['property'])->toBe('color')
         ->and($findings->first()->context[Finding::CONTEXT_SOURCE_CLASS])->toBe('SomeData');

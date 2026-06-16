@@ -26,27 +26,12 @@ use function is_string;
 use function spl_object_id;
 
 /**
- * Tier-1 whitelist matcher for imperative `$this->middleware(...)` registrations in a controller
- * constructor (epic #5, issue #16).
+ * Bounded static scanner for `$this->middleware(...)` registrations in a controller constructor,
+ * used as a fallback when runtime instantiation fails during generation.
  *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements of `__construct` for
- * statement-level `$this->middleware(<literal>)` chains and reads the literal middleware names
- * together with their action scoping — the fluent `->only(...)` / `->except(...)` links and the
- * equivalent `['only' => ..., 'except' => ...]` options-array argument. Literals resolve via
- * {@see AstLiteralEvaluator}, so class-constant strings work.
- *
- * This is the *static fallback* for Laravel's own runtime resolution: `Route::gatherMiddleware()`
- * already reads constructor middleware by instantiating the controller, so the scan only runs when
- * instantiation fails in the generation context (see {@see RouteMiddlewareGatherer}). Receiver
- * discipline is strict — only calls on the literal `$this` match. Inherited constructors work
- * naturally: `ReflectionClass::getConstructor()` reflects the declaring class, so the scanner
- * reads the base controller's file.
- *
- * Only straight-line registrations participate ({@see ConditionalContextPolicy}): a
- * `$this->middleware()` inside an `if` documents conditional auth as unconditional, which
- * overstates the contract — it is refused and reported as conditional evidence instead.
- * Non-literal names or scoping, unknown chain links, and spread arguments are refused likewise
- * and reported as unreadable; the caller degrades with a generation-log note.
+ * Reads only straight-line, literal registrations ({@see ConditionalContextPolicy}): conditional
+ * middleware would overstate the contract. Non-literal names, unknown chain links, and spread
+ * arguments are refused; the caller degrades gracefully.
  *
  * @internal
  */
@@ -55,12 +40,7 @@ final class ConstructorMiddlewareScanner
 {
     public const int STATEMENT_LIMIT = 10;
 
-    /**
-     * Memoized scans per controller class: one parse per generation run, however, many routes
-     * point at the controller.
-     *
-     * @var array<class-string, ConstructorMiddlewareScan>
-     */
+    /** @var array<class-string, ConstructorMiddlewareScan> */
     private array $cache = [];
 
     private readonly StatementNodeFinder $statementNodeFinder;
@@ -122,9 +102,8 @@ final class ConstructorMiddlewareScanner
             $entries[] = $entry;
         }
 
-        // Detection is broader than matching: a middleware call reachable on the straight-line
-        // path but not consumed above (nested in an argument, an unmatched chain shape) is
-        // unreadable; one reachable only under the inclusive policy is conditionally applied.
+        // Straight-line calls not consumed above are unreadable; those only reachable under the
+        // inclusive policy are conditionally applied.
         $straightLineCalls = $this->statementNodeFinder->findAll(
             $statements,
             ConditionalContextPolicy::SkipConditionalContexts,
@@ -151,10 +130,7 @@ final class ConstructorMiddlewareScanner
     }
 
     /**
-     * Unwraps a top-level statement into a method-call chain rooted at `$this->middleware(...)`:
-     * the canonical registration idiom, as a bare statement or an assignment's right-hand side.
-     * Returns the root call plus the chain links above it (`->only()` / `->except()` / …), or
-     * null when the statement is no such chain.
+     * Returns the chain root and its fluent links for a `$this->middleware(...)` statement, or null.
      *
      * @return null|array{MethodCall, list<MethodCall>}
      */
@@ -174,7 +150,7 @@ final class ConstructorMiddlewareScanner
             return null;
         }
 
-        // Outermost call first; the innermost link is the chain root.
+        // Outermost-first; the innermost link is the chain root.
         $links = [];
         $current = $expression;
 
@@ -203,10 +179,6 @@ final class ConstructorMiddlewareScanner
     }
 
     /**
-     * Reads one registration into an entry, or null when any part is not statically readable:
-     * the middleware names (literal string or array of strings), the optional options-array
-     * argument, and the fluent `only` / `except` chain links.
-     *
      * @param list<MethodCall> $chainLinks
      *
      * @return null|array{names: list<string>, only: null|list<string>, except: null|list<string>}
@@ -284,9 +256,7 @@ final class ConstructorMiddlewareScanner
     }
 
     /**
-     * Normalizes a literal value to a list of strings: a string becomes a one-element list
-     * (Laravel `Arr::wrap()`s scoping arguments the same way); an array qualifies when every
-     * value is a string. Anything else — including null from a failed literal read — refuses.
+     * Normalises a string or string[] to a list, or returns null (mirrors Laravel's scoping args).
      *
      * @return null|list<string>
      */

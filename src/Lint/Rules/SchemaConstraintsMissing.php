@@ -23,18 +23,9 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Reports schemas that declare a broad type but omit the constraint that bounds it: strings
- * without `maxLength`, arrays without `maxItems`, and integers/numbers without `minimum` or
- * `maximum`.
+ * Disabled by default (noisy); opt in via config.
  *
- * This rule is intentionally noisy — it fires on every unconstrained field — and is therefore
- * shipped DISABLED by default (see config/openapi.php `lint.disabled_rules`). Teams that want to
- * enforce constraint coverage can opt in explicitly.
- *
- * Exemptions:
- *   - Strings with a `format` (already constrained by the format semantics).
- *   - Strings with an `enum` (values are fully enumerated).
- *   - Fields whose `raw` is null (no OA annotation available to inspect).
+ * Exempt: strings with `format` or `enum`, fields with no OA annotation.
  */
 final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, ComponentSchemaRuleVisitor
 {
@@ -59,8 +50,6 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
     }
 
     /**
-     * Shared logic used by both checkField and checkComponentSchema.
-     *
      * @param null|array<mixed> $enum
      *
      * @return iterable<Finding>
@@ -76,7 +65,6 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         $loc = $location ?? new FindingLocation();
 
         if ($type === 'string') {
-            // Strings with a format or enum are already sufficiently constrained.
             if ($format !== null) {
                 return;
             }

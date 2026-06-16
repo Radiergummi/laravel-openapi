@@ -25,7 +25,8 @@ function makeOperationWithParameters(array $parameterNames): OperationNode
 it('reports its id and level', function (): void {
     $rule = new ParameterDuplicateName();
 
-    expect($rule->id())->toBe('parameter.duplicate-name')
+    expect($rule->id())
+        ->toBe('parameter.duplicate-name')
         ->and($rule->level())->toBe(0);
 });
 
@@ -53,7 +54,8 @@ it('emits a finding when parameters share the same name', function (): void {
 
     $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.duplicate-name')
         ->and($findings[0]->level)->toBe(0)
         ->and($findings[0]->message)->toContain('filter')
@@ -66,7 +68,8 @@ it('emits one finding per duplicate group', function (): void {
 
     $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(2)
+    expect($findings)
+        ->toHaveCount(2)
         ->and($findings[0]->message)->toContain('a')
         ->and($findings[1]->message)->toContain('b');
 });
@@ -77,6 +80,7 @@ it('reports triple duplicates correctly', function (): void {
 
     $findings = iterator_to_array($rule->checkOperation($operation, OperationNodeFactory::emptyContext()));
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('3 times');
 });

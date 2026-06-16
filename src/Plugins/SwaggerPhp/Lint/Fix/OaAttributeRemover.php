@@ -22,14 +22,10 @@ use function trim;
 use const PHP_EOL;
 
 /**
- * Builds the edits that strip swagger-php `#[OA\*]` attributes from a single attribute group,
- * wherever it sits — on a class, a property, a promoted constructor parameter, or a controller
- * method. Shared by the schema-level and operation-level removal fixers.
+ * Builds edits that strip `#[OA\*]` attributes from a single attribute group.
  *
- * When every attribute in the group is an `#[OA\*]` one and it occupies whole lines, the lines are
- * removed; otherwise each contiguous run of OA attributes is excised byte-precisely, comma and all,
- * leaving the rest of the group. (There is no re-lint pass, so a mixed group with several OA
- * attributes must be cleared in this one go — see {@see \Radiergummi\OpenApi\Lint\Fix\FixRunner}.)
+ * If every attribute in the group is an OA attribute and it occupies whole lines, those lines are
+ * removed; otherwise each contiguous OA run is excised byte-precisely (comma and all).
  *
  * @internal
  */
@@ -63,10 +59,7 @@ final readonly class OaAttributeRemover
             return [new ModifyAttribute($start, $end, '')];
         }
 
-        // Mixed group: excise each maximal run of consecutive OA attributes, comma and all. Runs are
-        // separated by surviving (non-OA) attributes, so their spans never overlap. A run with an
-        // attribute after it takes the trailing comma (`OA, `); a run at the group's tail takes the
-        // leading comma (`, OA`).
+        // Mixed group: excise each consecutive OA run plus its comma (trailing or leading).
         $attrs = $group->attrs;
         $count = count($attrs);
         $total = count($oaIndices);
@@ -105,10 +98,7 @@ final readonly class OaAttributeRemover
         return str_starts_with($name, AuthoredAnnotationShape::ATTRIBUTE_NAMESPACE);
     }
 
-    /**
-     * Whether the byte span `[$start, $end)` has nothing but whitespace on its own lines either
-     * side — i.e. deleting those whole lines disturbs no other code.
-     */
+    /** Whether `[$start, $end)` is the only non-whitespace content on its lines. */
     private function occupiesWholeLines(string $source, int $start, int $end): bool
     {
         $lineStart = strrpos(substr($source, 0, $start), PHP_EOL);

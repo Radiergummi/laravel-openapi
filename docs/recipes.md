@@ -270,7 +270,7 @@ In hidden-default mode every route is excluded unless it carries an applicable
 
 `visibility.hide-expose-conflict` flags overlapping declarations.
 `visibility.attribute-no-op` flags unconditional attributes with no effect
-under the active default (e.g. `#[Expose]` while `visibility.default = 'public'`).
+under the active default (e.g., `#[Expose]` while `visibility.default = 'public'`).
 
 ## Declare custom security schemes
 
@@ -357,7 +357,7 @@ document-level or schema-level extensions, use `transformDocument()` and
 
 operationIds default to the route name (`api.v1.projects.index`); the
 `operation_id_strategy` config key switches between `route-name` and
-`method-path`. To reshape them beyond those two presets — e.g. strip a
+`method-path`. To reshape them beyond those two presets — e.g., strip a
 versioned `api.v{N}.` route-name prefix so a generated client reads
 `projects.index` rather than `api.v1.projects.index` — register an operation
 transformer at boot. `OperationContext` exposes the route, so any
@@ -413,12 +413,12 @@ Standard error responses (4xx/5xx derived from `@throws` and auth/scope/throttle
 
 ### How responses appear in the document
 
-- **`none`**: a single shared `components.responses.<Name>` (e.g. `Unauthorized`, `NotFound`, `ValidationFailed`) is emitted per known status, and every operation that returns that status `$ref`s the shared entry.
-- **`laravel` / `rfc7807` / `json-api` / any custom envelope that returns content**: the response is **inlined per operation**. Two operations at the same status can carry different bodies (e.g. `ValidationException` → `ValidationError` vs `UnprocessableEntityHttpException` → generic `Error`, both at 422), so the response wrapper is not shared via `components.responses`. The body schemas referenced from inside the inlined response (e.g. `#/components/schemas/Error`) are still reused via `$ref`.
+- **`none`**: a single shared `components.responses.<Name>` (e.g., `Unauthorized`, `NotFound`, `ValidationFailed`) is emitted per known status, and every operation that returns that status `$ref`s the shared entry.
+- **`laravel` / `rfc7807` / `json-api` / any custom envelope that returns content**: the response is **inlined per operation**. Two operations at the same status can carry different bodies (e.g., `ValidationException` → `ValidationError` vs `UnprocessableEntityHttpException` → generic `Error`, both at 422), so the response wrapper is not shared via `components.responses`. The body schemas referenced from inside the inlined response (e.g., `#/components/schemas/Error`) are still reused via `$ref`.
 
 ### Schema name collisions
 
-The body-bearing presets register short component-schema names: `Error`, `ValidationError` (Laravel); `Problem`, `ValidationProblem` (RFC 7807); `ErrorDocument` (JSON:API). If your application has a Spatie Data class with the same basename (e.g. `App\Errors\Error`), the registry disambiguates the user class via the normal namespace-prefixing rule (`App.Errors.Error`); the preset always keeps the short name. The user class's `$ref` moves with the disambiguated key, so existing usage stays consistent — but downstream consumers that hard-coded `#/components/schemas/Error` for the user class will see the envelope schema there once the envelope is enabled. Rename the conflicting Data class if you need the short name back.
+The body-bearing presets register short component-schema names: `Error`, `ValidationError` (Laravel); `Problem`, `ValidationProblem` (RFC 7807); `ErrorDocument` (JSON:API). If your application has a Spatie Data class with the same basename (e.g., `App\Errors\Error`), the registry disambiguates the user class via the normal namespace-prefixing rule (`App.Errors.Error`); the preset always keeps the short name. The user class's `$ref` moves with the disambiguated key, so existing usage stays consistent — but downstream consumers that hard-coded `#/components/schemas/Error` for the user class will see the envelope schema there once the envelope is enabled. Rename the conflicting Data class if you need the short name back.
 
 ### Custom envelopes
 

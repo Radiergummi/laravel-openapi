@@ -26,7 +26,8 @@ it('constructs a Finding with required fields and exposes them readonly', functi
         context: ['return_type' => 'JsonResponse'],
     );
 
-    expect($finding->ruleId)->toBe('response.empty')
+    expect($finding->ruleId)
+        ->toBe('response.empty')
         ->and($finding->level)->toBe(0)
         ->and($finding->message)->toBe('No response schema')
         ->and($finding->location)->toBe($location)
@@ -42,7 +43,8 @@ it('defaults fixHint to null and context to empty array', function (): void {
         location: new FindingLocation(),
     );
 
-    expect($finding->fixHint)->toBeNull()
+    expect($finding->fixHint)
+        ->toBeNull()
         ->and($finding->context)->toBe([]);
 });
 
@@ -66,7 +68,8 @@ it('withLevel returns a copy with the new level and all other fields preserved',
 
     $remapped = $original->withLevel(0);
 
-    expect($remapped->level)->toBe(0)
+    expect($remapped->level)
+        ->toBe(0)
         ->and($remapped->ruleId)->toBe('some.rule')
         ->and($remapped->message)->toBe('original message')
         ->and($remapped->location)->toBe($location)

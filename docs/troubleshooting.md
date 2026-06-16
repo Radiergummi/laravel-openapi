@@ -68,7 +68,7 @@ The action does not type-hint a request DTO the generator recognises. Either:
 
 - Type-hint a Spatie `Data` subclass (or a `FormRequest`) directly on the
   action signature, or
-- Type-hint an indirection object (e.g. a Domain Action) and list its base
+- Type-hint an indirection object (e.g., a Domain Action) and list its base
   class in `config/openapi.request_payload_indirection` so the generator
   descends into it. See
   [Request bodies → Indirect request payloads](request-bodies.md#indirect-request-payloads).

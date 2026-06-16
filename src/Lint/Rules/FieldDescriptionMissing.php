@@ -15,10 +15,7 @@ use function sprintf;
 use function trim;
 
 /**
- * Reports schema properties (fields) that have no description.
- *
- * Every property in a schema should have a description so that API consumers understand the
- * semantics and constraints of each field.
+ * Reports schema properties that have no description.
  */
 final class FieldDescriptionMissing implements Rule, FieldRuleVisitor
 {

@@ -13,21 +13,16 @@ use const PHP_EOL;
 /**
  * A single mechanical mutation of a PHP source file.
  *
- * The sealed hierarchy is deliberately small: line-oriented edits ({@see RemoveLines},
- * {@see ReplaceLines}, {@see InsertBefore}) cover whole-line changes — the common shape for
- * attribute and doc-comment fixes — while {@see ModifyAttribute} carries a byte-precise span for
- * sub-line edits (e.g. dropping one attribute from a shared `#[A, B]` group). Each operation lowers
- * to a single {@see SourceEdit} against a concrete source string via {@see toEdit()}, so
- * {@see FixApplicator} never has to special-case the operation type.
+ * Line-oriented subclasses ({@see RemoveLines}, {@see ReplaceLines}, {@see InsertBefore}) handle
+ * whole-line changes; {@see ModifyAttribute} carries a byte-precise span for sub-line edits.
+ * Each operation lowers to a {@see SourceEdit} via {@see toEdit()}.
  *
- * Line numbers are 1-based and inclusive, matching reflection and php-parser conventions.
+ * Line numbers are 1-based and inclusive.
  */
 abstract class FixOperation
 {
     /**
-     * Byte offsets of the start of each 1-based line, plus a terminal entry at `strlen($source)`
-     * for the position just past the final line. Index `n` is the start of line `n`; index
-     * `lastLine + 1` is end-of-source. Used to translate line numbers into byte ranges.
+     * Returns 1-based line-start byte offsets for `$source`, with a terminal entry at `strlen($source)`.
      *
      * @return array<int, int>
      */

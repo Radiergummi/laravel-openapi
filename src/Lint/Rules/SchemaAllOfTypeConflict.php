@@ -23,10 +23,8 @@ use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
- * Reports allOf schemas that combine sub-schemas with incompatible types.
- *
- * When an allOf composition declares sub-schemas with conflicting type declarations (e.g. `string`
- * and `integer`), the resulting schema is impossible to satisfy.
+ * Reports allOf schemas whose sub-schemas declare conflicting types (e.g., `string` and `integer`),
+ * making the composition impossible to satisfy.
  */
 final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
 {
@@ -76,9 +74,7 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
                 continue;
             }
 
-            // "null" is not a conflicting type: `allOf: [{type: string}, {type: "null"}]`
-            // is the OAS 3.1 idiom for a nullable string. Ignore it so the
-            // nullable composition isn't flagged as an impossible schema.
+            // `type: "null"` is the OAS 3.1 nullable idiom, not a conflicting type.
             if (is_array($type)) {
                 foreach ($type as $t) {
                     if (is_string($t) && $t !== 'null' && !in_array($t, $types, true)) {

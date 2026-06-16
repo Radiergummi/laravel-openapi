@@ -13,11 +13,6 @@ use Radiergummi\OpenApi\PhpStan\Rules\ExampleValueOrFileRule;
  */
 final class ExampleValueOrFileRuleTest extends RuleTestCase
 {
-    protected function getRule(): Rule
-    {
-        return new ExampleValueOrFileRule();
-    }
-
     public function testFlagsMissingOrBothValueAndFile(): void
     {
         $this->analyse([__DIR__ . '/Data/example-value-or-file.php'], [
@@ -42,5 +37,10 @@ final class ExampleValueOrFileRuleTest extends RuleTestCase
                 48,
             ],
         ]);
+    }
+
+    protected function getRule(): Rule
+    {
+        return new ExampleValueOrFileRule();
     }
 }

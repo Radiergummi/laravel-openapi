@@ -16,16 +16,16 @@ use function method_exists;
 /**
  * Resolves `@throws` annotations to FQCNs via phpstan/phpdoc-parser + symfony/type-info.
  *
- * Returned names are not verified — callers run `class_exists()` before trusting them.
+ * Returned names are not verified, so callers run `class_exists()` before trusting them.
  *
  * @internal
  */
 #[Scoped]
-final class ThrowsExtractor
+final readonly class ThrowsExtractor
 {
     public function __construct(
-        private readonly DocBlockParser $docBlockParser,
-        private readonly TypeNodeResolver $typeNodeResolver,
+        private DocBlockParser $docBlockParser,
+        private TypeNodeResolver $typeNodeResolver,
     ) {}
 
     public static function create(): self
@@ -45,15 +45,13 @@ final class ThrowsExtractor
             return [];
         }
 
-        $comment = $reflector->getDocComment();
+        $comment = $reflector->getDocComment() ?: null;
 
-        if ($comment === false || $comment === '') {
+        if ($comment === null) {
             return [];
         }
 
-        // For trait-composed methods PHP reports the using class as the declaring class, which
-        // would resolve bare `@throws` names against the using class's `use` statements. Resolve
-        // names against the trait's own file context instead by passing the trait's reflector.
+        // Use the defining trait as context so bare names resolve against the trait's `use` statements.
         $context = $this->definingTraitFor($reflector) ?? $reflector;
 
         $fqcns = [];
@@ -68,9 +66,7 @@ final class ThrowsExtractor
     }
 
     /**
-     * Returns the trait that lexically defines the method, when the reflector is a method
-     * composed via `use TraitName`. Returns `null` for direct methods, inherited methods,
-     * or non-method reflectors.
+     * Returns the trait that lexically defines the method, or null for direct/inherited methods.
      *
      * @return null|ReflectionClass<object>
      */
@@ -84,8 +80,7 @@ final class ThrowsExtractor
     }
 
     /**
-     * Walks the trait hierarchy depth-first and returns the deepest trait that declares
-     * a method with the given name. Returns `null` if no trait declares it.
+     * Walks the trait hierarchy depth-first; returns the deepest trait declaring the method, or null.
      *
      * @param ReflectionClass<object> $class
      *

@@ -17,11 +17,9 @@ use function preg_replace;
 use function trim;
 
 /**
- * Basic documentation comment parser
- *
- * Parses a doc comment into a summary and description. The first paragraph will be interpreted
- * as the summary; everything after the first blank line as the description. `@`-prefixed lines are
- * dropped; `@throws` is handled separately by {@see ThrowsExtractor}.
+ * Parses a doc comment into summary and description: the first paragraph becomes the summary,
+ * everything after the first blank line becomes the description. `@`-prefixed lines are dropped;
+ * `@throws` is handled separately by {@see ThrowsExtractor}.
  *
  * @internal
  */
@@ -39,7 +37,7 @@ final class DocCommentParser
         $allLines = Str::of($comment)
             ->explode("\n")
             ->slice(1, -1)
-            ->map(fn(string $line) => ltrim($line, ' *'))
+            ->map(fn(string $line): string => ltrim($line, ' *'))
             ->all();
 
         $lines = array_values(

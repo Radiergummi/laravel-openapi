@@ -15,8 +15,7 @@ use Radiergummi\OpenApi\Lint\Visitors\ApiRule as ApiRuleVisitor;
 use function sprintf;
 
 /**
- * Reports when a single file has too many suppression directives, which may indicate that the
- * file needs refactoring rather than more suppressions.
+ * Reports files with more suppression directives than the configured threshold.
  */
 final readonly class MetaTooManySuppressions implements Rule, ApiRuleVisitor
 {

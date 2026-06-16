@@ -43,10 +43,12 @@ it('OAPI-035: a backed enum used in two contexts emits one component referenced 
     $schemas = $doc['components']['schemas'];
 
     // Exactly one component carries the enum's case list — no per-context duplication.
-    $enumKeys = array_keys(array_filter(
-        $schemas,
-        static fn(array $schema): bool => ($schema['enum'] ?? null) === ['active', 'archived', 'draft'],
-    ));
+    $enumKeys = array_keys(
+        array_filter(
+            $schemas,
+            static fn(array $schema): bool => ($schema['enum'] ?? null) === ['active', 'archived', 'draft'],
+        ),
+    );
 
     expect($enumKeys)->toHaveCount(1);
 
@@ -54,7 +56,8 @@ it('OAPI-035: a backed enum used in two contexts emits one component referenced 
     $pointer = "#/components/schemas/{$enumKey}";
 
     // The component carries the backing type and the full case list.
-    expect($schemas[$enumKey]['type'])->toBe('string')
+    expect($schemas[$enumKey]['type'])
+        ->toBe('string')
         ->and($schemas[$enumKey]['enum'])->toBe(['active', 'archived', 'draft']);
 
     // Context 1 — validation rule (request body property) references the shared component.

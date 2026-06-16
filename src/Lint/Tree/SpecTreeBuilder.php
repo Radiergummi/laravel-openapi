@@ -27,29 +27,17 @@ use function strtoupper;
 final class SpecTreeBuilder
 {
     /**
-     * Component schemas indexed by name — populated at the start of {@see build()} so
-     * {@see buildFields()} can resolve `allOf: [{$ref: …}]` branches to the underlying properties.
-     *
      * @var array<string, OA\Schema>
      */
     private array $componentSchemaIndex = [];
 
     /**
-     * Component responses indexed by name — populated at the start of {@see build()} so
-     * {@see buildResponses()} can dereference a `$ref` response
-     * (`$ref: '#/components/responses/{name}'`) to the description carried by the referenced
-     * component, which the local response node lacks.
-     *
      * @var array<string, OA\Response>
      */
     private array $componentResponseIndex = [];
 
     /**
-     * @param array<string, class-string> $componentClassMap Component key → originating PHP class,
-     *                                                       as returned by
-     *                                                       {@see ComponentSchemaRegistry::componentClassMap()}.
-     *                                                       Used to populate
-     *                                                       {@see ComponentSchemaNode::$sourceClass}.
+     * @param array<string, class-string> $componentClassMap Component key → originating PHP class.
      */
     public function __construct(
         private readonly array $componentClassMap = [],
@@ -82,7 +70,6 @@ final class SpecTreeBuilder
             raw: $spec,
         );
 
-        // Link parent references (Phase 2 of two-phase construction)
         foreach ($operations as $op) {
             $op->linkParent($api);
         }
@@ -136,10 +123,6 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Index `components.responses` by component name so {@see buildResponses()} can dereference
-     * `$ref` responses. The component name is carried on each response's `response` property,
-     * mirroring how {@see indexComponentSchemas()} keys off `$schema->schema`.
-     *
      * @return array<string, OA\Response>
      */
     private function indexComponentResponses(OA\OpenApi $spec): array
@@ -177,8 +160,6 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Build an index of action descriptors keyed by "METHOD /uri".
-     *
      * @param list<ActionDescriptor> $descriptors
      *
      * @return array<string, ActionDescriptor>
@@ -287,7 +268,6 @@ final class SpecTreeBuilder
             webhook: $webhook,
         );
 
-        // Link children's parent references
         foreach ($parameters as $parameter) {
             $parameter->linkParent($operation);
         }
@@ -306,8 +286,6 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Extract path parameters from the operation.
-     *
      * @return list<ParameterNode>
      *
      * @throws LogicException
@@ -333,10 +311,7 @@ final class SpecTreeBuilder
                 continue;
             }
 
-            // Latent: a `$ref`'d parameter would carry no inline description and false-fire
-            // `parameter.description-missing`, like the response-ref bug fixed in this class. The
-            // generator never emits `components.parameters`/`$ref` parameters today (parameters are
-            // always inlined), so no dereference is wired in. Add one here if that changes.
+            // Parameters are always inlined today; add ref-dereference here if that changes.
             $examples = NodeFactory::examplesFromParameter($param);
             $node = new ParameterNode(
                 name: is_defined($param->name)
@@ -364,8 +339,6 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Extract query parameters from the operation.
-     *
      * @return list<QueryParameterNode>
      *
      * @throws LogicException
@@ -490,7 +463,6 @@ final class SpecTreeBuilder
             raw: $requestBody,
         );
 
-        // Link field and example parents
         foreach ($fields as $field) {
             $field->linkParent($node);
         }
@@ -503,19 +475,10 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Recursively build field nodes from JSON Schema properties.
+     * Recursively build field nodes, resolving `allOf` composition and following `$ref`s into
+     * the component index. A visited-set guard breaks cycles.
      *
-     * Resolves `allOf` composition: a schema written as
-     * `allOf: [{$ref: '#/components/schemas/Base'}, {properties: {…}}]` exposes both the inherited
-     * properties from the `$ref` branch and any properties declared on the local schema.
-     * The `required` list is merged the same way. `oneOf` / `anyOf` on a *property* are classified
-     * by {@see SchemaAccessor::classifyComposition()} below. Cycles in the `$ref` graph (`A`'s
-     * `allOf` references `B` whose `allOf` references `A`) are broken with a visited-set guard
-     * keyed by component name; the local declarations on each visited schema still contribute, but
-     * the chain stops as soon as the same component is encountered a second time.
-     *
-     * @param array<string, true> $visited Component names already merged in the current
-     *                                     resolution chain.
+     * @param array<string, true> $visited Component names already merged in the current resolution chain.
      *
      * @return list<FieldNode>
      *
@@ -530,9 +493,7 @@ final class SpecTreeBuilder
             return [];
         }
 
-        // A top-level schema written as the nullable `oneOf`/`anyOf` shape unwraps to its concrete
-        // branch so its fields are built; a genuine multi-alternative union has no branch and yields
-        // no fields here (the SchemaCompositeFieldsUninspected rule flags that case).
+        // Unwrap nullable oneOf/anyOf to its concrete branch; genuine unions have no branch.
         $schema = SchemaAccessor::classifyComposition($schema)['branch'] ?? $schema;
 
         [$properties, $required] = $this->collectComposedProperties($schema, $visited);
@@ -544,8 +505,6 @@ final class SpecTreeBuilder
         $fields = [];
 
         foreach ($properties as $name => $property) {
-            // Unwrap the nullable `oneOf`/`anyOf` shape to its concrete branch so field/schema rules
-            // inspect it; a genuine multi-alternative union has no branch and is left as-is.
             $branch = SchemaAccessor::classifyComposition($property)['branch'];
             $structural = $branch ?? $property;
             $nullable = SchemaAccessor::isNullable($property) || $branch !== null;
@@ -570,7 +529,6 @@ final class SpecTreeBuilder
                 raw: $property instanceof OA\Property ? $property : null,
             );
 
-            // Link children and examples to this field
             foreach ($children as $child) {
                 $child->linkParent($field);
             }
@@ -586,12 +544,8 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Collect the merged `(name => Property, list<string> required)` pair for a schema, walking
-     * each `allOf` branch and following `$ref`s into the component-schema index with a cycle guard.
-     *
-     * Property collisions resolve to the inline declaration on the schema being walked — local
-     * declarations override allOf-inherited ones (last-writer-wins via array merge order).
-     * The `required` list is union-ed.
+     * Collect `(name => Property, required[])` for a schema, walking `allOf` branches and
+     * following `$ref`s. Local declarations win over inherited ones.
      *
      * @param array<string, true> $visited
      *
@@ -707,10 +661,7 @@ final class SpecTreeBuilder
 
             $description = SchemaAccessor::undefinedToNull($response->description);
 
-            // A response emitted as a Reference Object (`$ref: '#/components/responses/{name}'`)
-            // carries no inline description — the referenced component does. Dereference it so
-            // description rules see the real text instead of false-firing. Only fill in when the
-            // local node has none of its own.
+            // A `$ref` response carries no inline description; dereference to avoid false positives.
             if ($description === null) {
                 $description = $this->resolveReferencedResponseDescription($response);
             }
@@ -802,7 +753,6 @@ final class SpecTreeBuilder
                 raw: $response,
             );
 
-            // Link children
             foreach ($fields as $field) {
                 $field->linkParent($node);
             }
@@ -826,10 +776,8 @@ final class SpecTreeBuilder
     }
 
     /**
-     * Resolve the description of a `$ref` response from the indexed component it points at.
-     * Returns null when the response is not a ref or the ref is dangling — a dangling ref is the
-     * `ref.broken` rule's concern, not a description-rule's, so we leave the description absent
-     * rather than crash or silently satisfy the check.
+     * Resolve the description from the component a `$ref` response points at.
+     * Returns null for non-ref or dangling-ref responses (the `ref.broken` rule handles those).
      */
     private function resolveReferencedResponseDescription(OA\Response $response): ?string
     {
@@ -866,7 +814,6 @@ final class SpecTreeBuilder
                 continue;
             }
 
-            // OA\SecurityScheme annotation — varies by swagger-php version
             if ($requirement instanceof OA\SecurityScheme) {
                 $scheme
                     = is_defined($requirement->securityScheme)
@@ -902,8 +849,7 @@ final class SpecTreeBuilder
         return array_values(
             array_filter(
                 $tags,
-                // @phpstan-ignore function.alreadyNarrowedType (OA\Operation::$tags may contain non-strings at runtime)
-                static fn($tag): bool => is_string($tag),
+                static fn(mixed $tag): bool => is_string($tag),
             ),
         );
     }

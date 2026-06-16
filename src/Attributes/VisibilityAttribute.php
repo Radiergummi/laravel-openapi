@@ -39,8 +39,7 @@ abstract readonly class VisibilityAttribute
     }
 
     /**
-     * Whether this attribute's environment scope applies in the given environment. With no scope
-     * it always applies; `only` restricts to its listed environments, `except` to all but its own.
+     * Whether the attribute's scope applies in the given environment.
      */
     public function appliesIn(string $environment): bool
     {
@@ -52,7 +51,6 @@ abstract readonly class VisibilityAttribute
             return in_array($environment, $this->only, true);
         }
 
-        // $except !== null by elimination
         return !in_array($environment, $this->except ?? [], true);
     }
 }

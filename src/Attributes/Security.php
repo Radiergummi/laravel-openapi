@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Attributes;
 
 use Attribute;
-use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 
 /**
- * Explicitly sets the security requirement, bypassing the middleware-derived default in
- * {@see SecurityExtractor}. Empty `$scopes` means "token required, no specific scope". For truly
- * public endpoints use {@see PublicEndpoint}.
+ * Explicitly sets the security requirement, bypassing the middleware-derived default. Empty
+ * `$scopes` means "token required, no specific scope". For public endpoints use {@see PublicEndpoint}.
  *
- * `$scheme` must match a key under `openapi.security_schemes` (or a Passport-derived default like
- * `oauth2`, `oauth2ClientCredentials`); when null, falls back to the project's default scheme.
+ * `$scheme` must match a key under `openapi.security_schemes`; null falls back to the default.
  *
  * ```php
  * #[OpenApi\Security(['admin', 'projects'])]
@@ -24,7 +21,7 @@ use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 final readonly class Security
 {
     /**
-     * @param list<non-empty-string> $scopes AND-logic — all listed scopes required.
+     * @param list<non-empty-string> $scopes AND-logic: all listed scopes required.
      * @param null|non-empty-string  $scheme
      */
     public function __construct(

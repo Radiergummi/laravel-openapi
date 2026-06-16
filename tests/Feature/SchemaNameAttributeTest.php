@@ -26,7 +26,8 @@ it('names the component schema after #[SchemaName], not the class basename', fun
 
     $ref = $spec['paths']['/schema-name/show']['get']['responses']['200']['content']['application/json']['schema']['$ref'] ?? null;
 
-    expect($ref)->toBe('#/components/schemas/CustomerProfile')
+    expect($ref)
+        ->toBe('#/components/schemas/CustomerProfile')
         ->and($spec['components']['schemas'])->toHaveKey('CustomerProfile')
         ->and($spec['components']['schemas'])->not->toHaveKey('SchemaNameData');
 });

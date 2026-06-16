@@ -26,28 +26,13 @@ use function sprintf;
 
 /**
  * Infers error responses from non-2xx `response()->json([...], <4xx/5xx>)` literals in the
- * controller method body — a Tier-1 bounded scan (epic #5, issue #238).
+ * controller method body.
  *
- * {@see \Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver} reads these calls
- * for the primary response slot but *refuses* a non-2xx status (an error must not claim the
- * success response). The refused call still carries a known 4xx/5xx status and a known literal
- * body — exactly an error response, like the `abort(403, '…')` calls
- * {@see AbortErrorContributor} already routes into the error machinery. This contributor captures
- * that refused information, sharing the call recognition and literal reading with the resolver via
- * {@see InlineJsonCallReader}.
- *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
- * {@see ConditionalContextPolicy::IncludeConditionalContexts} — an error `json()` in an `if`/guard
- * branch is exactly the outcome worth documenting (same reasoning as {@see AbortErrorContributor},
- * opposite the primary-slot scan). A literal body becomes the response's inlined schema (it wins
- * over the configured error envelope); a non-literal body degrades to a status-only descriptor
- * (the envelope fills the body). One descriptor per distinct status; on two branches at the same
- * status the first wins.
- *
- * Degradation contract: a non-literal *status* (`json([...], $code)`) is skipped with a
- * generation-log note (a body must not be documented under a guessed status); a 3xx literal is a
- * redirect, an intentional non-error the generator silently does not model. `#[Response]` for the
- * same status wins in the stage's drop-explicit pass — not re-implemented here.
+ * {@see \Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver} handles 2xx;
+ * this contributor captures the refused 4xx/5xx calls and routes them into the error machinery
+ * via {@see InlineJsonCallReader}. Scans the first {@see self::STATEMENT_LIMIT} statements
+ * including conditional branches. A literal body becomes the inlined schema; non-literal degrades
+ * to status-only. First branch wins per status. Non-literal statuses are logged; 3xx is ignored.
  */
 #[Scoped]
 final readonly class InlineJsonErrorContributor implements ErrorResponseContributor
@@ -98,7 +83,6 @@ final readonly class InlineJsonErrorContributor implements ErrorResponseContribu
 
             $errorDescriptor = $this->descriptorFromCall($call, $descriptor, $method, $statements);
 
-            // First branch wins for a given status — the operation gets one response per status.
             if ($errorDescriptor !== null && !array_key_exists($errorDescriptor->status, $byStatus)) {
                 $byStatus[$errorDescriptor->status] = $errorDescriptor;
             }
@@ -119,15 +103,13 @@ final readonly class InlineJsonErrorContributor implements ErrorResponseContribu
         $result = $this->callReader->read($statements, $call);
 
         if ($result->status === null) {
-            // Matched, but the status is not statically readable — note it (the body must not be
-            // documented under a guessed status).
+            // Status is not statically readable; a body must not be documented under a guessed status.
             $this->note($method, $result->statusDegradeReason ?? 'has no statically readable status code');
 
             return null;
         }
 
-        // Only 4xx/5xx are errors. A 2xx is the primary scan's job; a 3xx is a redirect — an
-        // intentional non-error the generator silently does not model.
+        // Only 4xx/5xx; 2xx is the primary scan's job, 3xx is a redirect.
         if ($result->status < 400 || $result->status > 599) {
             return null;
         }
@@ -137,8 +119,7 @@ final readonly class InlineJsonErrorContributor implements ErrorResponseContribu
             exceptionClass: $result->status === 404 ? NotFoundHttpException::class : HttpException::class,
             description: HttpFoundationResponse::$statusTexts[$result->status] ?? sprintf('HTTP %d', $result->status),
             action: $action,
-            // A literal body is route-specific and must not be hoisted into the shared per-status
-            // component; a status-only descriptor (non-literal body) shares fine.
+            // A literal body is route-specific; a status-only descriptor (no body) is shareable.
             shareableDescription: $result->bodySchema === null,
             bodySchema: $result->bodySchema,
         );

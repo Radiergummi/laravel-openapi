@@ -14,13 +14,10 @@ use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use function class_exists;
 
 /**
- * Turns a list of `#[RequestField]`s into the `properties` + `required` parts of an object schema.
- * Shared by {@see \Radiergummi\OpenApi\Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver}
- * and {@see \Radiergummi\OpenApi\Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver}.
+ * Turns a list of `#[RequestField]`s into the `properties` and `required` parts of an object schema.
  *
- * A class-string `type:` resolves to a `$ref` through the ref-resolver chain (mirroring the
- * response-side `#[ResourceField]`); a class-string `items:` on a `type: 'array'` field resolves
- * to `items: { $ref }`. Both degrade to a permissive object on a chain miss.
+ * A class-string `type:` resolves to a `$ref` via the ref-resolver chain; a class-string `items:`
+ * on `type: 'array'` resolves to `items: { $ref }`. Both degrade to a permissive object on miss.
  *
  * @internal
  */
@@ -28,7 +25,7 @@ use function class_exists;
 final readonly class RequestFieldObjectBuilder
 {
     /**
-     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers Lazy chain consulted for class-string fields.
+     * @param Closure(): list<RefSchemaResolver> $refSchemaResolvers
      */
     public function __construct(
         private Closure $refSchemaResolvers,
@@ -66,7 +63,6 @@ final readonly class RequestFieldObjectBuilder
     {
         $type = $field->type;
 
-        // A class-string `type:` resolves to a `$ref` (or a permissive object on a chain miss).
         if ($type !== null && class_exists($type)) {
             return FieldReferenceProperty::build(
                 $field->name ?? '',
@@ -78,11 +74,7 @@ final readonly class RequestFieldObjectBuilder
         $property = new OA\Property(['property' => $field->name]);
         $field->descriptor()->applyTo($property);
 
-        // array-of-$ref: a class-string `items:` on an array field resolves to `items: { $ref }`
-        // via the same resolver chain as `type:`. The descriptor above already set `type: array`
-        // plus any min/max/unique constraints and a scalar `items` placeholder — only the items
-        // schema is overridden here. An unresolvable class degrades to a permissive object item,
-        // symmetric with the single-ref `type: object` fallback above.
+        // Class-string `items:` resolves to `items: { $ref }`; descriptor already set type/constraints.
         if ($type === 'array' && $field->items !== null && class_exists($field->items)) {
             $ref = $this->resolveClassRef($field->items);
 
@@ -95,8 +87,6 @@ final readonly class RequestFieldObjectBuilder
     }
 
     /**
-     * Walks the ref-resolver chain and returns the first matching `$ref` string, or null.
-     *
      * @param class-string $class
      */
     private function resolveClassRef(string $class): ?string

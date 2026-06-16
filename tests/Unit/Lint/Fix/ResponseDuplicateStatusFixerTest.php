@@ -16,21 +16,23 @@ it('removes the duplicate #[Response] attribute', function (): void {
         discriminator: '200',
     );
 
-    expect($result['fixes'])->toHaveCount(1)
-        ->and($result['after'])->toBe(<<<'PHP'
-        <?php
-
-        declare(strict_types=1);
-
-        namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix;
-
-        use Radiergummi\OpenApi\Attributes\Response;
-
-        class DuplicateResponseStatusFixtureController
-        {
-            #[Response(status: 200, description: 'OK')]
-            public function show(): void {}
-        }
-
-        PHP);
+    expect($result['fixes'])
+        ->toHaveCount(1)
+        ->and($result['after'])->toBe(
+            <<<'PHP'
+                <?php
+                
+                declare(strict_types=1);
+                
+                namespace Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix;
+                
+                use Radiergummi\OpenApi\Attributes\Response;
+                
+                class DuplicateResponseStatusFixtureController
+                {
+                    #[Response(status: 200, description: 'OK')]
+                    public function show(): void {}
+                }
+                PHP . "\n",
+        );
 });

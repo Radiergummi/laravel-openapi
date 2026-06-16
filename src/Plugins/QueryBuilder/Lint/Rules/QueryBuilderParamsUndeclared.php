@@ -20,7 +20,7 @@ use function sprintf;
 
 /**
  * Flags a controller method that injects a `spatie/laravel-query-builder` `QueryBuilder` but
- * declares none of `#[AllowedFilter]`, `#[AllowedSort]`, or `#[AllowedInclude]` — the endpoint
+ * declares none of `#[AllowedFilter]`, `#[AllowedSort]`, or `#[AllowedInclude]`. The endpoint
  * accepts filter/sort/include parameters that the generated document does not describe.
  *
  * Detection is deliberately conservative: it keys off an injected `QueryBuilder` parameter (matched

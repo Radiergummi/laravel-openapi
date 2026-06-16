@@ -9,11 +9,8 @@ use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\LintRunner;
 
 /**
- * Dispatched whenever a {@see FindingsCollector} accepts a finding — both extractor-emitted
- * (during generation) and rule-emitted (during lint runs).
- *
- * The finding's `spec` field is `null` outside lint runs; the {@see LintRunner} tags it with
- * the spec name only when draining the per-spec collector.
+ * Dispatched whenever a {@see FindingsCollector} accepts a finding (both generation and lint runs).
+ * The finding's `spec` field is null outside lint runs; {@see LintRunner} sets it when draining.
  */
 final readonly class LintFindingEmitted
 {

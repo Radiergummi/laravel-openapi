@@ -16,7 +16,7 @@ use function sprintf;
 
 /**
  * Flags an operation that returns a resource collection type without a `#[ResponseResource]`
- * naming the item class — the response shape cannot be derived and the endpoint falls back to a
+ * naming the item class: the response shape cannot be derived and the endpoint falls back to a
  * bare `200 OK`.
  */
 final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVisitor

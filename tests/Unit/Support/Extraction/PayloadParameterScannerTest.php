@@ -128,7 +128,7 @@ final class ScannerFixtureControllerNoConstructorAction
 
 it('returns the class-string of a direct named-type parameter', function (): void {
     $scanner = new PayloadParameterScanner();
-    $method  = new ReflectionMethod(ScannerFixtureControllerDirectData::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerDirectData::class, 'store');
 
     $candidates = $scanner->candidates($method);
 
@@ -137,7 +137,7 @@ it('returns the class-string of a direct named-type parameter', function (): voi
 
 it('returns an empty list when the method has no parameters', function (): void {
     $scanner = new PayloadParameterScanner();
-    $method  = new ReflectionMethod(ScannerFixtureControllerNoParams::class, 'index');
+    $method = new ReflectionMethod(ScannerFixtureControllerNoParams::class, 'index');
 
     $candidates = $scanner->candidates($method);
 
@@ -146,7 +146,7 @@ it('returns an empty list when the method has no parameters', function (): void 
 
 it('ignores builtin-typed parameters', function (): void {
     $scanner = new PayloadParameterScanner();
-    $method  = new ReflectionMethod(ScannerFixtureControllerBuiltins::class, 'index');
+    $method = new ReflectionMethod(ScannerFixtureControllerBuiltins::class, 'index');
 
     $candidates = $scanner->candidates($method);
 
@@ -155,7 +155,7 @@ it('ignores builtin-typed parameters', function (): void {
 
 it('descends into an indirection class constructor when indirectionClasses is configured', function (): void {
     $scanner = new PayloadParameterScanner(indirectionClasses: [ScannerFixtureIndirectionBase::class]);
-    $method  = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
 
     $candidates = $scanner->candidates($method);
 
@@ -164,23 +164,24 @@ it('descends into an indirection class constructor when indirectionClasses is co
 
 it('does NOT descend into an indirection class when indirectionClasses is empty', function (): void {
     $scanner = new PayloadParameterScanner(indirectionClasses: []);
-    $method  = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
 
     $candidates = $scanner->candidates($method);
 
     // The indirection class itself should still appear as a direct candidate (it is a named type),
     // but the constructor params of that class must NOT be included.
-    expect($candidates)->not->toContain(ScannerFixturePayloadData::class)
+    expect($candidates)->not
+        ->toContain(ScannerFixturePayloadData::class)
         ->and($candidates)->toContain(ScannerFixtureIndirectionWithData::class);
 });
 
 it('returns direct method params before indirection constructor params', function (): void {
     $scanner = new PayloadParameterScanner(indirectionClasses: [ScannerFixtureIndirectionBase::class]);
-    $method  = new ReflectionMethod(ScannerFixtureControllerBoth::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerBoth::class, 'store');
 
     $candidates = $scanner->candidates($method);
 
-    $directIndex     = array_search(ScannerFixtureAnotherData::class, $candidates, strict: true);
+    $directIndex = array_search(ScannerFixtureAnotherData::class, $candidates, strict: true);
     $indirectionIndex = array_search(ScannerFixturePayloadData::class, $candidates, strict: true);
 
     expect($directIndex)->toBeLessThan($indirectionIndex);
@@ -188,29 +189,31 @@ it('returns direct method params before indirection constructor params', functio
 
 it('includes the indirection class itself in the direct-params section', function (): void {
     $scanner = new PayloadParameterScanner(indirectionClasses: [ScannerFixtureIndirectionBase::class]);
-    $method  = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
 
     $candidates = $scanner->candidates($method);
 
     // The indirection class appears as a direct candidate AND its constructor params follow.
-    expect($candidates)->toContain(ScannerFixtureIndirectionWithData::class)
+    expect($candidates)
+        ->toContain(ScannerFixtureIndirectionWithData::class)
         ->and($candidates)->toContain(ScannerFixturePayloadData::class);
 });
 
 it('handles an indirection class with no constructor gracefully', function (): void {
     $scanner = new PayloadParameterScanner(indirectionClasses: [ScannerFixtureIndirectionBase::class]);
-    $method  = new ReflectionMethod(ScannerFixtureControllerNoConstructorAction::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerNoConstructorAction::class, 'store');
 
     // Should not throw; the indirection class itself appears but no extra constructor params.
     $candidates = $scanner->candidates($method);
 
-    expect($candidates)->toContain(ScannerFixtureIndirectionNoConstructor::class)
+    expect($candidates)
+        ->toContain(ScannerFixtureIndirectionNoConstructor::class)
         ->and($candidates)->toHaveCount(1);
 });
 
 it('ignores builtin-typed constructor params on the indirection class', function (): void {
     $scanner = new PayloadParameterScanner(indirectionClasses: [ScannerFixtureIndirectionBase::class]);
-    $method  = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
+    $method = new ReflectionMethod(ScannerFixtureControllerIndirection::class, 'store');
 
     $candidates = $scanner->candidates($method);
 

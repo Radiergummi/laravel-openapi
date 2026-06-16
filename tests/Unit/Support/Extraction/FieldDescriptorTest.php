@@ -56,13 +56,15 @@ it('wraps a nullable object with properties into oneOf, migrating properties (Bu
     $descriptor->applyTo($target);
 
     // Outer schema must use oneOf, not type
-    expect($target->type)->toBe(Generator::UNDEFINED)
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
     $inner = nonNullBranch($target->oneOf);
     $null = nullBranch($target->oneOf);
 
-    expect($inner->type)->toBe('object')
+    expect($inner->type)
+        ->toBe('object')
         ->and($inner->properties)->toBe([$property])
         ->and(isUndefined($target->properties))->toBeTrue()
         ->and($null->type)->toBe('null');
@@ -79,35 +81,42 @@ it('wraps a nullable object with required into oneOf, migrating required (Bug 6)
 
     $descriptor->applyTo($target);
 
-    expect($target->type)->toBe(Generator::UNDEFINED)
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->required)->toBe(['name', 'email'])
+    expect($inner->required)
+        ->toBe(['name', 'email'])
         ->and(isUndefined($target->required))->toBeTrue();
 });
 
-it('wraps a nullable object with additionalProperties into oneOf, migrating additionalProperties (Bug 6)', function (): void {
-    $descriptor = new FieldDescriptor();
-    $descriptor->type = 'object';
-    $descriptor->nullable = true;
+it(
+    'wraps a nullable object with additionalProperties into oneOf, migrating additionalProperties (Bug 6)',
+    function (): void {
+        $descriptor = new FieldDescriptor();
+        $descriptor->type = 'object';
+        $descriptor->nullable = true;
 
-    $additionalProps = new OA\AdditionalProperties(['type' => 'string']);
-    $target = new OA\Schema([]);
-    $target->type = 'object';
-    $target->additionalProperties = $additionalProps;
+        $additionalProps = new OA\AdditionalProperties(['type' => 'string']);
+        $target = new OA\Schema([]);
+        $target->type = 'object';
+        $target->additionalProperties = $additionalProps;
 
-    $descriptor->applyTo($target);
+        $descriptor->applyTo($target);
 
-    expect($target->type)->toBe(Generator::UNDEFINED)
-        ->and($target->oneOf)->toBeArray()->toHaveCount(2);
+        expect($target->type)
+            ->toBe(Generator::UNDEFINED)
+            ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
-    $inner = nonNullBranch($target->oneOf);
+        $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->additionalProperties)->toBe($additionalProps)
-        ->and(isUndefined($target->additionalProperties))->toBeTrue();
-});
+        expect($inner->additionalProperties)
+            ->toBe($additionalProps)
+            ->and(isUndefined($target->additionalProperties))->toBeTrue();
+    },
+);
 
 it('nullable array still migrates items into the inner oneOf schema', function (): void {
     $descriptor = new FieldDescriptor();
@@ -121,12 +130,14 @@ it('nullable array still migrates items into the inner oneOf schema', function (
 
     $descriptor->applyTo($target);
 
-    expect($target->type)->toBe(Generator::UNDEFINED)
+    expect($target->type)
+        ->toBe(Generator::UNDEFINED)
         ->and($target->oneOf)->toBeArray()->toHaveCount(2);
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->type)->toBe('array')
+    expect($inner->type)
+        ->toBe('array')
         ->and($inner->items)->toBe($items)
         ->and(isUndefined($target->items))->toBeTrue();
 });
@@ -141,7 +152,8 @@ it('nullable scalar widens type array without oneOf wrapping', function (): void
 
     $descriptor->applyTo($target);
 
-    expect($target->type)->toBe(['string', 'null'])
+    expect($target->type)
+        ->toBe(['string', 'null'])
         ->and($target->oneOf)->toBe(Generator::UNDEFINED);
 });
 
@@ -163,7 +175,8 @@ it('migrates minItems and maxItems into the inner branch of a nullable array', f
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->type)->toBe('array')
+    expect($inner->type)
+        ->toBe('array')
         ->and($inner->minItems)->toBe(1)
         ->and($inner->maxItems)->toBe(10)
         ->and(isUndefined($target->minItems))->toBeTrue()
@@ -184,7 +197,8 @@ it('migrates minimum and maximum into the inner branch of a nullable object', fu
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->minimum)->toBe(0)
+    expect($inner->minimum)
+        ->toBe(0)
         ->and($inner->maximum)->toBe(100)
         ->and(isUndefined($target->minimum))->toBeTrue()
         ->and(isUndefined($target->maximum))->toBeTrue();
@@ -205,7 +219,8 @@ it('migrates minLength, maxLength, and pattern into the inner branch of a nullab
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->minLength)->toBe(2)
+    expect($inner->minLength)
+        ->toBe(2)
         ->and($inner->maxLength)->toBe(8)
         ->and($inner->pattern)->toBe('^[a-z]+$')
         ->and(isUndefined($target->minLength))->toBeTrue()
@@ -227,7 +242,8 @@ it('migrates format and enum into the inner branch of a nullable array', functio
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->format)->toBe('date')
+    expect($inner->format)
+        ->toBe('date')
         ->and($inner->enum)->toBe(['a', 'b'])
         ->and(isUndefined($target->format))->toBeTrue()
         ->and(isUndefined($target->enum))->toBeTrue();
@@ -246,7 +262,8 @@ it('migrates multipleOf into the inner branch of a nullable object', function ()
 
     $inner = nonNullBranch($target->oneOf);
 
-    expect($inner->multipleOf)->toBe(5)
+    expect($inner->multipleOf)
+        ->toBe(5)
         ->and(isUndefined($target->multipleOf))->toBeTrue();
 });
 
@@ -263,7 +280,8 @@ it('keeps description and example on the outer schema of a nullable array', func
     expect($target->oneOf)->toBeArray()->toHaveCount(2);
 
     // Description and example are field-level metadata — they stay on the outer schema.
-    expect($target->description)->toBe('A list of items')
+    expect($target->description)
+        ->toBe('A list of items')
         ->and($target->example)->toBe(['foo']);
 });
 
@@ -345,7 +363,8 @@ it('emits nested object properties with a required list', function (): void {
     $target = new OA\Schema([]);
     $descriptor->applyTo($target);
 
-    expect($target->type)->toBe('object')
+    expect($target->type)
+        ->toBe('object')
         ->and($target->properties)->toBeArray()->toHaveCount(1)
         ->and($target->properties[0]->property)->toBe('city')
         ->and($target->properties[0]->type)->toBe('string')
@@ -363,7 +382,8 @@ it('emits array items from a nested items descriptor', function (): void {
     $target = new OA\Schema([]);
     $descriptor->applyTo($target);
 
-    expect($target->type)->toBe('array')
+    expect($target->type)
+        ->toBe('array')
         ->and($target->items)->toBeInstanceOf(OA\Items::class)
         ->and($target->items->type)->toBe('string');
 });
@@ -387,7 +407,8 @@ it('emits a deep array-of-object with a nested object property', function (): vo
     $target = new OA\Schema([]);
     $descriptor->applyTo($target);
 
-    expect($target->type)->toBe('array')
+    expect($target->type)
+        ->toBe('array')
         ->and($target->items->type)->toBe('object')
         ->and($target->items->properties[0]->property)->toBe('address')
         ->and($target->items->properties[0]->properties[0]->property)->toBe('city');
@@ -404,7 +425,8 @@ it('applies a $ref, replacing inline schema keywords', function (): void {
     $target = new OA\Schema([]);
     $descriptor->applyTo($target);
 
-    expect($target->ref)->toBe('#/components/schemas/Status')
+    expect($target->ref)
+        ->toBe('#/components/schemas/Status')
         ->and(isUndefined($target->type))->toBeTrue();
 });
 
@@ -416,7 +438,8 @@ it('wraps a nullable $ref in oneOf: [{$ref}, {null}] per OAS 3.1', function (): 
     $target = new OA\Schema([]);
     $descriptor->applyTo($target);
 
-    expect(isUndefined($target->ref))->toBeTrue()
+    expect(isUndefined($target->ref))
+        ->toBeTrue()
         ->and($target->oneOf[0]->ref)->toBe('#/components/schemas/Status')
         ->and($target->oneOf[1]->type)->toBe('null');
 });

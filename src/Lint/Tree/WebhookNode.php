@@ -9,6 +9,9 @@ use Override;
 
 use function sprintf;
 
+/**
+ * Lint tree node representing a single OpenAPI webhook entry and its operation.
+ */
 final class WebhookNode implements Node
 {
     private ?Node $parent = null;

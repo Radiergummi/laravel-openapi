@@ -10,11 +10,8 @@ use PHPStan\PhpDocParser\Ast\PhpDoc\PhpDocTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 
 /**
- * A parsed PHPDoc comment, exposing the tag/type nodes the library reads.
- *
- * Wraps a phpstan/phpdoc-parser {@see PhpDocNode}. Typed accessors cover the tags
- * read today; {@see tagValues()} exposes raw value nodes so future complex-shape
- * tag readers build on the same parse rather than re-tokenising.
+ * A parsed PHPDoc comment, exposing typed accessors for the tags the library reads.
+ * Use {@see tagValues()} for tags not covered by the typed accessors.
  *
  * @internal
  */
@@ -28,7 +25,7 @@ final readonly class ParsedDocBlock
     }
 
     /**
-     * The type node of the first `@return` tag, or null when there is none.
+     * The type node of the first `return` tag, or null when there is none.
      */
     public function returnType(): ?TypeNode
     {
@@ -56,8 +53,7 @@ final readonly class ParsedDocBlock
     }
 
     /**
-     * Reason text from a `deprecated` PHPDoc tag: the trailing text, `''` for a bare tag,
-     * or null when no such tag is present.
+     * Reason from a `@deprecated` tag, `''` for a bare tag, or null when absent.
      */
     public function deprecation(): ?string
     {

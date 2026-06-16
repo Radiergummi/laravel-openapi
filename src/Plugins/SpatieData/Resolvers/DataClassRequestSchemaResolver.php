@@ -19,7 +19,7 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
 /**
  * Spatie Data plugin request-schema resolver: builds the request body from a {@see Data} subclass
- * type-hinted on the controller method or discovered via an indirection wrapper (e.g. a Domain
+ * type-hinted on the controller method or discovered via an indirection wrapper (e.g., a Domain
  * Action). Indirection base classes are configured via `config/openapi.php`
  * (`request_payload_indirection`) and injected through {@see PayloadParameterScanner}.
  */

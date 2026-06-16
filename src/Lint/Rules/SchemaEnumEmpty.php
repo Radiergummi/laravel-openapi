@@ -18,7 +18,7 @@ use function is_array;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
- * Reports schemas that declare an empty `enum` array, which makes the schema unsatisfiable — no
+ * Reports schemas that declare an empty `enum` array, which makes the schema unsatisfiable: no
  * value can ever be valid.
  */
 final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRuleVisitor
@@ -44,14 +44,11 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
     }
 
     /**
-     * Returns true only when the enum was explicitly set to an empty array.
-     * A null value means the key was absent entirely — not an error.
-     *
      * @param null|list<mixed>|mixed $enum
      */
     private function isEmptyEnum(mixed $enum): bool
     {
-        return is_array($enum) && $enum === [];
+        return $enum === [];
     }
 
     #[Override]

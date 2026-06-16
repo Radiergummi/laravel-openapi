@@ -25,7 +25,7 @@ use function sprintf;
  *
  * Defers (returns null) when the action carries no `#[FractalResponse]`. The
  * transformer's schema is wrapped in the envelope produced by
- * {@see FractalEnvelopeFactory} — its shape determined by the attribute's
+ * {@see FractalEnvelopeFactory}, with its shape determined by the attribute's
  * `paginated` / `collection` flags and `serializer:` (DataArray by default;
  * ArraySerializer and JsonApi modelled too).
  */

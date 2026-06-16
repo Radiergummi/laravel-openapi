@@ -11,14 +11,8 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use function sprintf;
 
 /**
- * The single fault-isolation seam for resolver invocations. Every registered resolver — bundled
- * or plugin-supplied — runs through {@see isolate()}, so "one bad route must not abort the run"
- * is decided here once instead of being re-implemented per resolver.
- *
- * Catches {@see Exception} only: the library failures worth tolerating (reflection, type-info,
- * phpdoc parsing) are all `Exception` subclasses, as is any exception a plugin resolver throws.
- * `Error`/`TypeError` — programming bugs in our own or a plugin's resolver code — propagate as
- * stack traces rather than disappearing into a silent "no result".
+ * Fault-isolation seam for resolver invocations: one failing route must not abort the run.
+ * Catches {@see Exception} only; `Error`/`TypeError` (programming bugs) propagate normally.
  *
  * @internal
  */
@@ -29,10 +23,6 @@ final readonly class ResolverFaultBoundary
     ) {}
 
     /**
-     * Runs the resolver callable, returning its result. On a thrown {@see Exception} the failure
-     * is logged with the resolver identity and route, and `null` is returned so the caller skips
-     * this resolver and continues.
-     *
      * @template T
      *
      * @param callable(): T $resolve

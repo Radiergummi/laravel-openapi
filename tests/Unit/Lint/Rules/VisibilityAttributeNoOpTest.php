@@ -24,7 +24,8 @@ function visibilityNoOpFindings(VisibilityMode $mode, string $method): array
 it('has the correct rule id and level', function (): void {
     $rule = new VisibilityAttributeNoOp(new VisibilityResolver(VisibilityMode::Public));
 
-    expect($rule->id())->toBe('visibility.attribute-no-op')
+    expect($rule->id())
+        ->toBe('visibility.attribute-no-op')
         ->and($rule->level())->toBe(2);
 });
 

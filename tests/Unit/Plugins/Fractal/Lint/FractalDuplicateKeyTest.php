@@ -36,12 +36,15 @@ it('flags a transformer with a name shared between #[TransformerField] and #[Tra
     $descriptor = ActionDescriptorFactory::forControllerMethod(DuplicateKeyController::class, 'duplicate');
 
     $rule = new FractalDuplicateKey();
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('fractal.duplicate-key')
         ->and($findings[0]->message)->toContain("'author'");
 });
@@ -50,10 +53,12 @@ it('does not flag a transformer with unique output keys', function (): void {
     $descriptor = ActionDescriptorFactory::forControllerMethod(DuplicateKeyController::class, 'unique');
 
     $rule = new FractalDuplicateKey();
-    $findings = iterator_to_array($rule->checkOperation(
-        OperationNodeFactory::forDescriptor($descriptor),
-        OperationNodeFactory::emptyContext(),
-    ));
+    $findings = iterator_to_array(
+        $rule->checkOperation(
+            OperationNodeFactory::forDescriptor($descriptor),
+            OperationNodeFactory::emptyContext(),
+        ),
+    );
 
     expect($findings)->toBe([]);
 });

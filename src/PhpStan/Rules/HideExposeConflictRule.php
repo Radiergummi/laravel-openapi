@@ -16,16 +16,10 @@ use Radiergummi\OpenApi\Attributes\Hide;
 use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 
 /**
- * Flags declarations that carry an *unconditional* `#[Hide]` together with an *unconditional*
- * `#[Expose]` — i.e. neither attribute uses `only` or `except`. That's an always-true contradiction
- * the runtime cannot reconcile no matter which environment it runs in.
+ * Flags unconditional `#[Hide]` + `#[Expose]` on the same target (neither uses `only`/`except`).
+ * Env-scoped pairs are not flagged here; the runtime lint rule owns that case.
  *
- * Env-scoped pairs (one or both carry `only`/`except`) are NOT flagged here: their resolution
- * depends on the active environment, which static analysis can't see. The runtime lint rule
- * `visibility.hide-expose-conflict` is environment-aware and owns that case.
- *
- * One service is registered per declaration node kind (FunctionLike / ClassLike) — the node type
- * is passed via constructor and returned from {@see getNodeType()}.
+ * One service is registered per declaration node kind; the node type is injected via constructor.
  *
  * @implements Rule<Node>
  */
@@ -81,14 +75,11 @@ final class HideExposeConflictRule implements Rule
     }
 
     /**
-     * Returns the first attribute in the list that has neither `only` nor `except` set, or null
-     * if every attribute is env-scoped. Env-scoped attributes are left to the runtime lint rule.
-     *
      * @param list<Node\Attribute> $attributes
      */
     private static function firstUnconditional(array $attributes): ?Node\Attribute
     {
-        return array_find($attributes, fn($attribute)
+        return array_find($attributes, fn(Node\Attribute $attribute): bool
             => !AttributeHelpers::argumentIsProvided($attribute, 'only')
             && !AttributeHelpers::argumentIsProvided($attribute, 'except'));
     }

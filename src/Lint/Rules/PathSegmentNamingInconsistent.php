@@ -21,12 +21,7 @@ use function str_starts_with;
 
 /**
  * Reports URL path segments that do not follow the configured naming convention.
- *
- * Only {@see IdentifierCase::Kebab} and {@see IdentifierCase::Snake} are meaningful for URL path
- * segments; other cases are accepted by the rule but are not recommended for REST APIs.
- *
- * The path URI is split on `/`. Empty segments and `{param}` placeholder segments (those beginning
- * with `{`) are skipped. One finding is emitted per operation listing all offending segments.
+ * Empty and `{param}` segments are skipped; one finding per operation lists all offenders.
  * Default: {@see IdentifierCase::Kebab}.
  */
 #[Scoped]
@@ -56,9 +51,7 @@ final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule im
                 continue;
             }
 
-            // File-extension carve-out: peel a short alphanumeric-lowercase tail (e.g. `openapi.yaml`,
-            // `feed.atom`) and validate only the head against the configured case. The 8-char cap keeps
-            // genuinely-misnamed segments like `foo.SomeMisuse` failing.
+            // Peel a short lowercase extension (e.g., `openapi.yaml`); the 8-char cap prevents misuse.
             $head = $segment;
 
             if (preg_match('/^(.+)\.([a-z0-9]{1,8})$/', $segment, $matches) === 1) {

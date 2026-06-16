@@ -63,10 +63,10 @@ it('removes the whole @OA\Get docblock from a controller method, leaving sibling
     expect($result['fixes'])->toBe(1)
         ->and($result['after'])
         // The redundant method's annotation is gone, but its signature and the sibling method's
-        // load-bearing annotation both survive.
+        // essential annotation both survive.
         ->not->toContain('/op-redundant')
         ->toContain('public function redundant(): PlainStructData')
-        ->toContain('/op-load-bearing')
+        ->toContain('/op-essential')
         ->toContain('Prose that lives only in the annotation');
 });
 

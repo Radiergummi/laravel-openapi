@@ -8,7 +8,7 @@ use Attribute;
 use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
 
 /**
- * Names the resource class an operation returns — used when the return type is too loose
+ * Names the resource class an operation returns, used when the return type is too loose
  * (`JsonResponse`, `AnonymousResourceCollection`, the `JsonResource` base). `collection: null`
  * lets the resolver infer cardinality. Method-level wins over class-level on conflict.
  */

@@ -17,7 +17,7 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Flags a `#[TransformerInclude]` declared with no `transformer` class — the included resource
+ * Flags a `#[TransformerInclude]` declared with no `transformer` class; the included resource
  * is emitted as an opaque `type: object`.
  */
 final readonly class FractalIncludeTransformerMissing implements Rule, OperationRule

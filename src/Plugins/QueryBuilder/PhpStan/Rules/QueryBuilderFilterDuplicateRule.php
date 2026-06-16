@@ -19,10 +19,10 @@ use function is_string;
 
 /**
  * Edit-time counterpart of the `query-builder.filter-duplicate` lint rule. Flags two or more
- * `#[AllowedFilter]` attributes on the same action sharing the same wire name — `OperationBuilder`
+ * `#[AllowedFilter]` attributes on the same action sharing the same wire name. `OperationBuilder`
  * dedups by name and silently keeps only the last, so the earlier declarations are lost.
  *
- * Names that don't resolve to a constant string are skipped — only statically comparable pairs are
+ * Names that don't resolve to a constant string are skipped; only statically comparable pairs are
  * flagged. The name is read from either the positional first argument (`#[AllowedFilter('status')]`,
  * the documented idiom) or the named `name:` argument.
  *
@@ -88,8 +88,7 @@ final class QueryBuilderFilterDuplicateRule implements Rule
 
     private static function resolveName(Node\Attribute $attribute, Scope $scope): ?string
     {
-        // `name` is the first constructor parameter and is idiomatically passed positionally, which
-        // AttributeHelpers does not resolve — fall back to the first unnamed argument.
+        // `name` is idiomatically positional; fall back to first unnamed argument.
         $argument = AttributeHelpers::getArgument($attribute, 'name')
             ?? self::firstPositionalArgument($attribute);
 

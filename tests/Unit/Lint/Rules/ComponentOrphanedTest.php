@@ -28,7 +28,9 @@ function componentOrphanedFindings(array $schemas, array $refsUsed): array
     if ($schemas !== []) {
         $props['components'] = new OA\Components([
             'schemas' => array_map(
-                static fn(string $name) => new OA\Schema(['schema' => $name, 'type' => 'object', '_context' => $context]),
+                static fn(string $name) => new OA\Schema(
+                    ['schema' => $name, 'type' => 'object', '_context' => $context],
+                ),
                 $schemas,
             ),
             '_context' => $context,
@@ -36,26 +38,30 @@ function componentOrphanedFindings(array $schemas, array $refsUsed): array
     }
 
     if ($refsUsed !== []) {
-        $props['paths'] = [new OA\PathItem([
-            'path' => '/test',
-            'get' => new OA\Get([
-                'operationId' => 'test.index',
-                'responses' => [new OA\Response([
-                    'response' => '200',
-                    'content' => array_map(
-                        static fn(string $ref) => new OA\MediaType([
-                            'mediaType' => 'application/json',
-                            'schema' => new OA\Schema(['ref' => $ref, '_context' => $context]),
+        $props['paths'] = [
+            new OA\PathItem([
+                'path' => '/test',
+                'get' => new OA\Get([
+                    'operationId' => 'test.index',
+                    'responses' => [
+                        new OA\Response([
+                            'response' => '200',
+                            'content' => array_map(
+                                static fn(string $ref) => new OA\MediaType([
+                                    'mediaType' => 'application/json',
+                                    'schema' => new OA\Schema(['ref' => $ref, '_context' => $context]),
+                                    '_context' => $context,
+                                ]),
+                                $refsUsed,
+                            ),
                             '_context' => $context,
                         ]),
-                        $refsUsed,
-                    ),
+                    ],
                     '_context' => $context,
-                ])],
+                ]),
                 '_context' => $context,
             ]),
-            '_context' => $context,
-        ])];
+        ];
     }
 
     $spec = new OA\OpenApi($props);
@@ -83,14 +89,16 @@ function componentOrphanedFindings(array $schemas, array $refsUsed): array
 it('has the correct rule id and level', function (): void {
     $rule = new ComponentOrphaned();
 
-    expect($rule->id())->toBe('component.orphaned')
+    expect($rule->id())
+        ->toBe('component.orphaned')
         ->and($rule->level())->toBe(3);
 });
 
 it('emits a finding for an unreferenced schema', function (): void {
     $findings = componentOrphanedFindings(schemas: ['User'], refsUsed: []);
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('component.orphaned')
         ->and($findings[0]->level)->toBe(3)
         ->and($findings[0]->message)->toContain('User')
@@ -105,7 +113,8 @@ it('emits findings for multiple orphaned schemas', function (): void {
 
     $orphanedNames = array_map(static fn($f) => $f->context['component'], $findings);
 
-    expect($findings)->toHaveCount(2)
+    expect($findings)
+        ->toHaveCount(2)
         ->and($orphanedNames)->toContain('Post')
         ->and($orphanedNames)->toContain('Comment');
 });
@@ -113,7 +122,8 @@ it('emits findings for multiple orphaned schemas', function (): void {
 it('includes the json pointer in the finding location', function (): void {
     $findings = componentOrphanedFindings(schemas: ['OrphanedSchema'], refsUsed: []);
 
-    expect($findings)->toHaveCount(1)
+    expect($findings)
+        ->toHaveCount(1)
         ->and($findings[0]->location->jsonPointer)->toBe('#/components/schemas/OrphanedSchema');
 });
 

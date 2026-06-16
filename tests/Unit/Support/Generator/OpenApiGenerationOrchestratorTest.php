@@ -30,9 +30,11 @@ class OrchestratorFileController extends Controller
 }
 
 it('generateAll returns one document per defined spec, keyed by spec name', function (): void {
-    config(['openapi.specs' => [
-        'v1' => ['match' => ['prefix' => 'api/v1/*']],
-    ]]);
+    config([
+        'openapi.specs' => [
+            'v1' => ['match' => ['prefix' => 'api/v1/*']],
+        ],
+    ]);
 
     app()->forgetScopedInstances();
 
@@ -46,15 +48,18 @@ it('generateAll returns one document per defined spec, keyed by spec name', func
 });
 
 it('generateOne returns the document for the named spec with its resolved info', function (): void {
-    config(['openapi.specs' => [
-        'v1' => ['info' => ['title' => 'V1 API']],
-    ]]);
+    config([
+        'openapi.specs' => [
+            'v1' => ['info' => ['title' => 'V1 API']],
+        ],
+    ]);
 
     app()->forgetScopedInstances();
 
     $document = app(OpenApiGenerationOrchestrator::class)->generateOne('v1', 'testing');
 
-    expect($document)->toBeInstanceOf(OA\OpenApi::class)
+    expect($document)
+        ->toBeInstanceOf(OA\OpenApi::class)
         ->and($document->info->title)->toBe('V1 API');
 });
 
@@ -79,10 +84,12 @@ it('generateAll produces specs with disjoint component schemas (no cross-contami
     Route::post('/multispec/v1/simple', [OrchestratorSimpleController::class, 'store']);
     Route::post('/multispec/v2/upload', [OrchestratorFileController::class, 'upload']);
 
-    config(['openapi.specs' => [
-        'v1' => ['match' => ['prefix' => 'multispec/v1/*']],
-        'v2' => ['match' => ['prefix' => 'multispec/v2/*']],
-    ]]);
+    config([
+        'openapi.specs' => [
+            'v1' => ['match' => ['prefix' => 'multispec/v1/*']],
+            'v2' => ['match' => ['prefix' => 'multispec/v2/*']],
+        ],
+    ]);
 
     app()->forgetScopedInstances();
 
@@ -91,8 +98,10 @@ it('generateAll produces specs with disjoint component schemas (no cross-contami
     $v1Schemas = array_keys(Yaml::parse($documents['v1']->toYaml())['components']['schemas'] ?? []);
     $v2Schemas = array_keys(Yaml::parse($documents['v2']->toYaml())['components']['schemas'] ?? []);
 
-    expect($v1Schemas)->toContain('SimpleFormRequest')
-        ->and($v1Schemas)->not->toContain('FileUploadFormRequest')
+    expect($v1Schemas)
+        ->toContain('SimpleFormRequest')
+        ->and($v1Schemas)->not
+        ->toContain('FileUploadFormRequest')
         ->and($v2Schemas)->toContain('FileUploadFormRequest')
         ->and($v2Schemas)->not->toContain('SimpleFormRequest');
 });

@@ -17,24 +17,11 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
 
 /**
- * Hand-maintained stock contract for Fortify's headless core-auth routes, keyed by route name.
+ * Hand-maintained contract table for Fortify's headless core-auth routes, keyed by route name.
  *
- * Route names and response bodies were reconciled against laravel/fortify v1.37 source
- * (routes/routes.php + src/Http/Responses/*). The body-bearing endpoints are the `*.store`
- * POST routes — `login` / `register` / `password.confirm` (without `.store`) are GET *view*
- * routes that a headless API typically disables, so the table keys on the action routes:
- * `login.store`, `register.store`, `password.confirm.store`.
- *
- * Field names are read from Fortify's own Tier-0 accessors rather than hardcoded:
- * {@see Fortify::username()} (defaults to `email`) names the login identifier, and
- * {@see Fortify::email()} names the email field on register/reset/profile — so the body reflects
- * the app's `fortify.username` / `fortify.email` config. Password fields stay a plain `string` with
- * `format: password`: the active constraints live in `Password::default()` (and the published app
- * stubs), whose values are not statically readable here without reflecting protected state, so the
- * stock shape is documented and the specifics are left to runtime validation.
- *
- * Public component names ({@see FortifyContractEntry::$requestSchemaName}) are clean and
- * framework-agnostic — they must never leak Fortify/PHP/namespace internals into the document.
+ * Field names are read from {@see Fortify::username()} and {@see Fortify::email()} so the body
+ * reflects the app config. Password fields are typed `string/format:password` because
+ * `Password::default()` constraints are not statically readable.
  *
  * @internal
  */
@@ -46,7 +33,7 @@ final class FortifyContractTable
         $email = Fortify::email();
 
         return match ($routeName) {
-            // POST /login — JSON returns {two_factor: false} at 200 (LoginResponse).
+            // POST /login: JSON returns {two_factor: false} at 200 (LoginResponse).
             'login.store' => new FortifyContractEntry(
                 requestSchema: self::object([
                     $username => ['type' => 'string'],
@@ -58,7 +45,7 @@ final class FortifyContractTable
                 successStatus: 200,
                 successSchema: self::object(['two_factor' => ['type' => 'boolean']]),
             ),
-            // POST /logout — JSON returns '' at 204 (LogoutResponse).
+            // POST /logout: JSON returns '' at 204 (LogoutResponse).
             'logout' => new FortifyContractEntry(
                 requestSchema: null,
                 requestSchemaName: null,
@@ -66,7 +53,7 @@ final class FortifyContractTable
                 successStatus: 204,
                 successSchema: null,
             ),
-            // POST /register — JSON returns '' at 201 (RegisterResponse).
+            // POST /register: JSON returns '' at 201 (RegisterResponse).
             'register.store' => new FortifyContractEntry(
                 requestSchema: self::object([
                     'name' => ['type' => 'string'],
@@ -79,7 +66,7 @@ final class FortifyContractTable
                 successStatus: 201,
                 successSchema: null,
             ),
-            // POST /forgot-password — JSON returns {message} at 200.
+            // POST /forgot-password: JSON returns {message} at 200.
             'password.email' => new FortifyContractEntry(
                 requestSchema: self::object([
                     $email => ['type' => 'string', 'format' => 'email'],
@@ -89,7 +76,7 @@ final class FortifyContractTable
                 successStatus: 200,
                 successSchema: self::object(['message' => ['type' => 'string']]),
             ),
-            // POST /reset-password — JSON returns {message} at 200.
+            // POST /reset-password: JSON returns {message} at 200.
             'password.update' => new FortifyContractEntry(
                 requestSchema: self::object([
                     'token' => ['type' => 'string'],
@@ -102,7 +89,7 @@ final class FortifyContractTable
                 successStatus: 200,
                 successSchema: self::object(['message' => ['type' => 'string']]),
             ),
-            // POST /user/confirm-password — JSON returns '' at 201 (PasswordConfirmedResponse).
+            // POST /user/confirm-password: JSON returns '' at 201 (PasswordConfirmedResponse).
             'password.confirm.store' => new FortifyContractEntry(
                 requestSchema: self::object([
                     'password' => ['type' => 'string', 'format' => 'password'],
@@ -112,7 +99,7 @@ final class FortifyContractTable
                 successStatus: 201,
                 successSchema: null,
             ),
-            // GET /user/confirmed-password-status — controller returns {confirmed} directly (no contract).
+            // GET /user/confirmed-password-status: controller returns {confirmed} directly (no contract).
             'password.confirmation' => new FortifyContractEntry(
                 requestSchema: null,
                 requestSchemaName: null,
@@ -120,7 +107,7 @@ final class FortifyContractTable
                 successStatus: 200,
                 successSchema: self::object(['confirmed' => ['type' => 'boolean']]),
             ),
-            // PUT /user/password — JSON returns '' at 200 (PasswordUpdateResponse).
+            // PUT /user/password: JSON returns '' at 200 (PasswordUpdateResponse).
             'user-password.update' => new FortifyContractEntry(
                 requestSchema: self::object([
                     'current_password' => ['type' => 'string', 'format' => 'password'],
@@ -132,7 +119,7 @@ final class FortifyContractTable
                 successStatus: 200,
                 successSchema: null,
             ),
-            // PUT /user/profile-information — JSON returns '' at 200 (ProfileInformationUpdatedResponse).
+            // PUT /user/profile-information: JSON returns '' at 200 (ProfileInformationUpdatedResponse).
             'user-profile-information.update' => new FortifyContractEntry(
                 requestSchema: self::object([
                     'name' => ['type' => 'string'],

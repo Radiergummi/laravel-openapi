@@ -13,6 +13,9 @@ use Radiergummi\OpenApi\Lint\Visitors\LinkRule as LinkRuleVisitor;
 
 use function sprintf;
 
+/**
+ * Reports links whose `operationId` references an operation that does not exist in the document.
+ */
 final class LinkInvalidOperation implements Rule, LinkRuleVisitor
 {
     /**

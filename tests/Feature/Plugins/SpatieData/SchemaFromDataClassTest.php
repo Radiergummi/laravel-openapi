@@ -67,7 +67,8 @@ it('applies #[RequestField] description, example and maxLength to schema propert
 
     $props = $spec['components']['schemas']['PropertyFixtureData']['properties'];
 
-    expect($props)->toHaveKeys(['name', 'callbackUrl', 'limit'])
+    expect($props)
+        ->toHaveKeys(['name', 'callbackUrl', 'limit'])
         ->and($props['name']['description'])->toBe('Display name shown in lists.')
         ->and($props['name']['example'])->toBe('Aerospace Q1')
         ->and($props['name']['maxLength'])->toBe(250)
@@ -86,7 +87,8 @@ it('leaves properties without #[RequestField] description-free', function (): vo
     // No authoring annotation means no description; the Faker example-synthesis pass may still
     // populate an example slot from the property's PHP type, since that is a non-authored
     // fallback applied uniformly across FormRequests and Data classes.
-    expect($props['limit']['type'])->toBe('integer')
+    expect($props['limit']['type'])
+        ->toBe('integer')
         ->and($props['limit'])->not->toHaveKey('description');
 });
 
@@ -96,8 +98,8 @@ it('leaves properties without #[RequestField] description-free', function (): vo
 
 dataset('map input name cases', [
     'literal wire name from attribute string' => ['literal_name', 'literalName'],
-    'NameMapper class (SnakeCaseMapper)'      => ['mapper_name', 'mapperName'],
-    'unmapped property keeps its PHP name'    => ['unmapped', null],
+    'NameMapper class (SnakeCaseMapper)' => ['mapper_name', 'mapperName'],
+    'unmapped property keeps its PHP name' => ['unmapped', null],
 ]);
 
 it('renders schema property keys via #[MapInputName]', function (string $present, ?string $absent): void {
@@ -121,11 +123,14 @@ it('uses wire names in required[] (Optional union drops the field)', function ()
 
     $required = $spec['components']['schemas']['MapInputNameFixtureData']['required'] ?? [];
 
-    expect($required)->toContain('literal_name')
+    expect($required)
+        ->toContain('literal_name')
         ->and($required)->toContain('mapper_name')
         ->and($required)->toContain('unmapped')
-        ->and($required)->not->toContain('optional_literal')
-        ->and($required)->not->toContain('literalName')
+        ->and($required)->not
+        ->toContain('optional_literal')
+        ->and($required)->not
+        ->toContain('literalName')
         ->and($required)->not->toContain('mapperName');
 });
 
@@ -160,16 +165,18 @@ it('disambiguates same-basename Data classes across namespaces (OAPI-008)', func
 
     expect($keys)->toContain('SelfRefData');
 
-    $disambiguated = array_values(array_filter(
-        $keys,
-        static fn(string $key): bool => $key !== 'SelfRefData' && str_contains($key, 'SelfRefData'),
-    ));
+    $disambiguated = array_values(
+        array_filter(
+            $keys,
+            static fn(string $key): bool => $key !== 'SelfRefData' && str_contains($key, 'SelfRefData'),
+        ),
+    );
 
     expect($disambiguated)->toHaveCount(1);
 
     // The second-registered schema's `child` must reference the disambiguated key, not the basename.
     $betaSchemaKey = $disambiguated[0];
-    $betaProps     = $spec['components']['schemas'][$betaSchemaKey]['properties'];
+    $betaProps = $spec['components']['schemas'][$betaSchemaKey]['properties'];
 
     expect($betaProps)->toHaveKey('child');
 
@@ -187,7 +194,8 @@ it('maps #[Summary] to schema title and #[Description] to schema description', f
 
     $schema = generateSpec()['components']['schemas']['SchemaTitleDescriptionFixtureData'];
 
-    expect($schema['title'])->toBe('Fixture Title')
+    expect($schema['title'])
+        ->toBe('Fixture Title')
         ->and($schema['description'])->toBe('Fixture data class for schema-level title/description.');
 });
 
@@ -218,7 +226,8 @@ it('keeps a conditional field in properties but removes it from required[]', fun
 
     $schema = $spec['components']['schemas']['ConditionalResponseFieldFixtureData'];
 
-    expect($schema['properties'])->toHaveKey('conditionalField')
+    expect($schema['properties'])
+        ->toHaveKey('conditionalField')
         ->and($schema['required'] ?? [])->not->toContain('conditionalField');
 });
 
@@ -229,7 +238,8 @@ it('does not remove non-conditional fields from required[]', function (): void {
 
     $required = $spec['components']['schemas']['ConditionalResponseFieldFixtureData']['required'] ?? [];
 
-    expect($required)->toContain('id')
+    expect($required)
+        ->toContain('id')
         ->and($required)->toContain('alwaysRequired');
 });
 
@@ -242,8 +252,10 @@ it('emits additionalProperties with a $ref for a string-keyed Data-class map', f
 
     $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
 
-    expect($props['addressMap']['type'])->toBe('object')
-        ->and($props['addressMap'])->not->toHaveKey('items')
+    expect($props['addressMap']['type'])
+        ->toBe('object')
+        ->and($props['addressMap'])->not
+        ->toHaveKey('items')
         ->and($props['addressMap']['additionalProperties']['$ref'])
         ->toBe('#/components/schemas/AddressFixtureData');
 });
@@ -253,7 +265,8 @@ it('emits additionalProperties with a scalar value schema for a string-keyed sca
 
     $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
 
-    expect($props['scalarMap']['type'])->toBe('object')
+    expect($props['scalarMap']['type'])
+        ->toBe('object')
         ->and($props['scalarMap']['additionalProperties']['type'])->toBe('string');
 });
 
@@ -262,7 +275,8 @@ it('emits permissive additionalProperties for a string-keyed map with an opaque 
 
     $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
 
-    expect($props['opaqueMap']['type'])->toBe('object')
+    expect($props['opaqueMap']['type'])
+        ->toBe('object')
         ->and($props['opaqueMap']['additionalProperties'])->toBeTrue();
 });
 
@@ -274,7 +288,8 @@ it('emits a nested map for array<string, array<string, Data>>', function (): voi
     $outer = $props['nestedMap'];
     $inner = $outer['additionalProperties'];
 
-    expect($outer['type'])->toBe('object')
+    expect($outer['type'])
+        ->toBe('object')
         ->and($inner['type'])->toBe('object')
         ->and($inner['additionalProperties']['$ref'])
         ->toBe('#/components/schemas/AddressFixtureData');
@@ -286,10 +301,11 @@ it('preserves a nullable map value as oneOf [$ref, null] (full fidelity, not deg
     $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
 
     $value = $props['nullableValueMap']['additionalProperties'];
-    $refs  = array_column($value['oneOf'], '$ref');
+    $refs = array_column($value['oneOf'], '$ref');
     $types = array_column($value['oneOf'], 'type');
 
-    expect($props['nullableValueMap']['type'])->toBe('object')
+    expect($props['nullableValueMap']['type'])
+        ->toBe('object')
         ->and($refs)->toContain('#/components/schemas/AddressFixtureData')
         ->and($types)->toContain('null');
 });
@@ -301,7 +317,8 @@ it('preserves a union map value as oneOf of the member schemas', function (): vo
 
     $types = array_column($props['unionValueMap']['additionalProperties']['oneOf'], 'type');
 
-    expect($props['unionValueMap']['type'])->toBe('object')
+    expect($props['unionValueMap']['type'])
+        ->toBe('object')
         ->and($types)->toContain('integer')
         ->and($types)->toContain('string');
 });
@@ -311,11 +328,14 @@ it('keeps int-keyed, list and bare-array properties as plain arrays (not maps)',
 
     $props = generateSpec()['components']['schemas']['MapPropertiesFixtureData']['properties'];
 
-    expect($props['addressList']['type'])->toBe('array')
-        ->and($props['addressList'])->not->toHaveKey('additionalProperties')
+    expect($props['addressList']['type'])
+        ->toBe('array')
+        ->and($props['addressList'])->not
+        ->toHaveKey('additionalProperties')
         ->and($props['addressList']['items']['$ref'])->toBe('#/components/schemas/AddressFixtureData')
         ->and($props['indexedList']['type'])->toBe('array')
-        ->and($props['indexedList'])->not->toHaveKey('additionalProperties')
+        ->and($props['indexedList'])->not
+        ->toHaveKey('additionalProperties')
         ->and($props['indexedList']['items']['$ref'])->toBe('#/components/schemas/AddressFixtureData')
         ->and($props['bareArray']['type'])->toBe('array')
         ->and($props['bareArray'])->not->toHaveKey('additionalProperties');

@@ -53,7 +53,7 @@ PR diff), fail CI when the committed copy is stale:
       - run: git diff --exit-code openapi.yaml
 ```
 
-`git diff --exit-code` exits non-zero when regeneration changed the file, i.e. someone changed
+`git diff --exit-code` exits non-zero when regeneration changed the file, i.e., someone changed
 the API without regenerating. For a multi-spec app, generate each spec to its own path (pass
 the spec name positionally; `--output` requires a single target).
 

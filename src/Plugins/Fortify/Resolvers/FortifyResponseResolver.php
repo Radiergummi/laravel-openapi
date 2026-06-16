@@ -52,7 +52,7 @@ final readonly class FortifyResponseResolver implements PrimaryResponseResolver
         $status = $entry->successStatus;
         $description = HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status);
 
-        // Emit the stock body only when we have one AND the governing contract is unmodified.
+        // Emit a body only when one is defined and the app hasn't rebound the governing contract.
         $emitBody = $entry->successSchema !== null
             && $this->customization->isStock($entry->responseContract);
 

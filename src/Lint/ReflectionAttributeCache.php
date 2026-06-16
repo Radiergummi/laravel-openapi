@@ -11,20 +11,9 @@ use ReflectionFunctionAbstract;
 use function spl_object_id;
 
 /**
- * Per-walk cache for {@see ReflectionAttribute}s of arbitrary reflectors. Reads
- * `$reflector->getAttributes()` once per reflector and buckets the result by attribute FQCN — every
- * caller that asks for a specific attribute class then reads from the bucket rather than walking
- * the attribute list again.
- *
- * Sibling lint rules that all key off the same target attribute (e.g. the three Fractal rules that
- * read `#[FractalResponse]` off the same method, or the two resource rules that walk
- * `#[ResourceField]` on the same resource class) share a single bucket build through this cache.
- *
- * Construction of `ReflectionClass` from a class-string is also memoised, so sibling rules can pass
- * a class FQCN and share the same {@see ReflectionClass} instance.
- *
- * The cache is scoped to a single {@see LintContext} — created once per walk, discarded with
- * the context.
+ * Per-walk cache for {@see ReflectionAttribute}s. Buckets `getAttributes()` results by FQCN so
+ * sibling rules reading the same attribute on the same reflector pay for the call only once.
+ * {@see ReflectionClass} construction is also memoised. Scoped to a single {@see LintContext}.
  */
 final class ReflectionAttributeCache
 {
@@ -39,9 +28,6 @@ final class ReflectionAttributeCache
     private array $classReflectors = [];
 
     /**
-     * Same as {@see attributes()} but takes a class FQCN — the corresponding {@see ReflectionClass}
-     * is built once and reused on subsequent lookups.
-     *
      * @template T of object
      *
      * @param class-string    $class
@@ -68,9 +54,7 @@ final class ReflectionAttributeCache
         ReflectionClass|ReflectionFunctionAbstract $reflector,
         string $attribute,
     ): array {
-        // Bucket entries indexed by $attribute hold `ReflectionAttribute<$attribute>` by
-        // construction; PHPStan cannot follow the per-key narrowing through a single array, so the
-        // covariance is asserted here.
+        // PHPStan cannot narrow per-key covariance through a single array; assert it here.
         /** @var list<ReflectionAttribute<T>> $attributes */
         $attributes = $this->bucketFor($reflector)[$attribute] ?? [];
 

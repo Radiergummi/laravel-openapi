@@ -14,7 +14,8 @@ it('builds an ActionDescriptor with sensible defaults from a controller and meth
         method: 'callback',
     );
 
-    expect($descriptor)->toBeInstanceOf(ActionDescriptor::class)
+    expect($descriptor)
+        ->toBeInstanceOf(ActionDescriptor::class)
         ->and($descriptor->controller?->getName())->toBe(RouteBoundFixtureController::class)
         ->and($descriptor->method?->getName())->toBe('callback')
         ->and($descriptor->summary)->toBeNull()
@@ -30,7 +31,8 @@ it('threads through a route with the supplied URI and methods', function (): voi
         httpMethods: ['POST', 'PUT'],
     );
 
-    expect($descriptor->route->uri())->toBe('widgets/{id}')
+    expect($descriptor->route->uri())
+        ->toBe('widgets/{id}')
         ->and($descriptor->route->methods())->toContain('POST')
         ->and($descriptor->route->methods())->toContain('PUT');
 });
@@ -44,7 +46,8 @@ it('accepts summary, description, and throws overrides', function (): void {
         throws: [RuntimeException::class, LogicException::class],
     );
 
-    expect($descriptor->summary)->toBe('Trigger the callback')
+    expect($descriptor->summary)
+        ->toBe('Trigger the callback')
         ->and($descriptor->description)->toBe('Long-form description of the callback action.')
         ->and($descriptor->throws)->toBe([RuntimeException::class, LogicException::class]);
 });

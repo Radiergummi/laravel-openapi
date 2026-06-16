@@ -85,12 +85,10 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
      */
     private function descriptionDocumentsValues(string $description, array $enumValues): bool
     {
-        // Check if the description contains a bullet/list pattern
         if (preg_match(self::LIST_PATTERN, $description) === 1) {
             return true;
         }
 
-        // Check if the description mentions at least one enum value
         return array_any(
             $enumValues,
             fn(mixed $value): bool => str_contains($description, (string) $value),

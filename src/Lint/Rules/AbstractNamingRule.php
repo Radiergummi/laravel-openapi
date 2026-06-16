@@ -16,11 +16,8 @@ use function sprintf;
 /**
  * Base class for naming-convention lint rules.
  *
- * Subclasses must supply a concrete {@see Rule::id()} implementation and their own visitor
- * method(s). The constructor accepts either an {@see IdentifierCase} enum directly (the shape used
- * by hand-written tests) or the raw string value coming from `config('openapi.lint.style.*')`;
- * container-injected subclasses pass the config string through and
- * {@see IdentifierCase::fromConfig()} normalises it.
+ * Accepts either an {@see IdentifierCase} enum or the raw config string from
+ * `openapi.lint.style.*`; {@see IdentifierCase::fromConfig()} normalises both forms.
  */
 abstract readonly class AbstractNamingRule implements Rule
 {
@@ -45,7 +42,7 @@ abstract readonly class AbstractNamingRule implements Rule
     abstract public function description(): string;
 
     /**
-     * Returns true when the given name conforms to the configured case.
+     * Whether the given name conforms to the configured case.
      */
     protected function conforms(string $name): bool
     {
@@ -53,14 +50,14 @@ abstract readonly class AbstractNamingRule implements Rule
     }
 
     /**
-     * Returns a human-readable fix hint for the given noun phrase.
+     * Human-readable fix hint for the given noun phrase.
      *
-     * @param string $noun e.g. "field names", "path segments", "operationId"
+     * @param string $noun e.g., "field names", "path segments", "operationId"
      */
     protected function fixHint(string $noun): string
     {
         return sprintf(
-            'Use %s for %s (e.g. %s).',
+            'Use %s for %s (e.g., %s).',
             $this->case->label(),
             $noun,
             $this->case->example(),

@@ -8,5 +8,8 @@ use Illuminate\Routing\Route;
 
 interface RouteFilter
 {
+    /**
+     * Returns true when the given route should be excluded from spec generation.
+     */
     public function shouldSkip(Route $route): bool;
 }

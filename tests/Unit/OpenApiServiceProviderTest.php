@@ -21,11 +21,11 @@ use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 uses()->group('openapi');
 
 dataset('scoped_bindings', [
-    OpenApiGenerator::class       => [OpenApiGenerator::class],
-    OperationBuilder::class       => [OperationBuilder::class],
+    OpenApiGenerator::class => [OpenApiGenerator::class],
+    OperationBuilder::class => [OperationBuilder::class],
     ComponentSchemaRegistry::class => [ComponentSchemaRegistry::class],
-    SecurityExtractor::class      => [SecurityExtractor::class],
-    ReturnTypeExtractor::class    => [ReturnTypeExtractor::class],
+    SecurityExtractor::class => [SecurityExtractor::class],
+    ReturnTypeExtractor::class => [ReturnTypeExtractor::class],
 ]);
 
 it('registers key pipeline services as scoped bindings', function (string $class): void {

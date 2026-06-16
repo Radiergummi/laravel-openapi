@@ -15,19 +15,17 @@ use Radiergummi\OpenApi\Plugins\Core\Support\RequestFieldObjectBuilder;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
+use ReflectionAttribute;
 use ReflectionMethod;
 
 use function array_map;
 use function ucfirst;
 
 /**
- * Core request-schema resolver
+ * Builds the request body from `#[RequestField]` attributes on a controller action.
  *
- * Builds the request body from method-level `#[RequestField]` attributes stacked on a controller
- * action — the escape hatch for actions that validate outside a FormRequest/Data class (e.g. in an
- * Action/service). Each `#[RequestField]` becomes one property; `required: true` fields populate the
- * schema's `required` list. Composes with `#[RequestBody]` for the media type. Registered ahead of
- * the FormRequest resolver, so an explicit author declaration wins over a type-hinted FormRequest.
+ * Escape hatch for actions that validate outside a FormRequest/Data class. Registered before
+ * the FormRequest resolver so explicit attribute declarations win.
  */
 #[Scoped]
 final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaResolver
@@ -53,7 +51,8 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
         }
 
         $fields = array_map(
-            static fn($attribute): RequestField => $attribute->newInstance(),
+            /** @param ReflectionAttribute<RequestField> $attribute */
+            static fn(ReflectionAttribute $attribute): RequestField => $attribute->newInstance(),
             $attributes,
         );
 
@@ -79,11 +78,8 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
     }
 
     /**
-     * Builds a namespace-qualified, class-like name for the synthetic request-body component
-     * (`{ControllerNamespace}\{ControllerShortName}{Method}Request`) and routes it through
-     * {@see ComponentSchemaRegistry::reserveKey()}. The bare basename is preferred, so the
-     * common case stays byte-stable; only when two same-short-name controllers in different
-     * namespaces collide does the registry disambiguate with a namespace segment.
+     * Builds a synthetic `{Namespace}\{ControllerShortName}{Method}Request` name for
+     * {@see ComponentSchemaRegistry::reserveKey()}.
      */
     private function syntheticName(ReflectionMethod $method): string
     {

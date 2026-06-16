@@ -136,7 +136,7 @@ like a single nested `type:`:
 class ProjectResource extends JsonResource { … }
 ```
 
-A scalar `items` (e.g. `items: 'string'`) is unchanged — it stays
+A scalar `items` (e.g., `items: 'string'`) is unchanged — it stays
 `items: { type: string }`. An `items` class-string that no resolver recognises
 degrades to a permissive `items: { type: object }`.
 
@@ -628,10 +628,10 @@ Matched purely by **route name** (the body-bearing actions — `login.store`,
 `user-profile-information.update`). For each matched route it emits:
 
 - **The stock request body** — always. The documented validation rules become a JSON
-  object schema (e.g. login → `email` + `password` + optional `remember`).
+  object schema (e.g., login → `email` + `password` + optional `remember`).
 - **The stock success response** — *only when the route's Fortify response contract is
   unmodified*. The plugin inspects the container binding for the governing contract
-  (e.g. `LoginResponse`): if it still maps to a `Laravel\Fortify\…` class, the stock
+  (e.g., `LoginResponse`): if it still maps to a `Laravel\Fortify\…` class, the stock
   body and status are emitted; if the app has rebound it to a custom response, the body
   is unknowable, so the plugin emits the **status code only** — never a possibly-wrong
   body. A binding it cannot read statically (a closure that constructs the response

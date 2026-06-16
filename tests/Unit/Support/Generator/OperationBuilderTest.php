@@ -25,11 +25,14 @@ function buildOperation(string $method, array $tags = []): OperationDescriptor
 {
     Route::get('/op-builder/' . $method, [AuthoringFixtureController::class, $method]);
 
-    $descriptors = array_values(array_filter(
-        iterator_to_array(app(RouteIntrospector::class)->discover(), false),
-        static fn($d): bool => $d->method?->getName() === $method
-            && $d->controller?->getName() === AuthoringFixtureController::class,
-    ));
+    $descriptors = array_values(
+        array_filter(
+            iterator_to_array(app(RouteIntrospector::class)->discover(), false),
+            static fn($d): bool
+                => $d->method?->getName() === $method
+                && $d->controller?->getName() === AuthoringFixtureController::class,
+        ),
+    );
 
     expect($descriptors)->toHaveCount(1);
 
@@ -43,9 +46,11 @@ function buildOperation(string $method, array $tags = []): OperationDescriptor
 it('builds a baseline OperationDescriptor with a default 200 response', function (): void {
     $op = buildOperation('publicAction', ['Widgets']);
 
-    expect($op)->toBeInstanceOf(OperationDescriptor::class)
+    expect($op)
+        ->toBeInstanceOf(OperationDescriptor::class)
         ->and($op->tags)->toBe(['Widgets'])
-        ->and($op->responses)->not->toBeEmpty()
+        ->and($op->responses)->not
+        ->toBeEmpty()
         ->and($op->deprecated)->toBeFalse()
         ->and($op->responses[0]->response)->toBe('200');
 });
@@ -55,21 +60,24 @@ it('uses an explicit #[Response(status: 201)] as the primary response', function
 
     $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $op->responses);
 
-    expect($statuses)->toContain('201')
+    expect($statuses)
+        ->toContain('201')
         ->and($statuses)->not->toContain('200');
 });
 
 it('marks an operation deprecated from a @deprecated PHPDoc tag', function (): void {
     $op = buildOperation('deprecatedViaDocBlockAction');
 
-    expect($op->deprecated)->toBeTrue()
+    expect($op->deprecated)
+        ->toBeTrue()
         ->and($op->description)->toContain('**Deprecated:** Use createdResponseAction() instead.');
 });
 
 it('lets a #[Deprecated] attribute win over the @deprecated PHPDoc tag', function (): void {
     $op = buildOperation('deprecatedViaAttributeAndDocBlockAction');
 
-    expect($op->deprecated)->toBeTrue()
+    expect($op->deprecated)
+        ->toBeTrue()
         ->and($op->description)->toContain('**Deprecated:** Attribute reason.')
         ->and($op->description)->not->toContain('Doc reason.');
 });
@@ -79,7 +87,8 @@ it('merges multiple 2xx #[Response] attributes: first primary, rest additional',
 
     $statuses = array_map(static fn(OA\Response $r): string => (string) $r->response, $op->responses);
 
-    expect($statuses)->toContain('201')
+    expect($statuses)
+        ->toContain('201')
         ->and($statuses)->toContain('202')
         ->and($statuses)->not->toContain('200');
 });
@@ -87,22 +96,26 @@ it('merges multiple 2xx #[Response] attributes: first primary, rest additional',
 it('emits header parameters from #[Header] attributes', function (): void {
     $op = buildOperation('headeredAction');
 
-    $headerNames = array_values(array_map(
-        static fn(OA\Parameter $p): string => (string) $p->name,
-        array_filter(
-            $op->parameters,
-            static fn(OA\Parameter $p): bool => $p->in === 'header',
+    $headerNames = array_values(
+        array_map(
+            static fn(OA\Parameter $p): string => (string) $p->name,
+            array_filter(
+                $op->parameters,
+                static fn(OA\Parameter $p): bool => $p->in === 'header',
+            ),
         ),
-    ));
+    );
 
-    expect($headerNames)->toContain('X-Tenant-Id')
+    expect($headerNames)
+        ->toContain('X-Tenant-Id')
         ->and($headerNames)->toContain('Idempotency-Key');
 });
 
 it('populates externalDocs from #[ExternalDocs]', function (): void {
     $op = buildOperation('withExternalDocsAction');
 
-    expect($op->externalDocs)->not->toBeNull()
+    expect($op->externalDocs)->not
+        ->toBeNull()
         ->and($op->externalDocs?->url)->toBe('https://notion.so/runbook');
 });
 
