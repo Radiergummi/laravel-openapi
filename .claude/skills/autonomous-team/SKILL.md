@@ -31,7 +31,7 @@ Common forms (combine as needed):
 - **Dry-run / supervised** — *"stop before the first merge"* → take PRs all the way to green but
   escalate (label `agent:needs-human`) instead of auto-merging, so the human inspects first.
 
-Echo the interpreted directive back as the first line of your run summary so it's on record.
+Echo the interpreted directive back as the first line of your run summary, so it's on record.
 Anything not covered by a directive falls back to the defaults below.
 
 ## Prime directives
