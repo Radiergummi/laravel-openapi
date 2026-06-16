@@ -69,22 +69,16 @@ final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
     }
 
     /**
-     * Collect names of required parameters (path and query) from the target operation node.
-     *
-     * Path parameters are always required by the OpenAPI spec.
-     *
      * @return list<string>
      */
     private function collectRequiredNames(OperationNode $targetOperation): array
     {
         $names = [];
 
-        // Path parameters are always required
         foreach ($targetOperation->parameters as $param) {
             $names[] = $param->name;
         }
 
-        // Query parameters are only required if explicitly marked
         foreach ($targetOperation->queryParameters as $parameter) {
             if ($parameter->required) {
                 $names[] = $parameter->name;

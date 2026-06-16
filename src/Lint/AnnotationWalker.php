@@ -78,10 +78,7 @@ final class AnnotationWalker
     }
 
     /**
-     * Collect all component names defined in `#/components/…`, keyed by component type value.
-     *
-     * PathItems is skipped — it is not a real component type but an inline callback
-     * construct and would cause warnings if resolved from `$components`.
+     * Collect all component names defined in `#/components/…`, keyed by component type.
      *
      * @return array<string, list<string>>
      */
@@ -155,8 +152,7 @@ final class AnnotationWalker
             ComponentType::Callbacks => $item instanceof OA\PathItem && is_defined($item->path)
                 ? $item->path
                 : null,
-            // PathItems is not a named component type; it represents inline callback constructs
-            // and has no extractable string name in the components map.
+            // PathItems represents inline callback constructs, not named components.
             ComponentType::PathItems => null,
         };
     }

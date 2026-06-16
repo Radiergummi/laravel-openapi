@@ -12,18 +12,17 @@ use function str_contains;
 use function str_starts_with;
 
 /**
- * How an authored `@OA` annotation was written — as `#[OA\*]` PHP attributes or as an `@OA` PHPDoc
- * block. The migration fixers need this to pick the right edit: attributes via the AST, docblock
- * blocks via line-based comment surgery.
+ * Whether a `@OA` annotation was written as a `#[OA\*]` PHP attribute or an `@OA` PHPDoc block.
+ * Migration fixers use this to pick the right edit strategy.
  *
  * @internal
  */
 enum AuthoredAnnotationShape: string
 {
-    /** swagger-php's PHP-attribute namespace (`#[OA\Schema]` etc.), distinct from `@OA` docblocks. */
+    /** swagger-php PHP-attribute namespace (`#[OA\Schema]` etc.). */
     public const string ATTRIBUTE_NAMESPACE = 'OpenApi\\Attributes\\';
 
-    /** Finding-context key a rule stores the detected shape under, for its fixer to read back. */
+    /** Finding-context key used to pass the detected shape from a rule to its fixer. */
     public const string FINDING_CONTEXT_KEY = 'oaAnnotationShape';
 
     case Attribute = 'attribute';
@@ -31,9 +30,7 @@ enum AuthoredAnnotationShape: string
     case Docblock = 'docblock';
 
     /**
-     * The shape of the authored `@OA` annotation on a class or method, or null when neither an
-     * `#[OA\*]` attribute nor an `@OA` docblock is present (so callers never propose an edit they
-     * cannot locate).
+     * Detects the shape on a class or method, or returns null when neither is present.
      *
      * @param ReflectionClass<object>|ReflectionMethod $reflector
      */

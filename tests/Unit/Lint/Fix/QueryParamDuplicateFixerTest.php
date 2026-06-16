@@ -33,6 +33,6 @@ it('removes the duplicate #[QueryParam] attribute', function (): void {
                     #[QueryParam(name: 'q')]
                     public function index(): void {}
                 }
-                PHP,
+                PHP . "\n",
         );
 });

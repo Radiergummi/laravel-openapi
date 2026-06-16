@@ -17,8 +17,8 @@ use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 use function assert;
 
 /**
- * Flags `#[Hide]` usages that set both `only` and `except`. Mirrors {@see ExposeOnlyExceptRule}
- * — the runtime constructor throws `LogicException` when reflected, but only at spec generation.
+ * Flags `#[Hide]` usages that set both `only` and `except`. Mirrors {@see ExposeOnlyExceptRule}:
+ * the runtime constructor throws `LogicException` when reflected, but only at spec generation.
  *
  * @implements Rule<Node\Attribute>
  */

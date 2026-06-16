@@ -56,18 +56,15 @@ use function is_array;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
- * Builds the property array {@see OpenApiGenerator} dispatches onto OA\Get/OA\Post/etc.
- * Override precedence: auto-derived defaults → class `#[Operation]` → method `#[Operation]` →
- * `#[Tag]`s merged → `#[Response]`s appended → native `#[\Deprecated]`.
+ * Builds the property array dispatched onto OA\Get/OA\Post/etc. for one route action.
  *
  * @internal
  */
 final readonly class OperationBuilder
 {
     /**
-     * Vendor-extension key a primary-response resolver sets on its `OA\Response` to signal that the
-     * status was read explicitly from the controller body (not a default), so the resource
-     * convention defers to it (#240). Transient — stripped here before the response is emitted.
+     * Transient vendor-extension key: signals the resolver read the status from the body, so the
+     * convention must not overwrite it. Stripped before the response reaches the document.
      */
     public const string EXPLICIT_STATUS_EXTENSION = 'laravel-openapi-explicit-status';
 
@@ -104,9 +101,6 @@ final readonly class OperationBuilder
     }
 
     /**
-     * `requestBody` and `operationIdOverride` are internal keys stripped by the caller before
-     * constructing the annotation, as they do not map onto OA\Operation properties.
-     *
      * @param list<string> $defaultTags Namespace-derived tag(s); merged with attribute tags.
      *
      * @throws ReflectionException
@@ -129,12 +123,8 @@ final readonly class OperationBuilder
                 $action->uriParameters,
             ),
         );
-        // Dedup across resolvers by (name, in): two resolvers emitting the same parameter would
-        // otherwise yield a duplicate, which is invalid OpenAPI. Resolvers run in plugin order
-        // (Core first), and a later resolver wins — a plugin's richer parameter replaces an
-        // earlier one of the same name. Exception: a name claimed by an explicit #[QueryParam]
-        // attribute keeps its first (attribute-shaped) emission — explicit authoring beats any
-        // later inference, mirroring the response-side authoring-attribute precedence (epic #5).
+        // Dedup by (name, in) across resolvers; later resolver wins, except names claimed by an
+        // explicit #[QueryParam] attribute, which authoring locks.
         $explicitQueryParameterNames = $this->explicitQueryParameterNames($action);
         $queryParamsByKey = [];
 
@@ -169,7 +159,6 @@ final readonly class OperationBuilder
         $requestBody = $this->applyRequestBodyOverride($action, $requestBody);
         $this->applyRequestExamples($action, $requestBody);
 
-        // Consult registered primary-response resolvers, first non-null wins.
         $autoPrimaryResponse = null;
 
         foreach ($this->primaryResponseResolvers as $responseResolver) {
@@ -193,10 +182,8 @@ final readonly class OperationBuilder
         $deprecation = $this->readDeprecation($action);
         $externalDocs = $this->readExternalDocsAttribute($action);
 
-        // If a `#[Response(status: 2xx, ...)]` attribute is present, it overrides the auto-derived
-        // primary response — the attribute wins as both description and schema source. Any 2xx
-        // status is eligible; the first one in declaration order becomes the primary override.
-        // Remove it from $additionalResponses so it doesn't appear twice.
+        // First 2xx #[Response] in declaration order overrides the auto-derived primary; remove it
+        // from $additionalResponses to avoid duplication.
         $primaryOverride = null;
         $filteredAdditional = [];
 
@@ -210,9 +197,7 @@ final readonly class OperationBuilder
             }
         }
 
-        // A resolver may flag that it read the status explicitly from the controller body; that
-        // status is ground truth the convention must not relabel (#240). Read and strip the
-        // transient marker before the response can reach the document.
+        // Strip the transient marker before the response reaches the document.
         $autoStatusIsExplicit = $this->takeExplicitStatusMarker($autoPrimaryResponse);
 
         $additionalResponses = $filteredAdditional;
@@ -220,17 +205,12 @@ final readonly class OperationBuilder
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
 
-        // Apply the resource convention's success status, unless an explicit #[Response(2xx)]
-        // already claimed the primary response or a resolver read the status from the body. This
-        // layers on top of whatever body a resolver produced — a `store` returning a model keeps
-        // its schema, just at 201 — but never overrides a status the author actually wrote.
+        // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status claimed it.
         if ($primaryOverride === null && !$autoStatusIsExplicit && $convention?->successStatusCode !== null) {
             $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
         }
 
-        // Primary 2xx first, then explicit non-2xx #[Response] attributes. Inferred error
-        // responses are appended later by ErrorResponseInferenceStage, which itself skips any
-        // status already declared here.
+        // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
         $responses = [$primaryResponse, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
         $this->applyResponseHeaders($action, $responses);
@@ -275,13 +255,7 @@ final readonly class OperationBuilder
         );
     }
 
-    /**
-     * Names claimed by an explicit `#[QueryParam]` attribute on the action or its controller.
-     * These are authored ground truth: the cross-resolver dedup must not let a later resolver's
-     * inferred parameter replace them.
-     *
-     * @return list<string>
-     */
+    /** @return list<string> */
     private function explicitQueryParameterNames(ActionDescriptor $action): array
     {
         $names = [];
@@ -296,18 +270,9 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Resolves security requirements for an operation.
-     *
-     * Precedence (first match wins):
-     * 1. {@see PublicEndpoint} on method or class → `[]` (truly public)
-     * 2. {@see SecurityAttribute} on method or class → each instance contributes one
-     *    OR-alternative to the operation's `security` list. Method-level attributes win
-     *    over class-level ones on the same target; if the method has any `#[Security]`
-     *    the class-level instances are ignored.
-     * 3. Middleware-derived security via {@see SecurityExtractor}.
-     *
-     * Returns `null` when the route is authed but no scheme is derivable, so the operation omits
-     * `security` rather than emitting `[]` (which would mislabel it as public).
+     * Precedence: `#[PublicEndpoint]` → `#[Security]` (method shadows class) → middleware-derived.
+     * Returns `null` when authed but no scheme is derivable; omitting `security` is different from
+     * `[]`, which would mislabel the operation as public.
      *
      * @return null|list<array<string, list<string>>>
      */
@@ -347,7 +312,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Method-level entries win on name collision; declaration order is otherwise preserved.
+     * Method-level entries win on name collision.
      *
      * @return list<OA\Parameter>
      */
@@ -370,7 +335,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Method-level entries win on name collision; declaration order is otherwise preserved.
+     * Method-level entries win on name collision.
      *
      * @return list<OA\Parameter>
      */
@@ -393,8 +358,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * When no auto-derived body exists, builds a minimal one from the override so endpoints without
-     * a Data class can still be documented.
+     * When no auto-derived body exists, builds a minimal one from the override.
      */
     private function applyRequestBodyOverride(
         ActionDescriptor $descriptor,
@@ -454,12 +418,7 @@ final readonly class OperationBuilder
         return $source?->newInstance();
     }
 
-    /**
-     * No-op when the method carries no {@see ExampleAttribute}s, when there is no request body,
-     * or when the body has no content schema.
-     *
-     * @throws RuntimeException
-     */
+    /** @throws RuntimeException */
     private function applyRequestExamples(ActionDescriptor $descriptor, ?OA\RequestBody $body): void
     {
         if ($body === null) {
@@ -478,7 +437,7 @@ final readonly class OperationBuilder
             try {
                 $instances[] = $attribute->newInstance();
             } catch (InvalidArgumentException) {
-                // Malformed #[Example] attribute — skip and continue generating
+                // Malformed #[Example] attribute; skip and continue generating
             }
         }
 
@@ -507,15 +466,14 @@ final readonly class OperationBuilder
         $out = [];
 
         foreach ($instances as $instance) {
-            // Resolve file-based examples at generation time; inline value is used as-is.
+            // Resolve file-based examples at generation time.
             $value = $instance->file !== null
                 ? $this->fileLoader->load($instance->file)
                 : $instance->value;
 
             $properties = [
                 'example' => $instance->name,
-                // swagger-php's @OA\Examples requires `summary`. Fall back to the example name so
-                // users aren't forced to repeat themselves.
+                // OA\Examples requires `summary`; fall back to the name.
                 'summary' => $instance->summary ?? $instance->name,
                 'value' => $value,
             ];
@@ -530,9 +488,6 @@ final readonly class OperationBuilder
         return $out;
     }
 
-    /**
-     * Consults registered operation-convention resolvers, first non-null wins.
-     */
     private function resolveConvention(ActionDescriptor $descriptor): ?OperationConvention
     {
         foreach ($this->operationConventionResolvers as $conventionResolver) {
@@ -568,7 +523,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Class-level {@see ResponseAttribute}s are not supported — responses are per-operation.
+     * Class-level `#[Response]` attributes are not supported; responses are per-operation.
      *
      * @return list<OA\Response>
      */
@@ -611,11 +566,7 @@ final readonly class OperationBuilder
         return new OA\Response($props);
     }
 
-    /**
-     * Iterates registered {@see RefSchemaResolver}s to resolve a ref, first non-null result wins.
-     *
-     * @param null|class-string $ref
-     */
+    /** @param null|class-string $ref */
     private function resolveRefSchema(?string $ref, ActionDescriptor $descriptor): ?string
     {
         if ($ref === null) {
@@ -648,11 +599,11 @@ final readonly class OperationBuilder
                 return $instance->reason ?? '';
             }
 
-            // PHP 8.4 native \Deprecated.
+            // PHP 8.4 native \Deprecated attribute.
             return $instance->message ?? '';
         }
 
-        // Lowest precedence: the plain `@deprecated` PHPDoc tag on the action.
+        // Fall back to the plain `@deprecated` PHPDoc tag.
         $comment = $descriptor->actionReflector?->getDocComment();
 
         return $comment !== false && $comment !== null
@@ -660,17 +611,9 @@ final readonly class OperationBuilder
             : null;
     }
 
-    /**
-     * Returns the first deprecation marker on the method (preferred) or controller class.
-     *
-     * Both the PHP 8.4 native `\Deprecated` and the package's own `#[Deprecated]` are honoured;
-     * method-level attributes always win over class-level ones.
-     *
-     * @return null|ReflectionAttribute<DeprecatedAttribute|NativeDeprecated>
-     */
+    /** @return null|ReflectionAttribute<DeprecatedAttribute|NativeDeprecated> */
     private function firstDeprecatedAttribute(ActionDescriptor $descriptor): ?ReflectionAttribute
     {
-        // Method-level wins over class-level, so check action attributes first.
         foreach ([DeprecatedAttribute::class, NativeDeprecated::class] as $class) {
             $attrs = $descriptor->actionAttributes($class);
 
@@ -708,9 +651,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Reads and removes the {@see self::EXPLICIT_STATUS_EXTENSION} marker a primary-response
-     * resolver may set to claim it read the status from the controller body. The marker is
-     * transient and must never reach the serialized document, so it is always cleared.
+     * Reads and strips the transient {@see self::EXPLICIT_STATUS_EXTENSION} vendor extension.
      */
     private function takeExplicitStatusMarker(?OA\Response $response): bool
     {
@@ -729,11 +670,7 @@ final readonly class OperationBuilder
         return $explicit;
     }
 
-    /**
-     * Returns the primary response carrying the convention-derived status code and reason phrase.
-     * A 204 carries no body by definition, so any resolved content is discarded in favour of a
-     * fresh body-less response.
-     */
+    /** A 204 discards any resolved body. */
     private function applyConventionStatus(OA\Response $response, int $statusCode): OA\Response
     {
         if ($statusCode === 204) {
@@ -747,7 +684,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Examples for a status without a corresponding response are dropped silently.
+     * Examples for a status without a matching response are dropped silently.
      *
      * @param list<OA\Response> $responses
      *
@@ -768,7 +705,7 @@ final readonly class OperationBuilder
             try {
                 $instance = $attribute->newInstance();
             } catch (InvalidArgumentException) {
-                // Malformed #[ResponseExample] attribute — skip and continue generating
+                // Malformed #[ResponseExample] attribute; skip and continue generating
                 continue;
             }
 
@@ -784,7 +721,7 @@ final readonly class OperationBuilder
 
             $content = $response->content;
 
-            // Scaffold a media type when the response has none; declaring an example implies a body
+            // An example implies a body; scaffold a media type when the response has none.
             if (!is_array($content) || $content === []) {
                 $content = [MediaType::Json->schema()];
                 $response->content = $content;
@@ -801,8 +738,7 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Method-level entries win on `(status, name)` collision; headers without a matching
-     * response are dropped silently.
+     * Method-level entries win on `(status, name)` collision; unmatched headers are dropped silently.
      *
      * @param list<OA\Response> $responses
      */
@@ -874,9 +810,7 @@ final readonly class OperationBuilder
         return new OA\Header($props);
     }
 
-    /**
-     * Method-level only — links are per-operation, not per-controller.
-     */
+    /** Links are per-operation, not per-controller. */
     private function applyLinkAttributes(ActionDescriptor $descriptor, OA\Response $primaryResponse): void
     {
         $attrs = $descriptor->actionAttributes(LinkAttribute::class);
@@ -916,18 +850,8 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Resolves the operation summary across attribute scopes, the docblock, and the convention.
-     *
-     * Precedence:
-     *   1. action-level `#[Summary]`
-     *   2. action-level `#[Operation(summary: …)]`
-     *   3. action docblock
-     *   4. class-level `#[Summary]`
-     *   5. class-level `#[Operation(summary: …)]`
-     *   6. convention-derived default summary
-     *
-     * The "action" is the controller method, the `__invoke` method of a single-action controller,
-     * or a route closure — all reached uniformly via {@see ActionDescriptor::$actionReflector}.
+     * Precedence: action `#[Summary]` → action `#[Operation(summary)]` → docblock →
+     * class `#[Summary]` → class `#[Operation(summary)]` → convention default.
      */
     private function resolveSummary(ActionDescriptor $descriptor, ?OperationConvention $convention): ?string
     {
@@ -958,9 +882,7 @@ final readonly class OperationBuilder
         return ($operationAttributes[0] ?? null)?->newInstance()->summary;
     }
 
-    /**
-     * Resolves the operation description. Same precedence as {@see resolveSummary()}.
-     */
+    /** Same precedence as {@see resolveSummary()}. */
     private function resolveDescription(ActionDescriptor $descriptor): ?string
     {
         $methodAttr = $this->readScopedDescription(
@@ -1040,8 +962,7 @@ final readonly class OperationBuilder
     {
         $schema = $cookie->descriptor()->toSchema();
 
-        // Cookies are string-valued on the wire; default the schema type when the author left it
-        // unset and it could not be inferred from an enum.
+        // Cookies are always string-valued on the wire; default the schema type when unset.
         if ($schema->type === Generator::UNDEFINED) {
             $schema->type = 'string';
         }

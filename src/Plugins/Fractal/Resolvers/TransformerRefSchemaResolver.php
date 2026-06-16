@@ -16,11 +16,11 @@ use ReflectionException;
 use function class_exists;
 
 /**
- * Resolves a Fractal transformer class to a `#/components/schemas/…` ref. A
- * "transformer" is any class carrying at least one `#[TransformerField]`
- * attribute, or a `TransformerAbstract` subclass whose `transform()` literal
- * is statically readable (#13) — the plugin never references `league/fractal`
- * directly (the subclass check matches by FQCN string).
+ * Resolves a Fractal transformer class to a `#/components/schemas/…` ref.
+ *
+ * Matches classes with a `#[TransformerField]` attribute, or `TransformerAbstract` subclasses
+ * whose `transform()` body is statically readable. The subclass check uses FQCN strings, not a
+ * direct `league/fractal` import.
  */
 #[Scoped]
 final readonly class TransformerRefSchemaResolver implements RefSchemaResolver

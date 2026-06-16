@@ -18,16 +18,8 @@ use function array_values;
 use function is_string;
 
 /**
- * Removes a redundant swagger-php annotation, whichever shape it took and wherever it sits.
- *
- * The finding's source member ({@see Finding::CONTEXT_SOURCE_MEMBER}) picks the target: absent for a
- * class-level `#[OA\Schema]` / `@OA\Schema` (the class docblock, plus every `#[OA\*]` group on the
- * class, its properties, and promoted constructor parameters); present for an operation annotation on
- * a controller method (that method's docblock and `#[OA\*]` groups). Attribute edits go through
- * {@see OaAttributeRemover}, docblock edits through {@see DocblockAnnotationRemover}.
- *
- * When the class can't be reflected or the construct can't be located, it yields nothing and the
- * finding is reported as unfixed.
+ * Removes a redundant swagger-php annotation (docblock or attribute), targeting the class or
+ * method identified by the finding's context. Yields nothing when the target cannot be located.
  *
  * @internal
  */
@@ -112,8 +104,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     }
 
     /**
-     * Every attribute group a class-level `#[OA\*]` schema annotation can sit on: the class itself,
-     * its properties, and its promoted constructor parameters.
+     * All `#[OA\*]` attribute groups on the class, its properties, and promoted constructor params.
      *
      * @return list<AttributeGroup>
      */
@@ -145,8 +136,6 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     }
 
     /**
-     * The `#[OA\*]` attribute groups on a controller method, or none when the method node is absent.
-     *
      * @return list<AttributeGroup>
      */
     private function methodAttributeGroups(?ClassMethod $method): array

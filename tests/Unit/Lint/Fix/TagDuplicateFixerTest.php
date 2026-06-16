@@ -34,7 +34,7 @@ it('removes the duplicate #[Tag] attribute and leaves the rest byte-identical', 
                     #[Tag('users')]
                     public function index(): void {}
                 }
-                PHP,
+                PHP . "\n",
         );
 });
 

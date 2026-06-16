@@ -298,7 +298,7 @@ it('returns null for a string-keyed map array<string, T>', function (): void {
     expect(listElement('array<string, int>'))->toBeNull();
 });
 
-it('returns null for a non-list generic (e.g. Collection<K,V>)', function (): void {
+it('returns null for a non-list generic (e.g., Collection<K,V>)', function (): void {
     expect(listElement('Illuminate\Support\Collection<int, string>'))->toBeNull();
 });
 

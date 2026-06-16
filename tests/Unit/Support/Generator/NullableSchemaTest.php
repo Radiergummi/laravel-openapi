@@ -221,7 +221,7 @@ it('applyTo widens a scalar type in place', function (): void {
 // region Fallback branch: schemas without a plain type are wrapped in oneOf
 
 it('wraps a schema with no explicit type in oneOf with a null sibling', function (): void {
-    // A schema that has e.g. oneOf but no top-level type or ref.
+    // A schema that has e.g., oneOf but no top-level type or ref.
     $inner = new OA\Schema(['type' => 'string']);
     $schema = new OA\Schema(['oneOf' => [$inner]]);
     $result = NullableSchema::wrap($schema);

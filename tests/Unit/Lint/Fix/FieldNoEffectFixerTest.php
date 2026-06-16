@@ -35,6 +35,6 @@ it('removes a no-op field attribute from a promoted constructor parameter', func
                         public string $noEffect,
                     ) {}
                 }
-                PHP,
+                PHP . "\n",
         );
 });

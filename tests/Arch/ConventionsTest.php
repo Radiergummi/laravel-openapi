@@ -81,7 +81,7 @@ function internalSourceClasses(): array
 /**
  * Whether the file's type declaration carries a class-level @internal tag in its own docblock.
  * A bare str_contains('@internal') would also match method- and property-level @internal tags
- * (e.g. the `linkParent()` methods on Lint\Tree nodes), wrongly marking otherwise-public classes
+ * (e.g., the `linkParent()` methods on Lint\Tree nodes), wrongly marking otherwise-public classes
  * as internal. We require the @internal docblock to immediately precede the class/interface/enum/
  * trait declaration (allowing intervening attributes and modifiers).
  */

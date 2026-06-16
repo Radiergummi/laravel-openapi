@@ -14,12 +14,7 @@ use Radiergummi\OpenApi\Lint\Visitors\QueryParameterRule as QueryParameterRuleVi
 
 use function sprintf;
 
-/**
- * Reports query parameters that have no schema defined.
- *
- * Query parameters should declare a schema so that clients and documentation tools know the
- * expected type and format of the parameter.
- */
+/** Reports query parameters that have no schema defined. */
 final class ParameterQueryNoSchema implements Rule, QueryParameterRuleVisitor
 {
     /**

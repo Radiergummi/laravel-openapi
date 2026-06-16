@@ -19,10 +19,7 @@ use UnexpectedValueException;
 use function hrtime;
 
 /**
- * Generates an OpenAPI 3.1 document from the application's route definitions.
- *
  * Thin wrapper around {@see SpecPipeline} that dispatches lifecycle events with timing.
- * The swagger-php 3.1 context pin lives inside {@see SpecPipeline::run()}.
  *
  * @internal
  */

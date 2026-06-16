@@ -69,7 +69,7 @@ wins over the `auth` middleware entry.
 The playground `renderer` chooses which UI the `/api/docs` route serves:
 `'scalar'` (the default) or `'swagger-ui'`. Both are loaded from a CDN and
 pointed at the same spec endpoint, so the switch is config-only — no asset
-publishing. Swagger UI is offered for teams (e.g. migrating from
+publishing. Swagger UI is offered for teams (e.g., migrating from
 `darkaonline/l5-swagger`) already standardised on its layout and "Try it out"
 affordances. Any unrecognised value falls back to Scalar. In multi-spec mode the
 renderer is global; each spec's playground still points at its own document.
@@ -77,7 +77,7 @@ renderer is global; each spec's playground still points at its own document.
 Because the spec and playground mount under `prefix` (default `api`), they appear
 in `php artisan route:list --path=api` alongside your own API routes. This is
 cosmetic only — the `SkipSelfRoutes` filter already keeps them out of the
-generated document. Set `prefix` to a dedicated segment (e.g. `_openapi`) if you
+generated document. Set `prefix` to a dedicated segment (e.g., `_openapi`) if you
 prefer they not show up under your `api` listing.
 
 ## Operation overrides
@@ -104,7 +104,7 @@ Each entry maps a **route name** or a **URI glob** to a field-array:
 ```
 
 **Allowed fields:** `operationId`, `summary`, `description`, `tags`, `deprecated`, and any `x-*`
-vendor extension (emitted under the operation's `x` object, e.g. `x-internal: true`). The set is
+vendor extension (emitted under the operation's `x` object, e.g., `x-internal: true`). The set is
 write-only — there is no field-removal semantics, and nested response/parameter structures are out
 of scope. A non-allowlisted field key is skipped and reported by the `overrides.unknown-field`
 lint rule.
@@ -122,7 +122,7 @@ most specific source wins per field:
 `webhooks` block rather than `paths`) are matched by their **webhook name** — the logical name that
 appears in the spec — not their route URI. A key equal to the webhook name matches exactly; globs
 match it as if it were a URI. The exact route-name key still applies. So an override keyed by the
-webhook name (e.g. `'stripe.payment_intent.succeeded'`) applies to that webhook operation.
+webhook name (e.g., `'stripe.payment_intent.succeeded'`) applies to that webhook operation.
 
 A key matching nothing — no route name, no path URI, and no webhook name — is reported by the
 `overrides.unused` lint rule.

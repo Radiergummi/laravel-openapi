@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint;
 
-use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;
 use TypeError;
 use ValueError;
 
@@ -22,11 +21,7 @@ enum IdentifierCase: string
     case ScreamingSnake = 'screaming_snake';
 
     /**
-     * Coerces a raw config value into the enum.
-     *
-     * Strict — an unknown string raises `\ValueError`; naming rules have no safe fallback, so
-     * misconfiguration must surface loudly (unlike {@see VisibilityMode::fromConfig()}, which
-     * silently defaults to `Public`).
+     * Coerces a raw config value. Unknown strings raise `\ValueError` so misconfiguration surfaces loudly.
      *
      * @throws TypeError
      * @throws ValueError
@@ -36,9 +31,7 @@ enum IdentifierCase: string
         return $value instanceof self ? $value : self::from($value);
     }
 
-    /**
-     * Returns a regex that fully matches a conforming identifier.
-     */
+    /** Returns a regex that fully matches a conforming identifier. */
     public function pattern(): string
     {
         return match ($this) {
@@ -52,9 +45,7 @@ enum IdentifierCase: string
         };
     }
 
-    /**
-     * Returns a human-readable phrase describing the convention.
-     */
+    /** Returns a human-readable phrase describing the convention. */
     public function label(): string
     {
         return match ($this) {
@@ -68,9 +59,7 @@ enum IdentifierCase: string
         };
     }
 
-    /**
-     * Returns a representative example identifier.
-     */
+    /** Returns a representative example identifier. */
     public function example(): string
     {
         return match ($this) {

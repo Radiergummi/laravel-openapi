@@ -69,9 +69,9 @@ class LintCommand extends Command
     // (Illuminate\Console\Attributes does not exist on Laravel 12).
     protected $signature = 'openapi:lint
         {--level=1 : Severity preset (0–N or "max" for highest defined)}
-        {--format=* : Output target(s) as <format>[:<dest>], repeatable (cli|json|github|markdown|cobertura; dest = stdout (default)|stderr|<file>). E.g. --format=github --format=cobertura:coverage.xml}
-        {--only= : Restrict to listed rule IDs (comma-separated; `*` globs a family, e.g. migration.*)}
-        {--skip= : Restrict to listed rule IDs to exclude (comma-separated; `*` globs a family, e.g. migration.*)}
+        {--format=* : Output target(s) as <format>[:<dest>], repeatable (cli|json|github|markdown|cobertura; dest = stdout (default)|stderr|<file>). e.g., --format=github --format=cobertura:coverage.xml}
+        {--only= : Restrict to listed rule IDs (comma-separated; `*` globs a family, e.g., migration.*)}
+        {--skip= : Restrict to listed rule IDs to exclude (comma-separated; `*` globs a family, e.g., migration.*)}
         {--uri= : Restrict to routes whose URI matches this glob}
         {--path=* : Restrict to routes affected by these source files (repeatable; pre-commit hooks pass $STAGED_FILES)}
         {--diff= : Restrict to routes touched since git-ref (default: merge-base with the default branch; "staged" = index, "working" = work tree)}
@@ -299,8 +299,6 @@ class LintCommand extends Command
     }
 
     /**
-     * Trim each entry and drop the empties, reindexed.
-     *
      * @param array<string> $items
      *
      * @return list<string>
@@ -313,9 +311,6 @@ class LintCommand extends Command
     }
 
     /**
-     * Normalise the repeatable `--path=*` option into a clean file list. Symfony yields an array
-     * of strings (or an empty array when absent); drop blanks and trim each entry.
-     *
      * @return list<string>
      */
     private function parseFiles(mixed $raw): array
@@ -328,10 +323,8 @@ class LintCommand extends Command
     }
 
     /**
-     * Map the value-optional `--diff` flag to a {@see DiffScope}, or null when it was not passed.
-     * `--diff=staged` / `--diff=working` select the work-tree modes; any other value is a ref, and
-     * a bare `--diff` is a ref-mode scope with a null ref (deferring to the merge-base default).
-     * `option()` alone can't distinguish a bare flag from an absent one, so the raw input decides.
+     * Map the value-optional `--diff` flag to a {@see DiffScope}, or null when not passed.
+     * `option()` cannot distinguish a bare flag from an absent one, so raw input is checked.
      */
     private function resolveDiffScope(): ?DiffScope
     {
@@ -461,7 +454,7 @@ class LintCommand extends Command
             );
         }
 
-        $this->line('Run your formatter on the changes, e.g. `vendor/bin/pint --dirty`.');
+        $this->line('Run your formatter on the changes, e.g., `vendor/bin/pint --dirty`.');
     }
 
     /**

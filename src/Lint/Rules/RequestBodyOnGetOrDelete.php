@@ -16,11 +16,9 @@ use function in_array;
 use function sprintf;
 
 /**
- * Reports operations that define a request body on GET or DELETE methods.
+ * Reports GET or DELETE operations that define a request body.
  *
- * While HTTP/1.1 does not strictly forbid request bodies on GET and DELETE, many server frameworks
- * and proxies ignore or reject them. Including a request body on these methods is a strong
- * convention violation.
+ * Many frameworks and proxies ignore or reject bodies on these methods.
  */
 final class RequestBodyOnGetOrDelete implements Rule, OperationRuleVisitor
 {

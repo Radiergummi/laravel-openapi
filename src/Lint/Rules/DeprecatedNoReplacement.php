@@ -17,13 +17,9 @@ use function preg_match;
 use function sprintf;
 
 /**
- * Reports deprecated operations whose description does not mention a replacement.
- *
- * When an operation is marked as `deprecated: true`, its description should guide consumers
- * toward the replacement endpoint. This rule checks for keywords like "use", "replaced by",
- * "replacement", or "sunset".
- *
- * A non-empty `x-replacement` OAS extension on the operation also satisfies the requirement.
+ * Reports deprecated operations whose description lacks a replacement hint. Checks for
+ * keywords "use", "replaced by", "replacement", or "sunset", or a non-empty `x-replacement`
+ * extension.
  */
 final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
 {
@@ -39,7 +35,6 @@ final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
             return;
         }
 
-        // A non-empty x-replacement extension satisfies the requirement.
         $extensions = $operation->raw->x;
 
         if (is_array($extensions) && isset($extensions['x-replacement']) && is_string(

@@ -65,15 +65,11 @@ use function is_a;
 use function sprintf;
 
 /**
- * OpenAPI Service Provider
+ * Registers and wires all OpenAPI pipeline services.
  *
- * The pipeline is registered as `scoped `, so Octane resets it between requests —
- * {@see ComponentSchemaRegistry} and {@see ExampleFileLoader} carry mutable per-run state that
- * would otherwise corrupt concurrent runs. To re-run generation within a single scope (e.g. tests),
- * call `$app->forgetScopedInstances()` first.
- *
- * Classes with fully container-resolvable constructors carry `#[Scoped]` and self-register;
- * this provider only contains bindings that need explicit closures.
+ * Everything is bound as `scoped` so Octane resets state between requests. Classes with
+ * fully container-resolvable constructors use `#[Scoped]` and self-register; this provider
+ * only handles bindings that need explicit closures.
  */
 class OpenApiServiceProvider extends ServiceProvider
 {
@@ -110,18 +106,12 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Conditionally mounts one spec + playground route per defined spec.
+     * Mounts one spec + playground route per defined spec.
      *
-     * Reads route URIs directly from config rather than resolving {@see SpecRegistry}. The registry
-     * would force eager materialisation of `info`/`servers`/`tags` at boot, which is too early —
-     * later-booting providers (e.g. example flavors) are still entitled to override those keys
-     * before generation runs. Only the URI fields are needed here, resolved via the shared
-     * {@see SpecRouteConfig} so `default`'s name stays correct even when an explicit `'specs.default'`
-     * entry exists.
-     *
-     * Route names follow the convention:
-     *   - default spec: `openapi.spec` / `openapi.playground`
-     *   - named specs:  `openapi.spec.{name}` / `openapi.playground.{name}`
+     * Reads URIs directly from config rather than resolving {@see SpecRegistry}: the registry
+     * would force eager materialisation of `info`/`servers`/`tags` at boot, before later providers
+     * can override those keys. Route names: `openapi.spec` / `openapi.playground` for the default
+     * spec, `openapi.spec.{name}` / `openapi.playground.{name}` for named ones.
      *
      * @throws RuntimeException
      */
@@ -191,7 +181,7 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the spec-related services: SpecMatcher, SpecResolver, SpecRegistry, InclusionEvaluator.
+     * Binds spec-resolution and route-inclusion services.
      */
     private function registerSpec(): void
     {
@@ -220,12 +210,11 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the route introspection services and the route exclusion filters.
+     * Binds PHPDoc/type-resolution services used by the route introspection layer.
      */
     private function registerRouting(): void
     {
-        // PHPDoc parsing + type resolution. ThrowsExtractor and ReturnTypeExtractor autowire
-        // these via #[Scoped]; both carry per-run caches, so they are scoped (Octane-reset).
+        // Per-run caches; scoped so Octane resets them between requests.
         $this->app->scoped(DocBlockParser::class, static fn(): DocBlockParser => DocBlockParser::create());
         $this->app->scoped(TypeNodeResolver::class, static fn(): TypeNodeResolver => TypeNodeResolver::create());
 
@@ -233,12 +222,11 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the plugin/core registry and the lint rule registry derived from it.
+     * Binds the OpenAPI registry and the lint rule registry derived from it.
      */
     private function registerRegistries(): void
     {
-        // OverrideMatcher needs the raw config array, so it cannot autowire from an empty
-        // constructor. Scoped to match the rest of the pipeline (Octane-reset per run).
+        // Needs the raw config array; cannot autowire.
         $this->app->scoped(
             OverrideMatcher::class,
             static fn(): OverrideMatcher => new OverrideMatcher(
@@ -246,10 +234,9 @@ class OpenApiServiceProvider extends ServiceProvider
             ),
         );
 
-        // BaselineRegistration::assemble() owns the ordered stage pipeline + rules + sealing. The
-        // provider supplies only the Laravel/config-derived inputs (the plugin list — Core first —,
-        // the config lint rules, and the resolved error-envelope class), keeping the plugin-agnostic
-        // assembly in Support while the plugin references stay here.
+        // BaselineRegistration::assemble() owns the ordered stage pipeline, rules, and sealing;
+        // the provider only supplies Laravel/config-derived inputs (plugin list, lint rules,
+        // resolved envelope class).
         $this->app->scoped(
             OpenApiRegistry::class,
             static fn(Container $app): OpenApiRegistry
@@ -275,8 +262,7 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        // The rule needs the registered ref-schema resolver chain to answer "would this ref
-        // resolve?" — the container can't autowire the resolver list, so build it explicitly.
+        // The container can't autowire the resolver list; build it explicitly.
         $this->app->scoped(
             ResponseRefUnresolvable::class,
             static function (Container $app): ResponseRefUnresolvable {
@@ -290,11 +276,8 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Resolve the configured error envelope to its resolver class.
-     *
-     * Accepts the four preset names (`'none'`, `'laravel'`, `'rfc7807'`, `'json-api'`) or a
-     * fully-qualified class name of a custom {@see ErrorResponseResolver}. Throws on an
-     * unknown preset name so failures surface at boot, not later as an autoload error.
+     * Maps a preset name or custom FQCN to the concrete {@see ErrorResponseResolver} class.
+     * Throws at boot on an unknown preset rather than silently deferring to an autoload error.
      *
      * @return class-string<ErrorResponseResolver>
      *
@@ -344,9 +327,6 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Instantiate each class-string through the container, preserving order. Centralises the
-     * resolver-list hydration repeated across the extractor and generator bindings.
-     *
      * @template TInstance of object
      *
      * @param list<class-string<TInstance>> $classes
@@ -367,7 +347,7 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the schema registry and the operation-data extractors.
+     * Binds extractors and the findings collector.
      */
     private function registerExtractors(): void
     {
@@ -393,10 +373,7 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the Core request/response extractors and the FormRequest schema resolver.
-     *
-     * These bindings carry no dependency on any plugin convention package and are needed
-     * regardless of which plugins are enabled.
+     * Binds request-schema resolvers and related extractors (no plugin convention dependency).
      */
     private function registerRequestSchemas(): void
     {
@@ -410,9 +387,7 @@ class OpenApiServiceProvider extends ServiceProvider
             ),
         );
 
-        // The builder resolves class-string `#[RequestField]` types/items to a `$ref` through the
-        // full ref-resolver chain. It carries no exclusion: Core registers no RefSchemaResolver of
-        // its own, so there is no construction cycle to break.
+        // Core registers no RefSchemaResolver of its own, so no exclusion is needed here.
         $this->app->scoped(
             Plugins\Core\Support\RequestFieldObjectBuilder::class,
             static function (Container $app): Plugins\Core\Support\RequestFieldObjectBuilder {
@@ -424,8 +399,7 @@ class OpenApiServiceProvider extends ServiceProvider
             },
         );
 
-        // Explicit binding: the resolver now depends on the builder, which has a Closure ctor
-        // argument the container cannot auto-resolve.
+        // Closure constructor argument; cannot auto-resolve.
         $this->app->scoped(
             Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver::class,
             static fn(Container $app): Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver
@@ -439,8 +413,8 @@ class OpenApiServiceProvider extends ServiceProvider
             Support\Extraction\ModelFactoryExampleReader::class,
             static fn(Container $app): Support\Extraction\ModelFactoryExampleReader
                 => new Support\Extraction\ModelFactoryExampleReader(
-                    // Disabled (null seed) when auto-examples are switched off or no fixed seed is
-                    // configured — factory fake() values would otherwise be non-deterministic.
+                    // Null seed when auto-examples are off or no fixed seed is set: factory values
+                    // would otherwise be non-deterministic.
                     seed: (bool) (config('openapi.examples.synthesise') ?? true)
                     && config('openapi.examples.faker_seed') !== null
                         ? (int) config('openapi.examples.faker_seed')
@@ -492,11 +466,8 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Build a memoised lazy factory over the registry's ref-schema resolver list, optionally
-     * skipping one resolver class — a plugin passes its own resolver to break the cross-plugin
-     * construction cycle (see {@see registerApiResourcesPlugin()} and {@see registerFractalPlugin()}).
-     * Resolution is deferred to first use so the container can finish constructing both sides; the
-     * result is cached per returned factory.
+     * Returns a memoised lazy factory over the registry's ref-schema resolver list.
+     * Pass `$exclude` to omit a resolver and break cross-plugin construction cycles.
      *
      * @param null|class-string<RefSchemaResolver> $exclude
      *
@@ -530,12 +501,7 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the Spatie Laravel Data plugin services.
-     *
-     * `spatie/laravel-data` is an optional runtime dependency. When the package is not
-     * installed every binding is skipped — {@see SpatieDataPlugin::register()} also no-ops
-     * under the same guard, so the plugin entry in `config/openapi.plugins` stays inert
-     * without producing autoload errors when Spatie types are referenced via the container.
+     * Binds Spatie Laravel Data plugin services. Skipped when the package is not installed.
      */
     private function registerSpatieDataPlugin(): void
     {
@@ -543,9 +509,7 @@ class OpenApiServiceProvider extends ServiceProvider
             return;
         }
 
-        // FilePropertyChecker is an interface implemented by SchemaFromDataClass; share the
-        // same scoped instance instead of constructing a second one. The concrete classes
-        // self-register via `#[Scoped]`.
+        // FilePropertyChecker is implemented by SchemaFromDataClass; reuse the same instance.
         $this->app->scoped(
             Plugins\SpatieData\Support\FilePropertyChecker::class,
             static fn(Container $app) => $app->make(Plugins\SpatieData\Support\SchemaFromDataClass::class),
@@ -553,16 +517,8 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the ApiResources plugin services.
-     *
-     * `SchemaFromResource` receives a LAZY factory for the ref-resolver
-     * list — every registered ref resolver except this plugin's own
-     * `ResourceRefSchemaResolver`. Eager construction would form a
-     * cross-plugin construction cycle with `SchemaFromTransformer` (each
-     * plugin's builder lists the other plugin's resolver). Deferring resolution
-     * to first use lets the container finish constructing both sides first; the
-     * factory memoises its result with a closure-local static so repeated
-     * resolveClassRef calls don't re-walk the registry.
+     * Binds ApiResources plugin services. Excludes {@see Plugins\ApiResources\Resolvers\ResourceRefSchemaResolver}
+     * from the ref-resolver factory to break the construction cycle with the Fractal plugin.
      */
     private function registerApiResourcesPlugin(): void
     {
@@ -594,15 +550,8 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the Fractal plugin services.
-     *
-     * {@see SchemaFromTransformer} receives a LAZY factory for the ref-resolver list — every
-     * registered ref resolver except this plugin's own {@see TransformerRefSchemaResolver}.
-     * Eager construction would form a cross-plugin construction cycle with
-     * {@see SchemaFromResource} (each plugin's builder lists the other plugin's resolver).
-     * Deferring resolution to first use lets the container finish constructing both sides first;
-     * the factory memoises its result with a closure-local static so repeated `resolveClassRef`
-     * calls don't re-walk the registry.
+     * Binds Fractal plugin services. Excludes {@see TransformerRefSchemaResolver} from the
+     * ref-resolver factory to break the construction cycle with the ApiResources plugin.
      */
     private function registerFractalPlugin(): void
     {
@@ -626,13 +575,8 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the SwaggerPhp plugin services.
-     *
-     * The scanner runs swagger-php over the host app once per generation, so it is scoped (the
-     * per-run scan is shared across stages and reset between Octane requests). Its scan path is an
-     * internal default — the app directory — not user config; tests rebind this to a fixture
-     * directory. swagger-php is a hard dependency, so the binding is always registered; the plugin
-     * stays inert until listed in `config/openapi.plugins`.
+     * Binds SwaggerPhp plugin services. The binding is always registered (swagger-php is a hard
+     * dependency); the plugin is inert until listed in `config/openapi.plugins`.
      */
     private function registerSwaggerPhpPlugin(): void
     {
@@ -647,7 +591,7 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Binds the operation builder and the top-level generator that drives the pipeline.
+     * Binds the operation builder and the top-level generator.
      */
     private function registerGenerator(): void
     {

@@ -30,37 +30,28 @@ use function sprintf;
 use function strtolower;
 
 /**
- * Shared, policy-free reader for `response()->json(...)` calls in a controller method body —
- * the recognition and literal-reading half of the Tier-1 inline-json scan (epic #5, issues
- * #14 / #238).
+ * Policy-free reader for `response()->json(...)` calls in a controller method body.
  *
- * Two callers consume it with opposite status policies: {@see InlineJsonResponseResolver} claims
- * only 2xx literals for the primary response slot, while {@see InlineJsonErrorContributor} routes
- * only 4xx/5xx literals into the error machinery. This reader reports the *facts* — the literal
- * status (the `json()` status argument or a chained `->setStatusCode()` override) and the literal
- * body schema — and the callers apply their own 2xx/non-2xx filter. It owns no logger: degrade
- * conditions are reported as human phrases on {@see InlineJsonCallResult} for the caller to note.
+ * Extracts the literal status and body schema; degrade conditions are reported as phrases on
+ * {@see InlineJsonCallResult}. Callers apply their own status-range policy.
  *
  * @internal
  */
 #[Scoped]
 final readonly class InlineJsonCallReader
 {
-    /**
-     * Positions in Laravel's `ResponseFactory::json($data = [], $status = 200, …)` signature,
-     * used to resolve arguments by position or by name.
-     */
+    /** Argument positions in `ResponseFactory::json($data = [], $status = 200, …)`. */
     private const int DATA_ARGUMENT_POSITION = 0;
 
     private const int STATUS_ARGUMENT_POSITION = 1;
 
-    /**
-     * Chained methods (lowercased) that cannot change the response's status or body — header and
-     * cookie decoration only. A `->setStatusCode(<literal>)` link is read as a status override;
-     * any other chained call (`setData`, `setNotModified`, …) may invalidate what the matched
-     * call promised, so it degrades the read.
-     */
-    private const array RESPONSE_PRESERVING_CHAIN_METHODS = ['header', 'withheaders', 'cookie', 'withcookie'];
+    /** Chained methods (lowercased) that only add headers/cookies without changing status or body. */
+    private const array RESPONSE_PRESERVING_CHAIN_METHODS = [
+        'header',
+        'withheaders',
+        'cookie',
+        'withcookie',
+    ];
 
     private StatementNodeFinder $statementNodeFinder;
 
@@ -71,18 +62,13 @@ final readonly class InlineJsonCallReader
 
     // region Call-shape matching
 
-    /**
-     * Whether the node is a `->json(...)` method call on a zero-argument `response()` helper call.
-     */
+    /** Whether the node is a `->json(...)` call on a zero-argument `response()` helper. */
     public function isJsonHelperCall(Node $node): bool
     {
         return $this->isFactoryMethodCall($node, 'json');
     }
 
-    /**
-     * Whether the node is a `->{$method}(...)` call (method name lowercased) on a zero-argument
-     * `response()` helper call.
-     */
+    /** Whether the node is a `->{$method}(...)` call on a zero-argument `response()` helper. */
     public function isFactoryMethodCall(Node $node, string $method): bool
     {
         return $node instanceof MethodCall
@@ -93,11 +79,8 @@ final readonly class InlineJsonCallReader
     }
 
     /**
-     * Names arrive resolved by the scanner's NameResolver pass. A fully-qualified name matches
-     * when it is the root-namespace helper itself (`\response`); an *unqualified* name in a
-     * namespaced file stays unresolved (PHP's runtime fallback), so it matches as Laravel's
-     * global helper — unless a same-namespace function of that name is actually defined, in
-     * which case PHP would call the user's function and we must not document it.
+     * A fully-qualified `\response` always matches; an unqualified name is the global helper
+     * unless a same-namespace `response()` function exists (which PHP would call instead).
      */
     public function isResponseHelperCall(Expr $receiver): bool
     {
@@ -125,24 +108,17 @@ final readonly class InlineJsonCallReader
     // region Per-call reading
 
     /**
-     * Reads one matched `response()->json(...)` call into the facts a caller needs: its literal
-     * status (the `json()` status argument, 200 when absent, or a chained `->setStatusCode()`
-     * override) and its literal body schema. Applies no 2xx/non-2xx policy and emits no log; a
-     * non-readable status or body is reported as a degrade phrase on the result.
-     *
      * @param list<Stmt> $statements the scanned top-level statements (the chain walk searches them)
      */
     public function read(array $statements, MethodCall $call): InlineJsonCallResult
     {
         $arguments = $call->getArgs();
 
-        foreach ($arguments as $argument) {
-            if ($argument->unpack) {
-                return new InlineJsonCallResult(
-                    status: null,
-                    statusDegradeReason: 'spreads its arguments, so they cannot be read statically',
-                );
-            }
+        if (array_any($arguments, fn(Arg|Node\VariadicPlaceholder $argument): bool => $argument->unpack)) {
+            return new InlineJsonCallResult(
+                status: null,
+                statusDegradeReason: 'spreads its arguments, so they cannot be read statically',
+            );
         }
 
         $status = $this->resolveStatus($statements, $call, $arguments);
@@ -162,11 +138,6 @@ final readonly class InlineJsonCallReader
     }
 
     /**
-     * The call's literal status: a chained `->setStatusCode(<literal>)` override wins, otherwise
-     * the `json()` status argument (200 when absent). Returns an int, or an already-degraded
-     * {@see InlineJsonCallResult} when the status (or a body-mutating chain) is not statically
-     * readable.
-     *
      * @param list<Stmt>      $statements
      * @param array<int, Arg> $arguments
      */
@@ -202,10 +173,8 @@ final readonly class InlineJsonCallReader
     }
 
     /**
-     * Walks the chain outwards from the matched `json()` to determine a status override. Header
-     * and cookie links leave the status untouched (null); a `->setStatusCode(<literal>)` overrides
-     * it (int); any other link — a non-literal `->setStatusCode()` or a body-mutating `->setData()`
-     * — degrades the read (an {@see InlineJsonCallResult} carrying the reason).
+     * Walks the chain outwards from `json()`: passes through header/cookie links, returns an int
+     * for `->setStatusCode(<literal>)`, degrades on any other link.
      *
      * @param list<Stmt> $statements
      */
@@ -251,8 +220,7 @@ final readonly class InlineJsonCallReader
     }
 
     /**
-     * The method call whose receiver is exactly the given call (the next link outwards in a
-     * fluent chain), or null when the call is not chained into another method call.
+     * Returns the method call whose receiver is exactly `$call`, or null if not chained further.
      *
      * @param list<Stmt> $statements
      */
@@ -267,10 +235,7 @@ final readonly class InlineJsonCallReader
         return $parent instanceof MethodCall ? $parent : null;
     }
 
-    /**
-     * The literal integer argument of a `->setStatusCode(<literal|class-constant>)` link, or null
-     * when absent, unpacked, or not statically readable.
-     */
+    /** Literal integer status from a `->setStatusCode()` call, or null if absent or unreadable. */
     private function literalStatusArgument(MethodCall $call): ?int
     {
         $statusArgument = $call->getArgs()[0] ?? null;
@@ -294,8 +259,6 @@ final readonly class InlineJsonCallReader
     }
 
     /**
-     * Resolves an argument by position (unnamed) or by name, mirroring how PHP binds the call.
-     *
      * @param array<int, Arg> $arguments
      */
     private function argument(array $arguments, string $name, int $position): ?Arg
@@ -311,10 +274,6 @@ final readonly class InlineJsonCallReader
     }
 
     /**
-     * The literal body schema for the call's `data` argument plus its readability flag and degrade
-     * phrase: a literal array/scalar becomes a schema; an empty literal or absent argument carries
-     * no shape (null schema, readable); a non-literal expression is reported unreadable.
-     *
      * @param array<int, Arg> $arguments
      *
      * @return array{0: ?Schema, 1: bool, 2: ?string}
@@ -323,7 +282,7 @@ final readonly class InlineJsonCallReader
     {
         $dataArgument = $this->argument($arguments, 'data', self::DATA_ARGUMENT_POSITION);
 
-        // No data argument means an empty `[]` body — readable, but carrying no shape.
+        // Absent argument == empty body; readable but no shape to document.
         if ($dataArgument === null) {
             return [null, true, null];
         }
@@ -354,8 +313,7 @@ final readonly class InlineJsonCallReader
             return [null, false, 'has no statically readable body'];
         }
 
-        // A literal scalar (`json('ok')`, `json(true)`) is a valid JSON document; `null` and an
-        // empty array carry no shape.
+        // A literal scalar is a valid JSON document; null and empty array carry no shape.
         $definition = SchemaDefinitionFromLiteral::fromLiteralValue($literal);
 
         return $definition === []

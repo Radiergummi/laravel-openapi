@@ -7,11 +7,8 @@ namespace Radiergummi\OpenApi\Support\Extraction;
 use OpenApi\Annotations as OA;
 
 /**
- * Builds the `OA\Property` for a field whose type is a class-string: a `$ref` when the class
- * resolved to a schema, else a permissive `type: object`. The field's (already cleaned)
- * description is propagated; inline example/enum directives are intentionally dropped — they do
- * not apply to a `$ref` schema. Shared by the ApiResources and Fractal schema builders, which
- * derive this property identically.
+ * Builds the `OA\Property` for a class-typed field: a `$ref` when the class resolved to a schema,
+ * otherwise `type: object`. Inline example/enum directives are dropped (incompatible with `$ref`).
  *
  * @internal
  */

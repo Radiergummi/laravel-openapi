@@ -17,9 +17,7 @@ use function sprintf;
 
 /**
  * Reports components that are defined but never referenced via `$ref`.
- *
- * Orphaned components increase spec size and cognitive load without adding value. This rule checks
- * all component types from the raw spec against the precomputed index of referenced components.
+ * Checks all component types against the precomputed index of referenced components.
  */
 final class ComponentOrphaned implements Rule, ApiRuleVisitor
 {

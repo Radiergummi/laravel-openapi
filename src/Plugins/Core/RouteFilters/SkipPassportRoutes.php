@@ -8,24 +8,15 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Routing\Route;
 use Override;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
-use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 
 use function str_starts_with;
 
 /**
- * Excludes Laravel Passport's own routes from the generated OpenAPI spec.
+ * Excludes Passport's internal routes (`passport.*`) from the generated spec.
  *
- * Passport registers a dozen CRUD endpoints under the `passport.*` route-name prefix (clients,
- * tokens, scopes). They are needed at runtime so the {@see SecurityExtractor} can resolve
- * `passport.*` route URLs into the OAuth2 security scheme, but they should not surface as
- * application endpoints in the generated document.
- *
- * Tolerates Passport being absent: with no `passport.*` routes registered the filter simply
- * matches nothing.
- *
- * Unlike its sibling filters ({@see SkipNovaRoutes}, {@see SkipTelescopeRoutes},
- * {@see SkipIgnitionRoutes}), Passport's route-name prefix is not user-configurable, so the
- * class takes no constructor arguments.
+ * Those routes are needed at runtime for OAuth2 URL resolution but must not surface as
+ * application endpoints. Safe when Passport is absent (matches nothing). The prefix is
+ * not user-configurable, so this filter takes no constructor arguments.
  */
 #[Scoped]
 final readonly class SkipPassportRoutes implements RouteFilter

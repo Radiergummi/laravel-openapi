@@ -13,15 +13,9 @@ use function in_array;
 use function ltrim;
 
 /**
- * Excludes the broadcasting channel-authorization endpoints from the generated OpenAPI spec.
- *
- * `Broadcast::routes()` / `Broadcast::userRoutes()` register the fixed `broadcasting/auth` and
- * `broadcasting/user-auth` endpoints (GET|POST, unnamed). They authorize private/presence channels
- * for the client SDK (Reverb / Pusher / Echo) and are not part of an app's documented API.
- *
- * Unlike the dashboard filters there is no `*.path` config key — the URIs are literals baked into
- * the framework — so the class takes no constructor arguments and matches them directly. Tolerates
- * broadcasting being unused: an app that never calls `Broadcast::routes()` has no such routes to skip.
+ * Excludes Laravel's broadcasting channel-authorization endpoints (`broadcasting/auth` and
+ * `broadcasting/user-auth`) from the spec. These are SDK internals, not documented API routes.
+ * The URIs are framework literals, so no config key exists; safe when broadcasting is unused.
  */
 #[Scoped]
 final readonly class SkipBroadcastingRoutes implements RouteFilter

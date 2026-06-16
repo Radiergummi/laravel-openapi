@@ -33,26 +33,13 @@ use function is_string;
 use function str_contains;
 
 /**
- * Tier-1 whitelist matcher for request-accessor reads in a controller method body.
+ * Scans the first {@see self::STATEMENT_LIMIT} statements of a controller method for the five
+ * whitelisted request accessor shapes (`query`, `input`, `string`, `integer`, `boolean`) and
+ * reports each as a {@see QueryAccessorRead} with its parameter name and inferred type.
  *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements for exactly five accessor
- * shapes on the request — `query('sort')`, `input('q')`, `string('name')`, `integer('page')`,
- * `boolean('active')` — and reports each as a {@see QueryAccessorRead} carrying the parameter
- * name and the type the accessor implies.
- *
- * The receiver must be the method's `Illuminate\Http\Request`(-subclass)-typed parameter
- * variable or a zero-argument `request()` helper call; any other object with a same-named
- * method (an Eloquent builder's `query()`, say) never matches. The parameter name is the first
- * string-literal argument — positional or named (`key:`); a dotted key is reported in wire
- * notation (`filter.name` → `filter[name]`). A literal default value (second argument or
- * `default:`) is kept when its PHP type matches the accessor's inferred type.
- *
- * Matching descends into conditional contexts: unlike a request body, a read claims nothing
- * beyond "this parameter is consumed" — a `$request->boolean('active')` inside an `if` branch
- * or a `->when(...)` closure is still a read. A closure or arrow function whose own parameter
- * list re-declares the receiver variable name shadows it: reads in that subtree are on a
- * different object, so only the `request()` helper can match there. No variable tracking, no
- * cross-call dataflow (Tier 2 is refused, see epic #5).
+ * Dotted keys are converted to wire notation (`filter.name` → `filter[name]`). Default values
+ * are kept only when their PHP type matches the accessor's inferred type. A closure or arrow
+ * function that re-declares the receiver variable name shadows it for its subtree.
  *
  * @internal
  */
@@ -106,7 +93,7 @@ final readonly class RequestQueryAccessorReader
             $keyArgument = $this->argument($call->getArgs(), 0, 'key');
 
             if ($keyArgument === null) {
-                // Zero-argument query()/input() reads the whole bag — not a named parameter.
+                // Zero-argument query()/input() reads the whole bag, not a named parameter.
                 continue;
             }
 
@@ -142,9 +129,6 @@ final readonly class RequestQueryAccessorReader
 
     // region Call-shape matching
 
-    /**
-     * Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null.
-     */
     private function requestParameterName(ReflectionMethod $method): ?string
     {
         foreach ($method->getParameters() as $parameter) {
@@ -163,11 +147,6 @@ final readonly class RequestQueryAccessorReader
     }
 
     /**
-     * Depth-first, source-order collection of whitelisted accessor calls. Descends into every
-     * subtree, conditional contexts included; a closure or arrow function whose own parameter
-     * list re-declares the receiver variable name shadows it for its whole subtree — reads on
-     * the shadowing variable are a different request, only the `request()` helper still matches.
-     *
      * @param list<MethodCall> $calls
      */
     private function collectAccessorCalls(Node $node, ?string $requestParameterName, array &$calls): void
@@ -194,8 +173,6 @@ final readonly class RequestQueryAccessorReader
 
     /**
      * Whether the node opens a function scope that re-declares the receiver variable name.
-     * Closures capture only explicitly (`use` imports the outer variable, it does not shadow)
-     * and arrow functions capture implicitly, so the parameter list is the only shadow source.
      */
     private function shadowsReceiver(Node $node, ?string $requestParameterName): bool
     {
@@ -214,11 +191,6 @@ final readonly class RequestQueryAccessorReader
         );
     }
 
-    /**
-     * Whether the node is a whitelisted accessor call on the request: the method's
-     * `Illuminate\Http\Request`-typed parameter variable or a zero-argument `request()`
-     * helper call.
-     */
     private function isAccessorCall(Node $node, ?string $requestParameterName): bool
     {
         if (
@@ -253,9 +225,6 @@ final readonly class RequestQueryAccessorReader
     // region Argument resolution
 
     /**
-     * Resolves an argument by position or by its named-argument name. Positional arguments
-     * always precede named ones, so an unnamed argument's list index is its position.
-     *
      * @param array<int, Arg> $arguments
      */
     private function argument(array $arguments, int $position, string $name): ?Arg
@@ -274,9 +243,8 @@ final readonly class RequestQueryAccessorReader
     }
 
     /**
-     * Converts a dotted accessor key to its query-string wire notation (`filter.name` →
-     * `filter[name]`). Returns null for keys that name no single parameter — a wildcard
-     * segment or an empty segment.
+     * Converts a dotted key to wire notation (`filter.name` → `filter[name]`). Returns null for
+     * wildcard or empty segments.
      */
     private function wireName(string $key): ?string
     {
@@ -299,11 +267,8 @@ final readonly class RequestQueryAccessorReader
     }
 
     /**
-     * The accessor's literal default value (second argument or `default:`), kept only when its
-     * PHP type matches the inferred parameter type — `integer('per_page', 25)` carries 25, but
-     * `query('page', 1)` does not pin an integer default onto a string parameter. A null,
-     * non-literal, or type-mismatched default is simply omitted; the parameter itself is still
-     * documented.
+     * Returns the literal default only when its PHP type matches the inferred parameter type;
+     * null, non-literal, or mismatched defaults are omitted.
      */
     private function defaultValueOf(MethodCall $call, string $type): mixed
     {

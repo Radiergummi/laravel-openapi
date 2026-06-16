@@ -71,8 +71,7 @@ final class SchemaEnumTypeMismatch implements Rule, FieldRuleVisitor
     }
 
     /**
-     * Return a type-checking closure for the given OpenAPI type, or null if
-     * the type is not one we validate.
+     * Returns null for types we do not validate (e.g., `object`, `array`).
      *
      * @return null|callable(mixed): bool
      */

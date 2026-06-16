@@ -9,24 +9,13 @@ use OpenApi\Generator;
 
 use function array_values;
 use function is_array;
-use function is_array;
 
 /**
- * Builds an `OA\Schema` from a literal JSON-Schema array definition, recursively converting
- * `properties` into `OA\Property`, `items` into `OA\Items`, the `oneOf`/`anyOf`/`allOf`
- * composition keywords into `OA\Schema[]`, and `not` into a nested `OA\Schema`. swagger-php
- * rejects a raw array left under any of these (`properties is an object literal`,
- * `allOf must be an array of @OA\Schema`), failing validation on both the 5.x and 6.x lines;
- * a proper object graph validates on both.
+ * Builds an `OA\Schema` object graph from a literal JSON-Schema array definition.
  *
- * Every node with `type: array` is guaranteed an `items` object (an unconstrained one when the
- * definition carries none): swagger-php's validator rejects an items-less array on both
- * supported majors (`@OA\Items() is required when … has type "array"`), and the literal paths
- * legitimately produce that shape (`'tags' => []`, heterogeneous lists). Mirrors the same
- * defence in `FieldDescriptor` on the validation-rules path.
- *
- * Shared by the `#[Response(schema: [...])]` authoring path and the Tier-1 inline-JSON response
- * scan, which both express schemas as plain definition arrays first.
+ * swagger-php rejects raw arrays under `properties`, `allOf`, etc.; this converts them to
+ * proper OA object nodes. Every `type: array` node is guaranteed an `items` object because
+ * swagger-php rejects items-less array schemas on both supported majors (5.x and 6.x).
  *
  * @internal
  */
@@ -101,9 +90,6 @@ final readonly class SchemaFromArrayDefinition
     }
 
     /**
-     * Builds a named `OA\Property` from a definition array — the same conversion as
-     * {@see build()}, hung onto a property node (`OA\Property` extends `OA\Schema`).
-     *
      * @param array<string, mixed> $definition
      */
     public static function buildProperty(string $propertyName, array $definition): OA\Property

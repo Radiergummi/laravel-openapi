@@ -8,9 +8,8 @@ use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 /**
- * The result of a schema resolver: the component schema has been registered in the
- * {@see ComponentSchemaRegistry} under `componentKey`, and should be referenced with the given
- * media type.
+ * Returned by a schema resolver: the schema is registered in {@see ComponentSchemaRegistry}
+ * under `componentKey` and should be referenced with the given media type.
  */
 final readonly class ResolvedSchema
 {

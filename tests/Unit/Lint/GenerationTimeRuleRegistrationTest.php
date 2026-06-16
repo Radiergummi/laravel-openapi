@@ -13,7 +13,7 @@ uses()->group('openapi', 'lint');
  * Build a RuleRegistry containing only the core generation-time stub rules.
  *
  * We instantiate the stubs directly rather than going through CoreRegistration and OpenApiRegistry,
- * because some other core rules (e.g. SpecInvalid) call resource_path() at construction time and
+ * because some other core rules (e.g., SpecInvalid) call resource_path() at construction time and
  * require a full Laravel application. Unit tests run under a bare container and cannot satisfy
  * that requirement.
  */

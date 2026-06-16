@@ -22,7 +22,7 @@ final class OpenApiConfig
         ]);
 
         // Suppress lint rules that produce false positives against the example surface.
-        //   - `response.description-missing` fires for $ref'd error responses (e.g. `404 -> $ref:
+        //   - `response.description-missing` fires for $ref'd error responses (e.g., `404 -> $ref:
         //     '#/components/responses/NotFound'`) because the rule does not follow the $ref into
         //     `components.responses`, where the description actually lives. This is a Core gap;
         //     for the showcase it would be misleading noise.

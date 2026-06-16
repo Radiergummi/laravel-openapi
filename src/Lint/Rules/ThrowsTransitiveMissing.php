@@ -27,7 +27,7 @@ use function str_ends_with;
 
 /**
  * Flags controller methods that type-hint an Action class whose `handle()` method declares
- * `@throws` exceptions not redeclared on the controller method.
+ * `throws` exceptions not redeclared on the controller method.
  *
  * This catches the common mistake of adding a new exception path inside an Action without
  * propagating it to the controller's PHPDoc, which in turn means the OpenAPI spec will lack the
@@ -71,8 +71,6 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
     }
 
     /**
-     * Resolve the parameter type to an Action class name, or null if not an Action.
-     *
      * @return null|class-string
      */
     private function resolveActionClass(ReflectionParameter $parameter): ?string
@@ -110,9 +108,6 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
     }
 
     /**
-     * Parse `@throws` from the Action's `handle()` method and emit a finding for each exception
-     * not declared on the controller method.
-     *
      * @param class-string $actionClass
      *
      * @return iterable<Finding>

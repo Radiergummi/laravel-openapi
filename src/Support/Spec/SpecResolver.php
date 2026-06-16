@@ -14,16 +14,11 @@ use function array_values;
 use function assert;
 
 /**
- * Resolves the effective list of spec names declared by `#[Spec]` attributes on a route.
+ * Resolves the effective `#[Spec]` names for a route.
  *
- * Returns:
- * - `null` when neither the controller class nor the action method carries `#[Spec]`
- *   (i.e. the route is subject to filter-based assignment).
- * - `list<string>` (possibly empty) — the union of all method-level `#[Spec]` attributes if
- *   the method carries any, otherwise the union of all class-level attributes.
- *
- * Method presence shadows the class: a method carrying `#[Spec]` ignores the class's
- * `#[Spec]` entirely, even if the union would differ.
+ * Returns null when neither the class nor the method carries `#[Spec]` (route uses filter-based
+ * assignment). Otherwise returns the union of method-level attributes, or class-level if the
+ * method has none. Method attributes shadow class attributes entirely.
  *
  * @internal
  */
@@ -43,7 +38,6 @@ final readonly class SpecResolver
             return $methodNames;
         }
 
-        // Fall back to the method's declaring class if no explicit class was passed.
         $effectiveClass = $class ?? $method?->getDeclaringClass();
 
         return $effectiveClass !== null ? $this->collect($effectiveClass) : null;
@@ -52,7 +46,7 @@ final readonly class SpecResolver
     /**
      * @param ReflectionClass<object>|ReflectionMethod $target
      *
-     * @return null|list<string> null when no attribute present
+     * @return null|list<string>
      */
     private function collect(ReflectionClass|ReflectionMethod $target): ?array
     {

@@ -67,7 +67,7 @@ final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
                     $operation->descriptor->controller?->getName() ?? '(unknown)',
                     $operation->descriptor->method->getName(),
                 ),
-                fixHint: 'Provide a fully-qualified URL (e.g. https://example.com/docs).',
+                fixHint: 'Provide a fully-qualified URL (e.g., https://example.com/docs).',
             );
         }
     }

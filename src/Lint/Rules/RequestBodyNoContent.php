@@ -31,7 +31,7 @@ final class RequestBodyNoContent implements Rule, RequestBodyRuleVisitor
             ruleId: $this->id(),
             level: $this->level(),
             message: 'A requestBody object has no media-type entries',
-            fixHint: 'Add at least one content entry (e.g. application/json) with a schema.',
+            fixHint: 'Add at least one content entry (e.g., application/json) with a schema.',
         );
     }
 

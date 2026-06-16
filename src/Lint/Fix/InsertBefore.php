@@ -10,9 +10,8 @@ use Override;
 use function strlen;
 
 /**
- * Insert `$text` immediately before line `$line` (1-based). `$text` is inserted verbatim at the
- * start of the line, so callers include any indentation and the trailing newline that turns it
- * into one or more standalone lines.
+ * Inserts `$text` verbatim before line `$line` (1-based). Callers must include indentation and
+ * the trailing newline.
  */
 final class InsertBefore extends FixOperation
 {

@@ -7,9 +7,8 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
 /**
  * Result of scanning a controller method for inline validation rules.
  *
- * A null result from the reader means no whitelisted validator call was found (nothing to say);
- * an instance with `rules === null` means a call **was** found but its rules could not be read
- * statically — the degrade case, which warrants a generation-log note.
+ * A null from the reader means no whitelisted validator call was found. An instance with
+ * `rules === null` means a call was found but its rules could not be read statically (degrade case).
  *
  * @internal
  */

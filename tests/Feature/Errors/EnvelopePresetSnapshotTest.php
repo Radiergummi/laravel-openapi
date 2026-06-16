@@ -42,7 +42,7 @@ it('renders the configured envelope on error responses', function (
     assert($preset === 'laravel' || $preset === 'rfc7807' || $preset === 'json-api');
 
     // When a resolver produces a body, responses are inlined per-operation to avoid
-    // first-write-wins collisions on shared components (e.g. two operations at 422
+    // first-write-wins collisions on shared components (e.g., two operations at 422
     // with different resolver outputs). Look up the inline path on the operation.
     $operation = $spec['paths']['/widgets/{id}']['get'];
 

@@ -14,13 +14,10 @@ use function ltrim;
 use function str_starts_with;
 
 /**
- * Excludes Laravel Horizon's dashboard routes from the generated OpenAPI spec.
+ * Excludes Horizon dashboard routes from the generated spec.
  *
- * Horizon registers its dashboard under a route group whose URI prefix is `config('horizon.path')`
- * and whose (optional) domain is `config('horizon.domain')` — the exact shape of {@see SkipTelescopeRoutes}.
- *
- * Tolerates Horizon being absent: with no `horizon.path` config present the path is empty and the
- * filter matches nothing.
+ * Matches on `config('horizon.path')` (URI prefix) and `config('horizon.domain')`.
+ * When Horizon is absent the path is empty and the filter matches nothing.
  */
 #[Scoped]
 final readonly class SkipHorizonRoutes implements RouteFilter

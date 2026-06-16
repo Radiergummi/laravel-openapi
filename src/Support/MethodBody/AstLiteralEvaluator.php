@@ -28,15 +28,11 @@ use function is_string;
 
 /**
  * Evaluates a php-parser expression made up purely of compile-time literals: scalars,
- * `true` / `false` / `null`, (nested) array literals, class constants, and negated numbers.
- * Anything dynamic — variables, calls, concatenations, object instantiation — throws
- * {@see NonLiteralValueException}; callers degrade gracefully rather than guess.
+ * `true`/`false`/`null`, (nested) array literals, class constants, and negated numbers.
+ * Anything dynamic throws {@see NonLiteralValueException}; callers degrade gracefully.
  *
- * Class constants resolve when the class name is statically known (the scanner's NameResolver
- * pass has already turned imports and aliases into FQCNs) and the class autoloads — the same
- * Tier-0 trust extended to any reflection on app classes. The constant's *value* must itself be
- * a literal: enum cases are objects and stay non-literal, as does any array constant containing
- * one. Unresolved `self::` / `static::` references and dynamic class or constant names throw.
+ * Class constants resolve when the class autoloads and the constant's value is itself a literal
+ * (enum cases and arrays containing objects throw). Unresolved `self::`/`static::` also throw.
  *
  * @internal
  */
@@ -107,10 +103,8 @@ final readonly class AstLiteralEvaluator
     }
 
     /**
-     * Resolves `Some\Class::class` to its fully-qualified class-name string, and any other
-     * constant on a loadable class (or interface) to its value — provided that value is itself
-     * a literal. `class_exists` triggers autoloading, which is accepted: the generator already
-     * autoloads app classes for reflection everywhere else.
+     * Resolves `Class::class` to its FQCN string, or any other constant to its literal value.
+     * Triggers autoloading intentionally (the generator already autoloads app classes).
      *
      * @throws NonLiteralValueException
      */
@@ -139,7 +133,6 @@ final readonly class AstLiteralEvaluator
         }
 
         if (!self::isLiteralValue($value)) {
-            // Enum cases and other object-valued constants are not compile-time literals.
             throw NonLiteralValueException::for($expression);
         }
 

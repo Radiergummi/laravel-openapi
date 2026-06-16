@@ -9,13 +9,11 @@ use JsonSerializable;
 use Override;
 
 /**
- * Documentation-coverage summary for one {@see LintRunner::run()} invocation.
+ * Documentation-coverage summary for one lint run.
  *
- * Coverage is operation-level and binary: an operation (route × verb) is covered when it carries
- * no findings at the active level. Findings that cannot be attributed to a single operation
- * (schema-derived, pre-build, spec-level) are counted in {@see $unattributedFindings} and do not
- * lower the percentage. `generatorVersion` is stamped so cross-version deltas are recognised as
- * non-comparable (the shifting-denominator footgun).
+ * An operation is "covered" when it carries no findings at the active level. Findings not
+ * attributable to a single operation are counted in `$unattributedFindings` and do not lower
+ * the percentage. `generatorVersion` is stamped so cross-version deltas are non-comparable.
  *
  * @internal
  *
@@ -24,9 +22,8 @@ use Override;
 final readonly class CoverageSummary implements Arrayable, JsonSerializable
 {
     /**
-     * `$perOperation` (source location + covered flag, for line-keyed reports like Cobertura) is
-     * held in memory only — {@see toArray()} omits it, so the JSON report and the coverage gate
-     * output are unchanged.
+     * `$perOperation` is held in memory only; {@see toArray()} omits it (Cobertura-style reports
+     * read it directly, without it affecting JSON output).
      *
      * @param list<array{tag: string, total: int, covered: int, percent: float}> $perTag
      * @param list<array{file: ?string, line: ?int, covered: bool}>              $perOperation

@@ -15,9 +15,6 @@ use function sprintf;
 
 /**
  * Reports operations that have no tags assigned.
- *
- * Tags help organize operations in generated documentation and client SDKs. Every operation
- * should have at least one tag.
  */
 final class OperationTagMissing implements Rule, OperationRuleVisitor
 {

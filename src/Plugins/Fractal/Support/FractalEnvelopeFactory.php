@@ -8,24 +8,10 @@ use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 
 /**
- * Builds the response envelope for a Fractal-bound endpoint.
+ * Builds the response envelope schema for a Fractal-bound endpoint.
  *
- * Three envelope shapes per serializer are produced via {@see single()},
- * {@see collection()}, and {@see paginated()}; each accepts the serializer
- * the endpoint runs and dispatches to the matching builder.
- *
- * Modelled serializers:
- *
- * - {@see Serializer::DataArray} (default) — `{data}` / `{data: [...]}` /
- *   `{data: [...], meta: {pagination: {…}}}`.
- * - {@see Serializer::ArraySerializer} — no envelope for single items,
- *   top-level array for collections; paginated still wraps in `data`
- *   because Fractal's `IlluminatePaginatorAdapter` wraps regardless.
- * - {@see Serializer::JsonApi} — JSON:API resource objects in `data`,
- *   `meta.pagination` with hyphenated keys when paginated.
- *
- * Custom serializers fall outside this set; use a `#[Response]` override on
- * the action to declare their schema explicitly.
+ * Supports DataArray (default), ArraySerializer, and JsonApi serializers.
+ * Custom serializers are not modelled; use `#[Response]` to declare their schema explicitly.
  */
 #[Scoped]
 final readonly class FractalEnvelopeFactory

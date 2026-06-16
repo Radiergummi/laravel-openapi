@@ -53,9 +53,8 @@ final readonly class SpecDefinition
     }
 
     /**
-     * Laravel route name used for a spec's YAML endpoint. Bare `openapi.spec` for the
-     * implicit default; `openapi.spec.{name}` for named specs. Exposed statically so the
-     * service provider can mount routes during boot without resolving {@see SpecRegistry}.
+     * Route name for a spec's YAML endpoint. Static so the service provider can mount routes
+     * during boot without resolving {@see SpecRegistry}.
      */
     public static function specRouteNameFor(string $specName): string
     {

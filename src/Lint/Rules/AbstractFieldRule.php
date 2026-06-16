@@ -20,18 +20,9 @@ use function assert;
 use function class_basename;
 
 /**
- * Base class for rules that inspect scoped field attributes (`#[RequestField]`, `#[ResponseField]`,
- * `#[PathParam]`, `#[QueryParam]`) on properties of payload classes injected
- * into controller methods.
- *
- * Handles the full traversal pipeline:
- *   operation → descriptor → method params → payload classes → properties → FieldAttribute
- *
- * Subclasses implement a single `inspectField()` hook that receives the resolved FieldAttribute
- * instance, property, and operation context.
- *
- * Uses {@see PayloadParameterScanner} so Data classes injected through Domain Actions
- * (the standard write-endpoint pattern) are also inspected.
+ * Base class for rules that inspect scoped field attributes on payload class properties.
+ * Subclasses implement {@see inspectField()}. Uses {@see PayloadParameterScanner} so Data
+ * classes injected through Domain Actions are covered.
  */
 abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
 {
@@ -89,8 +80,7 @@ abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
         $field = $attributes[0]->newInstance();
         assert($field instanceof FieldAttribute);
 
-        // Stamp the source class and property so a property-scoped
-        // #[IgnoreLint] directive can match this finding structurally.
+        // Required for property-scoped #[IgnoreLint] matching.
         $context = [
             Finding::CONTEXT_SOURCE_CLASS => $property->getDeclaringClass()->getName(),
             Finding::CONTEXT_SOURCE_MEMBER => $property->getName(),
@@ -112,9 +102,6 @@ abstract class AbstractFieldRule implements Rule, OperationRuleVisitor
         OperationNode $operation,
     ): iterable;
 
-    /**
-     * The short class name of a field attribute, e.g. "RequestField".
-     */
     protected function attributeName(FieldAttribute $field): string
     {
         return class_basename($field);

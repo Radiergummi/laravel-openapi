@@ -11,10 +11,7 @@ use SplObjectStorage;
 
 /**
  * Per-run inputs shared across every stage in a single {@see SpecPipeline::run()} invocation.
- *
- * The `$spec` and `$environment` fields are immutable per run. The per-operation
- * action lookup populated by PathsStage and read by later stages is the only mutable
- * piece of state on the context.
+ * The per-operation action lookup is the only mutable state; all other fields are immutable.
  */
 final class GenerationContext
 {

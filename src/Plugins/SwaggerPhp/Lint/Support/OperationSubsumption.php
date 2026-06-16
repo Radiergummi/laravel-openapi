@@ -13,23 +13,14 @@ use function is_array;
 use function Radiergummi\OpenApi\is_defined;
 
 /**
- * Operation-level redundancy comparison: a field-by-field walk of the authored operation against
- * inference's operation for the same route. The comparator behind
- * {@see \Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference}.
+ * Field-by-field subsumption check for the authored operation against the inferred operation.
+ * The comparator behind {@see \Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference}.
  *
- * Scalar metadata (`summary` / `description` / `operationId`) must match exactly; collections
- * (`tags`) and schema-bearing members (`responses` / `parameters` / `requestBody`) must be subsumed
- * by inference's via {@see SchemaEquivalence}. `parameters` / `requestBody` are checked as a
- * conservative guard even though the harvester merges only metadata and `responses`, so an annotation
- * documenting something inference cannot reproduce is kept rather than silently dropped. An
- * `@OA\Response(ref=…)` pointing at a response component the harvester never merges is treated as not
- * reproducible, so the operation is kept.
+ * Scalar metadata must match exactly; collections and schema-bearing members are checked via
+ * {@see SchemaEquivalence}. A `$ref` response component that the harvester never merges is
+ * treated as not reproducible, so the operation is kept.
  *
- * Operation-level *replaceability* (a non-empty candidate) is future work; the candidate-replacement
- * seam is proven at schema level by {@see SchemaSubsumption}. This comparator implements only the
- * empty-candidate (pure redundancy) case and reproduces the operation rule's prior behaviour exactly;
- * it **throws** on a non-empty candidate rather than silently dropping it and returning a wrong
- * verdict, so #122 part 2 gets a clear signal to implement the operation-level fold.
+ * Only the empty-candidate case is implemented; throws on a non-empty candidate.
  *
  * @internal
  */
@@ -50,7 +41,7 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
     ): bool {
         if ($candidate !== []) {
             throw new LogicException(
-                'Operation-level candidate-replacement is not implemented; #122 part 2 must fold the candidate '
+                'Operation-level candidate-replacement is not implemented; fold the candidate '
                 . 'onto the inferred operation before comparing.',
             );
         }
@@ -63,9 +54,8 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
     }
 
     /**
-     * Whether the inferred operation reproduces every field the harvester merges from the authored
-     * one. Routing identity (`path` / `method`) is not compared — both sides describe the same route
-     * by construction.
+     * Whether inference reproduces every authored field. Routing identity is not compared; both
+     * sides describe the same route by construction.
      */
     private function subsumesAuthoredOperation(OA\Operation $inferred, OA\Operation $authored): bool
     {
@@ -115,8 +105,7 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
                     continue;
                 }
 
-                // A response that is itself a `$ref` to a response component the harvester never
-                // merges cannot be reproduced by inference — keep the annotation.
+                // A $ref to a response component the harvester never merges cannot be inferred; keep it.
                 if (is_defined($response->ref) || !$this->anySubsumesResponse($inferredResponses, $response)) {
                     return false;
                 }
@@ -127,8 +116,6 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
     }
 
     /**
-     * Whether some element of `$inferred` subsumes `$authored`.
-     *
      * @param array<array-key, OA\AbstractAnnotation> $inferred
      */
     private function anySubsumes(array $inferred, OA\AbstractAnnotation $authored): bool
@@ -143,8 +130,6 @@ final readonly class OperationSubsumption implements OaRedundancyComparator
     }
 
     /**
-     * Whether the inferred response for the authored response's status subsumes it.
-     *
      * @param array<array-key, OA\Response> $inferred
      */
     private function anySubsumesResponse(array $inferred, OA\Response $authored): bool

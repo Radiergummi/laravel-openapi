@@ -7,13 +7,10 @@ namespace Radiergummi\OpenApi\Plugins\Fortify\Support;
 use OpenApi\Annotations as OA;
 
 /**
- * One row of the {@see FortifyContractTable}: the stock request body and its public component name,
- * the stock success body and status, and the FQCN of the Fortify response contract that governs the
- * body (consulted by the customization gate — null when no contract governs it, e.g. the
- * password-confirmation status endpoint that returns JSON directly from its controller).
+ * One row of the {@see FortifyContractTable}: request schema, success schema/status, and the
+ * Fortify response contract governing the response body (null when none applies).
  *
- * `requestSchemaName` is a clean, framework-agnostic component name (e.g. `LoginRequest`) — it must
- * never leak Fortify/PHP/namespace internals into the public document.
+ * `requestSchemaName` must be a clean, framework-agnostic component name (e.g., `LoginRequest`).
  *
  * @internal
  */

@@ -8,7 +8,7 @@ declare(strict_types=1);
  *
  * Merge a (possibly split) published OpenAPI spec into one document and print JSON.
  * A directory is merged fragment-by-fragment (mirrors apps that serve an assembled
- * spec, e.g. Vito's ApiDocsController). A single file is parsed and passed through.
+ * spec, e.g., Vito's ApiDocsController). A single file is parsed and passed through.
  */
 
 require_once dirname(__DIR__, 4) . '/vendor/autoload.php';

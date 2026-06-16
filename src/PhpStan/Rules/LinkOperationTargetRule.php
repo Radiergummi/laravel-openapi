@@ -17,14 +17,9 @@ use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 use function assert;
 
 /**
- * Flags `#[Link]` usages that don't name exactly one operation target. The attribute requires
- * precisely one of `operationId` or `operationRef`; both or neither is invalid.
- *
- * This mirrors the `link.both-operation-id-and-ref` / `link.neither-operation-id-nor-ref` lint
- * rules, moving the same check to edit time. The attribute constructor itself does not guard the
- * pair, so this is the earliest point it can be caught. PHPStan identifiers can't contain dashes,
- * so the static counterparts use camelCase (`openapi.link.bothOperationTargets`,
- * `openapi.link.missingOperationTarget`).
+ * Flags `#[Link]` usages where exactly one of `operationId` / `operationRef` is not set.
+ * The attribute constructor does not guard the pair; this is the earliest point it can be caught.
+ * PHPStan identifiers use camelCase because dashes are not allowed.
  *
  * @implements Rule<Node\Attribute>
  */

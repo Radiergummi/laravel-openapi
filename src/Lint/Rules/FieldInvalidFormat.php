@@ -16,7 +16,7 @@ use function sprintf;
 
 final class FieldInvalidFormat extends AbstractFieldRule
 {
-    /** @var list<string> Registered OAS 3.1 format values */
+    /** @var list<string> */
     private const array VALID_FORMATS = [
         'date-time',
         'date',

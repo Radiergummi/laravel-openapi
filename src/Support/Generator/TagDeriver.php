@@ -12,13 +12,10 @@ use function explode;
 use function preg_replace;
 
 /**
- * Derives an OpenAPI tag for an operation from Laravel routing conventions, so the generated
- * document groups endpoints sensibly out of the box.
+ * Derives an OpenAPI tag from Laravel routing conventions.
  *
- * Primary source: the controller class short name with a trailing `Controller` stripped and
- * pluralised — `PostController` → `Posts`. Fallback for closure/controllerless routes: the
- * StudlyCased last segment of the route-group prefix — `prefix('webhooks')` → `Webhooks`. Final
- * fallback: `General`.
+ * Sources in order: controller short name minus `Controller`, pluralised (`PostController` →
+ * `Posts`); StudlyCased last route-prefix segment; `General`.
  *
  * @internal
  */

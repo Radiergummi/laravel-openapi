@@ -20,8 +20,8 @@ use function sprintf;
 
 /**
  * Flags an operation bound via `#[FractalResponse]` whose transformer declares no
- * `#[TransformerField]` — and whose shape the generator cannot infer from the `transform()`
- * literal either — so the response schema is genuinely empty.
+ * `#[TransformerField]`, and whose shape the generator cannot infer from the `transform()`
+ * literal either, so the response schema is genuinely empty.
  */
 final readonly class FractalFieldsUndeclared implements Rule, OperationRule
 {
@@ -59,8 +59,7 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
             return;
         }
 
-        // Mirror the schema builder: a readable transform() literal with fields produces a
-        // non-empty schema — "the response schema is empty" would be untrue.
+        // If transform() can be read, the schema is non-empty and there is nothing to flag.
         $inferred = $this->transformReader->read($transformer);
 
         if ($inferred !== null && $inferred !== []) {

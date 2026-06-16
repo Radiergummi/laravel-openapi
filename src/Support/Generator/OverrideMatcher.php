@@ -16,26 +16,17 @@ use function strlen;
 use function usort;
 
 /**
- * Resolves the merged, allowlist-filtered override field-set for a single operation, and detects
- * config keys that match nothing.
+ * Resolves the merged, allowlist-filtered override field-set for a single operation.
  *
- * Precedence (ascending — the most specific match wins per field):
- *   1. URI globs, ordered by specificity (count of literal, non-`*` characters); ties broken by
- *      declaration order, later key winning. `*` matches any run of characters, including `/`.
- *   2. The exact route-name key, applied last (highest precedence).
- *
- * A config key is an exact route-name match for an operation when it equals that operation's route
- * name; otherwise it is matched as a URI glob against the operation's URI.
- *
- * Pure utility — constructed with the raw `openapi.overrides` config array, no container dependency.
+ * Precedence (ascending): URI globs by specificity (literal character count), declaration order
+ * breaking ties, then exact route-name key wins last. `*` matches any run of characters including `/`.
  *
  * @internal
  */
 final class OverrideMatcher
 {
     /**
-     * Operation-level fields that may be set from config. Any `x-*` vendor extension is also
-     * allowed (see {@see isAllowedField()}).
+     * Operation-level fields settable from config. Any `x-*` vendor extension is also allowed.
      *
      * @var list<string>
      */
@@ -47,8 +38,7 @@ final class OverrideMatcher
         'deprecated',
     ];
     /**
-     * Whether any override is configured at all. Lets callers skip work entirely on the default
-     * install, where `openapi.overrides` is empty.
+     * True when any override is configured; lets callers skip work on the default install.
      */
     public bool $hasOverrides {
         get => $this->overrides !== [];
@@ -60,13 +50,9 @@ final class OverrideMatcher
     public function __construct(private readonly array $overrides) {}
 
     /**
-     * The override lookup key for a webhook descriptor: the logical webhook name from its
-     * `#[Webhook]` attribute, which is the string that appears under `webhooks` in the spec and the
-     * value {@see Stages\OverridesStage} matches against. Returns null for non-webhook descriptors.
-     *
-     * Single source of truth shared by {@see Stages\PathsStage} (which emits the name) and
-     * {@see \Radiergummi\OpenApi\Lint\Rules\OverridesUnused} (which checks it), so the stage and
-     * the lint rule cannot drift on webhook key semantics.
+     * The override lookup key for a webhook descriptor: the logical name from `#[Webhook]`.
+     * Shared by {@see Stages\PathsStage} and the lint rule so webhook key semantics cannot drift.
+     * Returns null for non-webhook descriptors.
      */
     public static function webhookKeyFor(ActionDescriptor $descriptor): ?string
     {
@@ -138,15 +124,11 @@ final class OverrideMatcher
      */
     private function filter(array $block): array
     {
-        $filtered = [];
-
-        foreach ($block as $field => $value) {
-            if (self::isAllowedField($field)) {
-                $filtered[$field] = $value;
-            }
-        }
-
-        return $filtered;
+        return array_filter(
+            $block,
+            static fn(string $field): bool => self::isAllowedField($field),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     public static function isAllowedField(string $field): bool
@@ -167,9 +149,8 @@ final class OverrideMatcher
     }
 
     /**
-     * Config keys that matched no route across the given set. A path route is matched by its route
-     * name or its URI; a webhook route by its route name or its webhook name (never its URI) —
-     * mirroring how {@see Stages\OverridesStage} keys each, so the rule and stage agree.
+     * Config keys that matched no route: path routes match by name or URI; webhook routes by name
+     * or webhook name (never URI), mirroring {@see Stages\OverridesStage}.
      *
      * @param list<array{name: ?string, uri: string, webhook?: ?string}> $routes
      *
@@ -198,7 +179,7 @@ final class OverrideMatcher
                 return true;
             }
 
-            // Webhook operations are keyed by their webhook name, not their URI — match that
+            // Webhook operations are keyed by their webhook name, not their URI; match that
             // string the same way OverridesStage does. Path operations match on their URI.
             $globTarget = $route['webhook'] ?? $route['uri'];
 

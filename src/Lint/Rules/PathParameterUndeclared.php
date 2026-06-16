@@ -20,9 +20,6 @@ use function sprintf;
 
 /**
  * Reports path template placeholders that are not declared as path parameters on the operation.
- *
- * For example, if the path is `/users/{userId}/posts/{postId}` but only `userId` is declared as a
- * parameter, this rule will flag `postId`.
  */
 final class PathParameterUndeclared implements Rule, OperationRuleVisitor
 {
@@ -66,8 +63,6 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
     }
 
     /**
-     * Extract `{...}` placeholders from a path template.
-     *
      * @return list<string>
      */
     private function extractPlaceholders(string $pathUri): array

@@ -52,7 +52,7 @@ Per entry:
 - **Tripwire:** spatie-data examples (`examples:spatie-data`) + ExamplesTest snapshots.
 - **Diff targets:** (if examples drift or changelog flags property/cast resolution)
   - `Data` base class + `DataProperty` / `DataClass` reflection model.
-  - Attribute classes the plugin reads (e.g. `MapName`, `WithCast`, optionality markers).
+  - Attribute classes the plugin reads (e.g., `MapName`, `WithCast`, optionality markers).
 - **Known-fragile:** plugin depends on Data's reflection model, not its runtime — internal
   reshapes of `DataClass` are the risk.
 - **Watermark:** Last reviewed: — (initial)

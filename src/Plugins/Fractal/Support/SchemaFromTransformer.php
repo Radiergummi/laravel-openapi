@@ -10,33 +10,22 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
-use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\TransformerRefSchemaResolver;
 use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use ReflectionClass;
 use ReflectionException;
 
+use function assert;
 use function class_exists;
 use function implode;
 use function sprintf;
 
 /**
- * Builds the `OA\Schema` (type: object) for a Fractal transformer and registers it as a
- * component. Two sources compose per field: class-level `#[TransformerField]` /
- * `#[TransformerInclude]` attributes (always authoritative for the fields they name) and the
- * Tier-1 `transform()` literal read by {@see TransformerTransformReader} — inferred fields the
- * attributes do not cover follow them in literal order. A dynamic `transform()` body degrades
- * to the attribute-declared shape with a generation-log note when that leaves the schema empty.
+ * Builds the `OA\Schema` (type: object) for a Fractal transformer and registers it as a component.
  *
- * Nested transformer-shaped field types (classes carrying `#[TransformerField]`)
- * recurse through {@see build()} directly; other class-string types resolve via
- * the injected resolver factory — a `Closure` returning the registered
- * resolvers minus this plugin's own {@see TransformerRefSchemaResolver}. The
- * list is lazy by design: the eager equivalent forms a cross-plugin
- * construction cycle with `SchemaFromResource`, because each plugin's own
- * `RefSchemaResolver` references the other plugin's `SchemaFrom*` builder
- * (filtering out only the same-plugin resolver is not enough). Invoking the
- * factory at use time lets the container finish constructing both sides first.
+ * Field sources (in priority order): `#[TransformerField]`/`#[TransformerInclude]` attributes, then
+ * `transform()` literal keys. A dynamic body degrades to the attribute-declared shape. The resolver
+ * factory is a lazy `Closure` to avoid a cross-plugin construction cycle.
  */
 final readonly class SchemaFromTransformer
 {
@@ -52,8 +41,6 @@ final readonly class SchemaFromTransformer
     ) {}
 
     /**
-     * Registers the transformer and returns its qualified `$ref` string.
-     *
      * @param class-string $transformerClass
      *
      * @throws ReflectionException
@@ -64,8 +51,6 @@ final readonly class SchemaFromTransformer
     }
 
     /**
-     * Registers the transformer as a component schema and returns its key.
-     *
      * @param class-string $transformerClass
      *
      * @throws ReflectionException
@@ -99,6 +84,7 @@ final readonly class SchemaFromTransformer
         foreach ($reflection->getAttributes(TransformerField::class) as $attribute) {
             $field = $attribute->newInstance();
             $seenNames[$field->name] = true;
+            assert($field instanceof TransformerField);
             $properties[] = $this->buildFieldProperty($field);
 
             if (!$field->conditional) {
@@ -108,6 +94,7 @@ final readonly class SchemaFromTransformer
 
         foreach ($reflection->getAttributes(TransformerInclude::class) as $attribute) {
             $include = $attribute->newInstance();
+            assert($include instanceof TransformerInclude);
             $seenNames[$include->name] = true;
             $properties[] = $this->buildIncludeProperty($include);
 
@@ -195,7 +182,10 @@ final readonly class SchemaFromTransformer
     {
         if (
             new ReflectionClass($class)->getAttributes(TransformerField::class) !== []
-            || ($this->transformReader->isTransformerSubclass($class) && $this->transformReader->read($class) !== null)
+            || (
+                $this->transformReader->isTransformerSubclass($class)
+                && $this->transformReader->read($class) !== null
+            )
         ) {
             return $this->buildRef($class);
         }

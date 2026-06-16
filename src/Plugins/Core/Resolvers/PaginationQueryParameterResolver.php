@@ -12,15 +12,9 @@ use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorCallReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 /**
- * Emits the conventional pagination query parameters for an action that calls a `paginate()`-family
- * method (Tier-1 body scan via {@see PaginatorCallReader}, issue #31).
- *
- * Offset paginators (`paginate()`, `simplePaginate()`) advertise `page` and `per_page`; a cursor
- * paginator (`cursorPaginate()`) advertises `cursor`. `per_page` is the common `?per_page=` idiom
- * rather than a framework default, documented for the offset case. All three are optional.
- *
- * Registered after {@see CoreQueryParameterResolver}; `OperationBuilder` dedups by `(name, in)` and
- * keeps an explicit `#[QueryParam]` over resolver output, so a hand-declared `page` wins.
+ * Emits pagination query parameters for actions that call a `paginate()`-family method
+ * ({@see PaginatorCallReader}). Offset paginators emit `page`/`per_page`; cursor emits `cursor`.
+ * A hand-declared `#[QueryParam]` wins via `OperationBuilder`'s `(name, in)` dedup.
  */
 final readonly class PaginationQueryParameterResolver implements QueryParameterResolver
 {

@@ -23,16 +23,11 @@ use Spatie\LaravelData\Data;
 use function sprintf;
 
 /**
- * Flags a scoped field attribute placed where its scope does not apply: #[RequestField] on a
- * controller route parameter, or #[PathParam] on a Data-class request-body property.
+ * Flags a scoped field attribute in the wrong context: `#[RequestField]` on a controller route
+ * parameter, or `#[PathParam]` on a Data-class request-body property.
  *
- * Detection is limited to operation method parameters, where the scope is unambiguous.
- * Property-level placement on a Data class that backs a response is intentionally not checked —
- * a Data class may serve either direction.
- *
- * Data classes injected through Domain Actions (the standard write-endpoint pattern) are also
- * checked by using {@see PayloadParameterScanner}, which descends into Action constructor
- * parameters the same way the request-schema resolver does.
+ * Detection is limited to operation method parameters (unambiguous scope). Data classes injected
+ * via Domain Actions are reached through {@see PayloadParameterScanner}.
  */
 final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisitor
 {
@@ -58,15 +53,12 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
             return [];
         }
 
-        // Use PayloadParameterScanner so Action-indirected Data classes are reached (e.g.
-        // CreateProjectAction whose constructor takes CreateProjectData).
         $dataClass = $this->scanner->candidateOfType($method, Data::class);
 
         if ($dataClass !== null) {
             yield from $this->checkDataClass(new ReflectionClass($dataClass));
         }
 
-        // Route parameters (non-Data typed params) are checked for misplaced #[RequestField].
         foreach ($method->getParameters() as $param) {
             $type = $param->getType();
 

@@ -106,7 +106,7 @@ final readonly class TreeIndex
     /**
      * Recursively scan the raw spec for all $ref strings pointing to local components.
      *
-     * @return array<string, true> Keys are "type/name" (e.g. "schemas/User")
+     * @return array<string, true> Keys are "type/name" (e.g., "schemas/User")
      */
     private static function collectReferencedComponents(OA\OpenApi $spec): array
     {

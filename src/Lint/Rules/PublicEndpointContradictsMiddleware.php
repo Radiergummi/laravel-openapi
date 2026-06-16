@@ -69,15 +69,11 @@ final readonly class PublicEndpointContradictsMiddleware implements Rule, Operat
     }
 
     /**
-     * Return the list of middleware on the route that conflict with a public
-     * endpoint declaration.
-     *
      * @return list<string>
      */
     private function findConflictingMiddleware(ActionDescriptor $descriptor): array
     {
-        // Read the gathered (controller-aware) middleware, matching the generator. The gathered
-        // list may contain closure middleware, so filter to strings first.
+        // The gathered list may contain closure middleware; filter to strings before matching.
         $middleware = array_filter(
             $this->middlewareGatherer->middlewareFor($descriptor->route),
             is_string(...),

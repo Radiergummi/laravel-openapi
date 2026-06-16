@@ -7,13 +7,10 @@ namespace Radiergummi\OpenApi\Lint\Fix;
 use Radiergummi\OpenApi\Lint\Finding;
 
 /**
- * Outcome of one {@see FixRunner::run()}: the underlying {@see FixResult}, the findings left
- * unresolved, and the lint level the run was scoped to (for rendering). The fixes that *were*
- * applied are {@see FixResult::$applied}.
+ * Outcome of one {@see FixRunner::run()}: applied fixes, unresolved findings, and scope metadata.
  *
- * `$dryRun` records whether this was a `--check` pass so {@see exitCode()} can apply the right
- * convention: `--check` fails when any fix *would* apply, while `--fix` fails when any finding
- * remains unresolved.
+ * `$dryRun` (--check mode) causes {@see exitCode()} to fail when any fix *would* apply, whereas
+ * a real run fails only when findings remain unresolved.
  */
 final readonly class FixRunResult
 {
@@ -28,7 +25,7 @@ final readonly class FixRunResult
     ) {}
 
     /**
-     * Exit code per the `openapi:lint` contract: `0` clean, `1` work remains/pending.
+     * Returns the exit code: `0` clean, `1` work remains.
      */
     public function exitCode(): int
     {

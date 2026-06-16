@@ -9,14 +9,9 @@ use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 
 /**
- * Dispatched once per (route × spec) pair the inclusion evaluator decides to exclude.
- *
- * Fires for every exclusion stage handled by {@see InclusionEvaluator}: global filters
- * (`config('openapi.filters')`, including the bundled Telescope/Nova/Ignition/Passport
- * skippers), spec membership (`#[Spec]` or the spec's `match` config), and visibility.
- *
- * `summary` is the human-readable text from {@see InclusionDecision::$summary} — display-only;
- * branch on `reason` for stable behaviour.
+ * Dispatched for each (route x spec) pair excluded by {@see InclusionEvaluator}: global filters,
+ * spec membership, and visibility. Branch on `reason` for stable behaviour; `summary` is
+ * display-only text from {@see InclusionDecision::$summary}.
  */
 final readonly class RouteSkipped
 {

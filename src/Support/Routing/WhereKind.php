@@ -9,15 +9,15 @@ namespace Radiergummi\OpenApi\Support\Routing;
  */
 enum WhereKind
 {
-    /** UUID pattern — string with UUID regex, maps to `format: uuid` in OpenAPI. */
+    /** Maps to `format: uuid`. */
     case Uuid;
 
-    /** Numeric pattern — integer / numeric string, maps to `type: integer` in OpenAPI. */
+    /** Maps to `type: integer`. */
     case Number;
 
-    /** Enumerated string values (`WhereIn`) — maps to `enum: [...]` in OpenAPI. */
+    /** `WhereIn`; maps to `enum: [...]`. */
     case In;
 
-    /** Arbitrary regex that does not map to a standard kind. */
+    /** Arbitrary regex with no standard mapping. */
     case Custom;
 }

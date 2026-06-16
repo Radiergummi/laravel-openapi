@@ -17,12 +17,10 @@ use Spatie\LaravelData\Data;
 use function class_exists;
 
 /**
- * Teaches the OpenAPI core to extract request schemas from Spatie Data classes.
+ * Registers Spatie Data resolvers and lint rules.
  *
- * `spatie/laravel-data` is an optional runtime dependency. When the package is not
- * installed `register()` is a no-op: no resolvers, no payload classes, and no lint
- * rules are added, so the plugin can ship in the default `config/openapi.plugins`
- * list without imposing the dependency on consumers who don't use it.
+ * `spatie/laravel-data` is an optional dependency. When absent, `register()` is a no-op,
+ * so the plugin is safe to keep in the default `config/openapi.plugins` list.
  */
 final class SpatieDataPlugin implements Plugin
 {

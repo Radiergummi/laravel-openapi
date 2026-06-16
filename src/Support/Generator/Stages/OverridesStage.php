@@ -11,7 +11,6 @@ use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
-use Radiergummi\OpenApi\Support\Generator\SpecPipeline;
 
 use function array_values;
 use function is_array;
@@ -22,11 +21,7 @@ use function substr;
 /**
  * Applies `config('openapi.overrides')` to assembled operations.
  *
- * Runs after every registry-resolved stage (so config overrides beat plugin contributions and
- * convention-derived values) but before the terminal {@see TransformersStage} (so a user's
- * code-based `transformDocument()` callback retains the final word). Wired as a fixed pre-terminal
- * step in {@see SpecPipeline} — always loaded, independent of any plugin. Spec-only: it mutates the
- * emitted document, never the host app.
+ * Runs after all plugin stages and before {@see TransformersStage}. Always loaded, plugin-independent.
  *
  * @internal
  */
@@ -40,7 +35,7 @@ final readonly class OverridesStage implements SpecStage
     #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
-        // The default installation configures no overrides — skip the whole document walk.
+        // Short-circuit: most installations have no overrides configured.
         if (!$this->matcher->hasOverrides) {
             return;
         }
@@ -75,8 +70,7 @@ final readonly class OverridesStage implements SpecStage
                 continue;
             }
 
-            // The operation is bound to its source route by PathsStage; reuse that binding
-            // rather than maintaining a parallel route-name index.
+            // Reuse the binding PathsStage set rather than maintaining a parallel route-name index.
             $routeName = $context->actionFor($operation)?->route->getName();
             $fields = $this->matcher->fieldsFor($routeName, $lookupKey);
 
@@ -102,13 +96,11 @@ final readonly class OverridesStage implements SpecStage
                 continue;
             }
 
-            // tags must be a list<string>; re-index to satisfy swagger-php's [string] type
-            // validation on both 5.8 and 6.x (array_is_list check).
+            // tags must be a list<string>; re-index to satisfy swagger-php's array_is_list check.
             if ($field === 'tags' && is_array($value)) {
                 $value = array_values($value);
             }
 
-            // Allowlisted fields map 1:1 to OA\Operation properties.
             $operation->{$field} = $value;
         }
     }

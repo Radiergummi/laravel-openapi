@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Visibility;
 
 /**
- * Visibility Mode
+ * Whether a spec element is publicly visible or hidden from the generated document.
  *
  * @internal
  */

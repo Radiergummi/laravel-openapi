@@ -8,18 +8,8 @@ use function array_key_exists;
 use function sprintf;
 
 /**
- * Resolves a single spec's served `route_uri` / `playground_uri` from the root `openapi.routes`
- * defaults plus that spec's per-spec overrides.
- *
- * The convention is shared by two call sites — {@see SpecRegistry::buildSpec()} (which feeds the
- * resolved URIs into {@see SpecDefinition}) and the service provider's route mounting — so it lives
- * here as the single source of truth. The rules:
- *
- *   - No override key present: the default applies. For the `default` spec that is the root
- *     `routes.spec.uri` / `routes.playground.uri`; for a named spec it is `openapi-{name}.yaml` /
- *     `docs/{name}`.
- *   - An explicit `false` or `null` override opts the spec out of HTTP serving (returns `false`).
- *   - Any other override value is cast to a string and used verbatim.
+ * Resolves a spec's `route_uri` / `playground_uri` from root defaults merged with per-spec
+ * overrides. `false`/`null` opts out of HTTP serving (returns `false`).
  *
  * @internal
  */

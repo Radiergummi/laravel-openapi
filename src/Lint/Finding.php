@@ -14,9 +14,7 @@ use Override;
 final readonly class Finding implements Arrayable, JsonSerializable
 {
     /**
-     * Context keys identifying the source property a finding was derived from. Stamped by
-     * {@see Rules\AbstractFieldRule} so a property-scoped suppression can match the finding
-     * structurally.
+     * Context keys stamped by {@see Rules\AbstractFieldRule} for property-scoped suppression matching.
      */
     public const string CONTEXT_SOURCE_CLASS = 'sourceClass';
 
@@ -36,10 +34,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     ) {}
 
     /**
-     * Return a copy of this finding whose location has been enriched with default values
-     * (file, line, route info) from `$defaults`.
-     *
-     * Fields that the rule already set explicitly are preserved.
+     * Return a copy with location fields back-filled from `$defaults`; explicitly-set fields are preserved.
      */
     public function withLocationDefaults(FindingLocation $defaults): self
     {
@@ -55,10 +50,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     }
 
     /**
-     * Return a copy of this finding with a different severity level.
-     *
-     * All other fields are preserved. Used by the lint command to apply `severity_overrides`
-     * from config after findings are collected.
+     * Return a copy with a different severity level (used to apply config `severity_overrides`).
      */
     public function withLevel(int $level): self
     {
@@ -74,8 +66,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     }
 
     /**
-     * Return a copy of this finding with extra context entries merged in.
-     * Existing keys are overwritten by `$extra`.
+     * Return a copy with extra context entries merged in; existing keys are overwritten.
      *
      * @param array<string, mixed> $extra
      */
@@ -92,9 +83,6 @@ final readonly class Finding implements Arrayable, JsonSerializable
         );
     }
 
-    /**
-     * Return a copy of this finding tagged with a spec name.
-     */
     public function withSpec(?string $spec): self
     {
         return new self(

@@ -14,16 +14,11 @@ use function ksort;
 use function sprintf;
 
 /**
- * Emits documentation coverage as an LCOV tracefile keyed to controller source lines, for coverage
- * tools (genhtml, Coveralls, Codecov) to consume.
+ * Emits documentation coverage as an LCOV tracefile keyed to controller source lines.
  *
- * Each in-scope operation maps to one line (its controller action's start line); covered → `1`,
- * uncovered → `0`. Operations with no single source line (closure routes, inference-only facts)
- * carry null file/line and are excluded — coverage gutters pointing at the wrong line erode trust.
- * When two operations share a file+line (a multi-verb route on one method), the line is reported
- * uncovered if any of them is uncovered, so the gap surfaces rather than hides.
- *
- * Only `$result->coverage` is used; findings and level are irrelevant to this format.
+ * Each operation maps to its action's start line (covered=1, uncovered=0). Operations with no
+ * source line are excluded. When two operations share a file+line, the line is uncovered if
+ * any of them is uncovered.
  *
  * @internal
  */
@@ -52,9 +47,6 @@ final class LcovFormatter implements Formatter
     }
 
     /**
-     * Collapse perOperation into file => (lineNumber => covered), dropping null file/line and
-     * AND-ing the covered flag when several operations land on the same line.
-     *
      * @return array<string, array<int, bool>>
      */
     private function groupByFile(?CoverageSummary $coverage): array

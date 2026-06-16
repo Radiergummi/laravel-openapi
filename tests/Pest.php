@@ -91,7 +91,7 @@ function generateSpec(?string $specName = null, string $environment = 'testing')
 
 /**
  * A PSR-3 logger that records each call as `['level' => ..., 'message' => ...]`, for asserting
- * on warnings emitted by code under test (e.g. the resolver fault boundary).
+ * on warnings emitted by code under test (e.g., the resolver fault boundary).
  *
  * @return AbstractLogger&object{records: list<array{level: mixed, message: string}>}
  */

@@ -36,7 +36,7 @@ Every part of the document is inferred at the lowest tier that captures the idio
 - **Tier 0 — reflection & signatures.** Class/method signatures, PHPDoc tags, attributes,
   model metadata (`$casts`, `$hidden`, `$fillable`, …), backed enums, route-model-binding
   types, middleware names. Deterministic and cheap — the library's whole basis.
-- **Tier 1 — bounded body reads.** A small whitelist of well-known call shapes (e.g. inline
+- **Tier 1 — bounded body reads.** A small whitelist of well-known call shapes (e.g., inline
   `validate()`), adopted selectively and degrading gracefully when the shape isn't matched.
 - **Tier 2 — full dataflow.** Tracking values across calls and conditionals. **Refused** —
   fragile and never complete. Where only Tier 2 would close a case, that case is the

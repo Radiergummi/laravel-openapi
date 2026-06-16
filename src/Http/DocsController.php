@@ -22,12 +22,8 @@ use function view;
 final class DocsController extends Controller
 {
     /**
-     * Serves the generated OpenAPI 3.1 specification as YAML for the given spec.
-     *
-     * In local development, the spec is generated on every request so changes to controllers and
-     * schemas are reflected immediately. Everywhere else, the spec is built at deploy time by the
-     * `openapi:generate` command and served as a static file with etag/last-modified semantics. A
-     * missing file in a deployed environment indicates a broken build.
+     * Serves the spec as YAML. Generates on-the-fly in local; serves a static file elsewhere
+     * (must be built by `openapi:generate`).
      *
      * @noinspection PhpUnhandledExceptionInspection
      */
@@ -59,21 +55,15 @@ final class DocsController extends Controller
             ->setAutoEtag()
             ->setAutoLastModified();
 
-        // Despite the name, this method actually modifies the request to set the appropriate
-        // headers if the client already knows the current version of the spec, so it doesn't have
-        // to download the full file again.
+        // Sets conditional-request headers; returns true if the client can use its cache.
         $response->isNotModified($request);
 
         return $response;
     }
 
     /**
-     * Render the API reference page for the given spec.
-     *
-     * The page is a minimal HTML shell that loads the configured renderer from a CDN and points it
-     * at the OpenAPI YAML endpoint for this spec. The renderer is chosen by
-     * `openapi.routes.playground.renderer` — `scalar` (default) or `swagger-ui`; any other value
-     * falls back to Scalar.
+     * Renders the API playground. Renderer chosen by `openapi.routes.playground.renderer`
+     * (`scalar` default, `swagger-ui` opt-in).
      *
      * @noinspection PhpUnhandledExceptionInspection
      */
@@ -83,8 +73,6 @@ final class DocsController extends Controller
 
         $definition = $registry->get($spec);
 
-        // The playground needs a spec URL to point at. If this spec opted out of HTTP
-        // serving (route_uri: false), there is nothing to render.
         abort_if(!$definition->servesOverHttp(), 404);
 
         $view = config('openapi.routes.playground.renderer') === 'swagger-ui'

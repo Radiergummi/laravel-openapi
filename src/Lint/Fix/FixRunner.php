@@ -20,11 +20,10 @@ use function spl_object_id;
 /**
  * Drives `openapi:lint --fix` / `--check`.
  *
- * Runs a normal lint, then for every finding whose owning rule is a {@see FixableRule} asks that
- * rule's {@see Fixer} for edits. All edits are handed to the {@see FixApplicator} as one batch (so
- * conflicts are resolved across rules and files together) and a finding counts as *fixed* only when
- * every edit it produced was actually applied — edits dropped by conflict resolution leave their
- * finding in the remaining set. There is no re-lint pass: fixers are trusted and golden-tested.
+ * Runs a normal lint, collects edits from every {@see FixableRule}'s {@see Fixer}, and applies
+ * them as a single batch via {@see FixApplicator}. A finding is fixed only when all its edits
+ * survive conflict resolution; dropped edits leave their finding in the remaining set.
+ * No re-lint pass: fixers are trusted and golden-tested.
  *
  * @internal
  */
@@ -104,9 +103,6 @@ final readonly class FixRunner
     }
 
     /**
-     * A finding is fixed only when it produced at least one edit and all of its edits survived
-     * conflict resolution.
-     *
      * @param list<Fix>        $fixes
      * @param array<int, true> $appliedIds
      */

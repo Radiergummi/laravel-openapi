@@ -14,10 +14,8 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use function sprintf;
 
 /**
- * Reports operations that have no operationId defined.
- *
- * The operationId is used by client generators and documentation tools to identify operations.
- * Every operation should have a unique operationId.
+ * Reports operations that have no operationId, which client generators and documentation tools
+ * rely on to identify operations.
  */
 final class OperationIdMissing implements Rule, OperationRuleVisitor
 {

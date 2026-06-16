@@ -39,8 +39,7 @@ abstract readonly class VisibilityAttribute
     }
 
     /**
-     * Whether this attribute's environment scope applies in the given environment. With no scope
-     * it always applies; `only` restricts to its listed environments, `except` to all but its own.
+     * Whether the attribute's scope applies in the given environment.
      */
     public function appliesIn(string $environment): bool
     {

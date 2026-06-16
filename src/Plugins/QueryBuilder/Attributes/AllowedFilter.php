@@ -10,12 +10,11 @@ use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 
 /**
- * Declares one `spatie/laravel-query-builder` allowed filter — emitted as a `filter[name]`
+ * Declares one `spatie/laravel-query-builder` allowed filter, emitted as a `filter[name]`
  * query-string parameter. Repeatable and method-level.
  *
- * Mirrors {@see QueryParam}'s JSON-Schema surface (sans `required`/`deprecated` — filter
- * parameters are always optional and the deprecation marker lives on the operation, not the
- * filter).
+ * Mirrors {@see QueryParam}'s JSON-Schema surface without `required`/`deprecated` (filters are
+ * always optional; deprecation lives on the operation).
  *
  * ```php
  * #[AllowedFilter('status', type: 'string', enum: ['draft', 'published'])]
@@ -28,15 +27,12 @@ use Radiergummi\OpenApi\Attributes\QueryParam;
 final readonly class AllowedFilter extends FieldAttribute
 {
     /**
-     * @param non-empty-string                                          $name        The filter key — becomes
-     *                                                                               `filter[name]`.
+     * @param non-empty-string                                          $name
      * @param null|non-empty-string                                     $title
      * @param null|non-empty-string                                     $description
      * @param null|OpenApiPrimitiveType                                 $type
      * @param null|non-empty-string                                     $format
-     * @param null|class-string<BackedEnum>|list<BackedEnum|int|string> $enum        Allowed values, or a backed-enum
-     *                                                                               class-string; renders as a
-     *                                                                               dropdown.
+     * @param null|class-string<BackedEnum>|list<BackedEnum|int|string> $enum
      * @param null|int<0, max>                                          $minLength
      * @param null|int<0, max>                                          $maxLength
      * @param null|non-empty-string                                     $pattern

@@ -160,7 +160,7 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
             }
 
             $hasAnyResponse = false;       // any 2xx outcome documented (incl. contentless)
-            $hasContentlessResponse = false; // explicit no-content 2xx (e.g. 204) — documented, no schema
+            $hasContentlessResponse = false; // explicit no-content 2xx (e.g., 204) — documented, no schema
             $hasSubstantiveResponse = false; // a 2xx whose content schema carries real shape
 
             foreach (($op['responses'] ?? []) as $code => $response) {

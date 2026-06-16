@@ -7,10 +7,8 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
 /**
  * Result of scanning a controller method for request-accessor reads.
  *
- * `reads` lists every whitelisted accessor call whose parameter name could be read statically,
- * in source order; `unreadableAccessors` names the accessor methods of calls that matched the
- * whitelist but whose key argument is not a string literal (or contains a wildcard) — the
- * found-but-unreadable case, which warrants a generation-log note.
+ * `reads` lists statically-readable accessor calls in source order; `unreadableAccessors`
+ * names methods whose key argument was not a static string literal (logged at generation time).
  *
  * @internal
  */

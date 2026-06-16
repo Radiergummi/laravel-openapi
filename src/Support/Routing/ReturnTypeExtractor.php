@@ -13,13 +13,9 @@ use function array_key_exists;
 use function spl_object_id;
 
 /**
- * Extracts the single generic argument of an action's `@return` PHPDoc tag.
- *
- * PHP native return types cannot carry generics — `function index(): LengthAwarePaginator` has no
- * inner type. The inner type lives only in a PHPDoc `return LengthAwarePaginator<UserResource>`.
- * This reader exposes exactly that one piece of information; it never reads method bodies.
- *
- * Returned names are not verified — callers run `class_exists()` before trusting them.
+ * Extracts the generic argument from an action's `@return` PHPDoc tag (e.g. the `UserResource`
+ * in `LengthAwarePaginator<UserResource>`). Returned names are unverified; callers check
+ * `class_exists()`.
  *
  * @internal
  */
@@ -27,11 +23,8 @@ use function spl_object_id;
 final class ReturnTypeExtractor
 {
     /**
-     * Memoised `genericArgument()` results for the lifetime of the extractor instance — the
-     * extractor is bound as a scoped singleton, so the cache resets between generation runs under
-     * Octane. Keyed by `spl_object_id($reflector)`; a stored `null` is a meaningful result
-     * (reflector has no `@return` generic) and is distinguished from "uncached" by
-     * `array_key_exists`.
+     * Keyed by `spl_object_id($reflector)`. A stored `null` (distinguished from absent by
+     * `array_key_exists`) means no generic was found.
      *
      * @var array<int, ?string>
      */
@@ -50,11 +43,7 @@ final class ReturnTypeExtractor
         );
     }
 
-    /**
-     * Returns the FQCN (without a leading backslash) of the generic argument of
-     * the at-return tag, or null when there is no docblock, no at-return tag,
-     * or no generic argument.
-     */
+    /** Returns the FQCN of the generic argument of the `@return` tag, or null if absent. */
     public function genericArgument(ReflectionFunctionAbstract $reflector): ?string
     {
         $key = spl_object_id($reflector);
@@ -63,9 +52,9 @@ final class ReturnTypeExtractor
             return $this->genericArgumentCache[$key];
         }
 
-        $comment = $reflector->getDocComment();
+        $comment = $reflector->getDocComment() ?: null;
 
-        if ($comment === false || $comment === '') {
+        if ($comment === null) {
             return $this->genericArgumentCache[$key] = null;
         }
 

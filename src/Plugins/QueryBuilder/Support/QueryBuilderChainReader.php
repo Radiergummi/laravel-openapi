@@ -29,29 +29,11 @@ use function is_string;
 use function ltrim;
 
 /**
- * Tier-1 whitelist matcher for the `spatie/laravel-query-builder` fluent chain in a controller
- * method body (epic #5, issue #15).
+ * Reads `allowedFilters` / `allowedSorts` / `allowedIncludes` calls from a controller method body
+ * and collects the literal wire names from their allow-lists.
  *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements for `allowedFilters` /
- * `allowedSorts` / `allowedIncludes` calls whose receiver spine roots at a static
- * `Spatie\QueryBuilder\QueryBuilder::for(...)` call — matched on the **resolved** FQCN, so a
- * same-named impostor class never does — and collects the literal wire names from their
- * allow-lists. Other links on the same chain (`->defaultSort()`, `->where()`, `->paginate()`, …)
- * are walked through: chain termination is irrelevant to the parameters the endpoint accepts.
- *
- * Only single-expression chains on the unconditional path participate — as a statement
- * expression, an assignment right-hand side, or a `return` value. A builder assigned to a
- * variable and mutated across statements needs dataflow and is refused (Tier 2, see epic #5);
- * the scan reports enough evidence for the caller to log the refusal.
- *
- * Allow-list elements resolve from string literals (via {@see AstLiteralEvaluator}, so
- * class-constant strings work too) and from Spatie's value-object static constructors
- * (`AllowedFilter::exact('status')`, `AllowedSort::field('created_at')`, …), whose first
- * argument is always the public wire name. Fluent instance modifiers on such a constructor
- * (`->nullable()`, `->default()`, `->ignore()`, `->delimiter()`, `->defaultDirection()`) are
- * walked through — they change server-side semantics, never the wire name. Spatie's variadic
- * form (`allowedSorts('name', 'created_at')`) reads the same way. A non-literal element is
- * dropped and the remaining ones kept; the call is reported as partially unreadable.
+ * Only unconditional chains rooted at `Spatie\QueryBuilder\QueryBuilder::for(…)` are scanned.
+ * Non-literal elements are dropped; partially unreadable calls are flagged on the scan result.
  *
  * @internal
  */
@@ -60,20 +42,19 @@ final class QueryBuilderChainReader
 {
     public const int STATEMENT_LIMIT = 10;
 
+    /**
+     * @noinspection ClassConstantCanBeUsedInspection
+     */
     private const string QUERY_BUILDER_CLASS = 'Spatie\\QueryBuilder\\QueryBuilder';
 
-    /**
-     * Allow-list method name (lowercased) → the kind of wire name it declares.
-     */
+    /** Allow-list method name (lowercased) to kind. */
     private const array ALLOWED_CALL_KINDS = [
         'allowedfilters' => 'filters',
         'allowedsorts' => 'sorts',
         'allowedincludes' => 'includes',
     ];
 
-    /**
-     * Kind → canonical allow-list call name, for human-readable degrade notes.
-     */
+    /** Kind to canonical call name (for degrade notes). */
     private const array CANONICAL_CALL_NAMES = [
         'filters' => 'allowedFilters',
         'sorts' => 'allowedSorts',
@@ -81,8 +62,9 @@ final class QueryBuilderChainReader
     ];
 
     /**
-     * Kind → the Spatie value-object class whose static constructors may appear as allow-list
-     * elements. Matched on the resolved FQCN, like the chain root.
+     * Kind to Spatie value-object class whose static constructors may appear as allowlist elements.
+     *
+     * @noinspection ClassConstantCanBeUsedInspection
      */
     private const array VALUE_OBJECT_CLASSES = [
         'filters' => 'Spatie\\QueryBuilder\\AllowedFilter',
@@ -90,11 +72,7 @@ final class QueryBuilderChainReader
         'includes' => 'Spatie\\QueryBuilder\\AllowedInclude',
     ];
 
-    /**
-     * Kind → whitelisted static constructors (lowercased) on the matching value-object class.
-     * Every one of them takes the public wire name as its first parameter (`name`); the
-     * constructor kind only changes the SQL semantics, never the parameter name.
-     */
+    /** Kind to whitelisted static constructors (lowercased); each takes the wire name as `$name`. */
     private const array VALUE_OBJECT_CONSTRUCTORS = [
         'filters' => [
             'exact',
@@ -115,9 +93,6 @@ final class QueryBuilderChainReader
     ];
 
     /**
-     * Memoised scans per `Class::method`, so repeated resolution (one per route verb, plus lint)
-     * parses once per generation run.
-     *
      * @var array<string, QueryBuilderChainScan>
      */
     private array $cache = [];
@@ -145,9 +120,8 @@ final class QueryBuilderChainReader
             return new QueryBuilderChainScan();
         }
 
-        // Detection (for the caller's degrade note) is broader than matching: a builder root or
-        // an allowed* call inside a conditional context is evidence of Spatie usage even though
-        // the chain itself is refused there.
+        // A builder root or allowed* call inside a conditional counts as detection even though the
+        // chain itself cannot be read there.
         $builderDetected = $this->statementNodeFinder->findFirst(
             $statements,
             ConditionalContextPolicy::IncludeConditionalContexts,
@@ -222,9 +196,7 @@ final class QueryBuilderChainReader
     // region Chain rooting
 
     /**
-     * Whether the call's receiver spine — walked through any number of chained method calls —
-     * roots at a `Spatie\QueryBuilder\QueryBuilder::for(...)` static call. The links in between
-     * are irrelevant: they cannot change which allow-lists the builder accepts.
+     * Whether the call's receiver spine roots at `Spatie\QueryBuilder\QueryBuilder::for(…)`.
      */
     private function rootsAtBuilder(MethodCall $call): bool
     {
@@ -237,10 +209,7 @@ final class QueryBuilderChainReader
         return $this->isBuilderRoot($receiver);
     }
 
-    /**
-     * Whether the node is a static `for()` call on the resolved Spatie `QueryBuilder` FQCN —
-     * never an impostor class of the same short name, never a dynamic class expression.
-     */
+    /** Whether the node is a static `for()` call on the Spatie `QueryBuilder` FQCN. */
     private function isBuilderRoot(Node $node): bool
     {
         return $node instanceof StaticCall
@@ -253,28 +222,19 @@ final class QueryBuilderChainReader
 
     // endregion
 
-    // region Allow-list elements
+    // region Allowlist elements
 
     /**
-     * The element expressions of one allow-list call: the items of a single array-literal
-     * argument, or — Spatie accepts both forms — each argument of the variadic form.
+     * Element expressions of one allowlist call; handles both the array-literal and variadic forms.
      *
      * @return list<Expr>
      */
     private function elementExpressions(MethodCall $call): array
     {
-        $arguments = $call->getArgs();
-
-        if (count($arguments) === 1 && $arguments[0]->value instanceof Array_) {
-            $elements = [];
-
-            foreach ($arguments[0]->value->items as $item) {
-                $elements[] = $item->value;
-            }
-
-            return $elements;
-        }
-
+        $rawArguments = $call->getArgs();
+        $arguments = count($rawArguments) === 1 && $rawArguments[0]->value instanceof Array_
+            ? $rawArguments[0]->value->items
+            : $rawArguments;
         $elements = [];
 
         foreach ($arguments as $argument) {
@@ -285,17 +245,12 @@ final class QueryBuilderChainReader
     }
 
     /**
-     * The wire name one allow-list element declares, or null when it is not statically
-     * readable: a string literal (class-constant strings included), or a whitelisted Spatie
-     * value-object constructor of the matching kind. Sort names shed Spatie's leading `-`
-     * direction marker.
+     * The wire name from one allow-list element, or null when not statically readable.
+     * Sort names shed the leading `-` direction marker.
      */
     private function elementName(Expr $element, string $kind): ?string
     {
-        // Spatie's instance modifiers (->nullable(), ->default(), ->ignore(), ->delimiter(),
-        // AllowedSort::...->defaultDirection()) wrap the value-object constructor but never
-        // change the wire name — walk the method-call spine to the underlying constructor,
-        // exactly as the chain receiver is walked in rootsAtBuilder().
+        // Instance modifiers never change the wire name; walk to the underlying constructor.
         $root = $element;
 
         while ($root instanceof MethodCall) {
@@ -306,7 +261,7 @@ final class QueryBuilderChainReader
             return $this->valueObjectName($root, $kind);
         }
 
-        // A bare literal element carries no spine, so evaluate the original node directly.
+        // No spine: evaluate the node directly.
         try {
             $value = AstLiteralEvaluator::evaluate($element);
         } catch (NonLiteralValueException) {
@@ -317,10 +272,9 @@ final class QueryBuilderChainReader
     }
 
     /**
-     * The wire name declared by a Spatie value-object static constructor — the first (`name`)
-     * argument, which must be a literal string. `AllowedFilter::trashed()` without arguments
-     * falls back to Spatie's own default name. A constructor on the wrong class for the
-     * allow-list kind, or off the whitelist, stays unreadable.
+     * The wire name from a Spatie value-object static constructor (first `name` argument, literal
+     * string). `AllowedFilter::trashed()` falls back to `'trashed'`. Returns null for unrecognised
+     * classes or constructors.
      */
     private function valueObjectName(StaticCall $call, string $kind): ?string
     {
@@ -350,9 +304,6 @@ final class QueryBuilderChainReader
     }
 
     /**
-     * Resolves an argument by position or by its named-argument name. Positional arguments
-     * always precede named ones, so an unnamed argument's list index is its position.
-     *
      * @param array<int, Arg> $arguments
      */
     private function argument(array $arguments, int $position, string $name): ?Arg
@@ -370,11 +321,7 @@ final class QueryBuilderChainReader
         return null;
     }
 
-    /**
-     * Sort names shed the leading `-` direction marker, mirroring Spatie's own constructor —
-     * `allowedSorts(['-created_at'])` accepts the `created_at` field in either direction.
-     * An empty name never documents a parameter.
-     */
+    /** Strips the leading `-` direction marker from sort names. Returns null for empty strings. */
     private function normaliseName(string $name, string $kind): ?string
     {
         if ($kind === 'sorts') {

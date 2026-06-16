@@ -42,21 +42,12 @@ use function trim;
 use const PHP_EOL;
 
 /**
- * The shared fixer behind every Tier A removal rule.
+ * Removes the attribute(s) named in a finding from the member's source file.
  *
- * Given a finding that names a class member (via {@see Finding::CONTEXT_SOURCE_CLASS} /
- * {@see Finding::CONTEXT_SOURCE_MEMBER}), it deletes the attribute(s) that triggered the finding:
- * either every later duplicate of one discriminator value ({@see RemoveMode::Dedupe}) or all
- * matching attributes outright ({@see RemoveMode::RemoveAll}).
- *
- * Reflection drives *which* attributes to remove (it can read each attribute's runtime values);
- * php-parser drives *where* they are, by aligning the member's reflection attributes 1:1 with its
- * AST attribute nodes in declaration order. An attribute sitting alone on its own line(s) becomes a
- * {@see RemoveLines}; one sharing a `#[A, B]` group becomes a byte-precise {@see ModifyAttribute}.
- *
- * When the situation is anything but unambiguous — the file won't parse, reflection and AST
- * disagree, or the offending value isn't actually attribute-sourced — the fixer yields nothing and
- * the finding is reported as unfixed.
+ * Deletes either every later duplicate of one discriminator value ({@see RemoveMode::Dedupe}) or
+ * all matching attributes ({@see RemoveMode::RemoveAll}). Reflection identifies which attributes
+ * to remove; php-parser locates them by aligning reflection attributes 1:1 with AST nodes in
+ * declaration order. When reflection and AST disagree or the file won't parse, yields nothing.
  */
 final readonly class RemoveAttributeFixer implements Fixer
 {
@@ -64,7 +55,7 @@ final readonly class RemoveAttributeFixer implements Fixer
 
     /**
      * @param class-string                  $attribute     Attribute class to match (subclasses
-     *                                                     included), e.g. `Tag::class`.
+     *                                                     included), e.g., `Tag::class`.
      * @param null|Closure(object): ?string $discriminator Extracts the comparable identity of an
      *                                                     attribute instance; required for
      *                                                     {@see RemoveMode::Dedupe}.
@@ -77,8 +68,7 @@ final readonly class RemoveAttributeFixer implements Fixer
     ) {}
 
     /**
-     * Convenience over {@see contextFor()} for the operation-level removal rules: derives the
-     * controller class and method names from the route's descriptor.
+     * Convenience over {@see contextFor()} for operation-level rules.
      *
      * @return array<string, string>
      */
@@ -92,9 +82,8 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * Build the finding context a {@see FixableRule} must stamp so this fixer can locate the member
-     * to edit. Returns an empty array — leaving the finding unfixable — when the class or member
-     * isn't known (e.g. the offending construct isn't backed by reflectable source).
+     * Builds the finding context a {@see FixableRule} must stamp to let this fixer locate the member.
+     * Returns an empty array when class or member isn't known.
      *
      * @return array<string, string>
      */
@@ -187,11 +176,8 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * The declaring file and every attribute (in source order) of the target member. Returns
-     * `[null, []]` when the member cannot be reflected or has no backing source file.
-     *
-     * `$class` originates from finding context, so it is an untrusted string rather than a
-     * verified `class-string`; reflection throwing on a bad name is caught below.
+     * The declaring file and all attributes (in source order) of the target member.
+     * Returns `[null, []]` when the member cannot be reflected or has no source file.
      *
      * @return array{0: ?string, 1: list<ReflectionAttribute<object>>}
      */
@@ -246,9 +232,8 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * Keep the first occurrence of the duplicated discriminator value and return the positions of
-     * the rest. Limited to the value carried by the finding when present, so unrelated duplicates
-     * are left for their own findings.
+     * Keeps the first occurrence of the discriminator value; returns positions of later duplicates.
+     * Scoped to the finding's value so unrelated duplicates are left for their own findings.
      *
      * @param list<ReflectionAttribute<object>> $reflected
      * @param list<int>                         $matching
@@ -336,7 +321,7 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * Locate the node carrying a property's attributes — either a `Property` statement or, for a
+     * Locate the node carrying a property's attributes: either a `Property` statement or, for a
      * promoted constructor parameter (the Spatie Data idiom), the matching `Param`.
      */
     private function findProperty(ClassLike $class, string $member): Property|Param|null
@@ -363,9 +348,9 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * Build the source edit that removes the attribute at `$index`. Whole-line attributes become a
-     * {@see RemoveLines}; an attribute sharing its group with others becomes a byte-precise
-     * {@see ModifyAttribute} that also swallows the adjacent comma.
+     * Builds the source edit for removing the attribute at `$index`.
+     * Sole-in-group attributes become {@see RemoveLines}; shared-group attributes become
+     * a byte-precise {@see ModifyAttribute} that strips the adjacent comma too.
      *
      * @param list<array{attr: Attribute, group: Node\AttributeGroup}> $attributes
      */
@@ -404,8 +389,7 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * Whether the byte span `[$start, $end)` has nothing but whitespace on its own lines either
-     * side — i.e., deleting those whole lines disturbs no other code.
+     * Whether the byte span `[$start, $end)` occupies its own lines entirely (safe to delete whole lines).
      */
     private function occupiesWholeLines(string $source, int $start, int $end): bool
     {

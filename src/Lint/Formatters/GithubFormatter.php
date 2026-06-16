@@ -105,10 +105,8 @@ final class GithubFormatter implements Formatter
             : $finding->message;
 
         if ($finding->fixHint !== null) {
-            // Strip trailing period from message to avoid double period before ". Fix: …"
             $body = rtrim($body, '.') . ". Fix: {$finding->fixHint}";
 
-            // Ensure the body ends with a period
             if (!str_ends_with($body, '.')) {
                 $body .= '.';
             }

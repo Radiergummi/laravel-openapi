@@ -14,29 +14,11 @@ use function preg_match;
 use function strtolower;
 
 /**
- * Synthesizes an example value for a field that has no authored example.
+ * Synthesizes a Faker example for a field when no authored example is present.
  *
- * Strict priority: this synthesizer is the **lowest** rung in the example-resolution chain.
- * Authored sources (`#[Example]` attribute, example file, inline `@example` directive) always
- * win. The synthesiser only runs when those have been tried and returned nothing.
- *
- * Wired in at: `SchemaFromFormRequest::buildSchema()` — in the per-field loop, after the
- * constant-override pass (`$constantOverrides[$fieldName]->descriptor()->applyTo($property)`)
- * has been applied; at that point all authored sources have been consulted and any remaining
- * `Generator::UNDEFINED` example slot is unclaimed.
- *
- * Targeted, not generic — the rule-name and format map is deliberately narrow to avoid the
- * lorem-ipsum leakage pattern. Unknown types/formats return `null` (no example) rather than
- * falling back to `Faker::sentence()` / `paragraph()`.
- *
- * Determinism — Faker is reseeded per-call from `(openapi.examples.faker_seed, fieldName)`.
- * Faker delegates `seed()` to PHP's global `mt_srand()`, so any code that consumes `mt_rand`
- * between construction and use (other Faker instances, tests, framework boot code) drifts the
- * RNG state. Reseeding from a deterministic per-call value makes each synthesised example
- * stable regardless of call order or surrounding RNG consumers.
- *
- * Degrades when Faker is absent — `fakerphp/faker` is declared in `require-dev`. If it is not
- * installed at runtime, every call returns `null` and no error is raised.
+ * Last resort in the example-resolution chain. Unknown types return null rather than a
+ * lorem-ipsum fallback. Reseeds Faker per-call via `(faker_seed XOR crc32(fieldName))` for
+ * stable, call-order-independent output. Degrades gracefully when fakerphp/faker is absent.
  *
  * @internal
  */
@@ -85,9 +67,7 @@ final readonly class FakerExampleSynthesiser
             return $byFormat;
         }
 
-        // Field-name hints (email_, uuid_, …) only apply when the field is actually a string.
-        // Without this guard a boolean `email_verified` or integer `email_count` would be
-        // assigned a fake email by virtue of its name alone.
+        // Name hints only apply to strings: a boolean `email_verified` must not get a fake email.
         if ($descriptor->type === null || $descriptor->type === 'string') {
             $byName = $this->byFieldName($fieldName);
 
@@ -109,8 +89,7 @@ final readonly class FakerExampleSynthesiser
             'email' => $this->faker?->safeEmail(),
             'uuid' => $this->faker?->uuid(),
             'uri', 'url' => $this->faker?->url(),
-            // Use dateTimeBetween with fixed bounds — iso8601()/date() use time() internally
-            // and are non-deterministic despite seeding.
+            // iso8601()/date() call time() internally and are non-deterministic despite seeding.
             'date' => $this->faker?->dateTimeBetween('2020-01-01', '2025-12-31')->format('Y-m-d'),
             'date-time' => $this->faker?->dateTimeBetween('2020-01-01', '2025-12-31')->format('Y-m-d\TH:i:s\Z'),
             'ipv4' => $this->faker?->ipv4(),
@@ -146,7 +125,7 @@ final readonly class FakerExampleSynthesiser
                 $descriptor->maximum ?? 1000,
             ),
             'boolean' => $this->faker?->boolean(),
-            default => null, // no generic string fallback — avoid lorem-ipsum leakage
+            default => null,
         };
     }
 }

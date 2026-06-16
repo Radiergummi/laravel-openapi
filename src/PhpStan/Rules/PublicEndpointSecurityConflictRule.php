@@ -17,10 +17,8 @@ use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 
 /**
  * Flags declarations that carry both `#[PublicEndpoint]` and `#[Security]`. The two are mutually
- * exclusive: PublicEndpoint emits `security: []`, Security emits a requirement. At runtime
- * PublicEndpoint wins, but writing both is always a mistake — neither attribute carries any
- * environment filter, so the conflict is unconditional. One service is registered per declaration
- * node kind (FunctionLike / ClassLike).
+ * exclusive: `PublicEndpoint` emits `security: []`, `Security` emits a requirement. One instance
+ * is registered per node kind (FunctionLike / ClassLike).
  *
  * @implements Rule<Node>
  */

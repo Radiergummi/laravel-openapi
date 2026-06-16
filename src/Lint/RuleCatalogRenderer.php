@@ -9,7 +9,6 @@ use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Helper\TableStyle;
-use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function array_map;
@@ -22,12 +21,7 @@ use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
 
 /**
- * Renders the registered lint-rule catalog (id, level, description) for the
- * `openapi:lint --list` command, in CLI, JSON, or Markdown form.
- *
- * Writes to a Symfony {@see OutputInterface}, so the CLI format can leverage Symfony's {@see Table}
- * helper (column alignment, coloured severity column) and tests can use a {@see BufferedOutput} to
- * assert on the rendered text.
+ * Renders the registered lint-rule catalog for `openapi:lint --list` in CLI, JSON, or Markdown.
  */
 final readonly class RuleCatalogRenderer
 {
@@ -43,8 +37,7 @@ final readonly class RuleCatalogRenderer
 
         match ($format) {
             LinterOutputFormat::Cli => $this->renderCli($rows, $output),
-            // Cobertura is a coverage-report format with no catalog representation; the rule
-            // catalog degrades to the JSON listing (its machine-readable analog).
+            // Cobertura has no catalog representation; fall back to the JSON listing.
             LinterOutputFormat::Json,
             LinterOutputFormat::Cobertura,
             LinterOutputFormat::Lcov => $this->renderJson($rows, $output),
@@ -104,13 +97,11 @@ final readonly class RuleCatalogRenderer
     }
 
     /**
-     * Returns a valid Symfony tag color for a rule's severity level.
-     *
-     * Picks green for the lowest band, fading through yellow into red for higher severities.
+     * Maps a severity level to a Symfony console color tag.
      */
     private function levelColor(int $level): string
     {
-        // Symfony's palette has no "orange"; bright-yellow approximates it.
+        // No "orange" in Symfony's palette; bright-yellow approximates it.
         return match (true) {
             $level <= 0 => 'blue',
             $level === 1 => 'green',
@@ -157,7 +148,7 @@ final readonly class RuleCatalogRenderer
     }
 
     /**
-     * A {@see TableStyle} configured to emit valid GitHub-flavoured markdown.
+     * {@see TableStyle} configured for GitHub-flavoured markdown output.
      */
     private function markdownTableStyle(): TableStyle
     {

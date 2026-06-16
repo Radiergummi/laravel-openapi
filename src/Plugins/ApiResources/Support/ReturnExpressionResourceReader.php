@@ -49,35 +49,19 @@ use function method_exists;
 use function sprintf;
 
 /**
- * Resolves the concrete API Resource (or wrapped Eloquent model) an action returns when its
- * signature names only a base resource type — a Tier-1 bounded scan of the method's return
- * expression (epic #5, issue #108), consulted by {@see ResourceClassLocator} on a Tier-0 miss.
+ * Resolves the concrete API Resource an action returns when its signature names only a base type.
+ * Consulted by {@see ResourceClassLocator} when the return type alone is insufficient.
  *
- * The method's `@return` docblock generic (`AnonymousResourceCollection<FooResource>`) is read
- * first and wins over the body — it is explicit authoring and needs no source parse. The body
- * scan then matches a narrow whitelist against the first {@see self::STATEMENT_LIMIT} top-level
- * statements: the single unconditional `return` expression (or the variable it names, when that
- * variable is assigned exactly once on the unconditional path), unwrapped through
- * resource-preserving chain links (`->additional(...)`). Recognised shapes:
+ * The `@return` generic wins over the body scan. The scan then matches a narrow whitelist in the
+ * first {@see self::STATEMENT_LIMIT} statements: one unconditional return (or the variable it
+ * names, assigned exactly once on the unconditional path), unwrapped through resource-preserving
+ * chains (`->additional(...)`). Recognised shapes: `X::collection(...)`, `X::make(...)`,
+ * `new X(...)`, `->toResource(X::class)`, `->toResourceCollection(X::class)`, bare
+ * `$model->toResource()` on a Model-typed parameter, and `new JsonResource($model)` wrapping one.
  *
- * - `X::collection(...)` → collection of `X`; `X::make(...)` / `new X(...)` → single `X`,
- *   where `X` resolves (via the scanner's NameResolver pass) to a concrete `JsonResource`
- *   subclass that is not itself a `ResourceCollection`.
- * - `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal class argument
- *   is decisive, the receiver's type is irrelevant to the schema.
- * - Bare `$model->toResource()` where `$model` is a Model-typed method parameter — the resource
- *   resolves through Laravel's own convention (`#[UseResource]`, then `guessResourceName()`).
- * - `new JsonResource($model)` (exactly the base class) wrapping a Model-typed parameter →
- *   a wrapped-model target; the response documents the model's schema.
- *
- * A collection only claims the paginated `{data, links, meta}` envelope when its argument (or
- * the `toResourceCollection()` receiver) visibly ends in a `paginate()`-family call, looking
- * through paginator-preserving chain links (`->withQueryString()` et al.); otherwise the plain
- * `{data}` envelope is documented — pagination meta is never guessed.
- *
- * Anything else — conditional returns, unknown variables, unrecognised chain links, receivers
- * needing dataflow — refuses with one generation-log NOTICE per action and run
- * (`#[ResponseResource]` is the escape hatch); resolution results are memoised per method.
+ * Pagination evidence is derived from the argument/receiver ending in a `paginate()`-family call.
+ * Anything else refuses with one NOTICE per action and run; `#[ResponseResource]` is the escape
+ * hatch. Results are memoised per method.
  *
  * @internal
  */
@@ -87,18 +71,15 @@ final class ReturnExpressionResourceReader
     public const int STATEMENT_LIMIT = 10;
 
     /**
-     * Chained methods (lowercased) that change neither the resource class nor the response
-     * cardinality — `->additional(...)` only adds sibling envelope keys (not modeled). Any other
-     * chain link may transform the response, so it refuses the scan.
+     * Chain methods that change neither the resource class nor the response cardinality.
+     * Any other link may transform the response, so the scan refuses it.
      */
     private const array RESOURCE_PRESERVING_CHAIN_METHODS = ['additional'];
 
     /**
-     * Chained methods (lowercased) on a paginator that return `$this` without changing the
-     * paginated nature or the item shape — URL/metadata tweaks only — so pagination evidence
-     * looks through them (`paginate(...)->withQueryString()` is still paginated). Item-mapping
-     * chains (`through()`) are deliberately absent: they may change what each item looks like.
-     * Any other trailing call hides the evidence and falls back to the plain `{data}` envelope.
+     * Paginator chain methods that don't change the paginated nature or item shape (URL/metadata
+     * tweaks only). Item-mapping chains (`through()`) are absent: they may change item shape.
+     * Any other trailing call falls back to the plain `{data}` envelope.
      */
     private const array PAGINATOR_PRESERVING_CHAIN_METHODS = [
         'appends',
@@ -108,8 +89,7 @@ final class ReturnExpressionResourceReader
     ];
 
     /**
-     * Memorized resolution per `Class::method`, so repeated lookups (generation and lint rules)
-     * parse once, and the refusal note fires once per run.
+     * Memoised per `Class::method`: parses once, fires the refusal note once per run.
      *
      * @var array<string, ?ResourceTarget>
      */
@@ -182,10 +162,8 @@ final class ReturnExpressionResourceReader
     // region Return-expression location
 
     /**
-     * The collection target documented by a `return …Collection<FooResource>` generic on the
-     * method docblock, or null when there is none. Pagination evidence is derived from the method
-     * body when available — `paginated: true` only when the body visibly ends in a
-     * `paginate()`-family call. Falls back to non-paginated when no body is inspectable.
+     * The collection target from a `@return …Collection<FooResource>` generic, or null.
+     * Pagination evidence is derived from the body; falls back to non-paginated when unavailable.
      */
     private function targetFromReturnTag(ReflectionMethod $method): ?ResourceTarget
     {
@@ -217,11 +195,9 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * Validates a candidate name as a concrete resource: an existing, non-abstract *proper*
-     * `JsonResource` subclass that is not a `ResourceCollection` (a collection class names no
-     * item resource). The base `JsonResource` and abstract subclasses carry no field shape, so
-     * accepting them would silently document an empty schema where refusing keeps the
-     * `resource.response-ambiguous` signal alive.
+     * Returns the candidate only when it is an existing, non-abstract `JsonResource` subclass
+     * that is not a `ResourceCollection`. Rejects the base class and abstract subclasses
+     * (no field shape) to keep the `resource.response-ambiguous` signal alive.
      *
      * @return null|class-string<JsonResource>
      */
@@ -243,16 +219,8 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * Derives pagination evidence from the method body: `true` only when the body's single
-     * unconditional return expression is (or unwraps to) a recognised collection shape whose
-     * source visibly ends in a `paginate()`-family call. Recognised shapes:
-     * - `X::collection($source)` — paginated when `$source` ends in a paginating call.
-     * - `$source->toResourceCollection(X::class)` — paginated when `$source` ends in a paginating
-     *   call (mirrors the body-scan path's `targetFromTransformCall` logic exactly).
-     *
-     * Returns `false` when the body is not inspectable or the return expression does not match.
-     * Never logs — on the docblock path the resource is already resolved, so refusal notices are
-     * false signals.
+     * `true` only when the single unconditional return is a collection shape whose source ends
+     * in a `paginate()`-family call. Never logs: on the docblock path, refusal notices are noise.
      */
     private function paginatedFromBody(ReflectionMethod $method): bool
     {
@@ -271,7 +239,6 @@ final class ReturnExpressionResourceReader
             return false;
         }
 
-        // Unwrap resource-preserving chain links (e.g. ->additional(...)).
         while (
             $expression instanceof MethodCall
             && $expression->name instanceof Identifier
@@ -280,7 +247,6 @@ final class ReturnExpressionResourceReader
             $expression = $expression->var;
         }
 
-        // X::collection($source) — paginated when $source ends in a paginating call.
         if (
             $expression instanceof StaticCall
             && $expression->name instanceof Identifier
@@ -291,7 +257,6 @@ final class ReturnExpressionResourceReader
             return $argument !== null && $this->endsInPaginatingCall($argument);
         }
 
-        // $source->toResourceCollection(X::class) — paginated when $source ends in a paginating call.
         if (
             $expression instanceof MethodCall
             && $expression->name instanceof Identifier
@@ -305,10 +270,8 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * The expression of the method's single unconditional return, or null (with a note) when the
-     * scanned region has no top-level return or carries additional returns (conditional or
-     * dead-code) — the resource type would be a guess. Pass `log: false` to suppress the notice
-     * when the caller does not need the diagnostic (e.g. the pagination-only probe).
+     * The single unconditional top-level return expression, or null. Additional returns make the
+     * resource type a guess. Pass `log: false` to suppress the notice (e.g., pagination probe).
      *
      * @param list<Stmt> $statements
      */
@@ -366,9 +329,8 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * Every return statement belonging to the *method itself* within the scanned statements —
-     * returns inside closures, arrow functions, or anonymous classes open their own scope and
-     * are excluded.
+     * Returns belonging to the method itself; closures, arrow functions, and anonymous classes
+     * open their own scope and are excluded.
      *
      * @param list<Stmt> $statements
      *
@@ -419,12 +381,8 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * Resolves `return $variable;` through the single assignment to that variable — the
-     * two-statement `$x = X::collection(...); return $x;` form. The assignment must be the only
-     * one targeting the variable anywhere in the scanned region (a conditional reassignment makes
-     * the type a guess) and must itself sit on the unconditional path. Pass `log: false` to
-     * suppress the notice when the caller does not need the diagnostic (e.g. the
-     * pagination-only probe).
+     * Resolves `return $variable;` through the single unconditional assignment to that variable.
+     * A conditional reassignment makes the type a guess. Pass `log: false` to suppress the notice.
      *
      * @param list<Stmt> $statements
      */
@@ -508,8 +466,7 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * Matches the return expression against the whitelisted shapes, unwrapping
-     * resource-preserving chain links first. Every refusal path notes its reason.
+     * Matches the expression against whitelisted shapes, unwrapping resource-preserving chains.
      *
      * @throws ReflectionException
      */
@@ -612,8 +569,8 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * `new X(...)` → single `X`; `new JsonResource($model)` (exactly the base class) wrapping a
-     * Model-typed parameter → wrapped-model target.
+     * `new X(...)` → single `X`. `new JsonResource($model)` with a Model-typed parameter →
+     * wrapped-model target.
      */
     private function targetFromNewExpression(
         NewExpression $new,
@@ -664,7 +621,7 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * The Model subclass a method parameter of the given name, is typed with or null.
+     * The Model subclass that the named parameter is typed with, or null.
      *
      * @return null|class-string<Model>
      */
@@ -695,9 +652,8 @@ final class ReturnExpressionResourceReader
     }
 
     /**
-     * `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal class argument
-     * is decisive. A bare `$model->toResource()` resolves Laravel's conventional resource for a
-     * Model-typed parameter receiver; every other receiver would need dataflow and refuses.
+     * Handles `->toResource(X::class)` / `->toResourceCollection(X::class)` and bare
+     * `$model->toResource()` on a Model-typed parameter. Other receivers need dataflow and refuse.
      *
      * @throws ReflectionException
      */
@@ -789,9 +745,7 @@ final class ReturnExpressionResourceReader
     // endregion
 
     /**
-     * The resource class a bare `$model->toResource()` serializes through, mirroring Laravel's
-     * own resolution: the model's `#[UseResource]` attribute first, then the
-     * `guessResourceName()` namespace convention.
+     * Mirrors Laravel's resource resolution: `#[UseResource]` first, then `guessResourceName()`.
      *
      * @param class-string<Model> $modelClass
      *

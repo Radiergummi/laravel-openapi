@@ -64,9 +64,6 @@ final class FieldNode implements Node
         ]));
     }
 
-    /**
-     * Walk up the tree to find the enclosing OperationNode (if any).
-     */
     public function operation(): ?OperationNode
     {
         $node = $this->parent;

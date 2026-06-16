@@ -10,7 +10,6 @@ use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LinterSummary;
 use Radiergummi\OpenApi\Lint\LintResult;
-use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function array_map;
@@ -88,10 +87,6 @@ final class CliFormatter implements Formatter
     }
 
     /**
-     * Split findings into pre-build (spec === null) and per-spec buckets. Pre-build findings
-     * come from {@see PreBuildRule}s that run once per lint invocation; per-spec findings come
-     * from rules dispatched against each generated spec.
-     *
      * @param list<Finding> $findings
      *
      * @return array{0: list<Finding>, 1: array<string, list<Finding>>}
@@ -114,8 +109,6 @@ final class CliFormatter implements Formatter
     }
 
     /**
-     * Render one section's findings, grouped by source file (no-file entries first).
-     *
      * @param list<Finding> $findings
      */
     private function renderSection(array $findings, OutputInterface $output): void
@@ -237,10 +230,7 @@ final class CliFormatter implements Formatter
         return implode(PHP_EOL, array_map(static fn(string $line) => $prefix . $line, $lines));
     }
 
-    /**
-     * Format the location detail for a finding. When grouped by file, we omit the file path
-     * itself (already in the header) and show only the line number and route info.
-     */
+    /** When grouped by file, omits the path (already in the header) and shows only line + route. */
     private function formatLocationDetail(Finding $finding, bool $hasFile): ?string
     {
         $location = $finding->location;

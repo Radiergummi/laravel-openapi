@@ -93,7 +93,7 @@ public function store(FlightData $payload): FlightData { … } // both sides doc
 
 ## Indirect request payloads
 
-When a controller injects an intermediate object (e.g. a Domain Action) rather
+When a controller injects an intermediate object (e.g., a Domain Action) rather
 than a Data class directly, list the indirection's base class in
 `config/openapi.request_payload_indirection`. The generator descends into its
 constructor and uses the first Data-class parameter as the request body.
@@ -279,7 +279,7 @@ enumerate nothing for exactly the cases that need it.
 
 ### Limitation: branching on runtime state
 
-If `rules()` switches on runtime state — e.g. `if ($this->user()->isAdmin()) { … }`
+If `rules()` switches on runtime state — e.g., `if ($this->user()->isAdmin()) { … }`
 returning different rule sets — the stub takes the truthy branch (PHP's bool
 cast of any non-null object). The spec reflects the truthy branch's rules; the
 falsy branch is not introspected.
@@ -363,7 +363,7 @@ array element:
 A bare `*` key maps to the schema's `additionalProperties`. A wildcard key wins the type over a
 conflicting scalar rule on the same key — `['a' => 'string', 'a.*.b' => 'integer']` makes `a` an
 array of objects, since `a.*` means `a` is a list. For Spatie `Data` classes the PHP-type pass
-remains authoritative — rule-derived nesting only fills gaps it leaves (e.g. the element type of a
+remains authoritative — rule-derived nesting only fills gaps it leaves (e.g., the element type of a
 scalar array), never overriding a typed nested `Data` `$ref`.
 
 ### Custom Rule objects

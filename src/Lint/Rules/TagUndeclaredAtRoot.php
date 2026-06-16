@@ -17,10 +17,6 @@ use function sprintf;
 
 /**
  * Reports operation tags that are not declared in the top-level `tags` array.
- *
- * The OpenAPI specification recommends declaring all tags at the root level with descriptions.
- * This rule ensures every tag used by an operation has a corresponding entry in the top-level
- * `tags` array.
  */
 final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
 {

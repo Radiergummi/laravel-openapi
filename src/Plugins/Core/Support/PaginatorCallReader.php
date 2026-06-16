@@ -16,16 +16,8 @@ use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionMethod;
 
 /**
- * Detects a `paginate()`-family call in a controller action body — the Tier-1 bounded scan behind
- * pagination query parameters (issue #31).
- *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
- * {@see ConditionalContextPolicy::SkipConditionalContexts}: the first method or static call whose
- * lowercased name maps via {@see PaginatorKind::fromPaginatingMethod()} decides the kind. Detection
- * is presence-based (any unconditional statement, not only the returned expression), since in a
- * listing action the paginate call is the operation's shape rather than a guarded branch — so a
- * call hidden behind an `if`/ternary is not matched. Anything else (no paginate call, an unreadable
- * or closure body) returns null and the operation advertises no pagination knob.
+ * Detects a `paginate()`-family call in a controller body to determine the paginator kind.
+ * Only unconditional top-level calls are matched; branches are skipped intentionally.
  *
  * @internal
  */
@@ -64,7 +56,7 @@ final readonly class PaginatorCallReader
             return null;
         }
 
-        // The predicate only matches an Identifier name, but its narrowing is invisible here.
+        // Re-check for static analysis; the predicate already guarantees Identifier.
         return $call->name instanceof Identifier
             ? PaginatorKind::fromPaginatingMethod($call->name->toString())
             : null;

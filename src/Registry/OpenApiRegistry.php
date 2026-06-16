@@ -17,104 +17,51 @@ use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use function in_array;
 
 /**
- * The assembled inventory of OpenAPI schema resolvers and lint rules.
+ * Assembled inventory of resolvers, stages, and lint rules.
  *
- * Built once at boot: core registers its built-ins, each enabled plugin registers its
- * contributions, then `config` extras are appended. Entries are class-strings; instances are
- * resolved from the container when consumed.
- *
- * Once {@see \Radiergummi\OpenApi\Support\Generator\BaselineRegistration::assemble()} has finished
- * building the registry it calls {@see seal()}: the registry is build-once, then read-only. Sealing
- * makes that the *enforced* invariant the stage pipeline's ordering relies on — every legitimate
- * registration funnels through `assemble()` before the seal, so an out-of-band `addX()` on the
- * resolved singleton (e.g. from a service provider booting later) fails loudly instead of silently
- * appending past the terminal stages.
+ * Built once by {@see \Radiergummi\OpenApi\Support\Generator\BaselineRegistration::assemble()},
+ * then sealed. Out-of-band registrations after {@see seal()} throw {@see RegistrySealedException}.
  */
 final class OpenApiRegistry
 {
-    /**
-     * All registered request schema resolvers.
-     *
-     * @var list<class-string<RequestSchemaResolver>>
-     */
+    /** @var list<class-string<RequestSchemaResolver>> */
     public private(set) array $requestSchemaResolvers = [];
-    /**
-     * All registered ref schema resolvers.
-     *
-     * @var list<class-string<RefSchemaResolver>>
-     */
+
+    /** @var list<class-string<RefSchemaResolver>> */
     public private(set) array $refSchemaResolvers = [];
-    /**
-     * All registered query parameter resolvers.
-     *
-     * @var list<class-string<QueryParameterResolver>>
-     */
+
+    /** @var list<class-string<QueryParameterResolver>> */
     public private(set) array $queryParameterResolvers = [];
-    /**
-     * All registered primary response resolvers.
-     *
-     * Primary response resolvers are used to extract OpenAPI response schemas from controller
-     * methods and injected Actions, i.e., the "main" response for an endpoint.
-     *
-     * @var list<class-string<PrimaryResponseResolver>>
-     */
+
+    /** @var list<class-string<PrimaryResponseResolver>> */
     public private(set) array $primaryResponseResolvers = [];
-    /**
-     * All registered operation convention resolvers.
-     *
-     * Operation convention resolvers derive conventional operation defaults — a success status
-     * code and/or a default summary — from a route's Tier-0 signals (resourceful action name,
-     * HTTP verb, controller name).
-     *
-     * @var list<class-string<OperationConventionResolver>>
-     */
+
+    /** @var list<class-string<OperationConventionResolver>> */
     public private(set) array $operationConventionResolvers = [];
+
     /**
-     * All registered payload classes.
-     *
-     * Payload classes are base classes or interfaces whose subtypes are treated as request-payload
-     * DTOs by the OpenAPI core. When a controller method or injected Action is type-hinted with
-     * one of these, Core introspects its public properties to generate OpenAPI request schemas.
+     * Base classes / interfaces whose subtypes are treated as request-payload DTOs.
      *
      * @var list<class-string>
      */
     public private(set) array $payloadClasses = [];
-    /**
-     * All registered error response resolvers.
-     *
-     * These are used to generate OpenAPI responses for exceptions thrown by the application.
-     *
-     * @var list<class-string<ErrorResponseResolver>>
-     */
+
+    /** @var list<class-string<ErrorResponseResolver>> */
     public private(set) array $errorResponseResolvers = [];
-    /**
-     * All registered error response contributors.
-     *
-     * @var list<class-string<ErrorResponseContributor>>
-     */
+
+    /** @var list<class-string<ErrorResponseContributor>> */
     public private(set) array $errorResponseContributors = [];
-    /**
-     * All registered lint rules.
-     *
-     * @var list<class-string<Rule>>
-     */
+
+    /** @var list<class-string<Rule>> */
     public private(set) array $rules = [];
-    /**
-     * All registered spec stages.
-     *
-     * @var list<class-string<SpecStage>>
-     */
+
+    /** @var list<class-string<SpecStage>> */
     public private(set) array $stages = [];
-    /**
-     * Whether {@see seal()} has been called. Once true, every `addX()` method throws.
-     */
+
+    /** True once {@see seal()} has been called; every `addX()` throws afterward. */
     private bool $sealed = false;
 
-    /**
-     * Add a request schema resolver to the registry.
-     *
-     * @param class-string<RequestSchemaResolver> $class
-     */
+    /** @param class-string<RequestSchemaResolver> $class */
     public function addRequestSchemaResolver(string $class): void
     {
         $this->guardSealed();
@@ -125,8 +72,6 @@ final class OpenApiRegistry
     }
 
     /**
-     * Throws when the registry has been sealed.
-     *
      * @throws RegistrySealedException
      *
      * @internal
@@ -142,11 +87,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add a ref schema resolver to the registry.
-     *
-     * @param class-string<RefSchemaResolver> $class
-     */
+    /** @param class-string<RefSchemaResolver> $class */
     public function addRefSchemaResolver(string $class): void
     {
         $this->guardSealed();
@@ -156,11 +97,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add a query parameter resolver to the registry.
-     *
-     * @param class-string<QueryParameterResolver> $class
-     */
+    /** @param class-string<QueryParameterResolver> $class */
     public function addQueryParameterResolver(string $class): void
     {
         $this->guardSealed();
@@ -170,11 +107,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add a primary response resolver to the registry.
-     *
-     * @param class-string<PrimaryResponseResolver> $class
-     */
+    /** @param class-string<PrimaryResponseResolver> $class */
     public function addPrimaryResponseResolver(string $class): void
     {
         $this->guardSealed();
@@ -184,11 +117,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add an operation convention resolver to the registry.
-     *
-     * @param class-string<OperationConventionResolver> $class
-     */
+    /** @param class-string<OperationConventionResolver> $class */
     public function addOperationConventionResolver(string $class): void
     {
         $this->guardSealed();
@@ -198,11 +127,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add a payload class to the registry.
-     *
-     * @param class-string $class
-     */
+    /** @param class-string $class */
     public function addPayloadClass(string $class): void
     {
         $this->guardSealed();
@@ -212,11 +137,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add an error response resolver to the registry.
-     *
-     * @param class-string<ErrorResponseResolver> $class
-     */
+    /** @param class-string<ErrorResponseResolver> $class */
     public function addErrorResponseResolver(string $class): void
     {
         $this->guardSealed();
@@ -226,11 +147,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add an error response contributor to the registry.
-     *
-     * @param class-string<ErrorResponseContributor> $class
-     */
+    /** @param class-string<ErrorResponseContributor> $class */
     public function addErrorResponseContributor(string $class): void
     {
         $this->guardSealed();
@@ -240,11 +157,7 @@ final class OpenApiRegistry
         }
     }
 
-    /**
-     * Add a lint rule to the registry.
-     *
-     * @param class-string<Rule> $class
-     */
+    /** @param class-string<Rule> $class */
     public function addRule(string $class): void
     {
         $this->guardSealed();
@@ -255,9 +168,7 @@ final class OpenApiRegistry
     }
 
     /**
-     * Add a stage to the registry.
-     *
-     * Stages are applied in registration order, so the order of calls to this method matters.
+     * Stages are applied in registration order.
      *
      * @param class-string<SpecStage> $class
      *
@@ -274,10 +185,7 @@ final class OpenApiRegistry
     }
 
     /**
-     * Seals the registry against further registration.
-     *
-     * Called once by the service provider after the factory closure has assembled every baseline,
-     * plugin, and config contribution. Idempotent. After this, any `addX()` throws.
+     * Seals the registry; idempotent. After this, any `addX()` throws.
      *
      * @internal
      */

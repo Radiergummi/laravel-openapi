@@ -138,7 +138,7 @@ Analyses (JSON):
 ${JSON.stringify(analyses)}
 
 Do:
-1. Dedup gaps across domains (many share the same gap, e.g. "Action-class validation not auto-read → every write op needs hand-authored #[RequestField]s"). Collapse into uniqueGaps with affectedDomains, a proposed issue title, kind, and severity (blocks-completeness = no attribute expresses it; workaround-needed = awkward but escape-hatch exists; nice-to-have).
+1. Dedup gaps across domains (many share the same gap, e.g., "Action-class validation not auto-read → every write op needs hand-authored #[RequestField]s"). Collapse into uniqueGaps with affectedDomains, a proposed issue title, kind, and severity (blocks-completeness = no attribute expresses it; workaround-needed = awkward but escape-hatch exists; nice-to-have).
 2. Note shared Resources (reused across controllers) so the apply phase annotates each once.
 3. Recommend executionOrder — lead with ONE exemplar domain exercising the most attribute types (response + request + query-param + error), then largest-first.
 4. Write planMarkdown: consolidated plan grouped by Resource then controller, listing concrete attributes to add — ready to paste into a runbook.

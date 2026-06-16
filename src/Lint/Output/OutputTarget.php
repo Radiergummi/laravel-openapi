@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Output;
 
 /**
- * Where a single formatter's output goes: stdout (the default), stderr, or a file path.
- *
- * `stdout` and `stderr` are reserved keywords in the `--format=<format>[:<target>]` grammar; any
- * other target is a filesystem path. {@see label()} is the canonical string form, used both to
- * reject two formats writing to the same destination and in error messages.
+ * Where a formatter writes: stdout (default), stderr, or a file path.
+ * `stdout`/`stderr` are reserved in the `--format=<format>[:<target>]` grammar; anything else is
+ * a filesystem path.
  *
  * @internal
  */
@@ -21,8 +19,7 @@ final readonly class OutputTarget
     ) {}
 
     /**
-     * Build a target from the portion after the first colon in a `--format` token (null when the
-     * token had no colon, i.e. the default stdout stream).
+     * Parses the portion after the first colon in a `--format` token; null defaults to stdout.
      */
     public static function fromToken(?string $token): self
     {
@@ -34,10 +31,8 @@ final readonly class OutputTarget
     }
 
     /**
-     * Canonical string form: the file path, or the stream name for a console channel. Doubles as
-     * the destination identity for collision detection — a path can never equal `stdout`/`stderr`
-     * (those tokens resolve to channels in {@see fromToken()}), so no prefix is needed to keep
-     * file and console targets distinct.
+     * Canonical string form for this target: the file path, or the stream name. Used for collision
+     * detection. Paths can never equal `stdout`/`stderr` (those resolve to channels in {@see fromToken()}).
      */
     public function label(): string
     {

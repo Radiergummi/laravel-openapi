@@ -26,9 +26,7 @@ use function array_key_exists;
 #[Scoped]
 final class DocBlockParser
 {
-    /**
-     * @var array<string, ParsedDocBlock>
-     */
+    /** @var array<string, ParsedDocBlock> */
     private array $cache = [];
 
     public function __construct(
@@ -58,7 +56,6 @@ final class DocBlockParser
 
             return $this->cache[$docComment] = new ParsedDocBlock($this->parser->parse($tokens));
         } catch (Throwable) {
-            // Malformed comment — behave as "no tags", never break the pipeline.
             return $this->cache[$docComment] = ParsedDocBlock::empty();
         }
     }

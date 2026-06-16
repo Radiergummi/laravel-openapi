@@ -59,7 +59,7 @@ final readonly class UriParameterResolver
      * @param null|string $whereConstraint Raw regex from `$route->wheres[]`, or null when no
      *                                     constraint is registered on the route.
      * @param null|string $bindingField    Custom binding field from a `{param:field}` route segment
-     *                                     (e.g. `slug`), or null when the parameter has no custom key.
+     *                                     (e.g., `slug`), or null when the parameter has no custom key.
      *
      * @throws UnsupportedException When symfony/type-info cannot resolve the reflection type.
      */
@@ -93,7 +93,7 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * Falls back to `string` when the parameter is untyped — URI parameters are always read from
+     * Falls back to `string` when the parameter is untyped, as URI parameters are always read from
      * the URL as strings.
      *
      * @throws UnsupportedException When the reflection type cannot be resolved.
@@ -110,10 +110,7 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * Classifies the route's native constraint regex (from `$route->wheres[]`) into a
-     * {@see WhereKind}. Laravel's `Route::where*()` helpers — and Spatie's `#[Where*]`
-     * attributes, which delegate to them — each write a known regex string, so the kind
-     * can be derived from the regex alone without any attribute reflection.
+     * Classifies a route constraint regex into a {@see WhereKind} by matching known Laravel patterns.
      *
      * @return array{null|string, null|WhereKind}
      */
@@ -127,8 +124,7 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * Maps a raw constraint regex to a {@see WhereKind}. Falls back to {@see WhereKind::Custom}
-     * for anything that is not an exact match for a known Laravel pattern.
+     * Maps a raw constraint regex to a {@see WhereKind}; falls back to {@see WhereKind::Custom}.
      */
     private function classifyConstraint(string $regex): WhereKind
     {
@@ -148,10 +144,8 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * Detects the shape `Route::whereIn()` produces: alternatives joined by `|` where every
-     * alternative is a plain literal. Conservative — any regex metacharacter in an
-     * alternative disqualifies the whole string, so genuine custom regexes fall through to
-     * {@see WhereKind::Custom}.
+     * Detects `Route::whereIn()` output: `|`-joined plain literals with no metacharacters.
+     * Any metacharacter in an alternative falls through to {@see WhereKind::Custom}.
      */
     private function isLiteralAlternation(string $regex): bool
     {
@@ -170,13 +164,9 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * Resolves a route-model-bound parameter into a single {@see RouteModelBinding}: the bound
-     * model, the key the route binds against (a `{param:field}` segment overrides the model's
-     * `getRouteKeyName()`), and — only when that key is the model's own primary key — the type and
-     * format the key carries.
-     *
-     * `BackedEnumType` extends `ObjectType` in symfony/type-info — check it first to avoid treating
-     * an enum as a model binding.
+     * Resolves a route-model-bound parameter into a {@see RouteModelBinding}.
+     * Key type/format is resolved only when binding by the model's own primary key.
+     * `BackedEnumType` is checked first because it extends `ObjectType` in symfony/type-info.
      */
     private function resolveModelBinding(Type $innerType, ?string $bindingField): ?RouteModelBinding
     {
@@ -200,7 +190,7 @@ final readonly class UriParameterResolver
             $instance = new ReflectionClass($className)->newInstanceWithoutConstructor();
             $key = $bindingField ?? $instance->getRouteKeyName();
 
-            // Type the key only when the route binds by the model's own primary key — a custom
+            // Type the key only when the route binds by the model's own primary key: a custom
             // field (or an overridden route key) describes a different column we cannot type here.
             // Non-Eloquent UrlRoutables expose no key metadata, so they stay untyped too.
             [$type, $format] = $instance instanceof Model && $key === $instance->getKeyName()
@@ -214,17 +204,13 @@ final readonly class UriParameterResolver
     }
 
     /**
-     * Reads the JSON-Schema type and format a model's primary key resolves against.
-     *
-     * `HasUuids` / `HasUlids` are detected by trait rather than via `getKeyType()`, because that
-     * method's unique-id branch depends on an `usesUniqueIds` flag set only by the model
-     * constructor — which {@see resolveModelBinding} deliberately bypasses. For plain models
-     * `getKeyType()` reads the `$keyType` property default, which is reliable without the
-     * constructor.
+     * Returns the JSON-Schema type and format for a model's primary key.
+     * Detects `HasUuids`/`HasUlids` by trait rather than `getKeyType()`, which relies on
+     * constructor state that is bypassed here.
      *
      * @param class-string $className
      *
-     * @return array{string, ?string} The JSON-Schema type and optional format.
+     * @return array{string, ?string}
      */
     private function resolveKeyType(Model $instance, string $className): array
     {

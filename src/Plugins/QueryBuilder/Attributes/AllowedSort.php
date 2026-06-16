@@ -7,7 +7,7 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Attributes;
 use Attribute;
 
 /**
- * Declares the `spatie/laravel-query-builder` allowed sorts for an endpoint —
+ * Declares the `spatie/laravel-query-builder` allowed sorts for an endpoint,
  * emitted as the `sort` query-string parameter. Method-level, not repeatable.
  *
  * ```php

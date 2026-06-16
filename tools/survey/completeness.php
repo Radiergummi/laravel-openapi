@@ -8,7 +8,7 @@
  * security. A 2xx response counts as substantive when it resolves (through $ref + a
  * single-key {data:…} envelope unwrap) to any of: an object with >=1 property, a
  * string-keyed map (additionalProperties), a scalar (string/number/boolean), an
- * array of those, OR an explicit no-content 2xx (e.g. 204). An empty {} object body
+ * array of those, OR an explicit no-content 2xx (e.g., 204). An empty {} object body
  * still does NOT count. Prints a summary line + the INCOMPLETE ops.
  *
  * Usage: php completeness.php <generated-spec.json> [--prefix=/api]
@@ -76,7 +76,7 @@ function substantive($s, array $c, array $seen = []): bool
         return true;
     }
 
-    // A string-keyed map (additionalProperties) is a real payload — e.g. region/plan slug->label maps.
+    // A string-keyed map (additionalProperties) is a real payload — e.g., region/plan slug->label maps.
     if (isset($s['additionalProperties']) && $s['additionalProperties'] !== false) {
         return true;
     }
@@ -135,7 +135,7 @@ foreach (($spec['paths'] ?? []) as $path => $ms) {
                 $hasResp = true;
 
                 break;
-            } // explicit no-content 2xx (e.g. 204) is a complete response
+            } // explicit no-content 2xx (e.g., 204) is a complete response
 
             foreach ($content as $b) {
                 if (isset($b['schema']) && substantive($b['schema'], $components)) {

@@ -24,8 +24,8 @@ use ReflectionException;
  * Resolves an Eloquent API Resource return type into its `200 OK` response.
  *
  * Defers (returns null) when the action is not a resource endpoint, or when it returns a
- * collection type whose item class is undeclared — the latter is reported by the
- * `resource.response-ambiguous` lint rule.
+ * collection type whose item class is undeclared (the latter is reported by the
+ * `resource.response-ambiguous` lint rule).
  */
 #[Scoped]
 final readonly class ResourceResponseResolver implements PrimaryResponseResolver
@@ -66,8 +66,8 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
     }
 
     /**
-     * The qualified `$ref` the envelope wraps: the resource's component, or — for a wrapped-model
-     * target (`new JsonResource($model)`) — the model's component directly.
+     * The qualified `$ref` the envelope wraps: the resource's component, or, for a wrapped-model
+     * target (`new JsonResource($model)`), the model's component directly.
      *
      * @throws ReflectionException
      */

@@ -15,10 +15,7 @@ use function sprintf;
 use function strtolower;
 
 /**
- * Reports 3xx redirect responses that do not declare a Location header.
- *
- * Redirect responses should include a Location header so that clients know where to follow
- * the redirect.
+ * Reports 3xx redirect responses that declare no Location header.
  */
 final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
 {

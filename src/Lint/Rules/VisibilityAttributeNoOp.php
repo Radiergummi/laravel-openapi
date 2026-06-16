@@ -17,7 +17,7 @@ use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
 
 /**
  * Reports unconditional #[Expose] in public-default visibility mode and
- * unconditional #[Hide] in hidden-default visibility mode — attributes that
+ * unconditional #[Hide] in hidden-default visibility mode: attributes that
  * have no effect under the active default. Env-scoped variants are never
  * flagged because their effect can flip across environments.
  */
@@ -40,8 +40,6 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
         $mode = $this->visibility->defaultMode;
 
         if ($mode === VisibilityMode::Public) {
-            // Public default: an unconditional #[Expose] does nothing if no #[Hide]
-            // is around to override.
             if ($this->collectInstances($descriptor, Hide::class) !== []) {
                 return;
             }
@@ -62,8 +60,6 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
             return;
         }
 
-        // Hidden default: an unconditional #[Hide] does nothing if no #[Expose]
-        // is around to neutralize.
         if ($this->collectInstances($descriptor, Expose::class) !== []) {
             return;
         }

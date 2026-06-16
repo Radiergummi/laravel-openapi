@@ -57,11 +57,8 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
             ),
         );
 
-        // A declared-public operation (#[PublicEndpoint]) clears `security`, so the responses that
-        // mirror it — the auth-derived 401 and the scope-derived 403 — must not be emitted, or the
-        // document would document a 401 on an affirmatively-public endpoint (#259). `can`
-        // (authorization, not part of `security`) and `throttle` (rate limiting) are independent
-        // and stay.
+        // #[PublicEndpoint] clears `security`, so auth-derived 401 and scope-derived 403 must not
+        // be emitted. `can` (authorization) and `throttle` (rate limiting) are independent and stay.
         $declaredPublic = $this->isDeclaredPublic($descriptor);
 
         foreach (['auth', 'scope', 'can', 'throttle'] as $kind) {
@@ -96,11 +93,7 @@ final readonly class MiddlewareErrorContributor implements ErrorResponseContribu
         return $descriptors;
     }
 
-    /**
-     * Whether the operation is declared affirmatively public via {@see PublicEndpoint} on the
-     * action method or its controller — the same detection {@see OperationBuilder::resolveSecurity()}
-     * uses to clear `security`.
-     */
+    /** Whether the operation carries {@see PublicEndpoint} on the method or controller. */
     private function isDeclaredPublic(ActionDescriptor $descriptor): bool
     {
         return $descriptor->actionAttributes(PublicEndpoint::class) !== []

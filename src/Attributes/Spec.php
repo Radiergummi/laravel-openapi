@@ -12,11 +12,11 @@ use function is_string;
 /**
  * Pin a route to one or more named specs explicitly.
  *
- * When present, the spec partition's `match` config is ignored for this route — `#[Spec]` is
+ * When present, the spec partition's `match` config is ignored for this route. `#[Spec]` is
  * the definitive declaration. Global filters and `#[Hide]` / `#[Expose]` still apply.
  *
  * Forms:
- *   #[Spec]                 // ['default']  — opt out of named specs
+ *   #[Spec]                 // ['default'] (opt out of named specs)
  *   #[Spec('v1')]           // ['v1']
  *   #[Spec(['v1', 'v2'])]   // ['v1', 'v2']
  *

@@ -12,11 +12,8 @@ use function ltrim;
 use function round;
 
 /**
- * Derives a {@see CoverageSummary} from an in-scope operation set and the final finding list.
- *
- * Pure and container-free so it is unit-testable in isolation. The operation set is keyed by
- * {@see operationKey()}; the same helper computes each finding's key, so the two cannot diverge
- * on slash handling or separator format.
+ * Derives a {@see CoverageSummary} from an operation set and findings list.
+ * Operations and findings share a key via {@see operationKey()} so slash handling cannot diverge.
  *
  * @internal
  */
@@ -25,18 +22,10 @@ final readonly class CoverageCalculator
     private const string UNTAGGED_BUCKET = '(untagged)';
 
     /**
-     * @param array<string, list<string>>                     $operationTags      operation
-     *                                                                            key => its tag list (empty when
-     *                                                                            untagged)
-     * @param list<Finding>                                   $findings           the final,
-     *                                                                            level-filtered finding list
-     * @param array<string, array{file: ?string, line: ?int}> $operationLocations operation key
-     *                                                                            => its source location, for the
-     *                                                                            line-keyed reports. Optional: when
-     *                                                                            omitted, the resulting
-     *                                                                            {@see CoverageSummary::$perOperation}
-     *                                                                            is empty and only the aggregate
-     *                                                                            (JSON/gate) output is produced.
+     * @param array<string, list<string>>                     $operationTags      operation key => tag list
+     * @param list<Finding>                                   $findings           level-filtered finding list
+     * @param array<string, array{file: ?string, line: ?int}> $operationLocations operation key => source location;
+     *                                                                            omit to skip per-operation output
      */
     public function calculate(
         array $operationTags,
@@ -137,10 +126,6 @@ final readonly class CoverageCalculator
     }
 
     /**
-     * Build the per-operation line-coverage records, in operation-iteration order. An operation
-     * with no recorded location carries null file/line — the line-keyed formatter excludes those
-     * (inference-only / closure-routed operations have no single source line).
-     *
      * @param array<string, list<string>>                     $operationTags
      * @param array<string, array{file: ?string, line: ?int}> $operationLocations
      * @param array<string, true>                             $uncovered

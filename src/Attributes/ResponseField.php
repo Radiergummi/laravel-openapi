@@ -9,19 +9,11 @@ use BackedEnum;
 use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 
 /**
- * Documents a response output field.
+ * Documents a response output field on a Spatie Data property.
  *
- * Place on a Spatie Data class property that is part of a response payload.
- * (For Eloquent API Resources — whose keys are arbitrary `toArray()` entries
- * rather than typed properties — declare each key with a class-level
- * {@see \Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField}
- * instead.)
- *
- * Response fields support `readOnly` and `conditional` but not `writeOnly` or
- * `default` (those are request-side concerns).
- *
- * `conditional: true` keeps the field in `properties` but removes it from
- * `required` — use it for fields emitted via `$this->when()` / `$this->whenLoaded()`.
+ * For API Resource keys use {@see \Radiergummi\OpenApi\Plugins\ApiResources\Attributes\ResourceField}.
+ * `conditional: true` keeps the field in `properties` but drops it from `required`; use for
+ * fields emitted via `$this->when()` / `$this->whenLoaded()`.
  */
 #[Attribute(Attribute::TARGET_CLASS_CONSTANT | Attribute::TARGET_PROPERTY)]
 final readonly class ResponseField extends FieldAttribute

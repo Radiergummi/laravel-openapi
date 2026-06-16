@@ -33,6 +33,6 @@ it('removes the duplicate #[Response] attribute', function (): void {
                     #[Response(status: 200, description: 'OK')]
                     public function show(): void {}
                 }
-                PHP,
+                PHP . "\n",
         );
 });

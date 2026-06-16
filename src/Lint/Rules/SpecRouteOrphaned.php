@@ -17,8 +17,8 @@ use function array_intersect;
 use function array_map;
 
 /**
- * Reports routes whose effective #[Spec] list resolves to no declared spec — i.e. every
- * name they reference is unknown. Such routes are silently excluded from every
+ * Reports routes whose effective #[Spec] list resolves to no declared spec (i.e., every
+ * name they reference is unknown). Such routes are silently excluded from every
  * spec at generation time.
  *
  * Uses {@see SpecResolver} so the route's effective name set matches what the

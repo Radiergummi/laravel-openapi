@@ -15,11 +15,7 @@ use function json_decode;
 use const JSON_THROW_ON_ERROR;
 
 /**
- * Resolves `file:`-based example payloads at spec-generation time.
- *
- * Loaded files are cached for the duration of a single generation run. The class is bound as
- * `scoped` in {@see OpenApiServiceProvider}, so each scope (each request under Octane) receives
- * a fresh instance.
+ * Loads and caches `file:`-based example payloads for a single generation run.
  *
  * @internal
  */
@@ -30,8 +26,7 @@ final class ExampleFileLoader
     private array $cache = [];
 
     /**
-     * Loads and JSON-decodes a file relative to the project root. Results are cached — later calls
-     * for the same path are free.
+     * JSON-decodes a file relative to the project root. Results are cached.
      *
      * @throws RuntimeException When the file cannot be read or is not valid JSON.
      */
@@ -43,8 +38,7 @@ final class ExampleFileLoader
 
         $absolute = base_path($relativePath);
 
-        // Suppress the PHP warning so callers receive a consistent RuntimeException regardless of
-        // whether the file is missing or unreadable.
+        // Suppress the PHP warning; the false return is converted to a consistent RuntimeException.
         $contents = @file_get_contents($absolute);
 
         if ($contents === false) {

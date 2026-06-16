@@ -22,11 +22,8 @@ use Radiergummi\OpenApi\Lint\Visitors\ResponseRule as ResponseRuleVisitor;
 use function sprintf;
 
 /**
- * Reports schemas whose `oneOf` / `anyOf` is a union of two or more genuine alternatives, which
- * field-level rules cannot descend into. This covers both a property using such a shape and a
- * top-level schema that is itself the union — a component schema, a response body, or a request
- * body. Without this, such a schema produces no field findings at all, leaving the coverage gap
- * invisible.
+ * Reports schemas whose `oneOf`/`anyOf` is a union of multiple alternatives that field-level
+ * rules cannot descend into, making the coverage gap visible.
  */
 final class SchemaCompositeFieldsUninspected implements
     Rule,
@@ -69,8 +66,7 @@ final class SchemaCompositeFieldsUninspected implements
     #[Override]
     public function level(): int
     {
-        // A coverage gap, not invalid documentation.
-        return 3;
+        return 3; // coverage gap, not invalid documentation
     }
 
     /**

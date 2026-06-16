@@ -20,19 +20,12 @@ use function Radiergummi\OpenApi\is_undefined;
 use function sprintf;
 
 /**
- * Reports when an operation's `security` array references a scheme name that is not declared in
- * `components.securitySchemes`.
- *
- * This is distinct from {@see SecurityInvalidScope}, which checks scope names within a declared
- * scheme.
+ * Reports when an operation's `security` array references a scheme not declared in
+ * `components.securitySchemes`. Distinct from {@see SecurityInvalidScope}, which checks scope names.
  */
 final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Resettable
 {
-    /**
-     * Declared scheme names, memoized for the duration of a single walk.
-     *
-     * @var null|list<string>
-     */
+    /** @var null|list<string> Memoized for the duration of a single walk. */
     private ?array $declaredSchemes = null;
 
     #[Override]
@@ -72,8 +65,6 @@ final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Reset
     }
 
     /**
-     * Collect all security scheme names declared in `components.securitySchemes`.
-     *
      * @return list<string>
      */
     private function collectDeclaredSchemes(OA\OpenApi $spec): array

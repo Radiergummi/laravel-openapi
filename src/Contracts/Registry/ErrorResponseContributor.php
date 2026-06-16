@@ -11,7 +11,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 /**
  * Inspects an action and declares any error responses implied by it.
  *
- * Contributors return {@see ErrorDescriptor}s, not full `OA\Response`s — body resolution via the
+ * Contributors return {@see ErrorDescriptor}s, not full `OA\Response`s: body resolution via the
  * {@see ErrorResponseResolver} chain and `OA\Response` construction stay in the stage that drives
  * the chain.
  *

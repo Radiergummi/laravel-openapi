@@ -11,30 +11,17 @@ use function array_find;
 use function class_exists;
 
 /**
- * Shared helpers for PHPStan attribute rules. Operates on PhpParser AST nodes and resolves
- * arguments by name; when a named match is absent, the lookup falls back to the positional
- * argument occupying that parameter's constructor slot, so `#[Response(404, '…')]` resolves the
- * same as `#[Response(status: 404, …)]`.
+ * Shared helpers for PHPStan attribute rules.
  *
- * The positional slot is derived by reflecting the attribute's constructor (the attribute name is
- * already resolved to a real class by the time rules run), so it stays correct across constructor
- * reorders rather than depending on a hardcoded index. Resolution runs only under PHPStan, never
- * at application runtime.
+ * Resolves attribute arguments by name, falling back to the positional slot in the attribute's
+ * constructor. The slot is derived via reflection, so it survives constructor reorders.
  */
 final class AttributeHelpers
 {
-    /**
-     * Per-attribute-class map of constructor parameter name → positional index, memoized across
-     * lookups within a single analysis process.
-     *
-     * @var array<string, array<string, int>>
-     */
+    /** @var array<string, array<string, int>> */
     private static array $parameterPositions = [];
 
-    /**
-     * True when the argument is present (by name or positional slot) with a non-null value. A
-     * literal `null` is treated as absent, matching `?T = null` attribute parameter defaults.
-     */
+    /** True when the argument is present (by name or positional slot) with a non-null value. */
     public static function argumentIsProvided(Node\Attribute $attribute, string $name): bool
     {
         $argument = self::getArgument($attribute, $name);
@@ -49,10 +36,9 @@ final class AttributeHelpers
     }
 
     /**
-     * Returns the argument node for the given parameter, resolved by name and falling back to the
-     * positional slot that parameter occupies in the attribute's constructor. Returns null when the
-     * argument was passed neither way. A literal `null` is still returned — callers that want to
-     * treat it as absent should use {@see argumentIsProvided()} or inspect the returned value.
+     * Returns the argument node resolved by name, falling back to the positional slot. Returns null
+     * when not passed either way. A literal `null` is still returned; use {@see argumentIsProvided()}
+     * to treat it as absent.
      */
     public static function getArgument(Node\Attribute $attribute, string $name): ?Node\Arg
     {
@@ -90,10 +76,7 @@ final class AttributeHelpers
         return null;
     }
 
-    /**
-     * Constructor position of the given parameter on the attribute class, or null when the class
-     * is unavailable or has no such parameter. Results are memoized per class.
-     */
+    /** Constructor position of the given parameter, or null when unavailable. Memoized per class. */
     private static function parameterPosition(string $attributeClass, string $parameterName): ?int
     {
         if (!isset(self::$parameterPositions[$attributeClass])) {
@@ -128,9 +111,6 @@ final class AttributeHelpers
     }
 
     /**
-     * Collects every `#[$fqn]` attribute node attached to the given attribute groups. Names are
-     * compared as fully-qualified strings (PHPStan resolves names before invoking rules).
-     *
      * @param list<Node\AttributeGroup> $attrGroups
      *
      * @return list<Node\Attribute>
@@ -141,9 +121,7 @@ final class AttributeHelpers
     }
 
     /**
-     * Buckets every attribute attached to the given groups by its fully-qualified name. Lets a
-     * single pass over `attrGroups` serve any number of subsequent FQN lookups in one rule —
-     * cheaper than calling {@see attributesNamed()} for each FQN of interest.
+     * Buckets every attribute by FQN so one pass serves multiple FQN lookups.
      *
      * @param list<Node\AttributeGroup> $attrGroups
      *
@@ -163,9 +141,7 @@ final class AttributeHelpers
     }
 
     /**
-     * Returns the `attrGroups` of any declaration node that carries attributes (ClassMethod,
-     * Class_, Function_, Property, Param, ClassConst, …). Returns an empty list for nodes that
-     * have no attribute groups, sparing callers a property_exists guard at each call site.
+     * Returns the `attrGroups` of any declaration node, or `[]` for nodes with no attribute groups.
      *
      * @return list<Node\AttributeGroup>
      */

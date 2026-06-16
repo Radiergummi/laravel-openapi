@@ -30,11 +30,6 @@ use function in_array;
 use function is_writable;
 use function realpath;
 
-/**
- * OpenAPI Generate Command
- *
- * @bundle Radiergummi\OpenApi\Console
- */
 class GenerateCommand extends Command
 {
     /**
@@ -142,9 +137,6 @@ class GenerateCommand extends Command
     }
 
     /**
-     * Validates the generated document using swagger-php's Analysis pipeline. Reports any
-     * validation errors to the console and returns false on failure.
-     *
      * @throws \InvalidArgumentException
      * @throws InvalidArgumentException
      */
@@ -163,10 +155,6 @@ class GenerateCommand extends Command
         return $valid;
     }
 
-    /**
-     * Serializes the document to YAML or JSON depending on --format. --format is validated in
-     * handle() so only 'yaml' or 'json' can reach this point.
-     */
     private function serialise(OA\OpenApi $openapi): string
     {
         return $this->option('format') === 'json'

@@ -32,7 +32,7 @@ final class ApiResourcesPlugin implements Plugin
         $registry->addRule(ResourceResponseAmbiguous::class);
         $registry->addRule(ResourceResponseEmpty::class);
 
-        // Register JsonResource as a payload class so SuppressionCollector recognizes subclasses
+        // SuppressionCollector needs this to recognize JsonResource subclasses.
         $registry->addPayloadClass(JsonResource::class);
     }
 }

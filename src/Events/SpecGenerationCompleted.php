@@ -10,7 +10,7 @@ use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 /**
  * Dispatched once assembly (including document transformers) succeeds.
  *
- * Does not fire if assembly threw — see {@see SpecGenerationStarted} for the asymmetry. Mutate
+ * Does not fire if assembly threw; see {@see SpecGenerationStarted} for the asymmetry. Mutate
  * via {@see OpenApiExtensions::transformDocument()}, not from this listener.
  */
 final readonly class SpecGenerationCompleted

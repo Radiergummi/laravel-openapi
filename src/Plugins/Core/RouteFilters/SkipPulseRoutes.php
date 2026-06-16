@@ -14,13 +14,9 @@ use function ltrim;
 use function str_starts_with;
 
 /**
- * Excludes Laravel Pulse's dashboard route from the generated OpenAPI spec.
- *
- * Pulse registers its dashboard under a route group whose URI prefix is `config('pulse.path')`
- * and whose (optional) domain is `config('pulse.domain')` — the exact shape of {@see SkipTelescopeRoutes}.
- *
- * Tolerates Pulse being absent: with no `pulse.path` config present the path is empty and the
- * filter matches nothing.
+ * Excludes Laravel Pulse's dashboard routes from the spec.
+ * Matches by URI prefix (`pulse.path`) and optional domain (`pulse.domain`).
+ * Tolerates Pulse being absent: an empty path matches nothing.
  */
 #[Scoped]
 final readonly class SkipPulseRoutes implements RouteFilter

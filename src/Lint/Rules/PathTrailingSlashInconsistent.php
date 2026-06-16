@@ -32,8 +32,7 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
     #[Override]
     public function checkApi(ApiNode $api, LintContext $context): iterable
     {
-        // Keyed by path URI so multiple operations on the same path (GET, POST, …) are only
-        // counted once.
+        // Keyed by URI so multiple operations on the same path are counted once.
         /** @var array<string, true> $withSlash */
         $withSlash = [];
 
@@ -43,7 +42,6 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
         foreach ($api->operations as $operation) {
             $pathUri = $operation->pathUri;
 
-            // Skip the root path since it trivially ends with /
             if ($pathUri === '/') {
                 continue;
             }
@@ -69,7 +67,7 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
             ruleId: $this->id(),
             level: $this->level(),
             message: sprintf(
-                'Inconsistent trailing slashes: %d path(s) end with a slash (e.g. %s) and %d do not (e.g. %s)',
+                'Inconsistent trailing slashes: %d path(s) end with a slash (e.g., %s) and %d do not (e.g., %s)',
                 count($withSlash),
                 $withSlashExamples,
                 count($withoutSlash),

@@ -25,17 +25,12 @@ use function array_values;
 use function is_array;
 
 /**
- * Predicate search over method-body statements with an explicit conditional-context policy —
- * the shared matching primitive for Tier-1 call-shape whitelists (see epic #5).
+ * Predicate search over method-body statements, with an explicit conditional-context policy.
  *
- * Under {@see ConditionalContextPolicy::SkipConditionalContexts}, only expression and return
- * statements participate, and the search never enters a sub-expression whose evaluation depends
- * on a runtime condition (closure bodies, ternary or `match` arms, `&&` / `||` / `??` operands).
- * Argument lists, array literals, call chains, and assignments are descended into — they execute
- * unconditionally as part of their statement.
- *
- * Under {@see ConditionalContextPolicy::IncludeConditionalContexts}, every node is searched,
- * including `if` bodies and closures.
+ * Under {@see ConditionalContextPolicy::SkipConditionalContexts}, the search only visits
+ * expression and return statements and never enters sub-expressions whose evaluation depends
+ * on a runtime condition (closures, ternary/match arms, `&&`/`||`/`??`). Under
+ * {@see ConditionalContextPolicy::IncludeConditionalContexts}, every node is visited.
  *
  * @internal
  */
@@ -82,8 +77,6 @@ final readonly class StatementNodeFinder
     }
 
     /**
-     * Depth-first search that refuses to enter nodes opening a conditional context.
-     *
      * @param Closure(Node): bool $predicate
      */
     private function findFirstUnconditional(Node $node, Closure $predicate): ?Node
@@ -117,9 +110,8 @@ final readonly class StatementNodeFinder
     }
 
     /**
-     * Whether evaluating (parts of) this node depends on a runtime condition. The node is
-     * skipped wholesale — even its unconditionally-evaluated parts (a ternary's condition, a
-     * short-circuit's left operand) — matching there would document bizarre code.
+     * Whether this node introduces a conditional context. The whole node is skipped, including
+     * unconditionally-evaluated sub-nodes, to avoid documenting conditionally-reached code.
      */
     private function opensConditionalContext(Node $node): bool
     {
@@ -169,8 +161,7 @@ final readonly class StatementNodeFinder
     }
 
     /**
-     * Depth-first collector mirroring {@see findFirstUnconditional}, accumulating every match
-     * instead of short-circuiting on the first.
+     * Like {@see findFirstUnconditional} but accumulates all matches instead of short-circuiting.
      *
      * @param Closure(Node): bool $predicate
      * @param list<Node>          $found

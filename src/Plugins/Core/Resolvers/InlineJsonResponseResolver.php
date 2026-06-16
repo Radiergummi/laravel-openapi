@@ -35,37 +35,10 @@ use function is_int;
 use function sprintf;
 
 /**
- * Infers the primary response from a literal `response()->json([...])` call in the controller
- * method body — a Tier-1 bounded scan (epic #5, issue #14).
- *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements under
- * {@see ConditionalContextPolicy::SkipConditionalContexts}: a `response()->json()` that only runs
- * conditionally is not the canonical success response (same reasoning as the inline-validation
- * request scan, opposite of the abort scan). A *returned* `json()` beats one only assigned to a
- * variable; among returned calls, the first wins. Only the global `response()` helper with zero
- * arguments followed by `->json(...)` is matched; the `Response` facade and `new JsonResponse()`
- * are out of scope by design.
- *
- * Call recognition and literal status/body reading live in the shared {@see InlineJsonCallReader};
- * this resolver applies the *primary-slot* policy on top of those facts: only a 2xx status may
- * claim the success response, so a straight-line non-2xx literal (the guarded-success +
- * terminal-error-fallback idiom) degrades with a note rather than evicting the operation's success
- * response — that refused 4xx/5xx literal is the error machinery's job
- * ({@see \Radiergummi\OpenApi\Plugins\Core\ErrorContributors\InlineJsonErrorContributor}, #238). A
- * 204 documents without content — the runtime strips the body. A `response()->noContent(<status>)`
- * is matched as a body-less response at its status argument (204 when absent, the literal 2xx
- * otherwise); a non-literal or non-2xx status degrades.
- *
- * Degradation contract: a matched call that cannot be read statically is skipped with a
- * generation-log note (`#[Response]` is the escape hatch); a method without any matching call is
- * skipped silently, as is a body without shape information (`json()` / `json([])`). Explicit
- * `#[Response(2xx)]` attributes win in `OperationBuilder`'s primary-override path — not
- * re-implemented here — and an action carrying a {@see PrimaryResponseAuthoringAttribute}
- * (`#[ResponseResource]`, `#[FractalResponse]`) is never scanned: the attribute's own resolver
- * may sit later in the chain, and explicit authoring always wins. The return-type guard keeps
- * the scan away from actions whose signature already carries schema information (a typed
- * Model/Data/Resource/paginator return), so the Tier-0 resolvers stay authoritative regardless
- * of chain order.
+ * Infers the primary response from a literal `response()->json([...])` or `response()->noContent()`
+ * call in the controller method body. Only the global `response()` helper is matched; the facade
+ * and `new JsonResponse()` are out of scope by design. Actions with a typed return or a
+ * {@see PrimaryResponseAuthoringAttribute} are skipped.
  */
 #[Scoped]
 final readonly class InlineJsonResponseResolver implements PrimaryResponseResolver
@@ -91,9 +64,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        // An explicit authoring attribute always wins (epic #5). Its consuming resolver may sit
-        // later in the chain (#[ResponseResource] → ApiResources, #[FractalResponse] → Fractal),
-        // so the scan steps aside rather than claim a response the author already described.
+        // An explicit authoring attribute always wins; step aside so its resolver can claim the slot.
         if ($descriptor->declaresAttributeImplementing(PrimaryResponseAuthoringAttribute::class)) {
             return null;
         }
@@ -113,9 +84,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
                 return null;
             }
 
-            // Writing noContent() at all is an affirmative choice of a body-less success response,
-            // so it beats the resource-action convention regardless of whether a status argument
-            // is present (absent → 204; literal 2xx → that status). Only the value varies.
+            // noContent() is an affirmative body-less response; absent status defaults to 204.
             return $this->markStatusExplicit(
                 new OA\Response([
                     'response' => (string) $status,
@@ -145,10 +114,9 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * Whether the declared return type leaves room for a body scan: untyped, a builtin, or an
-     * HTTP response class (`JsonResponse` & friends). Any other named type — a Model, Data class,
-     * Resource, or paginator — is Tier-0 territory the signature resolvers own; union and
-     * intersection types are refused rather than arbitrated.
+     * Whether the declared return type allows a body scan: untyped, a builtin, or an HTTP response
+     * class. Named types (Model, Data class, Resource, paginator) belong to the signature resolvers.
+     * Union and intersection types are refused.
      */
     private function returnTypeAllowsBodyScan(ReflectionMethod $method): bool
     {
@@ -169,9 +137,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     // region Call-shape matching
 
     /**
-     * The matched `response()->noContent()` call, preferring a *returned* call over one only
-     * assigned to a variable, mirroring {@see self::findJsonCall}. `noContent()` always documents
-     * a body-less response; {@see self::statusFromNoContent()} reads its status argument.
+     * Returns the matched `response()->noContent()` call, preferring returned calls over assigned ones.
      *
      * @param list<Stmt> $statements
      */
@@ -200,10 +166,8 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * The status of a matched `response()->noContent(<status>)`: 204 when the argument is absent
-     * (the helper default), the literal/class-constant 2xx status when present, or false (degrade
-     * with a note) when the argument is non-literal or a non-2xx literal — the same contract
-     * {@see self::ensureSuccessStatus()} follows. The response stays body-less either way.
+     * The effective status of a `response()->noContent(<status>)` call: 204 when absent, the literal
+     * 2xx value when present, or false when non-literal or non-2xx.
      */
     private function statusFromNoContent(MethodCall $call, ReflectionMethod $method): int|false
     {
@@ -223,13 +187,16 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return 204;
         }
 
-        return $this->ensureSuccessStatus($statusArgument, $method, 'response()->noContent()') ?? false;
+        return $this->ensureSuccessStatus(
+            $statusArgument,
+            $method,
+            'response()->noContent()',
+        ) ?? false;
     }
 
     /**
-     * The literal status argument of a `noContent()` call: null when absent (the 204 default),
-     * an int when a statically readable literal/class-constant, or false when present but not
-     * statically readable.
+     * The literal status argument of a `noContent()` call: null when absent, an int when statically
+     * readable, or false when present but not statically readable.
      */
     private function noContentStatusArgument(MethodCall $call): int|false|null
     {
@@ -279,10 +246,8 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * The status itself when it is a 2xx, or null (refusal, with a note) otherwise. Only a success
-     * status may claim the primary response: a straight-line non-2xx literal (`json([...], 403)`,
-     * or a `->setStatusCode(403)`) is an error response, and taking it as primary would evict the
-     * operation's success response.
+     * Returns the status when it is 2xx, or null (with a notice) when non-2xx. A non-2xx literal
+     * is an error response and must not claim the primary slot.
      */
     private function ensureSuccessStatus(
         int $status,
@@ -306,9 +271,8 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * Tags a response with the transient marker {@see OperationBuilder} reads to let an
-     * author-written status win over the resource convention. The marker never reaches the
-     * serialized document — OperationBuilder strips it.
+     * Tags a response with the transient marker that lets an explicit status win over the resource
+     * convention. {@see OperationBuilder} strips the marker before serialization.
      */
     private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
     {
@@ -320,10 +284,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * The matched `response()->json(...)` call, preferring *returned* calls: a `return`ed json()
-     * is the response the action actually emits, while one assigned to a variable may never be.
-     * Among returned matches the first wins; without any, the first match anywhere in the
-     * scanned statements is taken.
+     * Returns the matched `response()->json(...)` call, preferring returned calls over assigned ones.
      *
      * @param list<Stmt> $statements
      */
@@ -356,11 +317,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     // region Guards & logging
 
     /**
-     * Builds the primary response from a matched `json()` call by reading its facts via the shared
-     * {@see InlineJsonCallReader} and applying the 2xx primary-slot policy. A degraded read, a
-     * non-2xx status, or a non-readable body all refuse with the reader's note (the refused 4xx/5xx
-     * literal becomes the error machinery's job in {@see InlineJsonErrorContributor}).
-     *
      * @param list<Stmt> $statements
      */
     private function responseFromCall(MethodCall $call, ReflectionMethod $method, array $statements): ?OA\Response
@@ -373,9 +329,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        // A status the author wrote in the call (or a ->setStatusCode chain) is ground truth, not a
-        // default; the resource convention must defer to it rather than relabel the body (#240). An
-        // absent status argument is the helper's own 200 default, which the convention may override.
+        // An explicit status defers the resource convention; an absent one (helper default 200) does not.
         $statusIsExplicit = $this->callReader->isJsonHelperCall($call)
             && $this->hasExplicitStatus($call, $statements);
 
@@ -385,8 +339,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        // A 204 must not carry a body — the runtime strips it (`Response::prepare()`), so the
-        // literal body is not documented either.
+        // 204 must not carry a body.
         if ($status === 204) {
             return $this->markStatusExplicit(
                 new OA\Response(['response' => '204', 'description' => 'No Content']),
@@ -400,8 +353,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        // An empty literal body carries no shape worth documenting — silent by the
-        // found-but-unreadable convention (nothing is unreadable here).
+        // Empty literal body has no schema.
         if ($result->bodySchema === null) {
             return null;
         }
@@ -414,9 +366,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * Whether the response status is author-written (a `json()` status argument or a chained
-     * `->setStatusCode()`) rather than the helper's 200 default — the resource convention must
-     * defer to an explicit status.
+     * Whether the response status was explicitly set by the author, not just the helper's 200 default.
      *
      * @param list<Stmt> $statements
      */
@@ -431,7 +381,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return true;
         }
 
-        // A chained ->setStatusCode() also makes the status explicit.
+        // A chained ->setStatusCode() is also explicit.
         $setStatusCode = $this->statementNodeFinder->findFirst(
             $statements,
             ConditionalContextPolicy::IncludeConditionalContexts,

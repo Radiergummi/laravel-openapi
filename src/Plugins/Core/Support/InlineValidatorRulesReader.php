@@ -39,25 +39,11 @@ use function is_string;
 use function sprintf;
 
 /**
- * Tier-1 whitelist matcher for inline validation rules in a controller method body.
- *
- * Scans the first {@see self::STATEMENT_LIMIT} top-level statements for exactly four call shapes:
- *
- *  1. `$request->validate([...])` — on the method's `Illuminate\Http\Request`-typed parameter
- *  2. `$this->validate($request, [...])` — the first argument must be that parameter or a
- *     zero-argument `request()` helper call; an untyped variable could be anything
- *  3. `Validator::make($request->all(), [...])`
- *  4. `Request::validate([...])` (the facade)
- *
- * Matching is straight-line only ({@see ConditionalContextPolicy::SkipConditionalContexts}): a
- * call that only runs conditionally — inside an `if` branch, a ternary or `match` arm, a
- * short-circuit operand, or a closure body — is never treated as *the* request body.
- *
- * The rules argument may be an array literal (trailing `//` comments on its entries become field
- * descriptions), or a controller-declared `$this->rules` property / zero-argument `$this->rules()`
- * method — optionally subscripted with a literal key (`$this->rules()['create']`, the BookStack
- * idiom). Anything dynamic degrades to a {@see InlineValidationScanResult::degraded()} result; no
- * variable tracking, no cross-call dataflow (Tier 2 is refused, see epic #5).
+ * Scans the first {@see self::STATEMENT_LIMIT} top-level statements for four whitelisted validator
+ * call shapes: `$request->validate()`, `$this->validate($request, ...)`, `Validator::make()`, and
+ * `Request::validate()`. Conditional contexts are skipped. The rules argument may be an array
+ * literal, a `$this->rules` property, or a zero-argument `$this->rules()` method call, optionally
+ * subscripted with a literal key. Anything dynamic yields a degraded result.
  *
  * @internal
  */
@@ -79,8 +65,8 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Returns null when no whitelisted validator call is present in the scanned statements; a
-     * degraded result when one is present but its rules cannot be read statically.
+     * Returns null when no whitelisted call is present; a degraded result when rules cannot be
+     * read statically.
      */
     public function read(ReflectionMethod $method): ?InlineValidationScanResult
     {
@@ -122,9 +108,7 @@ final readonly class InlineValidatorRulesReader
 
     // region Call-shape matching
 
-    /**
-     * Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null.
-     */
+    /** Returns the name of the first `Illuminate\Http\Request`-typed parameter, or null. */
     private function requestParameterName(ReflectionMethod $method): ?string
     {
         foreach ($method->getParameters() as $parameter) {
@@ -142,10 +126,7 @@ final readonly class InlineValidatorRulesReader
         return null;
     }
 
-    /**
-     * Returns the rules argument expression when the node is one of the four whitelisted
-     * validator call shapes, or null otherwise.
-     */
+    /** Returns the rules argument when the node matches a whitelisted call shape, or null. */
     private function rulesArgumentOf(Node $node, ?string $requestParameterName): ?Expr
     {
         if (
@@ -163,7 +144,7 @@ final readonly class InlineValidatorRulesReader
                 return $arguments[0]->value;
             }
 
-            // Shape 2: $this->validate($request, [...]) — only when argument 0 actually is the
+            // Shape 2: $this->validate($request, [...]), only when argument 0 actually is the
             // request (the typed parameter or a request() helper call); any other first argument
             // makes this an unrelated helper that happens to be named validate().
             if (
@@ -208,10 +189,8 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Whether the first argument of a `$this->validate(...)` call is the request: either the
-     * method's `Illuminate\Http\Request`-typed parameter, or a zero-argument `request()` helper
-     * call (the Bagisto idiom, which needs no request parameter in the signature). An untyped
-     * variable is rejected — it could hold anything.
+     * Whether the first argument is the typed request parameter or a zero-argument `request()`
+     * helper call (the Bagisto idiom). An untyped variable is rejected.
      */
     private function isRequestArgument(Expr $argument, ?string $requestParameterName): bool
     {
@@ -232,10 +211,9 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Matches a static-call class name against a facade. The name must *resolve* (per the
-     * NameResolver pass) to either the facade FQCN itself — an import or alias — or to the bare
-     * root-namespace short name, which is Laravel's `Validator` / `Request` root alias. A short
-     * name an import explicitly binds to a different class therefore never matches.
+     * Matches a static-call class against a facade: either the FQCN (after NameResolver) or the
+     * bare root-namespace short name (Laravel's global alias). An import bound to a different class
+     * never matches.
      */
     private function facadeMatches(Name $class, string $facadeClass, string $shortName): bool
     {
@@ -303,11 +281,9 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Evaluates one field's ruleset. A literal string (pipe syntax) passes through, and so does
-     * a class constant resolving to a string or to a list of strings (a whole-ruleset constant,
-     * `'title' => RuleSets::TITLE`); an array literal keeps its literal elements and drops
-     * dynamic ones (e.g. `Rule::unique(...)`) — they refine validation, not the schema shape.
-     * A fully dynamic value returns null (field skipped).
+     * Evaluates one field's ruleset: passes through literal strings and string-list constants;
+     * for array literals keeps only literal elements and drops dynamic ones (e.g. `Rule::unique()`
+     * refines validation, not the schema shape). Returns null for fully dynamic values.
      *
      * @return null|array<int, mixed>|string
      */
@@ -345,7 +321,7 @@ final readonly class InlineValidatorRulesReader
             try {
                 $elements[] = AstLiteralEvaluator::evaluate($item->value);
             } catch (NonLiteralValueException) {
-                // Dynamic element (a Rule object, a call) — keep the literal rest of the list.
+                // Dynamic element (a Rule object, a call): keep the literal rest of the list.
                 continue;
             }
         }
@@ -354,10 +330,8 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Resolves a `$this->rules` property fetch or zero-argument `$this->rules()` call —
-     * optionally subscripted with a literal key — against the controller class via reflection.
-     * Returns null when the expression is not one of these shapes (the caller emits the generic
-     * degrade reason).
+     * Resolves a `$this->rules` property or zero-argument `$this->rules()` call, optionally
+     * subscripted with a literal key. Returns null when the expression is not one of these shapes.
      */
     private function rulesFromControllerDeclaration(
         Expr $expression,
@@ -486,7 +460,7 @@ final readonly class InlineValidatorRulesReader
             } elseif (is_array($fieldRules)) {
                 $rules[$field] = array_values($fieldRules);
             } else {
-                // A bare Rule object — ValidationRulesToSchema accepts it inside a list.
+                // A bare Rule object: ValidationRulesToSchema accepts it inside a list.
                 $rules[$field] = [$fieldRules];
             }
         }
@@ -499,9 +473,8 @@ final readonly class InlineValidatorRulesReader
     }
 
     /**
-     * Invokes a zero-argument rules method on an instance created without running the
-     * constructor. Userland code — anything it throws (missing dependencies, uninitialised
-     * state) degrades rather than aborting the run.
+     * Invokes a zero-argument rules method on an instance created without the constructor.
+     * Degrades gracefully if the method throws (missing dependencies, uninitialised state).
      *
      * @param ReflectionClass<object> $controller
      *

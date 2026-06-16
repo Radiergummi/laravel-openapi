@@ -13,7 +13,7 @@ function schemaEquivalence(): SchemaEquivalence
 }
 
 /*
- * The rule fires when inference (`$control`) subsumes the authored annotation, i.e. reproduces
+ * The rule fires when inference (`$control`) subsumes the authored annotation, i.e., reproduces
  * everything the author wrote and possibly more. `subsumes($broader, $narrower)` asks whether
  * `$narrower` is structurally contained in `$broader`.
  */

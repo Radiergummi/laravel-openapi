@@ -12,7 +12,6 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Fix\FixableRule;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
-use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule;
@@ -30,33 +29,23 @@ use function class_exists;
 use function sprintf;
 
 /**
- * Flags a hand-authored operation-level swagger-php annotation — an `@OA\Get`/… docblock or
- * `#[OA\Get]`/`#[OA\Response]`/… attribute on a controller method — that the generator now
- * reproduces on its own. The operation-level counterpart of {@see OaRedundantWithInference}.
+ * Flags a hand-authored `@OA\Get`/`#[OA\Get]` (etc.) on a controller method that inference now
+ * reproduces entirely. Operation-level counterpart of {@see OaRedundantWithInference}.
  *
- * The operation the harvester read ({@see AuthoredAnnotationScanner::operationForMethod()}) is
- * compared against inference's operation for the *same route* ({@see InferenceView::operationForRoute()}).
- * It fires only when inference reproduces everything the author contributed: `summary` /
- * `description` / `operationId` / `tags` by equality, and `responses` / `parameters` / `requestBody`
- * by {@see SchemaEquivalence::subsumes()}. `parameters` / `requestBody` are checked as a conservative
- * guard even though the harvester merges only metadata and `responses`, so an annotation documenting
- * something inference cannot reproduce is kept rather than silently dropped. An `@OA\Response(ref=…)`
- * pointing at a response component the harvester never merges is treated as not reproducible, so the
- * operation is kept.
- *
- * Like the schema rule, declares {@see NeedsInferenceDocument}, is registered only by the
- * off-by-default swagger-php plugin, and sits at the `migration.*` cleanup tier (level 4).
+ * Fires only when inference subsumes everything the annotation contributed: metadata fields by
+ * equality, `responses` / `parameters` / `requestBody` by {@see SchemaEquivalence::subsumes()}.
+ * An `@OA\Response(ref=…)` pointing at a component the harvester never merges keeps the operation.
  *
  * @internal
  */
-final class OaRedundantOperationWithInference implements Rule, OperationRule, FixableRule, NeedsInferenceDocument
+final readonly class OaRedundantOperationWithInference implements Rule, OperationRule, FixableRule, NeedsInferenceDocument
 {
-    private readonly OaRedundancyEngine $engine;
+    private OaRedundancyEngine $engine;
 
-    private readonly OperationSubsumption $comparator;
+    private OperationSubsumption $comparator;
 
     public function __construct(
-        private readonly AuthoredAnnotationScanner $scanner,
+        private AuthoredAnnotationScanner $scanner,
         SchemaEquivalence $equivalence,
     ) {
         $this->engine = new OaRedundancyEngine();
@@ -84,7 +73,10 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
             return;
         }
 
-        $inferred = $context->inference->operationForRoute($operation->method->value, $operation->pathUri);
+        $inferred = $context->inference->operationForRoute(
+            $operation->method->value,
+            $operation->pathUri,
+        );
 
         $finding = $this->engine->evaluate(
             $authored,
@@ -96,7 +88,9 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
                 level: $this->level(),
                 message: sprintf(
                     'The %s on %s::%s restates an operation the generator already infers; it can be removed.',
-                    $shape === AuthoredAnnotationShape::Docblock ? '@OA operation docblock' : '#[OA\*] operation attribute',
+                    $shape === AuthoredAnnotationShape::Docblock
+                        ? '@OA operation docblock'
+                        : '#[OA\*] operation attribute',
                     $controller,
                     $method,
                 ),
@@ -124,8 +118,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     #[Override]
     public function level(): int
     {
-        // A redundant annotation is a cleanup opportunity, not a spec defect — the generated
-        // document is correct with or without it.
+        // Cleanup opportunity, not a spec defect.
         return 4;
     }
 
@@ -136,8 +129,7 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     }
 
     /**
-     * The inference-only view this rule compares against is the document with the authored-annotation
-     * harvest excluded — i.e. pure inference, no harvested operations.
+     * Excludes the annotation harvest so the comparison is against pure inference.
      *
      * @return list<class-string<SpecStage>>
      */

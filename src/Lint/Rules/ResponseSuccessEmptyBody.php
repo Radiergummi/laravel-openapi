@@ -17,19 +17,11 @@ use function sprintf;
 
 /**
  * Reports 2xx responses that advertise no body schema.
- *
- * Most often caused by an action whose return type is `void` or untyped: the generator
- * produces a 200 with empty content, and clients regenerated against the spec break.
- * Codes that the HTTP spec defines as bodiless (204, 205, 304) are skipped, as are HEAD
- * operations, whose bodies are intentionally suppressed.
+ * Bodiless codes (204, 205, 304) and HEAD operations are exempt.
  */
 final class ResponseSuccessEmptyBody implements Rule, ResponseRuleVisitor
 {
-    /**
-     * Status codes for which an empty body is correct per RFC 9110 / RFC 7232.
-     *
-     * @var list<int|string>
-     */
+    /** @var list<int|string> */
     private const array BODILESS_CODES = [204, 205, 304, '204', '205', '304'];
 
     /**

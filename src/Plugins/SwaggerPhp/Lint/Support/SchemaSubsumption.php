@@ -14,14 +14,10 @@ use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
 
 /**
- * Schema-level redundancy comparison: a single {@see SchemaEquivalence::subsumes()} of the authored
- * component schema against inference's schema for the same class. The comparator behind
- * {@see \Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference}.
+ * Compares an authored component schema against the inferred schema for redundancy.
  *
- * With an empty candidate this is exactly plain subsumption — the redundant case. With a non-empty
- * candidate the contributed `OA\Property` annotations are folded onto the inferred schema by property
- * name before comparing (`inference ⊕ candidate`), so an authored `#[OA\Property(description:)]` a
- * `#[ResponseField]` would restate counts as reproduced — the replaceable case #122 part 2 builds on.
+ * When `$candidate` is non-empty, its `OA\Property` annotations are merged onto the inferred
+ * schema before comparing, so a description-only authored property does not count as redundant.
  *
  * @internal
  */
@@ -46,9 +42,7 @@ final readonly class SchemaSubsumption implements OaRedundancyComparator
     }
 
     /**
-     * Fold the candidate replacement annotations onto a copy of the inferred schema: each candidate
-     * `OA\Property` merges its set fields into the matching inferred property (by name), or adds a new
-     * one. Copies are made so the shared inference-only view is never mutated.
+     * Merges candidate `OA\Property` annotations onto a clone of the inferred schema by property name.
      *
      * @param list<OA\AbstractAnnotation> $candidate
      */

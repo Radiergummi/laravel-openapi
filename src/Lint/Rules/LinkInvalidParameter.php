@@ -20,12 +20,10 @@ use function array_map;
 use function sprintf;
 
 /**
- * Reports when a Link's `parameters` map references a parameter name that the target operation does
- * not accept (neither as a path nor query parameter).
+ * Reports a Link's `parameters` entry that the target operation does not accept.
  *
- * Limitation: only links that use `operationId` are validated. Links that reference their target
- * operation via `operationRef` are silently skipped because resolving an `operationRef` URI
- * (potentially an external document reference) is out of scope for this rule.
+ * Only `operationId`-based links are validated; `operationRef` links are skipped (resolving
+ * a URI reference, potentially external, is out of scope).
  */
 final class LinkInvalidParameter implements Rule, LinkRuleVisitor
 {
@@ -45,7 +43,6 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
 
         $targetOperation = $context->index->operationsByOperationId[$link->operationId] ?? null;
 
-        // Target operation doesn't exist - that's LinkInvalidOperation's job
         if ($targetOperation === null) {
             return;
         }
@@ -79,9 +76,6 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
     }
 
     /**
-     * Collect accepted parameter names (path and query) from the target operation node,
-     * returned as a set (keys are names, values are 1) for O(1) membership testing.
-     *
      * @return array<string, int>
      */
     private function collectAcceptedNames(OperationNode $targetOperation): array

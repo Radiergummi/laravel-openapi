@@ -17,39 +17,19 @@ use function is_scalar;
 use function method_exists;
 
 /**
- * Reads a model's Laravel factory `definition()` as a source of per-property example values.
+ * Reads a model's factory `definition()` as a source of per-property example values.
  *
- * A factory `definition()` is a hand-curated, app-maintained realistic payload — exactly the kind
- * of data the generated document should show consumers. `Model::factory()` comes from the
- * `HasFactory` trait (the base `Model` has no `factory()` method), so a model exposes a factory
- * when `method_exists($modelClass, 'factory')`. The factory is instantiated and its `definition()`
- * invoked so runtime `fake()` calls resolve to concrete values (Tier 0-ish: reflection + runtime
- * invocation of app-owned metadata, not dataflow).
- *
- * Only scalar (and null) definition values become examples — a value that is itself a factory, a
- * relationship closure, or an array/object is skipped, as it cannot stand in as a simple property
- * example.
- *
- * Determinism — a factory's `definition()` draws from the container-bound `Faker\Generator`, whose
- * seed this reader controls. Before **every** `definition()` invocation it reseeds that generator
- * from `(faker_seed ^ crc32($modelClass))` so reads are order-independent (Faker delegates `seed()`
- * to the global `mt_srand()`, so any RNG consumer between reads would otherwise drift the state) and
- * distinct models draw distinct values. When `faker_seed` is null (the config opt-out), factory
- * examples are disabled — they would be non-deterministic and churn the byte-exact snapshot output.
- *
- * Degrades gracefully — factory discovery, constructor side effects, or a `definition()` that
- * touches the database can throw; on any `Throwable` the reader logs one warning and returns `[]`.
+ * Only scalar/null values are used; closures, relationship factories, and nested arrays
+ * are skipped. The Faker instance is reseeded with `faker_seed ^ crc32($model)` so reads
+ * are order-independent and distinct models draw distinct values. When `faker_seed` is null
+ * examples are disabled to avoid non-deterministic snapshot churn.
  *
  * @internal
  */
 #[Scoped]
 final class ModelFactoryExampleReader
 {
-    /**
-     * Per-model memo of column → scalar example value.
-     *
-     * @var array<class-string<Model>, array<string, null|scalar>>
-     */
+    /** @var array<class-string<Model>, array<string, null|scalar>> */
     private array $cache = [];
 
     public function __construct(
@@ -58,9 +38,8 @@ final class ModelFactoryExampleReader
     ) {}
 
     /**
-     * The scalar example values from the model's factory `definition()`, keyed by column. Returns
-     * an empty map when the model has no factory, the seed is null (determinism opt-out), or any
-     * error occurs during resolution.
+     * Scalar example values from the model's factory `definition()`, keyed by column.
+     * Returns an empty map when the model has no factory, the seed is null, or resolution fails.
      *
      * @param class-string<Model> $modelClass
      *
@@ -77,8 +56,6 @@ final class ModelFactoryExampleReader
         }
 
         try {
-            // Reseed the bound generator immediately before invoking definition(), mixing the model
-            // class into the seed so reads stay order-independent and distinct models differ.
             Container::getInstance()->make(Faker::class)->seed($this->seed ^ crc32($modelClass));
 
             /** @var array<string, mixed> $definition */
@@ -92,15 +69,11 @@ final class ModelFactoryExampleReader
             return $this->cache[$modelClass] = [];
         }
 
-        $examples = [];
-
-        foreach ($definition as $column => $value) {
-            // Only scalars stand in as a simple property example; closures, factory refs, and
-            // nested arrays/objects are skipped.
-            if (is_scalar($value) || $value === null) {
-                $examples[$column] = $value;
-            }
-        }
+        // Filter to scalar/null; closures, factory refs, and nested arrays are not usable.
+        $examples = array_filter(
+            $definition,
+            static fn(mixed $value): bool => is_scalar($value) || $value === null,
+        );
 
         return $this->cache[$modelClass] = $examples;
     }

@@ -16,9 +16,7 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Registry\ResolvedSchema;
 
 /**
- * Core request-schema resolver
- *
- * Builds the request body from a Laravel {@see FormRequest} type-hinted on the controller method.
+ * Builds the request body schema from a Laravel {@see FormRequest} type-hinted on the controller method.
  */
 #[Scoped]
 final readonly class FormRequestRequestSchemaResolver implements RequestSchemaResolver
@@ -42,8 +40,7 @@ final readonly class FormRequestRequestSchemaResolver implements RequestSchemaRe
             return null;
         }
 
-        // build() returns an OA\Schema $ref, not the component key itself. We call it for its
-        // registry side-effect, then retrieve the key separately via keyFor().
+        // build() registers the schema as a side-effect.
         $this->schemaBuilder->build($formRequestClass);
 
         $key = $this->registry->keyFor($formRequestClass);

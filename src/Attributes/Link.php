@@ -8,7 +8,7 @@ use Attribute;
 
 /**
  * Declares an OpenAPI Link on the operation's primary 2xx response so consumers can chain
- * operations — e.g. after `POST /projects` succeeds, the response `uuid` flows into `GET
+ * operations. For example, after `POST /projects` succeeds, the response `uuid` flows into `GET
  * /projects/{uuid}`. Repeatable. Exactly one of `operationId` or `operationRef` is required.
  *
  * `parameters` maps `parameterName => runtimeExpression`, where common expressions are
@@ -26,7 +26,7 @@ use Attribute;
 final readonly class Link
 {
     /**
-     * @param non-empty-string                          $name         Short name for the link — used as the map
+     * @param non-empty-string                          $name         Short name for the link, used as the map
      *                                                                key in `responses.{status}.links`. Must
      *                                                                match the naming constraints of component
      *                                                                object names (alphanumeric, `.`, `-`, `_`).

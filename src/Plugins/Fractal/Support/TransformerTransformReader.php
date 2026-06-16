@@ -30,26 +30,12 @@ use function is_string;
 use function method_exists;
 
 /**
- * Reads the response fields of a Fractal transformer from its `transform()` array literal —
- * the Tier-1 bounded scan of issue #13 (epic #5).
+ * Reads response fields from a Fractal transformer's `transform()` array literal.
  *
- * The bounded case: `transform()` exists and its body is a single straight-line `return [...]`
- * literal ({@see SingleReturnArrayLiteralFinder}). The literal's string keys become fields in
- * literal order; each value resolves best-effort, refusing per value:
- *
- * - `(int)` / `(float)` / `(string)` / `(bool)` / `(array)` casts → the cast's JSON type — the
- *   cast states the runtime type regardless of what it wraps,
- * - `$model->field`, where `$model` is `transform()`'s first parameter and its declared type is
- *   an Eloquent model (Tier-0) → the model's property schema
- *   ({@see EloquentModelToSchema::propertyFor()}),
- * - literal scalars and arrays → typed via {@see SchemaDefinitionFromLiteral},
- * - anything else (method calls, ternaries, unknown model fields) → the key is kept with an
- *   unconstrained schema — dropping a response property would be silently wrong.
- *
- * Returns null when the bounded case does not hold (no `transform()`, a dynamic body, a dynamic
- * key, or a spread); callers decide the fallback and the generation-log note — the reader is
- * pure and registry-free, so the `fractal.fields-undeclared` lint rule can consult it without
- * side effects. Results are memoised per class for the scoped lifetime.
+ * Handles the bounded case of a single straight-line `return [...]` ({@see SingleReturnArrayLiteralFinder}).
+ * Values are resolved best-effort: PHP casts to JSON type, `$model->field` via Eloquent metadata,
+ * literal scalars/arrays via {@see SchemaDefinitionFromLiteral}, anything else as unconstrained.
+ * Returns null when the bounded case does not hold; callers decide the fallback.
  *
  * @internal
  */
@@ -74,8 +60,7 @@ final class TransformerTransformReader
     ) {}
 
     /**
-     * Whether the class extends `league/fractal`'s `TransformerAbstract` — the strong signal
-     * callers require before treating an attribute-free class as a transformer.
+     * Whether the class extends `TransformerAbstract` (the signal callers use before treating an attribute-free class as a transformer).
      */
     public function isTransformerSubclass(string $class): bool
     {
@@ -123,7 +108,7 @@ final class TransformerTransformReader
         $fields = [];
 
         foreach ($literal->items as $item) {
-            // A spread or an unkeyed entry makes the structure unknowable — the whole literal
+            // A spread or an unkeyed entry makes the structure unknowable, so the whole literal
             // is refused rather than partially documented under guessed keys.
             if ($item->unpack || $item->key === null) {
                 return null;
@@ -146,8 +131,7 @@ final class TransformerTransformReader
     }
 
     /**
-     * Whether the class declares a concrete `transform()` method — the discriminator between
-     * "nothing to read" (silent) and a dynamic body the reader had to refuse (noted by callers).
+     * Whether the class declares a concrete `transform()` method.
      *
      * @param class-string $transformerClass
      *
@@ -162,8 +146,7 @@ final class TransformerTransformReader
     // region Value resolution
 
     /**
-     * The transform() parameter the literal's model fetches resolve against: the first
-     * parameter, when its declared type is a concrete Eloquent model (Tier-0).
+     * The first parameter when its declared type is a concrete Eloquent model, used to resolve model fetches.
      *
      * @return array{null|class-string<Model>, null|string}
      */
@@ -229,8 +212,7 @@ final class TransformerTransformReader
     }
 
     /**
-     * The JSON type a cast expression guarantees at runtime, regardless of what it wraps —
-     * `(float) $invoice->amount` is a number even when the model metadata says `decimal` string.
+     * The JSON type a cast expression guarantees at runtime, regardless of what it wraps.
      */
     private function castType(Expr $value): ?string
     {
@@ -245,8 +227,7 @@ final class TransformerTransformReader
     }
 
     /**
-     * A `$model->field` fetch on the typed transform() parameter, resolved against the model's
-     * metadata. An unknown field keeps the key as an unconstrained property.
+     * Resolves a `$model->field` fetch against Eloquent model metadata; returns unconstrained for unknown fields.
      *
      * @param null|class-string<Model> $modelClass
      *
@@ -288,9 +269,7 @@ final class TransformerTransformReader
     }
 
     /**
-     * The key paths of unconstrained (empty) definitions inside a nested literal — values the
-     * literal mapping could not type, e.g. a cast below the top level — so the summarising
-     * notice can name them alongside the top-level refusals.
+     * Key paths of unconstrained (empty) nested definitions, for surfacing in the generation notice.
      *
      * @param array<string, mixed> $definition
      *

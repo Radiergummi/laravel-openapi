@@ -54,11 +54,8 @@ final class FieldEnumMismatch extends AbstractFieldRule
             return;
         }
 
-        // Normalize both sides to strings so that integer-backed enum cases
-        // compare equal regardless of how the field attribute spelled them — a
-        // BackedEnum instance, the bare scalar `1`, or the string `"1"` all
-        // collapse to the same value. Without this, sort()+=== would report
-        // spurious mismatches on mixed int/string lists.
+        // Normalize to strings so integer-backed cases compare equal regardless of int/string
+        // spelling (BackedEnum instance, bare `1`, and `"1"` all collapse to the same value).
         $enumCaseValues = array_map(
             static fn(BackedEnum $case): string => (string) $case->value,
             $typeName::cases(),

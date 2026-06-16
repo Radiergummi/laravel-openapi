@@ -23,12 +23,7 @@ use function sprintf;
  */
 final class HeaderInvalidName implements Rule, OperationRuleVisitor
 {
-    /**
-     * HTTP token grammar from RFC 7230 §3.2.6:
-     * token = 1*tchar
-     * tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
-     *         "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
-     */
+    /** HTTP token grammar from RFC 7230 §3.2.6. */
     private const string HTTP_TOKEN_PATTERN = '/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/';
 
     /**

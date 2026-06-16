@@ -10,7 +10,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 
 /**
  * A lint rule that inspects raw {@see ActionDescriptor} instances rather than the generated spec
- * tree. Used for routes that never reach the tree (e.g. hidden routes that still need to be
+ * tree. Used for routes that never reach the tree (e.g., hidden routes that still need to be
  * checked for misconfigured visibility attributes).
  */
 interface RouteRule extends Visitor

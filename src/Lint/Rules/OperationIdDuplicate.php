@@ -19,15 +19,10 @@ use function sprintf;
 
 /**
  * Reports when multiple operations share the same operationId.
- *
- * The OpenAPI specification requires each operationId to be unique across the entire API. This rule
- * detects duplicates and reports both occurrences.
  */
 final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finalizable, Resettable
 {
-    /**
-     * @var OperationNode[][]
-     */
+    /** @var OperationNode[][] */
     private array $seen = [];
 
     #[Override]

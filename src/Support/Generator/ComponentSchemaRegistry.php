@@ -25,15 +25,10 @@ use function md5;
 use function substr;
 
 /**
- * Holds all Data class schemas registered during an OpenAPI generation run.
+ * Holds all component schemas registered during a generation run.
  *
- * **Deduplication:** registering the same class twice is idempotent — the first schema wins and
- * later calls are no-ops. Iteration order is insertion order, so the generated spec is
- * deterministic across runs.
- *
- * **Key generation:** the component key is the class basename (e.g. `CreateProjectData`). If two
- * Data classes in different namespaces share a basename, the second one is disambiguated with its
- * parent directory segment concatenated in PascalCase (e.g. `ProjectsCreateProjectData`).
+ * Registration is idempotent (first schema wins). Keys are derived from the class basename and
+ * disambiguated with ancestor namespace segments when two classes share a basename.
  *
  * @internal
  */
@@ -41,11 +36,9 @@ use function substr;
 final class ComponentSchemaRegistry
 {
     /**
-     * Sentinel owner stored in {@see $keyToClass} for keys claimed by {@see registerNamed()}.
+     * Sentinel owner for keys claimed by {@see registerNamed()}.
      *
-     * Real PHP class strings cannot start with a NUL byte, so this value never collides with a
-     * user-supplied `class-string` — and `isKeyTaken()` correctly reports the key as taken
-     * for any user class probing the same basename.
+     * NUL prefix guarantees it never collides with a real class-string.
      */
     private const string NAMED_KEY_OWNER = "\0named";
     /**
@@ -61,8 +54,7 @@ final class ComponentSchemaRegistry
      */
     private array $classToKey = [];
     /**
-     * Inverse index for {@see isKeyTaken()} fast-path. Populated alongside
-     * {@see $classToKey} so collision probes are O(1) instead of O(N).
+     * Inverse of {@see $classToKey} for O(1) collision probes.
      *
      * @var array<string, string>
      */
@@ -72,28 +64,23 @@ final class ComponentSchemaRegistry
      */
     private array $inProgress = [];
     /**
-     * Empty array means "extraction was attempted and yielded nothing" — distinct from
-     * `null` ("not yet attempted") as returned by {@see compiledFields()}.
+     * Empty array = extraction attempted but yielded nothing; null = not yet attempted.
      *
      * @var array<class-string, array<string, FieldDescriptor>>
      */
     private array $compiledFields = [];
     /**
-     * Whether the FormRequest class has any file fields, computed once during schema building.
-     * Null means "not yet computed".
+     * Null = not yet computed.
      *
      * @var array<class-string, bool>
      */
     private array $hasFileFields = [];
 
     /**
-     * Used for shared envelopes such as the JSON:API error response schema.
+     * Registers a schema under an explicit key (e.g. shared error envelopes).
      *
-     * Reserves the key in {@see $keyToClass} (under a synthetic sentinel owner) so a later
-     * user-class registration with the same basename takes the disambiguation path in
-     * {@see deriveKey()} instead of silently overwriting the named schema.
-     *
-     * Idempotent: later calls with the same key are no-ops.
+     * Reserves the key so a later class registration with the same basename is disambiguated
+     * rather than silently overwriting it. Idempotent.
      */
     public function registerNamed(string $key, OA\Schema $schema): void
     {
@@ -118,9 +105,8 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * The schema registered under `$key`, or null when the key is unoccupied. Lets a contributor
-     * tell an idempotent re-registration of its own schema apart from a genuine name collision
-     * with a different schema already holding the key.
+     * Returns the schema for `$key`, or null. Lets a contributor distinguish its own idempotent
+     * re-registration from a genuine collision with a different schema.
      */
     public function schemaForKey(string $key): ?OA\Schema
     {
@@ -128,9 +114,7 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Registers a named response component under `components.responses`.
-     *
-     * This is idempotent: Later calls with the same key are no-ops.
+     * Registers a named response under `components.responses`. Idempotent.
      */
     public function registerNamedResponse(string $key, OA\Response $response): void
     {
@@ -155,15 +139,11 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Cycle-guarded build-and-register: invokes `$factory` exactly once to produce the schema, then
-     * registers it under the disambiguated component key and returns the key.
+     * Invokes `$factory` exactly once, registers the schema, and returns the component key.
      *
-     * If `$className` is being built higher up the call stack (recursive `$ref`), the reserved key
-     * is returned without invoking the factory — the caller can emit a `$ref` pointing at the same
-     * key {@see register()} will ultimately assign. Already-registered classes also short-circuit.
-     *
-     * Exceptions from `$factory` propagate, but the in-progress flag is always cleared so a
-     * later retry for the same class is not stuck.
+     * If `$className` is already in progress (recursive `$ref`) or registered, returns the
+     * reserved key without calling the factory. Exceptions propagate; the in-progress flag is
+     * always cleared.
      *
      * @param class-string         $className
      * @param Closure(): OA\Schema $factory
@@ -186,9 +166,9 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Whether {@see buildOnce()} is currently building a schema for `$className` higher up the
-     * call stack. Public so plugin code that recurses into the registry from a `buildOnce`
-     * factory can detect the re-entrance and choose a `$ref`-shaped placeholder rather than
+     * Whether `$className` is currently being built by {@see buildOnce()} higher up the call stack.
+     *
+     * Exposed so plugin factories can detect re-entrance and emit a `$ref` placeholder instead of
      * triggering a nested rebuild.
      *
      * @param class-string $className
@@ -199,11 +179,8 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Returns true when the class has had its component key reserved OR its schema fully registered
-     *
-     * This covers both the "cycle guard" state (key reserved, schema still building) and the
-     * "fully done" state — i.e., it answers "have we started processing this class?" rather than
-     * "is the schema stored?"
+     * Returns true once a key has been reserved for `$className`, whether or not its schema is
+     * fully stored yet ("have we started?" not "are we done?").
      *
      * @param class-string $className
      */
@@ -213,16 +190,10 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Reserves the disambiguated component key for `$className` without storing a schema.
+     * Reserves the component key for `$className` without storing a schema. Idempotent.
      *
-     * Used internally by {@see self::buildOnce()} as part of the cycle guard: returning a
-     * reserved key on recursive re-entry lets the caller emit a `$ref` pointing at the same
-     * key {@see register()} will ultimately assign.
-     *
-     * Idempotent — a second call for the same class is a no-op.
-     *
-     * Accepts any string: the key is derived purely from the name, so the
-     * class need not exist (used for synthetic and not-yet-loaded classes).
+     * The class need not exist; used by the cycle guard so recursive re-entry can emit a `$ref`
+     * to the key that {@see register()} will ultimately assign.
      */
     public function reserveKey(string $className): string
     {
@@ -236,21 +207,12 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Derives a unique, human-readable component key for `$className`.
+     * Derives a unique component key for `$className`.
      *
-     * 1. Try the bare basename (e.g. `CreateData`).
-     * 2. On collision, prepend successive ancestor namespace segments, skipping generic container
-     *    segments (`Data`, `Domain`), until the key is unique. E.g. `App\Domain\Foo\Bar\CreateData`
-     *    → `CreateData`, then on collision → `BarCreateData`, then → `FooBarCreateData`, and so on.
-     * 3. If the full namespace is exhausted and the key is still taken (extremely unlikely — would
-     *    require two classes with identical FQCNs), append a short hash suffix as a last resort.
-     *
-     * Namespace segments are concatenated directly (PascalCase): backslashes are stripped, not
-     * replaced with dots, so the resulting key remains a single PascalCase identifier.
-     *
-     * A class may override all of this with {@see SchemaName}: the explicit name is used verbatim,
-     * skipping derivation. Two distinct classes claiming the same explicit name is an unresolvable
-     * conflict and throws {@see DuplicateSchemaNameException}.
+     * Tries the bare basename first, then prepends ancestor namespace segments (skipping generic
+     * ones like `Data`, `Domain`) until unique. Falls back to a short hash suffix if the full
+     * namespace is exhausted. {@see SchemaName} overrides derivation entirely; two classes with
+     * the same explicit name throw {@see DuplicateSchemaNameException}.
      */
     private function deriveKey(string $className): string
     {
@@ -274,8 +236,6 @@ final class ComponentSchemaRegistry
             return $basename;
         }
 
-        // Collect all namespace segments except the class name itself, in nearest-first
-        // order (innermost → outermost), filtering generic segments.
         $parts = explode('\\', $className);
         array_pop($parts); // remove the class name
 
@@ -291,7 +251,6 @@ final class ComponentSchemaRegistry
             $ancestors[] = $part;
         }
 
-        // Walk from innermost ancestor outward, accumulating prefix segments.
         $prefix = '';
 
         foreach ($ancestors as $segment) {
@@ -303,18 +262,15 @@ final class ComponentSchemaRegistry
             }
         }
 
-        // Last resort: the full namespace prefix is still ambiguous — append a short hash to
-        // guarantee uniqueness.
+        // Full namespace prefix exhausted; append a short hash to guarantee uniqueness.
         $hash = substr(md5($className), 0, 6);
 
         return "{$prefix}{$basename}{$hash}";
     }
 
     /**
-     * Returns the name pinned by {@see SchemaName} on `$className`, or null when absent.
-     *
-     * `$className` need not be a loadable class — synthetic and not-yet-loaded names simply have no
-     * attribute and fall through to derivation.
+     * Returns the name from a {@see SchemaName} attribute on `$className`, or null.
+     * Non-loadable class names simply return null and fall through to derivation.
      */
     private function explicitSchemaName(string $className): ?string
     {
@@ -339,12 +295,11 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Human-readable owner of a taken key for {@see DuplicateSchemaNameException} messages. Keys
-     * reserved by {@see registerNamed()} carry the {@see NAMED_KEY_OWNER} sentinel, not a class.
+     * Human-readable owner of a taken key for error messages.
      */
     private function ownerLabel(string $key): string
     {
-        // Only ever called right after isKeyTaken() returned true, so the key is present.
+        // Only called after isKeyTaken() returned true, so the key is always present.
         $owner = $this->keyToClass[$key];
 
         return $owner === self::NAMED_KEY_OWNER ? 'a reserved schema' : $owner;
@@ -359,15 +314,12 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * If the key is already taken by a different class (basename collision), the new class is
-     * disambiguated with its parent namespace segment.
+     * Stores a schema for `$className`. First schema wins; idempotent.
      *
      * @param class-string $className
      */
     public function register(string $className, OA\Schema $schema): void
     {
-        // First schema wins — honour the docblock's idempotency guarantee without relying on every
-        // caller to check isRegisteredOrReserved() first.
         if (array_key_exists($className, $this->classToKey) && array_key_exists(
             $this->classToKey[$className],
             $this->schemas,
@@ -375,12 +327,10 @@ final class ComponentSchemaRegistry
             return;
         }
 
-        // Key may already be reserved by reserveKey() — reuse it so the $ref emitted by the cycle
-        // guard and the component key assigned here remain in sync.
+        // Reuse a key already reserved by the cycle guard so $ref and component key stay in sync.
         $key = $this->reserveKey($className);
 
-        // swagger-php requires the `schema` property to equal the component key so that $ref
-        // resolution works during validation.
+        // swagger-php requires `schema` to equal the component key for $ref resolution.
         $schema->schema = $key;
 
         OpenApiExtensions::applySchemaTransformers(
@@ -408,13 +358,11 @@ final class ComponentSchemaRegistry
     }
 
     /**
-     * Returns the `componentKey → class-string` map for keys whose schema was registered for a
-     * real class. Keys reserved via {@see registerNamed()} are excluded (their owner is the
-     * `NAMED_KEY_OWNER` sentinel, which is not a real class).
+     * Returns the `componentKey => class-string` map, excluding keys registered via
+     * {@see registerNamed()} (which carry the sentinel, not a real class).
      *
-     * Used by the lint suppression collector to walk every class that produced a component schema
-     * for class-level `#[IgnoreLint]` attributes — needed because some payload classes (return-
-     * typed `JsonResource`s) are never observed as method parameters.
+     * Used by the lint suppression collector to walk `#[IgnoreLint]` attributes on payload classes
+     * that may never appear as method parameters.
      *
      * @return array<string, class-string>
      */
@@ -427,9 +375,8 @@ final class ComponentSchemaRegistry
                 continue;
             }
 
-            // Assign to a typed local: Pint's phpdoc_to_comment fixer demotes /** @var */
-            // on a foreach variable to a line comment, which PHPStan ignores. Routing
-            // through a fresh local keeps the docblock form Pint accepts.
+            // Pint's phpdoc_to_comment fixer would demote a /** @var */ on foreach variables;
+            // using a fresh local keeps the annotation intact.
             /** @var class-string $classString */
             $classString = $owner;
             $map[$key] = $classString;

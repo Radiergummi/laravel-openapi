@@ -51,7 +51,7 @@ final class ResponseNode implements Node
     /**
      * @throws LogicException if called more than once.
      *
-     * @internal Called exactly once by SpecTreeBuilder.
+     * @internal
      */
     public function linkParent(Node $parent): void
     {

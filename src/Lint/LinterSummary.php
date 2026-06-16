@@ -18,9 +18,6 @@ use function ksort;
  */
 final readonly class LinterSummary implements Arrayable, JsonSerializable
 {
-    /**
-     * Total number of findings.
-     */
     public int $total;
 
     /**
@@ -30,11 +27,7 @@ final readonly class LinterSummary implements Arrayable, JsonSerializable
      */
     public array $findingCountsPerLevel;
 
-    /**
-     * List of affected routes, indexed by route name.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> */
     public array $affectedRoutes;
 
     public int $affectedRoutesCount;

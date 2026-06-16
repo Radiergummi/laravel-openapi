@@ -12,9 +12,9 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
  * Documents a request-body input field.
  *
  * Place on a Spatie Data class property / promoted constructor parameter, or on a FormRequest
- * `PARAM_*` class constant — there the field name is taken from the target. Or stack it
+ * `PARAM_*` class constant (there the field name is taken from the target). Or stack it
  * (repeatable) on a controller action to document a request body field-by-field when the action
- * validates outside a FormRequest/Data class (e.g. in an Action/service); there `$name` is
+ * validates outside a FormRequest/Data class (e.g., in an Action/service); there `$name` is
  * required and composes with `#[RequestBody]` for the envelope. Request fields support `writeOnly`
  * but not `readOnly` (a request field is never read-only).
  *

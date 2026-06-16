@@ -10,7 +10,6 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\SuppressionDirective;
-use Radiergummi\OpenApi\Lint\TreeIndex;
 use Radiergummi\OpenApi\Lint\Visitors\PostWalkRule;
 use Radiergummi\OpenApi\Plugins\Core\CorePlugin;
 
@@ -26,13 +25,7 @@ use function sprintf;
  */
 final class MetaSuppressionStale implements Rule, PostWalkRule
 {
-    /**
-     * Canonical rule ID.
-     *
-     * Exposed as a constant because this rule is not part of the registered rule set, so callers
-     * assembling the known-rule-ID list (the lint command, or tests building a {@see TreeIndex}
-     * directly) must reference it without instantiating the rule.
-     */
+    /** Not in the registered rule set, so callers reference the ID via this constant. */
     public const string ID = 'meta.suppression-stale';
 
     /**

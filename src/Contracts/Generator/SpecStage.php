@@ -11,9 +11,8 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 /**
  * One step in the OpenAPI document assembly pipeline.
  *
- * Stages run in a fixed order: core stages first, then plugin-registered stages (via
- * {@see OpenApiRegistry::addStage()}), then the terminal transformer stage. Each stage mutates the
- * shared {@see OA\OpenApi} in place.
+ * Stages run in a fixed order registered by {@see OpenApiRegistry::addStage()} and mutate
+ * the shared {@see OA\OpenApi} document in place.
  */
 interface SpecStage
 {

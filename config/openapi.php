@@ -142,7 +142,7 @@ return [
     | @throws AuthenticationException wins over the `auth` entry.
     |
     | Responses are also unique per status code: when two middleware kinds map
-    | to the same status (e.g. `scope` and `can` both default to 403), a route
+    | to the same status (e.g., `scope` and `can` both default to 403), a route
     | carrying both documents a single 403 — the first-detected kind's
     | description wins. Give them distinct statuses here if you need both.
     |
@@ -355,10 +355,10 @@ return [
             // URL path segment casing: 'kebab' | 'snake'
             'path_segment_case' => 'kebab',
 
-            // Path parameter name casing (e.g. `{deviceId}`): 'camel' | 'snake' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
+            // Path parameter name casing (e.g., `{deviceId}`): 'camel' | 'snake' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
             'path_parameter_case' => 'camel',
 
-            // Query parameter name casing (e.g. `per_page`): 'snake' | 'camel' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
+            // Query parameter name casing (e.g., `per_page`): 'snake' | 'camel' | 'kebab' | 'dot' | 'pascal' | 'train' | 'screaming_snake'
             'query_parameter_case' => 'snake',
 
             // Tag name casing: 'pascal' | 'camel' | 'kebab' | 'snake' | 'dot' | 'train' | 'screaming_snake'
@@ -558,7 +558,7 @@ return [
     | they show up in `php artisan route:list --path=api` next to your own API
     | routes. That is cosmetic only — the `SkipSelfRoutes` filter already keeps
     | them out of the generated document. Set `prefix` to a dedicated segment
-    | (e.g. `_openapi`) if you'd rather they not appear under your `api` listing.
+    | (e.g., `_openapi`) if you'd rather they not appear under your `api` listing.
     |
     */
 

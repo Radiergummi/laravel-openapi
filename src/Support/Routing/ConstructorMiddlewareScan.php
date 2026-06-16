@@ -11,10 +11,9 @@ use function in_array;
 /**
  * Result of one {@see ConstructorMiddlewareScanner} pass over a controller's constructor.
  *
- * Each entry is one matched `$this->middleware(...)` registration: the literal middleware names
- * plus the `only` / `except` action scoping it carries (null = unscoped). The two booleans carry
- * degrade evidence for the caller's generation-log notice: a registration was found but refused
- * (non-literal name or scope, unknown chain link), or found only inside a conditional context.
+ * Each entry is one matched `$this->middleware(...)` call: the literal middleware names plus their
+ * `only`/`except` scoping (null = unscoped). The two booleans signal degraded reads: a call was
+ * found but refused (non-literal name/scope or unknown chain link), or found inside a conditional.
  *
  * @internal
  */
@@ -30,8 +29,8 @@ final readonly class ConstructorMiddlewareScan
     ) {}
 
     /**
-     * The middleware names that apply to the given action method, after `only` / `except`
-     * scoping — the same semantics as Laravel's `ControllerDispatcher::methodExcludedByOptions()`.
+     * Middleware names for the given action after `only`/`except` scoping.
+     * Mirrors `ControllerDispatcher::methodExcludedByOptions()`.
      *
      * @return list<string>
      */

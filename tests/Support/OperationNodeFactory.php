@@ -32,7 +32,7 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
  *   - `makeOperation()` / `makeResponse()` / `makeRequestBody()` / `makeComponentSchema()` —
  *     standalone nodes with sensible defaults; `makeOperation()` links its children.
  *   - `forDescriptor()` — an `OperationNode` carrying a real `ActionDescriptor`,
- *     for rules that inspect reflection (e.g. `OperationSecurityMissing`).
+ *     for rules that inspect reflection (e.g., `OperationSecurityMissing`).
  */
 final class OperationNodeFactory
 {
@@ -71,7 +71,7 @@ final class OperationNodeFactory
     /**
      * A minimal valid `LintContext`. The plugin lint rules never read it, but `checkOperation()`
      * requires a non-null instance. `$payloadClasses` lets tests opt in to the Data-plugin
-     * payload-class detection path; `$declaredTags` lets api-level rules (e.g. `tag.*`) see a
+     * payload-class detection path; `$declaredTags` lets api-level rules (e.g., `tag.*`) see a
      * non-empty `ApiNode->declaredTags`.
      *
      * @param list<class-string>           $payloadClasses
@@ -79,7 +79,7 @@ final class OperationNodeFactory
      * @param array<string, OperationNode> $operationsByOperationId prepopulates the `TreeIndex` lookup used by link /
      *                                                              security cross-ref rules
      * @param list<OperationNode>          $operations              populates `ApiNode->operations`; used by api-level
-     *                                                              rules (e.g. `tag.undeclared-at-root`)
+     *                                                              rules (e.g., `tag.undeclared-at-root`)
      * @param list<WebhookNode>            $webhooks                populates `ApiNode->webhooks`
      * @param array<string, string>        $tagDescriptions         tag name → description; used by
      *                                                              `tags.no-description`

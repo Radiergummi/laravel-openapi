@@ -16,8 +16,7 @@ enum HttpMethod: string
     case Trace = 'trace';
 
     /**
-     * Resolve an {@see HttpMethod} from a raw HTTP verb (case-insensitive), such as the uppercase
-     * verbs returned by Laravel's `Route::methods()`. Returns null for unknown verbs.
+     * Resolves from a raw HTTP verb (case-insensitive). Returns null for unknown verbs.
      */
     public static function fromString(string $method): ?self
     {

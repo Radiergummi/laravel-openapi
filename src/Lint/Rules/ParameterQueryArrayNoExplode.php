@@ -15,8 +15,7 @@ use Radiergummi\OpenApi\Lint\Visitors\QueryParameterRule as QueryParameterRuleVi
 use function sprintf;
 
 /**
- * Reports query parameters with an array schema that do not explicitly set `style` or `explode`,
- * which can lead to ambiguous serialisation across different clients and servers.
+ * Reports array query parameters that do not explicitly set `style` or `explode`.
  */
 final class ParameterQueryArrayNoExplode implements Rule, QueryParameterRuleVisitor
 {

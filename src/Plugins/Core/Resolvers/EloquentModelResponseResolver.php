@@ -21,17 +21,9 @@ use function class_exists;
 use function is_a;
 
 /**
- * Resolves a direct Eloquent model return type — or a typed Collection of models — into a
- * `200 OK` response whose schema is a `$ref` (single model) or an array of `$ref` items
- * (collection).
- *
- * Registered AFTER `PaginatorResponseResolver` so paginator return types are claimed first, and
- * this resolver only sees bare `Model` subclass or `Collection<*, Model>` returns. Returns null
- * for any non-Model return type, deferring to the next resolver or the bare-200 fallback.
- *
- * A nullable model return (`?Model`) is a `ReflectionNamedType` with allowsNull(); it is
- * accepted, and the nullable modifier is not reflected in the emitted schema, consistent
- * with the other primary-response resolvers.
+ * Resolves a direct Eloquent model return (or typed Collection of models) into a 200 response.
+ * Registered after `PaginatorResponseResolver` so paginator returns are claimed first.
+ * Nullable models are accepted; the nullable modifier is not reflected in the schema.
  *
  * @internal
  */
@@ -107,9 +99,6 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
     }
 
     /**
-     * Builds (once, cycle-guarded) the model's component schema and returns the qualified `$ref`
-     * key pointing at it — shared by the single-model and collection-item paths.
-     *
      * @param class-string<Model> $modelClass
      *
      * @throws ReflectionException

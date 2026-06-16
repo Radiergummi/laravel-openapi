@@ -56,7 +56,6 @@ final class LinkNode implements Node
         return $append !== '' ? $base . '/' . $append : $base;
     }
 
-    /** The enclosing response. */
     public function response(): ?ResponseNode
     {
         return $this->parent instanceof ResponseNode ? $this->parent : null;

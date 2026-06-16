@@ -67,7 +67,7 @@ it('emits type: [string, null] for NullableType(string) instead of nullable: tru
 });
 
 it('wraps a nullable object $ref in oneOf with a null sibling (Bug 1)', function (): void {
-    // NullableType wrapping an object type that resolves to a $ref (e.g. DateTime → string/date-time,
+    // NullableType wrapping an object type that resolves to a $ref (e.g., DateTime → string/date-time,
     // but any BuiltinType works here to confirm the plain-type branch, not the $ref branch).
     $type = new NullableType(new BuiltinType(TypeIdentifier::INT));
     $schema = new JsonSchemaFromType(new NullLogger(), new ComponentSchemaRegistry())->fromType($type);

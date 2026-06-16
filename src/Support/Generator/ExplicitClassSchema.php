@@ -21,14 +21,8 @@ use function str_starts_with;
 use const ARRAY_FILTER_USE_KEY;
 
 /**
- * Reads a class-level `#[RawSchema]` attribute and turns its literal definition into an
- * `OA\Schema`, bounded to the keyword set swagger-php can serialise.
- *
- * The plugin extractors (Spatie Data, API Resource, FormRequest) each call {@see read()} at the
- * top of their `buildSchema()` and, when it returns an attribute, {@see toSchema()} to produce the
- * component body — short-circuiting all convention inference. Keeping that logic here means the
- * three plugins share one keyword boundary and one degrade-and-log behaviour without `Support/`
- * touching any plugin type.
+ * Reads a class-level `#[RawSchema]` attribute and converts it into an `OA\Schema`, bounded
+ * to the keyword set swagger-php can serialise. Unsupported keywords are dropped with a warning.
  *
  * @internal
  */
@@ -36,15 +30,10 @@ use const ARRAY_FILTER_USE_KEY;
 final readonly class ExplicitClassSchema
 {
     /**
-     * Keywords swagger-php's `OA\Schema` models and serialises. A `#[RawSchema]` may use these
-     * plus any `x-*` extension key. Everything else is dropped at build time (and flagged by the
-     * `schema.raw-keyword-unsupported` lint rule); this constant is the single source of truth for
-     * both paths.
-     *
-     * Notably absent: `if`/`then`/`else`, `dependentRequired`/`dependentSchemas` (the #140 wall —
-     * `OA\Schema` does not model them), and `dependencies` (the draft-07 spelling; OpenAPI 3.1 uses
-     * JSON-Schema 2020-12, where it is split into the two `dependent*` keywords — accepting only the
-     * deprecated form would be dialect-inconsistent).
+     * Keywords swagger-php's `OA\Schema` models. `#[RawSchema]` may also use `x-*` extensions;
+     * anything else is dropped and flagged by the `schema.raw-keyword-unsupported` lint rule.
+     * Absent: `if`/`then`/`else`, `dependentRequired`/`dependentSchemas` (not modelled by
+     * `OA\Schema`), and `dependencies` (draft-07; split into `dependent*` in JSON Schema 2020-12).
      *
      * @var list<string>
      */
@@ -107,12 +96,9 @@ final readonly class ExplicitClassSchema
     }
 
     /**
-     * Builds the literal component schema, dropping (and logging) any keyword swagger-php cannot
-     * serialise so a non-linted run still produces a valid document.
-     *
      * @template T of object
      *
-     * @param ReflectionClass<T> $class The declaring class, for the log context.
+     * @param ReflectionClass<T> $class
      */
     public function toSchema(RawSchema $attribute, ReflectionClass $class): OA\Schema
     {
@@ -140,8 +126,7 @@ final readonly class ExplicitClassSchema
     }
 
     /**
-     * Returns the keywords in a `#[RawSchema]` definition that swagger-php cannot serialise.
-     * Pure (no logging) so the lint rule can reuse it.
+     * Returns unsupported keywords from a `#[RawSchema]` definition. Pure so the lint rule can reuse it.
      *
      * @param array<string, mixed> $schema
      *
