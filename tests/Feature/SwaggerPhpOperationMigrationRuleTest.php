@@ -27,7 +27,7 @@ uses()->group('openapi', 'plugin:spatie-data');
 function operationMigrationSetup(): void
 {
     Route::get('/op-redundant', [OperationAnnotatedController::class, 'redundant']);
-    Route::get('/op-load-bearing', [OperationAnnotatedController::class, 'loadBearing']);
+    Route::get('/op-essential', [OperationAnnotatedController::class, 'essential']);
 
     config()->set('openapi.plugins', [...(array) config('openapi.plugins', []), SwaggerPhpPlugin::class]);
 
@@ -101,7 +101,7 @@ it('keeps an operation annotation carrying a description inference cannot derive
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(operationFindingMembers($result))
-        ->not->toContain(OperationAnnotatedController::class . '::loadBearing');
+        ->not->toContain(OperationAnnotatedController::class . '::essential');
 });
 
 it('stays off an ordinary (default-level) lint run', function (): void {

@@ -60,7 +60,7 @@ it('subsumes when inference enriches the authored schema (extra example, extra p
 });
 
 it('does not subsume when the author carries information inference lacks', function (): void {
-    // The author wrote a description inference does not produce — load-bearing, must be kept.
+    // The author wrote a description inference does not produce — essential, must be kept.
     $control = new OA\Schema(['type' => 'string']);
     $authored = new OA\Schema(['type' => 'string', 'description' => 'The user email']);
 

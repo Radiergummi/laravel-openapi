@@ -21,13 +21,13 @@ final readonly class OaRedundancyEngine
 {
     /**
      * Returns a finding when the authored annotation is redundant (or replaceable), null when it
-     * is load-bearing (no inference counterpart, not subsumed, extra guard fires, or shape
+     * is essential (no inference counterpart, not subsumed, extra guard fires, or shape
      * undetectable).
      *
-     * @param Closure(): (ReflectionClass<object>|ReflectionMethod) $reflector     Thunk; deferred until subsumption holds.
-     * @param (callable(AuthoredAnnotationShape): Finding)          $buildFinding  Builds the finding from the detected shape.
-     * @param null|(callable(): bool)                               $isLoadBearing Extra keep-guard (e.g., dangling-$ref check).
-     * @param list<OA\AbstractAnnotation>                           $candidate     Replacement annotations; empty = pure redundancy.
+     * @param Closure(): (ReflectionClass<object>|ReflectionMethod) $reflector    Thunk; deferred until subsumption holds.
+     * @param (callable(AuthoredAnnotationShape): Finding)          $buildFinding Builds the finding from the detected shape.
+     * @param null|(callable(): bool)                               $isEssential  Extra keep-guard (e.g., dangling-$ref check).
+     * @param list<OA\AbstractAnnotation>                           $candidate    Replacement annotations; empty = pure redundancy.
      */
     public function evaluate(
         OA\AbstractAnnotation $authored,
@@ -35,10 +35,10 @@ final readonly class OaRedundancyEngine
         OaRedundancyComparator $comparator,
         Closure $reflector,
         callable $buildFinding,
-        ?callable $isLoadBearing = null,
+        ?callable $isEssential = null,
         array $candidate = [],
     ): ?Finding {
-        // No inference counterpart means the annotation is load-bearing.
+        // No inference counterpart means the annotation is essential.
         if ($inferred === null) {
             return null;
         }
@@ -47,7 +47,7 @@ final readonly class OaRedundancyEngine
             return null;
         }
 
-        if ($isLoadBearing !== null && $isLoadBearing()) {
+        if ($isEssential !== null && $isEssential()) {
             return null;
         }
 

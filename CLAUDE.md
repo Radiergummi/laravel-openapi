@@ -172,7 +172,7 @@ concurrent runs otherwise. `reset()` methods exist but are redundant under the s
   - Section/folding separators use `// region <title>` / `// endregion`, not banner-style rules.
   - DocBlock bodies open with a concise one-line summary; add a longer description only when needed,
     separated by a blank line. Never alter or remove the type-bearing tags (`@param`, `@return`,
-    `@var`, `@throws`, `@template`, etc.) — they are load-bearing for PHPStan and extraction.
+    `@var`, `@throws`, `@template`, etc.) — they are essential for PHPStan and extraction.
   - Classes, methods, and properties relevant to end users or plugin developers (the `Contracts\`,
     `Attributes\`, and registry surface) get a docblock saying what they are *for* — not
     `getFoo() gets the foo` — but never ramble or pad with prose.

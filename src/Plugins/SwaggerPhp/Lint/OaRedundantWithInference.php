@@ -75,7 +75,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
         $inferred = $context->inference->schemaForClass($class);
 
         // Removing a schema still referenced by name by another authored annotation would dangle it.
-        $isLoadBearing = fn(): bool
+        $isEssential = fn(): bool
             => is_defined($authored->schema)
             && $this->scanner->isSchemaReferencedByOtherAuthored($authored->schema, $class);
 
@@ -98,7 +98,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
                     AuthoredAnnotationShape::FINDING_CONTEXT_KEY => $shape->value,
                 ],
             ),
-            $isLoadBearing,
+            $isEssential,
         );
 
         if ($finding !== null) {

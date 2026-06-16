@@ -106,7 +106,7 @@ The decision is **provenance-based, not name-based**: each authored annotation i
 against what inference produces for the *same* class or route, and a rule fires only when
 inference **subsumes** the annotation — reproduces everything it said and possibly more. A
 human `description`, an `additionalProperties: false`, or a runtime-only response shape that
-inference can't derive keeps the annotation load-bearing, so it is *not* flagged. See
+inference can't derive keeps the annotation essential, so it is *not* flagged. See
 [Linting → Migration rules](linting.md#migration-rules-migration).
 
 ### 3. Remove the redundant annotations
@@ -120,7 +120,7 @@ php artisan openapi:lint --only 'migration.*' --fix
 `--fix` removes the whole `#[OA\Schema]` + `#[OA\Property]` set (or the `@OA\Schema` docblock
 block) for a redundant model, and the whole `@OA` operation docblock (or `#[OA\Get]` /
 `#[OA\Response]` attribute set) for a redundant operation. It never touches an annotation that
-is still load-bearing, and never one another surviving annotation still `$ref`s — so a fix
+is still essential, and never one another surviving annotation still `$ref`s — so a fix
 can't dangle a reference. Re-run `openapi:generate` and diff: the document is unchanged.
 
 ### 4. Optionally drop the harvester

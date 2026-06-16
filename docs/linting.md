@@ -214,7 +214,7 @@ the generator already derives from its typed properties. The decision is **prove
 class's authored schema is compared, by source class, against what inference produces for the same
 class in a second, inference-only generation — it fires only when inference reproduces *everything*
 the annotation said (a description or `additionalProperties: false` inference can't derive keeps the
-annotation load-bearing, so it stays), and never when another surviving annotation still `$ref`s the
+annotation essential, so it stays), and never when another surviving annotation still `$ref`s the
 schema. `--fix` removes the whole `#[OA\Schema]`+`#[OA\Property]` set, or the whole `@OA\Schema`
 docblock block.
 

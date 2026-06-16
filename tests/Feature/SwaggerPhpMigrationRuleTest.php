@@ -19,7 +19,7 @@ use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer;
-use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\LoadBearingAttributeData;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\EssentialAttributeData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\PlainStructData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAnnotationController;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData;
@@ -152,7 +152,7 @@ it('is disabled as a family by --skip migration.*', function (): void {
 
 it('does not flag an annotation inference cannot reproduce', function (): void {
     // AttributeServer is a plain class: inference produces no component schema for it, so its
-    // authored #[OA\Schema] is load-bearing and must not be flagged.
+    // authored #[OA\Schema] is essential and must not be flagged.
     Route::get('/servers/{id}', [ServerController::class, 'show']);
     migrationRuleSetup();
 
@@ -176,13 +176,13 @@ it('does not flag a class that has no authored annotation', function (): void {
 it('keeps an annotation carrying a description inference cannot derive', function (): void {
     // Inference reproduces the shape but not the human-written description, so it does not subsume
     // the authored schema — the annotation stays.
-    Route::get('/load-bearing', [RedundantAnnotationController::class, 'loadBearing']);
+    Route::get('/essential', [RedundantAnnotationController::class, 'essential']);
     migrationRuleSetup();
 
     $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
 
     expect(migrationFindingClasses($result))
-        ->not->toContain(LoadBearingAttributeData::class);
+        ->not->toContain(EssentialAttributeData::class);
 });
 
 it('does not flag a schema another authored annotation still references by name', function (): void {

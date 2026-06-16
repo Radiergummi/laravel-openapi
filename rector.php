@@ -18,7 +18,7 @@ use Rector\ValueObject\PhpVersion;
  * - Two structural dead-code rules: drop unused private-method parameters and redundant casts.
  *
  * Docblock-tag removal is deliberately excluded: pruning @param/@return/@var is a human call (some
- * carry generics or shapes that are load-bearing for PHPStan and extraction), not an automated one.
+ * carry generics or shapes that are essential for PHPStan and extraction), not an automated one.
  *
  *   composer rector:check    # report proposed changes without writing (CI gate)
  *   composer rector          # apply them, then run composer test && composer lint
