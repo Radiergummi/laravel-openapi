@@ -55,7 +55,6 @@ final class DocsController extends Controller
             ->setAutoEtag()
             ->setAutoLastModified();
 
-        // Sets conditional-request headers; returns true if the client can use its cache.
         $response->isNotModified($request);
 
         return $response;

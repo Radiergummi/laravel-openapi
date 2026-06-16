@@ -5,17 +5,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Spec;
 
 use OpenApi\Annotations as OA;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 
 /**
  * Immutable description of one OpenAPI specification produced by the generator.
  *
- * Built by {@see SpecRegistry} from `config('openapi.specs')` + root config keys. Consumed by
- * {@see OpenApiGenerator}, {@see InclusionEvaluator}, and the HTTP / CLI surfaces.
- *
- * `routeUri` / `playgroundUri` may be `null` to opt out of HTTP serving entirely (config sets
- * the entry to `false` or `null`).
+ * `routeUri` / `playgroundUri` may be `null` when HTTP serving is disabled for the spec.
  *
  * @internal
  */

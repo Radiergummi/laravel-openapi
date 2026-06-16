@@ -127,10 +127,8 @@ final readonly class JsonSchemaFromType
     }
 
     /**
-     * Builds an inline enum schema from a backed-enum class-string.
-     *
-     * Determines integer-vs-string backing via reflection; useful when the class name comes
-     * from a cast string rather than a resolved type tree.
+     * Useful when the class name comes from a cast string rather than a resolved type tree;
+     * determines integer-vs-string backing via reflection.
      *
      * @param class-string<BackedEnum> $enumClass
      */

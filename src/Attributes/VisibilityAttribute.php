@@ -51,7 +51,6 @@ abstract readonly class VisibilityAttribute
             return in_array($environment, $this->only, true);
         }
 
-        // $except !== null by elimination
         return !in_array($environment, $this->except ?? [], true);
     }
 }

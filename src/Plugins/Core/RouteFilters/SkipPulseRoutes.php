@@ -15,7 +15,6 @@ use function str_starts_with;
 
 /**
  * Excludes Laravel Pulse's dashboard routes from the spec.
- * Matches by URI prefix (`pulse.path`) and optional domain (`pulse.domain`).
  * Tolerates Pulse being absent: an empty path matches nothing.
  */
 #[Scoped]

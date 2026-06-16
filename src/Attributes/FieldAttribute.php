@@ -82,7 +82,6 @@ abstract readonly class FieldAttribute
         public ?array $x = null,
         public bool|string|null $additionalProperties = null,
     ) {
-        // Normalise a backed-enum class-string to its cases for uniform downstream handling.
         if (is_string($enum)) {
             if (!is_a($enum, BackedEnum::class, true)) {
                 throw new InvalidArgumentException(

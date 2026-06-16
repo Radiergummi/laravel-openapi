@@ -97,7 +97,7 @@ final class FieldDescriptor
     public ?FieldDescriptor $items = null;
 
     /**
-     * Copies set descriptor fields onto `$target` (any {@see OA\Schema} subclass).
+     * Copies set descriptor fields onto `$target`.
      *
      * `$overwrite = true`: always write non-null/non-false values.
      * `$overwrite = false`: only fill fields still at `Generator::UNDEFINED`.
@@ -209,7 +209,6 @@ final class FieldDescriptor
             }
         }
 
-        // Skip items when the target is already a map (additionalProperties); maps are not items arrays.
         $targetIsMap = $target->type === 'object' && is_defined($target->additionalProperties);
 
         if ($this->items !== null && !$targetIsMap) {
@@ -251,7 +250,6 @@ final class FieldDescriptor
                         $target->required = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)
                     }
 
-                    // Validators ignore constraint keywords on a typeless outer oneOf schema.
                     if (is_defined($target->minItems)) {
                         $inner->minItems = $target->minItems;
                         $target->minItems = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (clearing the property; swagger-php uses the UNDEFINED sentinel string here)

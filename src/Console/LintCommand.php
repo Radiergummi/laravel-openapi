@@ -59,8 +59,8 @@ use function sprintf;
 /**
  * Lints OpenAPI documentation gaps across the API surface.
  *
- * Thin adapter over {@see LintRunner}: parses CLI options into a {@see LintOptions}, hands off
- * to the runner, and renders the resulting {@see LintResult} through the chosen formatter.
+ * Thin adapter over {@see LintRunner}: parses CLI options into {@see LintOptions} and renders
+ * the resulting {@see LintResult} through the chosen formatter.
  */
 class LintCommand extends Command
 {

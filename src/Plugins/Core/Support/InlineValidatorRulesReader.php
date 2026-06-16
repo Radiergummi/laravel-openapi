@@ -139,7 +139,6 @@ final readonly class InlineValidatorRulesReader
         ) {
             $arguments = $node->getArgs();
 
-            // Shape 1: $request->validate([...])
             if ($node->var->name === $requestParameterName && isset($arguments[0])) {
                 return $arguments[0]->value;
             }
@@ -166,7 +165,6 @@ final readonly class InlineValidatorRulesReader
         ) {
             $arguments = $node->getArgs();
 
-            // Shape 3: Validator::make($request->all(), [...])
             if (
                 $node->name->toLowerString() === 'make'
                 && $this->facadeMatches($node->class, self::VALIDATOR_FACADE, 'Validator')
@@ -175,7 +173,6 @@ final readonly class InlineValidatorRulesReader
                 return $arguments[1]->value;
             }
 
-            // Shape 4: Request::validate([...])
             if (
                 $node->name->toLowerString() === 'validate'
                 && $this->facadeMatches($node->class, self::REQUEST_FACADE, 'Request')

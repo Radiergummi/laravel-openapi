@@ -16,9 +16,9 @@ use Radiergummi\OpenApi\Attributes\Security;
 use Radiergummi\OpenApi\PhpStan\Support\AttributeHelpers;
 
 /**
- * Flags declarations that carry both `#[PublicEndpoint]` and `#[Security]`. The two are mutually
- * exclusive: `PublicEndpoint` emits `security: []`, `Security` emits a requirement. One instance
- * is registered per node kind (FunctionLike / ClassLike).
+ * Flags declarations that carry both `#[PublicEndpoint]` and `#[Security]`, which are mutually
+ * exclusive: `PublicEndpoint` emits `security: []` while `Security` emits a named requirement.
+ * One instance is registered per node kind (FunctionLike / ClassLike).
  *
  * @implements Rule<Node>
  */

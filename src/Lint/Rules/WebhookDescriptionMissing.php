@@ -19,7 +19,7 @@ use function trim;
  * Reports webhook operations missing a description.
  *
  * Webhook consumers receive unexpected incoming requests; a description explaining when and why
- * the webhook fires is essential context.
+ * the webhook fires is essential context for them.
  */
 final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
 {

@@ -9,9 +9,6 @@ use Radiergummi\OpenApi\Routing\ResourceTarget;
 
 /**
  * Resolves the resource class an action returns and its cardinality (singular vs. collection).
- *
- * Plugin authors building resolvers for alternative resource conventions should consume this
- * contract via the container to stay consistent with the bundled implementation.
  */
 interface ResourceTargetLocator
 {

@@ -19,9 +19,6 @@ use function sprintf;
 use function str_ends_with;
 
 /**
- * Reports when some paths end with a trailing slash and others don't, indicating an inconsistency
- * in path naming conventions.
- *
  * The root path `/` is excluded from the check since it trivially ends with a slash.
  */
 final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor

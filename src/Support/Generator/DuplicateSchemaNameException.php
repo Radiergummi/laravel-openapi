@@ -12,7 +12,7 @@ use function sprintf;
  * Thrown when two distinct classes claim the same component schema name.
  *
  * Schema names are unique consumer-facing identifiers; a collision is unresolvable without
- * renaming or removing a `#[SchemaName]` attribute. Unchecked (extends {@see LogicException}).
+ * renaming or removing a `#[SchemaName]` attribute.
  *
  * @internal
  */

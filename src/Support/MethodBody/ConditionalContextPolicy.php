@@ -16,9 +16,7 @@ namespace Radiergummi\OpenApi\Support\MethodBody;
 enum ConditionalContextPolicy
 {
     /**
-     * Straight-line code only: assignments, expression statements, returns.
-     * Conditionals, loops, closures, match, ternary, and `&&`/`||` are not entered.
-     * A node found here executes unconditionally.
+     * Straight-line code only. A node found here executes unconditionally.
      */
     case SkipConditionalContexts;
 

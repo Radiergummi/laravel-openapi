@@ -18,9 +18,10 @@ use function count;
 use function is_int;
 
 /**
- * Flags methods that carry two or more `#[Response]` attributes with the same HTTP status code,
- * which would be silently dropped from the generated spec. Only statically resolvable integers
- * are compared.
+ * Flags methods that carry two or more `#[Response]` attributes with the same HTTP status code.
+ *
+ * Duplicate status codes are silently dropped from the generated spec. Only statically
+ * resolvable integers are compared.
  *
  * @implements Rule<Node>
  */

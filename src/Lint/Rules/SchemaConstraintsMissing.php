@@ -23,8 +23,7 @@ use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
 
 /**
- * Reports schemas missing bounds: strings without `maxLength`, arrays without `maxItems`,
- * numbers without `minimum`/`maximum`. Disabled by default (noisy). Opt in via config.
+ * Disabled by default (noisy); opt in via config.
  *
  * Exempt: strings with `format` or `enum`, fields with no OA annotation.
  */

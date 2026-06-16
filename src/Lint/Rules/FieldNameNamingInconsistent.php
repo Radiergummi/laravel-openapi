@@ -18,8 +18,7 @@ use function sprintf;
 /**
  * Reports schema property wire-names that do not follow the configured naming convention.
  *
- * Defaults to {@see IdentifierCase::Camel}. Recursion into nested objects is handled by the
- * walker; this rule only checks the single node passed in.
+ * Recursion into nested objects is handled by the walker; this rule only checks the single node passed in.
  */
 #[Scoped]
 final readonly class FieldNameNamingInconsistent extends AbstractNamingRule implements FieldRuleVisitor

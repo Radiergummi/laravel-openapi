@@ -18,8 +18,7 @@ use function sprintf;
 /**
  * Reports parameters that have neither an `example` nor an `examples` value.
  *
- * Examples on parameters help API consumers understand what value to supply and make generated
- * documentation and mock servers immediately useful.
+ * Examples make generated documentation and mock servers immediately useful to API consumers.
  */
 final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
 {

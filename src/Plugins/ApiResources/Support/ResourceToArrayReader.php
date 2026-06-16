@@ -330,7 +330,6 @@ final class ResourceToArrayReader
         }
 
         if ($methodName === self::WHEN_LOADED) {
-            // Two-argument form: value supplied via callback or expression.
             if (isset($arguments[1])) {
                 return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
             }

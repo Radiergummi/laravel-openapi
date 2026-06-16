@@ -10,9 +10,9 @@ use ReflectionException;
 use function class_exists;
 
 /**
- * Resolves the source file declaring a class, for fixers that locate an authored annotation to
- * remove. The class name originates from finding context, so it is untrusted; a non-existent or
- * unreflectable name yields null rather than throwing.
+ * Resolves the source file declaring a class, for fixers that need to locate an annotation to
+ * remove. The class name comes from finding context (untrusted), so an unresolvable name yields
+ * null rather than throwing.
  *
  * @internal
  */

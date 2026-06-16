@@ -20,8 +20,8 @@ use function str_starts_with;
  * removing the annotation loses nothing. A genuine restriction inference cannot derive
  * (`additionalProperties: false`, etc.) fails containment and the annotation is kept.
  *
- * Canonical form drops `UNDEFINED` sentinels and `_`-prefixed internals; collections are compared
- * order-insensitively. `$ref` targets are compared by literal string (conservative).
+ * Canonical form drops `UNDEFINED` sentinels and `_`-prefixed internals; collections are
+ * compared order-insensitively. `$ref` targets are compared by literal string (conservative).
  *
  * @internal
  */
@@ -135,7 +135,6 @@ final readonly class SchemaEquivalence
             $normalized[$key] = $this->normalize($element);
         }
 
-        // Re-key to keep the result a proper list after dropping UNDEFINED elements.
         return $wasList ? array_values($normalized) : $normalized;
     }
 }

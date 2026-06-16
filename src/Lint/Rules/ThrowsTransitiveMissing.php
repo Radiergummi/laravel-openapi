@@ -129,7 +129,6 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
             return;
         }
 
-        // Normalize the controller's declared throws to bare FQCNs
         $controllerThrows = array_map(
             static fn(string $fqcn): string => ltrim($fqcn, '\\'),
             $descriptor->throws,

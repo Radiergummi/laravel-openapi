@@ -46,9 +46,9 @@ final class SpecTimeRequest
     }
 
     /**
-     * Resolves constructor args individually so the result can be splatted into `new $class(...$args)`.
-     * Using `$container->make($class)` directly would trigger `FormRequestServiceProvider`'s
+     * Avoids `$container->make($class)` directly: that triggers `FormRequestServiceProvider`'s
      * `afterResolving` callback, which fires `validateResolved()` and throws at spec time.
+     * Args are resolved individually and splatted into `new $class(...$args)` instead.
      *
      * @param class-string $class
      *

@@ -172,7 +172,6 @@ final readonly class DocblockAnnotationRemover
                 continue;
             }
 
-            // Strip the comment scaffolding (`/**`, ` * `, ` */`); anything left is real content.
             if (trim(ltrim(trim($lines[$line - 1] ?? ''), '/*')) !== '') {
                 return true;
             }

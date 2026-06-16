@@ -14,9 +14,8 @@ use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Stateless converters from swagger-php annotation objects to leaf domain-tree nodes. Split out of
- * {@see SpecTreeBuilder} so the builder keeps only the stateful, component-index-aware traversal;
- * these conversions depend on nothing but their argument. Companion to the equally stateless
- * {@see SchemaAccessor}.
+ * {@see SpecTreeBuilder} so the builder keeps only the stateful, component-index-aware traversal.
+ * Companion to the equally stateless {@see SchemaAccessor}.
  */
 final class NodeFactory
 {

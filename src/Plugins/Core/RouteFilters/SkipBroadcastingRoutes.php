@@ -15,7 +15,7 @@ use function ltrim;
 /**
  * Excludes Laravel's broadcasting channel-authorization endpoints (`broadcasting/auth` and
  * `broadcasting/user-auth`) from the spec. These are SDK internals, not documented API routes.
- * The URIs are framework literals, so no config key exists; safe when broadcasting is unused.
+ * The URIs are framework literals, so no config key exists.
  */
 #[Scoped]
 final readonly class SkipBroadcastingRoutes implements RouteFilter

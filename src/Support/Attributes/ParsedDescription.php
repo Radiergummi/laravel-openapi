@@ -7,8 +7,8 @@ namespace Radiergummi\OpenApi\Support\Attributes;
 /**
  * Result of running {@see DescriptionDirectives::parse()} over a field-attribute description.
  *
- * `$cleanDescription` has directive lines stripped. `$example` comes from `@example`. `$suppressExample`
- * is true when `@no-example` is present. `$enum` comes from `@enum a,b,c` with lexical coercion.
+ * `$cleanDescription` has directive lines stripped. `$suppressExample` is set by `@no-example`.
+ * `$enum` comes from `@enum a,b,c` with lexical coercion.
  *
  * @internal
  */

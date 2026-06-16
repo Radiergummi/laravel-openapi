@@ -19,7 +19,6 @@ use function assert;
 /**
  * Flags `#[Link]` usages where exactly one of `operationId` / `operationRef` is not set.
  * The attribute constructor does not guard the pair; this is the earliest point it can be caught.
- * PHPStan identifiers use camelCase because dashes are not allowed.
  *
  * @implements Rule<Node\Attribute>
  */

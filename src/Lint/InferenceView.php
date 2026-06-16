@@ -15,8 +15,7 @@ use function strtolower;
 /**
  * Inference-only view used by migration rules to compare against authored annotations.
  *
- * Indexes an inference-only generation by source class (schemas) and by "{method} {uri}"
- * (operations). Built once per spec by {@see LintRunner}; empty unless a rule implements
+ * Built once per spec by {@see LintRunner}; empty unless a rule implements
  * {@see \Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument}.
  *
  * @internal

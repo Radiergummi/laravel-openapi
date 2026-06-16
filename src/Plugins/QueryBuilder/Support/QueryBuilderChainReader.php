@@ -261,7 +261,6 @@ final class QueryBuilderChainReader
             return $this->valueObjectName($root, $kind);
         }
 
-        // No spine: evaluate the node directly.
         try {
             $value = AstLiteralEvaluator::evaluate($element);
         } catch (NonLiteralValueException) {

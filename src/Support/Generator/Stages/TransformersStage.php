@@ -12,10 +12,9 @@ use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 
 /**
- * Terminal stage. Applies user-registered document-level transformers
- * ({@see OpenApiExtensions::transformDocument}).
- *
- * Sits last in the pipeline so transformers see the fully assembled document.
+ * Terminal stage that applies user-registered document-level transformers
+ * ({@see OpenApiExtensions::transformDocument}), positioned last so transformers
+ * see the fully assembled document.
  *
  * @internal
  */

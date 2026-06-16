@@ -13,7 +13,6 @@ use function is_array;
 use function Radiergummi\OpenApi\is_defined;
 
 /**
- * Field-by-field subsumption check for the authored operation against the inferred operation.
  * The comparator behind {@see \Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference}.
  *
  * Scalar metadata must match exactly; collections and schema-bearing members are checked via

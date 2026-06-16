@@ -24,7 +24,7 @@ use function str_starts_with;
 /**
  * Infers error responses from a route's middleware stack.
  *
- * Checks for `auth`, `scope`, and `throttle` middleware entries and emits the corresponding
+ * Checks for `auth`, `scope`, and `throttle` entries and emits the corresponding
  * {@see ErrorDescriptor}s based on `config('openapi.middleware_responses')`.
  */
 #[Scoped]

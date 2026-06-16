@@ -54,7 +54,6 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
     #[Override]
     public function level(): int
     {
-        // OAS 3.1 requires `description` on every Response Object.
         return 0;
     }
 

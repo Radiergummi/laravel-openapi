@@ -8,10 +8,9 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Support;
  * The Fractal serializer an endpoint uses at runtime. Determines the envelope
  * shape that {@see FractalEnvelopeFactory} builds for the documented response.
  *
- * Three values are modelled, one for each named serializer shipped by
- * `league/fractal`. Custom serializers and Fractalistic's `ArraySerializer`
- * subclasses fall outside this enum; use a `#[Response]` attribute on the
- * action to declare the response schema explicitly for those cases.
+ * Models the three named serializers shipped by `league/fractal`. For custom
+ * serializers or `ArraySerializer` subclasses, use `#[Response]` to declare the
+ * response schema explicitly.
  */
 enum Serializer
 {

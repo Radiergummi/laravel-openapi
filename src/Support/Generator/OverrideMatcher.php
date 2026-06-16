@@ -52,7 +52,6 @@ final class OverrideMatcher
     /**
      * The override lookup key for a webhook descriptor: the logical name from `#[Webhook]`.
      * Shared by {@see Stages\PathsStage} and the lint rule so webhook key semantics cannot drift.
-     * Returns null for non-webhook descriptors.
      */
     public static function webhookKeyFor(ActionDescriptor $descriptor): ?string
     {

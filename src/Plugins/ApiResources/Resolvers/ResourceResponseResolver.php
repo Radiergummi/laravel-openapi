@@ -23,8 +23,8 @@ use ReflectionException;
 /**
  * Resolves an Eloquent API Resource return type into its `200 OK` response.
  *
- * Defers (returns null) when the action is not a resource endpoint, or when it returns a
- * collection type whose item class is undeclared (the latter is reported by the
+ * Returns null when the action is not a resource endpoint, or when it returns a collection
+ * type whose item class is undeclared (the latter is reported by the
  * `resource.response-ambiguous` lint rule).
  */
 #[Scoped]

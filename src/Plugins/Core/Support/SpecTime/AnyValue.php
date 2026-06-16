@@ -15,8 +15,7 @@ use Traversable;
 
 /**
  * Permissive stub used while calling a FormRequest's `rules()` outside of an HTTP context.
- * Every magic-method chain returns the same singleton; callers never throw. Only the rules
- * array's structure matters — the stub's value is meaningless.
+ * Every magic-method chain returns the same singleton; callers never throw.
  *
  * Branches on runtime state (`if ($this->user()->isAdmin())`) always take the truthy path.
  *
@@ -41,10 +40,7 @@ final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonS
         return $this;
     }
 
-    public function __set(mixed $offset, mixed $value): void
-    {
-        // No-op.
-    }
+    public function __set(mixed $offset, mixed $value): void {}
 
     /**
      * @param array<int, mixed> $arguments
@@ -96,14 +92,8 @@ final class AnyValue implements ArrayAccess, Countable, IteratorAggregate, JsonS
     }
 
     #[Override]
-    public function offsetSet(mixed $offset, mixed $value): void
-    {
-        // No-op.
-    }
+    public function offsetSet(mixed $offset, mixed $value): void {}
 
     #[Override]
-    public function offsetUnset(mixed $offset): void
-    {
-        // No-op.
-    }
+    public function offsetUnset(mixed $offset): void {}
 }

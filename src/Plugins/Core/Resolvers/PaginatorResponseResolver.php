@@ -30,7 +30,7 @@ use function sprintf;
  *
  * Item type precedence: `#[ResponseResource]` attribute, then `@return Paginator<Item>` generic.
  * Falls back to the body scan ({@see PaginatorCallReader}) when the return type is not itself a
- * paginator, but only for actions ApiResources / SpatieData would not claim (Core runs first).
+ * paginator, but only for actions ApiResources / SpatieData would not claim.
  */
 final readonly class PaginatorResponseResolver implements PrimaryResponseResolver
 {

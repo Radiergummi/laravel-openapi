@@ -8,7 +8,7 @@ use Attribute;
 
 /**
  * Declares the `spatie/laravel-query-builder` allowed sorts for an endpoint,
- * emitted as the `sort` query-string parameter. Method-level, not repeatable.
+ * emitted as the `sort` query-string parameter.
  *
  * ```php
  * #[AllowedSort(['name', 'created_at'])]

@@ -105,7 +105,6 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
             return null;
         }
 
-        // An explicit authoring attribute always wins.
         if ($descriptor->declaresAttributeImplementing(PrimaryResponseAuthoringAttribute::class)) {
             return null;
         }

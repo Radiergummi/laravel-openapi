@@ -21,8 +21,7 @@ use function str_starts_with;
 
 /**
  * Reports when a controller method or class is marked `#[PublicEndpoint]` but the route still
- * carries `auth:*` or `scope:*` middleware, indicating a contradiction between the declared
- * intent and the actual middleware stack.
+ * carries `auth:*` or `scope:*` middleware.
  */
 final readonly class PublicEndpointContradictsMiddleware implements Rule, OperationRuleVisitor
 {

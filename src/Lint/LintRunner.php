@@ -61,8 +61,6 @@ use function Radiergummi\OpenApi\is_undefined;
 use function str_contains;
 
 /**
- * Orchestrates one lint run against the application's routes.
- *
  * Extracted from {@see LintCommand} so the pipeline is testable. Two phases: pre-build
  * ({@see Visitors\PreBuildRule}) and per-spec (generate + tree-walk, findings tagged via
  * {@see Finding::withSpec()}).

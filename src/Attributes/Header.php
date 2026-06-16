@@ -8,8 +8,7 @@ use Attribute;
 
 /**
  * Documents an HTTP request header. Repeatable; method-level wins on `name` collision.
- * Constructor mirrors {@see ResponseHeader} minus `status`; `required` defaults to `false`
- * here vs. `null` on response headers (request headers are inherently a boolean question).
+ * `required` defaults to `false` (request headers are inherently a boolean question).
  */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Header

@@ -12,9 +12,6 @@ use function class_exists;
 
 /**
  * Shared helpers for PHPStan attribute rules.
- *
- * Resolves attribute arguments by name, falling back to the positional slot in the attribute's
- * constructor. The slot is derived via reflection, so it survives constructor reorders.
  */
 final class AttributeHelpers
 {

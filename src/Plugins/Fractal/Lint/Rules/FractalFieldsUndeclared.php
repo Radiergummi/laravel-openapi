@@ -59,7 +59,6 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
             return;
         }
 
-        // If transform() can be read, the schema is non-empty and there is nothing to flag.
         $inferred = $this->transformReader->read($transformer);
 
         if ($inferred !== null && $inferred !== []) {

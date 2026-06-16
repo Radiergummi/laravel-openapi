@@ -8,9 +8,7 @@ namespace Radiergummi\OpenApi\Contracts\Attributes;
  * Marker for authoring attributes that identify the source of an operation's primary response
  * (e.g. `#[ResponseResource]`, `#[FractalResponse]`).
  *
- * Scanning resolvers check for this marker via
- * {@see \Radiergummi\OpenApi\Routing\ActionDescriptor::declaresAttributeImplementing()} and step
- * aside so the attribute's own resolver can claim the response. Plugin attributes consumed by a
- * primary-response resolver should implement this interface.
+ * Plugin attributes consumed by a primary-response resolver should implement this interface so
+ * scanning resolvers step aside and let the attribute's own resolver claim the response.
  */
 interface PrimaryResponseAuthoringAttribute {}

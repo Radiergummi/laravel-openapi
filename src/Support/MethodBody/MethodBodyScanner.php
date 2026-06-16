@@ -29,8 +29,8 @@ use function strpos;
 use function substr;
 
 /**
- * Bounded method-body scanner: parses a controller source file once per generation run,
- * locates the AST node of a reflected method, and returns its first N top-level statements.
+ * Parses a controller source file once per generation run, locates the AST node of a reflected
+ * method, and returns its first N top-level statements.
  *
  * Callers match their own whitelisted call shapes against those statements. Variable tracking
  * across statements or into other methods is intentionally out of scope.

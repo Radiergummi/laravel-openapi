@@ -94,8 +94,6 @@ final class NullableSchema
      * Applies OAS 3.1 nullability to `$target` in place.
      *
      * Use when the schema is already held by reference in a collection and cannot be replaced.
-     * Same branching logic as {@see wrap()}: structured/ref schemas are moved into a `oneOf` inner
-     * branch; scalar types are widened to a type array.
      */
     public static function applyTo(OA\Schema $target): void
     {

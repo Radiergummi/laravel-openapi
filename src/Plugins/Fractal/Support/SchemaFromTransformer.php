@@ -110,7 +110,6 @@ final readonly class SchemaFromTransformer
             $unconstrainedPaths = [];
 
             foreach ($inferred as $field) {
-                // A #[TransformerField] / #[TransformerInclude] wins per field.
                 if (isset($seenNames[$field->name])) {
                     continue;
                 }

@@ -462,7 +462,8 @@ class OpenApiServiceProvider extends ServiceProvider
     }
 
     /**
-     * Returns a memoised lazy factory over the registry's ref-schema resolver list.
+     * Returns a memoized lazy factory over the registry's ref-schema resolver list.
+     *
      * Pass `$exclude` to omit a resolver and break cross-plugin construction cycles.
      *
      * @param null|class-string<RefSchemaResolver> $exclude

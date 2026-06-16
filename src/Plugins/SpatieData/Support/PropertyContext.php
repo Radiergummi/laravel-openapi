@@ -9,9 +9,6 @@ use ReflectionProperty;
 
 /**
  * Identity, reflection, and constructor-parameter data for one Data-class property.
- *
- * Built once per property so the per-property loop and scoped-attribute pass share a single
- * source rather than three parallel maps.
  */
 final readonly class PropertyContext
 {

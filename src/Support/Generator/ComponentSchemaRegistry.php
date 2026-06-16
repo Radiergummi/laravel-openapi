@@ -25,8 +25,6 @@ use function md5;
 use function substr;
 
 /**
- * Holds all component schemas registered during a generation run.
- *
  * Registration is idempotent (first schema wins). Keys are derived from the class basename and
  * disambiguated with ancestor namespace segments when two classes share a basename.
  *

@@ -6,8 +6,6 @@ namespace Radiergummi\OpenApi\Lint\Output;
 
 /**
  * Where a formatter writes: stdout (default), stderr, or a file path.
- * `stdout`/`stderr` are reserved in the `--format=<format>[:<target>]` grammar; anything else is
- * a filesystem path.
  *
  * @internal
  */
