@@ -1,7 +1,7 @@
 # Plugins
 
 A plugin registers resolvers, extractors, and lint rules for a specific
-package or convention. Five plugins ship with the package:
+package or convention. Six plugins ship with the package:
 
 | Plugin | Default | Requires | Documents |
 |---|---|---|---|
@@ -10,6 +10,7 @@ package or convention. Five plugins ship with the package:
 | [`QueryBuilder`](#querybuilder) | disabled | `spatie/laravel-query-builder` | `filter[]` / `sort` / `include` query parameters |
 | [`Fractal`](#fractal) | disabled | `league/fractal` | Fractal transformer responses |
 | [`SwaggerPhp`](#swaggerphp) | disabled | swagger-php (bundled); `doctrine/annotations` for PHPDoc | Hand-authored `#[OA\*]` / `@OA` annotations |
+| [`Fortify`](#fortify) | disabled | `laravel/fortify` | Fortify headless core-auth endpoints |
 
 `FormRequest` request bodies are supported natively. No plugin required.
 
@@ -600,3 +601,48 @@ that: run `php artisan openapi:lint --only 'migration.*'` to find the redundant
 [Migrating from L5-Swagger](migrating-from-l5-swagger.md) for the end-to-end path.
 
 Worked endpoint: [`examples/swagger-php/`](../examples/swagger-php/).
+
+## Fortify
+
+Documents Laravel [Fortify](https://laravel.com/docs/fortify)'s headless core-auth
+endpoints — login, logout, register, password reset/update, password confirmation,
+and profile-information update — from a hand-maintained stock-contract table. Fortify
+exposes no typed request or response DTOs the generator could read, so the table
+encodes the framework's documented request rules and JSON responses directly.
+
+**Off by default.** It is the one bundled plugin scoped to a third-party auth package,
+so it ships disabled.
+
+### Enable
+
+1. `composer require laravel/fortify`.
+2. Uncomment `FortifyPlugin::class` under `plugins` in `config/openapi.php`.
+
+The plugin no-ops if Fortify is not installed.
+
+### What it documents
+
+Matched purely by **route name** (the body-bearing actions — `login.store`,
+`register.store`, `password.confirm.store` — plus `logout`, `password.email`,
+`password.update`, `password.confirmation`, `user-password.update`,
+`user-profile-information.update`). For each matched route it emits:
+
+- **The stock request body** — always. The documented validation rules become a JSON
+  object schema (e.g. login → `email` + `password` + optional `remember`).
+- **The stock success response** — *only when the route's Fortify response contract is
+  unmodified*. The plugin inspects the container binding for the governing contract
+  (e.g. `LoginResponse`): if it still maps to a `Laravel\Fortify\…` class, the stock
+  body and status are emitted; if the app has rebound it to a custom response, the body
+  is unknowable, so the plugin emits the **status code only** — never a possibly-wrong
+  body. A binding it cannot read statically (a closure that constructs the response
+  inline) is treated as customized, conservatively.
+
+Error responses fall through to the configured [`error_envelope`](config.md). An
+authoring attribute on a route always overrides what the plugin would emit.
+
+### Scope
+
+v1 covers the **core auth** surface above. Two-factor authentication and email
+verification are deferred to a follow-up. Response-body fidelity tracks the documented
+stock contract of the supported Fortify line; an app that customizes a response contract
+gets the honest status-only fallback for that endpoint.

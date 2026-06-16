@@ -499,6 +499,10 @@ return [
         // Uncomment to enable:
         // \Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin::class,
 
+        // Requires `composer require laravel/fortify`. Documents Fortify's headless core-auth
+        // endpoints (login/register/password/profile) from a stock-contract table. Uncomment:
+        // \Radiergummi\OpenApi\Plugins\Fortify\FortifyPlugin::class,
+
         // Harvests hand-authored swagger-php annotations (`#[OA\Schema]` / `@OA\Schema` and
         // operation-level `@OA`) into the generated document. Harvesting `@OA` PHPDoc annotations
         // additionally requires `composer require doctrine/annotations` (`#[OA\*]` attributes work

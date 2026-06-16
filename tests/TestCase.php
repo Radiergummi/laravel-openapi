@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests;
 
 use Illuminate\Foundation\Application;
+use Laravel\Fortify\Fortify;
 use Laravel\Passport\PassportServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Radiergummi\OpenApi\OpenApiServiceProvider;
 use Radiergummi\OpenApi\Support\Generator\ExampleFileLoader;
 use RuntimeException;
 use Spatie\LaravelData\LaravelDataServiceProvider;
+
+use function class_exists;
 
 abstract class TestCase extends Orchestra
 {
@@ -39,6 +42,14 @@ abstract class TestCase extends Orchestra
     protected function defineEnvironment($app): void
     {
         $app['config']->set('filesystems.disks.local.serve', false);
+
+        // laravel/fortify (a dev dependency) force-registers its provider even with package
+        // discovery off; its boot() loads ~20 auth routes that would otherwise appear in every
+        // generated spec under test. Suppress route registration globally for the suite — the
+        // Fortify plugin tests register their own fixture routes by name.
+        if (class_exists(Fortify::class)) {
+            Fortify::ignoreRoutes();
+        }
     }
 
     /**
