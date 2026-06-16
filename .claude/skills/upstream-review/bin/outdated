@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# outdated — report tracked packages with a newer release available.
+#
+# The tracked set is derived from the manifest headings (## vendor/package), so the
+# manifest is the single source of truth. Output is JSON lines, one per tracked package
+# that composer reports as outdated:
+#   {"name":"zircote/swagger-php","current":"6.1.2","latest":"6.2.0"}
+# Packages already at the latest version are omitted. Run from the repo root.
+set -uo pipefail
+
+SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+manifest="$SKILL_DIR/manifest.md"
+[[ -f "$manifest" ]] || { echo "manifest not found: $manifest" >&2; exit 1; }
+
+# Tracked package names from "## vendor/package" headings.
+tracked="$(grep -oE '^## [a-z0-9._-]+/[a-z0-9._-]+' "$manifest" | sed 's/^## //' | sort -u)"
+[[ -n "$tracked" ]] || { echo "no tracked packages found in manifest" >&2; exit 1; }
+
+# composer outdated across require + require-dev, direct deps only, as JSON.
+outdated="$(composer outdated -D --format=json 2>/dev/null)" \
+  || { echo "composer outdated failed" >&2; exit 1; }
+
+# Intersect: emit one JSON object per tracked package composer flagged as outdated.
+echo "$outdated" | jq -c --arg tracked "$tracked" '
+  ($tracked | split("\n")) as $t
+  | .installed[]
+  | select(.name as $n | $t | index($n))
+  | {name, current: .version, latest: .latest}
+'

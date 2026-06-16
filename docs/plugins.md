@@ -1,7 +1,7 @@
 # Plugins
 
 A plugin registers resolvers, extractors, and lint rules for a specific
-package or convention. Five plugins ship with the package:
+package or convention. Six plugins ship with the package:
 
 | Plugin | Default | Requires | Documents |
 |---|---|---|---|
@@ -10,6 +10,7 @@ package or convention. Five plugins ship with the package:
 | [`QueryBuilder`](#querybuilder) | disabled | `spatie/laravel-query-builder` | `filter[]` / `sort` / `include` query parameters |
 | [`Fractal`](#fractal) | disabled | `league/fractal` | Fractal transformer responses |
 | [`SwaggerPhp`](#swaggerphp) | disabled | swagger-php (bundled); `doctrine/annotations` for PHPDoc | Hand-authored `#[OA\*]` / `@OA` annotations |
+| [`Fortify`](#fortify) | disabled | `laravel/fortify` | Fortify headless core-auth endpoints |
 
 `FormRequest` request bodies are supported natively. No plugin required.
 
@@ -458,6 +459,56 @@ documented; annotate such actions with `#[FractalResponse]`. The two
 method names are a fixed whitelist — there is no configurable convention
 knob.
 
+### `fractal()` helper / facade / Manager call shapes
+
+The two dominant Fractal invocation styles — the `fractal()` helper and the
+`Spatie\Fractalistic\Fractal` facade — are documented without any
+`#[FractalResponse]`, as is the injected-`Manager` resource-construction style:
+
+```php
+public function show(): JsonResponse
+{
+    return fractal()->item(new Booking(), new BookingTransformer())->respond();   // {data: $ref}
+}
+
+public function index(): JsonResponse
+{
+    return Fractal::create()
+        ->collection(Booking::all(), new BookingTransformer())
+        ->respond();                                                              // {data: [$ref]}
+}
+
+public function managed(Manager $fractal): JsonResponse
+{
+    $resource = new Item(new Booking(), new BookingTransformer());
+
+    return new JsonResponse($fractal->createData($resource)->toArray());          // {data: $ref}
+}
+```
+
+The binding reads the first `return` expression (and, for the `Manager` style, a
+`new Item(…)` / `new Collection(…)` resource) within the first 10 statements,
+and requires:
+
+- an `->item(…)` / `->collection(…)` chain link whose root is literally the
+  `fractal()` helper or the `Fractal` facade (so the same method names on an
+  unrelated service or query builder never match), or a single `new Item(…)` /
+  `new Collection(…)` resource — `item` / `Item` binds the single envelope,
+  `collection` / `Collection` the collection envelope;
+- a transformer named by a literal `new T()` or `T::class` argument that extends
+  `TransformerAbstract` and yields documentable fields.
+
+A trailing `->serializeWith(new ArraySerializer())` / `JsonApiSerializer` maps
+onto the matching serializer envelope. All Fractal classes are matched by name,
+so neither package need be installed for the scan to run.
+
+The **bare two-argument helper** `fractal($data, new T())` is **refused**: item
+vs collection is not statically knowable from the first argument, so the
+generator emits a generation-log note rather than guessing an envelope — annotate
+those actions with `#[FractalResponse]`. A variable/dynamic transformer, an
+unrecognised serializer, or a transformer with no documentable fields likewise
+degrade with a note; `#[FractalResponse]` always wins where declared.
+
 Lint rules:
 
 | Rule | Level |
@@ -472,10 +523,12 @@ Lint rules:
 literal is readable and yields fields — the schema is not empty then.
 
 > [!NOTE]
-> `fractal.response-unbound` is opt-in. The `fractal()` helper and
-> `Spatie\Fractalistic\Fractal` facade are invoked inside method bodies in
-> shapes the generator does not read (only the `$entity_transformer`
-> convention above is matched).
+> `fractal.response-unbound` is opt-in and keys off an **injected `Manager`
+> parameter** only. The `fractal()` helper and `Fractal` facade shapes never
+> inject a `Manager`, so they never trigger this rule — even now that the
+> generator reads them (see the call-shape binding above). The rule remains a
+> conservative backstop for the one Fractal style whose response the generator
+> cannot bind without an attribute when it carries no literal transformer.
 
 ## SwaggerPhp
 
@@ -548,3 +601,48 @@ that: run `php artisan openapi:lint --only 'migration.*'` to find the redundant
 [Migrating from L5-Swagger](migrating-from-l5-swagger.md) for the end-to-end path.
 
 Worked endpoint: [`examples/swagger-php/`](../examples/swagger-php/).
+
+## Fortify
+
+Documents Laravel [Fortify](https://laravel.com/docs/fortify)'s headless core-auth
+endpoints — login, logout, register, password reset/update, password confirmation,
+and profile-information update — from a hand-maintained stock-contract table. Fortify
+exposes no typed request or response DTOs the generator could read, so the table
+encodes the framework's documented request rules and JSON responses directly.
+
+**Off by default.** It is the one bundled plugin scoped to a third-party auth package,
+so it ships disabled.
+
+### Enable
+
+1. `composer require laravel/fortify`.
+2. Uncomment `FortifyPlugin::class` under `plugins` in `config/openapi.php`.
+
+The plugin no-ops if Fortify is not installed.
+
+### What it documents
+
+Matched purely by **route name** (the body-bearing actions — `login.store`,
+`register.store`, `password.confirm.store` — plus `logout`, `password.email`,
+`password.update`, `password.confirmation`, `user-password.update`,
+`user-profile-information.update`). For each matched route it emits:
+
+- **The stock request body** — always. The documented validation rules become a JSON
+  object schema (e.g. login → `email` + `password` + optional `remember`).
+- **The stock success response** — *only when the route's Fortify response contract is
+  unmodified*. The plugin inspects the container binding for the governing contract
+  (e.g. `LoginResponse`): if it still maps to a `Laravel\Fortify\…` class, the stock
+  body and status are emitted; if the app has rebound it to a custom response, the body
+  is unknowable, so the plugin emits the **status code only** — never a possibly-wrong
+  body. A binding it cannot read statically (a closure that constructs the response
+  inline) is treated as customized, conservatively.
+
+Error responses fall through to the configured [`error_envelope`](config.md). An
+authoring attribute on a route always overrides what the plugin would emit.
+
+### Scope
+
+v1 covers the **core auth** surface above. Two-factor authentication and email
+verification are deferred to a follow-up. Response-body fidelity tracks the documented
+stock contract of the supported Fortify line; an app that customizes a response contract
+gets the honest status-only fallback for that endpoint.

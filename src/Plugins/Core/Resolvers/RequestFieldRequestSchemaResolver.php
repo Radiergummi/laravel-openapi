@@ -34,6 +34,7 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
 {
     public function __construct(
         private ComponentSchemaRegistry $registry,
+        private RequestFieldObjectBuilder $objectBuilder,
     ) {}
 
     #[Override]
@@ -56,7 +57,7 @@ final readonly class RequestFieldRequestSchemaResolver implements RequestSchemaR
             $attributes,
         );
 
-        [$properties, $required] = RequestFieldObjectBuilder::propertiesAndRequired($fields);
+        [$properties, $required] = $this->objectBuilder->propertiesAndRequired($fields);
 
         if ($properties === []) {
             return null;

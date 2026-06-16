@@ -12,13 +12,16 @@ use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
+use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorCallReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionFunctionAbstract;
+use ReflectionMethod;
 use ReflectionNamedType;
 
 use function class_exists;
+use function is_a;
 use function sprintf;
 
 /**
@@ -30,6 +33,11 @@ use function sprintf;
  *   2. The `return Paginator<Item>` PHPDoc generic argument.
  * When neither is present the resolver logs a generation warning and returns null, deferring to
  * the next resolver (and ultimately the bare-200 fallback).
+ *
+ * When the return type is not itself a paginator, the resolver falls back to the body scan
+ * ({@see PaginatorCallReader}) — but only for actions ApiResources / SpatieData would not claim
+ * (their resource / Data return types and resource-naming `#[ResponseResource]`). Core runs first,
+ * so without those guards it would steal responses those plugins shape better (issue #353).
  */
 final readonly class PaginatorResponseResolver implements PrimaryResponseResolver
 {
@@ -39,6 +47,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     public function __construct(
         private ReturnTypeExtractor $returnTypeExtractor,
         private PaginatorSchemaFactory $schemaFactory,
+        private PaginatorCallReader $paginatorCallReader,
         private LoggerInterface $logger,
         private array $refSchemaResolvers = [],
     ) {}
@@ -61,7 +70,15 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
         $kind = PaginatorKind::fromClass($returnType->getName());
 
         if ($kind === null) {
-            return null;
+            // The return type is not itself a paginator. Fall back to the body scan only when the
+            // action is not one ApiResources / SpatieData would claim — otherwise Core (which runs
+            // first) would steal a response those plugins shape better. Both guards return null,
+            // preserving the pre-#353 behaviour.
+            $kind = $this->kindFromBody($descriptor, $reflector, $returnType);
+
+            if ($kind === null) {
+                return null;
+            }
         }
 
         $itemClass = $this->resolveItemClass($reflector);
@@ -85,6 +102,86 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             'description' => 'OK',
             'content' => [MediaType::Json->schema($envelope)],
         ]);
+    }
+
+    /**
+     * The paginator kind from an unconditional `paginate()`-family call in the action body, but
+     * only when the action is not one ApiResources / SpatieData would claim. Both guards return
+     * null to leave the response to those plugins (and ultimately the bare-200 fallback).
+     */
+    private function kindFromBody(
+        ActionDescriptor $descriptor,
+        ReflectionFunctionAbstract $reflector,
+        ReflectionNamedType $returnType,
+    ): ?PaginatorKind {
+        // Guard 1 — a resource / Data return type is the convention plugins' surface.
+        if ($this->isResourceOrDataType($returnType->getName())) {
+            return null;
+        }
+
+        // Guard 2 — a method- or controller-level #[ResponseResource] naming a JsonResource is the
+        // ApiResources claiming surface. This deliberately mirrors
+        // ResourceClassLocator::readResponseResource()'s two-level read (documented coupling): Core
+        // may consume #[ResponseResource] for the item class only when it names a non-resource bare
+        // model, which resolveItemClass() handles below.
+        if ($this->namesResponseResourceClass($reflector, $descriptor)) {
+            return null;
+        }
+
+        // The body scan needs a concrete method (closures carry no paginate() controller idiom).
+        if (!$reflector instanceof ReflectionMethod) {
+            return null;
+        }
+
+        return $this->paginatorCallReader->detect($reflector);
+    }
+
+    /**
+     * Whether the class is a Laravel API Resource or a Spatie Data type — matched by FQCN string so
+     * Core stays free of plugin / third-party imports (the same approach as {@see PaginatorKind}).
+     */
+    private function isResourceOrDataType(string $class): bool
+    {
+        foreach ([
+            'Illuminate\\Http\\Resources\\Json\\JsonResource',
+            'Illuminate\\Http\\Resources\\Json\\ResourceCollection',
+            'Illuminate\\Http\\Resources\\Json\\AnonymousResourceCollection',
+            'Spatie\\LaravelData\\Data',
+            'Spatie\\LaravelData\\DataCollection',
+            'Spatie\\LaravelData\\PaginatedDataCollection',
+            'Spatie\\LaravelData\\CursorPaginatedDataCollection',
+        ] as $type) {
+            if (is_a($class, $type, allow_string: true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether a method- or controller-level `#[ResponseResource]` names a `JsonResource` class.
+     * Mirrors {@see \Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator}'s
+     * two-level attribute read.
+     */
+    private function namesResponseResourceClass(
+        ReflectionFunctionAbstract $reflector,
+        ActionDescriptor $descriptor,
+    ): bool {
+        $attribute = $reflector->getAttributes(ResponseResource::class)[0] ?? null;
+
+        if ($attribute === null && $descriptor->controller !== null) {
+            $attribute = $descriptor->controller->getAttributes(ResponseResource::class)[0] ?? null;
+        }
+
+        if ($attribute === null) {
+            return false;
+        }
+
+        $class = $attribute->newInstance()->class;
+
+        return class_exists($class)
+            && is_a($class, 'Illuminate\\Http\\Resources\\Json\\JsonResource', allow_string: true);
     }
 
     /**

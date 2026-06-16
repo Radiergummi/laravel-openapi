@@ -384,6 +384,7 @@ class OpenApiServiceProvider extends ServiceProvider
                 return new PaginatorResponseResolver(
                     returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
                     schemaFactory: $app->make(PaginatorSchemaFactory::class),
+                    paginatorCallReader: $app->make(Plugins\Core\Support\PaginatorCallReader::class),
                     logger: $app->make(LoggerInterface::class),
                     refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
                 );
@@ -409,6 +410,45 @@ class OpenApiServiceProvider extends ServiceProvider
             ),
         );
 
+        // The builder resolves class-string `#[RequestField]` types/items to a `$ref` through the
+        // full ref-resolver chain. It carries no exclusion: Core registers no RefSchemaResolver of
+        // its own, so there is no construction cycle to break.
+        $this->app->scoped(
+            Plugins\Core\Support\RequestFieldObjectBuilder::class,
+            static function (Container $app): Plugins\Core\Support\RequestFieldObjectBuilder {
+                $registry = $app->make(OpenApiRegistry::class);
+
+                return new Plugins\Core\Support\RequestFieldObjectBuilder(
+                    refSchemaResolvers: self::refSchemaResolverFactory($app, $registry),
+                );
+            },
+        );
+
+        // Explicit binding: the resolver now depends on the builder, which has a Closure ctor
+        // argument the container cannot auto-resolve.
+        $this->app->scoped(
+            Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver::class,
+            static fn(Container $app): Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver
+                => new Plugins\Core\Resolvers\RequestFieldRequestSchemaResolver(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    objectBuilder: $app->make(Plugins\Core\Support\RequestFieldObjectBuilder::class),
+                ),
+        );
+
+        $this->app->scoped(
+            Support\Extraction\ModelFactoryExampleReader::class,
+            static fn(Container $app): Support\Extraction\ModelFactoryExampleReader
+                => new Support\Extraction\ModelFactoryExampleReader(
+                    // Disabled (null seed) when auto-examples are switched off or no fixed seed is
+                    // configured — factory fake() values would otherwise be non-deterministic.
+                    seed: (bool) (config('openapi.examples.synthesise') ?? true)
+                        && config('openapi.examples.faker_seed') !== null
+                        ? (int) config('openapi.examples.faker_seed')
+                        : null,
+                    logger: $app->make(LoggerInterface::class),
+                ),
+        );
+
         $this->app->scoped(
             Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver::class,
             static function (Container $app): Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver {
@@ -418,6 +458,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     registry: $app->make(ComponentSchemaRegistry::class),
                     refSchemaResolvers: self::refSchemaResolverFactory($app, $registry),
                     findings: $app->make(FindingsCollector::class),
+                    objectBuilder: $app->make(Plugins\Core\Support\RequestFieldObjectBuilder::class),
                 );
             },
         );

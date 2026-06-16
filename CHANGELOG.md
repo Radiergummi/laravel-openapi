@@ -32,6 +32,7 @@ All notable changes to this project are documented here.
 - `#[RawSchema]` class-level attribute replaces a payload class's inferred component body with a literal JSON Schema (Spatie Data, API Resource, FormRequest); keywords are bounded to what swagger-php serialises, with unsupported keywords dropped-and-logged and flagged by the new `schema.raw-keyword-unsupported` lint rule. (#344)
 - Pagination query parameters from a `->paginate()`/`->simplePaginate()`/`->cursorPaginate()` body call (Tier-1): offset paginators emit `page`/`per_page`, cursor paginators emit `cursor`; an explicit `#[QueryParam]` wins for its name. (#31)
 - Success-response model schema inferred from a directly-returned `Model::find()`/`findOrFail()`/`firstOrFail()` call in the controller body (Tier-1), feeding the existing Eloquent model→schema reader; composes with the `findOrFail()` 404. (#97)
+- Fractal responses inferred from the `fractal()` helper, the `Spatie\Fractalistic\Fractal` facade, and injected-`Manager` `new Item`/`new Collection` resource construction (Tier-1 body scan), with `item`/`collection` envelopes and `serializeWith(...)` serializer detection; the bare two-argument `fractal($data, new T())` form, a variable transformer, and an unrecognised serializer all degrade with a note, and `#[FractalResponse]` remains authoritative. (#263)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
@@ -62,6 +63,11 @@ All notable changes to this project are documented here.
 - The query-builder chain reader sees value-object constructors wrapped in fluent modifiers, so `AllowedFilter::exact('healthy')->nullable()` is read as `filter[healthy]` instead of dropped. (#257)
 - A `findOrFail()` / `firstOrFail()` lookup in the controller body infers a 404 response, deduped against the route-model-binding 404. (#168)
 - Infer error responses from non-2xx `response()->json([...], <4xx/5xx>)` literals in the controller body (Tier-1), carrying the literal body schema inlined per operation; falls back to the configured error envelope when only the status is statically readable. (#238)
+- Internal: the API Resource return-expression reader's paginate-method whitelist now routes through the shared `PaginatorKind::fromPaginatingMethod()` enum instead of a duplicated local constant. (#354)
+- Eloquent model schemas seed their per-property examples from the model's Laravel factory `definition()` (scalar values only), reseeded deterministically per model from `openapi.examples.faker_seed`; disabled when example synthesis is off or the seed is null. (#36)
+- `#[RequestField]` ref support: a class-string `type:` resolves to a `$ref`, and a class-string `items:` on a `type: 'array'` field resolves to `items: { $ref }` — mirroring the response-side `#[ResourceField]`; an unresolvable class degrades to a permissive object. (#150)
+- A non-paginator action whose body unconditionally calls `paginate()`/`simplePaginate()`/`cursorPaginate()` now gets the matching paginated response envelope, with a declared item class (`#[ResponseResource(Model::class)]` or `@return Paginator<Item>`). Guarded so it never overrides a response API Resources or Spatie Data would shape — a resource/`Data` return type or a resource-naming `#[ResponseResource]` defers to those plugins. (#353)
+- **Fortify plugin** (opt-in): documents Laravel Fortify's headless core-auth endpoints (login/logout/register/password/profile) from a stock-contract table, with request bodies always emitted and response bodies gated on the Fortify response contract being unmodified. (#134)
 
 ## [0.1.0] - 2026-05-18
 

@@ -84,6 +84,7 @@ final class EloquentModelToSchema
         private readonly TypeNodeResolver $typeNodeResolver,
         private readonly DocBlockParser $docBlockParser,
         private readonly LoggerInterface $logger,
+        private readonly ModelFactoryExampleReader $factoryExampleReader,
     ) {}
 
     /**
@@ -589,6 +590,7 @@ final class EloquentModelToSchema
         }
 
         $names = array_values(array_diff($allNames, $hidden));
+        $examples = $this->factoryExampleReader->examplesFor($modelClass);
         $properties = [];
 
         foreach ($names as $name) {
@@ -653,6 +655,16 @@ final class EloquentModelToSchema
             }
 
             $properties[] = new OA\Property(['property' => $name]);
+        }
+
+        // Seed examples from the model's factory definition() (when one exists and is deterministic);
+        // leaves untouched any property the factory does not produce.
+        if ($examples !== []) {
+            foreach ($properties as $property) {
+                if (array_key_exists($property->property, $examples)) {
+                    $property->example = $examples[$property->property];
+                }
+            }
         }
 
         // A property is required when it has a @property/@property-read annotation whose type is

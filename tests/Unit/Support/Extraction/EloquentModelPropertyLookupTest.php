@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Support\Extraction;
 use OpenApi\Annotations as OA;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
@@ -31,6 +32,7 @@ function modelPropertyReader(): EloquentModelToSchema
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
         logger: $logger,
+        factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
     );
 }
 
