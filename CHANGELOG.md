@@ -72,6 +72,7 @@ All notable changes to this project are documented here.
 - A non-paginator action whose body unconditionally calls `paginate()`/`simplePaginate()`/`cursorPaginate()` now gets the matching paginated response envelope, with a declared item class (`#[ResponseResource(Model::class)]` or `@return Paginator<Item>`). Guarded so it never overrides a response API Resources or Spatie Data would shape — a resource/`Data` return type or a resource-naming `#[ResponseResource]` defers to those plugins. (#353)
 - **Fortify plugin** (opt-in): documents Laravel Fortify's headless core-auth endpoints (login/logout/register/password/profile) from a stock-contract table, with request bodies always emitted and response bodies gated on the Fortify response contract being unmodified. (#134)
 - `schema.class-attribute-conflicts-with-field-attributes` now also flags class-level `#[ResourceField]` declarations on a `JsonResource` that carries a class-level `#[RawSchema]`, alongside the property-level `#[RequestField]`/`#[ResponseField]` it already detected. (#374)
+- Internal: the attribute-removal lint fixer now describes its change as an AST mutation on a structurally-addressed node; `FixApplicator` clones the syntax tree, applies the removal, and reprints once per file with php-parser's format-preserving printer (byte-identical output, no whole-file reformat). Byte-addressed edits remain for the swagger-php fixers. (#368)
 
 ## [0.1.0] - 2026-05-18
 
