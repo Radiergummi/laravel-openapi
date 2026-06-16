@@ -179,3 +179,37 @@ it('skips and writes nothing when adding a named argument would collide with a p
 
     @unlink($file);
 });
+
+it('does not report removing an already-absent named argument as applied, and writes nothing', function (): void {
+    $source = <<<'PHP'
+        <?php
+
+        namespace SetArg;
+
+        class Fixture
+        {
+            #[Tag(name: 'a')]
+            public function index(): void {}
+        }
+
+        PHP;
+    $file = tempnam(sys_get_temp_dir(), 'openapi-setarg-test-') ?: '';
+    file_put_contents($file, $source);
+
+    $result = new FixApplicator()->apply([
+        new Fix($file, 'description', 'test.rule', new SetAttributeArgument(
+            target: setArgumentTarget(),
+            attributeIndex: 0,
+            argumentName: 'deprecated',
+            remove: true,
+        )),
+    ]);
+
+    expect(file_get_contents($file))
+        ->toBe($source)
+        ->and($result->applied)->toBe([])
+        ->and($result->skipped)->toHaveCount(1)
+        ->and($result->modifiedFiles)->toBe([]);
+
+    @unlink($file);
+});

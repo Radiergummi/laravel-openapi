@@ -12,9 +12,10 @@ uses()->group('openapi', 'lint', 'fix');
 
 // The applicator used to be byte-splice-based and these cases constructed RemoveLines/ModifyAttribute
 // directly. The backend is now AST-mutation only, so the cases drive RemoveAttribute against a real
-// source file instead; the byte-level behaviors they pin (whole-line removal leaves no blank line,
-// independent removals compose, dry-run reports but doesn't write, shared-group comma-swallowing)
-// are unchanged and still asserted against byte-exact output.
+// source file instead. The byte-level behaviors they pin are unchanged and still asserted against
+// byte-exact output: whole-line removal leaves no blank line, a single operation removing several
+// indices composes without offset drift, two fixes on different members of one file both land in a
+// single traversal, dry-run reports but doesn't write, and shared-group removal swallows the comma.
 
 function fixtureFile(string $contents): string
 {
@@ -122,6 +123,61 @@ it('removes several attributes from one node in a single operation without offse
         }
 
         PHP);
+});
+
+it('applies two fixes targeting different members of one file in a single traversal', function (): void {
+    $file = fixtureFile(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            public function index(): int
+            {
+                return 1;
+            }
+
+            #[Tag('b')]
+            public function show(): int
+            {
+                return 2;
+            }
+        }
+
+        PHP);
+
+    // Two independent fixes on distinct nodes share one parse/clone/traverse; both visitors mutate
+    // the same cloned tree and both removals must land.
+    $result = new FixApplicator()->apply([
+        removeAttributeFix($file, 0, member: 'index'),
+        removeAttributeFix($file, 0, member: 'show'),
+    ]);
+
+    expect(file_get_contents($file))
+        ->toBe(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            public function index(): int
+            {
+                return 1;
+            }
+
+            public function show(): int
+            {
+                return 2;
+            }
+        }
+
+        PHP)
+        ->and($result->applied)->toHaveCount(2)
+        ->and($result->skipped)->toBe([])
+        ->and($result->modifiedFiles)->toBe([$file]);
 });
 
 it('writes nothing in dry-run but still reports the pending change', function (): void {

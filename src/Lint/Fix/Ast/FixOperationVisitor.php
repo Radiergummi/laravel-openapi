@@ -223,8 +223,9 @@ final class FixOperationVisitor extends NodeVisitorAbstract
             return;
         }
 
-        $this->mutateAttributeArguments($attribute, $operation);
-        $this->applied = true;
+        if ($this->mutateAttributeArguments($attribute, $operation)) {
+            $this->applied = true;
+        }
     }
 
     private function attributeAt(ClassLike|ClassMethod|Property|Param $member, int $flatIndex): ?Attribute
@@ -268,7 +269,11 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         return !$hasNamed && $hasPositional;
     }
 
-    private function mutateAttributeArguments(Attribute $attribute, SetAttributeArgument $operation): void
+    /**
+     * Returns whether the attribute was actually changed. The remove-when-already-absent branch is a
+     * legitimate idempotent no-op and returns false so the fix is not counted as applied.
+     */
+    private function mutateAttributeArguments(Attribute $attribute, SetAttributeArgument $operation): bool
     {
         $hasNamed = array_any(
             $attribute->args,
@@ -278,7 +283,7 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         if ($operation->remove) {
             // Already absent is a legitimate idempotent no-op; the positional case was refused above.
             if (! $hasNamed) {
-                return;
+                return false;
             }
 
             $attribute->args = array_values(array_filter(
@@ -286,7 +291,7 @@ final class FixOperationVisitor extends NodeVisitorAbstract
                 static fn(Arg $argument): bool => $argument->name?->toString() !== $operation->argumentName,
             ));
 
-            return;
+            return true;
         }
 
         $newArgument = new Arg(
@@ -297,7 +302,7 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         if (! $hasNamed) {
             $attribute->args[] = $newArgument;
 
-            return;
+            return true;
         }
 
         foreach ($attribute->args as $index => $argument) {
@@ -305,6 +310,8 @@ final class FixOperationVisitor extends NodeVisitorAbstract
                 $attribute->args[$index] = $newArgument;
             }
         }
+
+        return true;
     }
 
     private function literalToNode(string|int|float|bool|null $value): Node\Expr
