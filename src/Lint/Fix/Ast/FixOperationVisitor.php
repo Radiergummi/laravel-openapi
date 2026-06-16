@@ -6,14 +6,20 @@ namespace Radiergummi\OpenApi\Lint\Fix\Ast;
 
 use PhpParser\Comment\Doc;
 use PhpParser\Node;
+use PhpParser\Node\Arg;
+use PhpParser\Node\Attribute;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Param;
 use PhpParser\Node\PropertyItem;
+use PhpParser\Node\Scalar;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\NodeVisitorAbstract;
 
 use function array_values;
+use function is_float;
+use function is_int;
 use function krsort;
 use function rsort;
 use function strcasecmp;
@@ -57,6 +63,8 @@ final class FixOperationVisitor extends NodeVisitorAbstract
             $this->removeAttributes($member, $this->operation);
         } elseif ($this->operation instanceof SetDocComment) {
             $this->setDocComment($member, $this->operation);
+        } elseif ($this->operation instanceof SetAttributeArgument) {
+            $this->setAttributeArgument($member, $this->operation);
         }
 
         return null;
@@ -197,5 +205,117 @@ final class FixOperationVisitor extends NodeVisitorAbstract
 
         $member->setAttribute('comments', $rebuilt);
         $this->applied = true;
+    }
+
+    private function setAttributeArgument(
+        ClassLike|ClassMethod|Property|Param $member,
+        SetAttributeArgument $operation,
+    ): void {
+        $attribute = $this->attributeAt($member, $operation->attributeIndex);
+
+        if ($attribute === null) {
+            return;
+        }
+
+        // Refuse rather than guess when the attribute carries positional arguments that a named
+        // add/remove cannot reason about, so a half-mutated attribute never ships to disk.
+        if ($this->positionalCollision($attribute, $operation)) {
+            return;
+        }
+
+        $this->mutateAttributeArguments($attribute, $operation);
+        $this->applied = true;
+    }
+
+    private function attributeAt(ClassLike|ClassMethod|Property|Param $member, int $flatIndex): ?Attribute
+    {
+        $position = 0;
+
+        foreach ($member->attrGroups as $group) {
+            foreach ($group->attrs as $attribute) {
+                if ($position === $flatIndex) {
+                    return $attribute;
+                }
+
+                $position++;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether a named add/remove on this attribute is unsafe because the named argument is absent
+     * yet positional arguments are present (we cannot know which positional slot it maps to).
+     */
+    private function positionalCollision(Attribute $attribute, SetAttributeArgument $operation): bool
+    {
+        $hasNamed = false;
+        $hasPositional = false;
+
+        foreach ($attribute->args as $argument) {
+            if ($argument->name === null) {
+                $hasPositional = true;
+
+                continue;
+            }
+
+            if ($argument->name->toString() === $operation->argumentName) {
+                $hasNamed = true;
+            }
+        }
+
+        return !$hasNamed && $hasPositional;
+    }
+
+    private function mutateAttributeArguments(Attribute $attribute, SetAttributeArgument $operation): void
+    {
+        $hasNamed = array_any(
+            $attribute->args,
+            static fn(Arg $argument): bool => $argument->name?->toString() === $operation->argumentName,
+        );
+
+        if ($operation->remove) {
+            // Already absent is a legitimate idempotent no-op; the positional case was refused above.
+            if (! $hasNamed) {
+                return;
+            }
+
+            $attribute->args = array_values(array_filter(
+                $attribute->args,
+                static fn(Arg $argument): bool => $argument->name?->toString() !== $operation->argumentName,
+            ));
+
+            return;
+        }
+
+        $newArgument = new Arg(
+            value: $this->literalToNode($operation->value),
+            name: new Identifier($operation->argumentName),
+        );
+
+        if (! $hasNamed) {
+            $attribute->args[] = $newArgument;
+
+            return;
+        }
+
+        foreach ($attribute->args as $index => $argument) {
+            if ($argument->name?->toString() === $operation->argumentName) {
+                $attribute->args[$index] = $newArgument;
+            }
+        }
+    }
+
+    private function literalToNode(string|int|float|bool|null $value): Node\Expr
+    {
+        return match (true) {
+            $value === null  => new Node\Expr\ConstFetch(new Node\Name('null')),
+            $value === true  => new Node\Expr\ConstFetch(new Node\Name('true')),
+            $value === false => new Node\Expr\ConstFetch(new Node\Name('false')),
+            is_int($value)   => new Scalar\Int_($value),
+            is_float($value) => new Scalar\Float_($value),
+            default          => new Scalar\String_($value),
+        };
     }
 }
