@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Fix\Ast;
 
+use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use PhpParser\Node\Param;
 use PhpParser\Node\PropertyItem;
@@ -18,9 +19,10 @@ use function rsort;
 use function strcasecmp;
 
 /**
- * Per-Fix visitor that locates the member named by an {@see AstOperation}'s {@see TargetSelector}
- * in the (cloned) tree and applies the operation. `$applied` reports whether the target was found
- * and mutated, so the applicator can keep an unmatched fix out of the "applied" set.
+ * Per-Fix visitor that locates the node addressed by an {@see AstOperation}'s {@see TargetSelector}
+ * (the class itself, or a named method/property/promoted parameter) in the (cloned) tree and
+ * applies the operation. `$applied` reports whether the target was found and mutated, so the
+ * applicator can keep an unmatched fix out of the "applied" set.
  *
  * A {@see \PhpParser\NodeVisitor\NameResolver} run with `replaceNodes:false` must have populated
  * each class node's `namespacedName` before this visitor runs.
@@ -53,20 +55,26 @@ final class FixOperationVisitor extends NodeVisitorAbstract
 
         if ($this->operation instanceof RemoveAttribute) {
             $this->removeAttributes($member, $this->operation);
+        } elseif ($this->operation instanceof SetDocComment) {
+            $this->setDocComment($member, $this->operation);
         }
 
         return null;
     }
 
-    private function locateMember(ClassLike $class): ClassMethod|Property|Param|null
+    private function locateMember(ClassLike $class): ClassLike|ClassMethod|Property|Param|null
     {
         $target = $this->operation->target;
 
-        if ($target->kind === TargetKind::Method) {
-            return $this->findMethod($class, $target->memberName);
-        }
-
-        return $this->findProperty($class, $target->memberName);
+        return match ($target->kind) {
+            TargetKind::ClassNode => $class,
+            TargetKind::Method    => $target->memberName === null
+                ? null
+                : $this->findMethod($class, $target->memberName),
+            TargetKind::Property  => $target->memberName === null
+                ? null
+                : $this->findProperty($class, $target->memberName),
+        };
     }
 
     private function findMethod(ClassLike $class, string $member): ?ClassMethod
@@ -105,7 +113,7 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         );
     }
 
-    private function removeAttributes(ClassMethod|Property|Param $member, RemoveAttribute $operation): void
+    private function removeAttributes(ClassLike|ClassMethod|Property|Param $member, RemoveAttribute $operation): void
     {
         // Map each flat, source-order attribute position to its owning group and within-group index,
         // mirroring how the fixer enumerated the member's attributes when it selected the targets.
@@ -150,6 +158,44 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         }
 
         $member->attrGroups = array_values($member->attrGroups);
+        $this->applied = true;
+    }
+
+    private function setDocComment(ClassLike|ClassMethod|Property|Param $member, SetDocComment $operation): void
+    {
+        $comments = $member->getComments();
+        $rebuilt = [];
+        $changed = false;
+
+        foreach ($comments as $comment) {
+            if (! $comment instanceof Doc) {
+                $rebuilt[] = $comment;
+
+                continue;
+            }
+
+            $changed = true;
+
+            // null text drops the doc comment entirely (and its physical lines); otherwise rebuild
+            // it from the new text, reusing the original positions so the printer reprints in place.
+            if ($operation->text !== null) {
+                $rebuilt[] = new Doc(
+                    $operation->text,
+                    $comment->getStartLine(),
+                    $comment->getStartFilePos(),
+                    $comment->getStartTokenPos(),
+                    $comment->getEndLine(),
+                    $comment->getEndFilePos(),
+                    $comment->getEndTokenPos(),
+                );
+            }
+        }
+
+        if (! $changed) {
+            return;
+        }
+
+        $member->setAttribute('comments', $rebuilt);
         $this->applied = true;
     }
 }
