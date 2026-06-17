@@ -8,7 +8,10 @@ use PhpParser\Comment\Doc;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Attribute;
+use PhpParser\Node\AttributeGroup;
 use PhpParser\Node\Identifier;
+use PhpParser\Node\Name;
+use PhpParser\Node\Name\FullyQualified;
 use PhpParser\Node\Param;
 use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Scalar;
@@ -17,10 +20,15 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\NodeVisitorAbstract;
 
+use function array_any;
+use function array_keys;
+use function array_map;
+use function array_unshift;
 use function array_values;
 use function is_float;
 use function is_int;
 use function krsort;
+use function ltrim;
 use function rsort;
 use function strcasecmp;
 
@@ -65,6 +73,8 @@ final class FixOperationVisitor extends NodeVisitorAbstract
             $this->setDocComment($member, $this->operation);
         } elseif ($this->operation instanceof SetAttributeArgument) {
             $this->setAttributeArgument($member, $this->operation);
+        } elseif ($this->operation instanceof AddAttribute) {
+            $this->addAttribute($member, $this->operation);
         }
 
         return null;
@@ -312,6 +322,62 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         }
 
         return true;
+    }
+
+    private function addAttribute(ClassLike|ClassMethod|Property|Param $member, AddAttribute $operation): void
+    {
+        // The fixer decides add-vs-modify; the op only inserts. Adding a second application of an
+        // attribute the member already carries is never what a fixer wants, so refuse it here, which
+        // also makes the op idempotent against its own output.
+        if ($this->hasAttributeClass($member, $operation->attributeClass)) {
+            return;
+        }
+
+        $arguments = array_map(
+            fn(string|int|float|bool|null $value, string $name): Arg => new Arg(
+                value: $this->literalToNode($value),
+                name: new Identifier($name),
+            ),
+            array_values($operation->arguments),
+            array_keys($operation->arguments),
+        );
+
+        // Emit the fully-qualified attribute name so the rewrite stays correct without editing the
+        // file's `use` block.
+        $group = new AttributeGroup([
+            new Attribute(new FullyQualified(ltrim($operation->attributeClass, '\\')), $arguments),
+        ]);
+
+        array_unshift($member->attrGroups, $group);
+        $this->applied = true;
+    }
+
+    /**
+     * Whether the member already carries an application of the given attribute class, comparing by
+     * the name {@see \PhpParser\NodeVisitor\NameResolver} resolved (it stamps `resolvedName` on
+     * statically-resolvable names) so a short, `use`-imported reference matches its FQCN.
+     */
+    private function hasAttributeClass(ClassLike|ClassMethod|Property|Param $member, string $attributeClass): bool
+    {
+        $target = ltrim($attributeClass, '\\');
+
+        foreach ($member->attrGroups as $group) {
+            $matches = array_any(
+                $group->attrs,
+                static function (Attribute $attribute) use ($target): bool {
+                    $resolved = $attribute->name->getAttribute('resolvedName');
+                    $name = $resolved instanceof Name ? $resolved : $attribute->name;
+
+                    return ltrim($name->toString(), '\\') === $target;
+                },
+            );
+
+            if ($matches) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function literalToNode(string|int|float|bool|null $value): Node\Expr
