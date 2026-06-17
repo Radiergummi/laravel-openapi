@@ -29,9 +29,10 @@ use function is_string;
  * {@see ResourceResponseResolver} and the ApiResources lint rules so resolution is defined once.
  *
  * Resolution order: `#[ResponseResource]`, then concrete return type (or `#[Collects]` /
- * `$collects`). Only when the signature names a base resource type does
- * {@see ReturnExpressionResourceReader} inspect the return expression; refusal leaves the
- * endpoint ambiguous.
+ * `$collects`). When the signature names a base resource type, or declares no resource return type
+ * at all (absent/builtin), {@see ReturnExpressionResourceReader} inspects the return expression;
+ * refusal leaves the endpoint ambiguous. On the untyped path the refusal notice is suppressed,
+ * since the reader then runs on every action and most are not resources.
  */
 final readonly class ResourceClassLocator implements ResourceTargetLocator
 {
@@ -73,7 +74,10 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         }
 
         if (!$returnType instanceof ReflectionNamedType || $returnType->isBuiltin()) {
-            return null;
+            // Untyped actions (no resource return type) still commonly return a resource by
+            // convention. Consult the body scan; a non-resource shape reads back as null and
+            // keeps today's no-content behaviour, silently to avoid a notice per non-resource.
+            return $this->locateFromReturnExpression($descriptor, silent: true);
         }
 
         $name = $returnType->getName();
@@ -194,12 +198,14 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
     /**
      * @throws ReflectionException
      */
-    private function locateFromReturnExpression(ActionDescriptor $descriptor): ?ResourceTarget
-    {
+    private function locateFromReturnExpression(
+        ActionDescriptor $descriptor,
+        bool $silent = false,
+    ): ?ResourceTarget {
         if ($descriptor->method === null) {
             return null;
         }
 
-        return $this->returnExpressionReader->read($descriptor->method);
+        return $this->returnExpressionReader->read($descriptor->method, silent: $silent);
     }
 }

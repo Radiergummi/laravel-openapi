@@ -60,6 +60,7 @@ All notable changes to this project are documented here.
 - `#[AllowedFilter(nullable: true)]` widens the generated `filter[…]` schema to a nullable type array.
 - `--path` / `--diff` no longer leak findings for out-of-scope routes (#50).
 - `ValidationRulesToSchema` maps additional rules (`multiple_of`, Email/Exists/Unique/NotIn objects, wildcard keys) it previously dropped (#83).
+- ApiResources: actions that return an API Resource without declaring a return type (relying on convention or a third-party doc attribute) now resolve their response schema via the return-expression reader, instead of emitting no content; the refusal notice is suppressed on the untyped path to avoid a notice per non-resource action. (#391)
 
 ### Documentation
 - README refreshed for the current feature set (Tier-1 method-body inference, SwaggerPhp plugin) and trimmed to a gentle overview that defers detail to `docs/`.
