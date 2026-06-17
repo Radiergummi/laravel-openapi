@@ -153,6 +153,41 @@ exists) and `operation.id-invalid-chars` (rewrites the operationId to the
 codegen-safe character set). Both produce exactly the operationId inference
 would have emitted.
 
+### Conflicting fixes
+
+When two fixes would touch the **same** code node (for example two rules that
+both rewrite the same attribute argument, or a removal an edit on the same
+attribute depends on), applying them together is unsafe. The fixer keeps the
+first of the conflicting set and **skips** the rest, reporting them rather than
+guessing — a skip is recoverable, a wrong edit is not. Re-run `--fix`: the
+skipped fix is re-emitted on the next pass and, with its conflictor already
+resolved, applies cleanly. The summary line reports `N skipped (conflict: N)`.
+
+### Machine-readable fix runs (`--check --format=json`)
+
+`--fix` / `--check` with `--format=json` emit a **stable fix-run envelope** for
+CI, distinct from the lint JSON (note the top-level `remaining`, not
+`findings`, so existing lint-JSON consumers are unaffected):
+
+```json
+{
+  "schema_version": "1",
+  "mode": "check",
+  "applied": 3,
+  "skipped": [
+    { "rule_id": "operation.id-invalid-chars", "file": "app/Http/Controllers/UserController.php", "reason": "conflict" }
+  ],
+  "modified_files": ["app/Http/Controllers/UserController.php"],
+  "remaining": [],
+  "exit_code": 1
+}
+```
+
+`mode` is `check` (dry run) or `fix`; `applied` counts the fixes applied (or, in
+`check` mode, that would apply); each `skipped` entry carries a `reason`
+(`conflict`, `node-not-found`, or `print-failed`); `remaining` holds the lint
+findings still unresolved, in the same shape the lint JSON uses.
+
 ## Documentation-coverage gate
 
 `openapi:lint` derives a **documentation-coverage** metric from its findings: the share of API
