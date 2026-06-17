@@ -300,6 +300,24 @@ generation; it fires only when inference subsumes them all, so a human `descript
 response shape keeps the annotation. `--fix` removes the whole `@OA` operation docblock, or every
 `#[OA\*]` attribute on the method.
 
+`migration.document-annotation-in-config` covers the document-level annotations that have **no**
+authoring-attribute equivalent and instead map to a `config/openapi.php` key:
+
+| Authored annotation | Config key |
+| --- | --- |
+| `@OA\Info` (with `Contact` / `License`) | `openapi.info` |
+| `@OA\Server` (with `ServerVariable`) | `openapi.servers` |
+| `@OA\SecurityScheme` (with `Flow`) | `openapi.security_schemes` (keyed by scheme name) |
+| root-level `@OA\Tag` | `openapi.tags` (keyed by tag name) |
+
+It emits one finding per authored annotation, and each finding's **fix hint carries a paste-ready
+config snippet** (only the keys you actually authored, in the exact array shape the generator reads).
+Unlike the two redundancy rules above, this rule **reports and scaffolds only — it does not auto-fix**.
+The auto-fix backend edits PHP classes, and `config/openapi.php` is a classless `return [...]` file
+the backend cannot touch; removing the annotation without writing the config would *lose* the
+document metadata, so the rule never removes anything. Copy the snippet into your config, then delete
+the annotation by hand.
+
 Deciding redundancy requires that second generation, which is why the family is parked at level 4:
 it stays unpaid on default-level runs. A high-level audit (`--level max`) with the plugin enabled
 *will* run it; `--skip 'migration.*'` opts back out. Removing an annotation may consolidate its
@@ -600,6 +618,7 @@ is enabled.
 | `info.metadata-incomplete` | 4 | The document info is missing contact and/or license. |
 | `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.oa-redundant-operation-with-inference` | 4 | A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
+| `migration.document-annotation-in-config` | 4 | A document-level @OA\Info / Server / SecurityScheme / root Tag annotation whose metadata belongs in config/openapi.php. (SwaggerPhp plugin; a `migration.*` rule — reports + scaffolds a config snippet, no auto-fix — see Migration rules.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |
 | `request-body.example-missing` | 4 | requestBody has no example. |
 | `response.example-missing` | 4 | Response media type has no example. |

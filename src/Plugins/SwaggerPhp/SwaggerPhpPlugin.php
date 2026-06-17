@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\DocumentAnnotationMigration;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\SchemaNameCollision;
@@ -29,6 +30,7 @@ final class SwaggerPhpPlugin implements Plugin
         // Level-4 migration rules: flag hand-authored annotations the generator now covers.
         $registry->addRule(OaRedundantWithInference::class);
         $registry->addRule(OaRedundantOperationWithInference::class);
+        $registry->addRule(DocumentAnnotationMigration::class);
 
         // Stub: emitted by HarvestAuthoredAnnotationsStage; registration makes ID known to --list,
         // #[IgnoreLint], and severity overrides.
