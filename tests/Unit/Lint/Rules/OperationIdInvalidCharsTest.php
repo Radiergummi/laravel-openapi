@@ -3,7 +3,11 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\SanitizeOperationIdFixer;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdInvalidChars;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix\InvalidOperationIdFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
@@ -51,6 +55,34 @@ it('emits no finding for a permitted operationId', function (string $operationId
     'dot-separated'              => ['projects.list'],
     'hyphens, underscores, digits' => ['projects-list_v2'],
 ]);
+
+it('stamps the sanitised operationId and source member onto the finding when a descriptor is present', function (): void {
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        InvalidOperationIdFixtureController::class,
+        'withSpaces',
+    );
+    $operation = OperationNodeFactory::forDescriptor($descriptor, operationId: 'list users!');
+
+    $findings = iterator_to_array(
+        (new OperationIdInvalidChars())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_CLASS])->toBe(InvalidOperationIdFixtureController::class)
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_MEMBER])->toBe('withSpaces')
+        ->and($findings[0]->context[SanitizeOperationIdFixer::CONTEXT_OPERATION_ID])->toBe('list_users_');
+});
+
+it('stamps no fix context when the operation has no descriptor', function (): void {
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/projects', operationId: 'list users!');
+
+    $findings = iterator_to_array(
+        (new OperationIdInvalidChars())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->context)->toBe([]);
+});
 
 it('emits no finding when operationId is null', function (): void {
     $rule = new OperationIdInvalidChars();
