@@ -8,7 +8,8 @@ namespace Radiergummi\OpenApi\Lint\Fix;
 /**
  * Outcome of a {@see FixApplicator::apply()} run.
  *
- * `$skipped` fixes were dropped due to overlap with an already-applied edit in the same file.
+ * Each entry in `$skipped` carries the typed reason it was not applied: a same-node conflict with a
+ * kept fix, a target node that could not be located, or a format-preserving print failure.
  */
 final class FixResult
 {
@@ -17,9 +18,9 @@ final class FixResult
     }
 
     /**
-     * @param list<Fix>    $applied
-     * @param list<Fix>    $skipped
-     * @param list<string> $modifiedFiles
+     * @param list<Fix>        $applied
+     * @param list<SkippedFix> $skipped
+     * @param list<string>     $modifiedFiles
      */
     public function __construct(
         public readonly array $applied,
