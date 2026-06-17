@@ -117,9 +117,12 @@ final class ReturnExpressionResourceReader
     }
 
     /**
+     * @param bool $silent Suppress the refusal notice (untyped path: the scan runs on every action,
+     *                     most of which are not resources). Never affects the resolved target.
+     *
      * @throws ReflectionException
      */
-    public function read(ReflectionMethod $method): ?ResourceTarget
+    public function read(ReflectionMethod $method, bool $silent = false): ?ResourceTarget
     {
         $key = $method->getDeclaringClass()->getName() . '::' . $method->getName();
 
@@ -127,13 +130,13 @@ final class ReturnExpressionResourceReader
             return $this->cache[$key];
         }
 
-        return $this->cache[$key] = $this->resolve($method);
+        return $this->cache[$key] = $this->resolve($method, $silent);
     }
 
     /**
      * @throws ReflectionException
      */
-    private function resolve(ReflectionMethod $method): ?ResourceTarget
+    private function resolve(ReflectionMethod $method, bool $silent): ?ResourceTarget
     {
         $documented = $this->targetFromReturnTag($method);
 
@@ -142,21 +145,21 @@ final class ReturnExpressionResourceReader
         }
 
         $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
-        $returnExpression = $this->canonicalReturnExpression($statements, $method);
+        $returnExpression = $this->canonicalReturnExpression($statements, $method, log: !$silent);
 
         if ($returnExpression === null) {
             return null;
         }
 
         $expression = $returnExpression instanceof Variable
-            ? $this->expressionAssignedTo($returnExpression, $statements, $method)
+            ? $this->expressionAssignedTo($returnExpression, $statements, $method, log: !$silent)
             : $returnExpression;
 
         if ($expression === null) {
             return null;
         }
 
-        return $this->targetFromExpression($expression, $method);
+        return $this->targetFromExpression($expression, $method, $silent);
     }
 
     // region Return-expression location
@@ -315,8 +318,12 @@ final class ReturnExpressionResourceReader
         return $topLevelReturn->expr;
     }
 
-    private function note(ReflectionMethod $method, string $reason): void
+    private function note(ReflectionMethod $method, string $reason, bool $silent = false): void
     {
+        if ($silent) {
+            return;
+        }
+
         $this->logger->notice(
             sprintf(
                 'The return expression of %s::%s %s; the concrete resource stays unresolved.'
@@ -473,16 +480,17 @@ final class ReturnExpressionResourceReader
     private function targetFromExpression(
         Expr $expression,
         ReflectionMethod $method,
+        bool $silent,
     ): ?ResourceTarget {
         $current = $expression;
 
         while (true) {
             if ($current instanceof StaticCall) {
-                return $this->targetFromStaticCall($current, $method);
+                return $this->targetFromStaticCall($current, $method, $silent);
             }
 
             if ($current instanceof NewExpression) {
-                return $this->targetFromNewExpression($current, $method);
+                return $this->targetFromNewExpression($current, $method, $silent);
             }
 
             if ($current instanceof MethodCall && $current->name instanceof Identifier) {
@@ -503,6 +511,7 @@ final class ReturnExpressionResourceReader
                         $current,
                         $methodName,
                         $method,
+                        $silent,
                     );
                 }
 
@@ -512,6 +521,7 @@ final class ReturnExpressionResourceReader
                         'is chained into ->%s(), which the scan does not recognise',
                         $current->name->toString(),
                     ),
+                    $silent,
                 );
 
                 return null;
@@ -522,6 +532,7 @@ final class ReturnExpressionResourceReader
                 'does not match a recognised resource-returning shape '
                 . '(X::collection(...), X::collect(...), X::make(...), new X(...), '
                 . '$model->toResource())',
+                $silent,
             );
 
             return null;
@@ -538,6 +549,7 @@ final class ReturnExpressionResourceReader
     private function targetFromStaticCall(
         StaticCall $call,
         ReflectionMethod $method,
+        bool $silent,
     ): ?ResourceTarget {
         $resourceClass = $call->class instanceof Name
             ? $this->concreteResourceClass($call->class->toString())
@@ -551,6 +563,7 @@ final class ReturnExpressionResourceReader
             $this->note(
                 $method,
                 'is a static call that does not name a concrete JsonResource subclass',
+                $silent,
             );
 
             return null;
@@ -576,9 +589,10 @@ final class ReturnExpressionResourceReader
     private function targetFromNewExpression(
         NewExpression $new,
         ReflectionMethod $method,
+        bool $silent,
     ): ?ResourceTarget {
         if (!$new->class instanceof Name) {
-            $this->note($method, 'instantiates a dynamically-resolved class');
+            $this->note($method, 'instantiates a dynamically-resolved class', $silent);
 
             return null;
         }
@@ -595,6 +609,7 @@ final class ReturnExpressionResourceReader
                 $this->note(
                     $method,
                     'wraps a value of unknown model type in the base JsonResource',
+                    $silent,
                 );
 
                 return null;
@@ -613,6 +628,7 @@ final class ReturnExpressionResourceReader
             $this->note(
                 $method,
                 'instantiates a class that is not a concrete JsonResource subclass',
+                $silent,
             );
 
             return null;
@@ -662,6 +678,7 @@ final class ReturnExpressionResourceReader
         MethodCall $call,
         string $methodName,
         ReflectionMethod $method,
+        bool $silent,
     ): ?ResourceTarget {
         $arguments = $call->getArgs();
 
@@ -675,6 +692,7 @@ final class ReturnExpressionResourceReader
                         'passes a non-literal or non-resource class to ->%s()',
                         $call->name instanceof Identifier ? $call->name->toString() : $methodName,
                     ),
+                    $silent,
                 );
 
                 return null;
@@ -692,7 +710,11 @@ final class ReturnExpressionResourceReader
         }
 
         if ($methodName === 'toresourcecollection') {
-            $this->note($method, 'calls ->toResourceCollection() without naming the resource class');
+            $this->note(
+                $method,
+                'calls ->toResourceCollection() without naming the resource class',
+                $silent,
+            );
 
             return null;
         }
@@ -702,7 +724,11 @@ final class ReturnExpressionResourceReader
             : null;
 
         if ($modelClass === null) {
-            $this->note($method, 'calls ->toResource() on a receiver whose model type is not statically knowable');
+            $this->note(
+                $method,
+                'calls ->toResource() on a receiver whose model type is not statically knowable',
+                $silent,
+            );
 
             return null;
         }
@@ -716,6 +742,7 @@ final class ReturnExpressionResourceReader
                     'calls ->toResource() on %s, but no conventional resource class could be resolved for it',
                     $modelClass,
                 ),
+                $silent,
             );
 
             return null;

@@ -144,9 +144,10 @@ degrades to a permissive `items: { type: object }`.
 
 Many actions type their return as a **base** resource class — `JsonResource`, a
 bare `ResourceCollection`, or `AnonymousResourceCollection` — and name the
-concrete resource only in the method body. When the signature yields nothing
-concrete, the generator reads the method's **return expression** (a bounded scan
-of the first 10 statements; no dataflow):
+concrete resource only in the method body. Others declare **no return type at
+all** (relying on convention or a third-party doc attribute). In both cases the
+signature yields nothing concrete, so the generator reads the method's **return
+expression** (a bounded scan of the first 10 statements; no dataflow):
 
 ```php
 public function index(): AnonymousResourceCollection
@@ -192,7 +193,9 @@ since attributes carry no body context.
 Anything else — a conditional return, a variable of unknown origin, an
 unrecognised chained call, a receiver that would need dataflow — degrades to the
 previous behaviour with a generation-log note; `#[ResponseResource]` is the
-escape hatch and always wins.
+escape hatch and always wins. On the **untyped** path that note is suppressed:
+the scan runs on every untyped action and most are not resources, so a notice
+per non-resource would be pure noise. The base-resource paths keep their notes.
 
 ### Collection endpoints
 

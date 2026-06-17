@@ -74,6 +74,16 @@ class LocatorFixtureController
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function untypedResource()
+    {
+        return LocatorFixtureResource::make(new stdClass());
+    }
+
+    public function untypedNonResource()
+    {
+        return response()->json(['ok' => true]);
+    }
 }
 
 function locatorDescriptor(string $method): ActionDescriptor
@@ -145,4 +155,16 @@ it('still reports ambiguous when neither #[Collects] nor $collects is present', 
         ->toBeNull()
         ->and($target?->resourceClass)->toBeNull()
         ->and($target?->isCollection)->toBeTrue();
+});
+
+it('resolves the resource from the body of an untyped action', function (): void {
+    $target = ResourceClassLocator::create()->locate(locatorDescriptor('untypedResource'));
+
+    expect($target?->resourceClass)
+        ->toBe(LocatorFixtureResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('returns null for an untyped action that does not return a resource', function (): void {
+    expect(ResourceClassLocator::create()->locate(locatorDescriptor('untypedNonResource')))->toBeNull();
 });
