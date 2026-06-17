@@ -5,28 +5,45 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Fix;
 
+use PhpParser\NodeTraverser;
+use PhpParser\NodeVisitor\CloningVisitor;
+use PhpParser\NodeVisitor\NameResolver;
+use PhpParser\Parser;
+use PhpParser\ParserFactory;
+use PhpParser\PrettyPrinter\Standard;
+use Radiergummi\OpenApi\Lint\Fix\Ast\FixOperationVisitor;
 use RuntimeException;
+use Throwable;
 
 use function dirname;
 use function file_get_contents;
 use function file_put_contents;
 use function rename;
-use function substr_replace;
 use function tempnam;
 use function unlink;
-use function usort;
 
 use const LOCK_EX;
 
 /**
- * Applies a batch of {@see Fix}es to the working tree. Edits are applied bottom-to-top per file
- * so earlier offsets stay valid; overlapping edits are skipped. Each file is written atomically
- * via a temp file + rename, so a failure never leaves a half-written source.
+ * Applies a batch of {@see Fix}es to the working tree, grouped by file. Each file is parsed once,
+ * cloned, mutated by one {@see FixOperationVisitor} per fix, and reprinted once with php-parser's
+ * format-preserving printer, leaving every untouched byte exactly as it was. The result is written
+ * atomically via a temp file + rename so a failure never leaves a half-written source.
  *
  * @internal
  */
 final readonly class FixApplicator
 {
+    private Parser $parser;
+
+    private Standard $printer;
+
+    public function __construct()
+    {
+        $this->parser = new ParserFactory()->createForNewestSupportedVersion();
+        $this->printer = new Standard();
+    }
+
     /**
      * @param list<Fix> $fixes
      *
@@ -48,7 +65,7 @@ final readonly class FixApplicator
         foreach ($byFile as $file => $fileFixes) {
             $source = file_get_contents($file) ?: '';
 
-            [$accepted, $rejected, $newSource] = $this->applyToSource($source, $fileFixes);
+            [$accepted, $rejected, $newSource] = $this->applyToFile($source, $fileFixes);
 
             foreach ($accepted as $fix) {
                 $applied[] = $fix;
@@ -75,54 +92,61 @@ final readonly class FixApplicator
      *
      * @return array{list<Fix>, list<Fix>, string}
      */
-    private function applyToSource(string $source, array $fileFixes): array
+    private function applyToFile(string $source, array $fileFixes): array
     {
-        /** @var list<array{edit: SourceEdit, fix: Fix}> $pairs */
+        $oldStatements = $this->parser->parse($source);
+
+        if ($oldStatements === null) {
+            return [[], $fileFixes, $source];
+        }
+
+        $oldTokens = $this->parser->getTokens();
+
+        // NameResolver with replaceNodes:false stamps each class node's namespacedName so the
+        // visitor can match by FQCN, while leaving every node's bytes intact for the FP printer.
+        new NodeTraverser(new NameResolver(null, ['replaceNodes' => false]))->traverse($oldStatements);
+
+        // Clone so $oldStatements stays the pristine original the FP printer diffs against, while
+        // $newStatements is the tree the fix visitors mutate.
+        $newStatements = new NodeTraverser(new CloningVisitor())->traverse($oldStatements);
+
+        $traverser = new NodeTraverser();
+
+        /** @var list<array{Fix, FixOperationVisitor}> $pairs */
         $pairs = [];
 
         foreach ($fileFixes as $fix) {
-            $pairs[] = ['edit' => $fix->operation->toEdit($source), 'fix' => $fix];
+            $visitor = new FixOperationVisitor($fix->operation);
+            $pairs[] = [$fix, $visitor];
+            $traverser->addVisitor($visitor);
         }
 
-        // Bottom-to-top: largest start offset first. Ties break on the wider edit so a containing
-        // edit is preferred over the narrower one it would swallow.
-        usort(
-            $pairs,
-            static fn(array $a, array $b): int
-                => $b['edit']->start <=> $a['edit']->start
-                ?: $b['edit']->end <=> $a['edit']->end,
-        );
+        $newStatements = $traverser->traverse($newStatements);
 
         $accepted = [];
         $rejected = [];
 
-        /** @var list<SourceEdit> $acceptedEdits */
-        $acceptedEdits = [];
-        $result = $source;
-
-        foreach ($pairs as $pair) {
-            $edit = $pair['edit'];
-
-            foreach ($acceptedEdits as $existing) {
-                if ($edit->overlaps($existing)) {
-                    $rejected[] = $pair['fix'];
-
-                    continue 2;
-                }
+        foreach ($pairs as [$fix, $visitor]) {
+            if ($visitor->applied) {
+                $accepted[] = $fix;
+            } else {
+                $rejected[] = $fix;
             }
-
-            $acceptedEdits[] = $edit;
-            $accepted[] = $pair['fix'];
-
-            $result = substr_replace(
-                $result,
-                $edit->replacement,
-                $edit->start,
-                $edit->end - $edit->start,
-            );
         }
 
-        return [$accepted, $rejected, $result];
+        if ($accepted === []) {
+            return [[], $rejected, $source];
+        }
+
+        try {
+            $newSource = $this->printer->printFormatPreserving($newStatements, $oldStatements, $oldTokens);
+        } catch (Throwable) {
+            // A format-preserving print failure would otherwise reformat the whole file and destroy
+            // comments/style. Reject the fixes instead of shipping a mangled file.
+            return [[], [...$rejected, ...$accepted], $source];
+        }
+
+        return [$accepted, $rejected, $newSource];
     }
 
     /**

@@ -6,12 +6,14 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix;
 
 use PhpParser\Comment\Doc;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\Ast\SetDocComment;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetSelector;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
-use Radiergummi\OpenApi\Lint\Fix\RemoveLines;
 
 use function array_any;
 use function explode;
+use function implode;
 use function ltrim;
 use function str_contains;
 use function str_split;
@@ -24,7 +26,8 @@ use const PHP_EOL;
  *
  * Works on physical lines, tracking parenthesis depth (ignoring parens inside quoted strings).
  * When annotations are the only content the whole docblock is dropped; otherwise only the
- * annotation lines go.
+ * annotation lines go. The result is emitted as a {@see SetDocComment} that the applicator applies
+ * to the cloned tree and reprints with the format-preserving printer.
  *
  * @internal
  */
@@ -35,6 +38,7 @@ final readonly class DocblockAnnotationRemover
      */
     public function removeBlocks(
         ?Doc $doc,
+        TargetSelector $target,
         string $description,
         Finding $finding,
         string $file,
@@ -54,17 +58,39 @@ final readonly class DocblockAnnotationRemover
             return [];
         }
 
+        // Whole docblock is annotation-only: drop the doc comment (and its physical lines) entirely.
         if (!$this->docblockHasOtherContent($lines, $docStart, $docEnd, $blocks)) {
-            return [new Fix($file, $description, $finding->ruleId, new RemoveLines($docStart, $docEnd))];
+            return [new Fix($file, $description, $finding->ruleId, new SetDocComment($target, null))];
         }
 
-        $fixes = [];
+        $newText = $this->docTextWithoutBlocks($doc, $docStart, $blocks);
 
-        foreach ($blocks as [$blockStart, $blockEnd]) {
-            $fixes[] = new Fix($file, $description, $finding->ruleId, new RemoveLines($blockStart, $blockEnd));
+        return [new Fix($file, $description, $finding->ruleId, new SetDocComment($target, $newText))];
+    }
+
+    /**
+     * The doc-comment text with the annotation-block lines removed. The blocks address physical file
+     * lines; translate each to its offset within the doc-comment text (line minus the doc's start
+     * line) and drop those lines.
+     *
+     * @param list<array{int, int}> $blocks
+     */
+    private function docTextWithoutBlocks(Doc $doc, int $docStart, array $blocks): string
+    {
+        $docLines = explode("\n", $doc->getText());
+        $kept = [];
+
+        foreach ($docLines as $offset => $line) {
+            $fileLine = $docStart + $offset;
+
+            if (array_any($blocks, static fn(array $block): bool => $fileLine >= $block[0] && $fileLine <= $block[1])) {
+                continue;
+            }
+
+            $kept[] = $line;
         }
 
-        return $fixes;
+        return implode("\n", $kept);
     }
 
     /**
