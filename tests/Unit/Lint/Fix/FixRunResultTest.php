@@ -114,3 +114,20 @@ it('is JSON-encodable to a stable shape (remaining reuses Finding json shape, no
     expect($decoded)->not->toHaveKey('findings')
         ->and($decoded['remaining'][0])->toHaveKeys(['rule_id', 'level', 'message']);
 });
+
+it('surfaces a non-zero withheld_destructive count alongside the withheld finding in remaining', function (): void {
+    // A destructive-only finding under --check=dangerous-off: counted as withheld AND still remaining.
+    $outcome = new FixRunResult(
+        fixResult: new FixResult([], [], []),
+        remainingFindings: [runResultFinding('config.write')],
+        level: 2,
+        dryRun: true,
+        withheldDestructiveCount: 1,
+    );
+
+    $array = $outcome->toArray();
+
+    expect($array['withheld_destructive'])->toBe(1)
+        ->and($array['applied'])->toBe(0)
+        ->and($array['remaining'])->toHaveCount(1);
+});

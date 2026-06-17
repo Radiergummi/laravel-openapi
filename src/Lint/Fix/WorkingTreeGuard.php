@@ -12,10 +12,8 @@ use Symfony\Component\Process\Exception\RuntimeException;
 use Symfony\Component\Process\Process;
 
 use function dirname;
-use function explode;
 use function implode;
 use function sprintf;
-use function substr;
 use function trim;
 
 /**
@@ -27,6 +25,11 @@ use function trim;
  */
 final readonly class WorkingTreeGuard
 {
+    /** @param string $gitBinary The git executable; overridable so tests can force a launch failure. */
+    public function __construct(
+        private string $gitBinary = 'git',
+    ) {}
+
     /**
      * Asserts every target file is clean in git, or throws {@see DirtyWorkingTreeException}.
      *
@@ -48,53 +51,38 @@ final readonly class WorkingTreeGuard
             return;
         }
 
-        $process = new Process(['git', 'status', '--porcelain', '--', ...$files], dirname($files[0]));
+        $process = new Process([$this->gitBinary, 'status', '--porcelain', '--', ...$files], dirname($files[0]));
 
         try {
             $process->run();
         } catch (ProcessStartFailedException) {
-            throw new DirtyWorkingTreeException(
-                'Cannot verify a clean working tree because git is unavailable. Re-run with '
-                . '--allow-dirty to apply destructive fixes anyway.',
-            );
+            // Some platforms surface a launch failure as a thrown exception rather than a non-zero
+            // exit; both mean git could not verify the tree, so both refuse.
+            throw $this->cannotVerify();
         }
 
+        // git absent (exit 127, run via a shell) and not-a-repo (exit 128) both arrive here as a
+        // non-zero exit. Neither can promise a trivial revert, so refuse with one honest message.
         if (!$process->isSuccessful()) {
-            throw new DirtyWorkingTreeException(
-                'Cannot verify a clean working tree because the target files are not in a git '
-                . 'repository. Re-run with --allow-dirty to apply destructive fixes anyway.',
-            );
+            throw $this->cannotVerify();
         }
 
-        $dirty = $this->dirtyPaths($process->getOutput());
-
-        if ($dirty !== []) {
+        // Any porcelain output for the explicitly-scoped paths means at least one is dirty. Report
+        // the files we checked rather than parsing porcelain paths (quoting/rename rules vary).
+        if (trim($process->getOutput()) !== '') {
             throw new DirtyWorkingTreeException(sprintf(
                 'Refusing to apply destructive fixes: uncommitted changes in %s. Commit or stash '
                 . 'them, or re-run with --allow-dirty.',
-                implode(', ', $dirty),
+                implode(', ', $files),
             ));
         }
     }
 
-    /**
-     * The paths reported dirty by `git status --porcelain` (each line is `XY <path>`).
-     *
-     * @return list<string>
-     */
-    private function dirtyPaths(string $output): array
+    private function cannotVerify(): DirtyWorkingTreeException
     {
-        $paths = [];
-
-        foreach (explode("\n", trim($output)) as $line) {
-            if ($line === '') {
-                continue;
-            }
-
-            // Porcelain v1: two status columns, a space, then the path; drop the 3-char prefix.
-            $paths[] = trim(substr($line, 3));
-        }
-
-        return $paths;
+        return new DirtyWorkingTreeException(
+            'Cannot verify a clean working tree (git is unavailable or the target files are not in '
+            . 'a git repository). Re-run with --allow-dirty to apply destructive fixes anyway.',
+        );
     }
 }

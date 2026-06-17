@@ -100,3 +100,48 @@ it('--check --format=markdown surfaces the fix-run summary as a bullet', functio
         ->expectsOutputToContain('- openapi:lint --fix: 1 pending')
         ->assertExitCode(1);
 });
+
+it('treats a bare --check as the safe level (no error, fix-mode runs)', function (): void {
+    // VALUE_OPTIONAL regression guard: a bare flag resolves to the default 'safe' and must not error.
+    $this->artisan('openapi:lint', [
+        '--check' => true,
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+        '--format' => 'markdown',
+    ])
+        ->expectsOutputToContain('- openapi:lint --fix: 1 pending')
+        ->assertExitCode(1);
+});
+
+it('does not enter fix-mode when neither --fix nor --check is present', function (): void {
+    // The OPTIONAL default ('safe') must not be mistaken for the flag being set: a plain lint runs
+    // (the finding is reported normally, exit 1), with no fix-run summary line emitted.
+    $this->artisan('openapi:lint', [
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+        '--format' => 'markdown',
+    ])
+        ->doesntExpectOutputToContain('openapi:lint --fix:')
+        ->assertExitCode(1);
+});
+
+it('accepts --check=dangerous without error', function (): void {
+    $this->artisan('openapi:lint', [
+        '--check' => 'dangerous',
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+        '--format' => 'markdown',
+    ])
+        ->expectsOutputToContain('- openapi:lint --fix: 1 pending')
+        ->assertExitCode(1);
+});
+
+it('errors clearly on an unknown --check level', function (): void {
+    // The artisan harness propagates the thrown InvalidArgumentException rather than converting it
+    // to an exit code, so assert on the throw directly (mirrors the --min-coverage validation test).
+    expect(fn(): int => $this->artisan('openapi:lint', [
+        '--check' => 'bogus',
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+    ])->run())->toThrow(InvalidArgumentException::class, "Unknown --check level 'bogus'. Expected 'safe' or 'dangerous'.");
+});
