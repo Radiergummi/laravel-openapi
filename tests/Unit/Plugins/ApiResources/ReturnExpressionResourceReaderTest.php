@@ -49,6 +49,26 @@ class ReaderFixtureController
         return NestedAuthorResource::collection(Author::query()->simplePaginate());
     }
 
+    public function collectPaginated(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collect(Author::query()->paginate());
+    }
+
+    public function collectUnpaginated(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collect(Author::all());
+    }
+
+    public function baseClassCollect(): AnonymousResourceCollection
+    {
+        return JsonResource::collect(Author::all());
+    }
+
+    public function abstractClassCollect(): AnonymousResourceCollection
+    {
+        return ReaderFixtureAbstractResource::collect(Author::all());
+    }
+
     public function nonWhitelistedChain(): AnonymousResourceCollection
     {
         return NestedAuthorResource::collection(Author::all())->preserveQuery();
@@ -151,6 +171,44 @@ it('falls back to the plain envelope for an item-mapping ->through() trailing ca
 
     expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
         ->and($target?->paginated)->toBeFalse();
+});
+
+it('resolves X::collect() to a paginated collection of the resource', function (): void {
+    $target = readerFor()->read(readerMethod('collectPaginated'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue()
+        ->and($target?->paginated)->toBeTrue();
+});
+
+it('marks an unpaginated X::collect() argument as not paginated', function (): void {
+    $target = readerFor()->read(readerMethod('collectUnpaginated'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue()
+        ->and($target?->paginated)->toBeFalse();
+});
+
+it('refuses a collect() call on the base JsonResource class with a note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('baseClassCollect'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'baseClassCollect'),
+        ))->toHaveCount(1);
+});
+
+it('refuses a collect() call on an abstract resource subclass with a note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('abstractClassCollect'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'abstractClassCollect'),
+        ))->toHaveCount(1);
 });
 
 it('refuses a collection call on the base JsonResource class with a note', function (): void {

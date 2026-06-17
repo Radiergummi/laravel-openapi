@@ -55,8 +55,8 @@ use function sprintf;
  * The `@return` generic wins over the body scan. The scan then matches a narrow whitelist in the
  * first {@see self::STATEMENT_LIMIT} statements: one unconditional return (or the variable it
  * names, assigned exactly once on the unconditional path), unwrapped through resource-preserving
- * chains (`->additional(...)`). Recognised shapes: `X::collection(...)`, `X::make(...)`,
- * `new X(...)`, `->toResource(X::class)`, `->toResourceCollection(X::class)`, bare
+ * chains (`->additional(...)`). Recognised shapes: `X::collection(...)`, `X::collect(...)`,
+ * `X::make(...)`, `new X(...)`, `->toResource(X::class)`, `->toResourceCollection(X::class)`, bare
  * `$model->toResource()` on a Model-typed parameter, and `new JsonResource($model)` wrapping one.
  *
  * Pagination evidence is derived from the argument/receiver ending in a `paginate()`-family call.
@@ -250,7 +250,7 @@ final class ReturnExpressionResourceReader
         if (
             $expression instanceof StaticCall
             && $expression->name instanceof Identifier
-            && $expression->name->toLowerString() === 'collection'
+            && in_array($expression->name->toLowerString(), ['collection', 'collect'], true)
         ) {
             $argument = $expression->getArgs()[0]->value ?? null;
 
@@ -520,7 +520,8 @@ final class ReturnExpressionResourceReader
             $this->note(
                 $method,
                 'does not match a recognised resource-returning shape '
-                . '(X::collection(...), X::make(...), new X(...), $model->toResource())',
+                . '(X::collection(...), X::collect(...), X::make(...), new X(...), '
+                . '$model->toResource())',
             );
 
             return null;
@@ -532,7 +533,7 @@ final class ReturnExpressionResourceReader
     // region Class & type resolution
 
     /**
-     * `X::collection(...)` → collection of `X`; `X::make(...)` → single `X`.
+     * `X::collection(...)` / `X::collect(...)` → collection of `X`; `X::make(...)` → single `X`.
      */
     private function targetFromStaticCall(
         StaticCall $call,
@@ -545,7 +546,7 @@ final class ReturnExpressionResourceReader
 
         if (
             $resourceClass === null
-            || !in_array($methodName, ['collection', 'make'], true)
+            || !in_array($methodName, ['collection', 'collect', 'make'], true)
         ) {
             $this->note(
                 $method,
@@ -555,7 +556,7 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        if ($methodName === 'collection') {
+        if (in_array($methodName, ['collection', 'collect'], true)) {
             $argument = $call->getArgs()[0]->value ?? null;
 
             return new ResourceTarget(
