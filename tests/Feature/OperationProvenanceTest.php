@@ -93,7 +93,7 @@ it('reports convention-derived status for a resourceful store action', function 
 
     expect($output)
         ->toContain('Fields:')
-        ->toContain('status:')
+        ->toContain('status')
         ->toContain('201')
         ->toContain('ResourceConventionResolver (store → POST)');
 });
@@ -102,7 +102,7 @@ it('reports convention-derived summary for a resourceful index action', function
     $output = whyOutput('flights.index');
 
     expect($output)
-        ->toContain('summary:')
+        ->toContain('summary')
         ->toContain('List ProvenanceFlights')
         ->toContain('ResourceConventionResolver (index → GET)');
 });
@@ -132,7 +132,7 @@ it('reports an explicit #[Response] status as the source, not the convention', f
     $output = whyOutput('flights.update');
 
     expect($output)
-        ->toContain('status:')
+        ->toContain('status')
         ->toContain('201')
         ->toContain('#[Response] (method)');
 });
@@ -145,18 +145,18 @@ it('degrades to default status and absent summary when no convention matches', f
     $output = whyOutput('misc.arbitrary');
 
     expect($output)
-        ->toContain('status:')
+        ->toContain('status')
         ->toContain('200')
         ->toContain('default')
-        // No convention and no summary attribute: summary is absent from the trace.
-        ->and(str_contains($output, 'summary:'))->toBeFalse();
+        // No convention and no summary attribute: summary is absent from the field block.
+        ->and(str_contains($output, 'summary'))->toBeFalse();
 });
 
 it('reports a replacing #[Operation(tags)] as the tag source', function (): void {
     $output = whyOutput('flights.destroy');
 
     expect($output)
-        ->toContain('tags:')
+        ->toContain('tags')
         ->toContain('custom')
         ->toContain('#[Operation] (replace)');
 });
@@ -165,7 +165,7 @@ it('reports a controller-derived tag when no tag attribute is present', function
     $output = whyOutput('flights.index');
 
     expect($output)
-        ->toContain('tags:')
+        ->toContain('tags')
         ->toContain('ProvenanceFlights')
         ->toContain('controller-derived');
 });

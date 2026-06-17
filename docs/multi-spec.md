@@ -181,10 +181,11 @@ Traces the four-rule decision for one route across every configured spec:
 php artisan openapi:why flights.index
 php artisan openapi:why api/flights
 php artisan openapi:why api/flights --for-env=production
+php artisan openapi:why api/flights -e production
 ```
 
-`--for-env` overrides `app()->environment()` for the `#[Hide]` / `#[Expose]`
-check without changing `APP_ENV`.
+`--for-env` (short `-e`) overrides `app()->environment()` for the `#[Hide]` / `#[Expose]`
+check without changing `APP_ENV`. (`--env` itself is reserved by Laravel as a global option.)
 
 Example output:
 
@@ -220,19 +221,22 @@ php artisan openapi:why flights.store --fields
 
 ```
 Fields:
-    summary: Create Flight ← ResourceConventionResolver (store → POST)
-    status:  201           ← ResourceConventionResolver (store → POST)
-    tags:    Flights       ← controller-derived (controller short name)
+  summary ......... Create Flight ResourceConventionResolver (store → POST)
+  status ............................ 201 ResourceConventionResolver (store → POST)
+  tags ........................ Flights controller-derived (controller short name)
 ```
+
+Each field is rendered as a two-column detail row (field name, then value followed by its
+source and reason); the dotted leader is filler, not part of any value.
 
 When an authoring attribute beats a convention, the winner names its source and the superseded
 convention is listed beneath it:
 
 ```
 Fields:
-    summary: Find one flight ← #[Summary] (method) (author override)
-             (superseded: convention 'Show Flight')
-    ...
+  summary ........ Find one flight #[Summary] (method) (author override)
+  ⇂ superseded: convention 'Show Flight'
+  ...
 ```
 
 This is read-only instrumentation: it records decisions the generator already makes and never

@@ -26,10 +26,7 @@ use function array_map;
 use function array_values;
 use function count;
 use function implode;
-use function max;
 use function str_contains;
-use function str_pad;
-use function strlen;
 
 /**
  * Explains whether and why a given route is included or excluded across all defined specs.
@@ -41,7 +38,7 @@ class WhyCommand extends Command
 {
     protected $signature = 'openapi:why
         {route : Route name (exact match) or URI substring.}
-        {--for-env= : Override the environment for Hide/Expose evaluation.}
+        {--e|for-env= : Override the environment for Hide/Expose evaluation.}
         {--fields : Also build the operation and explain how each derived field got its value.}';
 
     protected $description = 'Explain inclusion of a route across all defined specs';
@@ -58,7 +55,8 @@ class WhyCommand extends Command
         SpecRegistry $registry,
         InclusionEvaluator $evaluator,
     ): int {
-        // --env is reserved by Laravel; --for-env overrides the environment for #[Hide]/#[Expose] without changing APP_ENV.
+        // --env is a reserved Laravel global; --for-env (short -e) overrides the environment for
+        // #[Hide]/#[Expose] without changing APP_ENV.
         $query = (string) $this->argument('route');
         $env = (string) ($this->option('for-env') ?? app()->environment());
 
@@ -170,6 +168,7 @@ class WhyCommand extends Command
      * Builds the operation per emitted verb (mirroring the paths stage) and prints the source
      * and reason behind each derived field.
      *
+     * @throws InvalidArgumentException
      * @throws ReflectionException
      * @throws RuntimeException
      * @throws UnsupportedException
@@ -207,21 +206,24 @@ class WhyCommand extends Command
 
     /**
      * @param list<FieldProvenance> $provenance
+     *
+     * @throws InvalidArgumentException
      */
     private function printProvenance(array $provenance): void
     {
-        $labelWidth = 0;
-
         foreach ($provenance as $entry) {
-            $labelWidth = max($labelWidth, strlen($entry->field) + 1);
-        }
+            $this->components->twoColumnDetail(
+                $entry->field,
+                "{$entry->value}  {$entry->source} ({$entry->reason})",
+            );
 
-        foreach ($provenance as $entry) {
-            $label = str_pad($entry->field . ':', $labelWidth + 1);
-            $this->line("    {$label} {$entry->value} ← {$entry->source} ({$entry->reason})");
-
-            foreach ($entry->supersededBy as $candidate) {
-                $this->line(str_pad('', $labelWidth + 6) . "(superseded: {$candidate})");
+            if ($entry->supersededBy !== []) {
+                $this->components->bulletList(
+                    array_map(
+                        static fn(string $candidate): string => "superseded: {$candidate}",
+                        $entry->supersededBy,
+                    ),
+                );
             }
         }
     }

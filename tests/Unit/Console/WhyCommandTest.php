@@ -43,7 +43,7 @@ it('--fields appends an operation field-provenance block', function (): void {
     $this
         ->artisan('openapi:why api/v1/flights --fields')
         ->expectsOutputToContain('Fields:')
-        ->expectsOutputToContain('status:')
+        ->expectsOutputToContain('status')
         ->assertSuccessful();
 });
 
@@ -84,9 +84,16 @@ it('exits non-zero when no route matches', function (): void {
         ->assertFailed();
 });
 
-it('--env overrides app environment for Hide/Expose evaluation', function (): void {
+it('--for-env overrides app environment for Hide/Expose evaluation', function (): void {
     $this
         ->artisan('openapi:why api/v1/flights --for-env=production')
+        ->expectsOutputToContain('environment: production')
+        ->assertSuccessful();
+});
+
+it('accepts the -e short alias for --for-env', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights -e production')
         ->expectsOutputToContain('environment: production')
         ->assertSuccessful();
 });
