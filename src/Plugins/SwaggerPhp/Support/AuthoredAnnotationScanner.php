@@ -8,8 +8,12 @@ use OpenApi\Annotations\AbstractAnnotation;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Schema;
+use OpenApi\Annotations\SecurityScheme;
+use OpenApi\Annotations\Server;
+use OpenApi\Annotations\Tag;
 use OpenApi\Generator;
 use OpenApi\Pipeline;
+use OpenApi\Processors\AugmentTags;
 use OpenApi\Processors\OperationId;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\AnnotationWalker;
@@ -59,19 +63,34 @@ final class AuthoredAnnotationScanner
      */
     private array $operationsByMethod = [];
 
+    private DocumentAnnotations $documentAnnotations;
+
     /**
      * @param list<string> $scanPaths Directories (or files) to scan for authored annotations.
      */
     public function __construct(
         private readonly array $scanPaths,
         private readonly LoggerInterface $logger,
-    ) {}
+    ) {
+        $this->documentAnnotations = new DocumentAnnotations();
+    }
 
     public function schemaForName(string $name): ?Schema
     {
         $this->scan();
 
         return $this->schemasByName[$name] ?? null;
+    }
+
+    /**
+     * The document-level annotations the application authored (info / servers / security schemes /
+     * root tags), for the document-annotation migration rule. Empty when none were authored.
+     */
+    public function documentAnnotations(): DocumentAnnotations
+    {
+        $this->scan();
+
+        return $this->documentAnnotations;
     }
 
     private function scan(): void
@@ -89,16 +108,72 @@ final class AuthoredAnnotationScanner
 
         $this->indexSchemas($document);
         $this->indexOperations($document);
+        $this->indexDocumentAnnotations($document);
+    }
+
+    /**
+     * Captures the document-root annotations the application authored, keeping only the kinds that
+     * map to a `config/openapi.php` key. Reads from the already-parsed root, guarding each property
+     * with {@see is_defined()} so swagger-php defaults never count as authored.
+     */
+    private function indexDocumentAnnotations(OpenApi $document): void
+    {
+        $servers = [];
+
+        foreach (is_array($document->servers) ? $document->servers : [] as $server) {
+            if ($server instanceof Server) {
+                $servers[] = $server;
+            }
+        }
+
+        $rootTags = [];
+
+        foreach (is_array($document->tags) ? $document->tags : [] as $tag) {
+            if ($tag instanceof Tag) {
+                $rootTags[] = $tag;
+            }
+        }
+
+        $this->documentAnnotations = new DocumentAnnotations(
+            info: is_defined($document->info) ? $document->info : null,
+            servers: $servers,
+            securitySchemes: $this->indexSecuritySchemes($document),
+            rootTags: $rootTags,
+        );
+    }
+
+    /**
+     * @return array<string, SecurityScheme> keyed by authored scheme name
+     */
+    private function indexSecuritySchemes(OpenApi $document): array
+    {
+        if (!is_defined($document->components) || !is_array($document->components->securitySchemes)) {
+            return [];
+        }
+
+        $schemes = [];
+
+        foreach ($document->components->securitySchemes as $scheme) {
+            if ($scheme instanceof SecurityScheme && is_defined($scheme->securityScheme)) {
+                $schemes[$scheme->securityScheme] = $scheme;
+            }
+        }
+
+        return $schemes;
     }
 
     private function generate(): ?OpenApi
     {
         try {
             return new Generator($this->logger)
-                // Drop the operation-id synthesiser so only truly authored operationIds are indexed,
-                // not swagger-php-generated hashes.
                 ->withProcessorPipeline(
-                    static fn(Pipeline $pipeline): Pipeline => $pipeline->remove(OperationId::class),
+                    // Drop the operation-id synthesiser so only truly authored operationIds are
+                    // indexed, not swagger-php-generated hashes. Drop AugmentTags too: it prunes any
+                    // root tag no operation references, which would hide an authored-but-unused
+                    // @OA\Tag the migration rule needs to see.
+                    static fn(Pipeline $pipeline): Pipeline => $pipeline
+                        ->remove(OperationId::class)
+                        ->remove(AugmentTags::class),
                 )
                 ->generate($this->scanPaths, validate: false);
         } catch (Throwable $exception) {
