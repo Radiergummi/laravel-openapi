@@ -103,6 +103,10 @@ php artisan openapi:lint --format=json:stderr --format=cobertura:build/coverage.
   split on its first colon only, so Windows paths keep their drive letter).
 - No two formats may write to the same destination — give each a distinct target.
 
+The `markdown` format emits a GitHub-Flavored Markdown body: a coverage summary line and a
+findings table (`Severity | Rule | Location | Message`). It is meant to be posted verbatim as a
+PR comment — see the [coverage-comment recipe](ci.md).
+
 The `cobertura` format emits a [Cobertura](https://cobertura.github.io/cobertura/)
 coverage report keyed to controller source lines (covered operation → line hit), for
 Codecov / Coveralls / SonarQube. Operations with no single source line (closure routes,
