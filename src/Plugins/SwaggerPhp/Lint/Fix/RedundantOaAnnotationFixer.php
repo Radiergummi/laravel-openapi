@@ -6,15 +6,18 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix;
 
 use Override;
 use PhpParser\Node\AttributeGroup;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\Ast\RemoveAttribute;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetKind;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetSelector;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixContext;
 use Radiergummi\OpenApi\Lint\Fix\Fixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 
-use function array_values;
 use function is_string;
 
 /**
@@ -61,6 +64,9 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
             AuthoredAnnotationShape::Docblock => $this->docblockRemover->removeBlocks(
                 $member === null ? $classNode->getDocComment() : $methodNode?->getDocComment(),
                 $member === null
+                    ? new TargetSelector($class, TargetKind::ClassNode)
+                    : new TargetSelector($class, TargetKind::Method, $member),
+                $member === null
                     ? "Remove redundant @OA\\Schema docblock annotation on {$where}"
                     : "Remove redundant @OA operation docblock on {$where}",
                 $finding,
@@ -68,34 +74,37 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
                 $context,
             ),
             AuthoredAnnotationShape::Attribute => $this->removeAttributes(
-                $member === null ? $this->classAttributeGroups($classNode) : $this->methodAttributeGroups($methodNode),
+                $member === null
+                    ? $this->classAttributeTargets($class, $classNode)
+                    : $this->methodAttributeTargets($class, $member, $methodNode),
                 $member === null
                     ? "Remove redundant #[OA\\*] schema attribute on {$where}"
                     : "Remove redundant #[OA\\*] operation attribute on {$where}",
                 $finding,
                 $file,
-                $context,
             ),
         };
     }
 
     /**
-     * @param list<AttributeGroup> $groups
+     * One {@see Fix} per addressed node that carries an `#[OA\*]` attribute.
+     *
+     * @param list<array{TargetSelector, array<AttributeGroup>}> $targets
      *
      * @return list<Fix>
      */
     private function removeAttributes(
-        array $groups,
+        array $targets,
         string $description,
         Finding $finding,
         string $file,
-        FixContext $context,
     ): array {
-        $source = $context->source($file);
         $fixes = [];
 
-        foreach ($groups as $group) {
-            foreach ($this->attributeRemover->fixesForGroup($source, $group) as $operation) {
+        foreach ($targets as [$selector, $groups]) {
+            $operation = $this->attributeRemover->operationFor($selector, $groups);
+
+            if ($operation instanceof RemoveAttribute) {
                 $fixes[] = new Fix($file, $description, $finding->ruleId, $operation);
             }
         }
@@ -104,42 +113,47 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
     }
 
     /**
-     * All `#[OA\*]` attribute groups on the class, its properties, and promoted constructor params.
+     * The class itself, each declared property, and each promoted constructor parameter, paired with
+     * its structural address. The remover skips the ones without an `#[OA\*]` attribute.
      *
-     * @return list<AttributeGroup>
+     * @return list<array{TargetSelector, array<AttributeGroup>}>
      */
-    private function classAttributeGroups(ClassLike $class): array
+    private function classAttributeTargets(string $class, ClassLike $classNode): array
     {
-        $groups = [];
+        $targets = [
+            [new TargetSelector($class, TargetKind::ClassNode), $classNode->attrGroups],
+        ];
 
-        foreach ($class->attrGroups as $group) {
-            $groups[] = $group;
+        foreach ($classNode->getProperties() as $property) {
+            $name = $property->props[0]->name->toString();
+            $targets[] = [new TargetSelector($class, TargetKind::Property, $name), $property->attrGroups];
         }
 
-        foreach ($class->getProperties() as $property) {
-            foreach ($property->attrGroups as $group) {
-                $groups[] = $group;
-            }
-        }
-
-        $constructor = $class->getMethod('__construct');
+        $constructor = $classNode->getMethod('__construct');
 
         if ($constructor !== null) {
             foreach ($constructor->params as $param) {
-                foreach ($param->attrGroups as $group) {
-                    $groups[] = $group;
+                if ($param->var instanceof Variable && is_string($param->var->name)) {
+                    $targets[] = [
+                        new TargetSelector($class, TargetKind::Property, $param->var->name),
+                        $param->attrGroups,
+                    ];
                 }
             }
         }
 
-        return $groups;
+        return $targets;
     }
 
     /**
-     * @return list<AttributeGroup>
+     * @return list<array{TargetSelector, array<AttributeGroup>}>
      */
-    private function methodAttributeGroups(?ClassMethod $method): array
+    private function methodAttributeTargets(string $class, string $member, ?ClassMethod $method): array
     {
-        return $method === null ? [] : array_values($method->attrGroups);
+        if ($method === null) {
+            return [];
+        }
+
+        return [[new TargetSelector($class, TargetKind::Method, $member), $method->attrGroups]];
     }
 }

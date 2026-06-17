@@ -2,14 +2,20 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Lint\Fix\Ast\RemoveAttribute;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetKind;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetSelector;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixApplicator;
-use Radiergummi\OpenApi\Lint\Fix\FixOperation;
-use Radiergummi\OpenApi\Lint\Fix\ModifyAttribute;
-use Radiergummi\OpenApi\Lint\Fix\RemoveLines;
-use Radiergummi\OpenApi\Lint\Fix\ReplaceLines;
 
 uses()->group('openapi', 'lint', 'fix');
+
+// The applicator used to be byte-splice-based and these cases constructed RemoveLines/ModifyAttribute
+// directly. The backend is now AST-mutation only, so the cases drive RemoveAttribute against a real
+// source file instead. The byte-level behaviors they pin are unchanged and still asserted against
+// byte-exact output: whole-line removal leaves no blank line, a single operation removing several
+// indices composes without offset drift, two fixes on different members of one file both land in a
+// single traversal, dry-run reports but doesn't write, and shared-group removal swallows the comma.
 
 function fixtureFile(string $contents): string
 {
@@ -19,9 +25,17 @@ function fixtureFile(string $contents): string
     return $path;
 }
 
-function makeFix(string $file, FixOperation $operation, string $ruleId = 'test.rule'): Fix
+function removeAttributeFix(string $file, int $attributeIndex, string $member = 'index'): Fix
 {
-    return new Fix($file, 'description', $ruleId, $operation);
+    return new Fix(
+        $file,
+        'description',
+        'test.rule',
+        new RemoveAttribute(
+            new TargetSelector('FixApp\\Fixture', TargetKind::Method, $member),
+            [$attributeIndex],
+        ),
+    );
 }
 
 afterEach(function (): void {
@@ -30,80 +44,216 @@ afterEach(function (): void {
     }
 });
 
-it('removes a whole line and leaves the rest byte-identical', function (): void {
-    $file = fixtureFile("line1\nline2\nline3\n");
+it('removes a sole-in-group attribute as a whole line, leaving no blank line behind', function (): void {
+    $file = fixtureFile(<<<'PHP'
+        <?php
 
-    $result = new FixApplicator()->apply([
-        makeFix($file, new RemoveLines(2, 2)),
-    ]);
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            #[Tag('b')]
+            public function index(): void {}
+        }
+
+        PHP);
+
+    $result = new FixApplicator()->apply([removeAttributeFix($file, 1)]);
 
     expect(file_get_contents($file))
-        ->toBe("line1\nline3\n")
+        ->toBe(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            public function index(): void {}
+        }
+
+        PHP)
         ->and($result->applied)->toHaveCount(1)
         ->and($result->skipped)->toBe([])
         ->and($result->modifiedFiles)->toBe([$file])
         ->and($result->hasChanges)->toBeTrue();
 });
 
-it('applies multiple non-overlapping removals bottom-to-top without offset drift', function (): void {
-    $file = fixtureFile("a\nb\nc\nd\ne\n");
+it('removes several attributes from one node in a single operation without offset drift', function (): void {
+    $file = fixtureFile(<<<'PHP'
+        <?php
 
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            #[Tag('b')]
+            #[Tag('c')]
+            public function index(): void {}
+        }
+
+        PHP);
+
+    // One operation carries both target positions (0 and 2); the second attribute survives.
+    // Independent per-attribute fixes on the same node would index-shift each other, so a node's
+    // removals are always expressed as a single operation.
     new FixApplicator()->apply([
-        makeFix($file, new RemoveLines(2, 2)),
-        makeFix($file, new RemoveLines(4, 4)),
+        new Fix(
+            $file,
+            'description',
+            'test.rule',
+            new RemoveAttribute(
+                new TargetSelector('FixApp\\Fixture', TargetKind::Method, 'index'),
+                [0, 2],
+            ),
+        ),
     ]);
 
-    // Removing lines 2 and 4 (b and d) regardless of the order they are supplied.
-    expect(file_get_contents($file))->toBe("a\nc\ne\n");
+    expect(file_get_contents($file))->toBe(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('b')]
+            public function index(): void {}
+        }
+
+        PHP);
 });
 
-it('skips a later fix that overlaps an already-applied one', function (): void {
-    $file = fixtureFile("a\nb\nc\nd\n");
+it('applies two fixes targeting different members of one file in a single traversal', function (): void {
+    $file = fixtureFile(<<<'PHP'
+        <?php
 
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            public function index(): int
+            {
+                return 1;
+            }
+
+            #[Tag('b')]
+            public function show(): int
+            {
+                return 2;
+            }
+        }
+
+        PHP);
+
+    // Two independent fixes on distinct nodes share one parse/clone/traverse; both visitors mutate
+    // the same cloned tree and both removals must land.
     $result = new FixApplicator()->apply([
-        makeFix($file, new RemoveLines(2, 3)),
-        makeFix($file, new ReplaceLines(3, 3, 'X')),
+        removeAttributeFix($file, 0, member: 'index'),
+        removeAttributeFix($file, 0, member: 'show'),
     ]);
 
-    // Bottom-to-top: the line-3 replace (higher offset) is applied first; the overlapping
-    // 2–3 removal that follows is skipped rather than guessed at.
     expect(file_get_contents($file))
-        ->toBe("a\nb\nX\nd\n")
-        ->and($result->applied)->toHaveCount(1)
-        ->and($result->applied[0]->operation)->toBeInstanceOf(ReplaceLines::class)
-        ->and($result->skipped)->toHaveCount(1)
-        ->and($result->skipped[0]->operation)->toBeInstanceOf(RemoveLines::class);
+        ->toBe(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            public function index(): int
+            {
+                return 1;
+            }
+
+            public function show(): int
+            {
+                return 2;
+            }
+        }
+
+        PHP)
+        ->and($result->applied)->toHaveCount(2)
+        ->and($result->skipped)->toBe([])
+        ->and($result->modifiedFiles)->toBe([$file]);
 });
 
 it('writes nothing in dry-run but still reports the pending change', function (): void {
-    $file = fixtureFile("keep\ndrop\n");
+    $source = <<<'PHP'
+        <?php
 
-    $result = new FixApplicator()->apply([
-        makeFix($file, new RemoveLines(2, 2)),
-    ], dryRun: true);
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            #[Tag('b')]
+            public function index(): void {}
+        }
+
+        PHP;
+    $file = fixtureFile($source);
+
+    $result = new FixApplicator()->apply([removeAttributeFix($file, 1)], dryRun: true);
 
     expect(file_get_contents($file))
-        ->toBe("keep\ndrop\n")
+        ->toBe($source)
         ->and($result->hasChanges)->toBeTrue()
         ->and($result->modifiedFiles)->toBe([$file]);
 });
 
-it('removes one attribute from a shared group via byte-precise ModifyAttribute', function (): void {
-    $source = "#[Tag('a'), Tag('a')]\npublic function x() {}\n";
+it('removes one attribute from a shared group, swallowing the comma', function (): void {
+    $file = fixtureFile(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a'), Tag('b')]
+            public function index(): void {}
+        }
+
+        PHP);
+
+    new FixApplicator()->apply([removeAttributeFix($file, 1)]);
+
+    expect(file_get_contents($file))->toBe(<<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            public function index(): void {}
+        }
+
+        PHP);
+});
+
+it('skips and writes nothing when the target node cannot be located', function (): void {
+    $source = <<<'PHP'
+        <?php
+
+        namespace FixApp;
+
+        class Fixture
+        {
+            #[Tag('a')]
+            public function index(): void {}
+        }
+
+        PHP;
     $file = fixtureFile($source);
 
-    // Replace the byte span of ", Tag('a')" (the second attribute) with nothing.
-    $start = strpos($source, ", Tag('a')");
+    $result = new FixApplicator()->apply([removeAttributeFix($file, 0, member: 'missing')]);
 
-    if ($start === false) {
-        throw new RuntimeException('fixture marker not found');
-    }
-
-    $end = $start + strlen(", Tag('a')");
-
-    new FixApplicator()->apply([
-        makeFix($file, new ModifyAttribute($start, $end, '')),
-    ]);
-
-    expect(file_get_contents($file))->toBe("#[Tag('a')]\npublic function x() {}\n");
+    expect(file_get_contents($file))
+        ->toBe($source)
+        ->and($result->applied)->toBe([])
+        ->and($result->skipped)->toHaveCount(1)
+        ->and($result->modifiedFiles)->toBe([]);
 });

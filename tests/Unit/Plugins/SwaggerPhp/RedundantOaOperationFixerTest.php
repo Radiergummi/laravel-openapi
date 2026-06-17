@@ -73,7 +73,10 @@ it('removes the whole @OA\Get docblock from a controller method, leaving sibling
 it('removes the #[OA\*] operation attributes from a controller method', function (): void {
     $result = runRedundantOaAnnotationFixer(OperationAttributeController::class, 'redundant', AuthoredAnnotationShape::Attribute);
 
-    expect($result['fixes'])->toBe(2)
+    // One atomic node-level fix removes every OA attribute on the method (both groups), rather than
+    // one fix per attribute group: independent per-group fixes on the same node would index-shift
+    // each other as emptied groups are dropped.
+    expect($result['fixes'])->toBe(1)
         ->and($result['after'])
         ->not->toContain('OA\Get')
         ->not->toContain('OA\Response')

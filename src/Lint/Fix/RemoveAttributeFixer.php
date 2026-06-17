@@ -8,7 +8,6 @@ namespace Radiergummi\OpenApi\Lint\Fix;
 use Closure;
 use Override;
 use PhpParser\Node;
-use PhpParser\Node\Attribute;
 use PhpParser\Node\Param;
 use PhpParser\Node\PropertyItem;
 use PhpParser\Node\Stmt\ClassLike;
@@ -16,6 +15,9 @@ use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\NodeFinder;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\Ast\RemoveAttribute;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetKind;
+use Radiergummi\OpenApi\Lint\Fix\Ast\TargetSelector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use ReflectionAttribute;
 use ReflectionException;
@@ -24,22 +26,13 @@ use ReflectionProperty;
 use Throwable;
 
 use function array_values;
-use function assert;
 use function class_basename;
 use function class_exists;
 use function count;
 use function is_a;
-use function is_int;
 use function is_string;
 use function sprintf;
 use function strcasecmp;
-use function strlen;
-use function strpos;
-use function strrpos;
-use function substr;
-use function trim;
-
-use const PHP_EOL;
 
 /**
  * Removes the attribute(s) named in a finding from the member's source file.
@@ -47,7 +40,10 @@ use const PHP_EOL;
  * Deletes either every later duplicate of one discriminator value ({@see RemoveMode::Dedupe}) or
  * all matching attributes ({@see RemoveMode::RemoveAll}). Reflection identifies which attributes
  * to remove; php-parser locates them by aligning reflection attributes 1:1 with AST nodes in
- * declaration order. When reflection and AST disagree or the file won't parse, yields nothing.
+ * declaration order. The fixer emits a single {@see RemoveAttribute} carrying the source-order
+ * positions to drop; the applicator splices those nodes out of the cloned tree and reprints with
+ * the format-preserving printer. When reflection and AST disagree or the file won't parse, yields
+ * nothing.
  */
 final readonly class RemoveAttributeFixer implements Fixer
 {
@@ -135,44 +131,33 @@ final readonly class RemoveAttributeFixer implements Fixer
             return [];
         }
 
-        $astAttributes = $this->locateAstAttributes(
-            $context,
-            $file,
-            $class,
-            $member,
-        );
+        $astAttributeCount = $this->countAstAttributes($context, $file, $class, $member);
 
         // A mismatch means reflection and the parsed source disagree about the member's attributes
         // (unparseable file, eval'd class, …). Refuse to guess.
-        if (count($astAttributes) !== count($reflected)) {
+        if ($astAttributeCount !== count($reflected)) {
             return [];
         }
 
-        $source = $context->source($file);
-        $fixes = [];
-
-        foreach ($remove as $index) {
-            $operation = $this->buildOperation($source, $astAttributes, $index);
-
-            if ($operation === null) {
-                continue;
-            }
-
-            $fixes[] = new Fix(
-                file: $file,
-                description: sprintf(
-                    'Remove %s #[%s] attribute on %s::%s',
-                    $this->mode === RemoveMode::Dedupe ? 'duplicate' : 'no-op',
-                    class_basename($reflected[$index]->getName()),
-                    $class,
-                    $member,
+        return [new Fix(
+            file: $file,
+            description: sprintf(
+                'Remove %s #[%s] attribute on %s::%s',
+                $this->mode === RemoveMode::Dedupe ? 'duplicate' : 'no-op',
+                class_basename($reflected[$remove[0]]->getName()),
+                $class,
+                $member,
+            ),
+            ruleId: $finding->ruleId,
+            operation: new RemoveAttribute(
+                target: new TargetSelector(
+                    className: $class,
+                    kind: $this->member === MemberKind::Method ? TargetKind::Method : TargetKind::Property,
+                    memberName: $member,
                 ),
-                ruleId: $finding->ruleId,
-                operation: $operation,
-            );
-        }
-
-        return $fixes;
+                attributeIndices: $remove,
+            ),
+        )];
     }
 
     /**
@@ -275,16 +260,15 @@ final readonly class RemoveAttributeFixer implements Fixer
     }
 
     /**
-     * The member's attribute nodes in source order, each paired with the group that owns it.
-     *
-     * @return list<array{attr: Attribute, group: Node\AttributeGroup}>
+     * The number of attribute nodes the parsed source reports for the target member. Compared
+     * against the reflected count to confirm reflection and the AST agree before emitting a fix.
      */
-    private function locateAstAttributes(
+    private function countAstAttributes(
         FixContext $context,
         string $file,
         string $class,
         string $member,
-    ): array {
+    ): int {
         $classNode = new NodeFinder()->findFirst(
             $context->ast($file),
             static fn(Node $node): bool
@@ -293,7 +277,7 @@ final readonly class RemoveAttributeFixer implements Fixer
         );
 
         if (!$classNode instanceof ClassLike) {
-            return [];
+            return 0;
         }
 
         $memberNode = $this->member === MemberKind::Method
@@ -301,18 +285,16 @@ final readonly class RemoveAttributeFixer implements Fixer
             : $this->findProperty($classNode, $member);
 
         if ($memberNode === null) {
-            return [];
+            return 0;
         }
 
-        $attributes = [];
+        $count = 0;
 
         foreach ($memberNode->attrGroups as $group) {
-            foreach ($group->attrs as $attr) {
-                $attributes[] = ['attr' => $attr, 'group' => $group];
-            }
+            $count += count($group->attrs);
         }
 
-        return $attributes;
+        return $count;
     }
 
     private function findMethod(ClassLike $class, string $member): ?ClassMethod
@@ -345,69 +327,5 @@ final readonly class RemoveAttributeFixer implements Fixer
             $constructor->params,
             fn(Param $param): bool => $param->var instanceof Node\Expr\Variable && $param->var->name === $member,
         );
-    }
-
-    /**
-     * Builds the source edit for removing the attribute at `$index`.
-     * Sole-in-group attributes become {@see RemoveLines}; shared-group attributes become
-     * a byte-precise {@see ModifyAttribute} that strips the adjacent comma too.
-     *
-     * @param list<array{attr: Attribute, group: Node\AttributeGroup}> $attributes
-     */
-    private function buildOperation(string $source, array $attributes, int $index): ?FixOperation
-    {
-        $group = $attributes[$index]['group'];
-
-        if (count($group->attrs) === 1) {
-            $start = $group->getStartFilePos();
-            $end = $group->getEndFilePos() + 1;
-
-            if ($this->occupiesWholeLines($source, $start, $end)) {
-                return new RemoveLines($group->getStartLine(), $group->getEndLine());
-            }
-
-            return new ModifyAttribute($start, $end, '');
-        }
-
-        $node = $attributes[$index]['attr'];
-        $position = $this->indexInGroup($group, $node);
-
-        if ($position === null) {
-            return null;
-        }
-
-        // Remove the attribute plus one adjacent comma so the group stays well-formed.
-        if ($position > 0) {
-            $start = $group->attrs[$position - 1]->getEndFilePos() + 1;
-            $end = $node->getEndFilePos() + 1;
-        } else {
-            $start = $node->getStartFilePos();
-            $end = $group->attrs[$position + 1]->getStartFilePos();
-        }
-
-        return new ModifyAttribute($start, $end, '');
-    }
-
-    /**
-     * Whether the byte span `[$start, $end)` occupies its own lines entirely (safe to delete whole lines).
-     */
-    private function occupiesWholeLines(string $source, int $start, int $end): bool
-    {
-        $lineStart = strrpos(substr($source, 0, $start), PHP_EOL);
-        $lineStart = $lineStart === false ? 0 : $lineStart + strlen(PHP_EOL);
-
-        $newline = strpos($source, PHP_EOL, $end);
-        $lineEnd = $newline === false ? strlen($source) : $newline;
-
-        return trim(substr($source, $lineStart, $start - $lineStart)) === ''
-            && trim(substr($source, $end, $lineEnd - $end)) === '';
-    }
-
-    private function indexInGroup(Node\AttributeGroup $group, Attribute $node): ?int
-    {
-        $key = array_find_key($group->attrs, fn(Attribute $attr): bool => $attr === $node);
-        assert(is_int($key) || $key === null);
-
-        return $key;
     }
 }
