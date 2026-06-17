@@ -95,24 +95,10 @@ jobs:
 
 A few things worth knowing about this recipe:
 
-- **The `markdown` target emits the linter's report, not Markdown tables.** `--format=markdown` is
-  currently an alias for the `cli` formatter with color codes stripped — the file holds the same
-  finding tree and `Coverage: NN%` summary you see in the terminal, which reads fine inside a PR
-  comment. The sticky-comment action posts the file verbatim; wrap it in a fenced block first if you
-  want the monospace tree to line up:
-
-````yaml
-      - name: Wrap report for the comment
-        if: always()
-        run: |
-          { echo '```text'; cat coverage.md; echo '```'; } > coverage-comment.md
-      - name: Sticky coverage comment
-        if: always()
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: openapi-coverage
-          path: coverage-comment.md
-````
+- **The `markdown` target emits a GitHub-Flavored Markdown body.** `--format=markdown` renders a
+  coverage summary line and a findings table (`Severity | Rule | Location | Message`), so the
+  sticky-comment action posts `coverage.md` verbatim and it renders as a real table in the PR
+  comment — no fenced-block wrapping needed.
 
 - **`--diff` resolves its base ref from git history.** With no value it diffs against the
   merge-base with the default branch, which needs the full history — hence `fetch-depth: 0` on the
