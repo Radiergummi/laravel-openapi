@@ -20,12 +20,14 @@ use ReflectionNamedType;
 
 use function class_exists;
 use function implode;
+use function is_string;
 use function sprintf;
 
 /**
- * Flags a payload/return class that carries a class-level `#[RawSchema]` alongside property-level
- * field attributes (`#[RequestField]`, `#[ResponseField]`, …). The raw schema replaces the
- * inferred body wholesale, so the field attributes never contribute and are dead.
+ * Flags a payload/return class that carries a class-level `#[RawSchema]` alongside field
+ * attributes, whether property-level (`#[RequestField]`, `#[ResponseField]`) or class-level
+ * (`#[ResourceField]` on a `JsonResource`). The raw schema replaces the inferred body wholesale,
+ * so the field attributes never contribute and are dead.
  */
 final class SchemaClassAttributeConflictsWithFieldAttributes implements OperationRuleVisitor, Rule
 {
@@ -47,9 +49,9 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
     #[Override]
     public function description(): string
     {
-        return 'A class carries a class-level #[RawSchema] together with field-level attributes '
-            . '(#[RequestField]/#[ResponseField]); the raw schema replaces the inferred body '
-            . 'wholesale, so the field attributes have no effect.';
+        return 'A class carries a class-level #[RawSchema] together with field attributes '
+            . '(#[RequestField]/#[ResponseField]/#[ResourceField]); the raw schema replaces the '
+            . 'inferred body wholesale, so the field attributes have no effect.';
     }
 
     /**
@@ -114,6 +116,19 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
             }
         }
 
+        // #[ResourceField] is class-level and repeatable: a JsonResource's keys are toArray()
+        // entries, not typed properties, so each key is declared on the class itself.
+        foreach (
+            $reflection->getAttributes(FieldAttribute::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute
+        ) {
+            $shortName = new ReflectionClass($attribute->getName())->getShortName();
+            $key = $this->fieldAttributeKey($attribute);
+
+            $dead[] = $key === null
+                ? sprintf('#[%s]', $shortName)
+                : sprintf('#[%s] (key "%s")', $shortName, $key);
+        }
+
         if ($dead === []) {
             return;
         }
@@ -131,6 +146,20 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
             . 'them, or drop #[RawSchema] if the field attributes are the intended source.',
             context: [Finding::CONTEXT_SOURCE_CLASS => $className],
         );
+    }
+
+    /**
+     * Reads the declared output key of a class-level field attribute without instantiating it.
+     * `#[ResourceField]` takes the key as its first (`name`) argument, positional or named.
+     *
+     * @param ReflectionAttribute<object> $attribute
+     */
+    private function fieldAttributeKey(ReflectionAttribute $attribute): ?string
+    {
+        $arguments = $attribute->getArguments();
+        $name = $arguments['name'] ?? $arguments[0] ?? null;
+
+        return is_string($name) && $name !== '' ? $name : null;
     }
 
     #[Override]
