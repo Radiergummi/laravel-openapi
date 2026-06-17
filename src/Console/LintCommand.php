@@ -44,6 +44,7 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
 
 use function array_filter;
+use function array_keys;
 use function array_map;
 use function array_values;
 use function count;
@@ -51,11 +52,18 @@ use function explode;
 use function fclose;
 use function fopen;
 use function getenv;
+use function implode;
 use function is_array;
 use function is_numeric;
 use function is_resource;
 use function is_string;
+use function json_encode;
+use function ksort;
 use function sprintf;
+
+use const JSON_PRETTY_PRINT;
+use const JSON_THROW_ON_ERROR;
+use const JSON_UNESCAPED_SLASHES;
 
 /**
  * Lints OpenAPI documentation gaps across the API surface.
@@ -248,19 +256,59 @@ class LintCommand extends Command
 
         $outcome = $fixRunner->run($options, $dryRun);
 
-        $this->renderFixSummary($outcome, $dryRun);
-
-        if ($outcome->remainingFindings !== []) {
-            $this->renderToTargets(
-                new LintResult(
-                    findings: $outcome->remainingFindings,
-                    level: $outcome->level,
-                    exitCode: $outcome->exitCode(),
-                ),
-            );
-        }
+        $this->renderFixOutcome($outcome);
 
         return $outcome->exitCode();
+    }
+
+    /**
+     * Renders the fix run to every requested target. A JSON target emits the frozen fix-run envelope
+     * ({@see FixRunResult::toArray()}); the human formats emit a one-line fixed/remaining/skipped
+     * summary plus the remaining findings through their normal formatter.
+     *
+     * @throws BindingResolutionException
+     * @throws InvalidArgumentException
+     * @throws JsonException
+     * @throws RuntimeException
+     */
+    private function renderFixOutcome(FixRunResult $outcome): void
+    {
+        $remaining = new LintResult(
+            findings: $outcome->remainingFindings,
+            level: $outcome->level,
+            exitCode: $outcome->exitCode(),
+        );
+
+        foreach ($this->resolveTargets() as $target) {
+            $output = $this->openOutput($target->target);
+
+            try {
+                if ($target->format === LinterOutputFormat::Json) {
+                    $output->writeln($this->encodeFixRun($outcome));
+
+                    continue;
+                }
+
+                $this->renderFixSummary($outcome, $target->format, $output);
+
+                if ($outcome->remainingFindings !== []) {
+                    $this->formatterFor($target->format)->render($remaining, $output);
+                }
+            } finally {
+                $this->closeOutput($output);
+            }
+        }
+    }
+
+    /**
+     * @throws JsonException
+     */
+    private function encodeFixRun(FixRunResult $outcome): string
+    {
+        return json_encode(
+            value: $outcome->toArray(),
+            flags: JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+        );
     }
 
     /**
@@ -417,45 +465,47 @@ class LintCommand extends Command
         return (int) $raw;
     }
 
-    private function renderFixSummary(FixRunResult $outcome, bool $dryRun): void
+    /**
+     * Writes a one-line fixed/remaining/skipped summary in the target's format. GitHub emits a
+     * workflow notice, Markdown a bullet, CLI plain prose; the skipped count is surfaced (with the
+     * conflict reason) so a re-run hint is actionable.
+     */
+    private function renderFixSummary(FixRunResult $outcome, LinterOutputFormat $format, OutputInterface $output): void
     {
-        $files = $outcome->fixResult->modifiedFiles;
-        $count = count($outcome->fixResult->applied);
+        $applied = count($outcome->fixResult->applied);
+        $remaining = count($outcome->remainingFindings);
+        $skipped = count($outcome->fixResult->skipped);
+        $verb = $outcome->dryRun ? 'pending' : 'fixed';
 
-        if ($count === 0) {
-            $this->info('openapi:lint --fix: nothing to fix.');
+        $summary = sprintf('openapi:lint --fix: %d %s, %d remaining, %d skipped', $applied, $verb, $remaining, $skipped);
 
-            return;
+        if ($skipped > 0) {
+            $summary .= sprintf(' (%s); re-run --fix to resolve conflicting fixes', $this->skipReasonBreakdown($outcome));
         }
 
-        if ($dryRun) {
-            $this->warn(
-                sprintf(
-                    '%d fixable finding(s) pending across %d file(s). Run `php artisan openapi:lint --fix` to apply them.',
-                    $count,
-                    count($files),
-                ),
-            );
+        $output->writeln(match ($format) {
+            LinterOutputFormat::GitHub => '::notice title=OpenAPI fix::' . $summary,
+            LinterOutputFormat::Markdown => '- ' . $summary,
+            default => $summary,
+        });
+    }
 
-            return;
+    /** A compact `reason: count` breakdown of skipped fixes, e.g. `conflict: 2, node-not-found: 1`. */
+    private function skipReasonBreakdown(FixRunResult $outcome): string
+    {
+        $counts = [];
+
+        foreach ($outcome->fixResult->skipped as $skip) {
+            $counts[$skip->reason->value] = ($counts[$skip->reason->value] ?? 0) + 1;
         }
 
-        $this->info(sprintf('Fixed %d finding(s) across %d file(s):', $count, count($files)));
+        ksort($counts);
 
-        foreach ($files as $file) {
-            $this->line('  ' . $file);
-        }
-
-        if ($outcome->fixResult->skipped !== []) {
-            $this->warn(
-                sprintf(
-                    '%d fix(es) skipped due to overlapping edits; re-run --fix to resolve the rest.',
-                    count($outcome->fixResult->skipped),
-                ),
-            );
-        }
-
-        $this->line('Run your formatter on the changes, e.g., `vendor/bin/pint --dirty`.');
+        return implode(', ', array_map(
+            static fn(string $reason, int $count): string => sprintf('%s: %d', $reason, $count),
+            array_keys($counts),
+            array_values($counts),
+        ));
     }
 
     /**

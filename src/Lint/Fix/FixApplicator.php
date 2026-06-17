@@ -11,10 +11,12 @@ use PhpParser\NodeVisitor\NameResolver;
 use PhpParser\Parser;
 use PhpParser\ParserFactory;
 use PhpParser\PrettyPrinter\Standard;
+use Radiergummi\OpenApi\Lint\Fix\Ast\FixConflictDetector;
 use Radiergummi\OpenApi\Lint\Fix\Ast\FixOperationVisitor;
 use RuntimeException;
 use Throwable;
 
+use function array_map;
 use function dirname;
 use function file_get_contents;
 use function file_put_contents;
@@ -38,10 +40,13 @@ final readonly class FixApplicator
 
     private Standard $printer;
 
+    private FixConflictDetector $conflictDetector;
+
     public function __construct()
     {
         $this->parser = new ParserFactory()->createForNewestSupportedVersion();
         $this->printer = new Standard();
+        $this->conflictDetector = new FixConflictDetector();
     }
 
     /**
@@ -63,16 +68,24 @@ final readonly class FixApplicator
         $modifiedFiles = [];
 
         foreach ($byFile as $file => $fileFixes) {
+            // Keep only fixes whose effects on a shared node are provably independent; the rest are
+            // skipped as conflicts before any mutation so a same-node clash never lands silently.
+            ['kept' => $kept, 'skipped' => $conflicts] = $this->conflictDetector->partition($fileFixes);
+
+            foreach ($conflicts as $conflict) {
+                $skipped[] = $conflict;
+            }
+
             $source = file_get_contents($file) ?: '';
 
-            [$accepted, $rejected, $newSource] = $this->applyToFile($source, $fileFixes);
+            [$accepted, $rejected, $newSource] = $this->applyToFile($source, $kept);
 
             foreach ($accepted as $fix) {
                 $applied[] = $fix;
             }
 
-            foreach ($rejected as $fix) {
-                $skipped[] = $fix;
+            foreach ($rejected as $skip) {
+                $skipped[] = $skip;
             }
 
             if ($accepted !== [] && $newSource !== $source) {
@@ -90,14 +103,14 @@ final readonly class FixApplicator
     /**
      * @param list<Fix> $fileFixes
      *
-     * @return array{list<Fix>, list<Fix>, string}
+     * @return array{list<Fix>, list<SkippedFix>, string}
      */
     private function applyToFile(string $source, array $fileFixes): array
     {
         $oldStatements = $this->parser->parse($source);
 
         if ($oldStatements === null) {
-            return [[], $fileFixes, $source];
+            return [[], $this->skipAll($fileFixes, FixSkipReason::NodeNotFound), $source];
         }
 
         $oldTokens = $this->parser->getTokens();
@@ -130,7 +143,7 @@ final readonly class FixApplicator
             if ($visitor->applied) {
                 $accepted[] = $fix;
             } else {
-                $rejected[] = $fix;
+                $rejected[] = new SkippedFix($fix, FixSkipReason::NodeNotFound);
             }
         }
 
@@ -143,10 +156,20 @@ final readonly class FixApplicator
         } catch (Throwable) {
             // A format-preserving print failure would otherwise reformat the whole file and destroy
             // comments/style. Reject the fixes instead of shipping a mangled file.
-            return [[], [...$rejected, ...$accepted], $source];
+            return [[], [...$rejected, ...$this->skipAll($accepted, FixSkipReason::PrintFailed)], $source];
         }
 
         return [$accepted, $rejected, $newSource];
+    }
+
+    /**
+     * @param list<Fix> $fixes
+     *
+     * @return list<SkippedFix>
+     */
+    private function skipAll(array $fixes, FixSkipReason $reason): array
+    {
+        return array_map(static fn(Fix $fix): SkippedFix => new SkippedFix($fix, $reason), $fixes);
     }
 
     /**

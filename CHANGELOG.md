@@ -39,6 +39,7 @@ All notable changes to this project are documented here.
 - `openapi:lint --format=markdown` now renders a real GitHub-Flavored Markdown body (a coverage summary line and a `Severity | Rule | Location | Message` findings table) instead of aliasing the CLI tree dump, so the CI coverage-comment recipe can post it verbatim. (#389)
 - ApiResources: the return-expression reader now recognises the `X::collect(...)` static resource-collection factory, emitting the same collection response schema as `X::collection(...)`. (#390)
 - `openapi:lint --fix` now repairs missing and codegen-unsafe operationIds (synthesizes/sanitizes the `#[Operation(operationId: …)]`), via the new `AddAttribute` fix primitive. (#382)
+- `--fix`/`--check` now detect same-node fix conflicts (apply the safe subset, skip + report the rest with a typed reason) and emit a frozen `--check --format=json` fix-run envelope for CI. (#22)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
