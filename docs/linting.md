@@ -164,6 +164,33 @@ a wrong edit is not. Re-run `--fix`: the skipped fix is re-emitted on the next
 pass and, with its conflictor already resolved, applies cleanly. The summary
 line reports `N skipped (conflict: N)`.
 
+### Safe vs destructive fixes (`--fix=safe|dangerous`)
+
+`--fix` and `--check` take an optional level, defaulting to `safe`:
+
+```bash
+php artisan openapi:lint --fix              # safe fixes only (default)
+php artisan openapi:lint --fix=safe         # same, explicit
+php artisan openapi:lint --fix=dangerous    # also apply destructive fixes
+```
+
+Most fixes are **safe**: they edit the source at, or tightly bound to, the
+finding site and are easy to eyeball. A **destructive** fix rewrites a file the
+developer hand-curates or writes far from the finding (for example regenerating
+`config/openapi.php`). Destructive fixes are **withheld** from a plain `--fix`,
+counted, and reported (`N finding(s) have potentially destructive fixes. Re-run
+with --fix=dangerous to apply them.`); the finding stays unresolved until you
+opt in. `--fix=dangerous` applies them too.
+
+Because a destructive write is harder to undo, `--fix=dangerous` first checks
+that its target files are clean and git-tracked, so an unwanted change reverts
+with `git checkout`. If a target file has uncommitted changes, is not in a git
+repository, or git is unavailable, the run **refuses** and names the files. Pass
+`--allow-dirty` to override the check.
+
+> No bundled rule emits destructive fixes yet; the level and the rail are the
+> mechanism that future config-writing fixers build on.
+
 ### Machine-readable fix runs (`--check --format=json`)
 
 `--fix` / `--check` with `--format=json` emit a **stable fix-run envelope** for
@@ -178,6 +205,7 @@ CI, distinct from the lint JSON (note the top-level `remaining`, not
   "skipped": [
     { "rule_id": "operation.id-invalid-chars", "file": "app/Http/Controllers/UserController.php", "reason": "conflict" }
   ],
+  "withheld_destructive": 0,
   "modified_files": ["app/Http/Controllers/UserController.php"],
   "remaining": [],
   "exit_code": 1
@@ -186,8 +214,9 @@ CI, distinct from the lint JSON (note the top-level `remaining`, not
 
 `mode` is `check` (dry run) or `fix`; `applied` counts the fixes applied (or, in
 `check` mode, that would apply); each `skipped` entry carries a `reason`
-(`conflict`, `node-not-found`, or `print-failed`); `remaining` holds the lint
-findings still unresolved, in the same shape the lint JSON uses.
+(`conflict`, `node-not-found`, or `print-failed`); `withheld_destructive` counts
+destructive fixes held back when running without `--fix=dangerous`; `remaining`
+holds the lint findings still unresolved, in the same shape the lint JSON uses.
 
 ## Documentation-coverage gate
 
