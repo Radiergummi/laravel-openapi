@@ -19,10 +19,10 @@ namespace Radiergummi\OpenApi\Lint\Fix\Ast;
 final readonly class AddAttribute extends AstOperation
 {
     /**
-     * @param class-string                                  $attributeClass The attribute to add, e.g.
-     *                                                                      `Operation::class`.
-     * @param array<string, string|int|float|bool|null>     $arguments      Named arguments in the
-     *                                                                      order they should render.
+     * @param class-string                              $attributeClass The attribute to add, e.g.
+     *                                                                  `Operation::class`.
+     * @param array<string, null|bool|float|int|string> $arguments      Named arguments in the
+     *                                                                  order they should render.
      */
     public function __construct(
         TargetSelector $target,

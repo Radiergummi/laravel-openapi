@@ -383,9 +383,9 @@ final class FixOperationVisitor extends NodeVisitorAbstract
     private function literalToNode(string|int|float|bool|null $value): Node\Expr
     {
         return match (true) {
-            $value === null  => new Node\Expr\ConstFetch(new Node\Name('null')),
-            $value === true  => new Node\Expr\ConstFetch(new Node\Name('true')),
-            $value === false => new Node\Expr\ConstFetch(new Node\Name('false')),
+            $value === null  => new Node\Expr\ConstFetch(new Name('null')),
+            $value === true  => new Node\Expr\ConstFetch(new Name('true')),
+            $value === false => new Node\Expr\ConstFetch(new Name('false')),
             is_int($value)   => new Scalar\Int_($value),
             is_float($value) => new Scalar\Float_($value),
             default          => new Scalar\String_($value),

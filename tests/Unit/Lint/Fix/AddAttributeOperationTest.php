@@ -56,7 +56,7 @@ it('prepends a synthesised attribute on a member that has none', function (): vo
 
     ['after' => $after, 'result' => $result] = applyAddAttribute($source, new AddAttribute(
         target: addAttributeTarget(),
-        attributeClass: \Radiergummi\OpenApi\Attributes\Operation::class,
+        attributeClass: Radiergummi\OpenApi\Attributes\Operation::class,
         arguments: ['operationId' => 'users.index'],
     ));
 
@@ -93,7 +93,7 @@ it('prepends above an existing unrelated attribute, leaving it byte-identical', 
 
     ['after' => $after, 'result' => $result] = applyAddAttribute($source, new AddAttribute(
         target: addAttributeTarget(),
-        attributeClass: \Radiergummi\OpenApi\Attributes\Operation::class,
+        attributeClass: Radiergummi\OpenApi\Attributes\Operation::class,
         arguments: ['operationId' => 'users.index'],
     ));
 
@@ -133,7 +133,7 @@ it('is a no-op writing nothing when the member already carries the attribute cla
 
     ['after' => $after, 'result' => $result] = applyAddAttribute($source, new AddAttribute(
         target: addAttributeTarget(),
-        attributeClass: \Radiergummi\OpenApi\Attributes\Operation::class,
+        attributeClass: Radiergummi\OpenApi\Attributes\Operation::class,
         arguments: ['operationId' => 'users.index'],
     ));
 
@@ -159,7 +159,7 @@ it('renders multiple named arguments in declared order', function (): void {
 
     ['after' => $after] = applyAddAttribute($source, new AddAttribute(
         target: addAttributeTarget(),
-        attributeClass: \Radiergummi\OpenApi\Attributes\Operation::class,
+        attributeClass: Radiergummi\OpenApi\Attributes\Operation::class,
         arguments: ['summary' => 'List users', 'operationId' => 'users.index'],
     ));
 
@@ -183,7 +183,7 @@ it('is idempotent: re-running the same op against its own output changes nothing
 
     $operation = new AddAttribute(
         target: addAttributeTarget(),
-        attributeClass: \Radiergummi\OpenApi\Attributes\Operation::class,
+        attributeClass: Radiergummi\OpenApi\Attributes\Operation::class,
         arguments: ['operationId' => 'users.index'],
     );
 
