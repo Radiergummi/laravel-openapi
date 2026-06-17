@@ -47,7 +47,7 @@ from controller signatures and PHPDoc, and writes an OpenAPI 3.1 YAML file to
 |---|---|
 | `php artisan openapi:generate` | Regenerate the YAML. Pass a spec name to target one spec; `--output=path` overrides the destination (`-` for stdout); `--format=json` emits JSON; `--no-validate` skips the swagger-php validation pass (faster). |
 | `php artisan openapi:lint` | Report documentation gaps. |
-| `php artisan openapi:why <route>` | Explain why a route is included in (or excluded from) each defined spec. Accepts a route name or URI substring; `--for-env=` overrides the environment for `#[Hide]`/`#[Expose]` evaluation. The first stop when a route doesn't appear. |
+| `php artisan openapi:why <route>` | Explain why a route is included in (or excluded from) each defined spec. Accepts a route name or URI substring; `--for-env=` (short `-e`) overrides the environment for `#[Hide]`/`#[Expose]` evaluation; `--fields` additionally builds the operation and explains how each derived field (summary, success status, tags) got its value. The first stop when a route doesn't appear, or when a field's value surprises you. |
 | `php artisan openapi:clear` | Drop the cached spec. |
 | `php artisan openapi:diff:config` | Show drift between your published `config/openapi.php` and the package default — flags added keys (`+`), removed keys (`-`), and changed default values (`~`). |
 | `GET /api/openapi.yaml` | Serve the OpenAPI 3.1 YAML. |

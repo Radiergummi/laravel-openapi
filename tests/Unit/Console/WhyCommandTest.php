@@ -39,6 +39,21 @@ it('explains why a route is included in each spec', function (): void {
         ->assertSuccessful();
 });
 
+it('--fields appends an operation field-provenance block', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights --fields')
+        ->expectsOutputToContain('Fields:')
+        ->expectsOutputToContain('status')
+        ->assertSuccessful();
+});
+
+it('omits the field-provenance block without --fields', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights')
+        ->doesntExpectOutputToContain('Fields:')
+        ->assertSuccessful();
+});
+
 it('explains a globally-filtered route as filtered, not as not-found', function (): void {
     config(['openapi.filters' => [FlightsRouteFilter::class]]);
     app()->forgetScopedInstances();
@@ -69,9 +84,16 @@ it('exits non-zero when no route matches', function (): void {
         ->assertFailed();
 });
 
-it('--env overrides app environment for Hide/Expose evaluation', function (): void {
+it('--for-env overrides app environment for Hide/Expose evaluation', function (): void {
     $this
         ->artisan('openapi:why api/v1/flights --for-env=production')
+        ->expectsOutputToContain('environment: production')
+        ->assertSuccessful();
+});
+
+it('accepts the -e short alias for --for-env', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights -e production')
         ->expectsOutputToContain('environment: production')
         ->assertSuccessful();
 });

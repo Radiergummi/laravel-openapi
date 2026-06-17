@@ -8,6 +8,7 @@ use Illuminate\Contracts\Support\Arrayable;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 
 use function array_filter;
 use function in_array;
@@ -26,6 +27,10 @@ final readonly class OperationDescriptor implements Arrayable
      *                                                           (authed route, no derivable scheme);
      *                                                           `[]` is the explicit public signal
      * @param list<OA\Response>                      $responses
+     * @param list<FieldProvenance>                  $provenance Source/reason per derived field;
+     *                                                           a read-only side channel for
+     *                                                           `openapi:why --fields` that never
+     *                                                           reaches the document.
      */
     public function __construct(
         public ?string $summary,
@@ -38,6 +43,7 @@ final readonly class OperationDescriptor implements Arrayable
         public bool $deprecated,
         public ?string $operationId,
         public ?OA\ExternalDocumentation $externalDocs,
+        public array $provenance = [],
     ) {}
 
     public function withOperationId(string $operationId): self
@@ -53,6 +59,7 @@ final readonly class OperationDescriptor implements Arrayable
             deprecated: $this->deprecated,
             operationId: $operationId,
             externalDocs: $this->externalDocs,
+            provenance: $this->provenance,
         );
     }
 

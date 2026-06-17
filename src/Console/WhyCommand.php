@@ -6,13 +6,19 @@ namespace Radiergummi\OpenApi\Console;
 
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\TagDeriver;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use ReflectionException;
+use RuntimeException;
+use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
 
 use function app;
@@ -32,21 +38,25 @@ class WhyCommand extends Command
 {
     protected $signature = 'openapi:why
         {route : Route name (exact match) or URI substring.}
-        {--for-env= : Override the environment for Hide/Expose evaluation.}';
+        {--e|for-env= : Override the environment for Hide/Expose evaluation.}
+        {--fields : Also build the operation and explain how each derived field got its value.}';
 
     protected $description = 'Explain inclusion of a route across all defined specs';
 
     /**
      * @throws InvalidArgumentException
      * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnexpectedValueException
+     * @throws UnsupportedException
      */
     public function handle(
         RouteIntrospector $introspector,
         SpecRegistry $registry,
         InclusionEvaluator $evaluator,
     ): int {
-        // --env is reserved by Laravel; --for-env overrides the environment for #[Hide]/#[Expose] without changing APP_ENV.
+        // --env is a reserved Laravel global; --for-env (short -e) overrides the environment for
+        // #[Hide]/#[Expose] without changing APP_ENV.
         $query = (string) $this->argument('route');
         $env = (string) ($this->option('for-env') ?? app()->environment());
 
@@ -88,6 +98,10 @@ class WhyCommand extends Command
                 ? 'included in [' . implode(', ', $included) . ']'
                 : 'excluded from all specs'),
         );
+
+        if ($this->option('fields')) {
+            $this->printFields($descriptor);
+        }
 
         return self::SUCCESS;
     }
@@ -148,6 +162,70 @@ class WhyCommand extends Command
 
         $this->line('    → ' . $decision->summary);
         $this->line('');
+    }
+
+    /**
+     * Builds the operation per emitted verb (mirroring the paths stage) and prints the source
+     * and reason behind each derived field.
+     *
+     * @throws InvalidArgumentException
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function printFields(ActionDescriptor $descriptor): void
+    {
+        $builder = app(OperationBuilder::class);
+        $tag = (new TagDeriver())->derive($descriptor);
+
+        $verbs = array_values(array_filter(
+            array_map(
+                static fn(string $routeMethod): ?HttpMethod => HttpMethod::fromString($routeMethod),
+                $descriptor->route->methods(),
+            ),
+            static fn(?HttpMethod $method): bool => $method !== null && $method !== HttpMethod::Head,
+        ));
+
+        $labelVerb = count($verbs) > 1;
+
+        foreach ($verbs as $verb) {
+            $operation = $builder->build($descriptor->withHttpMethod($verb), [$tag]);
+
+            $this->line('');
+            $this->line($labelVerb ? "Fields ({$verb->forDisplay()}):" : 'Fields:');
+
+            if ($operation->provenance === []) {
+                $this->line('    (no derived fields)');
+
+                continue;
+            }
+
+            $this->printProvenance($operation->provenance);
+        }
+    }
+
+    /**
+     * @param list<FieldProvenance> $provenance
+     *
+     * @throws InvalidArgumentException
+     */
+    private function printProvenance(array $provenance): void
+    {
+        foreach ($provenance as $entry) {
+            $this->components->twoColumnDetail(
+                $entry->field,
+                "{$entry->value}  {$entry->source} ({$entry->reason})",
+            );
+
+            if ($entry->supersededBy !== []) {
+                $this->components->bulletList(
+                    array_map(
+                        static fn(string $candidate): string => "superseded: {$candidate}",
+                        $entry->supersededBy,
+                    ),
+                );
+            }
+        }
     }
 
     // endregion

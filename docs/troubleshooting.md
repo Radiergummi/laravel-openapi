@@ -118,6 +118,21 @@ In order of likelihood:
   The generator logs a warning. The named class must be a `JsonResource`
   subclass, a `Data` subclass, or a resource recognised by an enabled plugin.
 
+## Why is this status / summary / tag what it is?
+
+When a derived field surprises you — *"why is this `201`?"*, *"where did this
+`List Flights` summary come from?"*, *"why did my `#[Summary]` not win?"* — ask
+the tool instead of reading the package source:
+
+```bash
+php artisan openapi:why flights.store --fields
+```
+
+It builds the operation and prints the source and reason behind each derived
+`summary`, success `status`, and `tags`, with an authoring attribute shown
+winning over the convention it superseded. See
+[Explaining derived fields with `--fields`](multi-spec.md#explaining-derived-fields-with---fields).
+
 ## I changed a Data/FormRequest and the spec still shows the old shape
 
 Run `php artisan openapi:clear` to drop the cached spec. Until you regenerate
