@@ -76,6 +76,50 @@ it('escapes pipe characters in cell text so the table stays intact', function ()
         ->not->toContain('value a | value b');
 });
 
+it('collapses newlines in cell text so the table row stays on one line', function (): void {
+    $output = new BufferedOutput();
+    new MarkdownFormatter()->render(
+        new LintResult(
+            findings: [new Finding(
+                ruleId: 'test.rule',
+                severity: Severity::Broken,
+                message: "line one\nline two\r\nline three\rline four",
+                location: new FindingLocation(),
+            )],
+            level: 0,
+            exitCode: 1,
+        ),
+        $output,
+    );
+
+    expect($output->fetch())
+        ->toContain('line one line two line three line four')
+        ->not->toContain("line one\n")
+        ->not->toContain("\r\n")
+        ->not->toContain("line three\r");
+});
+
+it('renders a file-only location without a line suffix', function (): void {
+    $output = new BufferedOutput();
+    new MarkdownFormatter()->render(
+        new LintResult(
+            findings: [new Finding(
+                ruleId: 'test.rule',
+                severity: Severity::Broken,
+                message: 'no line known',
+                location: new FindingLocation(file: 'app/Http/F.php'),
+            )],
+            level: 0,
+            exitCode: 1,
+        ),
+        $output,
+    );
+
+    expect($output->fetch())
+        ->toContain('`app/Http/F.php`')
+        ->not->toContain('app/Http/F.php:');
+});
+
 it('renders a coverage summary line when coverage is present', function (): void {
     $output = new BufferedOutput();
     new MarkdownFormatter()->render(
