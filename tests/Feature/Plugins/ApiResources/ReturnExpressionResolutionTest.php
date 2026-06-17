@@ -45,6 +45,16 @@ class ReturnExpressionController extends Controller
         return NestedAuthorResource::collection(Author::all());
     }
 
+    public function collectCollection(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collect(Author::query()->paginate());
+    }
+
+    public function collectUnpaginated(): AnonymousResourceCollection
+    {
+        return NestedAuthorResource::collect(Author::all());
+    }
+
     public function staticMake(): JsonResource
     {
         return NestedAuthorResource::make(Author::query()->firstOrFail());
@@ -227,6 +237,28 @@ it('keeps the paginated envelope for the two-statement assign-then-return form',
     $schema = successSchema(generateSpec(), '/authors-assigned');
 
     expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+});
+
+it('resolves X::collect() behind an AnonymousResourceCollection signature', function (): void {
+    Route::get('/authors-collect', [ReturnExpressionController::class, 'collectCollection']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/authors-collect');
+
+    expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['type'])->toBe('array')
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and($spec['components']['schemas']['NestedAuthorResource']['properties'])->toHaveKeys(['id', 'name']);
+});
+
+it('documents a plain {data} envelope for an unpaginated X::collect() argument', function (): void {
+    Route::get('/authors-collect-unpaginated', [ReturnExpressionController::class, 'collectUnpaginated']);
+
+    $schema = successSchema(generateSpec(), '/authors-collect-unpaginated');
+
+    expect($schema['properties'])->toHaveKey('data')
+        ->and($schema['properties'])->not->toHaveKeys(['links', 'meta'])
         ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
 });
 

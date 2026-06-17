@@ -158,10 +158,10 @@ public function index(): AnonymousResourceCollection
 resolves the item resource to `ProjectResource` — no annotation needed.
 Recognised shapes:
 
-- `X::collection(...)` → collection of `X`; `X::make(...)` / `new X(...)` → a
-  single `X`. `X` must be a concrete resource — a call on the base
-  `JsonResource` itself or on an abstract subclass refuses (there is no field
-  shape to document).
+- `X::collection(...)` / `X::collect(...)` → collection of `X`; `X::make(...)` /
+  `new X(...)` → a single `X`. `X` must be a concrete resource — a call on the
+  base `JsonResource` itself or on an abstract subclass refuses (there is no
+  field shape to document).
 - The two-statement form `$projects = X::collection(...); return $projects;`,
   as long as the variable is assigned exactly once on the unconditional path.
 - `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal

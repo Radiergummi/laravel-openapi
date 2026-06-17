@@ -131,6 +131,15 @@ parameters:
             identifier: openapi.allowedFilter.duplicate
             paths:
                 - tests/Unit/Plugins/QueryBuilder/Lint/QueryBuilderFilterDuplicateTest.php
+        # `JsonResource::collect()` is a recent Laravel static factory the vendored framework
+        # (and the Laravel 12 CI leg) does not declare; the return-expression fixtures call it
+        # only to be parsed by the AST-name-based reader, never invoked. PHPStan resolves the
+        # static call and rightly reports it missing against the installed framework.
+        -
+            identifier: staticMethod.notFound
+            paths:
+                - tests/Unit/Plugins/ApiResources/ReturnExpressionResourceReaderTest.php
+                - tests/Feature/Plugins/ApiResources/ReturnExpressionResolutionTest.php
         # The abort-scan fixture deliberately passes an unknown named argument (`status:` instead
         # of `code:`) to prove the body scan degrades gracefully. The malformed call against the
         # real abort_if signature is the test input; for everyone else PHPStan rightly rejects it.
