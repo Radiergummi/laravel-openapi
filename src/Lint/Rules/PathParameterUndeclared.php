@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -47,7 +48,7 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Path placeholder "{%s}" on %s %s is not declared as a path parameter',
                     $placeholder,
@@ -84,9 +85,9 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]

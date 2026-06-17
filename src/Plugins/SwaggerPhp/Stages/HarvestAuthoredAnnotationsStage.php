@@ -351,7 +351,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         $this->findings->emit(
             new Finding(
                 ruleId: SchemaNameCollision::ID,
-                level: SchemaNameCollision::LEVEL,
+                severity: SchemaNameCollision::SEVERITY,
                 message: $message,
                 fixHint: SchemaNameCollision::FIX_HINT,
                 context: $context,

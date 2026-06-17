@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\RefBroken;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -51,7 +52,7 @@ it('reports its id and level', function (): void {
     $rule = new RefBroken();
 
     expect($rule->id())->toBe('ref.broken')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits a finding when a ref points to a non-existent schema', function (): void {
@@ -59,7 +60,7 @@ it('emits a finding when a ref points to a non-existent schema', function (): vo
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('ref.broken')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('NonExistent')
         ->and($findings[0]->context['ref'])->toBe('#/components/schemas/NonExistent');
 });

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -50,7 +51,7 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
                     $findings->emit(
                         new Finding(
                             ruleId: self::ID,
-                            level: $this->level(),
+                            severity: $this->severity(),
                             message: "Spec name '{$name}' referenced by #[Spec] is not declared in config('openapi.specs').",
                             location: FindingLocation::fromDescriptor($descriptor),
                             fixHint: "Add '{$name}' to config('openapi.specs') or remove the attribute argument.",
@@ -62,8 +63,8 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 }

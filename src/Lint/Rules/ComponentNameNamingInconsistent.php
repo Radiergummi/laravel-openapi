@@ -40,7 +40,7 @@ final readonly class ComponentNameNamingInconsistent extends AbstractNamingRule 
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Component schema name "%s" does not follow the %s naming convention',
                 $componentSchema->name,

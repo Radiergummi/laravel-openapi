@@ -41,7 +41,7 @@ final readonly class HeaderNameNamingInconsistent extends AbstractNamingRule imp
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Header name "%s" does not follow the %s naming convention',
                 $header->name,

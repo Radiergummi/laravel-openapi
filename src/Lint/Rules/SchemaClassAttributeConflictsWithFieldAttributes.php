@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Attributes\RawSchema;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -134,7 +135,7 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
 
         yield new Finding(
             ruleId: self::ID,
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '#[RawSchema] on %s replaces the inferred body, so these field attributes have '
                 . 'no effect: %s.',
@@ -162,8 +163,8 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 }

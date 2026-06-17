@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Attributes\Expose;
 use Radiergummi\OpenApi\Attributes\Hide;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Visitors\RouteRule;
@@ -48,7 +49,7 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
                 if ($expose->only === null && $expose->except === null) {
                     yield new Finding(
                         ruleId: $this->id(),
-                        level: $this->level(),
+                        severity: $this->severity(),
                         message: '#[Expose] has no effect in public-default visibility mode.',
                         fixHint: "Remove the attribute, or set `config('openapi.visibility.default') = 'hidden'`.",
                     );
@@ -68,7 +69,7 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
             if ($hide->only === null && $hide->except === null) {
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: '#[Hide] has no effect in hidden-default visibility mode (routes are already hidden by default).',
                     fixHint: "Remove the attribute, or set `config('openapi.visibility.default') = 'public'`.",
                 );
@@ -107,8 +108,8 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 }

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\OverridesUnused;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -63,12 +64,12 @@ function overridesUnusedCollect(array $overrides, array $descriptors): array
     return $collector->all();
 }
 
-it('has the correct id and a non-zero level', function (): void {
+it('has the correct id and severity', function (): void {
     $rule = new OverridesUnused(new OverrideMatcher([]));
 
     expect($rule->id())
         ->toBe('overrides.unused')
-        ->and($rule->level())->toBeGreaterThan(0);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('stays silent when every key matches a route name or uri', function (): void {

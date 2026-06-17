@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -93,7 +94,7 @@ it('has the correct id and level', function (): void {
     $rule = new ResponseRefUnresolvable([]);
 
     expect($rule->id())->toBe('response.ref-unresolvable')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no findings when the descriptors list is empty', function (): void {
@@ -121,7 +122,7 @@ it('emits a finding when no registered resolver can resolve the ref', function (
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.ref-unresolvable')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain(ArrayObject::class)
         ->and($findings[0]->message)->toContain('422');
 });

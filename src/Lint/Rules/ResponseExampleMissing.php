@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ResponseNode;
@@ -37,7 +38,7 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Response %d on %s %s has no example',
                 $response->statusCode,
@@ -55,9 +56,9 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
@@ -61,7 +62,7 @@ final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: $message,
                 fixHint: 'Add the missing required parameter to the Link parameters map.',
             );
@@ -95,9 +96,9 @@ final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]

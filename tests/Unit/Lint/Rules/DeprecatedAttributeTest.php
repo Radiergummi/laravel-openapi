@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\DeprecatedAttribute;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DeprecatedAttrClassController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\DeprecatedAttrController;
@@ -26,7 +27,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedAttribute(DEPRECATED_ATTR_NAMESPACE);
 
     expect($rule->id())->toBe('deprecated.attribute')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a method uses a deprecated OpenAPI attribute', function (): void {
@@ -34,7 +35,7 @@ it('emits a finding when a method uses a deprecated OpenAPI attribute', function
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('deprecated.attribute')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('DeprecatedTestAttribute')
         ->and($findings[0]->message)->toContain('deprecated');
 });

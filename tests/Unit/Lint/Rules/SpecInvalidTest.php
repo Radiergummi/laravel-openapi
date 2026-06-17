@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\SpecInvalid;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -38,7 +39,7 @@ it('emits a finding when the spec violates the OAS 3.1 schema', function (): voi
 
     expect($findings)->not->toBeEmpty()
         ->and($findings[0]->ruleId)->toBe('spec.invalid')
-        ->and($findings[0]->level)->toBe(0);
+        ->and($findings[0]->severity)->toBe(Severity::Broken);
 });
 
 it('filters out false-positive $dynamicRef findings (openapi/info required at nested paths)', function (): void {

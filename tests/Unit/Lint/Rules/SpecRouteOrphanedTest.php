@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\SpecRouteOrphaned;
@@ -69,7 +70,7 @@ it('has the correct id and level', function (): void {
     $rule = new SpecRouteOrphaned(new SpecResolver());
 
     expect($rule->id())->toBe('spec.route-orphaned')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no findings when the descriptors list is empty', function (): void {
@@ -108,6 +109,6 @@ it('emits a finding when every #[Spec] name is absent from the registry', functi
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('spec.route-orphaned')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('not appear anywhere');
 });

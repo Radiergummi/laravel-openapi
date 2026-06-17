@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
@@ -33,9 +34,9 @@ final class RequestEmpty implements Rule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

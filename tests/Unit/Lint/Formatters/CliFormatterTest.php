@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\CoverageSummary;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
@@ -14,8 +15,8 @@ it('does not print spec headers when all findings belong to one spec', function 
     $output = new BufferedOutput();
     new CliFormatter()->render(
         new LintResult(findings: [
-            new Finding(ruleId: 'rule.a', level: 0, message: 'msg', spec: 'default'),
-            new Finding(ruleId: 'rule.b', level: 1, message: 'msg', spec: 'default'),
+            new Finding(ruleId: 'rule.a', severity: Severity::Broken, message: 'msg', spec: 'default'),
+            new Finding(ruleId: 'rule.b', severity: Severity::Degraded, message: 'msg', spec: 'default'),
         ], level: 0, exitCode: 1),
         $output,
     );
@@ -27,8 +28,8 @@ it('does not print spec headers when no findings have a spec set', function (): 
     $output = new BufferedOutput();
     new CliFormatter()->render(
         new LintResult(findings: [
-            new Finding(ruleId: 'rule.a', level: 0, message: 'msg'),
-            new Finding(ruleId: 'rule.b', level: 1, message: 'msg'),
+            new Finding(ruleId: 'rule.a', severity: Severity::Broken, message: 'msg'),
+            new Finding(ruleId: 'rule.b', severity: Severity::Degraded, message: 'msg'),
         ], level: 0, exitCode: 1),
         $output,
     );
@@ -40,8 +41,8 @@ it('groups findings by spec with a header per group', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
         new LintResult(findings: [
-            new Finding(ruleId: 'rule.a', level: 0, message: 'msg a', spec: 'default'),
-            new Finding(ruleId: 'rule.b', level: 0, message: 'msg b', spec: 'v1'),
+            new Finding(ruleId: 'rule.a', severity: Severity::Broken, message: 'msg a', spec: 'default'),
+            new Finding(ruleId: 'rule.b', severity: Severity::Broken, message: 'msg b', spec: 'v1'),
         ], level: 0, exitCode: 1),
         $output,
     );
@@ -56,8 +57,8 @@ it('renders pre-build findings under a "configuration" header when mixed with sp
     $output = new BufferedOutput();
     new CliFormatter()->render(
         new LintResult(findings: [
-            new Finding(ruleId: 'rule.a', level: 0, message: 'msg a'),
-            new Finding(ruleId: 'rule.b', level: 0, message: 'msg b', spec: 'default'),
+            new Finding(ruleId: 'rule.a', severity: Severity::Broken, message: 'msg a'),
+            new Finding(ruleId: 'rule.b', severity: Severity::Broken, message: 'msg b', spec: 'default'),
         ], level: 0, exitCode: 1),
         $output,
     );
@@ -72,7 +73,7 @@ it('does not print headers when only pre-build findings are present', function (
     $output = new BufferedOutput();
     new CliFormatter()->render(
         new LintResult(findings: [
-            new Finding(ruleId: 'rule.a', level: 0, message: 'msg a'),
+            new Finding(ruleId: 'rule.a', severity: Severity::Broken, message: 'msg a'),
         ], level: 0, exitCode: 1),
         $output,
     );
@@ -87,8 +88,8 @@ it('renders finding rule ids inside the correct spec group', function (): void {
     $output = new BufferedOutput();
     new CliFormatter()->render(
         new LintResult(findings: [
-            new Finding(ruleId: 'rule.alpha', level: 0, message: 'msg', spec: 'default'),
-            new Finding(ruleId: 'rule.beta', level: 0, message: 'msg', spec: 'v1'),
+            new Finding(ruleId: 'rule.alpha', severity: Severity::Broken, message: 'msg', spec: 'default'),
+            new Finding(ruleId: 'rule.beta', severity: Severity::Broken, message: 'msg', spec: 'v1'),
         ], level: 0, exitCode: 1),
         $output,
     );

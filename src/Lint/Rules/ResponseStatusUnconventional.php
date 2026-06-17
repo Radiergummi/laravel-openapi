@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -64,7 +65,7 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Operation %s %s uses status 200 as its only success response; consider using %s instead',
                 $method->forDisplay(),
@@ -86,9 +87,9 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

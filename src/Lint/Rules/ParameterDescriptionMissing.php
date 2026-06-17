@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
@@ -31,7 +32,7 @@ final class ParameterDescriptionMissing implements Rule, ParameterRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf('Parameter "%s" has no description', $parameter->name),
             fixHint: 'Add a description to the parameter explaining what value it accepts and its effect.',
         );
@@ -44,9 +45,9 @@ final class ParameterDescriptionMissing implements Rule, ParameterRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

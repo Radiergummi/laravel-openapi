@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -47,7 +48,7 @@ final readonly class QueryBuilderFilterDuplicate implements Rule, OperationRule
         foreach ($duplicatedNames as $name) {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     '#[AllowedFilter(\'%s\')] is declared %d times on %s %s — only the last instance is emitted',
                     $name,
@@ -67,9 +68,9 @@ final readonly class QueryBuilderFilterDuplicate implements Rule, OperationRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

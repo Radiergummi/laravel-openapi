@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\HeaderInvalidName;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidHeaderNameController;
@@ -20,7 +21,7 @@ function makeOperationNodeForHeaderInvalidName(string $methodName): OperationNod
 it('has the correct rule id and level', function (): void {
     $rule = new HeaderInvalidName();
 
-    expect($rule->id())->toBe('header.invalid-name')->and($rule->level())->toBe(1);
+    expect($rule->id())->toBe('header.invalid-name')->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits no findings for valid header names', function (): void {
@@ -44,8 +45,8 @@ it('emits a finding for a header name with spaces', function (): void {
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)
         ->toBe('header.invalid-name')
-        ->and($findings[0]->level)
-        ->toBe(1)
+        ->and($findings[0]->severity)
+        ->toBe(Severity::Degraded)
         ->and($findings[0]->message)
         ->toContain('Invalid Header Name');
 });

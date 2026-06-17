@@ -11,6 +11,7 @@ use Override;
 use Radiergummi\OpenApi\Attributes\RequestBody;
 use Radiergummi\OpenApi\Attributes\RequestField;
 use Radiergummi\OpenApi\Attributes\RequestVariant;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -173,7 +174,7 @@ final readonly class DiscriminatedRequestSchemaResolver implements RequestSchema
         $this->findings->emit(
             new Finding(
                 ruleId: 'request.discriminator-malformed',
-                level: 2,
+                severity: Severity::Underspecified,
                 message: $message,
                 location: FindingLocation::fromDescriptor($descriptor),
                 fixHint: 'Give each #[RequestVariant] a unique value and exactly one of schema/fields.',

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\LinkBothOperationIdAndRef;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
@@ -26,7 +27,7 @@ function makeLinkBothFieldsNode(?string $operationId, ?string $operationRef): Li
 it('reports its id and level', function (): void {
     $rule = new LinkBothOperationIdAndRef();
 
-    expect($rule->id())->toBe('link.both-operation-id-and-ref')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('link.both-operation-id-and-ref')->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it(
@@ -56,7 +57,7 @@ it('emits a finding when a link has both operationId and operationRef', function
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('link.both-operation-id-and-ref')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('both')
         ->and($findings[0]->message)->toContain('foo.show');
 });

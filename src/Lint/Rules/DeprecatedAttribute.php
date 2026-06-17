@@ -8,6 +8,7 @@ use Deprecated;
 use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -108,7 +109,7 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Attribute #[%s] is deprecated and should be replaced on %s',
                     $shortName,
@@ -142,10 +143,9 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        // Convention issue: spec is still valid, but author uses a superseded attribute.
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

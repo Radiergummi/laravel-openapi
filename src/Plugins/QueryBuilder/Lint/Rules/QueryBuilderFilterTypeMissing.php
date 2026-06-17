@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -41,7 +42,7 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     '#[AllowedFilter(\'%s\')] on %s %s has no type — the filter parameter defaults to string',
                     $filter->name,
@@ -60,9 +61,9 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -60,7 +61,7 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        level: $this->level(),
+                        severity: $this->severity(),
                         message: 'Route is pinned to specs that do not exist; it will not appear anywhere.',
                         location: FindingLocation::fromDescriptor($descriptor),
                         fixHint: 'Fix the #[Spec] argument(s) or declare the spec in config.',
@@ -71,8 +72,8 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 }

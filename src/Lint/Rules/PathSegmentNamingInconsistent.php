@@ -69,7 +69,7 @@ final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule im
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Path segment(s) [%s] on %s %s do not follow the %s naming convention',
                 implode(', ', $offending),

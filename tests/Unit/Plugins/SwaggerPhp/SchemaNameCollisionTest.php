@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\SchemaNameCollision;
 
 uses()->group('openapi', 'lint');
@@ -16,8 +17,8 @@ it('exposes the stable rule id', function (): void {
 });
 
 it('reports a warning-level severity', function (): void {
-    expect(new SchemaNameCollision()->level())->toBe(1)
-        ->and(SchemaNameCollision::LEVEL)->toBe(1);
+    expect(new SchemaNameCollision()->severity())->toBe(Severity::Degraded)
+        ->and(SchemaNameCollision::SEVERITY)->toBe(Severity::Degraded);
 });
 
 it('provides a non-empty description', function (): void {

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\CoverageCalculator;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -21,7 +22,7 @@ function findingOn(string $spec, HttpMethod $method, string $uri): Finding
 {
     return new Finding(
         ruleId: 'response.empty',
-        level: 1,
+        severity: Severity::Degraded,
         message: 'x',
         location: new FindingLocation(routeMethod: $method, routeUri: $uri),
         spec: $spec,
@@ -66,7 +67,7 @@ it('marks an operation uncovered when it carries an attributed finding', functio
 it('counts findings with no operation as unattributed without lowering coverage', function (): void {
     [$k1, $t1] = op('default', HttpMethod::Get, 'users');
 
-    $preBuild = new Finding(ruleId: 'overrides.unknown-field', level: 1, message: 'x');
+    $preBuild = new Finding(ruleId: 'overrides.unknown-field', severity: Severity::Degraded, message: 'x');
 
     $summary = new CoverageCalculator()->calculate(
         operationTags: [$k1 => $t1],

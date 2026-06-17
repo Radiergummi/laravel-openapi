@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 
 /**
@@ -20,7 +21,7 @@ final class SchemaNameCollision implements Rule
 {
     public const string ID = 'component.schema-name-collision';
 
-    public const int LEVEL = 1;
+    public const Severity SEVERITY = Severity::Degraded;
 
     /** Context key carrying the colliding schema name on the emitted finding. */
     public const string CONTEXT_SCHEMA = 'schema';
@@ -34,9 +35,9 @@ final class SchemaNameCollision implements Rule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return self::LEVEL;
+        return self::SEVERITY;
     }
 
     #[Override]

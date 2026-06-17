@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ThrowsTransitiveMissing;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\TransitiveThrowsController;
@@ -33,7 +34,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('throws.transitive-missing')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a controller method is missing a transitive @throws', function (): void {
@@ -48,7 +49,7 @@ it('emits a finding when a controller method is missing a transitive @throws', f
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('throws.transitive-missing')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('FakeAction')
         ->and($findings[0]->message)->toContain('RuntimeException')
         ->and($findings[0]->message)->toContain('missingThrows');

@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -56,7 +57,7 @@ final class ServerInvalidUrl implements Rule, ApiRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf('Server URL "%s" is not a valid URL.', $url),
                 fixHint: 'Provide a fully-qualified URL (e.g., https://api.example.com/v1), a relative path (e.g., /api/v0), or a valid URL template.',
             );
@@ -70,9 +71,9 @@ final class ServerInvalidUrl implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 0;
+        return Severity::Broken;
     }
 
     #[Override]

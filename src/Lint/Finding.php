@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Contracts\Support\Arrayable;
 use JsonSerializable;
 use Override;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 
 /**
  * @implements Arrayable<string, mixed>
@@ -25,7 +26,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
      */
     public function __construct(
         public string $ruleId,
-        public int $level,
+        public Severity $severity,
         public string $message,
         public FindingLocation $location = new FindingLocation(),
         public ?string $fixHint = null,
@@ -40,7 +41,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     {
         return new self(
             ruleId: $this->ruleId,
-            level: $this->level,
+            severity: $this->severity,
             message: $this->message,
             location: $this->location->withDefaults($defaults),
             fixHint: $this->fixHint,
@@ -50,13 +51,13 @@ final readonly class Finding implements Arrayable, JsonSerializable
     }
 
     /**
-     * Return a copy with a different severity level (used to apply config `severity_overrides`).
+     * Return a copy with a different severity (used to apply config `severity_overrides`).
      */
-    public function withLevel(int $level): self
+    public function withSeverity(Severity $severity): self
     {
         return new self(
             ruleId: $this->ruleId,
-            level: $level,
+            severity: $severity,
             message: $this->message,
             location: $this->location,
             fixHint: $this->fixHint,
@@ -74,7 +75,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     {
         return new self(
             ruleId: $this->ruleId,
-            level: $this->level,
+            severity: $this->severity,
             message: $this->message,
             location: $this->location,
             fixHint: $this->fixHint,
@@ -87,7 +88,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     {
         return new self(
             ruleId: $this->ruleId,
-            level: $this->level,
+            severity: $this->severity,
             message: $this->message,
             location: $this->location,
             fixHint: $this->fixHint,
@@ -110,7 +111,7 @@ final readonly class Finding implements Arrayable, JsonSerializable
     {
         return [
             'rule_id' => $this->ruleId,
-            'level' => $this->level,
+            'level' => $this->severity->value,
             'message' => $this->message,
             'fix_hint' => $this->fixHint,
             'location' => $this->location->toArray(),

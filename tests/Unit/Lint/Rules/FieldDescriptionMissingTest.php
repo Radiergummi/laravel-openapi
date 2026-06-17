@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\FieldDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Tree\FieldNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -30,7 +31,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new FieldDescriptionMissing();
 
     expect($rule->id())->toBe('field.description-missing')
-        ->and($rule->level())->toBe(2);
+        ->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when a field has a missing or blank description', function (?string $description): void {

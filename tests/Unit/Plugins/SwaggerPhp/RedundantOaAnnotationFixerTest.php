@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\Fix\Fix;
@@ -40,7 +41,7 @@ function runRedundantOaFixer(string $class, AuthoredAnnotationShape $shape): arr
 
     $finding = new Finding(
         ruleId: 'migration.oa-redundant-with-inference',
-        level: 4,
+        severity: Severity::Improvable,
         message: 'fixture',
         location: new FindingLocation(file: $sourceFile),
         context: [
@@ -198,7 +199,7 @@ it('removes a parenthesis-less bare @OA\Schema docblock', function (): void {
 it('yields nothing when the finding context lacks the source class or shape', function (): void {
     $finding = new Finding(
         ruleId: 'migration.oa-redundant-with-inference',
-        level: 4,
+        severity: Severity::Improvable,
         message: 'fixture',
     );
 
@@ -208,7 +209,7 @@ it('yields nothing when the finding context lacks the source class or shape', fu
 it('yields nothing when the source class cannot be reflected', function (): void {
     $finding = new Finding(
         ruleId: 'migration.oa-redundant-with-inference',
-        level: 4,
+        severity: Severity::Improvable,
         message: 'fixture',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => 'Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\NoSuchClass',

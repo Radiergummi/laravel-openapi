@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -37,7 +38,7 @@ final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf('Webhook "%s" has no description', $webhook->name),
             location: new FindingLocation(jsonPointer: $webhook->pointer()),
             fixHint: 'Add a description explaining when and why this webhook fires.',
@@ -51,9 +52,9 @@ final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

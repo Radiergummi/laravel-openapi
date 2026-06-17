@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -35,7 +36,7 @@ final class TagsNoDescription implements Rule, ApiRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf('Tag "%s" has no description', $tagName),
                 location: new FindingLocation(jsonPointer: '#/tags/' . $index),
                 fixHint: 'Add a description to the tag to improve API documentation.',
@@ -50,9 +51,9 @@ final class TagsNoDescription implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

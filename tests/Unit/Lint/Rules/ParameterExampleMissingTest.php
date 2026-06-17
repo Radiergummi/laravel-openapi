@@ -5,6 +5,7 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ParameterExampleMissing;
 use Radiergummi\OpenApi\Lint\Tree\ExampleNode;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
@@ -60,7 +61,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new ParameterExampleMissing();
 
     expect($rule->id())->toBe('parameter.example-missing')
-        ->and($rule->level())->toBe(4);
+        ->and($rule->severity())->toBe(Severity::Improvable);
 });
 
 it('emits a finding when a parameter has neither example nor examples', function (): void {
@@ -74,7 +75,7 @@ it('emits a finding when a parameter has neither example nor examples', function
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.example-missing')
-        ->and($findings[0]->level)->toBe(4)
+        ->and($findings[0]->severity)->toBe(Severity::Improvable)
         ->and($findings[0]->message)->toContain('userId');
 });
 

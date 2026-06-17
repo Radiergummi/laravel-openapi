@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Extraction;
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\RequestSchemaResolver;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -71,7 +72,7 @@ final readonly class RequestBodyExtractor
             $this->findings->emit(
                 new Finding(
                     ruleId: 'request.empty',
-                    level: 2,
+                    severity: Severity::Underspecified,
                     message: sprintf(
                         'No request body schema for %s %s',
                         $descriptor->httpMethod->forDisplay(),

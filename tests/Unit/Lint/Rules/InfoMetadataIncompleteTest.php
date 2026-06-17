@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\InfoMetadataIncomplete;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -51,7 +52,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('info.metadata-incomplete')
-        ->and($rule->level())->toBe(4);
+        ->and($rule->severity())->toBe(Severity::Improvable);
 });
 
 it('emits a finding when both contact and license are absent', function (): void {
@@ -60,7 +61,7 @@ it('emits a finding when both contact and license are absent', function (): void
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('info.metadata-incomplete')
-        ->and($findings[0]->level)->toBe(4)
+        ->and($findings[0]->severity)->toBe(Severity::Improvable)
         ->and($findings[0]->message)->toContain('contact')
         ->and($findings[0]->message)->toContain('license');
 });

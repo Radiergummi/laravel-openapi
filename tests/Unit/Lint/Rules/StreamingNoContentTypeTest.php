@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Routing\Route;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\StreamingNoContentType;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\StreamingFixtureController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -53,7 +54,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new StreamingNoContentType();
 
     expect($rule->id())->toBe('streaming.no-content-type')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when streaming endpoint has no text/event-stream content type', function (): void {
@@ -61,7 +62,7 @@ it('emits a finding when streaming endpoint has no text/event-stream content typ
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('streaming.no-content-type')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('stream');
 });
 

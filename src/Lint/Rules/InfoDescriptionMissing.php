@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -33,7 +34,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         if (is_undefined($info) || $info === null) {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'The document info object is missing',
                 location: new FindingLocation(jsonPointer: '#/info'),
                 fixHint: 'Add an info.description to the OpenAPI document.',
@@ -51,7 +52,7 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         ) {
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: 'The document info.description is empty',
                 location: new FindingLocation(jsonPointer: '#/info/description'),
                 fixHint: 'Add a description to info explaining the API purpose and intended audience.',
@@ -66,9 +67,9 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

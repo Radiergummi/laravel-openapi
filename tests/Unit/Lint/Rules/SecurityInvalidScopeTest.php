@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\SecurityInvalidScope;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -68,7 +69,7 @@ function makeScopeSchemeContext(array $schemeTypes, array $registeredScopes): Li
 it('reports its id and level', function (): void {
     $rule = new SecurityInvalidScope(registeredScopes: []);
 
-    expect($rule->id())->toBe('security.invalid-scope')->and($rule->level())->toBe(1);
+    expect($rule->id())->toBe('security.invalid-scope')->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when an operation references an undefined scope', function (): void {
@@ -87,8 +88,8 @@ it('emits a finding when an operation references an undefined scope', function (
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)
         ->toBe('security.invalid-scope')
-        ->and($findings[0]->level)
-        ->toBe(1)
+        ->and($findings[0]->severity)
+        ->toBe(Severity::Degraded)
         ->and($findings[0]->message)
         ->toContain('unknown-scope');
 });

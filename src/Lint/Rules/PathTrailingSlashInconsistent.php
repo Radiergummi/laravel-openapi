@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -62,7 +63,7 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Inconsistent trailing slashes: %d path(s) end with a slash (e.g., %s) and %d do not (e.g., %s)',
                 count($withSlash),
@@ -81,9 +82,9 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

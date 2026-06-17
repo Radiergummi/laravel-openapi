@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\LinkNeitherOperationIdNorRef;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
@@ -26,7 +27,7 @@ function makeLinkNeitherFieldNode(?string $operationId, ?string $operationRef): 
 it('reports its id and level', function (): void {
     $rule = new LinkNeitherOperationIdNorRef();
 
-    expect($rule->id())->toBe('link.neither-operation-id-nor-ref')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('link.neither-operation-id-nor-ref')->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it(
@@ -55,6 +56,6 @@ it('emits a finding when a link has neither operationId nor operationRef', funct
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('link.neither-operation-id-nor-ref')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('neither');
 });

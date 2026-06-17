@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\SchemaEnumTypeMismatch;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -12,7 +13,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('schema.enum-type-mismatch')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no finding when all enum values match the declared type', function (string $type, array $enum): void {
@@ -42,7 +43,7 @@ it(
         expect($findings)
             ->toHaveCount(1)
             ->and($findings[0]->ruleId)->toBe('schema.enum-type-mismatch')
-            ->and($findings[0]->level)->toBe(0)
+            ->and($findings[0]->severity)->toBe(Severity::Broken)
             ->and($findings[0]->message)->toContain($type)
             ->and($findings[0]->message)->toContain("index {$badIndex}");
     },

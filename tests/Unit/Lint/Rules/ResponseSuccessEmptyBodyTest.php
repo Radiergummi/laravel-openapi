@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\ResponseSuccessEmptyBody;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -12,7 +13,7 @@ it('reports its id and level', function (): void {
     $rule = new ResponseSuccessEmptyBody();
 
     expect($rule->id())->toBe('response.success-empty-body')
-        ->and($rule->level())->toBe(2);
+        ->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it('emits a finding for a 200 response with no body schema', function (): void {

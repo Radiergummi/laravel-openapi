@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Lint\Rules\TagNameNamingInconsistent;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -12,7 +13,7 @@ it('reports its id and level', function (): void {
     $rule = new TagNameNamingInconsistent();
 
     expect($rule->id())->toBe('tag.name-naming-inconsistent')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('default (pascal): passes valid PascalCase tag names', function (array $tags): void {
@@ -36,7 +37,7 @@ it('default (pascal): flags non-PascalCase tag names', function (string $tag): v
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('tag.name-naming-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain("\"{$tag}\"")
         ->and($findings[0]->message)->toContain('PascalCase');
 })->with([

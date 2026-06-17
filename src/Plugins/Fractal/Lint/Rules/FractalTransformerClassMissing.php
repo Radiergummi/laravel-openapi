@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Fractal\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -49,7 +50,7 @@ final readonly class FractalTransformerClassMissing implements Rule, OperationRu
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '#[FractalResponse] on %s %s names unknown transformer %s',
                 $operation->method->forDisplay(),
@@ -67,9 +68,9 @@ final readonly class FractalTransformerClassMissing implements Rule, OperationRu
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

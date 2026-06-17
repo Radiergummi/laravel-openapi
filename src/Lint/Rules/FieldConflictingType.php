@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use ReflectionNamedType;
@@ -74,7 +75,7 @@ final class FieldConflictingType extends AbstractFieldRule
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: $message,
             fixHint: sprintf(
                 'Change the #[%s] type to "%s" or adjust the PHP type hint.',
@@ -91,8 +92,8 @@ final class FieldConflictingType extends AbstractFieldRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\RequestBodyNoContent;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -12,7 +13,7 @@ it('reports the correct id and level', function (): void {
 
     expect($rule->id())
         ->toBe('request-body.no-content')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a request body has no media-type entries', function (): void {
@@ -26,7 +27,7 @@ it('emits a finding when a request body has no media-type entries', function ():
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('request-body.no-content')
-        ->and($findings[0]->level)->toBe(1);
+        ->and($findings[0]->severity)->toBe(Severity::Degraded);
 });
 
 it(

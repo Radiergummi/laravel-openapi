@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ExternaldocsInvalidUrl;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\InvalidExternalDocsController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -23,7 +24,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new ExternaldocsInvalidUrl();
 
     expect($rule->id())->toBe('externaldocs.invalid-url')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding for an invalid URL', function (): void {
@@ -31,7 +32,7 @@ it('emits a finding for an invalid URL', function (): void {
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('externaldocs.invalid-url')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('not-a-url');
 });
 

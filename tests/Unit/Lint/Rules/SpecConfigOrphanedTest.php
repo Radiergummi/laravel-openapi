@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\SpecConfigOrphaned;
@@ -74,7 +75,7 @@ it('has the correct id and level', function (): void {
     $rule = new SpecConfigOrphaned(specConfigOrphanedEvaluator(), 'testing');
 
     expect($rule->id())->toBe('spec.config-orphaned')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits no findings when the default spec matches at least one route', function (): void {
@@ -98,7 +99,7 @@ it('emits a finding when a named spec matches no routes', function (): void {
 
     expect($orphaned)->toHaveCount(1)
         ->and($orphaned[0]->ruleId)->toBe('spec.config-orphaned')
-        ->and($orphaned[0]->level)->toBe(3)
+        ->and($orphaned[0]->severity)->toBe(Severity::Inconsistent)
         ->and($orphaned[0]->message)->toContain('internal');
 });
 

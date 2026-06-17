@@ -8,6 +8,7 @@ use Override;
 use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -42,7 +43,7 @@ final class ActionMissingReturnType implements Rule, OperationRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 '%s::%s() has no return type or response attribute, so no response schema can be inferred',
                 $descriptor->controller?->getShortName() ?? '(unknown)',
@@ -84,9 +85,9 @@ final class ActionMissingReturnType implements Rule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

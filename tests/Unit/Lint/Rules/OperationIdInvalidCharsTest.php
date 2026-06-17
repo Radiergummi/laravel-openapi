@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdInvalidChars;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -11,7 +12,7 @@ it('reports its id and level', function (): void {
     $rule = new OperationIdInvalidChars();
 
     expect($rule->id())->toBe('operation.id-invalid-chars')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding for an operationId that violates the charset', function (string $operationId, string $path): void {
@@ -27,7 +28,7 @@ it('emits a finding for an operationId that violates the charset', function (str
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('operation.id-invalid-chars')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain($operationId);
 })->with([
     'space and exclamation mark' => ['get projects!', '/projects'],

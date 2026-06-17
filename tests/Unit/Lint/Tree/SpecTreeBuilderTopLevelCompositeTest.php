@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\SchemaCompositeFieldsUninspected;
@@ -113,7 +114,7 @@ it('flags a top-level bare anyOf component schema as uninspected', function (): 
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.composite-fields-uninspected')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('Thing');
 });
 
@@ -132,7 +133,7 @@ it('flags a top-level bare oneOf response body as uninspected', function (): voi
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.composite-fields-uninspected')
-        ->and($findings[0]->level)->toBe(3);
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent);
 });
 
 it('flags a top-level bare anyOf request body as uninspected', function (): void {
@@ -150,7 +151,7 @@ it('flags a top-level bare anyOf request body as uninspected', function (): void
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.composite-fields-uninspected')
-        ->and($findings[0]->level)->toBe(3);
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent);
 });
 
 it('does not flag the top-level nullable shape as a composite union', function (): void {

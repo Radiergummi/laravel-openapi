@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\VisibilityAttributeNoOp;
 use Radiergummi\OpenApi\Support\Visibility\VisibilityMode;
 use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
@@ -26,7 +27,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('visibility.attribute-no-op')
-        ->and($rule->level())->toBe(2);
+        ->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it('flags an unconditional #[Expose] under public-default visibility', function (): void {

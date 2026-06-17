@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -79,7 +80,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf('String schema "%s" has no maxLength constraint', $name),
                 location: $loc,
                 fixHint: 'Add a "maxLength" to cap the string length, or add a "format" or "enum" if the values are bounded by other means.',
@@ -95,7 +96,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf('Array schema "%s" has no maxItems constraint', $name),
                 location: $loc,
                 fixHint: 'Add a "maxItems" to prevent unbounded arrays from being accepted or returned.',
@@ -114,7 +115,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf('Numeric schema "%s" has no minimum or maximum constraint', $name),
                 location: $loc,
                 fixHint: 'Add a "minimum" and/or "maximum" to bound the numeric range.',
@@ -129,9 +130,9 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 4;
+        return Severity::Improvable;
     }
 
     /**

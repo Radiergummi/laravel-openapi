@@ -44,7 +44,7 @@ final readonly class LinterSummary implements Arrayable, JsonSerializable
         $counts = array_fill(0, $level + 1, 0);
 
         foreach ($findings as $finding) {
-            $counts[$finding->level] = ($counts[$finding->level] ?? 0) + 1;
+            $counts[$finding->severity->value] = ($counts[$finding->severity->value] ?? 0) + 1;
         }
 
         ksort($counts);

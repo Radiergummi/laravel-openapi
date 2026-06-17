@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -12,7 +13,7 @@ it('reports its id and level', function (): void {
     $rule = new ComponentNameNamingInconsistent();
 
     expect($rule->id())->toBe('component.name-naming-inconsistent')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('pascal (default): flags non-PascalCase component names', function (string $name, string $expectedCaseLabel): void {
@@ -23,7 +24,7 @@ it('pascal (default): flags non-PascalCase component names', function (string $n
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('component.name-naming-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain($name)
         ->and($findings[0]->message)->toContain($expectedCaseLabel);
 })->with([

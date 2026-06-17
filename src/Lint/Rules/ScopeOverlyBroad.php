@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\SecuritySchemeTypes;
@@ -54,7 +55,7 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
             if (count($scopeList) === 1 && $scopeList[0] === '*') {
                 yield new Finding(
                     ruleId: $this->id(),
-                    level: $this->level(),
+                    severity: $this->severity(),
                     message: sprintf(
                         'Operation %s %s uses only the wildcard scope "*" — consider using more specific scopes',
                         $operation->method->forDisplay(),
@@ -73,9 +74,9 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 
     #[Override]

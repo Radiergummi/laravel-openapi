@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -50,7 +51,7 @@ final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: "The document info is missing {$missingList}",
             location: new FindingLocation(jsonPointer: '#/info'),
             fixHint: 'Add the missing ' . $missingList . ' field(s) to the info object.',
@@ -64,9 +65,9 @@ final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

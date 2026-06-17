@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\LinkInvalidOperation;
 use Radiergummi\OpenApi\Lint\Tree\LinkNode;
@@ -23,7 +24,7 @@ function makeLinkInvalidOperationNode(?string $operationId): LinkNode
 it('reports its id and level', function (): void {
     $rule = new LinkInvalidOperation();
 
-    expect($rule->id())->toBe('link.invalid-operation')->and($rule->level())->toBe(1);
+    expect($rule->id())->toBe('link.invalid-operation')->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits no finding when all Link operationIds resolve', function (): void {
@@ -48,7 +49,7 @@ it('emits a finding when a Link operationId is unknown', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('link.invalid-operation')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('missing.endpoint');
 });
 

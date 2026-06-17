@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use Override;
 use Radiergummi\OpenApi\Attributes\Header;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -57,7 +58,7 @@ final class HeaderInvalidName implements Rule, OperationRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'Header name "%s" on %s::%s() is not a valid HTTP token',
                     $header->name,
@@ -76,9 +77,9 @@ final class HeaderInvalidName implements Rule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

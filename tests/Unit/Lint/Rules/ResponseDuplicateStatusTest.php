@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ResponseDuplicateStatus;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -11,7 +12,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new ResponseDuplicateStatus();
 
     expect($rule->id())->toBe('response.duplicate-status')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits a finding when an operation has duplicate response status codes', function (): void {
@@ -28,7 +29,7 @@ it('emits a finding when an operation has duplicate response status codes', func
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.duplicate-status')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('200')
         ->and($findings[0]->message)->toContain('2 times');
 });

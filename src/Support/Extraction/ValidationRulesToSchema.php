@@ -16,6 +16,7 @@ use Illuminate\Validation\Rules\NotIn;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rules\Unique;
 use Radiergummi\OpenApi\Contracts\Extraction\SelfDocumentingRule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -313,7 +314,7 @@ final readonly class ValidationRulesToSchema
         $this->findings->emit(
             new Finding(
                 ruleId: 'rule.unknown',
-                level: 2,
+                severity: Severity::Underspecified,
                 message: sprintf(
                     'Unknown Rule object %s on property %s — schema constraint dropped',
                     $rule::class,
@@ -934,7 +935,7 @@ final readonly class ValidationRulesToSchema
                 $this->findings->emit(
                     new Finding(
                         ruleId: 'rule.invalid-enum-value',
-                        level: 2,
+                        severity: Severity::Underspecified,
                         message: sprintf(
                             'SelfDocumentingRule %s returned a non-scalar enum value — only int/float/string are allowed.',
                             $rule::class,

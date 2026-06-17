@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Lint\Rules\HeaderNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Tree\HeaderNode;
@@ -24,7 +25,7 @@ it('reports its id and level', function (): void {
     $rule = new HeaderNameNamingInconsistent();
 
     expect($rule->id())->toBe('header.name-naming-inconsistent')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('default (train): passes a valid Train-Case header name', function (string $name): void {
@@ -45,7 +46,7 @@ it('default (train): flags non-Train-Case header names', function (string $name)
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('header.name-naming-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain("\"{$name}\"")
         ->and($findings[0]->message)->toContain('Train-Case');
 })->with([

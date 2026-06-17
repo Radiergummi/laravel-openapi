@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\LinkInvalidParameter;
@@ -62,7 +63,7 @@ function makeLinkInvalidParamContext(
 it('reports its id and level', function (): void {
     $rule = new LinkInvalidParameter();
 
-    expect($rule->id())->toBe('link.invalid-parameter')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('link.invalid-parameter')->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it(
@@ -102,7 +103,7 @@ it(
         expect($findings)
             ->toHaveCount(1)
             ->and($findings[0]->ruleId)->toBe('link.invalid-parameter')
-            ->and($findings[0]->level)->toBe(0)
+            ->and($findings[0]->severity)->toBe(Severity::Broken)
             ->and($findings[0]->message)->toContain('unknown');
     },
 );

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Tree\WebhookNode;
@@ -45,7 +46,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('webhook.description-missing')
-        ->and($rule->level())->toBe(2);
+        ->and($rule->severity())->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when a webhook has a missing or blank description', function (?string $description): void {
@@ -59,7 +60,7 @@ it('emits a finding when a webhook has a missing or blank description', function
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('webhook.description-missing')
-        ->and($findings[0]->level)->toBe(2)
+        ->and($findings[0]->severity)->toBe(Severity::Underspecified)
         ->and($findings[0]->message)->toContain('orderCreated')
         ->and($findings[0]->location->jsonPointer)->toBe('#/webhooks/orderCreated');
 })->with([

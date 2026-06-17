@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\RequestEmpty;
 
 uses()->group('openapi', 'lint');
@@ -15,7 +16,7 @@ it('exposes the stable rule id', function (): void {
 });
 
 it('reports a warning-level severity', function (): void {
-    expect(new RequestEmpty()->level())->toBe(2);
+    expect(new RequestEmpty()->severity())->toBe(Severity::Underspecified);
 });
 
 it('provides a non-empty description', function (): void {

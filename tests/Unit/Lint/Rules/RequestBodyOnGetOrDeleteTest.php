@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\Rules\RequestBodyOnGetOrDelete;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -12,7 +13,7 @@ it('has the correct rule id and level', function (): void {
     $rule = new RequestBodyOnGetOrDelete();
 
     expect($rule->id())->toBe('request-body.on-get-or-delete')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it(
@@ -31,7 +32,7 @@ it(
 
         expect($findings)->toHaveCount(1)
             ->and($findings[0]->ruleId)->toBe('request-body.on-get-or-delete')
-            ->and($findings[0]->level)->toBe(1)
+            ->and($findings[0]->severity)->toBe(Severity::Degraded)
             ->and($findings[0]->message)->toContain($method->forDisplay());
     },
 )->with([HttpMethod::Get, HttpMethod::Delete]);

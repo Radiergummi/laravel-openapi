@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use Illuminate\Container\Attributes\Config;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
@@ -60,7 +61,7 @@ final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        level: $this->level(),
+                        severity: $this->severity(),
                         message: "Spec '{$spec->name}' is defined in config but matches no routes.",
                         fixHint: "Adjust the spec's match config or remove the spec entry.",
                     ),
@@ -70,8 +71,8 @@ final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 }

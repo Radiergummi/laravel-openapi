@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use Override;
 use Radiergummi\OpenApi\Attributes\ExternalDocs;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
@@ -60,7 +61,7 @@ final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
 
             yield new Finding(
                 ruleId: $this->id(),
-                level: $this->level(),
+                severity: $this->severity(),
                 message: sprintf(
                     'ExternalDocs URL "%s" on %s::%s() is not a valid HTTP(S) URL',
                     $url,
@@ -79,9 +80,9 @@ final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

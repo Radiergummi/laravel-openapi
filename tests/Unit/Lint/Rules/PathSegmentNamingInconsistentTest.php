@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
 use Radiergummi\OpenApi\Lint\Rules\PathSegmentNamingInconsistent;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -12,7 +13,7 @@ it('reports its id and level', function (): void {
     $rule = new PathSegmentNamingInconsistent();
 
     expect($rule->id())->toBe('path.segment-naming-inconsistent')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('default (kebab): passes paths whose static segments are kebab-case', function (string $pathUri): void {
@@ -37,7 +38,7 @@ it('default (kebab): flags non-kebab static segments', function (string $pathUri
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('path.segment-naming-inconsistent')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain($offending)
         ->and($findings[0]->message)->toContain('kebab-case');
 })->with([

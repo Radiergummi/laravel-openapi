@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -55,7 +56,7 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf('Schema "%s" has no example value', $componentSchema->name),
             location: new FindingLocation(
                 jsonPointer: ComponentReference::pointer($componentSchema->name),
@@ -71,9 +72,9 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

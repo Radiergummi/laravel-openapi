@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Rules\MetaTooManySuppressions;
 use Radiergummi\OpenApi\Lint\SuppressionDirective;
@@ -52,7 +53,7 @@ it('reports its id and level', function (): void {
 
     expect($rule->id())
         ->toBe('meta.too-many-suppressions')
-        ->and($rule->level())->toBe(3);
+        ->and($rule->severity())->toBe(Severity::Inconsistent);
 });
 
 it('emits no finding when suppressions are at or below the threshold', function (): void {
@@ -87,7 +88,7 @@ it('emits a finding when suppressions exceed the threshold', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('meta.too-many-suppressions')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)->toContain('Controller.php')
         ->and($findings[0]->message)->toContain('6')
         ->and($findings[0]->message)->toContain('threshold')

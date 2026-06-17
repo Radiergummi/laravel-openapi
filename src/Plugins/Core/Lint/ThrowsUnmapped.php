@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Lint;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
 
 /**
@@ -23,9 +24,9 @@ final class ThrowsUnmapped implements Rule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 2;
+        return Severity::Underspecified;
     }
 
     #[Override]

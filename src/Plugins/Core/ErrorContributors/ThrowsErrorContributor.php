@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Scoped;
 use Override;
 use Radiergummi\OpenApi\Attributes\ExceptionResponse;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -128,7 +129,7 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
         $this->findings->emit(
             new Finding(
                 ruleId: 'throws.unmapped',
-                level: 2,
+                severity: Severity::Underspecified,
                 message: sprintf(
                     'Exception %s thrown from %s %s has no mapping',
                     $throw,

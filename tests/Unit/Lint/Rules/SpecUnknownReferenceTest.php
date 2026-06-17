@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Routing\Route;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Lint\Rules\SpecUnknownReference;
@@ -74,7 +75,7 @@ it('has the correct id and level', function (): void {
 
     expect($rule->id())
         ->toBe('spec.unknown-reference')
-        ->and($rule->level())->toBe(0);
+        ->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no findings when the descriptors list is empty', function (): void {
@@ -114,7 +115,7 @@ it('emits a finding when a #[Spec] argument references an undeclared spec name',
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('spec.unknown-reference')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('ghost');
 });
 

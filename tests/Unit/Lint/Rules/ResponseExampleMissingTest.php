@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ResponseExampleMissing;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
@@ -12,7 +13,7 @@ it('has the correct rule id and level', function (): void {
 
     expect($rule->id())
         ->toBe('response.example-missing')
-        ->and($rule->level())->toBe(4);
+        ->and($rule->severity())->toBe(Severity::Improvable);
 });
 
 it('emits a finding when a response has no examples and has content', function (): void {
@@ -29,7 +30,7 @@ it('emits a finding when a response has no examples and has content', function (
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('response.example-missing')
-        ->and($findings[0]->level)->toBe(4)
+        ->and($findings[0]->severity)->toBe(Severity::Improvable)
         ->and($findings[0]->message)->toContain('200');
 });
 

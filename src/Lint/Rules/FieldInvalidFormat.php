@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use ReflectionProperty;
@@ -71,7 +72,7 @@ final class FieldInvalidFormat extends AbstractFieldRule
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Property %s::$%s uses non-standard format "%s" in #[%s]; consider using a registered OAS 3.1 format',
                 $property->getDeclaringClass()->getName(),
@@ -93,8 +94,8 @@ final class FieldInvalidFormat extends AbstractFieldRule
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 3;
+        return Severity::Inconsistent;
     }
 }

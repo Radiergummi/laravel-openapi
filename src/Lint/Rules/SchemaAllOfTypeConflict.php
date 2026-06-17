@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
@@ -92,7 +93,7 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf(
                 'Schema "%s" has allOf with conflicting types: %s',
                 $schemaName,
@@ -110,9 +111,9 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 1;
+        return Severity::Degraded;
     }
 
     #[Override]

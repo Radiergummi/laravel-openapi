@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
@@ -45,7 +46,7 @@ final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
 
         yield new Finding(
             ruleId: $this->id(),
-            level: $this->level(),
+            severity: $this->severity(),
             message: sprintf('Parameter "%s" has no example value', $parameter->name),
             fixHint: 'Add an "example" or "examples" property to the parameter to improve documentation.',
         );
@@ -58,9 +59,9 @@ final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
     }
 
     #[Override]
-    public function level(): int
+    public function severity(): Severity
     {
-        return 4;
+        return Severity::Improvable;
     }
 
     #[Override]

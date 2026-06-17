@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
@@ -95,7 +96,7 @@ it('reports its id and level', function (): void {
     $rule = new MultipartFileWithoutMultipart(makeSchemaBuilderStub([]), makeDirectScannerForMultipart());
 
     expect($rule->id())->toBe('multipart.file-without-multipart')
-        ->and($rule->level())->toBe(1);
+        ->and($rule->severity())->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a #[RequestBody] override forces a non-multipart body on a file Data class', function (): void {
@@ -125,7 +126,7 @@ it('emits a finding when a #[RequestBody] override forces a non-multipart body o
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('multipart.file-without-multipart')
-        ->and($findings[0]->level)->toBe(1)
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
         ->and($findings[0]->message)->toContain('FileUploadFixtureController')
         ->and($findings[0]->message)->toContain('upload')
         ->and($findings[0]->message)->toContain('non-multipart');

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\PathParameterUndeclared;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
@@ -11,7 +12,7 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new PathParameterUndeclared();
 
-    expect($rule->id())->toBe('path.parameter-undeclared')->and($rule->level())->toBe(0);
+    expect($rule->id())->toBe('path.parameter-undeclared')->and($rule->severity())->toBe(Severity::Broken);
 });
 
 it('emits no finding when all placeholders are declared as path parameters', function (string $pathUri, array $names): void {
@@ -46,7 +47,7 @@ it('emits a finding for an undeclared path placeholder', function (): void {
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('path.parameter-undeclared')
-        ->and($findings[0]->level)->toBe(0)
+        ->and($findings[0]->severity)->toBe(Severity::Broken)
         ->and($findings[0]->message)->toContain('postId');
 });
 

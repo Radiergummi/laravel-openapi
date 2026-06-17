@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint;
 
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Visitors\PreBuildRule;
 use Traversable;
 
@@ -13,6 +14,7 @@ use function array_values;
 use function in_array;
 use function iterator_to_array;
 use function max;
+use function min;
 
 final class RuleRegistry
 {
@@ -23,7 +25,7 @@ final class RuleRegistry
 
     /**
      * @param iterable<Rule>     $rules
-     * @param array<string, int> $severityOverrides Per-rule severity remap: rule-id => level.
+     * @param array<string, int> $severityOverrides Per-rule severity remap: rule-id => level int.
      *                                              `spec.invalid` is exempt and cannot be remapped.
      */
     public function __construct(
@@ -67,7 +69,7 @@ final class RuleRegistry
         $kept = [];
 
         foreach ($this->rules as $rule) {
-            if ($this->effectiveLevel($rule) > $level) {
+            if ($this->effectiveLevel($rule)->value > $level) {
                 continue;
             }
 
@@ -85,19 +87,32 @@ final class RuleRegistry
         return $kept;
     }
 
-    private function effectiveLevel(Rule $rule): int
+    private function effectiveLevel(Rule $rule): Severity
     {
-        return $this->effectiveLevelFor($rule->id(), $rule->level());
+        return $this->effectiveLevelFor($rule->id(), $rule->severity());
     }
 
-    /** `spec.invalid` is always exempt from severity remapping. */
-    public function effectiveLevelFor(string $ruleId, int $fallback): int
+    /**
+     * Resolve a rule's effective severity, applying any config override.
+     *
+     * `spec.invalid` is always exempt from remapping. Out-of-range override ints are clamped into
+     * the severity range before resolution, so a stray value can never escape the closed enum.
+     */
+    public function effectiveLevelFor(string $ruleId, Severity $fallback): Severity
     {
         if ($ruleId === self::EXEMPT_RULE_ID) {
             return $fallback;
         }
 
-        return max(0, $this->severityOverrides[$ruleId] ?? $fallback);
+        $override = $this->severityOverrides[$ruleId] ?? null;
+
+        if ($override === null) {
+            return $fallback;
+        }
+
+        $clamped = max(Severity::Broken->value, min(Severity::Improvable->value, $override));
+
+        return Severity::tryFrom($clamped) ?? $fallback;
     }
 
     /** @return list<string> */
@@ -112,13 +127,13 @@ final class RuleRegistry
         return $ids;
     }
 
-    /** Returns the highest effective level among all registered rules. */
+    /** Returns the highest effective level (by severity value) among all registered rules. */
     public function maxLevel(): int
     {
         $max = 0;
 
         foreach ($this->rules as $rule) {
-            $max = max($max, $this->effectiveLevel($rule));
+            $max = max($max, $this->effectiveLevel($rule)->value);
         }
 
         return $max;
@@ -136,11 +151,11 @@ final class RuleRegistry
         }
 
         return array_map(function (Finding $finding): Finding {
-            $effective = $this->effectiveLevelFor($finding->ruleId, $finding->level);
+            $effective = $this->effectiveLevelFor($finding->ruleId, $finding->severity);
 
-            return $effective === $finding->level
+            return $effective === $finding->severity
                 ? $finding
-                : $finding->withLevel($effective);
+                : $finding->withSeverity($effective);
         }, $findings);
     }
 }

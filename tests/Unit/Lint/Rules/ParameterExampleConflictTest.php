@@ -5,6 +5,7 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
 use OpenApi\Generator;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Rules\ParameterExampleConflict;
 use Radiergummi\OpenApi\Lint\Tree\ExampleNode;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
@@ -69,7 +70,7 @@ it('reports its id, level, and description', function (): void {
     $rule = new ParameterExampleConflict();
 
     expect($rule->id())->toBe('parameter.example-conflict')
-        ->and($rule->level())->toBe(1)
+        ->and($rule->severity())->toBe(Severity::Degraded)
         ->and($rule->description())->toBe('A parameter sets both example and examples (mutually exclusive).');
 });
 
@@ -85,7 +86,7 @@ it('emits one finding when parameter has both example and examples set', functio
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('parameter.example-conflict')
-        ->and($findings[0]->level)->toBe(1);
+        ->and($findings[0]->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding when at most one of example/examples is set', function (mixed $example, mixed $examples): void {
