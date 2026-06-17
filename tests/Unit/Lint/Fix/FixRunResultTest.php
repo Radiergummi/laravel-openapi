@@ -45,10 +45,10 @@ it('serializes the frozen fix-run envelope with the exact key set', function ():
     $array = $outcome->toArray();
 
     expect($array)->toHaveKeys([
-        'schema_version', 'mode', 'applied', 'skipped', 'modified_files', 'remaining', 'exit_code',
+        'schema_version', 'mode', 'applied', 'skipped', 'withheld_destructive', 'modified_files', 'remaining', 'exit_code',
     ])
         ->and(array_keys($array))->toBe([
-            'schema_version', 'mode', 'applied', 'skipped', 'modified_files', 'remaining', 'exit_code',
+            'schema_version', 'mode', 'applied', 'skipped', 'withheld_destructive', 'modified_files', 'remaining', 'exit_code',
         ])
         ->and($array['schema_version'])->toBe('1')
         ->and($array['mode'])->toBe('fix')
@@ -56,6 +56,7 @@ it('serializes the frozen fix-run envelope with the exact key set', function ():
         ->and($array['skipped'])->toBe([
             ['rule_id' => 'b.skipped', 'file' => '/app/B.php', 'reason' => 'conflict'],
         ])
+        ->and($array['withheld_destructive'])->toBe(0)
         ->and($array['modified_files'])->toBe(['/app/A.php'])
         ->and($array['remaining'])->toBe($remaining)
         ->and($array['exit_code'])->toBe(1);
@@ -112,4 +113,21 @@ it('is JSON-encodable to a stable shape (remaining reuses Finding json shape, no
 
     expect($decoded)->not->toHaveKey('findings')
         ->and($decoded['remaining'][0])->toHaveKeys(['rule_id', 'level', 'message']);
+});
+
+it('surfaces a non-zero withheld_destructive count alongside the withheld finding in remaining', function (): void {
+    // A destructive-only finding under --check=dangerous-off: counted as withheld AND still remaining.
+    $outcome = new FixRunResult(
+        fixResult: new FixResult([], [], []),
+        remainingFindings: [runResultFinding('config.write')],
+        level: 2,
+        dryRun: true,
+        withheldDestructiveCount: 1,
+    );
+
+    $array = $outcome->toArray();
+
+    expect($array['withheld_destructive'])->toBe(1)
+        ->and($array['applied'])->toBe(0)
+        ->and($array['remaining'])->toHaveCount(1);
 });

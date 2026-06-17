@@ -40,6 +40,7 @@ All notable changes to this project are documented here.
 - ApiResources: the return-expression reader now recognises the `X::collect(...)` static resource-collection factory, emitting the same collection response schema as `X::collection(...)`. (#390)
 - `openapi:lint --fix` now repairs missing and codegen-unsafe operationIds (synthesizes/sanitizes the `#[Operation(operationId: …)]`), via the new `AddAttribute` fix primitive. (#382)
 - `--fix`/`--check` now detect same-node fix conflicts (apply the safe subset, skip + report the rest with a typed reason) and emit a frozen `--check --format=json` fix-run envelope for CI. (#22)
+- `--fix`/`--check` now take an optional `safe|dangerous` level; destructive fixes are withheld from the default `--fix`, counted (`withheld_destructive` in the JSON envelope), and gated behind `--fix=dangerous` plus a clean working tree (`--allow-dirty` overrides). (#383)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.

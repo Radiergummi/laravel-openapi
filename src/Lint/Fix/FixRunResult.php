@@ -22,12 +22,16 @@ final readonly class FixRunResult
 
     /**
      * @param list<Finding> $remainingFindings
+     * @param int           $withheldDestructiveCount Fixes gated behind `--fix=dangerous` that were
+     *                                                not applied this run (their findings stay in
+     *                                                `$remainingFindings`).
      */
     public function __construct(
         public FixResult $fixResult,
         public array $remainingFindings,
         public int $level,
         public bool $dryRun,
+        public int $withheldDestructiveCount = 0,
     ) {}
 
     /**
@@ -53,6 +57,7 @@ final readonly class FixRunResult
      *     mode: 'check'|'fix',
      *     applied: int,
      *     skipped: list<array{rule_id: string, file: string, reason: string}>,
+     *     withheld_destructive: int,
      *     modified_files: list<string>,
      *     remaining: list<Finding>,
      *     exit_code: int
@@ -72,6 +77,7 @@ final readonly class FixRunResult
                 ],
                 $this->fixResult->skipped,
             ),
+            'withheld_destructive' => $this->withheldDestructiveCount,
             'modified_files' => $this->fixResult->modifiedFiles,
             'remaining' => $this->remainingFindings,
             'exit_code' => $this->exitCode(),
