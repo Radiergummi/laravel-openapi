@@ -156,12 +156,13 @@ would have emitted.
 ### Conflicting fixes
 
 When two fixes would touch the **same** code node (for example two rules that
-both rewrite the same attribute argument, or a removal an edit on the same
-attribute depends on), applying them together is unsafe. The fixer keeps the
-first of the conflicting set and **skips** the rest, reporting them rather than
-guessing — a skip is recoverable, a wrong edit is not. Re-run `--fix`: the
-skipped fix is re-emitted on the next pass and, with its conflictor already
-resolved, applies cleanly. The summary line reports `N skipped (conflict: N)`.
+both rewrite the same attribute argument, or a removal alongside another edit on
+the same member, where removing one attribute shifts the others), applying them
+together is unsafe. The fixer keeps the first of the conflicting set and
+**skips** the rest, reporting them rather than guessing — a skip is recoverable,
+a wrong edit is not. Re-run `--fix`: the skipped fix is re-emitted on the next
+pass and, with its conflictor already resolved, applies cleanly. The summary
+line reports `N skipped (conflict: N)`.
 
 ### Machine-readable fix runs (`--check --format=json`)
 

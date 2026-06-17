@@ -57,29 +57,24 @@ it('skips a SetAttributeArgument that depends on an index a kept RemoveAttribute
         ->and($result['skipped'][0]->reason)->toBe(FixSkipReason::Conflict);
 });
 
-it('keeps a SetAttributeArgument on an index a RemoveAttribute does not touch', function (): void {
+it('skips a SetAttributeArgument even on an index a kept RemoveAttribute does not name', function (): void {
+    // A removal re-indexes the member's flat attribute list mid-traversal, so a later op's index is
+    // no longer trustworthy regardless of which indices the removal named. The set is skipped.
     $remove = detectorFix(new RemoveAttribute(methodTarget(), [1]));
     $set = detectorFix(new SetAttributeArgument(methodTarget(), 0, 'operationId', 'a'));
 
     $result = new FixConflictDetector()->partition([$remove, $set]);
 
-    expect($result['kept'])->toBe([$remove, $set])
-        ->and($result['skipped'])->toBe([]);
+    expect($result['kept'])->toBe([$remove])
+        ->and($result['skipped'][0]->fix)->toBe($set)
+        ->and($result['skipped'][0]->reason)->toBe(FixSkipReason::Conflict);
 });
 
-it('keeps two RemoveAttribute with disjoint indices on one member', function (): void {
+it('skips the second of two RemoveAttribute on one member even with disjoint indices', function (): void {
+    // Disjoint indices are not independent across separate ops: the first removal compacts the list,
+    // so the second op's original indices then address shifted attributes. Keep first, skip the rest.
     $first = detectorFix(new RemoveAttribute(methodTarget(), [0, 1]));
     $second = detectorFix(new RemoveAttribute(methodTarget(), [2, 3]));
-
-    $result = new FixConflictDetector()->partition([$first, $second]);
-
-    expect($result['kept'])->toBe([$first, $second])
-        ->and($result['skipped'])->toBe([]);
-});
-
-it('skips the second of two RemoveAttribute with an overlapping index', function (): void {
-    $first = detectorFix(new RemoveAttribute(methodTarget(), [0, 1]));
-    $second = detectorFix(new RemoveAttribute(methodTarget(), [1, 2]));
 
     $result = new FixConflictDetector()->partition([$first, $second]);
 

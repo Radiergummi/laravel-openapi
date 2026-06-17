@@ -8,9 +8,6 @@ use Radiergummi\OpenApi\Lint\Fix\Fix;
 use Radiergummi\OpenApi\Lint\Fix\FixSkipReason;
 use Radiergummi\OpenApi\Lint\Fix\SkippedFix;
 
-use function array_intersect;
-use function in_array;
-
 /**
  * Partitions a batch of {@see Fix}es into a safe subset to apply and a conflicting subset to skip.
  *
@@ -89,15 +86,20 @@ final readonly class FixConflictDetector
      * The op set is small and finite, so the matrix is enumerated explicitly. Bias toward
      * correctness: when independence is not provable, treat the pair as conflicting (a skip is
      * recoverable by re-running; a wrong mutation is not).
+     *
+     * Every kept op runs against the *same* progressively-mutated tree in one traversal, so an op
+     * that changes the member's attribute layout, inserting or removing an attribute group (which
+     * re-indexes the flat attribute list), invalidates the indices every later op resolves against.
+     * Both {@see AddAttribute} and {@see RemoveAttribute} are therefore treated as conflicting with
+     * any other op on the same node; a re-run converges because the skipped op is re-emitted next
+     * pass with fresh indices and no surviving layout-changer.
      */
     private function conflicts(Fix $a, Fix $b): bool
     {
         $first = $a->operation;
         $second = $b->operation;
 
-        // An insertion prepends a new attribute group, shifting the flat index space every other
-        // attribute op resolves against, so it is never provably independent of another op here.
-        if ($first instanceof AddAttribute || $second instanceof AddAttribute) {
+        if ($this->changesLayout($first) || $this->changesLayout($second)) {
             return true;
         }
 
@@ -107,25 +109,18 @@ final readonly class FixConflictDetector
             return $first instanceof SetDocComment && $second instanceof SetDocComment;
         }
 
-        if ($first instanceof RemoveAttribute && $second instanceof RemoveAttribute) {
-            return array_intersect($first->attributeIndices, $second->attributeIndices) !== [];
-        }
+        // The only remaining pair is SetAttributeArgument vs SetAttributeArgument (neither changes
+        // the layout): distinct attributes never collide; the same attribute collides only on the
+        // same argument (last-wins), distinct arguments add independent named args to it.
+        return $first instanceof SetAttributeArgument
+            && $second instanceof SetAttributeArgument
+            && $first->attributeIndex === $second->attributeIndex
+            && $first->argumentName === $second->argumentName;
+    }
 
-        if ($first instanceof SetAttributeArgument && $second instanceof SetAttributeArgument) {
-            // Distinct attributes never collide; the same attribute collides only on the same argument
-            // (last-wins), distinct arguments add independent named args to that attribute.
-            return $first->attributeIndex === $second->attributeIndex
-                && $first->argumentName === $second->argumentName;
-        }
-
-        // The remaining pairs mix RemoveAttribute with SetAttributeArgument: a conflict iff the set
-        // operates on an index the remove drops (the survivor would mutate a shifted/absent attribute).
-        [$remove, $set] = $first instanceof RemoveAttribute
-            ? [$first, $second]
-            : [$second, $first];
-
-        return $remove instanceof RemoveAttribute
-            && $set instanceof SetAttributeArgument
-            && in_array($set->attributeIndex, $remove->attributeIndices, true);
+    /** Whether the op inserts or removes an attribute group, re-indexing the flat attribute list. */
+    private function changesLayout(AstOperation $operation): bool
+    {
+        return $operation instanceof AddAttribute || $operation instanceof RemoveAttribute;
     }
 }
