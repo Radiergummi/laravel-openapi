@@ -6,13 +6,19 @@ namespace Radiergummi\OpenApi\Console;
 
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
+use Radiergummi\OpenApi\Support\Generator\TagDeriver;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use ReflectionException;
+use RuntimeException;
+use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
 
 use function app;
@@ -20,7 +26,10 @@ use function array_map;
 use function array_values;
 use function count;
 use function implode;
+use function max;
 use function str_contains;
+use function str_pad;
+use function strlen;
 
 /**
  * Explains whether and why a given route is included or excluded across all defined specs.
@@ -32,14 +41,17 @@ class WhyCommand extends Command
 {
     protected $signature = 'openapi:why
         {route : Route name (exact match) or URI substring.}
-        {--for-env= : Override the environment for Hide/Expose evaluation.}';
+        {--for-env= : Override the environment for Hide/Expose evaluation.}
+        {--fields : Also build the operation and explain how each derived field got its value.}';
 
     protected $description = 'Explain inclusion of a route across all defined specs';
 
     /**
      * @throws InvalidArgumentException
      * @throws ReflectionException
+     * @throws RuntimeException
      * @throws UnexpectedValueException
+     * @throws UnsupportedException
      */
     public function handle(
         RouteIntrospector $introspector,
@@ -88,6 +100,10 @@ class WhyCommand extends Command
                 ? 'included in [' . implode(', ', $included) . ']'
                 : 'excluded from all specs'),
         );
+
+        if ($this->option('fields')) {
+            $this->printFields($descriptor);
+        }
 
         return self::SUCCESS;
     }
@@ -148,6 +164,66 @@ class WhyCommand extends Command
 
         $this->line('    → ' . $decision->summary);
         $this->line('');
+    }
+
+    /**
+     * Builds the operation per emitted verb (mirroring the paths stage) and prints the source
+     * and reason behind each derived field.
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function printFields(ActionDescriptor $descriptor): void
+    {
+        $builder = app(OperationBuilder::class);
+        $tag = (new TagDeriver())->derive($descriptor);
+
+        $verbs = array_values(array_filter(
+            array_map(
+                static fn(string $routeMethod): ?HttpMethod => HttpMethod::fromString($routeMethod),
+                $descriptor->route->methods(),
+            ),
+            static fn(?HttpMethod $method): bool => $method !== null && $method !== HttpMethod::Head,
+        ));
+
+        $labelVerb = count($verbs) > 1;
+
+        foreach ($verbs as $verb) {
+            $operation = $builder->build($descriptor->withHttpMethod($verb), [$tag]);
+
+            $this->line('');
+            $this->line($labelVerb ? "Fields ({$verb->forDisplay()}):" : 'Fields:');
+
+            if ($operation->provenance === []) {
+                $this->line('    (no derived fields)');
+
+                continue;
+            }
+
+            $this->printProvenance($operation->provenance);
+        }
+    }
+
+    /**
+     * @param list<FieldProvenance> $provenance
+     */
+    private function printProvenance(array $provenance): void
+    {
+        $labelWidth = 0;
+
+        foreach ($provenance as $entry) {
+            $labelWidth = max($labelWidth, strlen($entry->field) + 1);
+        }
+
+        foreach ($provenance as $entry) {
+            $label = str_pad($entry->field . ':', $labelWidth + 1);
+            $this->line("    {$label} {$entry->value} ← {$entry->source} ({$entry->reason})");
+
+            foreach ($entry->supersededBy as $candidate) {
+                $this->line(str_pad('', $labelWidth + 6) . "(superseded: {$candidate})");
+            }
+        }
     }
 
     // endregion

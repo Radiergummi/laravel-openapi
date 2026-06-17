@@ -79,6 +79,7 @@ All notable changes to this project are documented here.
 - Internal: the attribute-removal lint fixer now describes its change as an AST mutation on a structurally-addressed node; `FixApplicator` clones the syntax tree, applies the removal, and reprints once per file with php-parser's format-preserving printer (byte-identical output, no whole-file reformat). (#368)
 - Internal: the swagger-php `--fix` removers (`#[OA\*]` attributes and `@OA\…` docblock annotations) now emit the same AST-mutation operations; docblock removal rebuilds the doc-comment text (or drops the comment entirely) and reprints with the format-preserving printer instead of deleting physical lines. (#368)
 - Internal: the byte-splice fix backend (`SourceEdit` and the `FixOperation`/`RemoveLines`/`ReplaceLines`/`InsertBefore`/`ModifyAttribute` classes) is retired; `FixApplicator` is now purely the AST-mutation pipeline and the `Lint\Fix\Ast` operations (`RemoveAttribute`, `SetDocComment`, `SetAttributeArgument`) are the sole fix-operation surface. (#368)
+- `openapi:why --fields` explains the source and reason for a route's derived summary, success status code, and tags (e.g. `status: 201 ← ResourceConventionResolver (store → POST)`), with author overrides shown winning over the convention they superseded. Read-only instrumentation; generated output is unchanged. (#178)
 
 ## [0.1.0] - 2026-05-18
 

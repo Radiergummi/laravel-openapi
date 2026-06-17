@@ -38,6 +38,8 @@ use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
+use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
@@ -52,6 +54,8 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function assert;
+use function class_basename;
+use function implode;
 use function in_array;
 use function is_array;
 use function Radiergummi\OpenApi\is_undefined;
@@ -174,7 +178,8 @@ final readonly class OperationBuilder
             }
         }
 
-        $convention = $this->resolveConvention($action);
+        $resolvedConvention = $this->resolveConvention($action);
+        $convention = $resolvedConvention?->convention;
 
         $operationOverride = $this->readAttribute($action, OperationAttribute::class);
         assert($operationOverride === null || $operationOverride instanceof OperationAttribute);
@@ -211,6 +216,14 @@ final readonly class OperationBuilder
             $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
         }
 
+        $statusProvenance = $this->statusProvenance(
+            (string) $primaryResponse->response,
+            $primaryOverride !== null,
+            $autoStatusIsExplicit,
+            $resolvedConvention,
+            $action,
+        );
+
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
         $responses = [$primaryResponse, ...$additionalResponses];
         $this->applyResponseExamples($action, $responses);
@@ -218,7 +231,7 @@ final readonly class OperationBuilder
         $this->applyResponseHeaders($action, $responses);
         $this->applyLinkAttributes($action, $primaryResponse);
 
-        $summary = $this->resolveSummary($action, $convention);
+        [$summary, $summaryProvenance] = $this->resolveSummary($action, $resolvedConvention);
         $description = $this->resolveDescription($action);
 
         if ($operationOverride !== null) {
@@ -243,10 +256,18 @@ final readonly class OperationBuilder
                 : '**Deprecated:** ' . $deprecation;
         }
 
+        $tags = $this->mergeTags($baseTags, $additionalTags);
+
+        $provenance = array_values(array_filter([
+            $summaryProvenance,
+            $statusProvenance,
+            $this->tagProvenance($tags, $operationOverride, $additionalTags),
+        ]));
+
         return new OperationDescriptor(
             summary: $summary ?: null,
             description: $description ?: null,
-            tags: $this->mergeTags($baseTags, $additionalTags),
+            tags: $tags,
             parameters: [...$pathParams, ...$queryParams, ...$headerParams, ...$cookieParams],
             security: $security,
             responses: $responses,
@@ -254,6 +275,7 @@ final readonly class OperationBuilder
             deprecated: $deprecation !== null,
             operationId: $operationOverride?->operationId,
             externalDocs: $externalDocs,
+            provenance: $provenance,
         );
     }
 
@@ -490,7 +512,7 @@ final readonly class OperationBuilder
         return $out;
     }
 
-    private function resolveConvention(ActionDescriptor $descriptor): ?OperationConvention
+    private function resolveConvention(ActionDescriptor $descriptor): ?ResolvedConvention
     {
         foreach ($this->operationConventionResolvers as $conventionResolver) {
             $convention = $this->faultBoundary->isolate(
@@ -500,7 +522,8 @@ final readonly class OperationBuilder
             );
 
             if ($convention !== null) {
-                return $convention;
+                // Capture which resolver decided, so provenance names it rather than a literal.
+                return new ResolvedConvention($convention, $conventionResolver::class);
             }
         }
 
@@ -921,8 +944,10 @@ final readonly class OperationBuilder
     /**
      * Precedence: action `#[Summary]` → action `#[Operation(summary)]` → docblock →
      * class `#[Summary]` → class `#[Operation(summary)]` → convention default.
+     *
+     * @return array{0: ?string, 1: ?FieldProvenance}
      */
-    private function resolveSummary(ActionDescriptor $descriptor, ?OperationConvention $convention): ?string
+    private function resolveSummary(ActionDescriptor $descriptor, ?ResolvedConvention $convention): array
     {
         $methodAttr = $this->readScopedSummary(
             $descriptor->actionAttributes(SummaryAttribute::class),
@@ -933,7 +958,102 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
 
-        return $methodAttr ?? $descriptor->summary ?? $classAttr ?? $convention?->summary;
+        $conventionSummary = $convention?->convention->summary;
+        $summary = $methodAttr ?? $descriptor->summary ?? $classAttr ?? $conventionSummary;
+
+        if ($summary === null) {
+            return [null, null];
+        }
+
+        // The winning branch decides the source; the convention is the only candidate worth
+        // showing as superseded, since it is what surprises authors who expected it to apply.
+        [$source, $reason] = match (true) {
+            $methodAttr !== null => ['#[Summary] (method)', 'author override'],
+            $descriptor->summary !== null => ['docblock', 'method docblock summary'],
+            $classAttr !== null => ['#[Summary] (class)', 'class-level override'],
+            default => [
+                $convention?->resolver !== null ? class_basename($convention->resolver) : 'convention',
+                $this->conventionReason($descriptor),
+            ],
+        };
+
+        $superseded = [];
+
+        if ($summary !== $conventionSummary && $conventionSummary !== null) {
+            $superseded[] = "convention '{$conventionSummary}'";
+        }
+
+        return [$summary, new FieldProvenance('summary', $summary, $source, $reason, $superseded)];
+    }
+
+    /**
+     * Provenance for the resolved success status code: explicit `#[Response(2xx)]`, a body-scanned
+     * explicit status, the convention, or the `200` fallback.
+     */
+    private function statusProvenance(
+        string $status,
+        bool $hasResponseOverride,
+        bool $bodyScannedExplicit,
+        ?ResolvedConvention $convention,
+        ActionDescriptor $descriptor,
+    ): FieldProvenance {
+        [$source, $reason, $superseded] = match (true) {
+            $hasResponseOverride => ['#[Response] (method)', 'author override', []],
+            $bodyScannedExplicit => ['response body', 'explicit status in handler body', []],
+            $convention?->convention->successStatusCode !== null => [
+                class_basename($convention->resolver),
+                $this->conventionReason($descriptor),
+                [],
+            ],
+            default => ['default', 'no convention matched', []],
+        };
+
+        return new FieldProvenance('status', $status, $source, $reason, $superseded);
+    }
+
+    /**
+     * Provenance for the merged tag list. Names the attribute and whether it replaced or merged
+     * with the controller-derived tag; otherwise reports the controller-derived source.
+     *
+     * @param list<string> $tags
+     * @param list<string> $additionalTags
+     */
+    private function tagProvenance(
+        array $tags,
+        ?OperationAttribute $operationOverride,
+        array $additionalTags,
+    ): ?FieldProvenance {
+        if ($tags === []) {
+            return null;
+        }
+
+        $value = implode(', ', $tags);
+
+        if ($operationOverride?->tags !== null && $operationOverride->replace) {
+            return new FieldProvenance('tags', $value, '#[Operation] (replace)', 'attribute tags replace controller-derived');
+        }
+
+        if ($operationOverride?->tags !== null) {
+            return new FieldProvenance('tags', $value, '#[Operation] (merge)', 'attribute tags merged with controller-derived');
+        }
+
+        if ($additionalTags !== []) {
+            return new FieldProvenance('tags', $value, '#[Tag]', 'attribute tags merged with controller-derived');
+        }
+
+        return new FieldProvenance('tags', $value, 'controller-derived', 'controller short name');
+    }
+
+    /**
+     * Reconstructs the convention's matched signal (`store → POST`) from Tier-0 reflection
+     * already on hand: the action method name and the HTTP verb being emitted.
+     */
+    private function conventionReason(ActionDescriptor $descriptor): string
+    {
+        $method = $descriptor->method?->getName() ?? '?';
+        $verb = $descriptor->httpMethod?->forDisplay() ?? '?';
+
+        return "{$method} → {$verb}";
     }
 
     /**

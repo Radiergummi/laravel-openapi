@@ -39,6 +39,21 @@ it('explains why a route is included in each spec', function (): void {
         ->assertSuccessful();
 });
 
+it('--fields appends an operation field-provenance block', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights --fields')
+        ->expectsOutputToContain('Fields:')
+        ->expectsOutputToContain('status:')
+        ->assertSuccessful();
+});
+
+it('omits the field-provenance block without --fields', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights')
+        ->doesntExpectOutputToContain('Fields:')
+        ->assertSuccessful();
+});
+
 it('explains a globally-filtered route as filtered, not as not-found', function (): void {
     config(['openapi.filters' => [FlightsRouteFilter::class]]);
     app()->forgetScopedInstances();

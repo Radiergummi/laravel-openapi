@@ -207,6 +207,38 @@ v1:
 Result: included in [v1]
 ```
 
+### Explaining derived fields with `--fields`
+
+`openapi:why` answers *why a route is in a spec*. Pass `--fields` to also build the operation
+and answer the other "why": *why does this field have this value?* It prints the source and
+reason behind each derived `summary`, success `status`, and `tags`, mirroring the inclusion
+trace one layer in:
+
+```bash
+php artisan openapi:why flights.store --fields
+```
+
+```
+Fields:
+    summary: Create Flight ← ResourceConventionResolver (store → POST)
+    status:  201           ← ResourceConventionResolver (store → POST)
+    tags:    Flights       ← controller-derived (controller short name)
+```
+
+When an authoring attribute beats a convention, the winner names its source and the superseded
+convention is listed beneath it:
+
+```
+Fields:
+    summary: Find one flight ← #[Summary] (method) (author override)
+             (superseded: convention 'Show Flight')
+    ...
+```
+
+This is read-only instrumentation: it records decisions the generator already makes and never
+changes the generated document. Provenance currently covers `summary`, success status, and
+`tags`; response schemas, parameters, and security are not yet traced.
+
 ## Worked examples
 
 ### Example 1: v1/v2 versioning by URL prefix
