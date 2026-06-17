@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Lint\Rules;
 
 use Override;
-use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\FixableRule;
+use Radiergummi\OpenApi\Lint\Fix\Fixer;
+use Radiergummi\OpenApi\Lint\Fix\RemoveAttributeFixer;
+use Radiergummi\OpenApi\Lint\Fix\SanitizeOperationIdFixer;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+use Radiergummi\OpenApi\Support\Generator\OperationIdDeriver;
 
 use function preg_match;
 use function sprintf;
@@ -19,9 +23,14 @@ use function sprintf;
  * Reports operationIds that don't match `/^[A-Za-z][A-Za-z0-9._-]*$/` (not codegen-safe).
  * Operations without an operationId are skipped; see `operation.id-missing`.
  */
-final class OperationIdInvalidChars implements Rule, OperationRuleVisitor
+final class OperationIdInvalidChars implements FixableRule, OperationRuleVisitor
 {
-    private const string PATTERN = '/^[A-Za-z][A-Za-z0-9._-]*$/';
+    /** The codegen-safe identifier shape; {@see OperationIdDeriver::sanitise()} maps to this set. */
+    public const string PATTERN = '/^[A-Za-z][A-Za-z0-9._-]*$/';
+
+    public function __construct(
+        private readonly OperationIdDeriver $operationIdDeriver = new OperationIdDeriver(),
+    ) {}
 
     /**
      * @return iterable<Finding>
@@ -37,6 +46,19 @@ final class OperationIdInvalidChars implements Rule, OperationRuleVisitor
             return;
         }
 
+        // An invalid operationId can only have come from an explicit attribute, so the fixer always
+        // has an #[Operation] to rewrite; stamp the sanitised value and source member for it.
+        $fixContext = [];
+
+        if ($operation->descriptor !== null) {
+            $fixContext = [
+                ...RemoveAttributeFixer::contextForOperation($operation->descriptor),
+                SanitizeOperationIdFixer::CONTEXT_OPERATION_ID => $this->operationIdDeriver->sanitise(
+                    $operation->operationId,
+                ),
+            ];
+        }
+
         yield new Finding(
             ruleId: $this->id(),
             severity: $this->severity(),
@@ -47,7 +69,14 @@ final class OperationIdInvalidChars implements Rule, OperationRuleVisitor
                 $operation->pathUri,
             ),
             fixHint: 'Use only letters, digits, dots, hyphens and underscores in operationId, starting with a letter.',
+            context: $fixContext,
         );
+    }
+
+    #[Override]
+    public function fixer(): Fixer
+    {
+        return new SanitizeOperationIdFixer();
     }
 
     #[Override]

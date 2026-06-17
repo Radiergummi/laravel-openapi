@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\Fix\AddOperationIdFixer;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdMissing;
+use Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix\MissingOperationIdFixtureController;
+use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
 
 uses()->group('openapi', 'lint');
@@ -80,4 +84,33 @@ it('does not flag operations that have an operationId alongside missing ones', f
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->message)->toContain('POST');
+});
+
+it('stamps the derived operationId and source member onto the finding when a descriptor is present', function (): void {
+    $descriptor = ActionDescriptorFactory::forControllerMethod(
+        MissingOperationIdFixtureController::class,
+        'withoutAttribute',
+    );
+    $operation = OperationNodeFactory::forDescriptor($descriptor, operationId: null);
+
+    $findings = iterator_to_array(
+        (new OperationIdMissing())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    // The factory's route is the unnamed GET /x, so the route-name strategy falls back to {method}_{path}.
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_CLASS])->toBe(MissingOperationIdFixtureController::class)
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_MEMBER])->toBe('withoutAttribute')
+        ->and($findings[0]->context[AddOperationIdFixer::CONTEXT_OPERATION_ID])->toBe('get_x');
+});
+
+it('stamps no fix context when the operation has no descriptor', function (): void {
+    $operation = OperationNodeFactory::makeOperation(pathUri: '/users', operationId: null);
+
+    $findings = iterator_to_array(
+        (new OperationIdMissing())->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)->toHaveCount(1)
+        ->and($findings[0]->context)->toBe([]);
 });

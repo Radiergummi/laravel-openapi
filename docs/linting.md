@@ -144,9 +144,14 @@ run your formatter over them (e.g., `vendor/bin/pint --dirty`) to match your
 project style. A finding is only auto-fixable when its owning rule opts in
 (by implementing `Lint\Fix\FixableRule`); everything else is reported as before.
 
-Currently fixable (all removals of a redundant or no-op attribute):
+Currently fixable. Removals of a redundant or no-op attribute:
 `tag.duplicate`, `queryparam.duplicate`, `response.duplicate-status`,
-`link.duplicate-name`, and `field.no-effect`.
+`link.duplicate-name`, and `field.no-effect`. Additive/modification fixes on
+the `#[Operation]` attribute: `operation.id-missing` (synthesizes
+`#[Operation(operationId: …)]`, or adds the argument when the attribute already
+exists) and `operation.id-invalid-chars` (rewrites the operationId to the
+codegen-safe character set). Both produce exactly the operationId inference
+would have emitted.
 
 ## Documentation-coverage gate
 

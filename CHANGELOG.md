@@ -38,6 +38,7 @@ All notable changes to this project are documented here.
 - `#[ResponseExampleFile('path.json')]` authoring attribute attaches a JSON file's contents as the singular `example` on a response (the auto-derived primary by default, `status:` targets a declared response). Skipped silently for a conventionally bodyless status (204/205/304) or a status with no matching response, and yields to named `#[ResponseExample]`s already on the same media type (`example`/`examples` are mutually exclusive). (#40)
 - `openapi:lint --format=markdown` now renders a real GitHub-Flavored Markdown body (a coverage summary line and a `Severity | Rule | Location | Message` findings table) instead of aliasing the CLI tree dump, so the CI coverage-comment recipe can post it verbatim. (#389)
 - ApiResources: the return-expression reader now recognises the `X::collect(...)` static resource-collection factory, emitting the same collection response schema as `X::collection(...)`. (#390)
+- `openapi:lint --fix` now repairs missing and codegen-unsafe operationIds (synthesizes/sanitizes the `#[Operation(operationId: …)]`), via the new `AddAttribute` fix primitive. (#382)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.

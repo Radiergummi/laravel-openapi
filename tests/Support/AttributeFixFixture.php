@@ -31,7 +31,9 @@ use function unlink;
 final class AttributeFixFixture
 {
     /**
-     * @param class-string $class
+     * @param class-string          $class
+     * @param array<string, string> $extraContext additional finding context keys a fixer reads
+     *                                            (e.g. a value the owning rule stamps at check time)
      *
      * @return array{before: string, after: string, fixes: list<Fix>}
      */
@@ -40,6 +42,7 @@ final class AttributeFixFixture
         string $class,
         string $member,
         ?string $discriminator = null,
+        array $extraContext = [],
     ): array {
         $sourceFile = new ReflectionClass($class)->getFileName() ?: '';
         $before = file_get_contents($sourceFile) ?: '';
@@ -50,6 +53,7 @@ final class AttributeFixFixture
         $context = [
             Finding::CONTEXT_SOURCE_CLASS => $class,
             Finding::CONTEXT_SOURCE_MEMBER => $member,
+            ...$extraContext,
         ];
 
         if ($discriminator !== null) {
