@@ -55,7 +55,7 @@ it('flags a JsonResource carrying both #[RawSchema] and class-level #[ResourceFi
     expect($findings)
         ->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('schema.class-attribute-conflicts-with-field-attributes')
-        ->and($findings[0]->level)->toBe(3)
+        ->and($findings[0]->severity)->toBe(Severity::Inconsistent)
         ->and($findings[0]->message)
         ->toContain('replaces the inferred body')
         ->toContain('have no effect')
