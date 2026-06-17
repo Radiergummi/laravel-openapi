@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use JsonException;
+use Override;
 use Radiergummi\OpenApi\Lint\DiffMode;
 use Radiergummi\OpenApi\Lint\DiffScope;
 use Radiergummi\OpenApi\Lint\Fix\FixRunner;
@@ -32,6 +33,8 @@ use Radiergummi\OpenApi\Lint\RuleRegistry;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException as ConsoleInvalidArgumentException;
+use Symfony\Component\Console\Exception\LogicException as ConsoleLogicException;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Output\StreamOutput;
@@ -87,13 +90,44 @@ class LintCommand extends Command
         {--no-suppress : Ignore #[IgnoreLint] attributes}
         {--no-validate : Skip the OAS 3.1 meta-schema validation (the spec.invalid rule); faster on large specs}
         {--list : Print the rule catalog instead of linting}
-        {--fix : Apply fixable findings to the source, then report the rest}
-        {--check : Report whether --fix would change anything, without writing (CI-safe)}
+        {--allow-dirty : Allow destructive fixes (--fix=dangerous) to write to an unclean working tree}
         {--spec= : Restrict per-spec rules to this spec; pre-build rules still run}
         {--min-coverage= : Fail when documentation coverage % falls below this threshold (gate-driven exit)}
         {--max-findings= : Fail when the in-scope finding count exceeds this budget}';
 
     protected $description = 'Lint OpenAPI documentation gaps across the API surface';
+
+    /**
+     * Registers `--fix` / `--check` as value-optional options after the string signature is parsed.
+     *
+     * The Laravel string signature can only express `VALUE_NONE` or `VALUE_REQUIRED`; these need
+     * `VALUE_OPTIONAL` so bare `--fix` (level `safe`) and `--fix=dangerous` both parse. Done here,
+     * not via Laravel-13-only attributes, to stay portable across Laravel 12 and 13.
+     *
+     * @throws ConsoleInvalidArgumentException
+     * @throws ConsoleLogicException
+     */
+    #[Override]
+    protected function configure(): void
+    {
+        parent::configure();
+
+        $definition = $this->getDefinition();
+        $definition->addOption(new InputOption(
+            'fix',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Apply fixable findings to the source, then report the rest (safe|dangerous)',
+            'safe',
+        ));
+        $definition->addOption(new InputOption(
+            'check',
+            null,
+            InputOption::VALUE_OPTIONAL,
+            'Report whether --fix would change anything, without writing (safe|dangerous; CI-safe)',
+            'safe',
+        ));
+    }
 
     /**
      * @throws \LogicException
@@ -116,7 +150,9 @@ class LintCommand extends Command
             return $this->renderCatalog($registry);
         }
 
-        if ($this->option('fix') || $this->option('check')) {
+        // Detect fix-mode by option *presence*, not value: --fix/--check default to 'safe', so
+        // $this->option() is non-null even when the flag is absent.
+        if ($this->input->hasParameterOption('--fix') || $this->input->hasParameterOption('--check')) {
             return $this->runFix($fixRunner);
         }
 
@@ -244,7 +280,8 @@ class LintCommand extends Command
      */
     private function runFix(FixRunner $fixRunner): int
     {
-        $dryRun = (bool) $this->option('check');
+        $dryRun = $this->input->hasParameterOption('--check');
+        $applyDestructive = $this->resolveFixLevelIsDangerous($dryRun ? 'check' : 'fix');
         $options = $this->buildOptions();
 
         if ($options->minCoverage !== null || $options->maxFindings !== null) {
@@ -254,11 +291,37 @@ class LintCommand extends Command
             );
         }
 
-        $outcome = $fixRunner->run($options, $dryRun);
+        $outcome = $fixRunner->run(
+            $options,
+            $dryRun,
+            applyDestructive: $applyDestructive,
+            allowDirty: (bool) $this->option('allow-dirty'),
+        );
 
         $this->renderFixOutcome($outcome);
 
         return $outcome->exitCode();
+    }
+
+    /**
+     * Resolves the `--fix`/`--check` level to whether destructive fixes apply. Bare flag or `=safe`
+     * is safe; `=dangerous` opts in; anything else is a usage error.
+     *
+     * @throws InvalidArgumentException
+     */
+    private function resolveFixLevelIsDangerous(string $option): bool
+    {
+        $value = $this->option($option);
+
+        return match ($value) {
+            'safe', null, true => false,
+            'dangerous' => true,
+            default => throw new InvalidArgumentException(sprintf(
+                "Unknown --%s level '%s'. Expected 'safe' or 'dangerous'.",
+                $option,
+                is_string($value) ? $value : '',
+            )),
+        };
     }
 
     /**
@@ -483,11 +546,26 @@ class LintCommand extends Command
             $summary .= sprintf(' (%s); re-run --fix to resolve conflicting fixes', $this->skipReasonBreakdown($outcome));
         }
 
-        $output->writeln(match ($format) {
+        $output->writeln($this->formatSummaryLine($summary, $format));
+
+        if ($outcome->withheldDestructiveCount > 0) {
+            $output->writeln($this->formatSummaryLine(
+                sprintf(
+                    '%d finding(s) have potentially destructive fixes. Re-run with --fix=dangerous to apply them.',
+                    $outcome->withheldDestructiveCount,
+                ),
+                $format,
+            ));
+        }
+    }
+
+    private function formatSummaryLine(string $summary, LinterOutputFormat $format): string
+    {
+        return match ($format) {
             LinterOutputFormat::GitHub => '::notice title=OpenAPI fix::' . $summary,
             LinterOutputFormat::Markdown => '- ' . $summary,
             default => $summary,
-        });
+        };
     }
 
     /** A compact `reason: count` breakdown of skipped fixes, e.g. `conflict: 2, node-not-found: 1`. */

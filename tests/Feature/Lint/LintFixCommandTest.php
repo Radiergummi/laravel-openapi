@@ -64,12 +64,13 @@ it('--check --format=json emits the frozen fix-run envelope, not the lint findin
         $decoded = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
 
         expect(array_keys($decoded))->toBe([
-            'schema_version', 'mode', 'applied', 'skipped', 'modified_files', 'remaining', 'exit_code',
+            'schema_version', 'mode', 'applied', 'skipped', 'withheld_destructive', 'modified_files', 'remaining', 'exit_code',
         ])
             ->and($decoded)->not->toHaveKey('findings')
             ->and($decoded['mode'])->toBe('check')
             ->and($decoded['applied'])->toBe(1)
             ->and($decoded['skipped'])->toBe([])
+            ->and($decoded['withheld_destructive'])->toBe(0)
             ->and($decoded['exit_code'])->toBe(1);
     } finally {
         if (file_exists($path)) {
