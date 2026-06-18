@@ -243,4 +243,50 @@ it('does not subsume a recursive graph whose non-ref content differs', function 
     expect(new SchemaEquivalence($resolver)->subsumes($inferredA, $authoredA))->toBeFalse();
 });
 
+it('terminates on a mutual (A↔B) cyclic $ref graph and subsumes', function (): void {
+    // A.b -> B, B.a -> A on both sides; the visited-pair set accumulates two pairs before catching
+    // the loop, so this exercises a different traversal than the self-reference case.
+    $inferredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'b', 'ref' => '#/components/schemas/BData']),
+    ]]);
+    $inferredB = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'a', 'ref' => '#/components/schemas/AData']),
+    ]]);
+    $authoredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'b', 'ref' => '#/components/schemas/B']),
+    ]]);
+    $authoredB = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'a', 'ref' => '#/components/schemas/A']),
+    ]]);
+    $resolver = refResolver(
+        inferred: ['AData' => $inferredA, 'BData' => $inferredB],
+        authored: ['A' => $authoredA, 'B' => $authoredB],
+    );
+
+    expect(new SchemaEquivalence($resolver)->subsumes($inferredA, $authoredA))->toBeTrue();
+});
+
+it('does not subsume a mutual cyclic graph whose content differs on one node', function (): void {
+    $inferredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'b', 'ref' => '#/components/schemas/BData']),
+    ]]);
+    $inferredB = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'a', 'ref' => '#/components/schemas/AData']),
+    ]]);
+    $authoredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'b', 'ref' => '#/components/schemas/B']),
+    ]]);
+    // B's authored target carries an extra property inference does not reproduce.
+    $authoredB = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'a', 'ref' => '#/components/schemas/A']),
+        new OA\Property(['property' => 'extra', 'type' => 'string']),
+    ]]);
+    $resolver = refResolver(
+        inferred: ['AData' => $inferredA, 'BData' => $inferredB],
+        authored: ['A' => $authoredA, 'B' => $authoredB],
+    );
+
+    expect(new SchemaEquivalence($resolver)->subsumes($inferredA, $authoredA))->toBeFalse();
+});
+
 // endregion
