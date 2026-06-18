@@ -333,7 +333,11 @@ carrying a non-scalar shape — an `enum`, an array `example`, a vendor extensio
 partial migration never reads as complete. The target attribute is chosen by where the property
 lives: a Spatie Data class maps to `#[ResponseField]`; an API-Resource key (and request DTOs,
 `#[RequestField]`) are deferred to a follow-up. Soundness is verified by building the candidate
-attribute and confirming it reproduces exactly the schema the annotation declared before flagging.
+attribute and confirming (bidirectional `SchemaEquivalence`) that it reproduces exactly the schema
+the annotation declared before flagging, so the rewrite leaves the generated document **unchanged or
+improved**, never degraded. (Unlike a removal, a rewrite can *improve* the document: where inference
+left a hand-authored `#[OA\Property]` inert, the equivalent `#[ResponseField]` is one the generator
+reads, so a field the annotation only declared may now actually appear.)
 
 Deciding redundancy requires that second generation, which is why the family is parked at level 4:
 it stays unpaid on default-level runs. A high-level audit (`--level max`) with the plugin enabled
