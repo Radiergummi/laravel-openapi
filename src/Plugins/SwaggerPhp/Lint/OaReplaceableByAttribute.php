@@ -43,8 +43,8 @@ use function substr;
 
 /**
  * Flags a hand-authored `OA\Property` / query `OA\Parameter` that one of the package's authoring
- * attributes (`#[ResponseField]` / `#[ResourceField]` / `#[QueryParam]`) expresses more concisely,
- * and offers a fixer that rewrites it.
+ * attributes (`#[ResponseField]` / `#[QueryParam]`) expresses more concisely, and offers a fixer
+ * that rewrites it.
  *
  * The replacement half of the migration story: where {@see OaRedundantWithInference} *removes* a
  * swagger-php annotation inference already reproduces, this *converts* one into a first-class
@@ -52,9 +52,11 @@ use function substr;
  * ({@see OaAttributeArgumentMapper}); annotations carrying `enum`, array `example`, vendor extensions
  * (`x`), union `type`, or a nested shape are logged and left in place, never partially rewritten.
  *
- * Host-attribute selection is by the class the property lives on: a Spatie Data class maps to
- * `#[ResponseField]`, an Eloquent API-Resource class to `#[ResourceField]`; any other host is logged
- * and skipped (the attribute cannot be picked soundly). `#[RequestField]` (request DTOs) is deferred.
+ * Host-attribute selection is by the class the property lives on: only a Spatie Data class is
+ * covered in Phase 1, mapping to `#[ResponseField]`; any other host is logged and skipped (the
+ * attribute cannot be picked soundly). API-Resource keys (`#[ResourceField]`) and request DTOs
+ * (`#[RequestField]`) are deferred to a follow-up, since their `OA\Property` lives inside the
+ * class-level `#[OA\Schema]` that member-level removal cannot address.
  *
  * @internal
  */
@@ -157,11 +159,21 @@ final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRu
         $shape = $this->propertyShape($class, $propertyName);
 
         if ($shape === null) {
+            // The harvester indexed an OA\Property for the class but the member carries no
+            // member-level OA attribute or @OA docblock (e.g. it sits on the class-level schema).
+            $this->logSkip($class, $propertyName, 'no member-level OA annotation found to rewrite');
+
             return null;
         }
 
         return $this->finding(
-            sprintf('The %s on %s::$%s can be rewritten as #[%s].', $this->shapeLabel($shape), $class, $propertyName, $this->shortName($attribute)),
+            sprintf(
+                'The %s on %s::$%s can be rewritten as #[%s].',
+                $this->shapeLabel($shape),
+                $class,
+                $propertyName,
+                $this->shortName($attribute),
+            ),
             $class,
             $propertyName,
             $shape,

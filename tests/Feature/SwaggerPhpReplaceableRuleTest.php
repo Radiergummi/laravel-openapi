@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Support\Facades\Route;
 use LogicException;
+use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Lint\LintOptions;
 use Radiergummi\OpenApi\Lint\LintResult;
@@ -17,16 +18,37 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\ReplaceableQueryController;
+use Stringable;
 
 uses()->group('openapi', 'plugin:spatie-data');
 
 // region Helpers
 
-function replaceableRuleSetup(): void
+/**
+ * Captures every logged message so a test can assert a skip was logged (never silently dropped).
+ */
+function spyLogger(): LoggerInterface
+{
+    return new class () extends AbstractLogger {
+        /** @var list<string> */
+        public array $messages = [];
+
+        public function log(mixed $level, string|Stringable $message, array $context = []): void
+        {
+            $this->messages[] = (string) $message;
+        }
+    };
+}
+
+function replaceableRuleSetup(?LoggerInterface $logger = null): void
 {
     Route::get('/replaceable-query', [ReplaceableQueryController::class, 'index']);
 
     config()->set('openapi.plugins', [...(array) config('openapi.plugins', []), SwaggerPhpPlugin::class]);
+
+    if ($logger !== null) {
+        app()->instance(LoggerInterface::class, $logger);
+    }
 
     app()->scoped(
         AuthoredAnnotationScanner::class,
@@ -176,6 +198,34 @@ it('rewrites to an attribute that reproduces the schema the annotation declared'
         ->and($rewritten['description'] ?? null)->toBe('The contact email.')
         ->and($rewritten['type'] ?? null)->toBe('string')
         ->and($rewritten['format'] ?? null)->toBe('email');
+});
+
+it('rejects (and logs) a property whose attribute would not reproduce the authored schema', function (): void {
+    // The authored description carries an `@example` directive the field attribute parses out of its
+    // rendered description, so #[ResponseField] would not reproduce the authored schema verbatim. The
+    // soundness check must reject it, and the rejection must be logged, never silently dropped.
+    $logger = spyLogger();
+    Route::get('/directive', fn(): \Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DirectiveDescriptionData
+        => throw new LogicException('Signature-only.'));
+    replaceableRuleSetup($logger);
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect(replaceableFindings($result))
+        ->not->toContain(\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DirectiveDescriptionData::class . '::name')
+        ->and($logger->messages)
+        ->toContain('migration.oa-replaceable-by-attribute: left ' . \Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DirectiveDescriptionData::class . '::name in place (the attribute would not reproduce the authored schema).');
+});
+
+it('logs (never silently drops) an enum-carrying property it leaves in place', function (): void {
+    $logger = spyLogger();
+    Route::get('/enum-property', [\Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\ReplaceableAttributeController::class, 'enum']);
+    replaceableRuleSetup($logger);
+
+    app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect($logger->messages)
+        ->toContain('migration.oa-replaceable-by-attribute: left ' . \Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\EnumPropertyData::class . '::status in place (carries a key no scalar attribute argument expresses).');
 });
 
 it('exposes its fixer and human-readable description', function (): void {

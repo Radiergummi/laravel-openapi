@@ -387,15 +387,16 @@ final class FixOperationVisitor extends NodeVisitorAbstract
     /**
      * Removes the source annotation (OA attributes by flat index, or the `@OA` docblock) and
      * prepends the new attribute, both in one visit so no later op resolves a stale flat index.
+     *
+     * A stale `attributeIndices` (the source annotation is already gone) aborts without adding, so a
+     * re-emitted identical rewrite is a no-op. Unlike {@see addAttribute()} there is no
+     * already-present guard on the attribute class: the package's field attributes are repeatable, so
+     * a sibling rewrite legitimately adds a second application with different arguments.
      */
     private function rewriteToAttribute(ClassLike|ClassMethod|Property|Param $member, RewriteToAttribute $operation): void
     {
-        if ($this->hasAttributeClass($member, $operation->attributeClass)) {
+        if ($operation->attributeIndices !== null && ! $this->removeAttributesByIndex($member, $operation->attributeIndices)) {
             return;
-        }
-
-        if ($operation->attributeIndices !== null) {
-            $this->removeAttributesByIndex($member, $operation->attributeIndices);
         }
 
         if ($operation->docComment !== false) {
