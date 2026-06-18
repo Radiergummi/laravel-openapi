@@ -268,3 +268,33 @@ it('throws when two distinct classes declare the same explicit #[SchemaName]', f
 });
 
 // endregion
+
+// region Named parameter components
+
+it('registers a named parameter and returns it from allParameters', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $parameter = new OA\Parameter(['parameter' => 'PageParam', 'name' => 'page', 'in' => 'query']);
+
+    $registry->registerNamedParameter('PageParam', $parameter);
+
+    expect($registry->hasParameterKey('PageParam'))->toBeTrue()
+        ->and($registry->allParameters())->toBe([$parameter]);
+});
+
+it('is idempotent and first-wins on a repeated named-parameter key', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $first = new OA\Parameter(['parameter' => 'PageParam', 'name' => 'page', 'in' => 'query']);
+    $second = new OA\Parameter(['parameter' => 'PageParam', 'name' => 'offset', 'in' => 'query']);
+
+    $registry->registerNamedParameter('PageParam', $first);
+    $registry->registerNamedParameter('PageParam', $second);
+
+    expect($registry->allParameters())->toBe([$first]);
+});
+
+it('reports no parameters by default', function (): void {
+    expect(new ComponentSchemaRegistry()->allParameters())->toBe([])
+        ->and(new ComponentSchemaRegistry()->hasParameterKey('Anything'))->toBeFalse();
+});
+
+// endregion

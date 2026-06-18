@@ -565,8 +565,15 @@ schemas and response bodies on top:
   status code, and the inferred responses for other statuses are kept. The
   authored `summary` / `description` / `operationId` / `tags` are adopted too
   (the annotation is the source of truth for the operation it describes).
+- A reusable `@OA\Response(response: 'X')` / `@OA\Parameter(parameter: 'Y')`
+  **component** definition is harvested under its authored name into
+  `components.responses` / `components.parameters`. An operation pointing at one
+  by `$ref` (`@OA\Response(ref: '#/components/responses/X')`) keeps its `$ref`,
+  now that the target component is emitted; a `$ref` to a component name the scan
+  does not find is dropped and logged, never emitted as a dangling `$ref`.
 
-Referenced schemas are pulled in transitively under their authored names. A
+Referenced schemas are pulled in transitively under their authored names (a
+harvested response/parameter component drags in the schemas it references too). A
 response that references a schema the scan cannot find is skipped and logged,
 rather than emitted as a dangling `$ref`.
 
