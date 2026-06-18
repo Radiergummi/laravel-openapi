@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Support\Generator\InferenceOnlyGeneration;
 use function is_array;
 use function is_string;
 use function ltrim;
+use function Radiergummi\OpenApi\is_defined;
 use function strtolower;
 
 /**
@@ -25,10 +26,12 @@ final readonly class InferenceView
     /**
      * @param array<class-string, OA\Schema> $schemasByClass
      * @param array<string, OA\Operation>    $operationsByKey
+     * @param array<string, OA\Schema>       $schemasByName   Control components keyed by component name.
      */
     public function __construct(
         private array $schemasByClass = [],
         private array $operationsByKey = [],
+        private array $schemasByName = [],
     ) {}
 
     /**
@@ -48,7 +51,31 @@ final readonly class InferenceView
             }
         }
 
-        return new self($generation->schemasByClass, $operationsByKey);
+        return new self($generation->schemasByClass, $operationsByKey, self::schemasByName($generation));
+    }
+
+    /**
+     * The control document's component schemas keyed by component name (the `$ref` target name).
+     *
+     * @return array<string, OA\Schema>
+     */
+    private static function schemasByName(InferenceOnlyGeneration $generation): array
+    {
+        $components = $generation->document->components;
+
+        if (!$components instanceof OA\Components || !is_array($components->schemas)) {
+            return [];
+        }
+
+        $byName = [];
+
+        foreach ($components->schemas as $schema) {
+            if ($schema instanceof OA\Schema && is_defined($schema->schema) && is_string($schema->schema)) {
+                $byName[$schema->schema] = $schema;
+            }
+        }
+
+        return $byName;
     }
 
     /** Lookup key: lowercased method, space, URI without leading slash. */
@@ -71,5 +98,13 @@ final readonly class InferenceView
     public function operationForRoute(string $method, string $uri): ?OA\Operation
     {
         return $this->operationsByKey[self::operationKey($method, $uri)] ?? null;
+    }
+
+    /**
+     * The control component schema with the given component name (a `$ref` target), or null.
+     */
+    public function schemaForName(string $name): ?OA\Schema
+    {
+        return $this->schemasByName[$name] ?? null;
     }
 }

@@ -10,8 +10,11 @@ use function array_is_list;
 use function array_key_exists;
 use function array_values;
 use function get_object_vars;
+use function is_string;
 use function Radiergummi\OpenApi\is_undefined;
 use function str_starts_with;
+use function strrpos;
+use function substr;
 
 /**
  * Tests whether one swagger-php annotation subtree is structurally contained in another.
@@ -21,22 +24,32 @@ use function str_starts_with;
  * (`additionalProperties: false`, etc.) fails containment and the annotation is kept.
  *
  * Canonical form drops `UNDEFINED` sentinels and `_`-prefixed internals; collections are
- * compared order-insensitively. `$ref` targets are compared by literal string (conservative).
+ * compared order-insensitively. Equal `$ref` strings match literally. When a {@see SchemaRefResolver}
+ * is injected, two *differing* `$ref` names are followed to their target schemas and those compared,
+ * so a component the author and convention named differently does not defeat the verdict; an
+ * unresolvable ref is conservatively treated as not contained (the annotation is kept).
  *
  * @internal
  */
 final readonly class SchemaEquivalence
 {
+    public function __construct(private ?SchemaRefResolver $refs = null) {}
+
     /**
      * Whether every value in `$narrower` is present and equal in `$broader` (which may carry more).
      */
     public function subsumes(?OA\AbstractAnnotation $broader, ?OA\AbstractAnnotation $narrower): bool
     {
-        return $this->contains($this->normalize($broader), $this->normalize($narrower));
+        return $this->contains($this->normalize($broader), $this->normalize($narrower), []);
     }
 
-    /** Recursive containment: maps check key-by-key, lists are order-insensitive, scalars use ==. */
-    private function contains(mixed $broader, mixed $narrower): bool
+    /**
+     * Recursive containment: maps check key-by-key, lists are order-insensitive, scalars use ==.
+     *
+     * @param array<string, string> $visited Ref-name pairs (`inferred => authored`) already being
+     *                                       compared up the stack, so a recursive graph terminates.
+     */
+    private function contains(mixed $broader, mixed $narrower, array $visited): bool
     {
         if (!is_array($narrower)) {
             return $broader == $narrower;
@@ -51,7 +64,7 @@ final readonly class SchemaEquivalence
         if (array_is_list($narrower) || array_is_list($broader)) {
             foreach ($narrower as $narrowerElement) {
                 foreach ($broader as $broaderElement) {
-                    if ($this->contains($broaderElement, $narrowerElement)) {
+                    if ($this->contains($broaderElement, $narrowerElement, $visited)) {
                         continue 2;
                     }
                 }
@@ -62,13 +75,67 @@ final readonly class SchemaEquivalence
             return true;
         }
 
+        if (($followed = $this->followDifferingRefs($broader, $narrower, $visited)) !== null) {
+            return $followed;
+        }
+
         foreach ($narrower as $key => $narrowerValue) {
-            if (!array_key_exists($key, $broader) || !$this->contains($broader[$key], $narrowerValue)) {
+            if (!array_key_exists($key, $broader) || !$this->contains($broader[$key], $narrowerValue, $visited)) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * When both maps carry a *differing* `ref` name, resolves each side to its target schema and
+     * compares those instead. Equal refs already pass via `==` and never reach here. Returns null
+     * when the branch does not apply (no resolver, no/equal refs), so the caller falls back to the
+     * literal map comparison; a true/false result short-circuits it.
+     *
+     * @param array<array-key, mixed> $broader
+     * @param array<array-key, mixed> $narrower
+     * @param array<string, string>   $visited
+     */
+    private function followDifferingRefs(array $broader, array $narrower, array $visited): ?bool
+    {
+        $broaderRef = $broader['ref'] ?? null;
+        $narrowerRef = $narrower['ref'] ?? null;
+
+        if ($this->refs === null || !is_string($broaderRef) || !is_string($narrowerRef) || $broaderRef === $narrowerRef) {
+            return null;
+        }
+
+        $broaderName = self::refName($broaderRef);
+        $narrowerName = self::refName($narrowerRef);
+
+        // A cycle re-entering the same pair is established by the outer frame (coinductive).
+        if (($visited[$broaderName] ?? null) === $narrowerName) {
+            return true;
+        }
+
+        $broaderTarget = $this->refs->resolveInferred($broaderName);
+        $narrowerTarget = $this->refs->resolveAuthored($narrowerName);
+
+        // Conservative: an unresolvable target is never treated as contained.
+        if ($broaderTarget === null || $narrowerTarget === null) {
+            return false;
+        }
+
+        return $this->contains(
+            $this->normalize($broaderTarget),
+            $this->normalize($narrowerTarget),
+            [...$visited, $broaderName => $narrowerName],
+        );
+    }
+
+    /** The component name from a `#/components/schemas/Name` pointer (or the string as-is). */
+    private static function refName(string $ref): string
+    {
+        $position = strrpos($ref, '/');
+
+        return $position === false ? $ref : substr($ref, $position + 1);
     }
 
     /**
