@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OaRedundancyEngine;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\ScannerInferenceRefResolver;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaSubsumption;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
@@ -43,14 +44,10 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
 {
     private readonly OaRedundancyEngine $engine;
 
-    private readonly SchemaSubsumption $comparator;
-
     public function __construct(
         private readonly AuthoredAnnotationScanner $scanner,
-        SchemaEquivalence $equivalence,
     ) {
         $this->engine = new OaRedundancyEngine();
-        $this->comparator = new SchemaSubsumption($equivalence);
     }
 
     /**
@@ -75,6 +72,12 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
 
         $inferred = $context->inference->schemaForClass($class);
 
+        // The oracle follows a $ref the author and convention named differently to its target schema
+        // on each side; built per run since the inference view is per spec run.
+        $comparator = new SchemaSubsumption(
+            new SchemaEquivalence(new ScannerInferenceRefResolver($this->scanner, $context->inference)),
+        );
+
         // Removing a schema still referenced by name by another authored annotation would dangle it.
         $isEssential = fn(): bool
             => is_defined($authored->schema)
@@ -83,7 +86,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
         $finding = $this->engine->evaluate(
             $authored,
             $inferred,
-            $this->comparator,
+            $comparator,
             fn(): ReflectionClass => new ReflectionClass($class),
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
                 ruleId: $this->id(),

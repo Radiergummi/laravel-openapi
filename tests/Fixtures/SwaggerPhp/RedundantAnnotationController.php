@@ -36,4 +36,9 @@ class RedundantAnnotationController
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function divergentRefParent(): DivergentRefParentData
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }

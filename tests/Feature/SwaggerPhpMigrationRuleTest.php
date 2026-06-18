@@ -19,12 +19,14 @@ use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DivergentRefParentData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\EssentialAttributeData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\PlainStructData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAnnotationController;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantAttributeData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantDocblockData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RefChildData;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RefParentData;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\ServerController;
 
 uses()->group('openapi', 'plugin:spatie-data');
@@ -195,6 +197,30 @@ it('does not flag a schema another authored annotation still references by name'
 
     expect(migrationFindingClasses($result))
         ->not->toContain(RefChildData::class);
+});
+
+it('flags a parent whose $ref the author named differently but whose target inference reproduces', function (): void {
+    // RefParentData's authored child $ref is `RefChild`; convention names the same class `RefChildData`.
+    // The oracle now follows both refs to their (equivalent) target schemas, so the parent is flagged.
+    Route::get('/ref-parent', [RedundantAnnotationController::class, 'refParent']);
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect(migrationFindingClasses($result))
+        ->toContain(RefParentData::class);
+});
+
+it('does not flag a parent whose divergently-named $ref target genuinely differs', function (): void {
+    // The authored child target (`DivergentChild`) carries a description inference cannot reproduce,
+    // so following the parent's $ref fails subsumption and the parent is kept.
+    Route::get('/divergent-ref-parent', [RedundantAnnotationController::class, 'divergentRefParent']);
+    migrationRuleSetup();
+
+    $result = app(LintRunner::class)->run(new LintOptions(only: ['migration.*']));
+
+    expect(migrationFindingClasses($result))
+        ->not->toContain(DivergentRefParentData::class);
 });
 
 it('expands a family glob configured in openapi.lint.enabled_rules', function (): void {

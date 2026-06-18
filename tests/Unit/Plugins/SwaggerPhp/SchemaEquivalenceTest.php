@@ -108,3 +108,139 @@ it('drops UNDEFINED elements inside a list before comparing', function (): void 
 
     expect(schemaEquivalence()->subsumes($broader, $narrower))->toBeTrue();
 });
+
+// region $ref-by-name following
+
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaRefResolver;
+
+/**
+ * A schema with one property referencing `$refName`, mirroring a convention/authored component graph.
+ */
+function refParentSchema(string $refName): OA\Schema
+{
+    return new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'child', 'ref' => "#/components/schemas/{$refName}"]),
+    ]]);
+}
+
+/**
+ * @param array<string, ?OA\Schema> $inferred
+ * @param array<string, ?OA\Schema> $authored
+ */
+function refResolver(array $inferred, array $authored): SchemaRefResolver
+{
+    return new class ($inferred, $authored) implements SchemaRefResolver {
+        /**
+         * @param array<string, ?OA\Schema> $inferred
+         * @param array<string, ?OA\Schema> $authored
+         */
+        public function __construct(private array $inferred, private array $authored) {}
+
+        public function resolveInferred(string $name): ?OA\Schema
+        {
+            return $this->inferred[$name] ?? null;
+        }
+
+        public function resolveAuthored(string $name): ?OA\Schema
+        {
+            return $this->authored[$name] ?? null;
+        }
+    };
+}
+
+it('subsumes a differing $ref name whose target graphs are equivalent', function (): void {
+    $broader = refParentSchema('RefChildData');
+    $narrower = refParentSchema('RefChild');
+    $resolver = refResolver(
+        inferred: ['RefChildData' => new OA\Schema(['type' => 'object', 'properties' => [
+            new OA\Property(['property' => 'label', 'type' => 'string']),
+        ]])],
+        authored: ['RefChild' => new OA\Schema(['type' => 'object', 'properties' => [
+            new OA\Property(['property' => 'label', 'type' => 'string']),
+        ]])],
+    );
+
+    expect(new SchemaEquivalence($resolver)->subsumes($broader, $narrower))->toBeTrue();
+});
+
+it('does not subsume when the referenced target genuinely differs', function (): void {
+    $resolver = refResolver(
+        inferred: ['RefChildData' => new OA\Schema(['type' => 'object', 'properties' => [
+            new OA\Property(['property' => 'label', 'type' => 'string']),
+        ]])],
+        authored: ['RefChild' => new OA\Schema(['type' => 'object', 'properties' => [
+            new OA\Property(['property' => 'label', 'type' => 'integer']),
+        ]])],
+    );
+
+    expect(new SchemaEquivalence($resolver)->subsumes(refParentSchema('RefChildData'), refParentSchema('RefChild')))
+        ->toBeFalse();
+});
+
+it('does not subsume when either side ref is unresolvable (conservative)', function (): void {
+    $onlyInferred = refResolver(
+        inferred: ['RefChildData' => new OA\Schema(['type' => 'object'])],
+        authored: [],
+    );
+
+    expect(new SchemaEquivalence($onlyInferred)->subsumes(refParentSchema('RefChildData'), refParentSchema('RefChild')))
+        ->toBeFalse();
+});
+
+it('does not subsume a differing $ref with no resolver at all (today path unchanged)', function (): void {
+    expect(schemaEquivalence()->subsumes(refParentSchema('RefChildData'), refParentSchema('RefChild')))
+        ->toBeFalse();
+});
+
+it('does not consult the resolver when the $ref names are equal (short-circuit)', function (): void {
+    $spy = new class () implements SchemaRefResolver {
+        public function resolveInferred(string $name): ?OA\Schema
+        {
+            throw new RuntimeException('resolver consulted on equal-ref short-circuit');
+        }
+
+        public function resolveAuthored(string $name): ?OA\Schema
+        {
+            throw new RuntimeException('resolver consulted on equal-ref short-circuit');
+        }
+    };
+
+    expect(new SchemaEquivalence($spy)->subsumes(refParentSchema('Same'), refParentSchema('Same')))
+        ->toBeTrue();
+});
+
+it('terminates on a recursive (self-referential) $ref graph and subsumes', function (): void {
+    // A.self -> $ref A on both sides; the cycle's content matches, so it subsumes without looping.
+    $inferredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'self', 'ref' => '#/components/schemas/NodeData']),
+    ]]);
+    $authoredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'self', 'ref' => '#/components/schemas/Node']),
+    ]]);
+    $resolver = refResolver(
+        inferred: ['NodeData' => $inferredA],
+        authored: ['Node' => $authoredA],
+    );
+
+    expect(new SchemaEquivalence($resolver)->subsumes($inferredA, $authoredA))->toBeTrue();
+});
+
+it('does not subsume a recursive graph whose non-ref content differs', function (): void {
+    $inferredA = new OA\Schema(['type' => 'object', 'title' => 'Node', 'properties' => [
+        new OA\Property(['property' => 'self', 'ref' => '#/components/schemas/NodeData']),
+    ]]);
+    // The authored side adds a property inference does not carry, so containment fails despite the
+    // cycle resolving.
+    $authoredA = new OA\Schema(['type' => 'object', 'properties' => [
+        new OA\Property(['property' => 'self', 'ref' => '#/components/schemas/Node']),
+        new OA\Property(['property' => 'extra', 'type' => 'string']),
+    ]]);
+    $resolver = refResolver(
+        inferred: ['NodeData' => $inferredA],
+        authored: ['Node' => $authoredA],
+    );
+
+    expect(new SchemaEquivalence($resolver)->subsumes($inferredA, $authoredA))->toBeFalse();
+});
+
+// endregion
