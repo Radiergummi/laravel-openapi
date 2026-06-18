@@ -41,6 +41,7 @@ All notable changes to this project are documented here.
 - `openapi:lint --fix` now repairs missing and codegen-unsafe operationIds (synthesizes/sanitizes the `#[Operation(operationId: …)]`), via the new `AddAttribute` fix primitive. (#382)
 - `--fix`/`--check` now detect same-node fix conflicts (apply the safe subset, skip + report the rest with a typed reason) and emit a frozen `--check --format=json` fix-run envelope for CI. (#22)
 - `--fix`/`--check` now take an optional `safe|dangerous` level; destructive fixes are withheld from the default `--fix`, counted (`withheld_destructive` in the JSON envelope), and gated behind `--fix=dangerous` plus a clean working tree (`--allow-dirty` overrides). (#383)
+- `migration.oa-replaceable-by-attribute` lint rule + fixer (SwaggerPhp plugin, `migration.*` family, level 4): rewrites a hand-authored `#[OA\Property]` on a Spatie Data property as `#[ResponseField]` and a query `#[OA\Parameter]` as `#[QueryParam]`. Phase 1 fires only when every carried key is a scalar attribute argument; non-scalar shapes (`enum`, array `example`, `x`, union `type`) are logged and left in place. (#195)
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.

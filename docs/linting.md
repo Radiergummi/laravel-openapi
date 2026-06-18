@@ -318,6 +318,23 @@ the backend cannot touch; removing the annotation without writing the config wou
 document metadata, so the rule never removes anything. Copy the snippet into your config, then delete
 the annotation by hand.
 
+`migration.oa-replaceable-by-attribute` is the **replacement** half of the story. Where the two
+rules above *remove* an annotation inference reproduces, this one *converts* a `#[OA\Property]` /
+query `#[OA\Parameter]` into the equivalent package authoring attribute (`#[ResponseField]` /
+`#[QueryParam]`) — a shorter, first-class way to say the same thing. `--fix` rewrites in place: it
+prepends the new attribute and removes the source annotation, preserving surrounding comments and
+whitespace.
+
+Phase 1 is deliberately bounded to keep every rewrite sound. It fires only when **every** key the
+annotation carries is a scalar the target attribute accepts as an argument (`description`, `type`,
+`format`, `pattern`, the numeric range and length keys, and the boolean flags). An annotation
+carrying a non-scalar shape — an `enum`, an array `example`, a vendor extension (`x`), a union
+`type`, or a nested `items` — is **logged and left in place**, never rewritten partially, so a
+partial migration never reads as complete. The target attribute is chosen by where the property
+lives: a Spatie Data class maps to `#[ResponseField]`; an API-Resource key (and request DTOs,
+`#[RequestField]`) are deferred to a follow-up. Soundness is verified by building the candidate
+attribute and confirming it reproduces exactly the schema the annotation declared before flagging.
+
 Deciding redundancy requires that second generation, which is why the family is parked at level 4:
 it stays unpaid on default-level runs. A high-level audit (`--level max`) with the plugin enabled
 *will* run it; `--skip 'migration.*'` opts back out. Removing an annotation may consolidate its
@@ -619,6 +636,7 @@ is enabled.
 | `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.oa-redundant-operation-with-inference` | 4 | A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.document-annotation-in-config` | 4 | A document-level @OA\Info / Server / SecurityScheme / root Tag annotation whose metadata belongs in config/openapi.php. (SwaggerPhp plugin; a `migration.*` rule — reports + scaffolds a config snippet, no auto-fix — see Migration rules.) |
+| `migration.oa-replaceable-by-attribute` | 4 | A hand-authored OA\Property / query OA\Parameter an authoring attribute expresses more concisely. (SwaggerPhp plugin; a `migration.*` rule — rewrites it as #[ResponseField] / #[QueryParam] — see Migration rules.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |
 | `request-body.example-missing` | 4 | requestBody has no example. |
 | `response.example-missing` | 4 | Response media type has no example. |
