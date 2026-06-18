@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Lint\Fix\Ast\RemoveAttribute;
+use Radiergummi\OpenApi\Lint\Fix\Ast\RewriteToAttribute;
 use Radiergummi\OpenApi\Lint\Fix\Ast\SetAttributeArgument;
 use Radiergummi\OpenApi\Lint\Fix\Ast\TargetKind;
 use Radiergummi\OpenApi\Lint\Fix\Ast\TargetSelector;
@@ -281,4 +282,142 @@ it('applies only the first of two disjoint Removes on one member, skips the seco
         }
 
         PHP);
+});
+
+function rewriteToQueryParamFix(string $file, int $oaParameterIndex, string $name): Fix
+{
+    return new Fix(
+        $file,
+        'description',
+        'migration.oa-replaceable-by-attribute',
+        new RewriteToAttribute(
+            new TargetSelector('Conflict\\Fixture', TargetKind::Method, 'index'),
+            'Radiergummi\\OpenApi\\Attributes\\QueryParam',
+            ['name' => $name],
+            attributeIndices: [$oaParameterIndex],
+        ),
+    );
+}
+
+it('applies one RewriteToAttribute on a shared method node, skips the second, then converges on re-run', function (): void {
+    // Reachable: the rule emits one finding per query #[OA\Parameter], so a method with two
+    // replaceable parameters yields two Rewrites on one Method node. Both change attribute layout,
+    // so the conflict detector keeps the first; the #[OA\Get] must survive and the file stay valid.
+    $source = <<<'PHP_SRC'
+        <?php
+
+        namespace Conflict;
+
+        class Fixture
+        {
+            #[OA\Get(path: '/things')]
+            #[OA\Parameter(name: 'a', in: 'query')]
+            #[OA\Parameter(name: 'b', in: 'query')]
+            public function index(): void {}
+        }
+
+        PHP_SRC;
+    $file = conflictFixtureFile($source);
+
+    $first = rewriteToQueryParamFix($file, 1, 'a');
+    $second = rewriteToQueryParamFix($file, 2, 'b');
+
+    $result = new FixApplicator()->apply([$first, $second]);
+
+    expect($result->applied)->toBe([$first])
+        ->and($result->skipped)->toHaveCount(1)
+        ->and($result->skipped[0]->fix)->toBe($second)
+        ->and($result->skipped[0]->reason)->toBe(FixSkipReason::Conflict)
+        ->and(file_get_contents($file))->toBe(<<<'PHP_SRC'
+        <?php
+
+        namespace Conflict;
+
+        class Fixture
+        {
+            #[\Radiergummi\OpenApi\Attributes\QueryParam(name: 'a')]
+            #[OA\Get(path: '/things')]
+            #[OA\Parameter(name: 'b', in: 'query')]
+            public function index(): void {}
+        }
+
+        PHP_SRC);
+
+    // On re-run, parameter 'b' is now at flat index 2 again (QueryParam=0, OA\Get=1, OA\Parameter b=2);
+    // re-emitting its rewrite lands with no surviving conflictor.
+    $reRun = new FixApplicator()->apply([rewriteToQueryParamFix($file, 2, 'b')]);
+
+    expect($reRun->applied)->toHaveCount(1)
+        ->and($reRun->skipped)->toBe([])
+        ->and(file_get_contents($file))
+        ->toContain("#[\Radiergummi\OpenApi\Attributes\QueryParam(name: 'a')]")
+        ->toContain("#[\Radiergummi\OpenApi\Attributes\QueryParam(name: 'b')]")
+        ->not->toContain('#[OA\Parameter')
+        ->toContain("#[OA\Get(path: '/things')]");
+});
+
+it('applies two RewriteToAttribute fixes on sibling promoted params in one pass, byte-preserving', function (): void {
+    // Neighboring-node: two replaceable #[OA\Property] on distinct promoted params of one Data class.
+    // Different TargetSelectors never conflict, so both land in a single applicator pass.
+    $source = <<<'PHP_SRC'
+        <?php
+
+        namespace Conflict;
+
+        class Fixture
+        {
+            public function __construct(
+                #[OA\Property(property: 'name', type: 'string')]
+                public string $name,
+                #[OA\Property(property: 'count', type: 'integer')]
+                public int $count,
+            ) {}
+        }
+
+        PHP_SRC;
+    $file = conflictFixtureFile($source);
+
+    $nameFix = new Fix(
+        $file,
+        'description',
+        'migration.oa-replaceable-by-attribute',
+        new RewriteToAttribute(
+            new TargetSelector('Conflict\\Fixture', TargetKind::Property, 'name'),
+            'Radiergummi\\OpenApi\\Attributes\\ResponseField',
+            ['type' => 'string'],
+            attributeIndices: [0],
+        ),
+    );
+    $countFix = new Fix(
+        $file,
+        'description',
+        'migration.oa-replaceable-by-attribute',
+        new RewriteToAttribute(
+            new TargetSelector('Conflict\\Fixture', TargetKind::Property, 'count'),
+            'Radiergummi\\OpenApi\\Attributes\\ResponseField',
+            ['type' => 'integer'],
+            attributeIndices: [0],
+        ),
+    );
+
+    $result = new FixApplicator()->apply([$nameFix, $countFix]);
+
+    expect($result->applied)->toHaveCount(2)
+        ->and($result->skipped)->toBe([])
+        ->and(file_get_contents($file))->toBe(<<<'PHP_SRC'
+        <?php
+
+        namespace Conflict;
+
+        class Fixture
+        {
+            public function __construct(
+                #[\Radiergummi\OpenApi\Attributes\ResponseField(type: 'string')]
+                public string $name,
+                #[\Radiergummi\OpenApi\Attributes\ResponseField(type: 'integer')]
+                public int $count,
+            ) {}
+        }
+
+        PHP_SRC);
 });

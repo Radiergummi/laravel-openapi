@@ -75,6 +75,8 @@ final class FixOperationVisitor extends NodeVisitorAbstract
             $this->setAttributeArgument($member, $this->operation);
         } elseif ($this->operation instanceof AddAttribute) {
             $this->addAttribute($member, $this->operation);
+        } elseif ($this->operation instanceof RewriteToAttribute) {
+            $this->rewriteToAttribute($member, $this->operation);
         }
 
         return null;
@@ -133,6 +135,19 @@ final class FixOperationVisitor extends NodeVisitorAbstract
 
     private function removeAttributes(ClassLike|ClassMethod|Property|Param $member, RemoveAttribute $operation): void
     {
+        if ($this->removeAttributesByIndex($member, $operation->attributeIndices)) {
+            $this->applied = true;
+        }
+    }
+
+    /**
+     * Removes the flat-indexed attributes from a member's groups, dropping any group it empties.
+     * Returns whether every index resolved (a stale index aborts without mutating).
+     *
+     * @param list<int> $attributeIndices
+     */
+    private function removeAttributesByIndex(ClassLike|ClassMethod|Property|Param $member, array $attributeIndices): bool
+    {
         // Map each flat, source-order attribute position to its owning group and within-group index,
         // mirroring how the fixer enumerated the member's attributes when it selected the targets.
         $flat = [];
@@ -147,9 +162,9 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         // the positions still to be removed.
         $perGroup = [];
 
-        foreach ($operation->attributeIndices as $flatIndex) {
+        foreach ($attributeIndices as $flatIndex) {
             if (! isset($flat[$flatIndex])) {
-                return;
+                return false;
             }
 
             [$groupIndex, $attrIndex] = $flat[$flatIndex];
@@ -176,7 +191,8 @@ final class FixOperationVisitor extends NodeVisitorAbstract
         }
 
         $member->attrGroups = array_values($member->attrGroups);
-        $this->applied = true;
+
+        return true;
     }
 
     private function setDocComment(ClassLike|ClassMethod|Property|Param $member, SetDocComment $operation): void
@@ -215,6 +231,37 @@ final class FixOperationVisitor extends NodeVisitorAbstract
 
         $member->setAttribute('comments', $rebuilt);
         $this->applied = true;
+    }
+
+    /**
+     * Rebuilds the member's doc comment from `$text` (null drops it entirely), reusing the original
+     * positions so the format-preserving printer reprints in place. Mirrors {@see setDocComment()}.
+     */
+    private function replaceDocComment(ClassLike|ClassMethod|Property|Param $member, ?string $text): void
+    {
+        $rebuilt = [];
+
+        foreach ($member->getComments() as $comment) {
+            if (! $comment instanceof Doc) {
+                $rebuilt[] = $comment;
+
+                continue;
+            }
+
+            if ($text !== null) {
+                $rebuilt[] = new Doc(
+                    $text,
+                    $comment->getStartLine(),
+                    $comment->getStartFilePos(),
+                    $comment->getStartTokenPos(),
+                    $comment->getEndLine(),
+                    $comment->getEndFilePos(),
+                    $comment->getEndTokenPos(),
+                );
+            }
+        }
+
+        $member->setAttribute('comments', $rebuilt);
     }
 
     private function setAttributeArgument(
@@ -333,23 +380,59 @@ final class FixOperationVisitor extends NodeVisitorAbstract
             return;
         }
 
-        $arguments = array_map(
+        $this->prependAttribute($member, $operation->attributeClass, $operation->arguments);
+        $this->applied = true;
+    }
+
+    /**
+     * Removes the source annotation (OA attributes by flat index, or the `@OA` docblock) and
+     * prepends the new attribute, both in one visit so no later op resolves a stale flat index.
+     *
+     * A stale `attributeIndices` (the source annotation is already gone) aborts without adding, so a
+     * re-emitted identical rewrite is a no-op. Unlike {@see addAttribute()} there is no
+     * already-present guard on the attribute class: the package's field attributes are repeatable, so
+     * a sibling rewrite legitimately adds a second application with different arguments.
+     */
+    private function rewriteToAttribute(ClassLike|ClassMethod|Property|Param $member, RewriteToAttribute $operation): void
+    {
+        if ($operation->attributeIndices !== null && ! $this->removeAttributesByIndex($member, $operation->attributeIndices)) {
+            return;
+        }
+
+        if ($operation->docComment !== false) {
+            $this->replaceDocComment($member, $operation->docComment);
+        }
+
+        $this->prependAttribute($member, $operation->attributeClass, $operation->arguments);
+        $this->applied = true;
+    }
+
+    /**
+     * Prepends a new attribute group with the fully-qualified attribute name (so the rewrite stays
+     * correct without editing the file's `use` block) and the given named scalar arguments.
+     *
+     * @param class-string                              $attributeClass
+     * @param array<string, null|bool|float|int|string> $arguments
+     */
+    private function prependAttribute(
+        ClassLike|ClassMethod|Property|Param $member,
+        string $attributeClass,
+        array $arguments,
+    ): void {
+        $args = array_map(
             fn(string|int|float|bool|null $value, string $name): Arg => new Arg(
                 value: $this->literalToNode($value),
                 name: new Identifier($name),
             ),
-            array_values($operation->arguments),
-            array_keys($operation->arguments),
+            array_values($arguments),
+            array_keys($arguments),
         );
 
-        // Emit the fully-qualified attribute name so the rewrite stays correct without editing the
-        // file's `use` block.
         $group = new AttributeGroup([
-            new Attribute(new FullyQualified(ltrim($operation->attributeClass, '\\')), $arguments),
+            new Attribute(new FullyQualified(ltrim($attributeClass, '\\')), $args),
         ]);
 
         array_unshift($member->attrGroups, $group);
-        $this->applied = true;
     }
 
     /**

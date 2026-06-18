@@ -7,6 +7,8 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Support;
 use OpenApi\Annotations\AbstractAnnotation;
 use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
+use OpenApi\Annotations\Parameter;
+use OpenApi\Annotations\Property;
 use OpenApi\Annotations\Schema;
 use OpenApi\Annotations\SecurityScheme;
 use OpenApi\Annotations\Server;
@@ -62,6 +64,20 @@ final class AuthoredAnnotationScanner
      * @var array<string, Operation>
      */
     private array $operationsByMethod = [];
+
+    /**
+     * Authored `OA\Property` annotations keyed by declaring class, then by PHP property name.
+     *
+     * @var array<string, array<string, Property>>
+     */
+    private array $propertiesByClass = [];
+
+    /**
+     * Authored query `OA\Parameter` annotations keyed by "declaringClass::method".
+     *
+     * @var array<string, list<Parameter>>
+     */
+    private array $queryParametersByMethod = [];
 
     private DocumentAnnotations $documentAnnotations;
 
@@ -208,6 +224,25 @@ final class AuthoredAnnotationScanner
 
             if ($class !== null) {
                 $this->schemasByClass[$class] = $schema;
+                $this->indexProperties($schema, $class);
+            }
+        }
+    }
+
+    /**
+     * Indexes the schema's authored `OA\Property` annotations by the PHP property they were
+     * declared on. The `property` field carries the output key, which equals the PHP property name
+     * for the conventional (no key-remapping) case the replacement rule targets.
+     */
+    private function indexProperties(Schema $schema, string $class): void
+    {
+        if (!is_array($schema->properties)) {
+            return;
+        }
+
+        foreach ($schema->properties as $property) {
+            if ($property instanceof Property && is_defined($property->property)) {
+                $this->propertiesByClass[$class][$property->property] = $property;
             }
         }
     }
@@ -241,7 +276,22 @@ final class AuthoredAnnotationScanner
                     continue;
                 }
 
-                $this->operationsByMethod[$this->methodKey($class, $method)] = $operation;
+                $key = $this->methodKey($class, $method);
+                $this->operationsByMethod[$key] = $operation;
+                $this->indexQueryParameters($operation, $key);
+            }
+        }
+    }
+
+    private function indexQueryParameters(Operation $operation, string $methodKey): void
+    {
+        if (!is_array($operation->parameters)) {
+            return;
+        }
+
+        foreach ($operation->parameters as $parameter) {
+            if ($parameter instanceof Parameter && is_defined($parameter->in) && $parameter->in === 'query') {
+                $this->queryParametersByMethod[$methodKey][] = $parameter;
             }
         }
     }
@@ -256,6 +306,46 @@ final class AuthoredAnnotationScanner
         $this->scan();
 
         return $this->schemasByClass[ltrim($class, '\\')] ?? null;
+    }
+
+    /**
+     * The authored `OA\Property` annotations on a class, keyed by PHP property name. Empty when the
+     * class authored none.
+     *
+     * @return array<string, Property>
+     */
+    public function propertiesForClass(string $class): array
+    {
+        $this->scan();
+
+        return $this->propertiesByClass[ltrim($class, '\\')] ?? [];
+    }
+
+    /**
+     * The authored query `OA\Parameter` annotations on a controller method, resolving annotations
+     * declared on a parent class or trait via the same ancestry walk as {@see operationForMethod()}.
+     *
+     * @return list<Parameter>
+     */
+    public function queryParametersForMethod(string $class, string $method): array
+    {
+        $this->scan();
+
+        $exact = $this->queryParametersByMethod[$this->methodKey($class, $method)] ?? null;
+
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        foreach ($this->declaringAncestry($class, $method) as $ancestor) {
+            $match = $this->queryParametersByMethod[$this->methodKey($ancestor, $method)] ?? null;
+
+            if ($match !== null) {
+                return $match;
+            }
+        }
+
+        return [];
     }
 
     public function operationForMethod(string $class, string $method): ?Operation

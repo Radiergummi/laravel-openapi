@@ -121,6 +121,8 @@ final readonly class FixConflictDetector
     /** Whether the op inserts or removes an attribute group, re-indexing the flat attribute list. */
     private function changesLayout(AstOperation $operation): bool
     {
-        return $operation instanceof AddAttribute || $operation instanceof RemoveAttribute;
+        return $operation instanceof AddAttribute
+            || $operation instanceof RemoveAttribute
+            || $operation instanceof RewriteToAttribute;
     }
 }
