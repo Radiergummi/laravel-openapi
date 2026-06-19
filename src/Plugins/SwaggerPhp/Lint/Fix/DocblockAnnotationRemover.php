@@ -15,6 +15,9 @@ use function array_any;
 use function explode;
 use function implode;
 use function ltrim;
+use function preg_match;
+use function preg_quote;
+use function sprintf;
 use function str_contains;
 use function str_split;
 use function trim;
@@ -43,6 +46,7 @@ final readonly class DocblockAnnotationRemover
         Finding $finding,
         string $file,
         FixContext $context,
+        ?string $componentName = null,
     ): array {
         if ($doc === null) {
             return [];
@@ -53,6 +57,10 @@ final readonly class DocblockAnnotationRemover
         $docEnd = $doc->getEndLine();
 
         $blocks = $this->locateAnnotationBlocks($lines, $docStart, $docEnd);
+
+        if ($componentName !== null) {
+            $blocks = $this->blocksDefiningComponent($lines, $blocks, $componentName);
+        }
 
         if ($blocks === []) {
             return [];
@@ -91,6 +99,43 @@ final readonly class DocblockAnnotationRemover
         }
 
         return implode("\n", $kept);
+    }
+
+    /**
+     * Keeps only the block defining the named reusable component, identified by a
+     * `response="Name"` / `parameter="Name"` argument (either `=` or `:` assignment) within the
+     * block's lines. Narrows whole-docblock removal so a docblock stacking several component blocks
+     * keeps the load-bearing siblings.
+     *
+     * @param list<string>          $lines
+     * @param list<array{int, int}> $blocks
+     *
+     * @return list<array{int, int}>
+     */
+    private function blocksDefiningComponent(array $lines, array $blocks, string $componentName): array
+    {
+        // The trailing `\b` end-anchors the name so a shorter name never matches a longer one it
+        // prefixes (targeting "Ok" must not select `response="OkResponse"`), which would dangle the
+        // sibling's operation. It works for both the quoted (`"Name"`) and bare (`Name`) forms,
+        // since a closing quote or comma is a word boundary after the final name character.
+        $pattern = sprintf(
+            '~\b(?:response|parameter)\s*[=:]\s*["\']?%s\b~',
+            preg_quote($componentName, '~'),
+        );
+
+        $matching = [];
+
+        foreach ($blocks as $block) {
+            for ($line = $block[0]; $line <= $block[1]; $line++) {
+                if (preg_match($pattern, $lines[$line - 1] ?? '') === 1) {
+                    $matching[] = $block;
+
+                    break;
+                }
+            }
+        }
+
+        return $matching;
     }
 
     /**

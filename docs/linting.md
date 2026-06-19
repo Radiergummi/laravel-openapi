@@ -300,6 +300,19 @@ generation; it fires only when inference subsumes them all, so a human `descript
 response shape keeps the annotation. `--fix` removes the whole `@OA` operation docblock, or every
 `#[OA\*]` attribute on the method.
 
+`migration.oa-redundant-component-with-inference` is the component-pool counterpart: it flags a
+reusable `@OA\Response` / `@OA\Parameter` **component definition** the generator already reproduces.
+Vanilla inference never emits reusable `#/components/responses|parameters/*` definitions (it inlines
+responses and parameters into operations), so the oracle is **usage-site**: a definition is redundant
+only when at least one operation `$ref`s it and every such operation's inference-only counterpart
+already produces an equivalent inline response/parameter (compared with the same subsumption check the
+schema/operation rules use). A component carrying something inference can't derive (a human
+`description`, a constraint) stays, an orphan no operation references stays (that is
+`component.orphaned`'s job), and a component another surviving annotation still `$ref`s — including a
+transitive component-to-component alias — stays to avoid a dangling reference. `--fix` removes only the
+targeted `@OA\Response` / `@OA\Parameter` block (or attribute), leaving any sibling component
+definitions on the same class untouched.
+
 `migration.document-annotation-in-config` covers the document-level annotations that have **no**
 authoring-attribute equivalent and instead map to a `config/openapi.php` key:
 
@@ -639,6 +652,7 @@ is enabled.
 | `info.metadata-incomplete` | 4 | The document info is missing contact and/or license. |
 | `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.oa-redundant-operation-with-inference` | 4 | A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
+| `migration.oa-redundant-component-with-inference` | 4 | A hand-authored reusable @OA\Response / @OA\Parameter component definition the generator already reproduces inline via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.document-annotation-in-config` | 4 | A document-level @OA\Info / Server / SecurityScheme / root Tag annotation whose metadata belongs in config/openapi.php. (SwaggerPhp plugin; a `migration.*` rule — reports + scaffolds a config snippet, no auto-fix — see Migration rules.) |
 | `migration.oa-replaceable-by-attribute` | 4 | A hand-authored OA\Property / query OA\Parameter an authoring attribute expresses more concisely. (SwaggerPhp plugin; a `migration.*` rule — rewrites it as #[ResponseField] / #[QueryParam] — see Migration rules.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |

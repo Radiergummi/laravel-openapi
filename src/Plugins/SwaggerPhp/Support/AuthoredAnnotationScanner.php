@@ -24,6 +24,7 @@ use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use ReflectionClass;
 use Throwable;
 
+use function array_fill_keys;
 use function array_keys;
 use function array_values;
 use function class_exists;
@@ -93,6 +94,21 @@ final class AuthoredAnnotationScanner
      * @var array<string, Parameter>
      */
     private array $parameterComponentsByName = [];
+
+    /**
+     * Leading-slash-free FQCN declaring each response/parameter component, keyed by component name.
+     *
+     * @var array<string, string>
+     */
+    private array $componentClassesByName = [];
+
+    /**
+     * Every `OA\Response`/`OA\Parameter` entry in the component pool, including `ref`-only aliases.
+     * The dangling-ref guard walks these so a component pointed at by a surviving alias is kept.
+     *
+     * @var list<Parameter|Response>
+     */
+    private array $componentPool = [];
 
     private DocumentAnnotations $documentAnnotations;
 
@@ -176,8 +192,17 @@ final class AuthoredAnnotationScanner
         }
 
         foreach ($document->components->responses as $response) {
-            if ($response instanceof Response && is_defined($response->response) && !is_defined($response->ref)) {
-                $this->responseComponentsByName[(string) $response->response] = $response;
+            if (!$response instanceof Response || !is_defined($response->response)) {
+                continue;
+            }
+
+            $this->componentPool[] = $response;
+
+            // A `ref`-only entry is a usage (an alias pointing at another component), not a definition.
+            if (!is_defined($response->ref)) {
+                $name = (string) $response->response;
+                $this->responseComponentsByName[$name] = $response;
+                $this->recordComponentClass($name, $response);
             }
         }
     }
@@ -193,9 +218,26 @@ final class AuthoredAnnotationScanner
         }
 
         foreach ($document->components->parameters as $parameter) {
-            if ($parameter instanceof Parameter && is_defined($parameter->parameter) && !is_defined($parameter->ref)) {
-                $this->parameterComponentsByName[(string) $parameter->parameter] = $parameter;
+            if (!$parameter instanceof Parameter || !is_defined($parameter->parameter)) {
+                continue;
             }
+
+            $this->componentPool[] = $parameter;
+
+            if (!is_defined($parameter->ref)) {
+                $name = (string) $parameter->parameter;
+                $this->parameterComponentsByName[$name] = $parameter;
+                $this->recordComponentClass($name, $parameter);
+            }
+        }
+    }
+
+    private function recordComponentClass(string $name, Response|Parameter $component): void
+    {
+        $class = $this->declaringClassOf($component);
+
+        if ($class !== null) {
+            $this->componentClassesByName[$name] = $class;
         }
     }
 
@@ -325,7 +367,7 @@ final class AuthoredAnnotationScanner
      * Trait-declared annotations carry `_context->trait` (not `_context->class`), so they are
      * indexed under the trait name; {@see operationForMethod()} resolves them via ancestry walk.
      */
-    public function declaringClassOf(Schema|Operation $annotation): ?string
+    public function declaringClassOf(Schema|Operation|Response|Parameter $annotation): ?string
     {
         $context = $annotation->_context;
         $fullyQualified = $context->fullyQualifiedName($context->class ?? $context->trait);
@@ -528,6 +570,103 @@ final class AuthoredAnnotationScanner
 
         foreach ($this->operationsByMethod as $operation) {
             if ($this->referencesRef($operation, $target)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The authored reusable `OA\Response` component definitions, keyed by component name.
+     *
+     * @return array<string, Response>
+     */
+    public function responseComponentDefinitions(): array
+    {
+        $this->scan();
+
+        return $this->responseComponentsByName;
+    }
+
+    /**
+     * The authored reusable `OA\Parameter` component definitions, keyed by component name.
+     *
+     * @return array<string, Parameter>
+     */
+    public function parameterComponentDefinitions(): array
+    {
+        $this->scan();
+
+        return $this->parameterComponentsByName;
+    }
+
+    /**
+     * The leading-slash-free FQCN declaring the named response/parameter component, or null.
+     */
+    public function componentClassFor(string $name): ?string
+    {
+        $this->scan();
+
+        return $this->componentClassesByName[$name] ?? null;
+    }
+
+    /**
+     * Authored operations that `$ref` the given component pointer, keyed by "declaringClass::method".
+     *
+     * @return array<string, Operation>
+     */
+    public function operationsReferencing(string $pointer): array
+    {
+        $this->scan();
+
+        $matches = [];
+
+        foreach ($this->operationsByMethod as $key => $operation) {
+            if ($this->referencesRef($operation, $pointer)) {
+                $matches[$key] = $operation;
+            }
+        }
+
+        return $matches;
+    }
+
+    /**
+     * Whether the component pointer is `$ref`-ed by an authored annotation other than the component
+     * itself and the given referencing operations. Walks schemas, the other component definitions
+     * and aliases (so a transitive component → component reference keeps the target alive), and any
+     * operation not among `$excludingOperationKeys` (those are the verified-equivalent consumers the
+     * rule is collapsing). Used as the dangling-ref guard before removing a component definition.
+     *
+     * @param list<string> $excludingOperationKeys "declaringClass::method" keys to ignore
+     */
+    public function isComponentReferencedByOtherAuthored(
+        string $pointer,
+        string $componentName,
+        array $excludingOperationKeys = [],
+    ): bool {
+        $this->scan();
+
+        $ownDefinition = $this->responseComponentsByName[$componentName]
+            ?? $this->parameterComponentsByName[$componentName]
+            ?? null;
+
+        foreach ($this->schemasByName as $schema) {
+            if ($this->referencesRef($schema, $pointer)) {
+                return true;
+            }
+        }
+
+        foreach ($this->componentPool as $component) {
+            if ($component !== $ownDefinition && $this->referencesRef($component, $pointer)) {
+                return true;
+            }
+        }
+
+        $excluded = array_fill_keys($excludingOperationKeys, true);
+
+        foreach ($this->operationsByMethod as $key => $operation) {
+            if (!isset($excluded[$key]) && $this->referencesRef($operation, $pointer)) {
                 return true;
             }
         }

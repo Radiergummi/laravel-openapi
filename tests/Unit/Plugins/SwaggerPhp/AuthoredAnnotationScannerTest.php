@@ -121,6 +121,55 @@ it('returns null for an unknown response/parameter component name', function ():
         ->and($scanner->parameterComponentForName('NoSuchParameter'))->toBeNull();
 });
 
+it('records the declaring class of response/parameter component definitions', function (): void {
+    $scanner = makeScanner(componentsFixtureDir());
+
+    expect($scanner->componentClassFor('NotFound'))
+        ->toBe('Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponents\ComponentDefinitions')
+        ->and($scanner->componentClassFor('PageParam'))
+        ->toBe('Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponents\ComponentDefinitions')
+        ->and($scanner->componentClassFor('NoSuchComponent'))->toBeNull();
+});
+
+it('exposes response/parameter component definitions but not ref-only aliases', function (): void {
+    $scanner = makeScanner(componentsFixtureDir());
+
+    expect($scanner->responseComponentDefinitions())
+        ->toHaveKey('NotFound')
+        ->not->toHaveKey('AliasNotFound')
+        ->and($scanner->parameterComponentDefinitions())
+        ->toHaveKey('PageParam')
+        ->not->toHaveKey('AliasParam');
+});
+
+it('treats a component referenced only by a surviving alias as still referenced', function (): void {
+    // AliasNotFound is a ref-only alias pointing at NotFound; removing NotFound would dangle it, even
+    // when the operation that references NotFound is the verified-equivalent consumer being collapsed.
+    $scanner = makeScanner(componentsFixtureDir());
+
+    $pointer = '#/components/responses/NotFound';
+
+    // Exclude the verified-collapsing consumer by its full operationsByMethod key (leading-slash-free
+    // FQCN), so the truthy verdict comes only from the AliasNotFound pool entry, not the op-walk.
+    expect($scanner->isComponentReferencedByOtherAuthored(
+        $pointer,
+        'NotFound',
+        ['Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponents\ComponentRefController::index'],
+    ))->toBeTrue();
+});
+
+it('reports a component unreferenced by other authored annotations as removable', function (): void {
+    $scanner = makeScanner(componentsFixtureDir());
+
+    // BodyParam is referenced only by ComponentRefController::index; excluding that consumer leaves
+    // no other authored reference, so it is safe to remove.
+    expect($scanner->isComponentReferencedByOtherAuthored(
+        '#/components/parameters/BodyParam',
+        'BodyParam',
+        ['Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponents\ComponentRefController::index'],
+    ))->toBeFalse();
+});
+
 it('does not index a ref-only response/parameter usage entry as a definition', function (): void {
     // swagger-php lands a ref-only @OA\Response/@OA\Parameter (name + ref, an alias pointing at
     // another component) in components.responses/.parameters; the !is_defined(...->ref) filter must

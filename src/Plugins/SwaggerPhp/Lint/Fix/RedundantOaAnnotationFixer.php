@@ -30,6 +30,13 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
 {
     use ResolvesDeclaringFile;
 
+    /**
+     * Finding-context key naming the single reusable component (`@OA\Response`/`@OA\Parameter`) to
+     * remove. When present, only the matching block/attribute is removed rather than every `@OA\*`
+     * on the class; absent (null) keeps the whole-node behavior the schema/operation rules rely on.
+     */
+    public const string CONTEXT_COMPONENT_NAME = 'componentName';
+
     public function __construct(
         private DocblockAnnotationRemover $docblockRemover = new DocblockAnnotationRemover(),
         private OaAttributeRemover $attributeRemover = new OaAttributeRemover(),
@@ -44,10 +51,13 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
         $class = $finding->context[Finding::CONTEXT_SOURCE_CLASS] ?? null;
         $member = $finding->context[Finding::CONTEXT_SOURCE_MEMBER] ?? null;
         $shapeValue = $finding->context[AuthoredAnnotationShape::FINDING_CONTEXT_KEY] ?? null;
+        $componentName = $finding->context[self::CONTEXT_COMPONENT_NAME] ?? null;
 
         if (!is_string($class) || !is_string($shapeValue) || ($member !== null && !is_string($member))) {
             return [];
         }
+
+        $componentName = is_string($componentName) ? $componentName : null;
 
         $shape = AuthoredAnnotationShape::tryFrom($shapeValue);
         $file = $this->fileFor($class);
@@ -72,6 +82,7 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
                 $finding,
                 $file,
                 $context,
+                $componentName,
             ),
             AuthoredAnnotationShape::Attribute => $this->removeAttributes(
                 $member === null
@@ -82,12 +93,14 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
                     : "Remove redundant #[OA\\*] operation attribute on {$where}",
                 $finding,
                 $file,
+                $componentName,
             ),
         };
     }
 
     /**
-     * One {@see Fix} per addressed node that carries an `#[OA\*]` attribute.
+     * One {@see Fix} per addressed node that carries an `#[OA\*]` attribute. A non-null
+     * `$componentName` narrows removal to the matching reusable component attribute.
      *
      * @param list<array{TargetSelector, array<AttributeGroup>}> $targets
      *
@@ -98,11 +111,12 @@ final readonly class RedundantOaAnnotationFixer implements Fixer
         string $description,
         Finding $finding,
         string $file,
+        ?string $componentName,
     ): array {
         $fixes = [];
 
         foreach ($targets as [$selector, $groups]) {
-            $operation = $this->attributeRemover->operationFor($selector, $groups);
+            $operation = $this->attributeRemover->operationFor($selector, $groups, $componentName);
 
             if ($operation instanceof RemoveAttribute) {
                 $fixes[] = new Fix($file, $description, $finding->ruleId, $operation);
