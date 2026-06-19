@@ -22,13 +22,12 @@ use Radiergummi\OpenApi\Lint\Visitors\ComponentSchemaRule;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\OaReplaceableByAttributeFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\DetectsPropertyShape;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OaAttributeArgumentMapper;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
-use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
-use ReflectionProperty;
 use Throwable;
 
 use function class_exists;
@@ -36,8 +35,6 @@ use function is_string;
 use function is_subclass_of;
 use function Radiergummi\OpenApi\copy_schema_fields;
 use function sprintf;
-use function str_contains;
-use function str_starts_with;
 use function strrpos;
 use function substr;
 
@@ -62,6 +59,8 @@ use function substr;
  */
 final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRule, OperationRule, FixableRule
 {
+    use DetectsPropertyShape;
+
     /** Finding-context key carrying the target attribute class-string. */
     public const string CONTEXT_TARGET_ATTRIBUTE = 'targetAttribute';
 
@@ -276,54 +275,6 @@ final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRu
 
         return $this->equivalence->subsumes($candidate, $authoredSchema)
             && $this->equivalence->subsumes($authoredSchema, $candidate);
-    }
-
-    /**
-     * @param class-string $class
-     *
-     * @throws ReflectionException
-     */
-    private function propertyShape(string $class, string $propertyName): ?AuthoredAnnotationShape
-    {
-        $reflection = new ReflectionClass($class);
-
-        if ($reflection->hasProperty($propertyName)) {
-            $shape = $this->reflectorShape(new ReflectionProperty($class, $propertyName));
-
-            if ($shape !== null) {
-                return $shape;
-            }
-        }
-
-        // A promoted constructor parameter carries its attributes on the parameter, not a property.
-        $constructor = $reflection->getConstructor();
-
-        foreach ($constructor?->getParameters() ?? [] as $parameter) {
-            if ($parameter->getName() === $propertyName) {
-                foreach ($parameter->getAttributes() as $attribute) {
-                    if (str_starts_with($attribute->getName(), AuthoredAnnotationShape::ATTRIBUTE_NAMESPACE)) {
-                        return AuthoredAnnotationShape::Attribute;
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private function reflectorShape(ReflectionProperty $property): ?AuthoredAnnotationShape
-    {
-        foreach ($property->getAttributes() as $attribute) {
-            if (str_starts_with($attribute->getName(), AuthoredAnnotationShape::ATTRIBUTE_NAMESPACE)) {
-                return AuthoredAnnotationShape::Attribute;
-            }
-        }
-
-        $docComment = $property->getDocComment();
-
-        return $docComment !== false && str_contains($docComment, '@OA\\')
-            ? AuthoredAnnotationShape::Docblock
-            : null;
     }
 
     /**

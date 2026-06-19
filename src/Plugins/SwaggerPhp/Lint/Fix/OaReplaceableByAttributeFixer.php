@@ -5,15 +5,11 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix;
 
 use Override;
-use PhpParser\Comment\Doc;
 use PhpParser\Node\Attribute;
 use PhpParser\Node\AttributeGroup;
-use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
-use PhpParser\Node\Param;
 use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\ClassLike;
-use PhpParser\Node\Stmt\ClassMethod;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\Fix\Ast\RewriteToAttribute;
@@ -45,6 +41,7 @@ use function substr;
  */
 final readonly class OaReplaceableByAttributeFixer implements Fixer
 {
+    use AddressesPropertyNodes;
     use ResolvesDeclaringFile;
 
     public function __construct(
@@ -222,57 +219,6 @@ final readonly class OaReplaceableByAttributeFixer implements Fixer
         }
 
         return new RewriteToAttribute($selector, $attribute, $arguments, docComment: $operation->text);
-    }
-
-    /**
-     * The attribute groups carrying a property's `#[OA\*]`: either a declared property or a promoted
-     * constructor parameter.
-     *
-     * @return array<AttributeGroup>
-     */
-    private function propertyAttributeGroups(ClassLike $classNode, string $member): array
-    {
-        foreach ($classNode->getProperties() as $property) {
-            foreach ($property->props as $prop) {
-                if ($prop->name->toString() === $member) {
-                    return $property->attrGroups;
-                }
-            }
-        }
-
-        $parameter = $this->promotedParameter($classNode, $member);
-
-        return $parameter === null ? [] : $parameter->attrGroups;
-    }
-
-    private function propertyDocComment(ClassLike $classNode, string $member): ?Doc
-    {
-        foreach ($classNode->getProperties() as $property) {
-            foreach ($property->props as $prop) {
-                if ($prop->name->toString() === $member) {
-                    return $property->getDocComment();
-                }
-            }
-        }
-
-        return $this->promotedParameter($classNode, $member)?->getDocComment();
-    }
-
-    private function promotedParameter(ClassLike $classNode, string $member): ?Param
-    {
-        $constructor = $classNode->getMethod('__construct');
-
-        if (!$constructor instanceof ClassMethod) {
-            return null;
-        }
-
-        foreach ($constructor->params as $parameter) {
-            if ($parameter->var instanceof Variable && $parameter->var->name === $member) {
-                return $parameter;
-            }
-        }
-
-        return null;
     }
 
     private function shortName(string $class): string
