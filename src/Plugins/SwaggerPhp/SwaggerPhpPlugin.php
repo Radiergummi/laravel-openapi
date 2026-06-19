@@ -9,6 +9,7 @@ use Radiergummi\OpenApi\Contracts\Registry\Plugin;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\DocumentAnnotationMigration;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantComponentWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
+use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantPropertyWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaReplaceableByAttribute;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\SchemaNameCollision;
@@ -33,6 +34,7 @@ final class SwaggerPhpPlugin implements Plugin
         $registry->addRule(OaRedundantWithInference::class);
         $registry->addRule(OaRedundantOperationWithInference::class);
         $registry->addRule(OaRedundantComponentWithInference::class);
+        $registry->addRule(OaRedundantPropertyWithInference::class);
         $registry->addRule(OaReplaceableByAttribute::class);
         $registry->addRule(DocumentAnnotationMigration::class);
 

@@ -313,6 +313,21 @@ transitive component-to-component alias — stays to avoid a dangling reference.
 targeted `@OA\Response` / `@OA\Parameter` block (or attribute), leaving any sibling component
 definitions on the same class untouched.
 
+`migration.oa-redundant-property-with-inference` is the **per-member** counterpart of the whole-class
+rule. The whole-class rule is all-or-nothing: a Spatie Data class mixing redundant member
+`#[OA\Property]` (a type-only restatement) and load-bearing ones (a member carrying a human
+`description`, an `enum`, a constraint) gets *nothing* flagged. This rule flags the individual members
+inference subsumes, leaving the enclosing schema and its load-bearing siblings in place. The verdict is
+the same subsumption oracle: the authored member `OA\Property` is compared against the matching property
+in the inference-only generation, and a finding fires only when inference reproduces everything the
+member said. `--fix` removes just that one member's `#[OA\Property]` (or its `@OA\Property` docblock
+block), leaving sibling members byte-identical. Scope is **Spatie Data members only** — and this is a
+deliberate, sound boundary, not an oversight. A Data class's component is emitted by inference and named
+by the PHP class, so a subsumed member annotation is pure redundant *authoring* whose removal provably
+cannot change the emitted schema. An API-Resource or request-DTO member `OA\Property` lives *inside* a
+harvester-emitted class-level `#[OA\Schema]`, where per-member removal *would* mutate the emitted
+component, so it is correctly out of scope (a follow-up).
+
 `migration.document-annotation-in-config` covers the document-level annotations that have **no**
 authoring-attribute equivalent and instead map to a `config/openapi.php` key:
 
@@ -653,6 +668,7 @@ is enabled.
 | `migration.oa-redundant-with-inference` | 4 | A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.oa-redundant-operation-with-inference` | 4 | A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
 | `migration.oa-redundant-component-with-inference` | 4 | A hand-authored reusable @OA\Response / @OA\Parameter component definition the generator already reproduces inline via inference. (SwaggerPhp plugin; a `migration.*` rule — see Migration rules.) |
+| `migration.oa-redundant-property-with-inference` | 4 | A hand-authored member OA\Property on a Spatie Data class the generator already infers. (SwaggerPhp plugin; a `migration.*` rule — removes just the redundant member, see Migration rules.) |
 | `migration.document-annotation-in-config` | 4 | A document-level @OA\Info / Server / SecurityScheme / root Tag annotation whose metadata belongs in config/openapi.php. (SwaggerPhp plugin; a `migration.*` rule — reports + scaffolds a config snippet, no auto-fix — see Migration rules.) |
 | `migration.oa-replaceable-by-attribute` | 4 | A hand-authored OA\Property / query OA\Parameter an authoring attribute expresses more concisely. (SwaggerPhp plugin; a `migration.*` rule — rewrites it as #[ResponseField] / #[QueryParam] — see Migration rules.) |
 | `parameter.example-missing` | 4 | Parameter has no example. |
