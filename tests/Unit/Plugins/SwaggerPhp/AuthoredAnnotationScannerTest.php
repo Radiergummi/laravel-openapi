@@ -121,8 +121,12 @@ it('returns null for an unknown response/parameter component name', function ():
         ->and($scanner->parameterComponentForName('NoSuchParameter'))->toBeNull();
 });
 
-// The `!is_defined(...->ref)` filter in indexResponseComponents/indexParameterComponents skips
-// ref-only usage entries, but swagger-php discards a class carrying only a class-level ref-only
-// @OA\Response/@OA\Parameter (it logs "Skipping unknown <Class>"), so no realistic fixture lands a
-// ref-only entry in components.responses/.parameters for the scanner to see. The branch stays
-// defensive against an upstream change; it cannot be exercised through normal generation.
+it('does not index a ref-only response/parameter usage entry as a definition', function (): void {
+    // swagger-php lands a ref-only @OA\Response/@OA\Parameter (name + ref, an alias pointing at
+    // another component) in components.responses/.parameters; the !is_defined(...->ref) filter must
+    // keep those usage entries out of the definition index, or a ref would resolve to the alias.
+    $scanner = makeScanner(componentsFixtureDir());
+
+    expect($scanner->responseComponentForName('AliasNotFound'))->toBeNull()
+        ->and($scanner->parameterComponentForName('AliasParam'))->toBeNull();
+});
