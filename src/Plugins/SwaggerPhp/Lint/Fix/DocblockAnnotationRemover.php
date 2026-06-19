@@ -114,8 +114,12 @@ final readonly class DocblockAnnotationRemover
      */
     private function blocksDefiningComponent(array $lines, array $blocks, string $componentName): array
     {
+        // The trailing `\b` end-anchors the name so a shorter name never matches a longer one it
+        // prefixes (targeting "Ok" must not select `response="OkResponse"`), which would dangle the
+        // sibling's operation. It works for both the quoted (`"Name"`) and bare (`Name`) forms,
+        // since a closing quote or comma is a word boundary after the final name character.
         $pattern = sprintf(
-            '~\b(?:response|parameter)\s*[=:]\s*["\']?%s["\']?~',
+            '~\b(?:response|parameter)\s*[=:]\s*["\']?%s\b~',
             preg_quote($componentName, '~'),
         );
 

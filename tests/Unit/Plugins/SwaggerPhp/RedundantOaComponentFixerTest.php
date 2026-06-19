@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponentMigration\AttributeComponents;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponentMigration\DocblockComponents;
+use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponentMigration\PrefixNameComponents;
 
 uses()->group('openapi', 'lint', 'fix');
 
@@ -76,6 +77,17 @@ it('removes only the targeted @OA\Parameter docblock block, keeping the load-bea
         ->and($result['after'])
         ->not->toContain('parameter="RecordPath"')
         ->toContain('parameter="KeptParam"')
+        ->toContain('A description inference cannot derive.');
+});
+
+it('removes a prefix-named component without touching the longer-named sibling', function (): void {
+    // "Ok" is a prefix of "OkResponse"; the end-anchored match must select only the "Ok" block.
+    $result = runComponentFixer(PrefixNameComponents::class, AuthoredAnnotationShape::Docblock, 'Ok');
+
+    expect($result['fixes'])->toBe(1)
+        ->and($result['after'])
+        ->not->toContain('response="Ok"')
+        ->toContain('response="OkResponse"')
         ->toContain('A description inference cannot derive.');
 });
 

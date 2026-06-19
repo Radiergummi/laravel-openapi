@@ -149,8 +149,13 @@ it('treats a component referenced only by a surviving alias as still referenced'
 
     $pointer = '#/components/responses/NotFound';
 
-    expect($scanner->isComponentReferencedByOtherAuthored($pointer, 'NotFound', ['ComponentRefController::index']))
-        ->toBeTrue();
+    // Exclude the verified-collapsing consumer by its full operationsByMethod key (leading-slash-free
+    // FQCN), so the truthy verdict comes only from the AliasNotFound pool entry, not the op-walk.
+    expect($scanner->isComponentReferencedByOtherAuthored(
+        $pointer,
+        'NotFound',
+        ['Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponents\ComponentRefController::index'],
+    ))->toBeTrue();
 });
 
 it('reports a component unreferenced by other authored annotations as removable', function (): void {
