@@ -172,6 +172,9 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             return;
         }
 
+        // Resolved ref-parameters are appended without a (name, in) dedup: a $ref parameter's
+        // identity is opaque at merge time, so an inferred + authored-ref overlap on the same field
+        // is left for the parameter.duplicate-name lint rule to surface.
         $operation->parameters = [
             ...is_array($operation->parameters) ? $operation->parameters : [],
             ...$resolved,

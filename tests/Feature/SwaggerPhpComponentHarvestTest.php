@@ -169,6 +169,36 @@ it('drops and logs an operation response $ref whose target component is absent',
         );
 });
 
+it('drops and logs an operation parameter $ref whose target component is absent', function (): void {
+    $logger = componentHarvestLogger();
+    componentHarvestSetup($logger);
+
+    $operation = operationFor(componentHarvestDocument(), 'gadgets');
+
+    $refs = array_map(
+        static fn(OA\Parameter $p): ?string => is_string($p->ref) ? $p->ref : null,
+        is_array($operation?->parameters) ? $operation->parameters : [],
+    );
+
+    expect($refs)->not->toContain('#/components/parameters/Missing')
+        ->and($logger->messages)->toContain(
+            'SwaggerPhp harvester: authored parameter $ref "#/components/parameters/Missing" targets an unknown parameter component; skipping.',
+        );
+});
+
+it('pulls in a schema the harvested parameter references transitively through its schema', function (): void {
+    componentHarvestSetup();
+
+    $document = componentHarvestDocument();
+    $schemas = $document->components instanceof OA\Components ? $document->components->schemas : null;
+    $schemaNames = array_map(
+        static fn(OA\Schema $s): string => (string) $s->schema,
+        is_array($schemas) ? $schemas : [],
+    );
+
+    expect($schemaNames)->toContain('SomeBody');
+});
+
 it('produces a document that serializes and validates as OpenAPI 3.1', function (): void {
     componentHarvestSetup();
 

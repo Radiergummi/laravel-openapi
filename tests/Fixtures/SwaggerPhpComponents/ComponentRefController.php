@@ -10,12 +10,14 @@ use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\PlainStructData;
 
 /**
  * An operation referencing the reusable response/parameter components by `$ref`, plus one referencing
- * a component that does not exist (the genuinely-dangling case). Signature-only; never invoked.
+ * components that do not exist (the genuinely-dangling case). `BodyParam` exercises the parameter-side
+ * transitive schema pull-in. Signature-only; never invoked.
  */
 class ComponentRefController
 {
     #[OA\Get(path: '/widgets', operationId: 'listWidgets')]
     #[OA\Parameter(ref: '#/components/parameters/PageParam')]
+    #[OA\Parameter(ref: '#/components/parameters/BodyParam')]
     #[OA\Response(response: 404, ref: '#/components/responses/NotFound')]
     public function index(): PlainStructData
     {
@@ -23,6 +25,7 @@ class ComponentRefController
     }
 
     #[OA\Get(path: '/gadgets', operationId: 'listGadgets')]
+    #[OA\Parameter(ref: '#/components/parameters/Missing')]
     #[OA\Response(response: 404, ref: '#/components/responses/Missing')]
     public function missing(): PlainStructData
     {
