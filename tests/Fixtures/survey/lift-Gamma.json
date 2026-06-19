@@ -1,0 +1,23 @@
+{
+  "app": "Gamma",
+  "apiPrefix": "/api",
+  "baseline": { "completenessPercent": 8.3, "responseSchemas": 0, "apiOperations": 12 },
+  "afterHarvest": { "completenessPercent": 8.3, "responseSchemas": 0, "apiOperations": 12 },
+  "afterAgent": { "completenessPercent": 75.0, "responseSchemas": 9, "apiOperations": 12 },
+  "attributesApplied": {
+    "harvested": { "total": 0, "byFile": {} },
+    "authored": [
+      "app/Http/Controllers/Api/ReportController.php"
+    ]
+  },
+  "domains": [],
+  "gapsEncountered": [
+    { "title": "No attribute for polymorphic union responses", "detail": "same shape as Alpha" },
+    { "title": "Streamed CSV download response not describable", "detail": "binary stream" }
+  ],
+  "patch": "diff --git a/app/Http/Controllers/Api/ReportController.php ...",
+  "libraryClean": true,
+  "pinnedSha": "3333333333333333333333333333333333333333",
+  "libraryCommit": "abc1234def5678abc1234def5678abc1234def56",
+  "generatedAt": "2026-06-18T10:30:00Z"
+}

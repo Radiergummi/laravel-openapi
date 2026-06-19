@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2026-06-18T09:30:00+00:00",
+  "libraryCommit": "abc1234def5678abc1234def5678abc1234def56",
+  "apps": [
+    {
+      "name": "Alpha",
+      "pinnedSha": "1111111111111111111111111111111111111111",
+      "actualSha": "1111111111111111111111111111111111111111",
+      "installedLibrarySha": "abc1234def5678abc1234def5678abc1234def56",
+      "php": "8.4"
+    },
+    {
+      "name": "Beta",
+      "pinnedSha": "2222222222222222222222222222222222222222",
+      "actualSha": "2222222222222222222222222222222222222222",
+      "installedLibrarySha": "abc1234def5678abc1234def5678abc1234def56",
+      "php": "8.4"
+    },
+    {
+      "name": "Gamma",
+      "pinnedSha": "3333333333333333333333333333333333333333",
+      "actualSha": "3333333333333333333333333333333333333333",
+      "installedLibrarySha": "abc1234def5678abc1234def5678abc1234def56",
+      "php": "8.4"
+    },
+    {
+      "name": "Delta",
+      "pinnedSha": "4444444444444444444444444444444444444444",
+      "actualSha": null,
+      "installedLibrarySha": null,
+      "php": "8.4"
+    },
+    {
+      "name": "Phantom",
+      "pinnedSha": "5555555555555555555555555555555555555555",
+      "actualSha": "5555555555555555555555555555555555555555",
+      "installedLibrarySha": "abc1234def5678abc1234def5678abc1234def56",
+      "php": "8.4"
+    }
+  ]
+}
