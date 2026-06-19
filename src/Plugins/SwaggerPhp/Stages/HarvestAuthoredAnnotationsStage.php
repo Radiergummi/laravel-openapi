@@ -10,6 +10,7 @@ use OpenApi\Generator;
 use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Generator\GenerationContext;
@@ -108,6 +109,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         OA\Operation $authored,
     ): void {
         $this->copyAuthoredMetadata($operation, $authored);
+        $this->mergeAuthoredParameterRefs($operation, $authored);
 
         if (!is_array($authored->responses)) {
             return;
@@ -120,16 +122,13 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
                 continue;
             }
 
-            // An `@OA\Response(ref="#/components/responses/X")` points at a response component this
-            // stage does not harvest; merging it verbatim would emit a dangling `$ref`. Skip + log.
-            if (is_defined($authoredResponse->ref)) {
-                $this->logger->warning(
-                    sprintf(
-                        'SwaggerPhp harvester: authored response "%s" is a $ref to a response component, '
-                        . 'which is not harvested; skipping.',
-                        (string) $authoredResponse->response,
-                    ),
-                );
+            // An `@OA\Response(ref="#/components/responses/X")` points at a reusable response
+            // component. Harvest the named component (and its transitive schemas) so the flushed
+            // `components->responses` makes the ref resolvable; skip + log only when genuinely absent.
+            if (is_defined($authoredResponse->ref) && is_string($authoredResponse->ref)) {
+                if ($this->registerResponseComponentRef($authoredResponse->ref)) {
+                    $byStatus[(string) $authoredResponse->response] = $authoredResponse;
+                }
 
                 continue;
             }
@@ -148,6 +147,102 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         }
 
         $operation->responses = array_values($byStatus);
+    }
+
+    /**
+     * Keeps any authored operation `@OA\Parameter(ref="#/components/parameters/Y")` whose target is a
+     * harvested parameter component, registering that component (and any schema it references) so the
+     * flushed `components->parameters` makes the ref resolvable. An absent target is skipped + logged.
+     */
+    private function mergeAuthoredParameterRefs(OA\Operation $operation, OA\Operation $authored): void
+    {
+        $resolved = [];
+
+        foreach (is_array($authored->parameters) ? $authored->parameters : [] as $parameter) {
+            if (
+                is_defined($parameter->ref)
+                && is_string($parameter->ref)
+                && $this->registerParameterComponentRef($parameter->ref)
+            ) {
+                $resolved[] = $parameter;
+            }
+        }
+
+        if ($resolved === []) {
+            return;
+        }
+
+        // Resolved ref-parameters are appended without a (name, in) dedup: a $ref parameter's
+        // identity is opaque at merge time, so an inferred + authored-ref overlap on the same field
+        // is left for the parameter.duplicate-name lint rule to surface.
+        $operation->parameters = [
+            ...is_array($operation->parameters) ? $operation->parameters : [],
+            ...$resolved,
+        ];
+    }
+
+    /**
+     * Registers the named response component (plus its content's transitive schemas) into the
+     * registry. Returns whether it was resolvable (present in the harvested pool).
+     */
+    private function registerResponseComponentRef(string $ref): bool
+    {
+        $name = $this->componentRefName($ref, ComponentType::Responses);
+        $component = $name === null ? null : $this->scanner->responseComponentForName($name);
+
+        if ($component === null) {
+            $this->logger->warning(sprintf(
+                'SwaggerPhp harvester: authored response $ref "%s" targets an unknown response component; skipping.',
+                $ref,
+            ));
+
+            return false;
+        }
+
+        foreach ($this->collectRefNames($component) as $schemaName) {
+            $schema = $this->scanner->schemaForName($schemaName);
+
+            if ($schema !== null) {
+                $this->registerSchema($schema);
+            }
+        }
+
+        $this->schemaRegistry->registerNamedResponse($name ?? '', $component);
+
+        return true;
+    }
+
+    /**
+     * Registers the named parameter component (plus any schema it references) into the registry.
+     * Returns whether it was resolvable (present in the harvested pool).
+     */
+    private function registerParameterComponentRef(string $ref): bool
+    {
+        $name = $this->componentRefName($ref, ComponentType::Parameters);
+        $component = $name === null ? null : $this->scanner->parameterComponentForName($name);
+
+        if ($component === null) {
+            $this->logger->warning(sprintf(
+                'SwaggerPhp harvester: authored parameter $ref "%s" targets an unknown parameter component; skipping.',
+                $ref,
+            ));
+
+            return false;
+        }
+
+        if ($component->schema instanceof OA\Schema) {
+            foreach ($this->collectRefNames($component->schema) as $schemaName) {
+                $schema = $this->scanner->schemaForName($schemaName);
+
+                if ($schema !== null) {
+                    $this->registerSchema($schema);
+                }
+            }
+        }
+
+        $this->schemaRegistry->registerNamedParameter($name ?? '', $component);
+
+        return true;
     }
 
     /**
@@ -282,6 +377,14 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
     private function refName(string $ref): ?string
     {
         return ComponentReference::name($ref);
+    }
+
+    /** The component name from a `$ref` of the expected type, or null when it is neither. */
+    private function componentRefName(string $ref, ComponentType $type): ?string
+    {
+        $parsed = ComponentReference::parse($ref);
+
+        return $parsed !== null && $parsed['type'] === $type->value ? $parsed['name'] : null;
     }
 
     /**

@@ -48,6 +48,10 @@ final class ComponentSchemaRegistry
      */
     private array $responses = [];
     /**
+     * @var array<string, OA\Parameter>
+     */
+    private array $parameters = [];
+    /**
      * @var array<string, string>
      */
     private array $classToKey = [];
@@ -134,6 +138,31 @@ final class ComponentSchemaRegistry
     public function allResponses(): array
     {
         return array_values($this->responses);
+    }
+
+    /**
+     * Registers a named parameter under `components.parameters`. Idempotent.
+     */
+    public function registerNamedParameter(string $key, OA\Parameter $parameter): void
+    {
+        if (array_key_exists($key, $this->parameters)) {
+            return;
+        }
+
+        $this->parameters[$key] = $parameter;
+    }
+
+    public function hasParameterKey(string $key): bool
+    {
+        return array_key_exists($key, $this->parameters);
+    }
+
+    /**
+     * @return list<OA\Parameter>
+     */
+    public function allParameters(): array
+    {
+        return array_values($this->parameters);
     }
 
     /**

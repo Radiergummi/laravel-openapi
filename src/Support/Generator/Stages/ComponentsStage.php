@@ -12,7 +12,7 @@ use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 
 /**
- * Writes accumulated component schemas and responses from {@see ComponentSchemaRegistry}.
+ * Writes accumulated component schemas, responses, and parameters from {@see ComponentSchemaRegistry}.
  *
  * Only allocates {@see OA\Components} when there is something to write; coexists with
  * {@see SecurityStage} which adds `securitySchemes` to the same components block.
@@ -31,8 +31,9 @@ final readonly class ComponentsStage implements SpecStage
     {
         $schemas = $this->schemaRegistry->all();
         $responses = $this->schemaRegistry->allResponses();
+        $parameters = $this->schemaRegistry->allParameters();
 
-        if ($schemas === [] && $responses === []) {
+        if ($schemas === [] && $responses === [] && $parameters === []) {
             return;
         }
 
@@ -46,6 +47,10 @@ final readonly class ComponentsStage implements SpecStage
 
         if ($responses !== []) {
             $components->responses = $responses;
+        }
+
+        if ($parameters !== []) {
+            $components->parameters = $parameters;
         }
 
         $document->components = $components;

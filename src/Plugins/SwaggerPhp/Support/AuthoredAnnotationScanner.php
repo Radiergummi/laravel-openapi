@@ -9,6 +9,7 @@ use OpenApi\Annotations\OpenApi;
 use OpenApi\Annotations\Operation;
 use OpenApi\Annotations\Parameter;
 use OpenApi\Annotations\Property;
+use OpenApi\Annotations\Response;
 use OpenApi\Annotations\Schema;
 use OpenApi\Annotations\SecurityScheme;
 use OpenApi\Annotations\Server;
@@ -79,6 +80,20 @@ final class AuthoredAnnotationScanner
      */
     private array $queryParametersByMethod = [];
 
+    /**
+     * Authored reusable `OA\Response` component definitions keyed by their component name.
+     *
+     * @var array<string, Response>
+     */
+    private array $responseComponentsByName = [];
+
+    /**
+     * Authored reusable `OA\Parameter` component definitions keyed by their component name.
+     *
+     * @var array<string, Parameter>
+     */
+    private array $parameterComponentsByName = [];
+
     private DocumentAnnotations $documentAnnotations;
 
     /**
@@ -96,6 +111,26 @@ final class AuthoredAnnotationScanner
         $this->scan();
 
         return $this->schemasByName[$name] ?? null;
+    }
+
+    /**
+     * The authored reusable `OA\Response` component definition with the given name, or null.
+     */
+    public function responseComponentForName(string $name): ?Response
+    {
+        $this->scan();
+
+        return $this->responseComponentsByName[$name] ?? null;
+    }
+
+    /**
+     * The authored reusable `OA\Parameter` component definition with the given name, or null.
+     */
+    public function parameterComponentForName(string $name): ?Parameter
+    {
+        $this->scan();
+
+        return $this->parameterComponentsByName[$name] ?? null;
     }
 
     /**
@@ -124,7 +159,44 @@ final class AuthoredAnnotationScanner
 
         $this->indexSchemas($document);
         $this->indexOperations($document);
+        $this->indexResponseComponents($document);
+        $this->indexParameterComponents($document);
         $this->indexDocumentAnnotations($document);
+    }
+
+    /**
+     * Indexes reusable `@OA\Response(response="X")` component definitions by their component name.
+     * Skips a `ref`-only entry, which is a usage (an operation pointing at a component), not a
+     * definition.
+     */
+    private function indexResponseComponents(OpenApi $document): void
+    {
+        if (!is_defined($document->components) || !is_array($document->components->responses)) {
+            return;
+        }
+
+        foreach ($document->components->responses as $response) {
+            if ($response instanceof Response && is_defined($response->response) && !is_defined($response->ref)) {
+                $this->responseComponentsByName[(string) $response->response] = $response;
+            }
+        }
+    }
+
+    /**
+     * Indexes reusable `@OA\Parameter(parameter="Y")` component definitions by their component name.
+     * Skips a `ref`-only entry (a usage, not a definition).
+     */
+    private function indexParameterComponents(OpenApi $document): void
+    {
+        if (!is_defined($document->components) || !is_array($document->components->parameters)) {
+            return;
+        }
+
+        foreach ($document->components->parameters as $parameter) {
+            if ($parameter instanceof Parameter && is_defined($parameter->parameter) && !is_defined($parameter->ref)) {
+                $this->parameterComponentsByName[(string) $parameter->parameter] = $parameter;
+            }
+        }
     }
 
     /**

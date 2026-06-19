@@ -20,6 +20,11 @@ function makeScanner(?string $path = null): AuthoredAnnotationScanner
     );
 }
 
+function componentsFixtureDir(): string
+{
+    return dirname(__DIR__, 3) . '/Fixtures/SwaggerPhpComponents';
+}
+
 it('indexes an attribute schema by its authored name', function (): void {
     $schema = makeScanner()->schemaForName('Server');
 
@@ -91,4 +96,37 @@ it('matches an operation authored on a trait reached through a trait-of-trait ch
     expect($operation)
         ->toBeInstanceOf(Operation::class)
         ->and($operation->summary)->toBe('Authored in an inner trait');
+});
+
+it('indexes an authored @OA\Response component by its authored name', function (): void {
+    $response = makeScanner(componentsFixtureDir())->responseComponentForName('NotFound');
+
+    expect($response)
+        ->toBeInstanceOf(\OpenApi\Annotations\Response::class)
+        ->and((string) $response->response)->toBe('NotFound');
+});
+
+it('indexes an authored @OA\Parameter component by its authored name', function (): void {
+    $parameter = makeScanner(componentsFixtureDir())->parameterComponentForName('PageParam');
+
+    expect($parameter)
+        ->toBeInstanceOf(\OpenApi\Annotations\Parameter::class)
+        ->and((string) $parameter->parameter)->toBe('PageParam');
+});
+
+it('returns null for an unknown response/parameter component name', function (): void {
+    $scanner = makeScanner(componentsFixtureDir());
+
+    expect($scanner->responseComponentForName('NoSuchResponse'))->toBeNull()
+        ->and($scanner->parameterComponentForName('NoSuchParameter'))->toBeNull();
+});
+
+it('does not index a ref-only response/parameter usage entry as a definition', function (): void {
+    // swagger-php lands a ref-only @OA\Response/@OA\Parameter (name + ref, an alias pointing at
+    // another component) in components.responses/.parameters; the !is_defined(...->ref) filter must
+    // keep those usage entries out of the definition index, or a ref would resolve to the alias.
+    $scanner = makeScanner(componentsFixtureDir());
+
+    expect($scanner->responseComponentForName('AliasNotFound'))->toBeNull()
+        ->and($scanner->parameterComponentForName('AliasParam'))->toBeNull();
 });
