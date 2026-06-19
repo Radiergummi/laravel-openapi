@@ -1,0 +1,25 @@
+{
+  "app": "Alpha",
+  "apiPrefix": "/api",
+  "baseline": { "completenessPercent": 90.0, "responseSchemas": 27, "apiOperations": 30 },
+  "afterHarvest": { "completenessPercent": 92.0, "responseSchemas": 28, "apiOperations": 30 },
+  "afterAgent": { "completenessPercent": 100.0, "responseSchemas": 30, "apiOperations": 30 },
+  "attributesApplied": {
+    "harvested": { "total": 14, "byFile": { "app/Http/Controllers/UserController.php": 8, "app/Http/Controllers/TeamController.php": 6 } },
+    "authored": [
+      "app/Http/Resources/UserResource.php",
+      "app/Http/Resources/TeamResource.php",
+      "app/Http/Controllers/UserController.php"
+    ]
+  },
+  "domains": [],
+  "gapsEncountered": [
+    { "title": "No attribute for polymorphic union responses", "detail": "morphTo relation returns a union the resource cannot type" },
+    { "title": "Cursor pagination meta block not derivable", "detail": "custom paginator wrapper" }
+  ],
+  "patch": "diff --git a/app/Http/Resources/UserResource.php ...",
+  "libraryClean": true,
+  "pinnedSha": "1111111111111111111111111111111111111111",
+  "libraryCommit": "abc1234def5678abc1234def5678abc1234def56",
+  "generatedAt": "2026-06-18T10:00:00Z"
+}

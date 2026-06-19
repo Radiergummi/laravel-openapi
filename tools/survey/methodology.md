@@ -127,3 +127,13 @@ and prefix yields identical output.
 2. Phase 1: analyze read-only → a per-domain plan + gap inventory.
 3. Phase 2: apply sequentially, one domain at a time, reviewing between.
 4. Phase 3: gate + parity + file gap issues + report.
+
+## Synthesis emits candidates, not the report
+
+`synthesize.php` (Layer B2) merges the corpus + lift artifacts into two Markdown
+**candidates** for maintainer review — it does **not** write the published field
+report. The mechanical substrate (measured numbers, per-app classification,
+recurring-gap rollup, lift breakdown, provenance manifest) is derived
+deterministically; the editorial half — app-naming per issue #159, final narrative
+voice, and any decision about third-party numbers — stays with the maintainer, who
+diffs a candidate against the curated `docs/field-report.md` and weaves it in.

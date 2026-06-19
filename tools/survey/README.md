@@ -75,6 +75,7 @@ code is never modified or committed — this is black-box.
 | `run.sh <name>` | Run `openapi:generate` + `openapi:lint` in the app; capture spec, logs, exit codes; print a scorecard line. A crash is captured as data, not aborted on. |
 | `compare.php <generated> <published>` | Path×method coverage of our spec vs an app's published one. Accepts JSON or YAML. Defaults `LIB` to this repo; override the `LIB` env var to point elsewhere. |
 | `completeness.php <generated> [--prefix=/api]` | Per-operation completeness scoreboard: request body (where the verb needs one) + substantive 2xx response, under an API prefix. The gate for the attribute-completion pass. |
+| `synthesize.php <ws-dir>` | Reads `results.json` + `manifest.json` + every `apps/*/lift.json` and emits two report **candidates** into `<ws-dir>` (a public field-report candidate and an internal synthesis candidate). Deterministic; writes only to `<ws-dir>`, never the curated docs. Safe to `require` in tests. |
 | `bootstrap/_lib.sh` | Shared bootstrap helpers sourced by every per-app script: `survey_link_library` (composer path repo + require, then asserts the vendor link actually resolves to `$LIB`), `survey_scaffold_env` (`.env`, sqlite, `key:generate`), `survey_publish_config` (publishes the package config), `survey_blocked` (records `blocked-compat` as data without aborting). |
 | `bootstrap/<name>.sh` | Per-app clean-clone → runnable. Sources `_lib.sh`, calls the shared scaffold functions, then applies any app-specific deltas (database driver, queue config, extra composer packages, etc.). |
 | `runbook-template.md` | Stamped per app by `setup.sh`. |
@@ -129,6 +130,24 @@ explicit permission or anonymization per that issue.
 2. **Attribute-completion (judgment).** Add the library's authoring attributes to
    the app's code (kept as uncommitted scratch) to close inference gaps, and
    measure the lift. See [`methodology.md`](methodology.md).
+
+## Synthesis (candidates)
+
+After a corpus run (and any lift runs), `synthesize.php "$WS"` merges the
+artifacts into two report **candidates** written to `$WS`:
+
+- `field-report.candidate.md` — public: corpus table, robustness rollup,
+  response-spectrum classification, provenance. No published-spec/coverage
+  numbers; carries the issue #159 publication-gate banner.
+- `internal-synthesis.candidate.md` — maintainer-only: coverage vs each app's own
+  published spec (self-comparison), the recurring-lint rollup, the deduped Layer B1
+  gap inventory, and the per-app annotation-lift breakdown.
+
+Synthesis is deterministic — timestamps come from `manifest.json`, so the same
+inputs reproduce byte-identical Markdown. The emitter writes **only** to `$WS`; it
+never touches the curated `docs/field-report.md` or `docs/internal/**` and never
+commits. Folding a candidate into the published report (app-naming per #159, final
+narrative, any third-party-number decision) is a human editorial step.
 
 ## Reproducibility
 

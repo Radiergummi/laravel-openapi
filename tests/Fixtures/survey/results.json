@@ -1,0 +1,138 @@
+[
+  {
+    "name": "Alpha",
+    "metrics": {
+      "paths": 20,
+      "operations": 40,
+      "apiOperations": 30,
+      "responseSchemas": 27,
+      "documentedResponses": 30,
+      "requestBodies": 12,
+      "maxRequestProperties": 8,
+      "componentSchemas": 18,
+      "completenessPercent": 90.0,
+      "lintFindings": {
+        "total": 4,
+        "byLevel": { "1": 4 },
+        "byRule": { "response.success-empty-body": 2, "response.no-error": 2 }
+      },
+      "crash": {
+        "generateExit": 0,
+        "lintExit": 1,
+        "generateStderr": false,
+        "bootOutcome": "ok",
+        "routesIntrospected": 40
+      },
+      "coverage": {
+        "publishedOps": 32,
+        "ours": 30,
+        "intersection": 28,
+        "covPercent": 87.5
+      }
+    }
+  },
+  {
+    "name": "Beta",
+    "metrics": {
+      "paths": 15,
+      "operations": 25,
+      "apiOperations": 20,
+      "responseSchemas": 3,
+      "documentedResponses": 19,
+      "requestBodies": 6,
+      "maxRequestProperties": 4,
+      "componentSchemas": 5,
+      "completenessPercent": 25.0,
+      "lintFindings": {
+        "total": 4,
+        "byLevel": { "1": 4 },
+        "byRule": { "operation.summary-missing": 2, "response.no-error": 2 }
+      },
+      "crash": {
+        "generateExit": 0,
+        "lintExit": 1,
+        "generateStderr": false,
+        "bootOutcome": "ok",
+        "routesIntrospected": 25
+      }
+    }
+  },
+  {
+    "name": "Gamma",
+    "metrics": {
+      "paths": 10,
+      "operations": 18,
+      "apiOperations": 12,
+      "responseSchemas": 0,
+      "documentedResponses": 2,
+      "requestBodies": 1,
+      "maxRequestProperties": 2,
+      "componentSchemas": 0,
+      "completenessPercent": 8.3,
+      "lintFindings": {
+        "total": 1,
+        "byLevel": { "1": 1 },
+        "byRule": { "operation.return-type-missing": 1 }
+      },
+      "crash": {
+        "generateExit": 0,
+        "lintExit": 1,
+        "generateStderr": false,
+        "bootOutcome": "ok",
+        "routesIntrospected": 18
+      }
+    }
+  },
+  {
+    "name": "Delta",
+    "metrics": {
+      "paths": 0,
+      "operations": 0,
+      "apiOperations": 0,
+      "responseSchemas": 0,
+      "documentedResponses": 0,
+      "requestBodies": 0,
+      "maxRequestProperties": 0,
+      "componentSchemas": 0,
+      "completenessPercent": 0.0,
+      "lintFindings": {
+        "total": 0,
+        "byLevel": {},
+        "byRule": {}
+      },
+      "crash": {
+        "generateExit": 1,
+        "lintExit": 1,
+        "generateStderr": true,
+        "bootOutcome": "blocked-compat",
+        "routesIntrospected": null
+      }
+    }
+  },
+  {
+    "name": "Orphan",
+    "metrics": {
+      "paths": 5,
+      "operations": 5,
+      "apiOperations": 5,
+      "responseSchemas": 4,
+      "documentedResponses": 5,
+      "requestBodies": 1,
+      "maxRequestProperties": 3,
+      "componentSchemas": 2,
+      "completenessPercent": 80.0,
+      "lintFindings": {
+        "total": 0,
+        "byLevel": {},
+        "byRule": {}
+      },
+      "crash": {
+        "generateExit": 0,
+        "lintExit": 0,
+        "generateStderr": false,
+        "bootOutcome": "ok",
+        "routesIntrospected": 5
+      }
+    }
+  }
+]

@@ -1,11 +1,11 @@
 ---
 name: survey
-description: Run the laravel-openapi consumer-app survey — deterministic baseline metrics (Layer A) and the phase-2 annotation lift (Layer B1). Use when measuring how the library fares against real apps, or driving one app baseline→annotated to measure the lift.
+description: Run the laravel-openapi consumer-app survey — deterministic baseline metrics (Layer A), the phase-2 annotation lift (Layer B1), and report-candidate synthesis (Layer B2). Use when measuring how the library fares against real apps, driving one app baseline→annotated to measure the lift, or emitting report candidates for maintainer review.
 ---
 
 # Survey skill
 
-Drives `radiergummi/laravel-openapi` against real consumer apps. Two flows today; synthesis (reports) is a later layer.
+Drives `radiergummi/laravel-openapi` against real consumer apps. Three flows: baseline metrics (Layer A), the annotation lift (Layer B1), and report-candidate synthesis (Layer B2).
 
 ## Prerequisites
 - `export WS="$HOME/Projects/laravel-openapi-dogfood"` (external scratch; bootstrapped apps live under `$WS/apps/<App>/repo`).
@@ -22,6 +22,14 @@ Drive one app baseline→annotated and measure the lift:
 It: resets to baseline → deterministic doc-harvest (`bin/survey-harvest-docs`) → plans (`fullspec-analysis.js`) → applies shape/error/security attributes serially per domain → measures → writes `$WS/apps/Vito/lift.json` + `lift-report.md` + `annotation.patch`. **Review the candidate diff + `lift.json`.**
 
 Invariants: the library is the system under test — **never modified** (annotations go in app code only, uncommitted scratch); serial apply (never parallel writers); gaps are emitted as a candidate inventory, **never auto-filed**.
+
+## Synthesis (Layer B2 — deterministic)
+After a corpus run (Layer A) and any number of lift runs (Layer B1):
+`php tools/survey/synthesize.php "$WS"` reads `$WS/results.json` + `$WS/manifest.json` + every `$WS/apps/*/lift.json` and emits **two candidates** into `$WS`:
+- `field-report.candidate.md` — public: corpus table, robustness rollup, response-spectrum classification, provenance. **No** published-spec/coverage numbers; carries the #159 publication-gate banner.
+- `internal-synthesis.candidate.md` — maintainer-only: coverage vs each app's own published spec (self-comparison, not a third-party benchmark), recurring-lint rollup, deduped B1 gap inventory, per-app annotation-lift breakdown, provenance.
+
+Deterministic: timestamps come from `manifest.json`, so the same inputs reproduce byte-identical Markdown. The emitter writes **only** to `$WS` — it never touches `docs/field-report.md` or `docs/internal/**` and never commits. Folding a candidate into the curated `docs/field-report.md` (app-naming per #159, final narrative voice, any third-party-number decision) is a **human editorial step**, gated by #159 — not the harness's job.
 
 ## bin/ helpers (agent operations)
 | Helper | Role |
