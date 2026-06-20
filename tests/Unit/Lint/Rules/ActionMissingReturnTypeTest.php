@@ -23,9 +23,9 @@ function returnTypeNudgeFindings(string $method): array
 it('reports its id and level', function (): void {
     $rule = new ActionMissingReturnType();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('operation.return-type-missing')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when the action has no return type and no response attribute', function (): void {

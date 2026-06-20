@@ -50,6 +50,10 @@ use function sprintf;
  */
 final class OaRedundantComponentWithInference implements Rule, ApiRule, FixableRule, NeedsInferenceDocument
 {
+    public string $id = 'migration.oa-redundant-component-with-inference';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A hand-authored reusable @OA\Response / @OA\Parameter component definition the generator already reproduces via inference.';
+
     public function __construct(
         private readonly AuthoredAnnotationScanner $scanner,
     ) {}
@@ -182,8 +186,8 @@ final class OaRedundantComponentWithInference implements Rule, ApiRule, FixableR
         $kind = $type === ComponentType::Responses ? '@OA\Response' : '@OA\Parameter';
 
         return new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'The reusable %s component "%s" on %s restates a %s the generator already infers; it can be removed.',
                 $kind,
@@ -201,17 +205,7 @@ final class OaRedundantComponentWithInference implements Rule, ApiRule, FixableR
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-redundant-component-with-inference';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -228,9 +222,4 @@ final class OaRedundantComponentWithInference implements Rule, ApiRule, FixableR
         return [HarvestAuthoredAnnotationsStage::class];
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A hand-authored reusable @OA\Response / @OA\Parameter component definition the generator already reproduces via inference.';
-    }
 }

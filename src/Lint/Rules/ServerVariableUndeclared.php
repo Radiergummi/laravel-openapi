@@ -23,6 +23,10 @@ use function sprintf;
 
 final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
 {
+    public string $id = 'server.variable-undeclared';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'A server URL template uses a {var} with no matching variables entry.';
+
     /**
      * @return iterable<Finding>
      */
@@ -68,8 +72,8 @@ final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
                 }
 
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Server URL "%s" uses template variable "{%s}" but no matching entry exists in servers[].variables.',
                         $url,
@@ -84,21 +88,6 @@ final class ServerVariableUndeclared implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'server.variable-undeclared';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A server URL template uses a {var} with no matching variables entry.';
-    }
 }

@@ -20,10 +20,15 @@ use function sprintf;
  * naming the item class: the response shape cannot be derived and the endpoint falls back to a
  * bare `200 OK`.
  */
-final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVisitor
+final class ResourceResponseAmbiguous implements Rule, OperationRuleVisitor
 {
+    public string $id = 'resource.response-ambiguous';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A resource collection response names no item class — neither a #[ResponseResource] attribute, '
+        . 'nor the collection\'s #[Collects]/$collects declaration, nor the return expression resolves one.';
+
     public function __construct(
-        private ResourceTargetLocator $locator,
+        private readonly ResourceTargetLocator $locator,
     ) {}
 
     /**
@@ -43,8 +48,8 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s %s returns a resource collection but no #[ResponseResource] names the item class',
                 $operation->method->forDisplay(),
@@ -54,22 +59,6 @@ final readonly class ResourceResponseAmbiguous implements Rule, OperationRuleVis
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'resource.response-ambiguous';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A resource collection response names no item class — neither a #[ResponseResource] attribute, '
-            . 'nor the collection\'s #[Collects]/$collects declaration, nor the return expression resolves one.';
-    }
 }

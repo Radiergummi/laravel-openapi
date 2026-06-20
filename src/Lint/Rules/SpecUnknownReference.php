@@ -19,23 +19,17 @@ use Radiergummi\OpenApi\Support\Spec\SpecResolver;
  * Uses {@see SpecResolver} to apply the same method-shadows-class precedence as generation,
  * so overridden class-level attributes are not flagged.
  */
-final readonly class SpecUnknownReference implements Rule, PreBuildRule
+final class SpecUnknownReference implements Rule, PreBuildRule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Broken;
+    public string $description = "#[Spec(name:)] references a spec name not declared in config('openapi.specs').";
+
     public const string ID = 'spec.unknown-reference';
 
-    public function __construct(private SpecResolver $resolver) {}
+    public function __construct(private readonly SpecResolver $resolver) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "#[Spec(name:)] references a spec name not declared in config('openapi.specs').";
-    }
 
     #[Override]
     public function checkConfiguration(
@@ -51,7 +45,7 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
                     $findings->emit(
                         new Finding(
                             ruleId: self::ID,
-                            severity: $this->severity(),
+                            severity: $this->severity,
                             message: "Spec name '{$name}' referenced by #[Spec] is not declared in config('openapi.specs').",
                             location: FindingLocation::fromDescriptor($descriptor),
                             fixHint: "Add '{$name}' to config('openapi.specs') or remove the attribute argument.",
@@ -62,9 +56,4 @@ final readonly class SpecUnknownReference implements Rule, PreBuildRule
         }
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 }

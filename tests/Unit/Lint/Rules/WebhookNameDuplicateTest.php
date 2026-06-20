@@ -11,8 +11,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new WebhookNameDuplicate();
 
-    expect($rule->id())->toBe('webhook.name-duplicate')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('webhook.name-duplicate')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when webhook names are unique', function (): void {

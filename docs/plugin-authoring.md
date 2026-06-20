@@ -203,7 +203,29 @@ listing it imposes no runtime dependency.
    mirror `DataClassRequestSchemaResolver` for a `RequestSchemaResolver`, or
    `DataRefSchemaResolver` for a `RefSchemaResolver`).
 2. Optionally write lint rules under `Lint/Rules/`, implementing
-   `Contracts\Lint\Rule` plus the visitor interfaces they need.
+   `Contracts\Lint\Rule` plus the visitor interfaces they need. The `Rule`
+   contract declares its metadata as readable properties, so a rule supplies
+   them as plain typed properties with initializers:
+
+   ```php
+   use Override;
+   use Radiergummi\OpenApi\Contracts\Lint\Rule;
+   use Radiergummi\OpenApi\Contracts\Lint\Severity;
+   use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+
+   final class OperationSummaryMissing implements Rule, OperationRuleVisitor
+   {
+       public string $id = 'operation.summary-missing';
+       public Severity $severity = Severity::Underspecified;
+       public string $description = 'Operation has no summary.';
+
+       #[Override]
+       public function checkOperation(OperationNode $operation, LintContext $context): iterable
+       {
+           // yield Finding instances for any violations
+       }
+   }
+   ```
 3. Write a `Plugin` class whose `register()` calls the matching
    `OpenApiRegistry` `add*` methods.
 4. Bind any services your resolvers need in a service provider (the bundled

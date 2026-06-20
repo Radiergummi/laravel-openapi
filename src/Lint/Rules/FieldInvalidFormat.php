@@ -17,6 +17,10 @@ use function sprintf;
 
 final class FieldInvalidFormat extends AbstractFieldRule
 {
+    public string $id = 'field.invalid-format';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'format value is not a recognised OAS 3.1 format (custom formats are advisory but non-standard).';
+
     /** @var list<string> */
     private const array VALID_FORMATS = [
         'date-time',
@@ -47,11 +51,6 @@ final class FieldInvalidFormat extends AbstractFieldRule
         'uri-template',
     ];
 
-    #[Override]
-    public function description(): string
-    {
-        return 'format value is not a recognised OAS 3.1 format (custom formats are advisory but non-standard).';
-    }
 
     /**
      * @return iterable<Finding>
@@ -71,8 +70,8 @@ final class FieldInvalidFormat extends AbstractFieldRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Property %s::$%s uses non-standard format "%s" in #[%s]; consider using a registered OAS 3.1 format',
                 $property->getDeclaringClass()->getName(),
@@ -87,15 +86,5 @@ final class FieldInvalidFormat extends AbstractFieldRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.invalid-format';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 }

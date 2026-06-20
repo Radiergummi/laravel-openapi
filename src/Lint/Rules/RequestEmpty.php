@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -25,23 +24,12 @@ use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
  */
 final class RequestEmpty implements Rule
 {
+    public string $id = 'request.empty';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest.';
+
     public const string FIX_HINT = 'Type-hint a Data class or FormRequest on the controller or injected Action.';
 
-    #[Override]
-    public function id(): string
-    {
-        return 'request.empty';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'POST/PUT/PATCH action has no resolvable request-body schema. Add a Data class or FormRequest.';
-    }
 }

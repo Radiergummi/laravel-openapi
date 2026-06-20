@@ -20,9 +20,9 @@ function makeResponseUnderOperation(?string $description): ResponseNode
 it('has the correct rule id and level', function (): void {
     $rule = new ResponseDescriptionMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('response.description-missing')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding when a response has a missing or blank description', function (?string $description): void {

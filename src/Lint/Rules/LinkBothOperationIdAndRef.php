@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class LinkBothOperationIdAndRef implements Rule, LinkRuleVisitor
 {
+    public string $id = 'link.both-operation-id-and-ref';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Link declares both operationId and operationRef (mutually exclusive).';
+
     /**
      * @return iterable<Finding>
      */
@@ -35,8 +39,8 @@ final class LinkBothOperationIdAndRef implements Rule, LinkRuleVisitor
         $routeUri = $operation?->pathUri;
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Link "%s" on %s %s sets both operationId ("%s") and operationRef ("%s"); only one is allowed',
                 $link->name,
@@ -49,21 +53,6 @@ final class LinkBothOperationIdAndRef implements Rule, LinkRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'link.both-operation-id-and-ref';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Link declares both operationId and operationRef (mutually exclusive).';
-    }
 }

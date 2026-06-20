@@ -69,8 +69,8 @@ function collectSpecRouteOrphanedFindings(SpecRegistry $registry, array $descrip
 it('has the correct id and level', function (): void {
     $rule = new SpecRouteOrphaned(new SpecResolver());
 
-    expect($rule->id())->toBe('spec.route-orphaned')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('spec.route-orphaned')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no findings when the descriptors list is empty', function (): void {

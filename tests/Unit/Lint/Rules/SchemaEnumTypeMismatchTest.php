@@ -11,9 +11,9 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new SchemaEnumTypeMismatch();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.enum-type-mismatch')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all enum values match the declared type', function (string $type, array $enum): void {

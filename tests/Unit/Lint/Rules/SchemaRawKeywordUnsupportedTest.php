@@ -28,9 +28,9 @@ function rawKeywordFindings(string $method): array
 it('reports its id and level 1', function (): void {
     $rule = rawKeywordRule();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.raw-keyword-unsupported')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('flags a #[RawSchema] carrying an unsupported keyword', function (): void {

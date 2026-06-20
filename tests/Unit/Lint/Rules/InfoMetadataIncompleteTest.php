@@ -50,9 +50,9 @@ function infoMetadataIncompleteFindings(bool $withContact, bool $withLicense, bo
 it('has the correct rule id and level', function (): void {
     $rule = new InfoMetadataIncomplete();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('info.metadata-incomplete')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 it('emits a finding when both contact and license are absent', function (): void {

@@ -12,8 +12,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseSuccessEmptyBody();
 
-    expect($rule->id())->toBe('response.success-empty-body')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+    expect($rule->id)->toBe('response.success-empty-body')
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding for a 200 response with no body schema', function (): void {

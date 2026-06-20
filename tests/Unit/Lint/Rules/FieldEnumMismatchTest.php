@@ -23,9 +23,9 @@ function makeDirectScannerForEnumMismatch(): PayloadParameterScanner
 it('reports its id and level', function (): void {
     $rule = new FieldEnumMismatch(makeDirectScannerForEnumMismatch());
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('field.enum-mismatch')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding when RequestField enum values do not match BackedEnum cases', function (): void {

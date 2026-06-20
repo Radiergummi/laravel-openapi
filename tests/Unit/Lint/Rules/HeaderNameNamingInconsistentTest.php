@@ -24,8 +24,8 @@ function makeHeaderNamingNode(string $name): HeaderNode
 it('reports its id and level', function (): void {
     $rule = new HeaderNameNamingInconsistent();
 
-    expect($rule->id())->toBe('header.name-naming-inconsistent')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('header.name-naming-inconsistent')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('default (train): passes a valid Train-Case header name', function (string $name): void {

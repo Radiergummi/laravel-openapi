@@ -63,7 +63,7 @@ function makeLinkInvalidParamContext(
 it('reports its id and level', function (): void {
     $rule = new LinkInvalidParameter();
 
-    expect($rule->id())->toBe('link.invalid-parameter')->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('link.invalid-parameter')->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it(

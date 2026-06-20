@@ -73,11 +73,11 @@ final class RuleRegistry
                 continue;
             }
 
-            if ($only !== [] && !in_array($rule->id(), $only, true)) {
+            if ($only !== [] && !in_array($rule->id, $only, true)) {
                 continue;
             }
 
-            if (in_array($rule->id(), $skip, true)) {
+            if (in_array($rule->id, $skip, true)) {
                 continue;
             }
 
@@ -89,7 +89,7 @@ final class RuleRegistry
 
     private function effectiveLevel(Rule $rule): Severity
     {
-        return $this->effectiveLevelFor($rule->id(), $rule->severity());
+        return $this->effectiveLevelFor($rule->id, $rule->severity);
     }
 
     /**
@@ -121,7 +121,7 @@ final class RuleRegistry
         $ids = [];
 
         foreach ($this->rules as $rule) {
-            $ids[] = $rule->id();
+            $ids[] = $rule->id;
         }
 
         return $ids;

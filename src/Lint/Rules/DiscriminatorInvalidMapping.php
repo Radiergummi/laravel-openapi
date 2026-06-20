@@ -29,6 +29,10 @@ use function str_starts_with;
  */
 final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisitor, Finalizable, Resettable
 {
+    public string $id = 'discriminator.invalid-mapping';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Discriminator mapping references a missing component schema.';
+
     /** @var array<string, OA\Schema> */
     private array $schemaMap = [];
 
@@ -107,8 +111,8 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
 
             if ($targetSchema === null) {
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Discriminator mapping "%s" on schema "%s" references unknown schema "%s"',
                         $discriminatorValue,
@@ -130,8 +134,8 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
 
             if (!$this->schemaHasProperty($targetSchema, $propertyName, $schemaMap)) {
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Schema "%s" mapped by discriminator on "%s" does not declare property "%s"',
                         $targetSchemaName,
@@ -172,17 +176,7 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         return null;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'discriminator.invalid-mapping';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
     /**
      * @param array<string, OA\Schema> $schemaMap
@@ -262,9 +256,4 @@ final class DiscriminatorInvalidMapping implements Rule, ComponentSchemaRuleVisi
         return false;
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Discriminator mapping references a missing component schema.';
-    }
 }

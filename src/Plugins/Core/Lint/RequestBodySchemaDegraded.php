@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Core\Lint;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -25,21 +24,10 @@ use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
  */
 final class RequestBodySchemaDegraded implements Rule
 {
-    #[Override]
-    public function id(): string
-    {
-        return 'request-body.schema-degraded';
-    }
+    public string $id = 'request-body.schema-degraded';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules.';
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A FormRequest threw during introspection; its request body schema is a placeholder and does not reflect the real validation rules.';
-    }
+
 }

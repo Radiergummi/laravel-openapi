@@ -26,6 +26,10 @@ use function trim;
  */
 final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
 {
+    public string $id = 'enum.values-undocumented';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Enum field has no description explaining the allowed values.';
+
     private const string LIST_PATTERN = "/^\s*[-*]\s+/m";
 
     /**
@@ -42,8 +46,8 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
 
         if ($description === null || trim($description) === '') {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Enum field "%s" has no description documenting its values',
                     $field->name,
@@ -59,8 +63,8 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Enum field "%s" description does not mention any of its values',
                 $field->name,
@@ -69,17 +73,7 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'enum.values-undocumented';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
     /**
      * @param list<mixed> $enumValues
@@ -96,9 +90,4 @@ final class EnumValuesUndocumented implements Rule, FieldRuleVisitor
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Enum field has no description explaining the allowed values.';
-    }
 }

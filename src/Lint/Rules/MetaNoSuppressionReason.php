@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class MetaNoSuppressionReason implements Rule, ApiRuleVisitor
 {
+    public string $id = 'meta.no-suppression-reason';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = '#[IgnoreLint] has no reason parameter.';
+
     /**
      * @return iterable<Finding>
      */
@@ -32,8 +36,8 @@ final class MetaNoSuppressionReason implements Rule, ApiRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     "Suppression of '%s' has no reason — change to #[IgnoreLint('%s', reason: '…')]",
                     $directive->ruleId,
@@ -48,21 +52,6 @@ final class MetaNoSuppressionReason implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'meta.no-suppression-reason';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return '#[IgnoreLint] has no reason parameter.';
-    }
 }

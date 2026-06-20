@@ -16,9 +16,9 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new OperationIdMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('operation.id-missing')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding when the operation has an operationId', function (): void {

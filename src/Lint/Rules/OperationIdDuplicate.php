@@ -23,6 +23,10 @@ use function sprintf;
  */
 final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finalizable, Resettable
 {
+    public string $id = 'operation.id-duplicate';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Two operations share the same operationId.';
+
     /** @var OperationNode[][] */
     private array $seen = [];
 
@@ -56,8 +60,8 @@ final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finaliza
 
             foreach ($nodes as $node) {
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Duplicate operationId "%s" on %s %s (%d occurrences)',
                         $operationId,
@@ -72,21 +76,6 @@ final class OperationIdDuplicate implements Rule, OperationRuleVisitor, Finaliza
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.id-duplicate';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two operations share the same operationId.';
-    }
 }

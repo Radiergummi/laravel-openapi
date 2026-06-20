@@ -28,7 +28,7 @@ function makeHeaderUnderResponse(string $name, ?string $description): HeaderNode
 it('has the correct rule id and level', function (): void {
     $rule = new HeaderDescriptionMissing();
 
-    expect($rule->id())->toBe('header.description-missing')->and($rule->severity())->toBe(Severity::Underspecified);
+    expect($rule->id)->toBe('header.description-missing')->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when a response header has a missing or blank description', function (?string $description): void {

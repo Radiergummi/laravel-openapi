@@ -33,23 +33,14 @@ function bindSyntheticDestructiveRule(): void
     $rule = new class () implements FixableRule, OperationRule {
         public function checkOperation(OperationNode $operation, LintContext $context): iterable
         {
-            yield new Finding(ruleId: $this->id(), severity: Severity::Degraded, message: 'synthetic');
+            yield new Finding(ruleId: $this->id, severity: Severity::Degraded, message: 'synthetic');
         }
 
-        public function id(): string
-        {
-            return 'synthetic.destructive';
-        }
+        public string $id = 'synthetic.destructive';
 
-        public function severity(): Severity
-        {
-            return Severity::Degraded;
-        }
+        public Severity $severity = Severity::Degraded;
 
-        public function description(): string
-        {
-            return 'synthetic destructive rule';
-        }
+        public string $description = 'synthetic destructive rule';
 
         public function fixer(): Fixer
         {

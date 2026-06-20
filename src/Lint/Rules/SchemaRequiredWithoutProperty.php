@@ -28,6 +28,10 @@ use function sprintf;
  */
 final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVisitor
 {
+    public string $id = 'schema.required-without-property';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'required names a field not in properties.';
+
     /**
      * @return iterable<Finding>
      */
@@ -56,8 +60,8 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Schema "%s" marks "%s" as required, but no such property is defined',
                     $componentSchema->name,
@@ -153,21 +157,6 @@ final class SchemaRequiredWithoutProperty implements Rule, ComponentSchemaRuleVi
         return ComponentReference::name($ref);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.required-without-property';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'required names a field not in properties.';
-    }
 }

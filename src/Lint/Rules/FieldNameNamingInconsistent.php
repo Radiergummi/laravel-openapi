@@ -21,8 +21,11 @@ use function sprintf;
  * Recursion into nested objects is handled by the walker; this rule only checks the single node passed in.
  */
 #[Scoped]
-final readonly class FieldNameNamingInconsistent extends AbstractNamingRule implements FieldRuleVisitor
+final class FieldNameNamingInconsistent extends AbstractNamingRule implements FieldRuleVisitor
 {
+    public string $id = 'field.name-naming-inconsistent';
+    public string $description = "Field name doesn't follow the project's property_name_case convention.";
+
     public function __construct(
         #[Config('openapi.lint.style.property_name_case', 'camel')]
         IdentifierCase|string $case = IdentifierCase::Camel,
@@ -41,8 +44,8 @@ final readonly class FieldNameNamingInconsistent extends AbstractNamingRule impl
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Field name "%s" does not follow the %s naming convention',
                 $field->name,
@@ -52,15 +55,5 @@ final readonly class FieldNameNamingInconsistent extends AbstractNamingRule impl
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.name-naming-inconsistent';
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Field name doesn't follow the project's property_name_case convention.";
-    }
 }

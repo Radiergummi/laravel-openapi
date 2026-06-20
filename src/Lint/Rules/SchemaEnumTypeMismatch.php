@@ -26,6 +26,10 @@ use function sprintf;
  */
 final class SchemaEnumTypeMismatch implements Rule, FieldRuleVisitor
 {
+    public string $id = 'schema.enum-type-mismatch';
+    public Severity $severity = Severity::Broken;
+    public string $description = "Schema enum contains values that don't match the declared type.";
+
     /**
      * @return iterable<Finding>
      */
@@ -52,8 +56,8 @@ final class SchemaEnumTypeMismatch implements Rule, FieldRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Field "%s" declares type "%s" but enum value at index %d is %s (%s)',
                     $field->name,
@@ -87,21 +91,6 @@ final class SchemaEnumTypeMismatch implements Rule, FieldRuleVisitor
         };
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.enum-type-mismatch';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Schema enum contains values that don't match the declared type.";
-    }
 }

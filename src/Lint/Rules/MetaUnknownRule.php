@@ -18,6 +18,10 @@ use function sprintf;
 
 final class MetaUnknownRule implements Rule, ApiRuleVisitor
 {
+    public string $id = 'meta.unknown-rule';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = '#[IgnoreLint] references a rule ID not in the registry.';
+
     /**
      * @return iterable<Finding>
      */
@@ -32,8 +36,8 @@ final class MetaUnknownRule implements Rule, ApiRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf('Suppression references unknown rule "%s"', $directive->ruleId),
                 location: new FindingLocation(file: $directive->file, line: $directive->line),
                 fixHint: 'Check spelling or remove the obsolete suppression',
@@ -42,21 +46,6 @@ final class MetaUnknownRule implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'meta.unknown-rule';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return '#[IgnoreLint] references a rule ID not in the registry.';
-    }
 }

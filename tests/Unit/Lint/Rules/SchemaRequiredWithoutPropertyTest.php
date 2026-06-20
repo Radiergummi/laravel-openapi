@@ -51,9 +51,9 @@ function makeComponentForRequiredProps(string $schemaName, array $properties, ?a
 it('reports its id and level', function (): void {
     $rule = new SchemaRequiredWithoutProperty();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.required-without-property')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all required properties exist', function (): void {

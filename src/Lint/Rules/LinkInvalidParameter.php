@@ -28,6 +28,10 @@ use function sprintf;
  */
 final class LinkInvalidParameter implements Rule, LinkRuleVisitor
 {
+    public string $id = 'link.invalid-parameter';
+    public Severity $severity = Severity::Broken;
+    public string $description = "Link references a parameter that the target operation doesn't declare.";
+
     /**
      * @return iterable<Finding>
      */
@@ -68,8 +72,8 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
             );
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: $message,
                 fixHint: 'Remove the parameter or add it to the target operation.',
             );
@@ -89,21 +93,6 @@ final class LinkInvalidParameter implements Rule, LinkRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'link.invalid-parameter';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Link references a parameter that the target operation doesn't declare.";
-    }
 }

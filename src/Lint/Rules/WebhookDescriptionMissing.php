@@ -24,6 +24,10 @@ use function trim;
  */
 final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
 {
+    public string $id = 'webhook.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Webhook operation has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -37,29 +41,14 @@ final class WebhookDescriptionMissing implements Rule, WebhookRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf('Webhook "%s" has no description', $webhook->name),
             location: new FindingLocation(jsonPointer: $webhook->pointer()),
             fixHint: 'Add a description explaining when and why this webhook fires.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'webhook.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Webhook operation has no description.';
-    }
 }

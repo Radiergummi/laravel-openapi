@@ -19,6 +19,10 @@ use function sprintf;
  */
 final class ResponseNoError implements Rule, OperationRuleVisitor
 {
+    public string $id = 'response.no-error';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Operation has no error responses (4xx/5xx).';
+
     /**
      * @return iterable<Finding>
      */
@@ -41,8 +45,8 @@ final class ResponseNoError implements Rule, OperationRuleVisitor
             && $operation->errorResponses() === []
         ) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s has no error response (4xx/5xx)',
                     $operation->method->forDisplay(),
@@ -53,21 +57,6 @@ final class ResponseNoError implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.no-error';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation has no error responses (4xx/5xx).';
-    }
 }

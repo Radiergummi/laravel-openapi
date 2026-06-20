@@ -73,9 +73,9 @@ function collectSpecUnknownReferenceFindings(SpecRegistry $registry, array $desc
 it('has the correct id and level', function (): void {
     $rule = new SpecUnknownReference(new SpecResolver());
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('spec.unknown-reference')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no findings when the descriptors list is empty', function (): void {

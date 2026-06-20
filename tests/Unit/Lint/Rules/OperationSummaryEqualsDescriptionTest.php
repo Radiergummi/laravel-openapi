@@ -11,8 +11,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new OperationSummaryEqualsDescription();
 
-    expect($rule->id())->toBe('operation.summary-equals-description')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('operation.summary-equals-description')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when summary and description match (case-insensitive, trimmed)', function (string $summary, string $description): void {

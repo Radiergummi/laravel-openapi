@@ -29,6 +29,10 @@ use function sprintf;
  */
 final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
 {
+    public string $id = 'queryparam.duplicate';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Two #[QueryParam] attributes on the same controller method share the same name.';
+
     /**
      * @return iterable<Finding>
      */
@@ -60,8 +64,8 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Query parameter "%s" is declared %d times on %s %s',
                     $name,
@@ -75,17 +79,7 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'queryparam.duplicate';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -101,9 +95,4 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two #[QueryParam] attributes on the same controller method share the same name.';
-    }
 }

@@ -74,8 +74,8 @@ function collectSpecConfigOrphanedFindings(SpecRegistry $registry, array $descri
 it('has the correct id and level', function (): void {
     $rule = new SpecConfigOrphaned(specConfigOrphanedEvaluator(), 'testing');
 
-    expect($rule->id())->toBe('spec.config-orphaned')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('spec.config-orphaned')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits no findings when the default spec matches at least one route', function (): void {

@@ -24,6 +24,10 @@ use function sprintf;
  */
 final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
 {
+    public string $id = 'schema.example-missing';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'Schema property has no example value.';
+
     /**
      * @return iterable<Finding>
      */
@@ -55,8 +59,8 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf('Schema "%s" has no example value', $componentSchema->name),
             location: new FindingLocation(
                 jsonPointer: ComponentReference::pointer($componentSchema->name),
@@ -65,21 +69,6 @@ final class SchemaExampleMissing implements Rule, ComponentSchemaRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.example-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Schema property has no example value.';
-    }
 }

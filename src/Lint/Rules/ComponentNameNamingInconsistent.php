@@ -19,8 +19,11 @@ use function sprintf;
  * Reports component schema names that do not follow the configured naming convention.
  */
 #[Scoped]
-final readonly class ComponentNameNamingInconsistent extends AbstractNamingRule implements ComponentSchemaRuleVisitor
+final class ComponentNameNamingInconsistent extends AbstractNamingRule implements ComponentSchemaRuleVisitor
 {
+    public string $id = 'component.name-naming-inconsistent';
+    public string $description = 'Component schema name does not follow the configured component_name_case convention.';
+
     public function __construct(
         #[Config('openapi.lint.style.component_name_case', 'pascal')]
         IdentifierCase|string $case = IdentifierCase::Pascal,
@@ -39,8 +42,8 @@ final readonly class ComponentNameNamingInconsistent extends AbstractNamingRule 
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Component schema name "%s" does not follow the %s naming convention',
                 $componentSchema->name,
@@ -50,15 +53,5 @@ final readonly class ComponentNameNamingInconsistent extends AbstractNamingRule 
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'component.name-naming-inconsistent';
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Component schema name does not follow the configured component_name_case convention.';
-    }
 }

@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
 {
+    public string $id = 'response.example-missing';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'Response media type has no example.';
+
     /**
      * @return iterable<Finding>
      */
@@ -37,8 +41,8 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
         $operation = $response->operation();
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Response %d on %s %s has no example',
                 $response->statusCode,
@@ -49,21 +53,6 @@ final class ResponseExampleMissing implements Rule, ResponseRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.example-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Response media type has no example.';
-    }
 }

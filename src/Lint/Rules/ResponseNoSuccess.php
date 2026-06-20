@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class ResponseNoSuccess implements Rule, OperationRuleVisitor
 {
+    public string $id = 'response.no-success';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Operation has no 2xx response.';
+
     /**
      * @return iterable<Finding>
      */
@@ -36,8 +40,8 @@ final class ResponseNoSuccess implements Rule, OperationRuleVisitor
 
         if ($operation->successResponses() === []) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s has no 2xx success response',
                     $operation->method->forDisplay(),
@@ -48,21 +52,6 @@ final class ResponseNoSuccess implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.no-success';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation has no 2xx response.';
-    }
 }

@@ -17,6 +17,10 @@ use Radiergummi\OpenApi\Lint\Visitors\RequestBodyRule as RequestBodyRuleVisitor;
  */
 final class RequestBodyExampleMissing implements Rule, RequestBodyRuleVisitor
 {
+    public string $id = 'request-body.example-missing';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'requestBody has no example.';
+
     /**
      * @return iterable<Finding>
      */
@@ -28,28 +32,13 @@ final class RequestBodyExampleMissing implements Rule, RequestBodyRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: 'Request body has no example value',
             fixHint: 'Add an "examples" entry to the requestBody media type to illustrate the expected payload.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'request-body.example-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'requestBody has no example.';
-    }
 }

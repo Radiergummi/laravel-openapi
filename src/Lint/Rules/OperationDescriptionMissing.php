@@ -21,6 +21,10 @@ use function sprintf;
  */
 final class OperationDescriptionMissing implements Rule, OperationRuleVisitor
 {
+    public string $id = 'operation.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Operation has no description (beyond the summary).';
+
     /**
      * @return iterable<Finding>
      */
@@ -33,8 +37,8 @@ final class OperationDescriptionMissing implements Rule, OperationRuleVisitor
 
         if ($operation->description === null) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s has no description',
                     $operation->method->forDisplay(),
@@ -45,21 +49,6 @@ final class OperationDescriptionMissing implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation has no description (beyond the summary).';
-    }
 }

@@ -32,9 +32,9 @@ function makePropertyWithConstraints(string $propertyName, string $type, array $
 it('has the correct rule id and level', function (): void {
     $rule = new SchemaConstraintsMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.constraints-missing')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 // region FieldRule

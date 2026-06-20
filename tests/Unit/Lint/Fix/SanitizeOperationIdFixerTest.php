@@ -41,7 +41,7 @@ it('rewrites a leading-digit operationId to a letter-prefixed form', function ()
 it('yields nothing when the stamped sanitised value is absent (degrade)', function (): void {
     $finding = new Finding(
         ruleId: 'operation.id-invalid-chars',
-        severity: (new OperationIdInvalidChars())->severity(),
+        severity: (new OperationIdInvalidChars())->severity,
         message: 'fixture',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => InvalidOperationIdFixtureController::class,
@@ -57,7 +57,7 @@ it('yields nothing when the stamped sanitised value is absent (degrade)', functi
 it('yields nothing when the method carries no #[Operation] attribute (degrade)', function (): void {
     $finding = new Finding(
         ruleId: 'operation.id-invalid-chars',
-        severity: (new OperationIdInvalidChars())->severity(),
+        severity: (new OperationIdInvalidChars())->severity,
         message: 'fixture',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => Radiergummi\OpenApi\Tests\Fixtures\Lint\Fix\DuplicateTagFixtureController::class,

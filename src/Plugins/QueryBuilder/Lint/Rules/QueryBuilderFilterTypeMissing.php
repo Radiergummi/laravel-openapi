@@ -19,8 +19,12 @@ use function sprintf;
  * Flags an `#[AllowedFilter]` declared with no `type`; the filter parameter falls back to
  * `string`, which may misrepresent the accepted value.
  */
-final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRule
+final class QueryBuilderFilterTypeMissing implements Rule, OperationRule
 {
+    public string $id = 'query-builder.filter-type-missing';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'An #[AllowedFilter] is declared without an explicit value type.';
+
     /**
      * @return iterable<Finding>
      */
@@ -41,8 +45,8 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '#[AllowedFilter(\'%s\')] on %s %s has no type — the filter parameter defaults to string',
                     $filter->name,
@@ -54,21 +58,6 @@ final readonly class QueryBuilderFilterTypeMissing implements Rule, OperationRul
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'query-builder.filter-type-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'An #[AllowedFilter] is declared without an explicit value type.';
-    }
 }

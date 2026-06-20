@@ -25,6 +25,10 @@ use function sprintf;
 
 final class TagDuplicate implements FixableRule, OperationRuleVisitor
 {
+    public string $id = 'tag.duplicate';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'The same #[Tag] is applied more than once to a controller method.';
+
     /**
      * @return iterable<Finding>
      */
@@ -56,8 +60,8 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Tag "%s" is applied %d times on %s %s',
                     $tag,
@@ -84,17 +88,7 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
         return $attr->name;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'tag.duplicate';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -107,9 +101,4 @@ final class TagDuplicate implements FixableRule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'The same #[Tag] is applied more than once to a controller method.';
-    }
 }

@@ -30,10 +30,14 @@ use function sprintf;
  * Detection is limited to operation method parameters (unambiguous scope). Data classes injected
  * via Domain Actions are reached through {@see PayloadParameterScanner}.
  */
-final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisitor
+final class FieldAttributeWrongScope implements Rule, OperationRuleVisitor
 {
+    public string $id = 'field.attribute-wrong-scope';
+    public Severity $severity = Severity::Degraded;
+    public string $description = '#[RequestField] on a URI parameter, or #[PathParam] on a Data-class property.';
+
     public function __construct(
-        private PayloadParameterScanner $scanner,
+        private readonly PayloadParameterScanner $scanner,
     ) {}
 
     /**
@@ -86,8 +90,8 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '#[PathParam] on %s::$%s applies to URI parameters, not request-body fields',
                     $property->getDeclaringClass()->getName(),
@@ -98,17 +102,7 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.attribute-wrong-scope';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
     /** @return iterable<Finding> */
     private function checkRouteParameter(ReflectionParameter $param, OperationNode $operation): iterable
@@ -118,8 +112,8 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '#[RequestField] on URI parameter $%s of %s %s applies to request-body fields, not URI parameters',
                 $param->getName(),
@@ -130,9 +124,4 @@ final readonly class FieldAttributeWrongScope implements Rule, OperationRuleVisi
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return '#[RequestField] on a URI parameter, or #[PathParam] on a Data-class property.';
-    }
 }

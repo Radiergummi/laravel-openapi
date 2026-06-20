@@ -61,8 +61,8 @@ function makeOverlyBroadSchemeContext(array $schemeTypes, array $registeredScope
 it('reports its id and level', function (): void {
     $rule = new ScopeOverlyBroad(registeredScopes: []);
 
-    expect($rule->id())->toBe('scope.overly-broad')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('scope.overly-broad')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when the only scope is the wildcard', function (): void {

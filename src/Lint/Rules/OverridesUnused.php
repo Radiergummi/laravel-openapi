@@ -17,23 +17,17 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
  * Flags `openapi.overrides` keys that match no route name, path URI, or webhook name.
  * Delegates to {@see OverrideMatcher::unusedKeys()} to avoid duplicating match logic.
  */
-final readonly class OverridesUnused implements PreBuildRule, Rule
+final class OverridesUnused implements PreBuildRule, Rule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Override key matches no route name, path URI, or webhook name.';
+
     public const string ID = 'overrides.unused';
 
-    public function __construct(private OverrideMatcher $matcher) {}
+    public function __construct(private readonly OverrideMatcher $matcher) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Override key matches no route name, path URI, or webhook name.';
-    }
 
     #[Override]
     public function checkConfiguration(
@@ -56,7 +50,7 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
             $findings->emit(
                 new Finding(
                     ruleId: self::ID,
-                    severity: $this->severity(),
+                    severity: $this->severity,
                     message: "Override key '{$key}' matched no route name, path URI, or webhook name.",
                     fixHint: 'Fix the route name/glob, or remove the override entry.',
                 ),
@@ -64,9 +58,4 @@ final readonly class OverridesUnused implements PreBuildRule, Rule
         }
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 }

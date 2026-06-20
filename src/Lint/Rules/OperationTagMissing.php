@@ -19,6 +19,10 @@ use function sprintf;
  */
 final class OperationTagMissing implements Rule, OperationRuleVisitor
 {
+    public string $id = 'operation.tag-missing';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Operation has no tags.';
+
     /**
      * @return iterable<Finding>
      */
@@ -27,8 +31,8 @@ final class OperationTagMissing implements Rule, OperationRuleVisitor
     {
         if ($operation->tags === []) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s has no tags',
                     $operation->method->forDisplay(),
@@ -39,21 +43,6 @@ final class OperationTagMissing implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.tag-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation has no tags.';
-    }
 }

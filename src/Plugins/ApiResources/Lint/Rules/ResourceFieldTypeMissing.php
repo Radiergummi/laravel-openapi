@@ -20,10 +20,14 @@ use function sprintf;
  * Flags a `#[ResourceField]` declared with no `type`; its schema cannot be derived, so the
  * field is emitted untyped.
  */
-final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisitor
+final class ResourceFieldTypeMissing implements Rule, OperationRuleVisitor
 {
+    public string $id = 'resource.field-type-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A #[ResourceField] is declared without a resolvable type.';
+
     public function __construct(
-        private ResourceTargetLocator $locator,
+        private readonly ResourceTargetLocator $locator,
     ) {}
 
     /**
@@ -57,8 +61,8 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '#[ResourceField(\'%s\')] on %s has no type — the field is emitted untyped',
                     $field->name,
@@ -69,21 +73,6 @@ final readonly class ResourceFieldTypeMissing implements Rule, OperationRuleVisi
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'resource.field-type-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A #[ResourceField] is declared without a resolvable type.';
-    }
 }

@@ -26,23 +26,14 @@ uses()->group('openapi', 'lint');
 
 it('stamps CONTEXT_SOURCE_CLASS on findings emitted under a component schema whose source class is known', function (): void {
     $rule = new class () implements Rule, FieldRuleVisitor {
-        public function id(): string
-        {
-            return 'test.field-rule';
-        }
-        public function severity(): Severity
-        {
-            return Severity::Inconsistent;
-        }
-        public function description(): string
-        {
-            return 'test';
-        }
+        public string $id = 'test.field-rule';
+        public Severity $severity = Severity::Inconsistent;
+        public string $description = 'test';
         public function checkField(FieldNode $field, LintContext $context): iterable
         {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'fire on ' . $field->name,
             );
         }
@@ -60,7 +51,7 @@ it('stamps CONTEXT_SOURCE_CLASS on findings emitted under a component schema who
 
     $builder = new SpecTreeBuilder(componentClassMap: ['Some' => stdClass::class]);
     $api = $builder->build($document, []);
-    $index = TreeIndex::build($api, $document, [$rule->id()], []);
+    $index = TreeIndex::build($api, $document, [$rule->id], []);
     $context = new LintContext(api: $api, index: $index, rawSpec: $document, actionDescriptors: [], suppressions: []);
 
     $walker = new SpecTreeWalker([$rule]);
@@ -73,23 +64,14 @@ it('stamps CONTEXT_SOURCE_CLASS on findings emitted under a component schema who
 
 it('stamps CONTEXT_SOURCE_CLASS from the controller on operation-level findings', function (): void {
     $rule = new class () implements Rule, OperationRuleVisitor {
-        public function id(): string
-        {
-            return 'test.operation-rule';
-        }
-        public function severity(): Severity
-        {
-            return Severity::Degraded;
-        }
-        public function description(): string
-        {
-            return 'test';
-        }
+        public string $id = 'test.operation-rule';
+        public Severity $severity = Severity::Degraded;
+        public string $description = 'test';
         public function checkOperation(OperationNode $operation, LintContext $context): iterable
         {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'fire',
             );
         }
@@ -118,23 +100,14 @@ it('stamps CONTEXT_SOURCE_CLASS from the controller on operation-level findings'
 
 it('does not stamp CONTEXT_SOURCE_CLASS on operation-level findings when no controller is known', function (): void {
     $rule = new class () implements Rule, OperationRuleVisitor {
-        public function id(): string
-        {
-            return 'test.operation-rule';
-        }
-        public function severity(): Severity
-        {
-            return Severity::Degraded;
-        }
-        public function description(): string
-        {
-            return 'test';
-        }
+        public string $id = 'test.operation-rule';
+        public Severity $severity = Severity::Degraded;
+        public string $description = 'test';
         public function checkOperation(OperationNode $operation, LintContext $context): iterable
         {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'fire',
             );
         }
@@ -163,23 +136,14 @@ it('does not stamp CONTEXT_SOURCE_CLASS on operation-level findings when no cont
 
 it('stamps the controller CONTEXT_SOURCE_CLASS on response-level findings', function (): void {
     $rule = new class () implements Rule, ResponseRuleVisitor {
-        public function id(): string
-        {
-            return 'test.response-rule';
-        }
-        public function severity(): Severity
-        {
-            return Severity::Degraded;
-        }
-        public function description(): string
-        {
-            return 'test';
-        }
+        public string $id = 'test.response-rule';
+        public Severity $severity = Severity::Degraded;
+        public string $description = 'test';
         public function checkResponse(ResponseNode $response, LintContext $context): iterable
         {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'fire on ' . $response->statusCode,
             );
         }
@@ -208,23 +172,14 @@ it('stamps the controller CONTEXT_SOURCE_CLASS on response-level findings', func
 
 it('stamps each operation its own controller for response-level findings (no cross-controller bleed)', function (): void {
     $rule = new class () implements Rule, ResponseRuleVisitor {
-        public function id(): string
-        {
-            return 'test.response-rule';
-        }
-        public function severity(): Severity
-        {
-            return Severity::Degraded;
-        }
-        public function description(): string
-        {
-            return 'test';
-        }
+        public string $id = 'test.response-rule';
+        public Severity $severity = Severity::Degraded;
+        public string $description = 'test';
         public function checkResponse(ResponseNode $response, LintContext $context): iterable
         {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'fire',
             );
         }
@@ -257,23 +212,14 @@ it('stamps each operation its own controller for response-level findings (no cro
 
 it('stamps different CONTEXT_SOURCE_CLASS values for operations from different controllers', function (): void {
     $rule = new class () implements Rule, OperationRuleVisitor {
-        public function id(): string
-        {
-            return 'test.operation-rule';
-        }
-        public function severity(): Severity
-        {
-            return Severity::Degraded;
-        }
-        public function description(): string
-        {
-            return 'test';
-        }
+        public string $id = 'test.operation-rule';
+        public Severity $severity = Severity::Degraded;
+        public string $description = 'test';
         public function checkOperation(OperationNode $operation, LintContext $context): iterable
         {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'fire on ' . $operation->pathUri,
             );
         }

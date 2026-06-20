@@ -24,23 +24,17 @@ use function array_map;
  * Uses {@see SpecResolver} so the route's effective name set matches what the
  * generator sees (method-level #[Spec] shadows class-level).
  */
-final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
+final class SpecRouteOrphaned implements Rule, PreBuildRule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Route is pinned via #[Spec] to specs that do not exist and will not appear in any document.';
+
     public const string ID = 'spec.route-orphaned';
 
-    public function __construct(private SpecResolver $resolver) {}
+    public function __construct(private readonly SpecResolver $resolver) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Route is pinned via #[Spec] to specs that do not exist and will not appear in any document.';
-    }
 
     #[Override]
     public function checkConfiguration(
@@ -61,7 +55,7 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        severity: $this->severity(),
+                        severity: $this->severity,
                         message: 'Route is pinned to specs that do not exist; it will not appear anywhere.',
                         location: FindingLocation::fromDescriptor($descriptor),
                         fixHint: 'Fix the #[Spec] argument(s) or declare the spec in config.',
@@ -71,9 +65,4 @@ final readonly class SpecRouteOrphaned implements Rule, PreBuildRule
         }
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 }

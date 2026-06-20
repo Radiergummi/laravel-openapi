@@ -21,6 +21,10 @@ use function strtolower;
  */
 final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
 {
+    public string $id = 'response.redirect-without-location';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = '3xx response has no Location header.';
+
     /**
      * @return iterable<Finding>
      */
@@ -38,8 +42,8 @@ final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
         $operation = $response->operation();
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Redirect response %d on %s %s has no Location header',
                 $response->statusCode,
@@ -50,21 +54,6 @@ final class ResponseRedirectWithoutLocation implements Rule, ResponseRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.redirect-without-location';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return '3xx response has no Location header.';
-    }
 }

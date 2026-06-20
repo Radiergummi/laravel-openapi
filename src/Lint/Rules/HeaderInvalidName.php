@@ -24,6 +24,10 @@ use function sprintf;
  */
 final class HeaderInvalidName implements Rule, OperationRuleVisitor
 {
+    public string $id = 'header.invalid-name';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Header name contains invalid characters.';
+
     /** HTTP token grammar from RFC 7230 §3.2.6. */
     private const string HTTP_TOKEN_PATTERN = '/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/';
 
@@ -57,8 +61,8 @@ final class HeaderInvalidName implements Rule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Header name "%s" on %s::%s() is not a valid HTTP token',
                     $header->name,
@@ -70,21 +74,6 @@ final class HeaderInvalidName implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'header.invalid-name';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Header name contains invalid characters.';
-    }
 }

@@ -23,9 +23,9 @@ function makeDirectScannerForConflictingType(): PayloadParameterScanner
 it('reports its id and level', function (): void {
     $rule = new FieldConflictingType(makeDirectScannerForConflictingType());
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('field.conflicting-type')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when RequestField type contradicts the PHP type', function (): void {

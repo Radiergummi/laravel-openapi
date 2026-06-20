@@ -26,12 +26,17 @@ use function sprintf;
  * shape the generator cannot infer either (no readable `toArray()` literal, no wrapped model),
  * so the response schema is genuinely empty.
  */
-final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
+final class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
 {
+    public string $id = 'resource.fields-undeclared';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'An API Resource used as a response declares no #[ResourceField] attributes '
+        . 'and its shape cannot be inferred from toArray() or a wrapped model.';
+
     public function __construct(
-        private ResourceTargetLocator $locator,
-        private ResourceToArrayReader $toArrayReader,
-        private WrappedModelLocator $wrappedModelLocator,
+        private readonly ResourceTargetLocator $locator,
+        private readonly ResourceToArrayReader $toArrayReader,
+        private readonly WrappedModelLocator $wrappedModelLocator,
     ) {}
 
     /**
@@ -83,8 +88,8 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s %s returns %s but it declares no #[ResourceField] — the response schema is empty',
                 $operation->method->forDisplay(),
@@ -96,22 +101,6 @@ final readonly class ResourceFieldsUndeclared implements Rule, OperationRuleVisi
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'resource.fields-undeclared';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'An API Resource used as a response declares no #[ResourceField] attributes '
-            . 'and its shape cannot be inferred from toArray() or a wrapped model.';
-    }
 }

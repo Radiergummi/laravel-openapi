@@ -24,6 +24,10 @@ use function trim;
  */
 final class SchemaDescriptionMissing implements Rule, ComponentSchemaRuleVisitor
 {
+    public string $id = 'schema.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Named component schema has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -35,29 +39,14 @@ final class SchemaDescriptionMissing implements Rule, ComponentSchemaRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf('Component schema "%s" has no description', $componentSchema->name),
             location: new FindingLocation(jsonPointer: $componentSchema->pointer()),
             fixHint: 'Add a description to the component schema explaining what it represents.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Named component schema has no description.';
-    }
 }

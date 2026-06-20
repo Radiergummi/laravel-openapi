@@ -24,10 +24,14 @@ use function sprintf;
  * `#[TransformerField]`, and whose shape the generator cannot infer from the `transform()`
  * literal either, so the response schema is genuinely empty.
  */
-final readonly class FractalFieldsUndeclared implements Rule, OperationRule
+final class FractalFieldsUndeclared implements Rule, OperationRule
 {
+    public string $id = 'fractal.fields-undeclared';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A transformer bound via #[FractalResponse] declares no #[TransformerField] attributes.';
+
     public function __construct(
-        private TransformerTransformReader $transformReader,
+        private readonly TransformerTransformReader $transformReader,
     ) {}
 
     /**
@@ -67,8 +71,8 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s %s is bound to %s, which declares no #[TransformerField] — the response schema is empty',
                 $operation->method->forDisplay(),
@@ -79,21 +83,6 @@ final readonly class FractalFieldsUndeclared implements Rule, OperationRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'fractal.fields-undeclared';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A transformer bound via #[FractalResponse] declares no #[TransformerField] attributes.';
-    }
 }

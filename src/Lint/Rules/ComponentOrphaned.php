@@ -22,6 +22,10 @@ use function sprintf;
  */
 final class ComponentOrphaned implements Rule, ApiRuleVisitor
 {
+    public string $id = 'component.orphaned';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Component schema is registered but never referenced.';
+
     /**
      * @return iterable<Finding>
      */
@@ -40,8 +44,8 @@ final class ComponentOrphaned implements Rule, ApiRuleVisitor
                 }
 
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Component #/components/%s/%s is defined but never referenced',
                         $type,
@@ -55,21 +59,6 @@ final class ComponentOrphaned implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'component.orphaned';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Component schema is registered but never referenced.';
-    }
 }

@@ -30,9 +30,9 @@ function trailingSlashContext(array $pathUris): LintContext
 it('reports its id and level', function (): void {
     $rule = new PathTrailingSlashInconsistent();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('path.trailing-slash-inconsistent')
-        ->and($rule->severity())
+        ->and($rule->severity)
         ->toBe(Severity::Inconsistent);
 });
 

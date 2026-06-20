@@ -49,9 +49,9 @@ function operationSecurityFindings(
 it('reports its id and level', function (): void {
     $rule = new OperationSecurityMissing(app(RouteMiddlewareGatherer::class));
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('operation.security-missing')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a route has auth middleware and no security is declared', function (): void {

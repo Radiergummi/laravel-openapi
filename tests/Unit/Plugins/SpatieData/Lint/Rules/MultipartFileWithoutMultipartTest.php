@@ -95,8 +95,8 @@ function makeContextForMultipart(): LintContext
 it('reports its id and level', function (): void {
     $rule = new MultipartFileWithoutMultipart(makeSchemaBuilderStub([]), makeDirectScannerForMultipart());
 
-    expect($rule->id())->toBe('multipart.file-without-multipart')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('multipart.file-without-multipart')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a #[RequestBody] override forces a non-multipart body on a file Data class', function (): void {

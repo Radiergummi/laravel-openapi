@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Core\Lint;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -19,21 +18,10 @@ use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
  */
 final class RuleInvalidEnumValue implements Rule
 {
-    #[Override]
-    public function id(): string
-    {
-        return 'rule.invalid-enum-value';
-    }
+    public string $id = 'rule.invalid-enum-value';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A SelfDocumentingRule returned a non-scalar enum value; the entry was dropped.';
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A SelfDocumentingRule returned a non-scalar enum value; the entry was dropped.';
-    }
+
 }

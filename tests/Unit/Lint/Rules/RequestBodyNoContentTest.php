@@ -11,9 +11,9 @@ uses()->group('openapi', 'lint');
 it('reports the correct id and level', function (): void {
     $rule = new RequestBodyNoContent();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('request-body.no-content')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a request body has no media-type entries', function (): void {

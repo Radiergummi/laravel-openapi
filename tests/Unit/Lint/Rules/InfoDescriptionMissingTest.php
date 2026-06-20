@@ -51,8 +51,8 @@ function makeInfoContext(?string $infoDescription): LintContext
 it('has the correct rule id and level', function (): void {
     $rule = new InfoDescriptionMissing();
 
-    expect($rule->id())->toBe('info.description-missing')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+    expect($rule->id)->toBe('info.description-missing')
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when info.description is missing or blank', function (?string $description): void {

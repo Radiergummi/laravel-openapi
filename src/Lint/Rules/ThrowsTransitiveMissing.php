@@ -34,9 +34,13 @@ use function str_ends_with;
  * propagating it to the controller's PHPDoc, which in turn means the OpenAPI spec will lack the
  * corresponding error response.
  */
-final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
+final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
 {
-    private ThrowsExtractor $throwsExtractor;
+    public string $id = 'throws.transitive-missing';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Action::handle() declares @throws exceptions not redeclared on the controller method.';
+
+    private readonly ThrowsExtractor $throwsExtractor;
 
     public function __construct(?ThrowsExtractor $throwsExtractor = null)
     {
@@ -145,8 +149,8 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '%s::handle() declares @throws %s, but %s::%s() does not redeclare it',
                     $actionShortName,
@@ -164,21 +168,6 @@ final readonly class ThrowsTransitiveMissing implements Rule, OperationRuleVisit
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'throws.transitive-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Action::handle() declares @throws exceptions not redeclared on the controller method.';
-    }
 }

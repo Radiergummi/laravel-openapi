@@ -22,8 +22,12 @@ use function sprintf;
  * When names collide, `OperationBuilder`'s name+in dedup silently keeps only the last instance;
  * the earlier ones are dropped without any diagnostic.
  */
-final readonly class QueryBuilderFilterDuplicate implements Rule, OperationRule
+final class QueryBuilderFilterDuplicate implements Rule, OperationRule
 {
+    public string $id = 'query-builder.filter-duplicate';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.)';
+
     /**
      * @return iterable<Finding>
      */
@@ -47,8 +51,8 @@ final readonly class QueryBuilderFilterDuplicate implements Rule, OperationRule
 
         foreach ($duplicatedNames as $name) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '#[AllowedFilter(\'%s\')] is declared %d times on %s %s — only the last instance is emitted',
                     $name,
@@ -61,21 +65,6 @@ final readonly class QueryBuilderFilterDuplicate implements Rule, OperationRule
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'query-builder.filter-duplicate';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two or more #[AllowedFilter] attributes on the same action share the same name — only the last is emitted. (QueryBuilder plugin.)';
-    }
 }

@@ -23,8 +23,8 @@ function externaldocsFindings(string $method): array
 it('has the correct rule id and level', function (): void {
     $rule = new ExternaldocsInvalidUrl();
 
-    expect($rule->id())->toBe('externaldocs.invalid-url')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('externaldocs.invalid-url')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding for an invalid URL', function (): void {

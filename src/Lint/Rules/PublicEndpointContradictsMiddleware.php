@@ -24,10 +24,14 @@ use function str_starts_with;
  * Reports when a controller method or class is marked `#[PublicEndpoint]` but the route still
  * carries `auth:*` or `scope:*` middleware.
  */
-final readonly class PublicEndpointContradictsMiddleware implements Rule, OperationRuleVisitor
+final class PublicEndpointContradictsMiddleware implements Rule, OperationRuleVisitor
 {
+    public string $id = 'publicendpoint.contradicts-middleware';
+    public Severity $severity = Severity::Degraded;
+    public string $description = '#[PublicEndpoint] is present but the route has auth/scope middleware.';
+
     public function __construct(
-        private RouteMiddlewareGatherer $middlewareGatherer,
+        private readonly RouteMiddlewareGatherer $middlewareGatherer,
     ) {}
 
     /**
@@ -56,8 +60,8 @@ final readonly class PublicEndpointContradictsMiddleware implements Rule, Operat
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s::%s() is marked #[PublicEndpoint] but the route has conflicting middleware: %s',
                 $descriptor->controller?->getShortName() ?? '(unknown)',
@@ -93,21 +97,6 @@ final readonly class PublicEndpointContradictsMiddleware implements Rule, Operat
         return $conflicting;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'publicendpoint.contradicts-middleware';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return '#[PublicEndpoint] is present but the route has auth/scope middleware.';
-    }
 }

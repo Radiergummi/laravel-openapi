@@ -12,7 +12,7 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new PathParameterUndefined();
 
-    expect($rule->id())->toBe('path.parameter-undefined')->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('path.parameter-undefined')->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all path parameters match placeholders', function (): void {

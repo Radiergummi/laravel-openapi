@@ -47,8 +47,8 @@ function makeSchemaForExampleMissing(
 it('has the correct rule id and level', function (): void {
     $rule = new SchemaExampleMissing();
 
-    expect($rule->id())->toBe('schema.example-missing')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+    expect($rule->id)->toBe('schema.example-missing')
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 it('emits a finding when a schema has no example or null example', function (callable $build): void {

@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class ParameterPathMustBeRequired implements Rule, ParameterRuleVisitor
 {
+    public string $id = 'parameter.path-must-be-required';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Path parameter is not marked required: true.';
+
     /**
      * @return iterable<Finding>
      */
@@ -33,8 +37,8 @@ final class ParameterPathMustBeRequired implements Rule, ParameterRuleVisitor
         $operation = $parameter->parent();
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Path parameter "%s" on %s %s must be required',
                 $parameter->name,
@@ -45,21 +49,6 @@ final class ParameterPathMustBeRequired implements Rule, ParameterRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.path-must-be-required';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Path parameter is not marked required: true.';
-    }
 }

@@ -23,6 +23,10 @@ use function sprintf;
  */
 final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizable, Resettable
 {
+    public string $id = 'webhook.name-duplicate';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Two webhooks share the same name.';
+
     /**
      * @var array<string, list<WebhookNode>>
      */
@@ -56,8 +60,8 @@ final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizabl
 
             foreach ($nodes as $node) {
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Webhook name "%s" is used %d times across the spec; names must be globally unique',
                         $name,
@@ -70,21 +74,6 @@ final class WebhookNameDuplicate implements Rule, WebhookRuleVisitor, Finalizabl
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'webhook.name-duplicate';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two webhooks share the same name.';
-    }
 }

@@ -27,6 +27,11 @@ use function sprintf;
  */
 final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A #[RawSchema] uses a keyword swagger-php cannot serialise '
+        . '(if/then/else, dependentRequired/dependentSchemas, dependencies).';
+
     public const string ID = 'schema.raw-keyword-unsupported';
 
     /** @var array<class-string, true> */
@@ -36,18 +41,7 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
         private readonly PayloadParameterScanner $scanner,
     ) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A #[RawSchema] uses a keyword swagger-php cannot serialise '
-            . '(if/then/else, dependentRequired/dependentSchemas, dependencies).';
-    }
 
     /**
      * @return iterable<Finding>
@@ -104,7 +98,7 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
 
         yield new Finding(
             ruleId: self::ID,
-            severity: $this->severity(),
+            severity: $this->severity,
             message: sprintf(
                 '#[RawSchema] on %s uses unsupported keyword(s): %s.',
                 $className,
@@ -117,9 +111,4 @@ final class SchemaRawKeywordUnsupported implements OperationRuleVisitor, Rule
         );
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 }

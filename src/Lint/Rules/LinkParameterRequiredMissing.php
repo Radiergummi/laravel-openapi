@@ -25,6 +25,10 @@ use function sprintf;
  */
 final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
 {
+    public string $id = 'link.parameter-required-missing';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Link omits a parameter that the target operation requires.';
+
     /**
      * @return iterable<Finding>
      */
@@ -61,8 +65,8 @@ final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
             );
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: $message,
                 fixHint: 'Add the missing required parameter to the Link parameters map.',
             );
@@ -89,21 +93,6 @@ final class LinkParameterRequiredMissing implements Rule, LinkRuleVisitor
         return $names;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'link.parameter-required-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Link omits a parameter that the target operation requires.';
-    }
 }

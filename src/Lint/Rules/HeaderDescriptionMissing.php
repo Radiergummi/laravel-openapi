@@ -21,6 +21,10 @@ use function trim;
  */
 final class HeaderDescriptionMissing implements Rule, HeaderRuleVisitor
 {
+    public string $id = 'header.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Response header has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -35,8 +39,8 @@ final class HeaderDescriptionMissing implements Rule, HeaderRuleVisitor
         $operation = $parent instanceof ResponseNode ? $parent->operation() : null;
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Header "%s" on %s %s has no description',
                 $header->name,
@@ -47,21 +51,6 @@ final class HeaderDescriptionMissing implements Rule, HeaderRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'header.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Response header has no description.';
-    }
 }

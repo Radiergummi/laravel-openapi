@@ -184,5 +184,5 @@ it('exposes its fixer and human-readable description', function (): void {
 
     expect($rule->fixer())
         ->toBeInstanceOf(RedundantOaPropertyFixer::class)
-        ->and($rule->description())->toContain('OA\Property');
+        ->and($rule->description)->toContain('OA\Property');
 });

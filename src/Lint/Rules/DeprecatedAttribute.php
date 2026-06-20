@@ -28,6 +28,10 @@ use function str_starts_with;
  */
 final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettable
 {
+    public string $id = 'deprecated.attribute';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'A deprecated authoring attribute (#[Deprecated] or @deprecated) is still used on a controller.';
+
     private readonly string $attributeNamespace;
 
     /** @var array<class-string, ReflectionClass<object>> */
@@ -108,8 +112,8 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
             $shortName = $attrReflection->getShortName();
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Attribute #[%s] is deprecated and should be replaced on %s',
                     $shortName,
@@ -136,21 +140,6 @@ final class DeprecatedAttribute implements Rule, OperationRuleVisitor, Resettabl
         return str_contains($docComment, '@deprecated');
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'deprecated.attribute';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A deprecated authoring attribute (#[Deprecated] or @deprecated) is still used on a controller.';
-    }
 }

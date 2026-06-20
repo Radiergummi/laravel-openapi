@@ -7,23 +7,14 @@ use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\RuleRegistry;
 
 /** Builds a minimal {@see Rule} stub with the given id and severity. */
-$rule = static fn(string $id, Severity $severity): Rule => new readonly class ($id, $severity) implements Rule {
-    public function __construct(private string $ruleId, private Severity $ruleSeverity) {}
+$rule = static fn(string $id, Severity $severity): Rule => new class ($id, $severity) implements Rule {
+    public string $id { get => $this->ruleId; }
 
-    public function id(): string
-    {
-        return $this->ruleId;
-    }
+    public Severity $severity { get => $this->ruleSeverity; }
 
-    public function severity(): Severity
-    {
-        return $this->ruleSeverity;
-    }
+    public string $description = 'stub';
 
-    public function description(): string
-    {
-        return 'stub';
-    }
+    public function __construct(private readonly string $ruleId, private readonly Severity $ruleSeverity) {}
 };
 
 // The registry performs no duplicate-id detection; these tests pin the current observed

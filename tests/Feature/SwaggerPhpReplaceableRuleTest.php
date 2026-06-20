@@ -235,5 +235,5 @@ it('exposes its fixer and human-readable description', function (): void {
 
     expect($rule->fixer())
         ->toBeInstanceOf(OaReplaceableByAttributeFixer::class)
-        ->and($rule->description())->toContain('attribute');
+        ->and($rule->description)->toContain('attribute');
 });

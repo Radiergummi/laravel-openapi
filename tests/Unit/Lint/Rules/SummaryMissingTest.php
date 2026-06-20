@@ -11,8 +11,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new SummaryMissing();
 
-    expect($rule->id())->toBe('summary.missing')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+    expect($rule->id)->toBe('summary.missing')
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when summary is missing', function (): void {

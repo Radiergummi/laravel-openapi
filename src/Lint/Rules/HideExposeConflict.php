@@ -24,11 +24,10 @@ use function sprintf;
  */
 final class HideExposeConflict implements Rule, RouteRule
 {
-    #[Override]
-    public function description(): string
-    {
-        return 'Route carries overlapping #[Hide] and #[Expose] in the current environment.';
-    }
+    public string $id = 'visibility.hide-expose-conflict';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Route carries overlapping #[Hide] and #[Expose] in the current environment.';
+
 
     /**
      * @return iterable<Finding>
@@ -53,8 +52,8 @@ final class HideExposeConflict implements Rule, RouteRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Route carries both #[Hide] and #[Expose] attributes that apply in environment "%s". #[Hide] wins.',
                 $env,
@@ -63,15 +62,5 @@ final class HideExposeConflict implements Rule, RouteRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'visibility.hide-expose-conflict';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 }

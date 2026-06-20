@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
 {
+    public string $id = 'schema.nullable-via-deprecated-keyword';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Schema uses the deprecated OpenAPI 3.0 nullable: true keyword instead of a type array.';
+
     /**
      * @return iterable<Finding>
      */
@@ -37,8 +41,8 @@ final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Field "%s" uses the deprecated nullable keyword; use type union with "null" instead',
                 $field->name,
@@ -47,21 +51,6 @@ final class SchemaNullableViaDeprecatedKeyword implements Rule, FieldRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.nullable-via-deprecated-keyword';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Schema uses the deprecated OpenAPI 3.0 nullable: true keyword instead of a type array.';
-    }
 }

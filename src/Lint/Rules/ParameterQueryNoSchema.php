@@ -18,6 +18,10 @@ use function sprintf;
 /** Reports query parameters that have no schema defined. */
 final class ParameterQueryNoSchema implements Rule, QueryParameterRuleVisitor
 {
+    public string $id = 'parameter.query-no-schema';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Query parameter has no schema.';
+
     /**
      * @return iterable<Finding>
      */
@@ -33,8 +37,8 @@ final class ParameterQueryNoSchema implements Rule, QueryParameterRuleVisitor
         $operation = $queryParameter->parent();
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Query parameter "%s" on %s %s has no schema',
                 $queryParameter->name,
@@ -45,21 +49,6 @@ final class ParameterQueryNoSchema implements Rule, QueryParameterRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.query-no-schema';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Query parameter has no schema.';
-    }
 }

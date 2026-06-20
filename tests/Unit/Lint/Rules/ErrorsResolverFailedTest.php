@@ -13,15 +13,15 @@ uses()->group('openapi', 'lint');
 // the stub's registration contract so its identity stays stable.
 
 it('exposes the stable rule id', function (): void {
-    expect(new ErrorsResolverFailed()->id())->toBe('errors.resolver-failed');
+    expect(new ErrorsResolverFailed()->id)->toBe('errors.resolver-failed');
 });
 
 it('reports a warning-level severity', function (): void {
-    expect(new ErrorsResolverFailed()->severity())->toBe(Severity::Underspecified);
+    expect(new ErrorsResolverFailed()->severity)->toBe(Severity::Underspecified);
 });
 
 it('provides a non-empty description', function (): void {
-    expect(new ErrorsResolverFailed()->description())->not->toBe('');
+    expect(new ErrorsResolverFailed()->description)->not->toBe('');
 });
 
 it('exposes an actionable fix hint pointing at the resolver', function (): void {

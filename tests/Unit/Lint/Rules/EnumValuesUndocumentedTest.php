@@ -11,9 +11,9 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new EnumValuesUndocumented();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('enum.values-undocumented')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when an enum field has no description', function (): void {

@@ -24,6 +24,10 @@ use function sprintf;
  */
 final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
 {
+    public string $id = 'deprecated.no-replacement';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'Deprecated operation/field has no x-replacement or suggested alternative.';
+
     private const string REPLACEMENT_PATTERN = "/\b(use|replaced\s+by|replacement|sunset)\b/i";
 
     /**
@@ -51,8 +55,8 @@ final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Deprecated operation %s %s does not mention a replacement in its description',
                 $operation->method->forDisplay(),
@@ -62,21 +66,6 @@ final class DeprecatedNoReplacement implements Rule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'deprecated.no-replacement';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Deprecated operation/field has no x-replacement or suggested alternative.';
-    }
 }

@@ -36,11 +36,15 @@ use function strtoupper;
 
 use const JSON_THROW_ON_ERROR;
 
-final readonly class SpecInvalid implements Rule, ApiRuleVisitor
+final class SpecInvalid implements Rule, ApiRuleVisitor
 {
-    private string $schemaPath;
+    public string $id = 'spec.invalid';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Spec fails swagger-php validation. Cannot be suppressed or remapped.';
 
-    private ErrorFormatter $formatter;
+    private readonly string $schemaPath;
+
+    private readonly ErrorFormatter $formatter;
 
     public function __construct(?string $schemaPath = null)
     {
@@ -48,23 +52,8 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
         $this->formatter = new ErrorFormatter();
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'spec.invalid';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Spec fails swagger-php validation. Cannot be suppressed or remapped.';
-    }
 
     /**
      * @return iterable<Finding>
@@ -237,7 +226,7 @@ final readonly class SpecInvalid implements Rule, ApiRuleVisitor
 
         return new Finding(
             ruleId: 'spec.invalid',
-            severity: $this->severity(),
+            severity: $this->severity,
             message: "{$humanPath}: {$interpolatedMessage}",
             location: $location,
             fixHint: $this->buildFixHint($parsed, $keyword),

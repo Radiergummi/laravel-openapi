@@ -11,8 +11,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new TagsNoDescription();
 
-    expect($rule->id())->toBe('tags.no-description')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+    expect($rule->id)->toBe('tags.no-description')
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when a tag has a missing or blank description', function (array $tagDescriptions): void {

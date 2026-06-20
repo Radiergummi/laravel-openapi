@@ -69,7 +69,7 @@ function makeScopeSchemeContext(array $schemeTypes, array $registeredScopes): Li
 it('reports its id and level', function (): void {
     $rule = new SecurityInvalidScope(registeredScopes: []);
 
-    expect($rule->id())->toBe('security.invalid-scope')->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('security.invalid-scope')->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when an operation references an undefined scope', function (): void {

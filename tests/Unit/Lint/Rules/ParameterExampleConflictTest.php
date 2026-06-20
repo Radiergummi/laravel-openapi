@@ -69,9 +69,9 @@ function oaExample(string $name = 'default', string $value = '123'): OA\Examples
 it('reports its id, level, and description', function (): void {
     $rule = new ParameterExampleConflict();
 
-    expect($rule->id())->toBe('parameter.example-conflict')
-        ->and($rule->severity())->toBe(Severity::Degraded)
-        ->and($rule->description())->toBe('A parameter sets both example and examples (mutually exclusive).');
+    expect($rule->id)->toBe('parameter.example-conflict')
+        ->and($rule->severity)->toBe(Severity::Degraded)
+        ->and($rule->description)->toBe('A parameter sets both example and examples (mutually exclusive).');
 });
 
 it('emits one finding when parameter has both example and examples set', function (): void {

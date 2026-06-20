@@ -12,9 +12,9 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new OperationIdDuplicate();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('operation.id-duplicate')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all operationIds are unique', function (): void {

@@ -25,8 +25,8 @@ function makeQueryParamDuplicateOperation(string $method): OperationNode
 it('has the correct rule id and level', function (): void {
     $rule = new QueryParamDuplicate();
 
-    expect($rule->id())->toBe('queryparam.duplicate')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('queryparam.duplicate')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a method has duplicate query param names', function (): void {

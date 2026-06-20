@@ -22,6 +22,10 @@ use function trim;
  */
 final class OperationSummaryEqualsDescription implements Rule, OperationRuleVisitor
 {
+    public string $id = 'operation.summary-equals-description';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Operation summary and description are identical (redundant).';
+
     /**
      * @return iterable<Finding>
      */
@@ -34,8 +38,8 @@ final class OperationSummaryEqualsDescription implements Rule, OperationRuleVisi
 
         if (strcasecmp(trim($operation->summary), trim($operation->description)) === 0) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s has a description identical to its summary',
                     $operation->method->forDisplay(),
@@ -46,21 +50,6 @@ final class OperationSummaryEqualsDescription implements Rule, OperationRuleVisi
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.summary-equals-description';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation summary and description are identical (redundant).';
-    }
 }

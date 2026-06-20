@@ -180,7 +180,7 @@ final readonly class LintRunner
             $rules = array_values(
                 array_filter(
                     $rules,
-                    static fn(Rule $rule): bool => $rule->id() !== RuleRegistry::EXEMPT_RULE_ID,
+                    static fn(Rule $rule): bool => $rule->id !== RuleRegistry::EXEMPT_RULE_ID,
                 ),
             );
         }
@@ -713,11 +713,11 @@ final readonly class LintRunner
      */
     private function metaRuleEnabled(Rule $rule, int $level, array $only, array $skip): bool
     {
-        $effectiveLevel = $this->registry->effectiveLevelFor($rule->id(), $rule->severity());
+        $effectiveLevel = $this->registry->effectiveLevelFor($rule->id, $rule->severity);
 
         return $effectiveLevel->value <= $level
-            && ($only === [] || in_array($rule->id(), $only, true))
-            && !in_array($rule->id(), $skip, true);
+            && ($only === [] || in_array($rule->id, $only, true))
+            && !in_array($rule->id, $skip, true);
     }
 
     /**

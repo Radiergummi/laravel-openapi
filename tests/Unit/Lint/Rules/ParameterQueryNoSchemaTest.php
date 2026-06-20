@@ -37,9 +37,9 @@ function makeQueryParamForSchemaTest(
 it('reports its id and level', function (): void {
     $rule = new ParameterQueryNoSchema();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('parameter.query-no-schema')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when a query parameter has a schema', function (

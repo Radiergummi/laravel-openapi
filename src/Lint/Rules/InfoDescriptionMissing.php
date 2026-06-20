@@ -22,6 +22,10 @@ use function trim;
  */
 final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
 {
+    public string $id = 'info.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'The document info.description is empty.';
+
     /**
      * @return iterable<Finding>
      */
@@ -33,8 +37,8 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         // UNDEFINED when spec is incomplete, not merely null
         if (is_undefined($info) || $info === null) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'The document info object is missing',
                 location: new FindingLocation(jsonPointer: '#/info'),
                 fixHint: 'Add an info.description to the OpenAPI document.',
@@ -51,8 +55,8 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
             || trim($description) === ''
         ) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: 'The document info.description is empty',
                 location: new FindingLocation(jsonPointer: '#/info/description'),
                 fixHint: 'Add a description to info explaining the API purpose and intended audience.',
@@ -60,21 +64,6 @@ final class InfoDescriptionMissing implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'info.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'The document info.description is empty.';
-    }
 }

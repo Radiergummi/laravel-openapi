@@ -51,8 +51,8 @@ function specWithRef(string $ref, array $schemas): OA\OpenApi
 it('reports its id and level', function (): void {
     $rule = new RefBroken();
 
-    expect($rule->id())->toBe('ref.broken')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('ref.broken')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding when a ref points to a non-existent schema', function (): void {

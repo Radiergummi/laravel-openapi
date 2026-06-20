@@ -32,7 +32,7 @@ it('exposes the document-annotation rule at the migration (level-4) severity', f
         new AuthoredAnnotationScanner([], recordingLogger()),
     );
 
-    expect($rule->id())->toBe('migration.document-annotation-in-config')
-        ->and($rule->severity())->toBe(Severity::Improvable)
-        ->and($rule->severity()->value)->toBe(4);
+    expect($rule->id)->toBe('migration.document-annotation-in-config')
+        ->and($rule->severity)->toBe(Severity::Improvable)
+        ->and($rule->severity->value)->toBe(4);
 });

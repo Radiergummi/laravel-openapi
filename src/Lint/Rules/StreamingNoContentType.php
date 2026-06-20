@@ -26,6 +26,10 @@ use function sprintf;
  */
 final class StreamingNoContentType implements Rule, OperationRuleVisitor
 {
+    public string $id = 'streaming.no-content-type';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Streaming operation has no content-type: text/event-stream response.';
+
     /**
      * @return iterable<Finding>
      */
@@ -60,8 +64,8 @@ final class StreamingNoContentType implements Rule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Streaming endpoint %s::%s() does not declare text/event-stream content type in its responses',
                 $operation->descriptor->controller?->getName() ?? '(unknown)',
@@ -108,21 +112,6 @@ final class StreamingNoContentType implements Rule, OperationRuleVisitor
         return false;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'streaming.no-content-type';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Streaming operation has no content-type: text/event-stream response.';
-    }
 }

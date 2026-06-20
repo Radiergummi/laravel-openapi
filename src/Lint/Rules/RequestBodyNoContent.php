@@ -18,6 +18,10 @@ use Radiergummi\OpenApi\Lint\Visitors\RequestBodyRule as RequestBodyRuleVisitor;
  */
 final class RequestBodyNoContent implements Rule, RequestBodyRuleVisitor
 {
+    public string $id = 'request-body.no-content';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A requestBody object has no media-type entries.';
+
     /**
      * @return iterable<Finding>
      */
@@ -29,28 +33,13 @@ final class RequestBodyNoContent implements Rule, RequestBodyRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: 'A requestBody object has no media-type entries',
             fixHint: 'Add at least one content entry (e.g., application/json) with a schema.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'request-body.no-content';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A requestBody object has no media-type entries.';
-    }
 }

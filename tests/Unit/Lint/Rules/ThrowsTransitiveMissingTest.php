@@ -32,9 +32,9 @@ function makeTransitiveThrowsDescriptor(string $method, array $throws = []): Act
 it('has the correct rule id and level', function (): void {
     $rule = new ThrowsTransitiveMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('throws.transitive-missing')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a controller method is missing a transitive @throws', function (): void {

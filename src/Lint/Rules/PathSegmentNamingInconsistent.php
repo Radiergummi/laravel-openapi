@@ -25,8 +25,11 @@ use function str_starts_with;
  * Default: {@see IdentifierCase::Kebab}.
  */
 #[Scoped]
-final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor
+final class PathSegmentNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor
 {
+    public string $id = 'path.segment-naming-inconsistent';
+    public string $description = "URL path segment doesn't follow the project's path_segment_case convention.";
+
     public function __construct(
         #[Config('openapi.lint.style.path_segment_case', 'kebab')]
         IdentifierCase|string $case = IdentifierCase::Kebab,
@@ -68,8 +71,8 @@ final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule im
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Path segment(s) [%s] on %s %s do not follow the %s naming convention',
                 implode(', ', $offending),
@@ -81,15 +84,5 @@ final readonly class PathSegmentNamingInconsistent extends AbstractNamingRule im
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'path.segment-naming-inconsistent';
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "URL path segment doesn't follow the project's path_segment_case convention.";
-    }
 }

@@ -24,6 +24,10 @@ use function str_ends_with;
  */
 final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
 {
+    public string $id = 'path.trailing-slash-inconsistent';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Trailing-slash usage is inconsistent across paths.';
+
     /**
      * @return iterable<Finding>
      */
@@ -62,8 +66,8 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
         $withoutSlashExamples = implode(', ', array_slice($withoutSlash, 0, 3));
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Inconsistent trailing slashes: %d path(s) end with a slash (e.g., %s) and %d do not (e.g., %s)',
                 count($withSlash),
@@ -75,21 +79,6 @@ final class PathTrailingSlashInconsistent implements Rule, ApiRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'path.trailing-slash-inconsistent';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Trailing-slash usage is inconsistent across paths.';
-    }
 }

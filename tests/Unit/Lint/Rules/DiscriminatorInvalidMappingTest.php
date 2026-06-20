@@ -80,8 +80,8 @@ function discriminatorInvalidMappingFindings(string $propertyName, array $mappin
 it('reports its id and level', function (): void {
     $rule = new DiscriminatorInvalidMapping();
 
-    expect($rule->id())->toBe('discriminator.invalid-mapping')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('discriminator.invalid-mapping')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all mapped schemas declare the discriminator property', function (): void {

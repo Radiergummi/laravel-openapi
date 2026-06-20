@@ -21,8 +21,11 @@ use function sprintf;
  * operationId are skipped (caught by `operation.id-missing`).
  */
 #[Scoped]
-final readonly class OperationIdNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor
+final class OperationIdNamingInconsistent extends AbstractNamingRule implements OperationRuleVisitor
 {
+    public string $id = 'operation.id-naming-inconsistent';
+    public string $description = "operationId doesn't follow the project's operation_id_case convention.";
+
     public function __construct(
         #[Config('openapi.lint.style.operation_id_case', 'dot')]
         IdentifierCase|string $case = IdentifierCase::Dot,
@@ -45,8 +48,8 @@ final readonly class OperationIdNamingInconsistent extends AbstractNamingRule im
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Operation ID "%s" on %s %s does not follow the %s naming convention',
                 $operation->operationId,
@@ -58,15 +61,5 @@ final readonly class OperationIdNamingInconsistent extends AbstractNamingRule im
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.id-naming-inconsistent';
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "operationId doesn't follow the project's operation_id_case convention.";
-    }
 }

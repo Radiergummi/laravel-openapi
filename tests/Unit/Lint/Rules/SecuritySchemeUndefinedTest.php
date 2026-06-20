@@ -54,7 +54,7 @@ function makeSchemeUndefinedContext(array $declaredSchemes): LintContext
 it('reports its id and level', function (): void {
     $rule = new SecuritySchemeUndefined();
 
-    expect($rule->id())->toBe('security.scheme-undefined')->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('security.scheme-undefined')->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all referenced schemes are declared', function (): void {

@@ -20,6 +20,10 @@ use function trim;
  */
 final class FieldDescriptionMissing implements Rule, FieldRuleVisitor
 {
+    public string $id = 'field.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Schema property has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -31,28 +35,13 @@ final class FieldDescriptionMissing implements Rule, FieldRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf('Schema property "%s" has no description', $field->name),
             fixHint: 'Add a description to the schema property explaining its meaning and constraints.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Schema property has no description.';
-    }
 }

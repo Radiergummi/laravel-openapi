@@ -23,8 +23,12 @@ use function sprintf;
  * `#[TransformerField]` and/or `#[TransformerInclude]`. swagger-php emits both properties; the
  * resulting OpenAPI schema is invalid.
  */
-final readonly class FractalDuplicateKey implements Rule, OperationRule
+final class FractalDuplicateKey implements Rule, OperationRule
 {
+    public string $id = 'fractal.duplicate-key';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A transformer declares the same output key in more than one #[TransformerField]/#[TransformerInclude].';
+
     /**
      * @return iterable<Finding>
      */
@@ -73,8 +77,8 @@ final readonly class FractalDuplicateKey implements Rule, OperationRule
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '%s declares the key \'%s\' %d times across #[TransformerField]/#[TransformerInclude]',
                     $transformer,
@@ -86,21 +90,6 @@ final readonly class FractalDuplicateKey implements Rule, OperationRule
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'fractal.duplicate-key';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A transformer declares the same output key in more than one #[TransformerField]/#[TransformerInclude].';
-    }
 }

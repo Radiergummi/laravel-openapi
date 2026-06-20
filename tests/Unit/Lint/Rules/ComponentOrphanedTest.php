@@ -90,9 +90,9 @@ function componentOrphanedFindings(array $schemas, array $refsUsed): array
 it('has the correct rule id and level', function (): void {
     $rule = new ComponentOrphaned();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('component.orphaned')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding for an unreferenced schema', function (): void {

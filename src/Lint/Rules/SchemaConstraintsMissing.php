@@ -30,6 +30,10 @@ use function sprintf;
  */
 final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, ComponentSchemaRuleVisitor
 {
+    public string $id = 'schema.constraints-missing';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A string has no maxLength, an array no maxItems, or a number no bounds.';
+
     /**
      * @return iterable<Finding>
      */
@@ -79,8 +83,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf('String schema "%s" has no maxLength constraint', $name),
                 location: $loc,
                 fixHint: 'Add a "maxLength" to cap the string length, or add a "format" or "enum" if the values are bounded by other means.',
@@ -95,8 +99,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf('Array schema "%s" has no maxItems constraint', $name),
                 location: $loc,
                 fixHint: 'Add a "maxItems" to prevent unbounded arrays from being accepted or returned.',
@@ -114,8 +118,8 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf('Numeric schema "%s" has no minimum or maximum constraint', $name),
                 location: $loc,
                 fixHint: 'Add a "minimum" and/or "maximum" to bound the numeric range.',
@@ -123,17 +127,7 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.constraints-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     /**
      * @return iterable<Finding>
@@ -175,9 +169,4 @@ final class SchemaConstraintsMissing implements Rule, FieldRuleVisitor, Componen
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A string has no maxLength, an array no maxItems, or a number no bounds.';
-    }
 }
