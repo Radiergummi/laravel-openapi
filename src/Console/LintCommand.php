@@ -13,6 +13,7 @@ use Radiergummi\OpenApi\Lint\DiffMode;
 use Radiergummi\OpenApi\Lint\DiffScope;
 use Radiergummi\OpenApi\Lint\Fix\FixRunner;
 use Radiergummi\OpenApi\Lint\Fix\FixRunResult;
+use Radiergummi\OpenApi\Lint\Fix\UnifiedDiffRenderer;
 use Radiergummi\OpenApi\Lint\Formatters\CliFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\CoberturaFormatter;
 use Radiergummi\OpenApi\Lint\Formatters\Formatter;
@@ -62,6 +63,7 @@ use function is_resource;
 use function is_string;
 use function json_encode;
 use function ksort;
+use function rtrim;
 use function sprintf;
 
 use const JSON_PRETTY_PRINT;
@@ -126,6 +128,12 @@ class LintCommand extends Command
             InputOption::VALUE_OPTIONAL,
             'Report whether --fix would change anything, without writing (safe|dangerous; CI-safe)',
             'safe',
+        ));
+        $definition->addOption(new InputOption(
+            'show-diff',
+            null,
+            InputOption::VALUE_NONE,
+            'Under --fix/--check, also print a unified diff of the changes each fix would make',
         ));
     }
 
@@ -291,6 +299,13 @@ class LintCommand extends Command
             );
         }
 
+        if (!$dryRun && $this->option('show-diff')) {
+            $this->warn(
+                '--show-diff with --fix previews changes that are also being written. '
+                . 'Use --check --show-diff to preview without writing.',
+            );
+        }
+
         $outcome = $fixRunner->run(
             $options,
             $dryRun,
@@ -299,6 +314,10 @@ class LintCommand extends Command
         );
 
         $this->renderFixOutcome($outcome);
+
+        if ($this->option('show-diff')) {
+            $this->renderFixDiff($outcome);
+        }
 
         return $outcome->exitCode();
     }
@@ -359,6 +378,26 @@ class LintCommand extends Command
                 }
             } finally {
                 $this->closeOutput($output);
+            }
+        }
+    }
+
+    /**
+     * Prints a unified diff of each file a fix would change, to the command's stdout. Kept outside
+     * {@see renderFixOutcome()} so the frozen JSON/GitHub/Markdown fix-run envelopes stay untouched:
+     * this is supplementary human output, never a machine-readable target.
+     */
+    private function renderFixDiff(FixRunResult $outcome): void
+    {
+        $renderer = new UnifiedDiffRenderer();
+
+        foreach ($outcome->fixResult->changes as $change) {
+            $diff = $renderer->render($change->file, $change->original, $change->new);
+
+            if ($diff !== '') {
+                // One writeln per line so each diff line is a distinct output write: keeps long
+                // lines unwrapped and lets line-oriented output assertions match individual hunks.
+                $this->output->writeln(explode("\n", rtrim($diff, "\n")));
             }
         }
     }

@@ -66,6 +66,7 @@ final readonly class FixApplicator
         $applied = [];
         $skipped = [];
         $modifiedFiles = [];
+        $changes = [];
 
         foreach ($byFile as $file => $fileFixes) {
             // Keep only fixes whose effects on a shared node are provably independent; the rest are
@@ -90,6 +91,7 @@ final readonly class FixApplicator
 
             if ($accepted !== [] && $newSource !== $source) {
                 $modifiedFiles[] = $file;
+                $changes[] = new FileChange($file, $source, $newSource);
 
                 if (!$dryRun) {
                     $this->write($file, $newSource);
@@ -97,7 +99,7 @@ final readonly class FixApplicator
             }
         }
 
-        return new FixResult($applied, $skipped, $modifiedFiles);
+        return new FixResult($applied, $skipped, $modifiedFiles, $changes);
     }
 
     /**

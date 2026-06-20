@@ -21,10 +21,16 @@ final class FixResult
      * @param list<Fix>        $applied
      * @param list<SkippedFix> $skipped
      * @param list<string>     $modifiedFiles
+     * @param list<FileChange> $changes       Original→new contents per modified file, captured for
+     *                                        `--show-diff`. Parallel to `$modifiedFiles`; outside
+     *                                        the frozen JSON envelope.
+     *
+     * @internal `$changes` is a Fix-backend internal, not part of any stable contract.
      */
     public function __construct(
         public readonly array $applied,
         public readonly array $skipped,
         public readonly array $modifiedFiles,
+        public readonly array $changes = [],
     ) {}
 }

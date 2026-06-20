@@ -153,6 +153,21 @@ exists) and `operation.id-invalid-chars` (rewrites the operationId to the
 codegen-safe character set). Both produce exactly the operationId inference
 would have emitted.
 
+### Previewing the changes (`--show-diff`)
+
+Add `--show-diff` to a `--fix` or `--check` run to also print a unified diff of
+every edit a fix would make:
+
+```bash
+# Preview the pending edits without writing anything
+php artisan openapi:lint --check --show-diff
+```
+
+The diff is supplementary human output printed to stdout; it never changes the
+exit code and is not part of the machine-readable `--format=json` envelope. With
+`--check` it shows exactly what `--fix` would write; combined with a real `--fix`
+(which writes) it prints the same diff and emits a reminder to that effect.
+
 ### Conflicting fixes
 
 When two fixes would touch the **same** code node (for example two rules that

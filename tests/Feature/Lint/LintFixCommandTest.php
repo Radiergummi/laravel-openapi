@@ -136,6 +136,94 @@ it('accepts --check=dangerous without error', function (): void {
         ->assertExitCode(1);
 });
 
+it('--check --show-diff prints a unified diff of the pending fix and writes nothing', function (): void {
+    $file = fixCommandFixtureFile();
+    $before = file_get_contents($file);
+
+    $this->artisan('openapi:lint', [
+        '--check' => true,
+        '--show-diff' => true,
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+        '--format' => 'markdown',
+    ])
+        ->expectsOutputToContain('@@')
+        ->expectsOutputToContain("-    #[Link(name: 'self', operationId: 'reports.show')]")
+        ->assertExitCode(1);
+
+    expect(file_get_contents($file))->toBe($before);
+});
+
+it('--show-diff is gated: without it no diff is printed', function (): void {
+    $this->artisan('openapi:lint', [
+        '--check' => true,
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+        '--format' => 'markdown',
+    ])
+        ->doesntExpectOutputToContain('@@')
+        ->assertExitCode(1);
+});
+
+it('--show-diff leaves the exit code unchanged', function (): void {
+    $this->artisan('openapi:lint', [
+        '--check' => true,
+        '--show-diff' => true,
+        '--only' => 'link.duplicate-name',
+        '--uri' => 'lint-fixtures/fix-link*',
+        '--format' => 'markdown',
+    ])->assertExitCode(1);
+});
+
+it('--show-diff leaves the frozen fix-run JSON envelope byte-identical', function (): void {
+    $run = function (bool $showDiff): string {
+        $path = tempnam(sys_get_temp_dir(), 'openapi-fixrun-') . '.json';
+
+        try {
+            $args = [
+                '--check' => true,
+                '--only' => 'link.duplicate-name',
+                '--uri' => 'lint-fixtures/fix-link*',
+                '--format' => "json:{$path}",
+            ];
+
+            if ($showDiff) {
+                $args['--show-diff'] = true;
+            }
+
+            $this->artisan('openapi:lint', $args)->assertExitCode(1);
+
+            return (string) file_get_contents($path);
+        } finally {
+            if (file_exists($path)) {
+                unlink($path);
+            }
+        }
+    };
+
+    expect($run(true))->toBe($run(false));
+});
+
+it('--show-diff combined with a real --fix warns it writes', function (): void {
+    $file = fixCommandFixtureFile();
+    $before = file_get_contents($file);
+
+    try {
+        $this->artisan('openapi:lint', [
+            '--fix' => true,
+            '--show-diff' => true,
+            '--only' => 'link.duplicate-name',
+            '--uri' => 'lint-fixtures/fix-link*',
+            '--format' => 'markdown',
+        ])
+            ->expectsOutputToContain('--show-diff with --fix')
+            ->expectsOutputToContain('@@')
+            ->assertExitCode(0);
+    } finally {
+        file_put_contents($file, $before);
+    }
+});
+
 it('errors clearly on an unknown --check level', function (): void {
     // The artisan harness propagates the thrown InvalidArgumentException rather than converting it
     // to an exit code, so assert on the throw directly (mirrors the --min-coverage validation test).
