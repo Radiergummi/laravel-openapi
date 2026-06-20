@@ -217,6 +217,18 @@ it('lets a documented-enum case list pre-empt the @property description', functi
         ->not->toBe('A described status tag.');
 });
 
+it('keeps a relation @property-read description on its $ref property', function (): void {
+    // A relation $ref's field description exists nowhere else, so the trailing prose must survive.
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'author');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    expect($property->ref)
+        ->toBe('#/components/schemas/Author')
+        ->and($property->description)->toBe("The article's primary author.");
+});
+
 it('memoises the model metadata across lookups', function (): void {
     $reader = modelPropertyReader();
 
