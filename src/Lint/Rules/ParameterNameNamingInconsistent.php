@@ -38,9 +38,9 @@ final class ParameterNameNamingInconsistent extends AbstractNamingRule implement
     /** @var list<string> */
     private const array FRAMEWORK_QUERY_PARAMS = ['page', 'per_page', 'sort', 'include'];
 
-    private IdentifierCase $pathCase;
+    private readonly IdentifierCase $pathCase;
 
-    private IdentifierCase $queryCase;
+    private readonly IdentifierCase $queryCase;
 
     public function __construct(
         #[Config('openapi.lint.style.path_parameter_case', 'camel')]

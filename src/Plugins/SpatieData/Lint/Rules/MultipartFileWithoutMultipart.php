@@ -31,8 +31,8 @@ final class MultipartFileWithoutMultipart implements Rule, OperationRuleVisitor
     public string $description = 'Data class carries a file property but a #[RequestBody] override forces a non-multipart body — the spec contradicts the code.';
 
     public function __construct(
-        private FilePropertyChecker $schemaBuilder,
-        private PayloadParameterScanner $scanner,
+        private readonly FilePropertyChecker $schemaBuilder,
+        private readonly PayloadParameterScanner $scanner,
     ) {}
 
     /**

@@ -71,10 +71,10 @@ final class OaReplaceableByAttribute implements Rule, ComponentSchemaRule, Opera
     public const string CONTEXT_ATTRIBUTE_ARGUMENTS = 'attributeArguments';
 
     public function __construct(
-        private AuthoredAnnotationScanner $scanner,
-        private SchemaEquivalence $equivalence,
-        private LoggerInterface $logger,
-        private OaAttributeArgumentMapper $mapper = new OaAttributeArgumentMapper(),
+        private readonly AuthoredAnnotationScanner $scanner,
+        private readonly SchemaEquivalence $equivalence,
+        private readonly LoggerInterface $logger,
+        private readonly OaAttributeArgumentMapper $mapper = new OaAttributeArgumentMapper(),
     ) {}
 
     /**

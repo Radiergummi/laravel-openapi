@@ -34,9 +34,9 @@ final class ResourceFieldsUndeclared implements Rule, OperationRuleVisitor
         . 'and its shape cannot be inferred from toArray() or a wrapped model.';
 
     public function __construct(
-        private ResourceTargetLocator $locator,
-        private ResourceToArrayReader $toArrayReader,
-        private WrappedModelLocator $wrappedModelLocator,
+        private readonly ResourceTargetLocator $locator,
+        private readonly ResourceToArrayReader $toArrayReader,
+        private readonly WrappedModelLocator $wrappedModelLocator,
     ) {}
 
     /**

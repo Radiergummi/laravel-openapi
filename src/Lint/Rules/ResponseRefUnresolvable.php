@@ -33,7 +33,7 @@ final class ResponseRefUnresolvable implements Rule, PreBuildRule
     /**
      * @param list<RefSchemaResolver> $refSchemaResolvers
      */
-    public function __construct(private array $refSchemaResolvers) {}
+    public function __construct(private readonly array $refSchemaResolvers) {}
 
 
 

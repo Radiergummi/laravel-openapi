@@ -28,7 +28,7 @@ final class ResourceResponseAmbiguous implements Rule, OperationRuleVisitor
         . 'nor the collection\'s #[Collects]/$collects declaration, nor the return expression resolves one.';
 
     public function __construct(
-        private ResourceTargetLocator $locator,
+        private readonly ResourceTargetLocator $locator,
     ) {}
 
     /**

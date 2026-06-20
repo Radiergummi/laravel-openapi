@@ -45,12 +45,12 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     public Severity $severity = Severity::Improvable;
     public string $description = 'A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference.';
 
-    private OaRedundancyEngine $engine;
+    private readonly OaRedundancyEngine $engine;
 
-    private OperationSubsumption $comparator;
+    private readonly OperationSubsumption $comparator;
 
     public function __construct(
-        private AuthoredAnnotationScanner $scanner,
+        private readonly AuthoredAnnotationScanner $scanner,
         SchemaEquivalence $equivalence,
     ) {
         $this->engine = new OaRedundancyEngine();

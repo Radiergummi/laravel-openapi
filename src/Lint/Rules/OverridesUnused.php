@@ -25,7 +25,7 @@ final class OverridesUnused implements PreBuildRule, Rule
 
     public const string ID = 'overrides.unused';
 
-    public function __construct(private OverrideMatcher $matcher) {}
+    public function __construct(private readonly OverrideMatcher $matcher) {}
 
 
 

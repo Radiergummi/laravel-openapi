@@ -37,7 +37,7 @@ final class FieldAttributeWrongScope implements Rule, OperationRuleVisitor
     public string $description = '#[RequestField] on a URI parameter, or #[PathParam] on a Data-class property.';
 
     public function __construct(
-        private PayloadParameterScanner $scanner,
+        private readonly PayloadParameterScanner $scanner,
     ) {}
 
     /**

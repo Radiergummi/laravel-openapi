@@ -31,7 +31,7 @@ final class ScopeOverlyBroad implements Rule, OperationRuleVisitor
      * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
      *                                            resolved from the context index.
      */
-    public function __construct(private ?array $registeredScopes = null) {}
+    public function __construct(private readonly ?array $registeredScopes = null) {}
 
     /**
      * @return iterable<Finding>

@@ -37,7 +37,7 @@ final class QueryBuilderParamsUndeclared implements Rule, OperationRule
     private const string QUERY_BUILDER_CLASS = 'Spatie\\QueryBuilder\\QueryBuilder';
 
     public function __construct(
-        private PayloadParameterScanner $scanner,
+        private readonly PayloadParameterScanner $scanner,
     ) {}
 
     /**

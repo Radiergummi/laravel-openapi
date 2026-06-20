@@ -27,7 +27,7 @@ final class SpecUnknownReference implements Rule, PreBuildRule
 
     public const string ID = 'spec.unknown-reference';
 
-    public function __construct(private SpecResolver $resolver) {}
+    public function __construct(private readonly SpecResolver $resolver) {}
 
 
 

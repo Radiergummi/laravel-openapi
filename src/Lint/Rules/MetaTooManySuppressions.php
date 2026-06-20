@@ -24,7 +24,7 @@ final class MetaTooManySuppressions implements Rule, ApiRuleVisitor
     public Severity $severity = Severity::Inconsistent;
     public string $description = 'Symbol carries an excessive number of suppression directives.';
 
-    public function __construct(private int $threshold = 5) {}
+    public function __construct(private readonly int $threshold = 5) {}
 
     /**
      * @return iterable<Finding>

@@ -27,7 +27,7 @@ final class ResourceFieldTypeMissing implements Rule, OperationRuleVisitor
     public string $description = 'A #[ResourceField] is declared without a resolvable type.';
 
     public function __construct(
-        private ResourceTargetLocator $locator,
+        private readonly ResourceTargetLocator $locator,
     ) {}
 
     /**

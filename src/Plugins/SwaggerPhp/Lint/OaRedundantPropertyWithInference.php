@@ -56,7 +56,7 @@ final class OaRedundantPropertyWithInference implements Rule, ComponentSchemaRul
     public string $description = 'A hand-authored member OA\Property on a Spatie Data class the generator already infers.';
 
     public function __construct(
-        private AuthoredAnnotationScanner $scanner,
+        private readonly AuthoredAnnotationScanner $scanner,
     ) {}
 
     /**

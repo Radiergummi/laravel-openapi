@@ -31,7 +31,7 @@ final class PublicEndpointContradictsMiddleware implements Rule, OperationRuleVi
     public string $description = '#[PublicEndpoint] is present but the route has auth/scope middleware.';
 
     public function __construct(
-        private RouteMiddlewareGatherer $middlewareGatherer,
+        private readonly RouteMiddlewareGatherer $middlewareGatherer,
     ) {}
 
     /**

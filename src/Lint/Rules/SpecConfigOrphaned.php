@@ -27,9 +27,9 @@ final class SpecConfigOrphaned implements PreBuildRule, Rule
     public const string ID = 'spec.config-orphaned';
 
     public function __construct(
-        private InclusionEvaluator $evaluator,
+        private readonly InclusionEvaluator $evaluator,
         #[Config('app.env')]
-        private string $environment,
+        private readonly string $environment,
     ) {}
 
 

@@ -34,9 +34,9 @@ final class ResourceResponseEmpty implements Rule, OperationRuleVisitor
         . 'shape. It ships an empty {data: {}} envelope.';
 
     public function __construct(
-        private ResourceTargetLocator $locator,
-        private ResourceToArrayReader $toArrayReader,
-        private WrappedModelLocator $wrappedModelLocator,
+        private readonly ResourceTargetLocator $locator,
+        private readonly ResourceToArrayReader $toArrayReader,
+        private readonly WrappedModelLocator $wrappedModelLocator,
     ) {}
 
     /**

@@ -28,7 +28,7 @@ final class VisibilityAttributeNoOp implements Rule, RouteRule
     public Severity $severity = Severity::Underspecified;
     public string $description = 'Unconditional visibility attribute that has no effect under the active default.';
 
-    public function __construct(private VisibilityResolver $visibility) {}
+    public function __construct(private readonly VisibilityResolver $visibility) {}
 
 
     /**

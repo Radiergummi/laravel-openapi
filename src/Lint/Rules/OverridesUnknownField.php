@@ -36,7 +36,7 @@ final class OverridesUnknownField implements PreBuildRule, Rule
      */
     public function __construct(
         #[Config('openapi.overrides')]
-        private array $overrides = [],
+        private readonly array $overrides = [],
     ) {}
 
 

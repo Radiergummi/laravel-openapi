@@ -40,7 +40,7 @@ final class ThrowsTransitiveMissing implements Rule, OperationRuleVisitor
     public Severity $severity = Severity::Degraded;
     public string $description = 'Action::handle() declares @throws exceptions not redeclared on the controller method.';
 
-    private ThrowsExtractor $throwsExtractor;
+    private readonly ThrowsExtractor $throwsExtractor;
 
     public function __construct(?ThrowsExtractor $throwsExtractor = null)
     {

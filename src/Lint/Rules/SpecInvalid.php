@@ -42,9 +42,9 @@ final class SpecInvalid implements Rule, ApiRuleVisitor
     public Severity $severity = Severity::Broken;
     public string $description = 'Spec fails swagger-php validation. Cannot be suppressed or remapped.';
 
-    private string $schemaPath;
+    private readonly string $schemaPath;
 
-    private ErrorFormatter $formatter;
+    private readonly ErrorFormatter $formatter;
 
     public function __construct(?string $schemaPath = null)
     {

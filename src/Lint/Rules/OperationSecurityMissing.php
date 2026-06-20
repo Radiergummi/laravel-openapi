@@ -34,7 +34,7 @@ final class OperationSecurityMissing implements Rule, OperationRuleVisitor
     public string $description = 'Route enforces auth middleware but the operation declares no security, implying the endpoint is public.';
 
     public function __construct(
-        private RouteMiddlewareGatherer $middlewareGatherer,
+        private readonly RouteMiddlewareGatherer $middlewareGatherer,
     ) {}
 
     /**

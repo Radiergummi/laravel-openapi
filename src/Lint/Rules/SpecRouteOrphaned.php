@@ -32,7 +32,7 @@ final class SpecRouteOrphaned implements Rule, PreBuildRule
 
     public const string ID = 'spec.route-orphaned';
 
-    public function __construct(private SpecResolver $resolver) {}
+    public function __construct(private readonly SpecResolver $resolver) {}
 
 
 

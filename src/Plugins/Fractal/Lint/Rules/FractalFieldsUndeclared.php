@@ -31,7 +31,7 @@ final class FractalFieldsUndeclared implements Rule, OperationRule
     public string $description = 'A transformer bound via #[FractalResponse] declares no #[TransformerField] attributes.';
 
     public function __construct(
-        private TransformerTransformReader $transformReader,
+        private readonly TransformerTransformReader $transformReader,
     ) {}
 
     /**

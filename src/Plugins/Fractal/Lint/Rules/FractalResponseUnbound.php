@@ -35,7 +35,7 @@ final class FractalResponseUnbound implements Rule, OperationRule
     private const string MANAGER_CLASS = 'League\\Fractal\\Manager';
 
     public function __construct(
-        private PayloadParameterScanner $scanner,
+        private readonly PayloadParameterScanner $scanner,
     ) {}
 
     /**
