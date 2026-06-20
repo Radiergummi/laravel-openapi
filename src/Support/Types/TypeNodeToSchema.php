@@ -243,7 +243,7 @@ final readonly class TypeNodeToSchema
         );
     }
 
-    /** Whether a generic base denotes an array/list or a collection that shares its key semantics. */
+    /** Whether a generic base denotes an array/list or a collection sharing its key semantics. */
     private function isArrayLikeGeneric(string $name): bool
     {
         $lower = strtolower($name);
@@ -252,7 +252,8 @@ final readonly class TypeNodeToSchema
             return true;
         }
 
-        $shortName = substr($lower, strrpos($lower, '\\') === false ? 0 : strrpos($lower, '\\') + 1);
+        $separator = strrpos($lower, '\\');
+        $shortName = $separator === false ? $lower : substr($lower, $separator + 1);
 
         return in_array($shortName, self::COLLECTION_GENERICS, strict: true);
     }

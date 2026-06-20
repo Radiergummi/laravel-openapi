@@ -129,6 +129,20 @@ it('resolves array<string, mixed> into a permissive map', function (): void {
         ->and($schema['additionalProperties'])->toBeTrue();
 });
 
+it('keeps an unreadable map value as an empty schema, not a permissive map', function (): void {
+    foreach (
+        [
+            'array<string, NotARealClassXyz>',
+            'Illuminate\Support\Collection<string, NotARealClassXyz>',
+        ] as $expression
+    ) {
+        $schema = resolveTypeToArray($expression);
+
+        expect($schema['type'])->toBe('object')
+            ->and($schema['additionalProperties'])->toBe([]);
+    }
+});
+
 it('resolves Collection<string, T> into an object with additionalProperties', function (): void {
     $schema = resolveTypeToArray('Illuminate\Support\Collection<string, int>');
 
