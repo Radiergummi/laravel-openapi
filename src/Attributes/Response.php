@@ -15,6 +15,10 @@ use Radiergummi\OpenApi\Enums\MediaType;
  * `ref` resolves to a `#/components/schemas/…` ref via a registered {@see RefSchemaResolver}
  * (ApiResource, Data, …). `schema` is a literal JSON Schema and wins over `ref` when both are set.
  *
+ * Pass `mediaTypes` to offer the same response under several content types (e.g.
+ * `application/json` + `application/yaml`); the generator emits one entry per declared type
+ * carrying the same schema. `mediaTypes` wins over the single `mediaType` when both are set.
+ *
  * ```php
  * #[OpenApi\Response(status: 404, description: 'Project not found')]
  * #[OpenApi\Response(status: 422, description: 'Validation failed', ref: ValidationErrorResource::class)]
@@ -28,6 +32,8 @@ final readonly class Response
      * @param non-empty-string          $description
      * @param null|class-string         $ref
      * @param null|array<string, mixed> $schema
+     * @param null|list<MediaType>      $mediaTypes  Emits the response under multiple content types;
+     *                                               wins over `mediaType` when both are set.
      */
     public function __construct(
         public int $status,
@@ -35,5 +41,6 @@ final readonly class Response
         public ?string $ref = null,
         public ?array $schema = null,
         public ?MediaType $mediaType = null,
+        public ?array $mediaTypes = null,
     ) {}
 }
