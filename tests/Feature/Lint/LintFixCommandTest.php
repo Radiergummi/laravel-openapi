@@ -217,6 +217,7 @@ it('--show-diff combined with a real --fix warns it writes', function (): void {
             '--format' => 'markdown',
         ])
             ->expectsOutputToContain('--show-diff with --fix')
+            ->expectsOutputToContain('@@')
             ->assertExitCode(0);
     } finally {
         file_put_contents($file, $before);
