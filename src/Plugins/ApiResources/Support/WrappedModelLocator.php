@@ -57,7 +57,13 @@ final class WrappedModelLocator
             return $this->cache[$resourceClass];
         }
 
-        return $this->cache[$resourceClass] = $this->modelClassOf($this->resolveClassName($resourceClass));
+        /** @var null|class-string<Model> $modelClass */
+        $modelClass = $this->resolveClassName(
+            $resourceClass,
+            static fn(string $className): bool => is_a($className, Model::class, allow_string: true),
+        );
+
+        return $this->cache[$resourceClass] = $modelClass;
     }
 
     /**
@@ -76,22 +82,26 @@ final class WrappedModelLocator
             return $this->valueObjectCache[$resourceClass];
         }
 
-        return $this->valueObjectCache[$resourceClass] = $this->valueObjectClassOf(
-            $this->resolveClassName($resourceClass),
+        return $this->valueObjectCache[$resourceClass] = $this->resolveClassName(
+            $resourceClass,
+            static fn(string $className): bool => !is_a($className, Model::class, allow_string: true),
         );
     }
 
     /**
-     * The wrapped class-string from `@mixin` (preferred) or the `@extends` generic argument,
-     * unfiltered by what kind of class it is.
+     * The first wrapped class accepted by `$matches`, taken from `@mixin` (preferred) then the
+     * `@extends` generic argument. Filtering inside both loops preserves the tag precedence even
+     * when an earlier tag names a class of the other kind (e.g. a non-Model `@mixin` alongside a
+     * Model `@extends`).
      *
-     * @param class-string<JsonResource> $resourceClass
+     * @param class-string<JsonResource>   $resourceClass
+     * @param callable(class-string): bool $matches
      *
      * @return null|class-string
      *
      * @throws ReflectionException
      */
-    private function resolveClassName(string $resourceClass): ?string
+    private function resolveClassName(string $resourceClass, callable $matches): ?string
     {
         $reflection = new ReflectionClass($resourceClass);
         $docComment = $reflection->getDocComment();
@@ -109,7 +119,7 @@ final class WrappedModelLocator
 
             $className = $this->typeNodeResolver->resolveClassName($tag->type, $reflection);
 
-            if ($className !== null && class_exists($className)) {
+            if ($className !== null && class_exists($className) && $matches($className)) {
                 return $className;
             }
         }
@@ -121,40 +131,11 @@ final class WrappedModelLocator
 
             $className = $this->typeNodeResolver->genericValueClass($tag->type, $reflection);
 
-            if ($className !== null && class_exists($className)) {
+            if ($className !== null && class_exists($className) && $matches($className)) {
                 return $className;
             }
         }
 
         return null;
-    }
-
-    /**
-     * @param null|class-string $className
-     *
-     * @return null|class-string<Model>
-     */
-    private function modelClassOf(?string $className): ?string
-    {
-        if ($className === null || !is_a($className, Model::class, allow_string: true)) {
-            return null;
-        }
-
-        /** @var class-string<Model> $className */
-        return $className;
-    }
-
-    /**
-     * @param null|class-string $className
-     *
-     * @return null|class-string
-     */
-    private function valueObjectClassOf(?string $className): ?string
-    {
-        if ($className === null || is_a($className, Model::class, allow_string: true)) {
-            return null;
-        }
-
-        return $className;
     }
 }

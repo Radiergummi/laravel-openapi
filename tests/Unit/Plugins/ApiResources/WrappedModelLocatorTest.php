@@ -37,6 +37,24 @@ class BothTagsResource extends GenericBaseResource {}
 /** @mixin DocBlockParser */
 class NonModelMixinResource extends JsonResource {}
 
+/**
+ * A non-Model `@mixin` must not shadow a Model `@extends` when locating the model.
+ *
+ * @mixin DocBlockParser
+ *
+ * @extends GenericBaseResource<Article>
+ */
+class NonModelMixinModelExtendsResource extends GenericBaseResource {}
+
+/**
+ * A Model `@mixin` must not shadow a non-Model `@extends` when locating the value object.
+ *
+ * @mixin Article
+ *
+ * @extends GenericBaseResource<DocBlockParser>
+ */
+class ModelMixinNonModelExtendsResource extends GenericBaseResource {}
+
 class UntaggedResource extends JsonResource {}
 
 function wrappedModelLocator(): WrappedModelLocator
@@ -77,4 +95,13 @@ it('returns null from locateValueObject when the wrapped class is a Model', func
 
 it('returns null from locateValueObject when no wrapped class is declared', function (): void {
     expect(wrappedModelLocator()->locateValueObject(UntaggedResource::class))->toBeNull();
+});
+
+it('finds the model in @extends even when @mixin names a non-Model', function (): void {
+    expect(wrappedModelLocator()->locate(NonModelMixinModelExtendsResource::class))->toBe(Article::class);
+});
+
+it('finds the value object in @extends even when @mixin names a Model', function (): void {
+    expect(wrappedModelLocator()->locateValueObject(ModelMixinNonModelExtendsResource::class))
+        ->toBe(DocBlockParser::class);
 });

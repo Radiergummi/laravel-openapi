@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Support\Extraction\PublicPropertyTypeReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
+use Radiergummi\OpenApi\Tests\Fixtures\UnitFixtureEnum;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('openapi');
@@ -42,6 +43,7 @@ class PublicPropertyReaderFixture
         public ArticleStatus $status = ArticleStatus::Draft,
         public int|string $mixedKey = 0,
         public IntersectionLeft&IntersectionRight $intersection = new IntersectionFixture(),
+        public UnitFixtureEnum $kind = UnitFixtureEnum::Alpha,
         protected string $secret = '',
     ) {}
 }
@@ -96,6 +98,9 @@ it('refuses to type properties that cannot be modelled without guessing', functi
 })->with([
     'union' => ['mixedKey'],
     'intersection' => ['intersection'],
+    // A unit (non-backed) enum has no JSON-primitive representation; refusing keeps the
+    // value-object path from emitting JsonSchemaFromType's apology-string placeholder.
+    'unit enum' => ['kind'],
     'untyped' => ['untyped'],
     'non-public' => ['secret'],
     'static' => ['shared'],
