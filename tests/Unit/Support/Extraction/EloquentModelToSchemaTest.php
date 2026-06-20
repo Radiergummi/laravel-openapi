@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\DescribedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\EncryptedCastArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\FactoryArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle;
@@ -28,6 +29,8 @@ use Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\VisibleArticle;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+
+use function Radiergummi\OpenApi\is_undefined;
 
 uses()->group('openapi');
 
@@ -456,4 +459,29 @@ it('leaves properties without an example when the model has no factory', functio
 
     // Generator::UNDEFINED marks an unset swagger-php field.
     expect(modelProperty($schema, 'name')->example)->toBe(Generator::UNDEFINED);
+});
+
+it('captures @property trailing descriptions in the schema', function (): void {
+    $schema = buildModelSchema(DescribedArticle::class);
+
+    expect(modelProperty($schema, 'email')->description)
+        ->toBe('The primary contact email.')
+        ->and(modelProperty($schema, 'slug')->description)->toBe('URL-safe identifier.')
+        ->and(modelProperty($schema, 'published_at')->description)->toBe('When the article went live.');
+});
+
+it('emits no description for a schema @property without trailing text', function (): void {
+    $schema = buildModelSchema(DescribedArticle::class);
+
+    expect(is_undefined(modelProperty($schema, 'name')->description))->toBeTrue();
+});
+
+it('does not overlay a @property description onto a $ref enum property in the schema', function (): void {
+    // schemaFor promotes the backed enum to a component $ref; its case-list description lives on
+    // the referenced component, so the tag prose must not be set as a sibling of the $ref.
+    $status = modelProperty(buildModelSchema(DescribedArticle::class), 'status');
+
+    expect($status->ref)
+        ->toBe('#/components/schemas/DescribedStatus')
+        ->and(is_undefined($status->description))->toBeTrue();
 });

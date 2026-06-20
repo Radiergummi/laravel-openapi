@@ -15,9 +15,12 @@ use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\DescribedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\JsonColumnArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
+
+use function Radiergummi\OpenApi\is_undefined;
 
 uses()->group('openapi');
 
@@ -140,6 +143,66 @@ it('defers a custom-cast column to its @property tag on the lookup path (#252)',
         ->toBeNull()
         ->and(json_decode(json_encode($property, JSON_THROW_ON_ERROR), associative: true))
         ->toEqual(['property' => 'custom', 'type' => 'string']);
+});
+
+it('captures a @property trailing description', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'email');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    expect($property->description)->toBe('The primary contact email.');
+});
+
+it('emits no description for a @property without trailing text', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'name');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    expect(is_undefined($property->description))->toBeTrue();
+});
+
+it('captures a @property description with no surrounding whitespace', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'title');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    expect($property->description)->toBe('Surrounded by spaces.');
+});
+
+it('captures a @property-read trailing description', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'slug');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    expect($property->description)->toBe('URL-safe identifier.');
+});
+
+it('captures a @property description on a cast column', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'published_at');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    expect($property->type)
+        ->toBe('string')
+        ->and($property->format)->toBe('date-time')
+        ->and($property->description)->toBe('When the article went live.');
+});
+
+it('lets a documented-enum case list pre-empt the @property description', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'status');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    // The backed-enum case list (more specific than free prose) wins over the @property text.
+    expect($property->description)
+        ->toContain('`draft`: The article is still being written.')
+        ->not->toBe('A described status tag.');
 });
 
 it('memoises the model metadata across lookups', function (): void {
