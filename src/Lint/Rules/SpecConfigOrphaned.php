@@ -18,8 +18,12 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
  * Reports specs declared in config('openapi.specs') that match no routes. An empty spec produces
  * an invalid or useless document and usually indicates a misconfigured match filter.
  */
-final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
+final class SpecConfigOrphaned implements PreBuildRule, Rule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = "Spec is defined in config('openapi.specs') but matches no routes.";
+
     public const string ID = 'spec.config-orphaned';
 
     public function __construct(
@@ -28,17 +32,7 @@ final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
         private string $environment,
     ) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Spec is defined in config('openapi.specs') but matches no routes.";
-    }
 
     #[Override]
     public function checkConfiguration(
@@ -61,7 +55,7 @@ final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        severity: $this->severity(),
+                        severity: $this->severity,
                         message: "Spec '{$spec->name}' is defined in config but matches no routes.",
                         fixHint: "Adjust the spec's match config or remove the spec entry.",
                     ),
@@ -70,9 +64,4 @@ final readonly class SpecConfigOrphaned implements PreBuildRule, Rule
         }
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 }

@@ -24,8 +24,14 @@ use function sprintf;
  * Ships at level 2 because the `fractal()` helper and facade never inject a `Manager`, so they
  * would never trigger this rule; silencing them at level 1 would be misleading.
  */
-final readonly class FractalResponseUnbound implements Rule, OperationRule
+final class FractalResponseUnbound implements Rule, OperationRule
 {
+    public string $id = 'fractal.response-unbound';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A method injects a Fractal Manager but declares no #[FractalResponse]. '
+        . 'Does not cover the fractal() helper or the Spatie\\Fractalistic\\Fractal facade, '
+        . 'which are invoked inside method bodies and never inject a Manager.';
+
     private const string MANAGER_CLASS = 'League\\Fractal\\Manager';
 
     public function __construct(
@@ -54,8 +60,8 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s %s injects a Fractal Manager but declares no #[FractalResponse]',
                 $operation->method->forDisplay(),
@@ -65,23 +71,6 @@ final readonly class FractalResponseUnbound implements Rule, OperationRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'fractal.response-unbound';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A method injects a Fractal Manager but declares no #[FractalResponse]. '
-            . 'Does not cover the fractal() helper or the Spatie\\Fractalistic\\Fractal facade, '
-            . 'which are invoked inside method bodies and never inject a Manager.';
-    }
 }

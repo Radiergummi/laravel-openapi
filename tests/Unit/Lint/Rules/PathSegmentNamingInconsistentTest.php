@@ -12,8 +12,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new PathSegmentNamingInconsistent();
 
-    expect($rule->id())->toBe('path.segment-naming-inconsistent')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('path.segment-naming-inconsistent')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('default (kebab): passes paths whose static segments are kebab-case', function (string $pathUri): void {

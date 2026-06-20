@@ -24,8 +24,12 @@ use function sprintf;
  * whose Data class carries an `UploadedFile` property, contradicting the code. The auto-generated
  * path never trips this rule; it only catches explicit overrides.
  */
-final readonly class MultipartFileWithoutMultipart implements Rule, OperationRuleVisitor
+final class MultipartFileWithoutMultipart implements Rule, OperationRuleVisitor
 {
+    public string $id = 'multipart.file-without-multipart';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Data class carries a file property but a #[RequestBody] override forces a non-multipart body — the spec contradicts the code.';
+
     public function __construct(
         private FilePropertyChecker $schemaBuilder,
         private PayloadParameterScanner $scanner,
@@ -56,8 +60,8 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s::%s() accepts an UploadedFile via a Data object, but %s %s overrides the body to a non-multipart media type — the file field will not transfer',
                 $operation->descriptor->controller?->getShortName() ?? '(unknown)',
@@ -84,21 +88,6 @@ final readonly class MultipartFileWithoutMultipart implements Rule, OperationRul
         return $dataClass !== null && $this->schemaBuilder->hasFileProperties($dataClass);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'multipart.file-without-multipart';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Data class carries a file property but a #[RequestBody] override forces a non-multipart body — the spec contradicts the code.';
-    }
 }

@@ -23,8 +23,11 @@ use function sprintf;
  * so the default convention is {@see IdentifierCase::Pascal}.
  */
 #[Scoped]
-final readonly class TagNameNamingInconsistent extends AbstractNamingRule implements ApiRuleVisitor
+final class TagNameNamingInconsistent extends AbstractNamingRule implements ApiRuleVisitor
 {
+    public string $id = 'tag.name-naming-inconsistent';
+    public string $description = "Tag name doesn't follow the project's tag_case convention.";
+
     public function __construct(
         #[Config('openapi.lint.style.tag_case', 'pascal')]
         IdentifierCase|string $case = IdentifierCase::Pascal,
@@ -44,8 +47,8 @@ final readonly class TagNameNamingInconsistent extends AbstractNamingRule implem
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Tag name "%s" does not follow the %s naming convention',
                     $tagName,
@@ -57,15 +60,5 @@ final readonly class TagNameNamingInconsistent extends AbstractNamingRule implem
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'tag.name-naming-inconsistent';
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Tag name doesn't follow the project's tag_case convention.";
-    }
 }

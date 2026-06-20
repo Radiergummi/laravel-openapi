@@ -21,6 +21,10 @@ use function sprintf;
  */
 final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
 {
+    public string $id = 'response.status-unconventional';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Response uses a status code that is unusual for the HTTP method.';
+
     /**
      * @return iterable<Finding>
      */
@@ -64,8 +68,8 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
         $expected = $method === HttpMethod::Post ? '201' : '204';
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Operation %s %s uses status 200 as its only success response; consider using %s instead',
                 $method->forDisplay(),
@@ -80,21 +84,6 @@ final class ResponseStatusUnconventional implements Rule, ResponseRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.status-unconventional';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Response uses a status code that is unusual for the HTTP method.';
-    }
 }

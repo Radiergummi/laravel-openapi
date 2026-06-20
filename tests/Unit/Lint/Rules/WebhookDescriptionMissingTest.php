@@ -44,9 +44,9 @@ function makeWebhookForDescription(string $name, ?string $description): WebhookN
 it('has the correct rule id and level', function (): void {
     $rule = new WebhookDescriptionMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('webhook.description-missing')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('emits a finding when a webhook has a missing or blank description', function (?string $description): void {

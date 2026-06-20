@@ -24,7 +24,7 @@ function topLevelCompositeFindings(OA\OpenApi $document, array $rules): array
 {
     $builder = new SpecTreeBuilder();
     $api = $builder->build($document, []);
-    $index = TreeIndex::build($api, $document, array_map(static fn($r) => $r->id(), $rules), []);
+    $index = TreeIndex::build($api, $document, array_map(static fn($r) => $r->id, $rules), []);
     $context = new LintContext(api: $api, index: $index, rawSpec: $document, actionDescriptors: [], suppressions: []);
 
     return iterator_to_array(

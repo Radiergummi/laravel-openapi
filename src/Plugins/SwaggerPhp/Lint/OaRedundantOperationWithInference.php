@@ -39,8 +39,12 @@ use function sprintf;
  *
  * @internal
  */
-final readonly class OaRedundantOperationWithInference implements Rule, OperationRule, FixableRule, NeedsInferenceDocument
+final class OaRedundantOperationWithInference implements Rule, OperationRule, FixableRule, NeedsInferenceDocument
 {
+    public string $id = 'migration.oa-redundant-operation-with-inference';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference.';
+
     private OaRedundancyEngine $engine;
 
     private OperationSubsumption $comparator;
@@ -85,8 +89,8 @@ final readonly class OaRedundantOperationWithInference implements Rule, Operatio
             $this->comparator,
             fn(): ReflectionMethod => new ReflectionMethod($controller, $method),
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'The %s on %s::%s restates an operation the generator already infers; it can be removed.',
                     $shape === AuthoredAnnotationShape::Docblock
@@ -110,17 +114,7 @@ final readonly class OaRedundantOperationWithInference implements Rule, Operatio
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-redundant-operation-with-inference';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -139,9 +133,4 @@ final readonly class OaRedundantOperationWithInference implements Rule, Operatio
         return [HarvestAuthoredAnnotationsStage::class];
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A hand-authored @OA / #[OA\*] operation annotation the generator already reproduces via inference.';
-    }
 }

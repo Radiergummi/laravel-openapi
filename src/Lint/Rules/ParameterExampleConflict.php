@@ -21,6 +21,10 @@ use function sprintf;
  */
 final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
 {
+    public string $id = 'parameter.example-conflict';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A parameter sets both example and examples (mutually exclusive).';
+
     /**
      * @return iterable<Finding>
      */
@@ -39,8 +43,8 @@ final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Parameter "%s" sets both "example" and "examples", which are mutually exclusive.',
                 $parameter->name,
@@ -49,21 +53,6 @@ final class ParameterExampleConflict implements Rule, ParameterRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.example-conflict';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A parameter sets both example and examples (mutually exclusive).';
-    }
 }

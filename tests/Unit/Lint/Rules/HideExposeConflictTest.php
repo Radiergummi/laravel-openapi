@@ -23,9 +23,9 @@ function hideExposeConflictFindings(string $method): array
 it('has the correct rule id and level', function (): void {
     $rule = new HideExposeConflict();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('visibility.hide-expose-conflict')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when #[Hide] and #[Expose] both apply unconditionally', function (): void {

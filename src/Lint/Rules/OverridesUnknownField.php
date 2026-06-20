@@ -22,8 +22,13 @@ use function is_array;
  * ({@see OverrideMatcher::ALLOWED_FIELDS} plus any `x-*` extension). Such fields are silently
  * skipped at apply time, so without this rule a typo'd field key would be a silent no-op.
  */
-final readonly class OverridesUnknownField implements PreBuildRule, Rule
+final class OverridesUnknownField implements PreBuildRule, Rule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Override block sets a field outside the allowlist '
+        . '(operationId, summary, description, tags, deprecated, x-*).';
+
     public const string ID = 'overrides.unknown-field';
 
     /**
@@ -34,18 +39,7 @@ final readonly class OverridesUnknownField implements PreBuildRule, Rule
         private array $overrides = [],
     ) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Override block sets a field outside the allowlist '
-            . '(operationId, summary, description, tags, deprecated, x-*).';
-    }
 
     #[Override]
     public function checkConfiguration(
@@ -66,7 +60,7 @@ final readonly class OverridesUnknownField implements PreBuildRule, Rule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        severity: $this->severity(),
+                        severity: $this->severity,
                         message: "Override '{$key}' sets unknown field '{$field}'.",
                         fixHint: 'Allowed: ' . implode(', ', OverrideMatcher::ALLOWED_FIELDS) . ', x-*',
                     ),
@@ -75,9 +69,4 @@ final readonly class OverridesUnknownField implements PreBuildRule, Rule
         }
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 }

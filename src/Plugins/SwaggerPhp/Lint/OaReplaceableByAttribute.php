@@ -57,9 +57,12 @@ use function substr;
  *
  * @internal
  */
-final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRule, OperationRule, FixableRule
+final class OaReplaceableByAttribute implements Rule, ComponentSchemaRule, OperationRule, FixableRule
 {
     use DetectsPropertyShape;
+    public string $id = 'migration.oa-replaceable-by-attribute';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A hand-authored OA\Property / query OA\Parameter an authoring attribute expresses more concisely.';
 
     /** Finding-context key carrying the target attribute class-string. */
     public const string CONTEXT_TARGET_ATTRIBUTE = 'targetAttribute';
@@ -290,8 +293,8 @@ final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRu
         array $arguments,
     ): Finding {
         return new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: $message,
             fixHint: sprintf('Rewrite the swagger-php annotation as #[%s].', $this->shortName($attribute)),
             context: [
@@ -326,17 +329,7 @@ final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRu
         return $position === false ? $class : substr($class, $position + 1);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-replaceable-by-attribute';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -344,9 +337,4 @@ final readonly class OaReplaceableByAttribute implements Rule, ComponentSchemaRu
         return new OaReplaceableByAttributeFixer();
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A hand-authored OA\Property / query OA\Parameter an authoring attribute expresses more concisely.';
-    }
 }

@@ -67,9 +67,9 @@ function overridesUnusedCollect(array $overrides, array $descriptors): array
 it('has the correct id and severity', function (): void {
     $rule = new OverridesUnused(new OverrideMatcher([]));
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('overrides.unused')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('stays silent when every key matches a route name or uri', function (): void {

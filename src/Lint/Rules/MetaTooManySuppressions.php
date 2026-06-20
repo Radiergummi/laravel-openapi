@@ -18,8 +18,12 @@ use function sprintf;
 /**
  * Reports files with more suppression directives than the configured threshold.
  */
-final readonly class MetaTooManySuppressions implements Rule, ApiRuleVisitor
+final class MetaTooManySuppressions implements Rule, ApiRuleVisitor
 {
+    public string $id = 'meta.too-many-suppressions';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Symbol carries an excessive number of suppression directives.';
+
     public function __construct(private int $threshold = 5) {}
 
     /**
@@ -41,8 +45,8 @@ final readonly class MetaTooManySuppressions implements Rule, ApiRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'File %s has %d suppression directives (threshold: %d) — consider fixing the underlying issues',
                     $file,
@@ -55,21 +59,6 @@ final readonly class MetaTooManySuppressions implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'meta.too-many-suppressions';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Symbol carries an excessive number of suppression directives.';
-    }
 }

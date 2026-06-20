@@ -22,6 +22,10 @@ use function sprintf;
  */
 final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
 {
+    public string $id = 'deprecated.no-sunset-date';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'Deprecated operation has no x-sunset date.';
+
     private const string DATE_PATTERN = "/\b(\d{4}-\d{2}-\d{2}|Q[1-4]\s*\d{4})\b/";
 
     /**
@@ -49,8 +53,8 @@ final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Deprecated operation %s %s does not mention a sunset date or timeline',
                 $operation->method->forDisplay(),
@@ -60,21 +64,6 @@ final class DeprecatedNoSunsetDate implements Rule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'deprecated.no-sunset-date';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Deprecated operation has no x-sunset date.';
-    }
 }

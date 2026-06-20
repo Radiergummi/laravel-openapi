@@ -35,8 +35,8 @@ function tagUndeclaredAtRootContext(array $operationTags, array $rootTags = []):
 it('has the correct rule id and level', function (): void {
     $rule = new TagUndeclaredAtRoot();
 
-    expect($rule->id())->toBe('tag.undeclared-at-root')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('tag.undeclared-at-root')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a tag is not declared at root', function (): void {

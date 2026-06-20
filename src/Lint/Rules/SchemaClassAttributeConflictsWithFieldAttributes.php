@@ -31,6 +31,12 @@ use function sprintf;
  */
 final class SchemaClassAttributeConflictsWithFieldAttributes implements OperationRuleVisitor, Rule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'A class carries a class-level #[RawSchema] together with field attributes '
+        . '(#[RequestField]/#[ResponseField]/#[ResourceField]); the raw schema replaces the '
+        . 'inferred body wholesale, so the field attributes have no effect.';
+
     public const string ID = 'schema.class-attribute-conflicts-with-field-attributes';
 
     /** @var array<class-string, true> */
@@ -40,19 +46,7 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
         private readonly PayloadParameterScanner $scanner,
     ) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A class carries a class-level #[RawSchema] together with field attributes '
-            . '(#[RequestField]/#[ResponseField]/#[ResourceField]); the raw schema replaces the '
-            . 'inferred body wholesale, so the field attributes have no effect.';
-    }
 
     /**
      * @return iterable<Finding>
@@ -135,7 +129,7 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
 
         yield new Finding(
             ruleId: self::ID,
-            severity: $this->severity(),
+            severity: $this->severity,
             message: sprintf(
                 '#[RawSchema] on %s replaces the inferred body, so these field attributes have '
                 . 'no effect: %s.',
@@ -162,9 +156,4 @@ final class SchemaClassAttributeConflictsWithFieldAttributes implements Operatio
         return is_string($name) && $name !== '' ? $name : null;
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 }

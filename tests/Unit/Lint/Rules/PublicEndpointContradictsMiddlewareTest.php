@@ -30,8 +30,8 @@ function publicEndpointFindings(string $controller, string $method, array $middl
 it('reports its id and level', function (): void {
     $rule = new PublicEndpointContradictsMiddleware(app(RouteMiddlewareGatherer::class));
 
-    expect($rule->id())->toBe('publicendpoint.contradicts-middleware')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('publicendpoint.contradicts-middleware')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when a method-level PublicEndpoint has auth middleware', function (): void {

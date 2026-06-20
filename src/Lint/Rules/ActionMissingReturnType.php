@@ -25,6 +25,10 @@ use function sprintf;
  */
 final class ActionMissingReturnType implements Rule, OperationRuleVisitor
 {
+    public string $id = 'operation.return-type-missing';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Action has no typed return value or response attribute, so no response schema can be inferred.';
+
     /**
      * @return iterable<Finding>
      */
@@ -42,8 +46,8 @@ final class ActionMissingReturnType implements Rule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s::%s() has no return type or response attribute, so no response schema can be inferred',
                 $descriptor->controller?->getShortName() ?? '(unknown)',
@@ -78,21 +82,6 @@ final class ActionMissingReturnType implements Rule, OperationRuleVisitor
         return !in_array($returnType->getName(), ['mixed', 'void', 'never'], true);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.return-type-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Action has no typed return value or response attribute, so no response schema can be inferred.';
-    }
 }

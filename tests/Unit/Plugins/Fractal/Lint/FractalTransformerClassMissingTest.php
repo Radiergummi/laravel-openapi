@@ -30,9 +30,9 @@ class TransformerClassMissingController
 it('has the canonical rule metadata', function (): void {
     $rule = new FractalTransformerClassMissing();
 
-    expect($rule->id())->toBe('fractal.transformer-class-missing')
-        ->and($rule->severity())->toBe(Severity::Degraded)
-        ->and($rule->description())->toContain('transformer class');
+    expect($rule->id)->toBe('fractal.transformer-class-missing')
+        ->and($rule->severity)->toBe(Severity::Degraded)
+        ->and($rule->description)->toContain('transformer class');
 });
 
 it('flags a #[FractalResponse] naming a missing transformer class', function (): void {

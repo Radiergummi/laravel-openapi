@@ -43,9 +43,9 @@ function makeQueryParamNamingNode(string $name): QueryParameterNode
 it('reports its id and level', function (): void {
     $rule = new ParameterNameNamingInconsistent();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('parameter.name-naming-inconsistent')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 // region Path parameters

@@ -28,8 +28,12 @@ use function sprintf;
  * by FQCN string via {@see PayloadParameterScanner}, so the package need not be installed), not a
  * body-inference heuristic.
  */
-final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
+final class QueryBuilderParamsUndeclared implements Rule, OperationRule
 {
+    public string $id = 'query-builder.params-undeclared';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A method injects a QueryBuilder but declares no allowed filter/sort/include attributes.';
+
     private const string QUERY_BUILDER_CLASS = 'Spatie\\QueryBuilder\\QueryBuilder';
 
     public function __construct(
@@ -62,8 +66,8 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s %s injects a QueryBuilder but declares no #[AllowedFilter]/#[AllowedSort]/#[AllowedInclude]',
                 $operation->method->forDisplay(),
@@ -73,21 +77,6 @@ final readonly class QueryBuilderParamsUndeclared implements Rule, OperationRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'query-builder.params-undeclared';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A method injects a QueryBuilder but declares no allowed filter/sort/include attributes.';
-    }
 }

@@ -241,5 +241,5 @@ it('exposes its fixer and human-readable description', function (): void {
 
     expect($rule->fixer())
         ->toBeInstanceOf(RedundantOaAnnotationFixer::class)
-        ->and($rule->description())->toContain('inference');
+        ->and($rule->description)->toContain('inference');
 });

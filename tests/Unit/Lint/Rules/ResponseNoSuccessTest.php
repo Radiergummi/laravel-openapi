@@ -13,9 +13,9 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseNoSuccess();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('response.no-success')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it(

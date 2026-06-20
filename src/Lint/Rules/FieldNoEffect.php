@@ -20,11 +20,10 @@ use function sprintf;
 
 final class FieldNoEffect extends AbstractFieldRule implements FixableRule
 {
-    #[Override]
-    public function description(): string
-    {
-        return 'A field attribute was applied but has no visible effect on the schema.';
-    }
+    public string $id = 'field.no-effect';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'A field attribute was applied but has no visible effect on the schema.';
+
 
     /** Removes the no-op attribute; location is identified via context keys stamped by {@see AbstractFieldRule}. */
     #[Override]
@@ -51,8 +50,8 @@ final class FieldNoEffect extends AbstractFieldRule implements FixableRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '#[%s] on %s::$%s has no parameters set — the attribute has no effect',
                 $this->attributeName($field),
@@ -92,15 +91,5 @@ final class FieldNoEffect extends AbstractFieldRule implements FixableRule
             && $field->conditional === false;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.no-effect';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 }

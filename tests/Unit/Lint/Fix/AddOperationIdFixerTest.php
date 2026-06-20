@@ -48,7 +48,7 @@ it('adds the operationId argument to an existing #[Operation] without duplicatin
 it('yields nothing when the stamped operationId is absent (degrade)', function (): void {
     $finding = new Finding(
         ruleId: 'operation.id-missing',
-        severity: (new OperationIdMissing())->severity(),
+        severity: (new OperationIdMissing())->severity,
         message: 'fixture',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => MissingOperationIdFixtureController::class,
@@ -64,7 +64,7 @@ it('yields nothing when the stamped operationId is absent (degrade)', function (
 it('yields nothing when the source member is unknown (degrade)', function (): void {
     $finding = new Finding(
         ruleId: 'operation.id-missing',
-        severity: (new OperationIdMissing())->severity(),
+        severity: (new OperationIdMissing())->severity,
         message: 'fixture',
         context: [AddOperationIdFixer::CONTEXT_OPERATION_ID => 'users.index'],
     );
@@ -94,7 +94,7 @@ function operationIdMissingFinding(string $member, string $operationId): Finding
 {
     return new Finding(
         ruleId: 'operation.id-missing',
-        severity: (new OperationIdMissing())->severity(),
+        severity: (new OperationIdMissing())->severity,
         message: 'fixture',
         context: [
             Finding::CONTEXT_SOURCE_CLASS => MissingOperationIdFixtureController::class,

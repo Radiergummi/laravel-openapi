@@ -25,6 +25,10 @@ use function sprintf;
  */
 final class MetaSuppressionStale implements Rule, PostWalkRule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = '#[IgnoreLint] directive did not suppress any finding.';
+
     /** Not in the registered rule set, so callers reference the ID via this constant. */
     public const string ID = 'meta.suppression-stale';
 
@@ -52,8 +56,8 @@ final class MetaSuppressionStale implements Rule, PostWalkRule
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Suppression for %s did not suppress any finding — it may be stale',
                     $directive->ruleId,
@@ -80,21 +84,6 @@ final class MetaSuppressionStale implements Rule, PostWalkRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return '#[IgnoreLint] directive did not suppress any finding.';
-    }
 }

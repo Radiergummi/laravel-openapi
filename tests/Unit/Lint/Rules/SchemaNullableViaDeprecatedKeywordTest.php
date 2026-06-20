@@ -33,9 +33,9 @@ function makeFieldForNullableTest(string $name, bool $setNullableOnRaw): FieldNo
 it('reports its id and level', function (): void {
     $rule = new SchemaNullableViaDeprecatedKeyword();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.nullable-via-deprecated-keyword')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding when field raw does not use nullable keyword', function (): void {

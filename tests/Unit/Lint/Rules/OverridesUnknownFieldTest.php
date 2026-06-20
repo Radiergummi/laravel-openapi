@@ -27,8 +27,8 @@ function overridesUnknownFieldCollect(array $overrides): array
 it('has the correct id and severity', function (): void {
     $rule = new OverridesUnknownField([]);
 
-    expect($rule->id())->toBe('overrides.unknown-field')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('overrides.unknown-field')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('stays silent for fully allowlisted blocks', function (): void {

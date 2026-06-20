@@ -23,9 +23,9 @@ function makeDirectScannerForInvalidFormat(): PayloadParameterScanner
 it('reports its id and level', function (): void {
     $rule = new FieldInvalidFormat(makeDirectScannerForInvalidFormat());
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('field.invalid-format')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when RequestField declares an unrecognized format', function (): void {

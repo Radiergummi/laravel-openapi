@@ -20,6 +20,10 @@ use function trim;
  */
 final class SummaryMissing implements Rule, OperationRuleVisitor
 {
+    public string $id = 'summary.missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Operation has no summary.';
+
     /**
      * @return iterable<Finding>
      */
@@ -28,8 +32,8 @@ final class SummaryMissing implements Rule, OperationRuleVisitor
     {
         if ($operation->summary === null || trim($operation->summary) === '') {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s has no summary',
                     $operation->method->forDisplay(),
@@ -40,21 +44,6 @@ final class SummaryMissing implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'summary.missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation has no summary.';
-    }
 }

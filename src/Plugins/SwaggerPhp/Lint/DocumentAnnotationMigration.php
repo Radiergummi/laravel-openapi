@@ -35,6 +35,10 @@ use function sprintf;
  */
 final class DocumentAnnotationMigration implements Rule, ApiRule, NeedsInferenceDocument
 {
+    public string $id = 'migration.document-annotation-in-config';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A document-level @OA\\Info / Server / SecurityScheme / root Tag annotation whose metadata belongs in config/openapi.php.';
+
     private readonly ConfigSnippetRenderer $renderer;
 
     public function __construct(
@@ -91,8 +95,8 @@ final class DocumentAnnotationMigration implements Rule, ApiRule, NeedsInference
     private function finding(string $what, string $configKey, string $snippet, OA\AbstractAnnotation $annotation): Finding
     {
         return new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s declares document-level metadata that belongs in the `%s` config key.',
                 $what,
@@ -103,17 +107,7 @@ final class DocumentAnnotationMigration implements Rule, ApiRule, NeedsInference
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.document-annotation-in-config';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     /**
      * @return list<class-string<SpecStage>>
@@ -124,9 +118,4 @@ final class DocumentAnnotationMigration implements Rule, ApiRule, NeedsInference
         return [HarvestAuthoredAnnotationsStage::class];
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A document-level @OA\\Info / Server / SecurityScheme / root Tag annotation whose metadata belongs in config/openapi.php.';
-    }
 }

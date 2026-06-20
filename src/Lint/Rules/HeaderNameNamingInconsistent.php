@@ -20,8 +20,11 @@ use function sprintf;
  * HTTP header names are case-insensitive (RFC 7230), so this is a documentation consistency check.
  */
 #[Scoped]
-final readonly class HeaderNameNamingInconsistent extends AbstractNamingRule implements HeaderRuleVisitor
+final class HeaderNameNamingInconsistent extends AbstractNamingRule implements HeaderRuleVisitor
 {
+    public string $id = 'header.name-naming-inconsistent';
+    public string $description = "Header name doesn't follow the project's header_case convention.";
+
     public function __construct(
         #[Config('openapi.lint.style.header_case', 'train')]
         IdentifierCase|string $case = IdentifierCase::Train,
@@ -40,8 +43,8 @@ final readonly class HeaderNameNamingInconsistent extends AbstractNamingRule imp
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Header name "%s" does not follow the %s naming convention',
                 $header->name,
@@ -51,15 +54,5 @@ final readonly class HeaderNameNamingInconsistent extends AbstractNamingRule imp
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'header.name-naming-inconsistent';
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Header name doesn't follow the project's header_case convention.";
-    }
 }

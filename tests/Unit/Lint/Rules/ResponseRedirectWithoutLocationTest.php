@@ -12,9 +12,9 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseRedirectWithoutLocation();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('response.redirect-without-location')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it(

@@ -30,8 +30,8 @@ function serverInvalidUrlFindings(?string $url): array
 it('has the correct rule id and level', function (): void {
     $rule = new ServerInvalidUrl();
 
-    expect($rule->id())->toBe('server.invalid-url')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('server.invalid-url')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding for an invalid URL', function (): void {

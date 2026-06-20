@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class LinkNeitherOperationIdNorRef implements Rule, LinkRuleVisitor
 {
+    public string $id = 'link.neither-operation-id-nor-ref';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Link has neither operationId nor operationRef.';
+
     /**
      * @return iterable<Finding>
      */
@@ -41,28 +45,13 @@ final class LinkNeitherOperationIdNorRef implements Rule, LinkRuleVisitor
         );
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: $message,
             fixHint: 'Add either operationId (for same-document links) or operationRef (for cross-document links).',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'link.neither-operation-id-nor-ref';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Link has neither operationId nor operationRef.';
-    }
 }

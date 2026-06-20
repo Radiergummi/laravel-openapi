@@ -12,8 +12,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new TagNameNamingInconsistent();
 
-    expect($rule->id())->toBe('tag.name-naming-inconsistent')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('tag.name-naming-inconsistent')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('default (pascal): passes valid PascalCase tag names', function (array $tags): void {

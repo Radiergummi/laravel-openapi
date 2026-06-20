@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\IdentifierCase;
@@ -20,9 +19,13 @@ use function sprintf;
  * Accepts either an {@see IdentifierCase} enum or the raw config string from
  * `openapi.lint.style.*`; {@see IdentifierCase::fromConfig()} normalises both forms.
  */
-abstract readonly class AbstractNamingRule implements Rule
+abstract class AbstractNamingRule implements Rule
 {
-    protected IdentifierCase $case;
+    public Severity $severity = Severity::Inconsistent;
+
+    abstract public string $description { get; }
+
+    protected readonly IdentifierCase $case;
 
     /**
      * @throws TypeError
@@ -32,15 +35,6 @@ abstract readonly class AbstractNamingRule implements Rule
     {
         $this->case = IdentifierCase::fromConfig($case);
     }
-
-    #[Override]
-    final public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
-
-    #[Override]
-    abstract public function description(): string;
 
     /**
      * Whether the given name conforms to the configured case.

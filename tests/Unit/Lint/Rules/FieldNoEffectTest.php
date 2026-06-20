@@ -22,9 +22,9 @@ function makeDirectScannerForNoEffect(): PayloadParameterScanner
 it('reports its id and level', function (): void {
     $rule = new FieldNoEffect(makeDirectScannerForNoEffect());
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('field.no-effect')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when RequestField has all default values', function (): void {

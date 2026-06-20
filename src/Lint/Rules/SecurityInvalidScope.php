@@ -16,8 +16,12 @@ use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
 use function in_array;
 use function sprintf;
 
-final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
+final class SecurityInvalidScope implements Rule, OperationRuleVisitor
 {
+    public string $id = 'security.invalid-scope';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Operation requires a scope not declared in securitySchemes.';
+
     /**
      * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
      *                                            resolved from the context index.
@@ -54,8 +58,8 @@ final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
                 }
 
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Operation %s %s references undefined scope "%s"',
                         $operation->method->forDisplay(),
@@ -68,21 +72,6 @@ final readonly class SecurityInvalidScope implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'security.invalid-scope';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation requires a scope not declared in securitySchemes.';
-    }
 }

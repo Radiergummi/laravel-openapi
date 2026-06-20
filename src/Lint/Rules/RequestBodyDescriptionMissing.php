@@ -19,6 +19,10 @@ use function trim;
  */
 final class RequestBodyDescriptionMissing implements Rule, RequestBodyRuleVisitor
 {
+    public string $id = 'request-body.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'requestBody has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -30,28 +34,13 @@ final class RequestBodyDescriptionMissing implements Rule, RequestBodyRuleVisito
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: 'Request body has no description',
             fixHint: 'Add a description to the requestBody explaining the expected payload.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'request-body.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'requestBody has no description.';
-    }
 }

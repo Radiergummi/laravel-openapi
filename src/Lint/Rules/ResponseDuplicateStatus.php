@@ -24,6 +24,10 @@ use function sprintf;
 
 final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
 {
+    public string $id = 'response.duplicate-status';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Two responses on the same operation share the same status code.';
+
     /**
      * @return iterable<Finding>
      */
@@ -47,8 +51,8 @@ final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'HTTP status %s is declared %d times on %s %s',
                     $statusCode,
@@ -62,17 +66,7 @@ final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.duplicate-status';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -88,9 +82,4 @@ final class ResponseDuplicateStatus implements FixableRule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two responses on the same operation share the same status code.';
-    }
 }

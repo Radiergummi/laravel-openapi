@@ -16,10 +16,10 @@ it('gives every registered rule a non-empty description and a valid severity', f
 
     foreach ($registry->all() as $rule) {
         expect($rule)->toBeInstanceOf(Rule::class);
-        expect($rule->severity())->toBeInstanceOf(Severity::class);
-        expect(trim($rule->description()))->not->toBe('');
-        expect($seenIds)->not->toContain($rule->id());
+        expect($rule->severity)->toBeInstanceOf(Severity::class);
+        expect(trim($rule->description))->not->toBe('');
+        expect($seenIds)->not->toContain($rule->id);
 
-        $seenIds[] = $rule->id();
+        $seenIds[] = $rule->id;
     }
 })->group('openapi', 'lint');

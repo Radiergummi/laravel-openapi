@@ -26,8 +26,13 @@ use function sprintf;
  * (concrete resource, empty shape) and {@see ResourceResponseAmbiguous} (collection, no item class).
  * Skips when the shape is actually inferable from `toArray()` or a wrapped model.
  */
-final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
+final class ResourceResponseEmpty implements Rule, OperationRuleVisitor
 {
+    public string $id = 'resource.response-empty';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A resource response resolves to the base or an abstract JsonResource with no inferable '
+        . 'shape. It ships an empty {data: {}} envelope.';
+
     public function __construct(
         private ResourceTargetLocator $locator,
         private ResourceToArrayReader $toArrayReader,
@@ -77,8 +82,8 @@ final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s %s resolves to %s — the response schema is an empty {data: {}} envelope',
                 $operation->method->forDisplay(),
@@ -90,22 +95,6 @@ final readonly class ResourceResponseEmpty implements Rule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'resource.response-empty';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A resource response resolves to the base or an abstract JsonResource with no inferable '
-            . 'shape. It ships an empty {data: {}} envelope.';
-    }
 }

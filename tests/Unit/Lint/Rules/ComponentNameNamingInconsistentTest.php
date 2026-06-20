@@ -12,8 +12,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ComponentNameNamingInconsistent();
 
-    expect($rule->id())->toBe('component.name-naming-inconsistent')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('component.name-naming-inconsistent')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('pascal (default): flags non-PascalCase component names', function (string $name, string $expectedCaseLabel): void {

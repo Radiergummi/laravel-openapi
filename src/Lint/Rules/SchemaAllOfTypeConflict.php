@@ -29,6 +29,10 @@ use function sprintf;
  */
 final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
 {
+    public string $id = 'schema.allof-type-conflict';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'allOf members declare conflicting type values.';
+
     /**
      * @return iterable<Finding>
      */
@@ -92,8 +96,8 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Schema "%s" has allOf with conflicting types: %s',
                 $schemaName,
@@ -104,21 +108,6 @@ final class SchemaAllOfTypeConflict implements Rule, ComponentSchemaRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.allof-type-conflict';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'allOf members declare conflicting type values.';
-    }
 }

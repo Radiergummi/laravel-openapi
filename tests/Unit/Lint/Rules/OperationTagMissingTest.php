@@ -11,9 +11,9 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new OperationTagMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('operation.tag-missing')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when an operation has no tags', function (): void {

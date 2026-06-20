@@ -15,8 +15,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new OperationIdInvalidChars();
 
-    expect($rule->id())->toBe('operation.id-invalid-chars')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('operation.id-invalid-chars')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding for an operationId that violates the charset', function (string $operationId, string $path): void {

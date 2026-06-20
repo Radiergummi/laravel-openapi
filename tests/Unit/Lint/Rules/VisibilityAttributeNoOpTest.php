@@ -25,9 +25,9 @@ function visibilityNoOpFindings(VisibilityMode $mode, string $method): array
 it('has the correct rule id and level', function (): void {
     $rule = new VisibilityAttributeNoOp(new VisibilityResolver(VisibilityMode::Public));
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('visibility.attribute-no-op')
-        ->and($rule->severity())->toBe(Severity::Underspecified);
+        ->and($rule->severity)->toBe(Severity::Underspecified);
 });
 
 it('flags an unconditional #[Expose] under public-default visibility', function (): void {

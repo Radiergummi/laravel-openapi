@@ -28,6 +28,10 @@ use function sprintf;
  */
 final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
 {
+    public string $id = 'link.duplicate-name';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Two links on the same response share the same name.';
+
     /**
      * @return iterable<Finding>
      */
@@ -57,8 +61,8 @@ final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Link name "%s" is declared %d times on %s::%s()',
                     $name,
@@ -72,17 +76,7 @@ final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'link.duplicate-name';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -98,9 +92,4 @@ final class LinkDuplicateName implements FixableRule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two links on the same response share the same name.';
-    }
 }

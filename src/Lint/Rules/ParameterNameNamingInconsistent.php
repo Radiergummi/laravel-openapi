@@ -28,10 +28,13 @@ use function str_contains;
  * are excluded.
  */
 #[Scoped]
-final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule implements
+final class ParameterNameNamingInconsistent extends AbstractNamingRule implements
     ParameterRuleVisitor,
     QueryParameterRuleVisitor
 {
+    public string $id = 'parameter.name-naming-inconsistent';
+    public string $description = "Parameter name doesn't follow the project's path_parameter_case / query_parameter_case convention.";
+
     /** @var list<string> */
     private const array FRAMEWORK_QUERY_PARAMS = ['page', 'per_page', 'sort', 'include'];
 
@@ -67,8 +70,8 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
     private function finding(string $name, IdentifierCase $case): Finding
     {
         return new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Parameter name "%s" does not follow the %s naming convention',
                 $name,
@@ -82,11 +85,6 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.name-naming-inconsistent';
-    }
 
     /**
      * @return iterable<Finding>
@@ -114,9 +112,4 @@ final readonly class ParameterNameNamingInconsistent extends AbstractNamingRule 
         return in_array($name, self::FRAMEWORK_QUERY_PARAMS, strict: true);
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Parameter name doesn't follow the project's path_parameter_case / query_parameter_case convention.";
-    }
 }

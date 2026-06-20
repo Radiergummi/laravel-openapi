@@ -25,6 +25,10 @@ use function sprintf;
  */
 final class OperationIdInvalidChars implements FixableRule, OperationRuleVisitor
 {
+    public string $id = 'operation.id-invalid-chars';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'operationId is not a codegen-safe identifier.';
+
     /** The codegen-safe identifier shape; {@see OperationIdDeriver::sanitise()} maps to this set. */
     public const string PATTERN = '/^[A-Za-z][A-Za-z0-9._-]*$/';
 
@@ -60,8 +64,8 @@ final class OperationIdInvalidChars implements FixableRule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Operation ID "%s" on %s %s contains characters that are not safe for code generation',
                 $operation->operationId,
@@ -79,21 +83,6 @@ final class OperationIdInvalidChars implements FixableRule, OperationRuleVisitor
         return new SanitizeOperationIdFixer();
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.id-invalid-chars';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'operationId is not a codegen-safe identifier.';
-    }
 }

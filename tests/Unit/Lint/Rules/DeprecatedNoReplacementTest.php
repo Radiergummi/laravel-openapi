@@ -13,9 +13,9 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedNoReplacement();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('deprecated.no-replacement')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 it('emits a finding for deprecated operations missing replacement guidance', function (?string $description): void {

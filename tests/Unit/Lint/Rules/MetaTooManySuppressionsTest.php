@@ -51,9 +51,9 @@ function tooManyDirectives(int $count, string $file): array
 it('reports its id and level', function (): void {
     $rule = new MetaTooManySuppressions();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('meta.too-many-suppressions')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits no finding when suppressions are at or below the threshold', function (): void {

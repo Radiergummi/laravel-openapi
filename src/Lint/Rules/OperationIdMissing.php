@@ -24,6 +24,10 @@ use function sprintf;
  */
 final class OperationIdMissing implements FixableRule, OperationRuleVisitor
 {
+    public string $id = 'operation.id-missing';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Operation has no operationId.';
+
     public function __construct(
         private readonly OperationIdDeriver $operationIdDeriver = new OperationIdDeriver(),
     ) {}
@@ -53,8 +57,8 @@ final class OperationIdMissing implements FixableRule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Operation %s %s has no operationId',
                 $operation->method->forDisplay(),
@@ -71,21 +75,6 @@ final class OperationIdMissing implements FixableRule, OperationRuleVisitor
         return new AddOperationIdFixer();
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.id-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation has no operationId.';
-    }
 }

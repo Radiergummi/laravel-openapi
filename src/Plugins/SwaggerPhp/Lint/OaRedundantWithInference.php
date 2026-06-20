@@ -42,6 +42,10 @@ use function sprintf;
  */
 final class OaRedundantWithInference implements Rule, ComponentSchemaRule, FixableRule, NeedsInferenceDocument
 {
+    public string $id = 'migration.oa-redundant-with-inference';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference.';
+
     private readonly OaRedundancyEngine $engine;
 
     public function __construct(
@@ -89,8 +93,8 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
             $comparator,
             fn(): ReflectionClass => new ReflectionClass($class),
             fn(AuthoredAnnotationShape $shape): Finding => new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'The %s annotation on %s restates a schema the generator already infers; it can be removed.',
                     $shape === AuthoredAnnotationShape::Docblock ? '@OA\Schema docblock' : '#[OA\Schema] attribute',
@@ -110,17 +114,7 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-redundant-with-inference';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -137,9 +131,4 @@ final class OaRedundantWithInference implements Rule, ComponentSchemaRule, Fixab
         return [HarvestAuthoredAnnotationsStage::class];
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A hand-authored #[OA\Schema] / @OA\Schema annotation the generator already reproduces via inference.';
-    }
 }

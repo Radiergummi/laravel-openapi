@@ -26,9 +26,9 @@ function makeOperationWithParameters(array $parameterNames): OperationNode
 it('reports its id and level', function (): void {
     $rule = new ParameterDuplicateName();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('parameter.duplicate-name')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all parameters are unique', function (): void {

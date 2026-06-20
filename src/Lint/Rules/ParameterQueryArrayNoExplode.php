@@ -20,6 +20,10 @@ use function sprintf;
  */
 final class ParameterQueryArrayNoExplode implements Rule, QueryParameterRuleVisitor
 {
+    public string $id = 'parameter.query-array-no-explode';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Array query parameter is missing explode: true.';
+
     /**
      * @return iterable<Finding>
      */
@@ -39,8 +43,8 @@ final class ParameterQueryArrayNoExplode implements Rule, QueryParameterRuleVisi
         $operation = $queryParameter->parent();
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Query parameter "%s" on %s %s has an array schema but does not set style or explode',
                 $queryParameter->name,
@@ -51,21 +55,6 @@ final class ParameterQueryArrayNoExplode implements Rule, QueryParameterRuleVisi
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.query-array-no-explode';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Array query parameter is missing explode: true.';
-    }
 }

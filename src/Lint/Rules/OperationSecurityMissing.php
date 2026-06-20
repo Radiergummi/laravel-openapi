@@ -27,8 +27,12 @@ use function str_starts_with;
  * requirement. Fires only when `security` is `UNDEFINED` (not even an explicit empty array)
  * and the action lacks `#[PublicEndpoint]`.
  */
-final readonly class OperationSecurityMissing implements Rule, OperationRuleVisitor
+final class OperationSecurityMissing implements Rule, OperationRuleVisitor
 {
+    public string $id = 'operation.security-missing';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Route enforces auth middleware but the operation declares no security, implying the endpoint is public.';
+
     public function __construct(
         private RouteMiddlewareGatherer $middlewareGatherer,
     ) {}
@@ -60,8 +64,8 @@ final readonly class OperationSecurityMissing implements Rule, OperationRuleVisi
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s::%s() has auth/scope middleware but declares no security requirement in the spec.',
                 $operation->descriptor->controller?->getShortName() ?? '(unknown)',
@@ -102,21 +106,6 @@ final readonly class OperationSecurityMissing implements Rule, OperationRuleVisi
         return is_array($security);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'operation.security-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Route enforces auth middleware but the operation declares no security, implying the endpoint is public.';
-    }
 }

@@ -27,7 +27,7 @@ function makeLinkBothFieldsNode(?string $operationId, ?string $operationRef): Li
 it('reports its id and level', function (): void {
     $rule = new LinkBothOperationIdAndRef();
 
-    expect($rule->id())->toBe('link.both-operation-id-and-ref')->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('link.both-operation-id-and-ref')->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it(

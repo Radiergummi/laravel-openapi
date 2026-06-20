@@ -22,8 +22,12 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
  * response with no body schema (no broken `$ref` for `ref.broken` to catch). This rule surfaces
  * that silent degradation at lint time, using the side-effect-free `canResolve()` check.
  */
-final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
+final class ResponseRefUnresolvable implements Rule, PreBuildRule
 {
+    public string $id = self::ID;
+    public Severity $severity = Severity::Broken;
+    public string $description = '#[Response(ref:)] points to a class no registered schema resolver can resolve; the response is emitted without a body schema.';
+
     public const string ID = 'response.ref-unresolvable';
 
     /**
@@ -31,17 +35,7 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
      */
     public function __construct(private array $refSchemaResolvers) {}
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return '#[Response(ref:)] points to a class no registered schema resolver can resolve; the response is emitted without a body schema.';
-    }
 
     #[Override]
     public function checkConfiguration(
@@ -63,7 +57,7 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
                 $findings->emit(
                     new Finding(
                         ruleId: self::ID,
-                        severity: $this->severity(),
+                        severity: $this->severity,
                         message: "Response ref '{$ref}' on status {$response->status} cannot be resolved by any registered schema resolver; the response will be emitted without a body schema.",
                         location: FindingLocation::fromDescriptor($descriptor),
                         fixHint: 'Reference a class a registered schema resolver handles, or supply an inline `schema:` instead.',
@@ -85,9 +79,4 @@ final readonly class ResponseRefUnresolvable implements Rule, PreBuildRule
         );
     }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 }

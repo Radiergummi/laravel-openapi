@@ -23,6 +23,10 @@ use const FILTER_VALIDATE_URL;
 
 final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
 {
+    public string $id = 'externaldocs.invalid-url';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'externalDocs.url is not a valid URL.';
+
     /**
      * @return iterable<Finding>
      */
@@ -60,8 +64,8 @@ final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'ExternalDocs URL "%s" on %s::%s() is not a valid HTTP(S) URL',
                     $url,
@@ -73,21 +77,6 @@ final class ExternaldocsInvalidUrl implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'externaldocs.invalid-url';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'externalDocs.url is not a valid URL.';
-    }
 }

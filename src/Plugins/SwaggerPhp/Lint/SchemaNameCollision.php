@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
@@ -19,6 +18,10 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStag
  */
 final class SchemaNameCollision implements Rule
 {
+    public string $id = self::ID;
+    public Severity $severity = self::SEVERITY;
+    public string $description = 'A hand-authored @OA\Schema collides with a convention-derived component of the same name; the authored definition was dropped and that name resolves to the convention schema.';
+
     public const string ID = 'component.schema-name-collision';
 
     public const Severity SEVERITY = Severity::Degraded;
@@ -28,21 +31,6 @@ final class SchemaNameCollision implements Rule
 
     public const string FIX_HINT = 'A hand-authored @OA\Schema is named the same as a component the generator already derives from your code, so the authored definition was dropped and references to that name resolve to the convention schema. Rename the authored schema (e.g., @OA\Schema(schema="...")), or remove it once inference covers it.';
 
-    #[Override]
-    public function id(): string
-    {
-        return self::ID;
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return self::SEVERITY;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A hand-authored @OA\Schema collides with a convention-derived component of the same name; the authored definition was dropped and that name resolves to the convention schema.';
-    }
 }

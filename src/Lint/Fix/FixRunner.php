@@ -139,7 +139,7 @@ final readonly class FixRunner
 
         foreach ($this->registry->all() as $rule) {
             if ($rule instanceof FixableRule) {
-                $fixers[$rule->id()] = $rule->fixer();
+                $fixers[$rule->id] = $rule->fixer();
             }
         }
 

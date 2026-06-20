@@ -33,6 +33,10 @@ final class SchemaCompositeFieldsUninspected implements
     ResponseRuleVisitor,
     RequestBodyRuleVisitor
 {
+    public string $id = 'schema.composite-fields-uninspected';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Schema is a oneOf/anyOf of multiple alternatives whose fields are not inspected by field-level rules.';
+
     /**
      * @return iterable<Finding>
      */
@@ -48,8 +52,8 @@ final class SchemaCompositeFieldsUninspected implements
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Field "%s" is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
                 $field->name,
@@ -58,17 +62,7 @@ final class SchemaCompositeFieldsUninspected implements
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.composite-fields-uninspected';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
     /**
      * @return iterable<Finding>
@@ -96,8 +90,8 @@ final class SchemaCompositeFieldsUninspected implements
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '%s is a oneOf/anyOf union of multiple alternatives; its branches are not inspected by field-level rules',
                 $subject,
@@ -147,9 +141,4 @@ final class SchemaCompositeFieldsUninspected implements
         yield from $this->flagUninspectedComposite($schema, 'Request body');
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Schema is a oneOf/anyOf of multiple alternatives whose fields are not inspected by field-level rules.';
-    }
 }

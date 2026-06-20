@@ -26,6 +26,10 @@ use function sprintf;
  */
 final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Resettable
 {
+    public string $id = 'security.scheme-undefined';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Operation references a security scheme not declared at the document level.';
+
     /** @var null|list<string> Memoized for the duration of a single walk. */
     private ?array $declaredSchemes = null;
 
@@ -52,8 +56,8 @@ final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Reset
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Operation %s %s references undefined security scheme "%s"',
                     $operation->method->forDisplay(),
@@ -100,21 +104,6 @@ final class SecuritySchemeUndefined implements Rule, OperationRuleVisitor, Reset
         return $names;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'security.scheme-undefined';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation references a security scheme not declared at the document level.';
-    }
 }

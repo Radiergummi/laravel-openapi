@@ -54,9 +54,9 @@ final readonly class RuleCatalogRenderer
         $rows = array_map(
             static fn(Rule $rule): array
                 => [
-                    'id' => $rule->id(),
-                    'level' => $rule->severity()->value,
-                    'description' => $rule->description(),
+                    'id' => $rule->id,
+                    'level' => $rule->severity->value,
+                    'description' => $rule->description,
                 ],
             $registry->all(),
         );

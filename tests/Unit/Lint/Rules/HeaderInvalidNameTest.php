@@ -21,7 +21,7 @@ function makeOperationNodeForHeaderInvalidName(string $methodName): OperationNod
 it('has the correct rule id and level', function (): void {
     $rule = new HeaderInvalidName();
 
-    expect($rule->id())->toBe('header.invalid-name')->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('header.invalid-name')->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no findings for valid header names', function (): void {

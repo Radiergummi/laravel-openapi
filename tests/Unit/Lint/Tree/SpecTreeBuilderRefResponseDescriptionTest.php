@@ -39,7 +39,7 @@ function refResponseDescriptionFindings(array $operationResponses, array $compon
     $rule = new ResponseDescriptionMissing();
     $builder = new SpecTreeBuilder();
     $api = $builder->build($document, []);
-    $index = TreeIndex::build($api, $document, [$rule->id()], []);
+    $index = TreeIndex::build($api, $document, [$rule->id], []);
     $context = new LintContext(api: $api, index: $index, rawSpec: $document, actionDescriptors: [], suppressions: []);
 
     return iterator_to_array(

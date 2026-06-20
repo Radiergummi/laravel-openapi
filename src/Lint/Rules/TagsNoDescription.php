@@ -21,6 +21,10 @@ use function trim;
  */
 final class TagsNoDescription implements Rule, ApiRuleVisitor
 {
+    public string $id = 'tags.no-description';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Document-level tag has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -35,8 +39,8 @@ final class TagsNoDescription implements Rule, ApiRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf('Tag "%s" has no description', $tagName),
                 location: new FindingLocation(jsonPointer: '#/tags/' . $index),
                 fixHint: 'Add a description to the tag to improve API documentation.',
@@ -44,21 +48,6 @@ final class TagsNoDescription implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'tags.no-description';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Document-level tag has no description.';
-    }
 }

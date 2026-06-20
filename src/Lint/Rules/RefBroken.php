@@ -27,6 +27,10 @@ use function sprintf;
  */
 final class RefBroken implements Rule, ApiRuleVisitor
 {
+    public string $id = 'ref.broken';
+    public Severity $severity = Severity::Broken;
+    public string $description = "A \$ref points to a component that doesn't exist in the spec.";
+
     /**
      * @return iterable<Finding>
      */
@@ -54,8 +58,8 @@ final class RefBroken implements Rule, ApiRuleVisitor
 
             if (!$this->refExists($ref, $componentIndex)) {
                 $findings[] = new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf('Broken $ref "%s": referenced component does not exist', $ref),
                     location: new FindingLocation(jsonPointer: $ref),
                     fixHint: 'Ensure the referenced component is defined under #/components/.',
@@ -106,21 +110,6 @@ final class RefBroken implements Rule, ApiRuleVisitor
         return isset($componentIndex[$type][$name]);
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'ref.broken';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "A \$ref points to a component that doesn't exist in the spec.";
-    }
 }

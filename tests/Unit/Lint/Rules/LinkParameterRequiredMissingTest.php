@@ -67,9 +67,9 @@ function makeLinkRequiredMissingContext(
 it('reports its id and level', function (): void {
     $rule = new LinkParameterRequiredMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('link.parameter-required-missing')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when all required parameters are supplied', function (): void {

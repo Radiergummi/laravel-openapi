@@ -19,6 +19,10 @@ use function sprintf;
  */
 final class LinkInvalidOperation implements Rule, LinkRuleVisitor
 {
+    public string $id = 'link.invalid-operation';
+    public Severity $severity = Severity::Degraded;
+    public string $description = "Link references an operationId that doesn't exist in the document.";
+
     /**
      * @return iterable<Finding>
      */
@@ -45,28 +49,13 @@ final class LinkInvalidOperation implements Rule, LinkRuleVisitor
         );
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: $message,
             fixHint: 'Fix the operationId, or use operationRef for cross-document links.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'link.invalid-operation';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "Link references an operationId that doesn't exist in the document.";
-    }
 }

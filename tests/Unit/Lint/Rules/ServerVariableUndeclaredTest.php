@@ -41,8 +41,8 @@ function serverVariableUndeclaredFindings(?string $url, array $variables = []): 
 it('has the correct rule id and level', function (): void {
     $rule = new ServerVariableUndeclared();
 
-    expect($rule->id())->toBe('server.variable-undeclared')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('server.variable-undeclared')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding when a template variable has no matching variables entry', function (): void {

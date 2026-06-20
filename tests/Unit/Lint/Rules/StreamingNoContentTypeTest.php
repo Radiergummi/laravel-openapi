@@ -53,8 +53,8 @@ function streamingFindings(string $controllerMethod, string $routeName, ?string 
 it('has the correct rule id and level', function (): void {
     $rule = new StreamingNoContentType();
 
-    expect($rule->id())->toBe('streaming.no-content-type')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('streaming.no-content-type')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding when streaming endpoint has no text/event-stream content type', function (): void {

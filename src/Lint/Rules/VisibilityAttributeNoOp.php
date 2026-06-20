@@ -22,15 +22,14 @@ use Radiergummi\OpenApi\Support\Visibility\VisibilityResolver;
  * have no effect under the active default. Env-scoped variants are never
  * flagged because their effect can flip across environments.
  */
-final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
+final class VisibilityAttributeNoOp implements Rule, RouteRule
 {
+    public string $id = 'visibility.attribute-no-op';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Unconditional visibility attribute that has no effect under the active default.';
+
     public function __construct(private VisibilityResolver $visibility) {}
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Unconditional visibility attribute that has no effect under the active default.';
-    }
 
     /**
      * @return iterable<Finding>
@@ -48,8 +47,8 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
             foreach ($this->collectInstances($descriptor, Expose::class) as $expose) {
                 if ($expose->only === null && $expose->except === null) {
                     yield new Finding(
-                        ruleId: $this->id(),
-                        severity: $this->severity(),
+                        ruleId: $this->id,
+                        severity: $this->severity,
                         message: '#[Expose] has no effect in public-default visibility mode.',
                         fixHint: "Remove the attribute, or set `config('openapi.visibility.default') = 'hidden'`.",
                     );
@@ -68,8 +67,8 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
         foreach ($this->collectInstances($descriptor, Hide::class) as $hide) {
             if ($hide->only === null && $hide->except === null) {
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: '#[Hide] has no effect in hidden-default visibility mode (routes are already hidden by default).',
                     fixHint: "Remove the attribute, or set `config('openapi.visibility.default') = 'public'`.",
                 );
@@ -101,15 +100,5 @@ final readonly class VisibilityAttributeNoOp implements Rule, RouteRule
         return $out;
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'visibility.attribute-no-op';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 }

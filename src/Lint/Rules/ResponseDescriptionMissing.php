@@ -21,6 +21,10 @@ use function trim;
  */
 final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
 {
+    public string $id = 'response.description-missing';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Response has no description. OAS 3.1 requires description on every Response Object.';
+
     /**
      * @return iterable<Finding>
      */
@@ -34,8 +38,8 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
         $operation = $response->operation();
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Response %d on %s %s has no description',
                 $response->statusCode,
@@ -46,21 +50,6 @@ final class ResponseDescriptionMissing implements Rule, ResponseRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Response has no description. OAS 3.1 requires description on every Response Object.';
-    }
 }

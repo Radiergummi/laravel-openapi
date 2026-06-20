@@ -21,6 +21,10 @@ use function Radiergummi\OpenApi\is_undefined;
  */
 final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
 {
+    public string $id = 'info.metadata-incomplete';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'The document info is missing contact and/or license.';
+
     /**
      * @return iterable<Finding>
      */
@@ -50,29 +54,14 @@ final class InfoMetadataIncomplete implements Rule, ApiRuleVisitor
         $missingList = implode(' and ', $missing);
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: "The document info is missing {$missingList}",
             location: new FindingLocation(jsonPointer: '#/info'),
             fixHint: 'Add the missing ' . $missingList . ' field(s) to the info object.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'info.metadata-incomplete';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'The document info is missing contact and/or license.';
-    }
 }

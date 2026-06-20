@@ -22,11 +22,10 @@ use function sprintf;
 
 final class FieldEnumMismatch extends AbstractFieldRule
 {
-    #[Override]
-    public function description(): string
-    {
-        return "Enum value type doesn't match the field's declared type.";
-    }
+    public string $id = 'field.enum-mismatch';
+    public Severity $severity = Severity::Broken;
+    public string $description = "Enum value type doesn't match the field's declared type.";
+
 
     /**
      * @return iterable<Finding>
@@ -91,8 +90,8 @@ final class FieldEnumMismatch extends AbstractFieldRule
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '#[%s] enum values on %s::$%s do not match %s cases: %s',
                 $this->attributeName($field),
@@ -109,15 +108,5 @@ final class FieldEnumMismatch extends AbstractFieldRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.enum-mismatch';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 }

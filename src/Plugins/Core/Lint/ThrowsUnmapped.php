@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Plugins\Core\Lint;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
@@ -17,21 +16,10 @@ use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
  */
 final class ThrowsUnmapped implements Rule
 {
-    #[Override]
-    public function id(): string
-    {
-        return 'throws.unmapped';
-    }
+    public string $id = 'throws.unmapped';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A @throws FQCN has no entry in the exception map or #[ExceptionResponse] attribute.';
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A @throws FQCN has no entry in the exception map or #[ExceptionResponse] attribute.';
-    }
+
 }

@@ -12,9 +12,9 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new SchemaEnumEmpty();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.enum-empty')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits a finding for a field schema with an empty enum array', function (): void {

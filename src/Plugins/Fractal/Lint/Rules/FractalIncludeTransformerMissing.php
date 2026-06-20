@@ -21,8 +21,12 @@ use function sprintf;
  * Flags a `#[TransformerInclude]` declared with no `transformer` class; the included resource
  * is emitted as an opaque `type: object`.
  */
-final readonly class FractalIncludeTransformerMissing implements Rule, OperationRule
+final class FractalIncludeTransformerMissing implements Rule, OperationRule
 {
+    public string $id = 'fractal.include-transformer-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A #[TransformerInclude] is declared without a transformer class.';
+
     /**
      * @return iterable<Finding>
      */
@@ -60,8 +64,8 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     '#[TransformerInclude(\'%s\')] on %s has no transformer — the include is emitted as an opaque object',
                     $include->name,
@@ -72,21 +76,6 @@ final readonly class FractalIncludeTransformerMissing implements Rule, Operation
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'fractal.include-transformer-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A #[TransformerInclude] is declared without a transformer class.';
-    }
 }

@@ -20,6 +20,10 @@ use function trim;
  */
 final class ParameterDescriptionMissing implements Rule, ParameterRuleVisitor
 {
+    public string $id = 'parameter.description-missing';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'Parameter has no description.';
+
     /**
      * @return iterable<Finding>
      */
@@ -31,28 +35,13 @@ final class ParameterDescriptionMissing implements Rule, ParameterRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf('Parameter "%s" has no description', $parameter->name),
             fixHint: 'Add a description to the parameter explaining what value it accepts and its effect.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.description-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Parameter has no description.';
-    }
 }

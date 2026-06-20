@@ -60,8 +60,8 @@ function makeUserIdParameterWithExamples(mixed $example, mixed $examples): Param
 it('has the correct rule id and level', function (): void {
     $rule = new ParameterExampleMissing();
 
-    expect($rule->id())->toBe('parameter.example-missing')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+    expect($rule->id)->toBe('parameter.example-missing')
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 it('emits a finding when a parameter has neither example nor examples', function (): void {

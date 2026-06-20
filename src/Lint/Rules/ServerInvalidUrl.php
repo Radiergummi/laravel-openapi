@@ -24,6 +24,10 @@ use const FILTER_VALIDATE_URL;
 
 final class ServerInvalidUrl implements Rule, ApiRuleVisitor
 {
+    public string $id = 'server.invalid-url';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'A servers[].url is malformed.';
+
     /**
      * @return iterable<Finding>
      */
@@ -56,29 +60,14 @@ final class ServerInvalidUrl implements Rule, ApiRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf('Server URL "%s" is not a valid URL.', $url),
                 fixHint: 'Provide a fully-qualified URL (e.g., https://api.example.com/v1), a relative path (e.g., /api/v0), or a valid URL template.',
             );
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'server.invalid-url';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A servers[].url is malformed.';
-    }
 }

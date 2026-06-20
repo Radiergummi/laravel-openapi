@@ -13,8 +13,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseStatusUnconventional();
 
-    expect($rule->id())->toBe('response.status-unconventional')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('response.status-unconventional')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it(

@@ -16,6 +16,10 @@ use function sprintf;
 
 final class FieldConflictingType extends AbstractFieldRule
 {
+    public string $id = 'field.conflicting-type';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'Field declares conflicting type and format values.';
+
     /**
      * Maps PHP built-in type names to OpenAPI type strings.
      *
@@ -29,11 +33,6 @@ final class FieldConflictingType extends AbstractFieldRule
         'array' => 'array',
     ];
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Field declares conflicting type and format values.';
-    }
 
     /**
      * @return iterable<Finding>
@@ -74,8 +73,8 @@ final class FieldConflictingType extends AbstractFieldRule
         );
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: $message,
             fixHint: sprintf(
                 'Change the #[%s] type to "%s" or adjust the PHP type hint.',
@@ -85,15 +84,5 @@ final class FieldConflictingType extends AbstractFieldRule
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'field.conflicting-type';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 }

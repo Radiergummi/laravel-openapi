@@ -23,6 +23,10 @@ use function sprintf;
  */
 final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
 {
+    public string $id = 'parameter.example-missing';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'Parameter has no example.';
+
     /**
      * @return iterable<Finding>
      */
@@ -45,28 +49,13 @@ final class ParameterExampleMissing implements Rule, ParameterRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf('Parameter "%s" has no example value', $parameter->name),
             fixHint: 'Add an "example" or "examples" property to the parameter to improve documentation.',
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.example-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Parameter has no example.';
-    }
 }

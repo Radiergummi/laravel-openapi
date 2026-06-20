@@ -27,7 +27,7 @@ function makeLinkNeitherFieldNode(?string $operationId, ?string $operationRef): 
 it('reports its id and level', function (): void {
     $rule = new LinkNeitherOperationIdNorRef();
 
-    expect($rule->id())->toBe('link.neither-operation-id-nor-ref')->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('link.neither-operation-id-nor-ref')->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it(

@@ -43,9 +43,9 @@ function makeWrongScopeOperation(string $method): OperationNode
 it('reports its id and level', function (): void {
     $rule = new FieldAttributeWrongScope(makeDirectOnlyScanner());
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('field.attribute-wrong-scope')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('flags RequestField on a route parameter', function (): void {

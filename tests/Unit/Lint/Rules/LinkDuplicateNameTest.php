@@ -25,7 +25,7 @@ function makeLinkDuplicateNameOperation(string $method): OperationNode
 it('reports its id and level', function (): void {
     $rule = new LinkDuplicateName();
 
-    expect($rule->id())->toBe('link.duplicate-name')->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('link.duplicate-name')->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding when a method has duplicate link names', function (): void {

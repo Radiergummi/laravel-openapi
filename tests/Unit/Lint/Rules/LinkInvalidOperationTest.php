@@ -24,7 +24,7 @@ function makeLinkInvalidOperationNode(?string $operationId): LinkNode
 it('reports its id and level', function (): void {
     $rule = new LinkInvalidOperation();
 
-    expect($rule->id())->toBe('link.invalid-operation')->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('link.invalid-operation')->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding when all Link operationIds resolve', function (): void {

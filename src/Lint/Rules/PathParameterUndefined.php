@@ -24,6 +24,10 @@ use function str_contains;
  */
 final class PathParameterUndefined implements Rule, OperationRuleVisitor
 {
+    public string $id = 'path.parameter-undefined';
+    public Severity $severity = Severity::Broken;
+    public string $description = "A declared path parameter doesn't appear in the path template.";
+
     /**
      * @return iterable<Finding>
      */
@@ -55,8 +59,8 @@ final class PathParameterUndefined implements Rule, OperationRuleVisitor
                 );
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: $message,
                 fixHint: sprintf(
                     'Remove the parameter or add {%s} to the path template.',
@@ -66,21 +70,6 @@ final class PathParameterUndefined implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'path.parameter-undefined';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return "A declared path parameter doesn't appear in the path template.";
-    }
 }

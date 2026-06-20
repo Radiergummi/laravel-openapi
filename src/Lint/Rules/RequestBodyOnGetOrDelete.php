@@ -23,6 +23,10 @@ use function sprintf;
  */
 final class RequestBodyOnGetOrDelete implements Rule, OperationRuleVisitor
 {
+    public string $id = 'request-body.on-get-or-delete';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'GET or DELETE operation has a request body.';
+
     /** @var list<HttpMethod> */
     private const array DISALLOWED_METHODS = [HttpMethod::Get, HttpMethod::Delete];
 
@@ -41,8 +45,8 @@ final class RequestBodyOnGetOrDelete implements Rule, OperationRuleVisitor
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Operation %s %s defines a request body, which is unconventional for %s requests',
                 $operation->method->forDisplay(),
@@ -53,21 +57,6 @@ final class RequestBodyOnGetOrDelete implements Rule, OperationRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'request-body.on-get-or-delete';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'GET or DELETE operation has a request body.';
-    }
 }

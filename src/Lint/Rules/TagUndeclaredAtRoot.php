@@ -21,6 +21,10 @@ use function sprintf;
  */
 final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
 {
+    public string $id = 'tag.undeclared-at-root';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Operation uses a tag not declared in the document-level tags array.';
+
     /**
      * @return iterable<Finding>
      */
@@ -34,8 +38,8 @@ final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
                 }
 
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Tag "%s" used on %s %s is not declared in the top-level tags array',
                         $tag,
@@ -52,21 +56,6 @@ final class TagUndeclaredAtRoot implements Rule, ApiRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'tag.undeclared-at-root';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation uses a tag not declared in the document-level tags array.';
-    }
 }

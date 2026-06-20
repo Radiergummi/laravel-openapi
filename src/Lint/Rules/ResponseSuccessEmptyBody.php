@@ -22,6 +22,10 @@ use function sprintf;
  */
 final class ResponseSuccessEmptyBody implements Rule, ResponseRuleVisitor
 {
+    public string $id = 'response.success-empty-body';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'A 2xx response (other than 204/205/304) declares no body schema. Likely a void-return controller.';
+
     /** @var list<int|string> */
     private const array BODILESS_CODES = [204, 205, 304, '204', '205', '304'];
 
@@ -53,8 +57,8 @@ final class ResponseSuccessEmptyBody implements Rule, ResponseRuleVisitor
             : '<unknown operation>';
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'Response %s on %s has no body schema',
                 $response->statusCode,
@@ -64,21 +68,6 @@ final class ResponseSuccessEmptyBody implements Rule, ResponseRuleVisitor
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'response.success-empty-body';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A 2xx response (other than 204/205/304) declares no body schema. Likely a void-return controller.';
-    }
 }

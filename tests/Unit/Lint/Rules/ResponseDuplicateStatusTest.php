@@ -11,8 +11,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new ResponseDuplicateStatus();
 
-    expect($rule->id())->toBe('response.duplicate-status')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('response.duplicate-status')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits a finding when an operation has duplicate response status codes', function (): void {

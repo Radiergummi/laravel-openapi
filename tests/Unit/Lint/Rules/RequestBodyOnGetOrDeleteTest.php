@@ -12,8 +12,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new RequestBodyOnGetOrDelete();
 
-    expect($rule->id())->toBe('request-body.on-get-or-delete')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('request-body.on-get-or-delete')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it(

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Lint\Rules;
 
-use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
@@ -16,6 +15,10 @@ use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
  */
 final class ErrorsResolverFailed implements Rule
 {
+    public string $id = 'errors.resolver-failed';
+    public Severity $severity = Severity::Underspecified;
+    public string $description = 'An ErrorResponseResolver threw while resolving an error response body; the chain continued and a bodyless response was emitted.';
+
     /**
      * fixHint: alias for {@see ErrorResponseInferenceStage::RESOLVER_FAILED_FIX_HINT}. The
      * stage emits this hint with every `errors.resolver-failed` finding; the alias here lets
@@ -24,21 +27,6 @@ final class ErrorsResolverFailed implements Rule
      */
     public const string FIX_HINT = ErrorResponseInferenceStage::RESOLVER_FAILED_FIX_HINT;
 
-    #[Override]
-    public function id(): string
-    {
-        return 'errors.resolver-failed';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Underspecified;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'An ErrorResponseResolver threw while resolving an error response body; the chain continued and a bodyless response was emitted.';
-    }
 }

@@ -22,8 +22,12 @@ use function sprintf;
  * returns null in this case, so the operation silently loses its 200 response. This rule
  * surfaces it during `openapi:lint` instead.
  */
-final readonly class FractalTransformerClassMissing implements Rule, OperationRule
+final class FractalTransformerClassMissing implements Rule, OperationRule
 {
+    public string $id = 'fractal.transformer-class-missing';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A #[FractalResponse] names a transformer class that does not exist.';
+
     /**
      * @return iterable<Finding>
      */
@@ -49,8 +53,8 @@ final readonly class FractalTransformerClassMissing implements Rule, OperationRu
         }
 
         yield new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 '#[FractalResponse] on %s %s names unknown transformer %s',
                 $operation->method->forDisplay(),
@@ -61,21 +65,6 @@ final readonly class FractalTransformerClassMissing implements Rule, OperationRu
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'fractal.transformer-class-missing';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A #[FractalResponse] names a transformer class that does not exist.';
-    }
 }

@@ -48,9 +48,12 @@ use function sprintf;
  *
  * @internal
  */
-final readonly class OaRedundantPropertyWithInference implements Rule, ComponentSchemaRule, FixableRule, NeedsInferenceDocument
+final class OaRedundantPropertyWithInference implements Rule, ComponentSchemaRule, FixableRule, NeedsInferenceDocument
 {
     use DetectsPropertyShape;
+    public string $id = 'migration.oa-redundant-property-with-inference';
+    public Severity $severity = Severity::Improvable;
+    public string $description = 'A hand-authored member OA\Property on a Spatie Data class the generator already infers.';
 
     public function __construct(
         private AuthoredAnnotationScanner $scanner,
@@ -141,8 +144,8 @@ final readonly class OaRedundantPropertyWithInference implements Rule, Component
     private function finding(string $class, string $propertyName, AuthoredAnnotationShape $shape): Finding
     {
         return new Finding(
-            ruleId: $this->id(),
-            severity: $this->severity(),
+            ruleId: $this->id,
+            severity: $this->severity,
             message: sprintf(
                 'The %s on %s::$%s restates a property the generator already infers; it can be removed.',
                 $shape === AuthoredAnnotationShape::Docblock ? '@OA\Property docblock' : '#[OA\Property] attribute',
@@ -158,17 +161,7 @@ final readonly class OaRedundantPropertyWithInference implements Rule, Component
         );
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'migration.oa-redundant-property-with-inference';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Improvable;
-    }
 
     #[Override]
     public function fixer(): Fixer
@@ -185,9 +178,4 @@ final readonly class OaRedundantPropertyWithInference implements Rule, Component
         return [HarvestAuthoredAnnotationsStage::class];
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A hand-authored member OA\Property on a Spatie Data class the generator already infers.';
-    }
 }

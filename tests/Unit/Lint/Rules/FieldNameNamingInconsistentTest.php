@@ -33,8 +33,8 @@ function makeFieldNamingNode(string $name): FieldNode
 it('reports its id and level', function (): void {
     $rule = new FieldNameNamingInconsistent();
 
-    expect($rule->id())->toBe('field.name-naming-inconsistent')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('field.name-naming-inconsistent')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('default (camel): passes a valid camelCase field name', function (string $name): void {

@@ -11,9 +11,9 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new RequestBodyExampleMissing();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('request-body.example-missing')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 it('emits a finding when a request body has no examples', function (): void {

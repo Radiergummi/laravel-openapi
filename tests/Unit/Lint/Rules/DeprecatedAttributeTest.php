@@ -26,8 +26,8 @@ function deprecatedAttributeFindings(string $controller, string $method): array
 it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedAttribute(DEPRECATED_ATTR_NAMESPACE);
 
-    expect($rule->id())->toBe('deprecated.attribute')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('deprecated.attribute')
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a method uses a deprecated OpenAPI attribute', function (): void {

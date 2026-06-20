@@ -61,8 +61,8 @@ final class AttributeFixFixture
         }
 
         $finding = new Finding(
-            ruleId: $rule->id(),
-            severity: $rule->severity(),
+            ruleId: $rule->id,
+            severity: $rule->severity,
             message: 'fixture',
             location: new FindingLocation(file: $sourceFile),
             context: $context,

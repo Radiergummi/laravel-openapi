@@ -93,8 +93,8 @@ function collectResponseRefUnresolvableFindings(array $resolvers, array $descrip
 it('has the correct id and level', function (): void {
     $rule = new ResponseRefUnresolvable([]);
 
-    expect($rule->id())->toBe('response.ref-unresolvable')
-        ->and($rule->severity())->toBe(Severity::Broken);
+    expect($rule->id)->toBe('response.ref-unresolvable')
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no findings when the descriptors list is empty', function (): void {

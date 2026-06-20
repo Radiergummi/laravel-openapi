@@ -19,6 +19,10 @@ use function sprintf;
 /** Reports parameters that share the same (name, in) within a single operation. */
 final class ParameterDuplicateName implements Rule, OperationRuleVisitor
 {
+    public string $id = 'parameter.duplicate-name';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Two parameters in the same operation share the same name and location.';
+
     /**
      * @return iterable<Finding>
      */
@@ -35,8 +39,8 @@ final class ParameterDuplicateName implements Rule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Parameter "%s" (in: path) is declared %d times on %s %s',
                     $name,
@@ -49,21 +53,6 @@ final class ParameterDuplicateName implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'parameter.duplicate-name';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Two parameters in the same operation share the same name and location.';
-    }
 }

@@ -28,9 +28,9 @@ function makePathParameter(string $name, bool $required): ParameterNode
 it('reports its id and level', function (): void {
     $rule = new ParameterPathMustBeRequired();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('parameter.path-must-be-required')
-        ->and($rule->severity())->toBe(Severity::Broken);
+        ->and($rule->severity)->toBe(Severity::Broken);
 });
 
 it('emits no finding when a path parameter is required', function (): void {

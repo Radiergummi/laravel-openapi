@@ -30,9 +30,9 @@ function classAttributeConflictFindings(string $method): array
 it('reports its id and level 3', function (): void {
     $rule = classAttributeConflictRule();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('schema.class-attribute-conflicts-with-field-attributes')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('flags a class carrying both #[RawSchema] and a field attribute', function (): void {

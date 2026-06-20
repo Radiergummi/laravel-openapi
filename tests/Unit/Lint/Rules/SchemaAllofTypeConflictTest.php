@@ -45,8 +45,8 @@ function makeAllOfComponent(string $schemaName, array $types): ComponentSchemaNo
 it('reports its id and level', function (): void {
     $rule = new SchemaAllOfTypeConflict();
 
-    expect($rule->id())->toBe('schema.allof-type-conflict')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('schema.allof-type-conflict')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding when allOf types do not conflict', function (string $label, array $types): void {

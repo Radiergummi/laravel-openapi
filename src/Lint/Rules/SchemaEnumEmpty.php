@@ -24,6 +24,10 @@ use function Radiergummi\OpenApi\is_undefined;
  */
 final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRuleVisitor
 {
+    public string $id = 'schema.enum-empty';
+    public Severity $severity = Severity::Degraded;
+    public string $description = 'A schema declares an empty enum (enum: []) and is unsatisfiable.';
+
     /**
      * @return iterable<Finding>
      */
@@ -32,8 +36,8 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
     {
         if ($this->isEmptyEnum($field->enum)) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Field "%s" declares an empty enum (enum: []) and is unsatisfiable',
                     $field->name,
@@ -52,17 +56,7 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
         return $enum === [];
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'schema.enum-empty';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Degraded;
-    }
 
     /**
      * @return iterable<Finding>
@@ -84,8 +78,8 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
 
         if ($this->isEmptyEnum($enum)) {
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Component schema "%s" declares an empty enum (enum: []) and is unsatisfiable',
                     $componentSchema->name,
@@ -96,9 +90,4 @@ final class SchemaEnumEmpty implements Rule, FieldRuleVisitor, ComponentSchemaRu
         }
     }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'A schema declares an empty enum (enum: []) and is unsatisfiable.';
-    }
 }

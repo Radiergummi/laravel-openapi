@@ -24,6 +24,10 @@ use function sprintf;
  */
 final class PathParameterUndeclared implements Rule, OperationRuleVisitor
 {
+    public string $id = 'path.parameter-undeclared';
+    public Severity $severity = Severity::Broken;
+    public string $description = 'Path template uses a variable not declared as a parameter.';
+
     /**
      * @return iterable<Finding>
      */
@@ -47,8 +51,8 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
             }
 
             yield new Finding(
-                ruleId: $this->id(),
-                severity: $this->severity(),
+                ruleId: $this->id,
+                severity: $this->severity,
                 message: sprintf(
                     'Path placeholder "{%s}" on %s %s is not declared as a path parameter',
                     $placeholder,
@@ -78,21 +82,6 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
         return [];
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'path.parameter-undeclared';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Broken;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Path template uses a variable not declared as a parameter.';
-    }
 }

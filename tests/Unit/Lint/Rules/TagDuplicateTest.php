@@ -25,7 +25,7 @@ function makeTagDuplicateOperation(string $method): OperationNode
 it('has the correct rule id and level', function (): void {
     $rule = new TagDuplicate();
 
-    expect($rule->id())->toBe('tag.duplicate')->and($rule->severity())->toBe(Severity::Inconsistent);
+    expect($rule->id)->toBe('tag.duplicate')->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a method has duplicate tags', function (): void {

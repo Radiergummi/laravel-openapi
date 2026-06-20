@@ -33,9 +33,9 @@ function makeQueryParamForArrayTest(
 it('reports its id and level', function (): void {
     $rule = new ParameterQueryArrayNoExplode();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('parameter.query-array-no-explode')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it('emits no finding when an array query parameter declares serialization or is not an array', function (

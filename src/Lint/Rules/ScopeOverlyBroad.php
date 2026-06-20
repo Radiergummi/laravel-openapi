@@ -21,8 +21,12 @@ use function sprintf;
  * Reports when an operation's only OAuth scope is the wildcard `*` and more specific scopes are
  * available in Passport. Using `*` alone defeats the purpose of scope-based access control.
  */
-final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
+final class ScopeOverlyBroad implements Rule, OperationRuleVisitor
 {
+    public string $id = 'scope.overly-broad';
+    public Severity $severity = Severity::Inconsistent;
+    public string $description = 'Operation requires a scope that is broader than the resource warrants.';
+
     /**
      * @param null|list<string> $registeredScopes Known scope identifiers. When null, scopes are
      *                                            resolved from the context index.
@@ -54,8 +58,8 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
 
             if (count($scopeList) === 1 && $scopeList[0] === '*') {
                 yield new Finding(
-                    ruleId: $this->id(),
-                    severity: $this->severity(),
+                    ruleId: $this->id,
+                    severity: $this->severity,
                     message: sprintf(
                         'Operation %s %s uses only the wildcard scope "*" — consider using more specific scopes',
                         $operation->method->forDisplay(),
@@ -67,21 +71,6 @@ final readonly class ScopeOverlyBroad implements Rule, OperationRuleVisitor
         }
     }
 
-    #[Override]
-    public function id(): string
-    {
-        return 'scope.overly-broad';
-    }
 
-    #[Override]
-    public function severity(): Severity
-    {
-        return Severity::Inconsistent;
-    }
 
-    #[Override]
-    public function description(): string
-    {
-        return 'Operation requires a scope that is broader than the resource warrants.';
-    }
 }

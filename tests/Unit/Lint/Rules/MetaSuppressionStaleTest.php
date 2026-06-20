@@ -51,9 +51,9 @@ function staleDirective(
 it('reports its id and level', function (): void {
     $rule = new MetaSuppressionStale();
 
-    expect($rule->id())
+    expect($rule->id)
         ->toBe('meta.suppression-stale')
-        ->and($rule->severity())->toBe(Severity::Inconsistent);
+        ->and($rule->severity)->toBe(Severity::Inconsistent);
 });
 
 it('emits a finding when a suppression did not match any finding', function (): void {

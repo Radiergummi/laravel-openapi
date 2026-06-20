@@ -13,8 +13,8 @@ uses()->group('openapi', 'lint');
 it('reports its id and level', function (): void {
     $rule = new ResponseNoError();
 
-    expect($rule->id())->toBe('response.no-error')
-        ->and($rule->severity())->toBe(Severity::Degraded);
+    expect($rule->id)->toBe('response.no-error')
+        ->and($rule->severity)->toBe(Severity::Degraded);
 });
 
 it(

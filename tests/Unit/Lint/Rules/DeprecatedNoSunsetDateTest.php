@@ -13,8 +13,8 @@ uses()->group('openapi', 'lint');
 it('has the correct rule id and level', function (): void {
     $rule = new DeprecatedNoSunsetDate();
 
-    expect($rule->id())->toBe('deprecated.no-sunset-date')
-        ->and($rule->severity())->toBe(Severity::Improvable);
+    expect($rule->id)->toBe('deprecated.no-sunset-date')
+        ->and($rule->severity)->toBe(Severity::Improvable);
 });
 
 it('emits a finding when a deprecated operation has no concrete sunset date', function (?string $description): void {
