@@ -43,6 +43,18 @@ class MultipleMediaTypesController extends Controller
         return new JsonResponse();
     }
 
+    #[RequestBody(mediaType: MediaType::TextPlain, mediaTypes: [MediaType::Json, MediaType::Yaml])]
+    public function requestBodyPrecedence(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+
+    #[RequestBody(mediaType: MediaType::Yaml, mediaTypes: [])]
+    public function requestBodyEmptyList(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+
     #[Response(status: 200, description: 'Plain log', schema: ['type' => 'string'], mediaType: MediaType::TextPlain)]
     public function singleResponse(): JsonResponse
     {
@@ -140,13 +152,33 @@ it('honours mediaTypes over a scalar mediaType when both are set', function (): 
         ->and($content)->not->toHaveKey('text/plain');
 });
 
-it('does not mis-fire the streaming and duplicate-status lint rules on a multi-entry content map', function (): void {
+it('honours mediaTypes over a scalar mediaType on a request body when both are set', function (): void {
+    Route::post('/multi-media/request-precedence', [MultipleMediaTypesController::class, 'requestBodyPrecedence']);
+
+    $content = generateSpec()['paths']['/multi-media/request-precedence']['post']['requestBody']['content'] ?? [];
+
+    expect($content)->toHaveCount(2)
+        ->and($content)->toHaveKey('application/json')
+        ->and($content)->toHaveKey('application/yaml')
+        ->and($content)->not->toHaveKey('text/plain');
+});
+
+it('degrades an empty mediaTypes list to the single default media type', function (): void {
+    Route::post('/multi-media/request-empty', [MultipleMediaTypesController::class, 'requestBodyEmptyList']);
+
+    $content = generateSpec()['paths']['/multi-media/request-empty']['post']['requestBody']['content'] ?? [];
+
+    expect($content)->toHaveCount(1)
+        ->and($content)->toHaveKey('application/yaml');
+});
+
+it('does not mis-fire the duplicate-status lint rule on a multi-entry content map', function (): void {
     Route::get('/multi-media/response', [MultipleMediaTypesController::class, 'response']);
 
     $outcome = app(LintRunner::class)->run(
         new LintOptions(
             level: 3,
-            only: ['streaming.no-content-type', 'response.duplicate-status'],
+            only: ['response.duplicate-status'],
             uriGlob: 'multi-media/response*',
         ),
     );
