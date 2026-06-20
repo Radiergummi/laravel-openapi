@@ -75,6 +75,14 @@ class BookingResource extends JsonResource
   discovered from the resource's class docblock: an
   `@mixin \App\Models\Booking` tag first, then a generic
   `@extends BaseResource<Booking>`.
+- When the wrapped `@mixin` / `@extends` class is a **non-Model value object**
+  with statically-typed public properties (promoted constructor parameters or
+  declared `public` typed properties), `$this->field` types from that
+  property's type instead. A `$this->wrapped->field` read — where `$wrapped` is
+  a typed property on the resource — likewise types from the value object
+  declared as `$wrapped`'s type. Properties with no declared type, a
+  union/intersection type, or a type that would only map to a placeholder stay
+  **unconstrained** (never-wrong); the model path is always tried first.
 - Literal scalars and arrays type themselves; nested literal arrays become
   nested object/array schemas.
 - `new OtherResource(...)`, `OtherResource::make(...)`, and

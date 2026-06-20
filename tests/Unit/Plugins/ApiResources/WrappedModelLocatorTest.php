@@ -66,3 +66,15 @@ it('rejects an @mixin that is not an Eloquent model', function (): void {
 it('returns null for a resource without a docblock', function (): void {
     expect(wrappedModelLocator()->locate(UntaggedResource::class))->toBeNull();
 });
+
+it('resolves a non-Model wrapped class as a value object', function (): void {
+    expect(wrappedModelLocator()->locateValueObject(NonModelMixinResource::class))->toBe(DocBlockParser::class);
+});
+
+it('returns null from locateValueObject when the wrapped class is a Model', function (): void {
+    expect(wrappedModelLocator()->locateValueObject(MixinTaggedResource::class))->toBeNull();
+});
+
+it('returns null from locateValueObject when no wrapped class is declared', function (): void {
+    expect(wrappedModelLocator()->locateValueObject(UntaggedResource::class))->toBeNull();
+});

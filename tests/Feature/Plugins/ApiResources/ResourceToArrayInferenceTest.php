@@ -14,10 +14,13 @@ use Radiergummi\OpenApi\Tests\Fixtures\Resources\DynamicToArrayResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\DynamicUnmappedResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\InferredArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\LiteralOnlyResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\MixinValueObjectResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestingArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\OpaqueValuesResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\PassthroughArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\SelfReferencingCategoryResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\UntypedReceiverResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\ValueObjectResource;
 
 use function array_any;
 use function array_filter;
@@ -73,6 +76,21 @@ class ToArrayInferenceController extends Controller
     }
 
     public function declaredAndInferred(): DeclaredAndInferredResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function valueObject(): ValueObjectResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function mixinValueObject(): MixinValueObjectResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function untypedReceiver(): UntypedReceiverResource
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
@@ -284,6 +302,75 @@ it('lets a #[ResourceField] win per field while inferred fields compose alongsid
         // 'title' is not declared — inferred from the literal + model.
         ->and($properties['title']['type'])->toBe('string')
         ->and($schema['required'])->toContain('id', 'title');
+});
+
+// endregion
+
+// region Wrapped non-Model value objects
+
+it('types $this->wrapped->field against a non-Model value object (shape A)', function (): void {
+    Route::get('/genres-value-object', [ToArrayInferenceController::class, 'valueObject']);
+
+    $schema = resourceComponent(generateSpec(), 'ValueObjectResource');
+    $properties = $schema['properties'];
+
+    expect($properties['id']['type'])->toBe('string')
+        ->and($properties['name']['type'])->toBe('string')
+        ->and($properties['song_count']['type'])->toBe('integer')
+        ->and($properties['length']['type'])->toBe('number')
+        // A `'genres'` literal still wins over the wrapped property.
+        ->and($properties['type']['type'])->toBe('string');
+});
+
+it('keeps a nullable scalar value-object property modelled and nullable', function (): void {
+    Route::get('/genres-value-object', [ToArrayInferenceController::class, 'valueObject']);
+
+    $note = resourceComponent(generateSpec(), 'ValueObjectResource')['properties']['note'];
+
+    expect($note['type'])->toBe(['string', 'null']);
+});
+
+it('refuses to type a union-typed value-object property (shape A)', function (): void {
+    Route::get('/genres-value-object', [ToArrayInferenceController::class, 'valueObject']);
+
+    $mixed = resourceComponent(generateSpec(), 'ValueObjectResource')['properties']['mixed'];
+
+    expect($mixed)->toBe([])
+        ->and($mixed)->not->toHaveKey('oneOf');
+});
+
+it('refuses to type an absent value-object property (shape A)', function (): void {
+    Route::get('/genres-value-object', [ToArrayInferenceController::class, 'valueObject']);
+
+    expect(resourceComponent(generateSpec(), 'ValueObjectResource')['properties']['absent'])->toBe([]);
+});
+
+it('refuses when the wrapped receiver has no declared class type (shape A)', function (): void {
+    Route::get('/untyped-receiver', [ToArrayInferenceController::class, 'untypedReceiver']);
+
+    expect(resourceComponent(generateSpec(), 'UntypedReceiverResource')['properties']['id'])->toBe([]);
+});
+
+it('types $this->field against a non-Model @mixin value object (shape B)', function (): void {
+    Route::get('/genres-mixin', [ToArrayInferenceController::class, 'mixinValueObject']);
+
+    $properties = resourceComponent(generateSpec(), 'MixinValueObjectResource')['properties'];
+
+    expect($properties['id']['type'])->toBe('string')
+        ->and($properties['song_count']['type'])->toBe('integer')
+        // A union-typed source property still refuses under shape B.
+        ->and($properties['mixed'])->toBe([]);
+});
+
+it('tries the Model path before the value-object path with no Model regression', function (): void {
+    Route::get('/articles-model', [ToArrayInferenceController::class, 'modelFields']);
+
+    $properties = resourceComponent(generateSpec(), 'InferredArticleResource')['properties'];
+
+    // The Model-backed fields keep their model-derived types (value-object path never shadows them).
+    expect($properties['title']['type'])->toBe('string')
+        ->and($properties['reading_time']['type'])->toBe('integer')
+        ->and($properties['published_at'])->toMatchArray(['type' => 'string', 'format' => 'date-time']);
 });
 
 // endregion
