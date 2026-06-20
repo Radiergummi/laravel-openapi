@@ -108,6 +108,14 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
     $cleanRuns = 0;
     $byRuleTotals = [];
 
+    // Three-way response coverage (#413) rides along only for apps whose run captured a
+    // classify.json; rolled up across just those apps so the denominator is honest.
+    $coverageApps = 0;
+    $coverageSubstantive = 0;
+    $coverageCorrectlyEmpty = 0;
+    $coverageGenuinelyMissing = 0;
+    $coverageByShape = [];
+
     foreach ($results as $entry) {
         $name = (string) ($entry['name'] ?? '');
         $metrics = is_array($entry['metrics'] ?? null) ? $entry['metrics'] : [];
@@ -152,6 +160,19 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
             $app['coverage'] = $metrics['coverage'];
         }
 
+        if (is_array($metrics['responseCoverage'] ?? null)) {
+            $coverage = $metrics['responseCoverage'];
+            $app['responseCoverage'] = $coverage;
+            $coverageApps++;
+            $coverageSubstantive += (int) ($coverage['substantive'] ?? 0);
+            $coverageCorrectlyEmpty += (int) ($coverage['correctlyEmpty'] ?? 0);
+            $coverageGenuinelyMissing += (int) ($coverage['genuinelyMissing'] ?? 0);
+
+            foreach ((array) ($coverage['genuinelyMissingByShape'] ?? []) as $shape => $count) {
+                $coverageByShape[(string) $shape] = ($coverageByShape[(string) $shape] ?? 0) + (int) $count;
+            }
+        }
+
         $apps[] = $app;
     }
 
@@ -172,12 +193,21 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
         ];
     }
 
+    arsort($coverageByShape);
+
     return [
         'provenance' => [
             'generatedAt' => (string) ($manifest['generatedAt'] ?? ''),
             'libraryCommit' => (string) ($manifest['libraryCommit'] ?? ''),
             'apps' => $provenanceApps,
         ],
+        'responseCoverage' => $coverageApps > 0 ? [
+            'appCount' => $coverageApps,
+            'substantive' => $coverageSubstantive,
+            'correctlyEmpty' => $coverageCorrectlyEmpty,
+            'genuinelyMissing' => $coverageGenuinelyMissing,
+            'genuinelyMissingByShape' => $coverageByShape,
+        ] : null,
         'corpus' => [
             'appCount' => count($apps),
             'cleanRuns' => $cleanRuns,
@@ -434,6 +464,29 @@ function surveyRenderInternalCandidate(array $synthesis): string
 
     if (!$anyCoverage) {
         $out[] = '| _no app pinned a published spec_ | | | | |';
+    }
+
+    // Three-way response coverage rolls up only when at least one app's run captured a classify.json.
+    if (is_array($synthesis['responseCoverage'] ?? null)) {
+        $coverage = $synthesis['responseCoverage'];
+        $out[] = '';
+        $out[] = '## Response coverage (three-way, honest denominator)';
+        $out[] = '';
+        $out[] = sprintf(
+            'Across %d classified app(s): **%d substantive · %d correctly-empty · %d genuinely-missing**. '
+            . '`genuinely-missing` is the real denominator to size response-inference levers against.',
+            (int) $coverage['appCount'],
+            (int) $coverage['substantive'],
+            (int) $coverage['correctlyEmpty'],
+            (int) $coverage['genuinelyMissing'],
+        );
+        $out[] = '';
+        $out[] = '| Genuinely-missing shape | Count |';
+        $out[] = '|---|--:|';
+
+        foreach ($coverage['genuinelyMissingByShape'] as $shape => $count) {
+            $out[] = sprintf('| `%s` | %d |', $shape, (int) $count);
+        }
     }
 
     $out[] = '';

@@ -18,10 +18,13 @@ declare(strict_types=1);
 
 $specPath = $argv[1] ?? null;
 $prefix = '/api';
+$classifyPath = null;
 
 foreach (array_slice($argv, 2) as $a) {
     if (str_starts_with($a, '--prefix=')) {
         $prefix = substr($a, 9);
+    } elseif (str_starts_with($a, '--classify=')) {
+        $classifyPath = substr($a, 11);
     }
 }
 
@@ -170,6 +173,24 @@ foreach (($spec['paths'] ?? []) as $path => $ms) {
     }
 }
 printf("%s ops: %d  complete: %d (%.1f%%)  missing-response: %d  missing-body: %d  no-security: %d\n", $prefix, $tot, $complete, $tot ? 100 * $complete / $tot : 0, $noResp, $noBody, $noSec);
+
+// Honest three-way response coverage, when an action classification (classify.php) is supplied.
+if ($classifyPath !== null && is_file($classifyPath)) {
+    require_once __DIR__ . '/metrics.php';
+    $classification = json_decode((string) file_get_contents($classifyPath), true) ?: [];
+    $run = ['generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => 'booted'];
+    $coverage = surveyMetrics($spec, ['findings' => []], $run, $prefix, null, $classification)['responseCoverage'];
+    printf(
+        "response coverage: substantive: %d  correctly-empty: %d  genuinely-missing: %d\n",
+        $coverage['substantive'],
+        $coverage['correctlyEmpty'],
+        $coverage['genuinelyMissing'],
+    );
+
+    foreach ($coverage['genuinelyMissingByShape'] as $shape => $count) {
+        printf("  genuinely-missing %4d  %s\n", $count, $shape);
+    }
+}
 
 foreach ($rows as $r) {
     echo $r . "\n";
