@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Enums\DescribedStatus;
  * @property      Carbon          $published_at When the article went live.
  * @property      DescribedStatus $status       A described status tag.
  * @property      string          $title        Surrounded by spaces.
+ * @property-read Author          $author       The article's primary author.
  * @property-read string          $slug         URL-safe identifier.
  */
 class DescribedArticle extends Model

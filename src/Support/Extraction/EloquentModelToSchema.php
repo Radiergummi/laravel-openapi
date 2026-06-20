@@ -108,10 +108,11 @@ final class EloquentModelToSchema
         }
 
         $property = $this->buildPropertyFor($metadata, $propertyName);
+        $tag = $metadata['propertyTags'][$propertyName] ?? null;
 
         return $property === null
             ? null
-            : $this->applyTagDescription($property, $metadata['propertyTags'][$propertyName] ?? null);
+            : $this->applyTagDescription($property, $tag);
     }
 
     /**
@@ -199,23 +200,21 @@ final class EloquentModelToSchema
 
     /**
      * Sets a `@property`/`@property-read` tag's trailing prose as the property description, unless
-     * one is already present, the tag carries none, or the property is a bare `$ref` (its description
-     * lives on the referenced component, not the reference). Lets an authored attribute or a
-     * documented-enum case list pre-empt the free prose.
+     * one is already present or the tag carries none. A description sibling to `$ref` is valid in
+     * OpenAPI 3.1, so a relation `@property-read Author $author The author.` keeps its prose. Lets
+     * an authored attribute or an inline documented-enum case list pre-empt the free prose.
      */
-    private function applyTagDescription(OA\Property $property, ?PropertyTagValueNode $tag): OA\Property
-    {
+    private function applyTagDescription(
+        OA\Property $property,
+        ?PropertyTagValueNode $tag,
+    ): OA\Property {
         if ($tag === null) {
             return $property;
         }
 
         $description = trim($tag->description);
 
-        if (
-            $description !== ''
-            && is_undefined($property->description)
-            && is_undefined($property->ref)
-        ) {
+        if ($description !== '' && is_undefined($property->description)) {
             $property->description = $description;
         }
 

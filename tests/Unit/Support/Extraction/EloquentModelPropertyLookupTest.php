@@ -193,6 +193,18 @@ it('captures a @property description on a cast column', function (): void {
         ->and($property->description)->toBe('When the article went live.');
 });
 
+it('keeps the @property prose as a description sibling of a relation $ref', function (): void {
+    $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'author');
+
+    expect($property)->not->toBeNull();
+    assert($property !== null);
+
+    // A relation $ref's field description exists nowhere else; OAS 3.1 allows it as a sibling.
+    expect($property->ref)
+        ->toBe('#/components/schemas/Author')
+        ->and($property->description)->toBe("The article's primary author.");
+});
+
 it('lets a documented-enum case list pre-empt the @property description', function (): void {
     $property = modelPropertyReader()->propertyFor(DescribedArticle::class, 'status');
 

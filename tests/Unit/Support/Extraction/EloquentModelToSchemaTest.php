@@ -476,12 +476,21 @@ it('emits no description for a schema @property without trailing text', function
     expect(is_undefined(modelProperty($schema, 'name')->description))->toBeTrue();
 });
 
-it('does not overlay a @property description onto a $ref enum property in the schema', function (): void {
-    // schemaFor promotes the backed enum to a component $ref; its case-list description lives on
-    // the referenced component, so the tag prose must not be set as a sibling of the $ref.
+it('keeps the @property prose as a description sibling of a $ref enum property', function (): void {
+    // schemaFor promotes the backed enum to a component $ref; OpenAPI 3.1 allows a description
+    // sibling to $ref, so the tag prose is set without clobbering the component's case-list.
     $status = modelProperty(buildModelSchema(DescribedArticle::class), 'status');
 
     expect($status->ref)
         ->toBe('#/components/schemas/DescribedStatus')
-        ->and(is_undefined($status->description))->toBeTrue();
+        ->and($status->description)->toBe('A described status tag.');
+});
+
+it('keeps the @property prose as a description sibling of a $ref relation property', function (): void {
+    // A relation $ref's field description exists nowhere else, so the trailing prose must survive.
+    $author = modelProperty(buildModelSchema(DescribedArticle::class), 'author');
+
+    expect($author->ref)
+        ->toBe('#/components/schemas/Author')
+        ->and($author->description)->toBe("The article's primary author.");
 });
