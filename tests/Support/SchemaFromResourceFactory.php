@@ -48,10 +48,14 @@ final class SchemaFromResourceFactory
 
     public static function toArrayReader(?ComponentSchemaRegistry $registry = null): ResourceToArrayReader
     {
+        $registry ??= new ComponentSchemaRegistry();
+
         return new ResourceToArrayReader(
             returnLiteralFinder: new SingleReturnArrayLiteralFinder(new MethodBodyScanner()),
             wrappedModelLocator: self::wrappedModelLocator(),
-            modelToSchema: self::modelToSchema($registry ?? new ComponentSchemaRegistry()),
+            modelToSchema: self::modelToSchema($registry),
+            schemaFromType: new JsonSchemaFromType(new NullLogger(), $registry),
+            typeResolver: TypeResolver::create(),
         );
     }
 

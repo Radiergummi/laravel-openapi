@@ -34,12 +34,19 @@ final class WrappedModelLocator
      */
     private array $cache = [];
 
+    /**
+     * @var array<class-string<JsonResource>, null|class-string>
+     */
+    private array $wrappedCache = [];
+
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
         private readonly TypeNodeResolver $typeNodeResolver,
     ) {}
 
     /**
+     * The Eloquent model the resource wraps, from its `@mixin` / `@extends` docblock.
+     *
      * @param class-string<JsonResource> $resourceClass
      *
      * @return null|class-string<Model>
@@ -52,17 +59,36 @@ final class WrappedModelLocator
             return $this->cache[$resourceClass];
         }
 
-        return $this->cache[$resourceClass] = $this->resolve($resourceClass);
+        return $this->cache[$resourceClass] = $this->modelClassOf($this->resolveWrapped($resourceClass));
+    }
+
+    /**
+     * The class the resource wraps, model or not, from its `@mixin` / `@extends` docblock.
+     * Used to type fields read off a wrapped non-Model value object.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    public function locateWrapped(string $resourceClass): ?string
+    {
+        if (array_key_exists($resourceClass, $this->wrappedCache)) {
+            return $this->wrappedCache[$resourceClass];
+        }
+
+        return $this->wrappedCache[$resourceClass] = $this->resolveWrapped($resourceClass);
     }
 
     /**
      * @param class-string<JsonResource> $resourceClass
      *
-     * @return null|class-string<Model>
+     * @return null|class-string
      *
      * @throws ReflectionException
      */
-    private function resolve(string $resourceClass): ?string
+    private function resolveWrapped(string $resourceClass): ?string
     {
         $reflection = new ReflectionClass($resourceClass);
         $docComment = $reflection->getDocComment();
@@ -78,12 +104,10 @@ final class WrappedModelLocator
                 continue;
             }
 
-            $modelClass = $this->modelClassOf(
-                $this->typeNodeResolver->resolveClassName($tag->type, $reflection),
-            );
+            $className = $this->existingClass($this->typeNodeResolver->resolveClassName($tag->type, $reflection));
 
-            if ($modelClass !== null) {
-                return $modelClass;
+            if ($className !== null) {
+                return $className;
             }
         }
 
@@ -92,16 +116,22 @@ final class WrappedModelLocator
                 continue;
             }
 
-            $modelClass = $this->modelClassOf(
-                $this->typeNodeResolver->genericValueClass($tag->type, $reflection),
-            );
+            $className = $this->existingClass($this->typeNodeResolver->genericValueClass($tag->type, $reflection));
 
-            if ($modelClass !== null) {
-                return $modelClass;
+            if ($className !== null) {
+                return $className;
             }
         }
 
         return null;
+    }
+
+    /**
+     * @return null|class-string
+     */
+    private function existingClass(?string $className): ?string
+    {
+        return $className !== null && class_exists($className) ? $className : null;
     }
 
     /**

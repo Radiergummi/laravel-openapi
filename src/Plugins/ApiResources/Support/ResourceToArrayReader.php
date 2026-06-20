@@ -19,16 +19,26 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
+use Radiergummi\OpenApi\Support\Generator\SchemaToProperty;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
+use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionProperty;
+use Symfony\Component\TypeInfo\Exception\UnsupportedException;
+use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function array_key_exists;
+use function array_reverse;
+use function array_shift;
 use function class_exists;
+use function count;
 use function is_a;
 use function is_int;
 use function is_string;
@@ -66,6 +76,8 @@ final class ResourceToArrayReader
         private readonly SingleReturnArrayLiteralFinder $returnLiteralFinder,
         private readonly WrappedModelLocator $wrappedModelLocator,
         private readonly EloquentModelToSchema $modelToSchema,
+        private readonly JsonSchemaFromType $schemaFromType,
+        private readonly TypeResolver $typeResolver,
     ) {}
 
     /**
@@ -106,6 +118,7 @@ final class ResourceToArrayReader
             $literal,
             optional: false,
             modelClass: $modelClass,
+            resourceClass: $resourceClass,
             unreadableMergePayload: $hasUnreadableMergePayload,
         );
 
@@ -135,7 +148,8 @@ final class ResourceToArrayReader
      * `merge()`/`mergeWhen()` spread; any other unkeyed entry, a spread, or a non-literal key
      * causes the whole literal to be refused (null) rather than partially documented.
      *
-     * @param null|class-string<Model> $modelClass
+     * @param null|class-string<Model>   $modelClass
+     * @param class-string<JsonResource> $resourceClass
      *
      * @return null|list<InferredResourceField>
      *
@@ -145,6 +159,7 @@ final class ResourceToArrayReader
         Array_ $array,
         bool $optional,
         ?string $modelClass,
+        string $resourceClass,
         bool &$unreadableMergePayload,
     ): ?array {
         $fields = [];
@@ -155,7 +170,7 @@ final class ResourceToArrayReader
             }
 
             if ($item->key === null) {
-                $merged = $this->fieldsFromMergeCall($item->value, $optional, $modelClass, $unreadableMergePayload);
+                $merged = $this->fieldsFromMergeCall($item->value, $optional, $modelClass, $resourceClass, $unreadableMergePayload);
 
                 if ($merged === null) {
                     return null;
@@ -176,7 +191,7 @@ final class ResourceToArrayReader
                 return null;
             }
 
-            $fields[] = $this->resolveValue((string) $key, $item->value, $optional, $modelClass);
+            $fields[] = $this->resolveValue((string) $key, $item->value, $optional, $modelClass, $resourceClass);
         }
 
         return $fields;
@@ -187,7 +202,8 @@ final class ResourceToArrayReader
      * empty list when the payload is not a literal (flagged as unreadable). Returns null when
      * the entry is not a merge call: a plain unkeyed entry makes the whole literal unknowable.
      *
-     * @param null|class-string<Model> $modelClass
+     * @param null|class-string<Model>   $modelClass
+     * @param class-string<JsonResource> $resourceClass
      *
      * @return null|list<InferredResourceField>
      *
@@ -197,6 +213,7 @@ final class ResourceToArrayReader
         Expr $value,
         bool $optional,
         ?string $modelClass,
+        string $resourceClass,
         bool &$unreadableMergePayload,
     ): ?array {
         $methodName = $this->resourceMethodName($value);
@@ -219,6 +236,7 @@ final class ResourceToArrayReader
             $payload,
             optional: $optional || $methodName === self::MERGE_WHEN,
             modelClass: $modelClass,
+            resourceClass: $resourceClass,
             unreadableMergePayload: $unreadableMergePayload,
         );
 
@@ -268,13 +286,14 @@ final class ResourceToArrayReader
     }
 
     /**
-     * @param null|class-string<Model> $modelClass
+     * @param null|class-string<Model>   $modelClass
+     * @param class-string<JsonResource> $resourceClass
      *
      * @throws ReflectionException
      */
-    private function resolveValue(string $name, Expr $value, bool $optional, ?string $modelClass): InferredResourceField
+    private function resolveValue(string $name, Expr $value, bool $optional, ?string $modelClass, string $resourceClass): InferredResourceField
     {
-        $wrapped = $this->resolveConditionalWrapper($name, $value, $modelClass);
+        $wrapped = $this->resolveConditionalWrapper($name, $value, $modelClass, $resourceClass);
 
         if ($wrapped !== null) {
             return $wrapped;
@@ -290,6 +309,12 @@ final class ResourceToArrayReader
 
         if ($modelProperty !== null) {
             return $modelProperty;
+        }
+
+        $typedProperty = $this->resolveTypedPropertyChain($name, $value, $optional, $resourceClass);
+
+        if ($typedProperty !== null) {
+            return $typedProperty;
         }
 
         $definition = SchemaDefinitionFromLiteral::fromValue($value);
@@ -309,11 +334,12 @@ final class ResourceToArrayReader
      * Resolves `$this->when()`, `$this->whenLoaded()`, `$this->whenCounted()`, and any other
      * `when`-prefixed resource method as an optional field (presence is runtime-decided).
      *
-     * @param null|class-string<Model> $modelClass
+     * @param null|class-string<Model>   $modelClass
+     * @param class-string<JsonResource> $resourceClass
      *
      * @throws ReflectionException
      */
-    private function resolveConditionalWrapper(string $name, Expr $value, ?string $modelClass): ?InferredResourceField
+    private function resolveConditionalWrapper(string $name, Expr $value, ?string $modelClass, string $resourceClass): ?InferredResourceField
     {
         $methodName = $this->resourceMethodName($value);
 
@@ -326,12 +352,12 @@ final class ResourceToArrayReader
 
         if ($methodName === self::WHEN && isset($arguments[1])) {
             // Condition is never analysed; use the value argument only.
-            return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
+            return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass, resourceClass: $resourceClass);
         }
 
         if ($methodName === self::WHEN_LOADED) {
             if (isset($arguments[1])) {
-                return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
+                return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass, resourceClass: $resourceClass);
             }
 
             $relationProperty = $this->modelPropertyFromRelationArgument($name, $arguments[0] ?? null, $modelClass);
@@ -461,7 +487,12 @@ final class ResourceToArrayReader
             return null;
         }
 
-        $property = $modelClass !== null ? $this->modelToSchema->propertyFor($modelClass, $fieldName) : null;
+        // No wrapped model: defer to the typed-property-chain resolver (value-object fields).
+        if ($modelClass === null) {
+            return null;
+        }
+
+        $property = $this->modelToSchema->propertyFor($modelClass, $fieldName);
 
         if ($property === null) {
             return $this->unconstrained($name, $optional);
@@ -470,6 +501,163 @@ final class ResourceToArrayReader
         $property->property = $name;
 
         return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * Resolves a `$this->field` / `$this->prop->field` / `$this->resource->field` reference against
+     * statically-typed public properties, mapping the leaf property's type to a schema (Tier-0). The
+     * receiver's first hop is a declared property on the resource itself (e.g. a promoted value-object
+     * ctor param) or, failing that, on the wrapped class. Refuses (returns null) on an absent type, a
+     * non-class intermediate hop, or an unresolvable leaf — never emitting a wrong type.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function resolveTypedPropertyChain(string $name, Expr $value, bool $optional, string $resourceClass): ?InferredResourceField
+    {
+        if (!$value instanceof PropertyFetch) {
+            return null;
+        }
+
+        $names = [];
+        $node = $value;
+
+        while ($node instanceof PropertyFetch) {
+            if (!$node->name instanceof Identifier) {
+                return null;
+            }
+
+            $names[] = $node->name->toString();
+            $node = $node->var;
+        }
+
+        if (!$this->isThisVariable($node)) {
+            return null;
+        }
+
+        $names = array_reverse($names);
+
+        $currentClass = $this->chainStartClass($names, $resourceClass);
+
+        if ($currentClass === null) {
+            return null;
+        }
+
+        $lastIndex = count($names) - 1;
+
+        foreach ($names as $index => $propertyName) {
+            $property = $this->typedProperty($currentClass, $propertyName);
+
+            if ($property === null) {
+                return null;
+            }
+
+            if ($index === $lastIndex) {
+                return $this->fieldFromTypedProperty($name, $property, $optional);
+            }
+
+            $nextClass = $this->propertyClass($property);
+
+            if ($nextClass === null) {
+                return null;
+            }
+
+            $currentClass = $nextClass;
+        }
+
+        return null;
+    }
+
+    /**
+     * The class the first property name resolves against, mutating `$names` to drop a leading
+     * `resource` hop. Prefers a property declared on the resource itself, then the wrapped class.
+     *
+     * @param list<string>               $names
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function chainStartClass(array &$names, string $resourceClass): ?string
+    {
+        if ($names === []) {
+            return null;
+        }
+
+        if ($names[0] === 'resource' && count($names) > 1) {
+            array_shift($names);
+
+            return $this->wrappedModelLocator->locateWrapped($resourceClass);
+        }
+
+        if ($this->typedProperty($resourceClass, $names[0]) !== null) {
+            return $resourceClass;
+        }
+
+        // `$this->field` proxied to the wrapped value object via JsonResource::__get().
+        $wrapped = $this->wrappedModelLocator->locateWrapped($resourceClass);
+
+        return $wrapped !== null && $this->typedProperty($wrapped, $names[0]) !== null ? $wrapped : null;
+    }
+
+    /**
+     * @param class-string $class
+     *
+     * @throws ReflectionException
+     */
+    private function typedProperty(string $class, string $propertyName): ?ReflectionProperty
+    {
+        if (!class_exists($class)) {
+            return null;
+        }
+
+        $reflection = new ReflectionClass($class);
+
+        if (!$reflection->hasProperty($propertyName)) {
+            return null;
+        }
+
+        $property = $reflection->getProperty($propertyName);
+
+        return $property->getType() !== null ? $property : null;
+    }
+
+    /**
+     * The single named, non-builtin class a property is typed as, for recursing into a chain hop;
+     * null for builtins, unions, intersections, or unknown classes.
+     *
+     * @return null|class-string
+     */
+    private function propertyClass(ReflectionProperty $property): ?string
+    {
+        $type = $property->getType();
+
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $class = $type->getName();
+
+        return class_exists($class) ? $class : null;
+    }
+
+    private function fieldFromTypedProperty(string $name, ReflectionProperty $property, bool $optional): InferredResourceField
+    {
+        try {
+            $type = $this->typeResolver->resolve($property);
+        } catch (UnsupportedException) {
+            return $this->unconstrained($name, $optional);
+        }
+
+        $schema = $this->schemaFromType->fromType($type);
+
+        return InferredResourceField::ofProperty(
+            $name,
+            required: !$optional,
+            property: SchemaToProperty::convert($name, $schema),
+        );
     }
 
     /**

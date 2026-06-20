@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestingArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\OpaqueValuesResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\PassthroughArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\SelfReferencingCategoryResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\ValueObjectBackedResource;
 
 use function array_any;
 use function array_filter;
@@ -76,6 +77,11 @@ class ToArrayInferenceController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function valueObject(): ValueObjectBackedResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
 /**
@@ -126,6 +132,32 @@ it('resolves $this->field references against the wrapped model', function (): vo
         ->and($properties['tags']['items']['type'])->toBe('string')
         // #250: framework-managed timestamps resolve without explicit model metadata.
         ->and($properties['created_at']['format'])->toBe('date-time');
+});
+
+it('types fields from a wrapped value object\'s typed properties (#411)', function (): void {
+    Route::get('/genres', [ToArrayInferenceController::class, 'valueObject']);
+
+    $spec = generateSpec();
+    $schema = resourceComponent($spec, 'ValueObjectBackedResource');
+    $properties = $schema['properties'];
+
+    expect($properties)->toHaveKeys(['type', 'id', 'name', 'song_count', 'length', 'description', 'kind', 'computed'])
+        // Literal stays literal.
+        ->and($properties['type']['type'])->toBe('string')
+        // $this->summary->field chains resolve against GenreSummaryValue's typed properties.
+        ->and($properties['id']['type'])->toBe('string')
+        ->and($properties['name']['type'])->toBe('string')
+        ->and($properties['song_count']['type'])->toBe('integer')
+        ->and($properties['length']['type'])->toBe('number')
+        // A nullable scalar property keeps its nullability (OAS 3.1 type-array idiom).
+        ->and($properties['description']['type'])->toBe(['string', 'null'])
+        // A backed-enum leaf promotes to a reusable component $ref (full-fidelity mapping).
+        ->and($properties['kind']['$ref'])->toBe('#/components/schemas/GenreKindValue')
+        // A method call is still refused — stays unconstrained, never wrong.
+        ->and($properties['computed'])->toBe([]);
+
+    // The typed fields are required; nothing in this literal is conditional.
+    expect($schema['required'])->toContain('id', 'name', 'song_count', 'length', 'kind');
 });
 
 it('keeps every always-present key required', function (): void {

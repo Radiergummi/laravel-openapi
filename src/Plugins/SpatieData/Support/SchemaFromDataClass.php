@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
+use Radiergummi\OpenApi\Support\Generator\SchemaToProperty;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -606,56 +607,9 @@ final class SchemaFromDataClass implements FilePropertyChecker
         return $this->schemaFromType->fromType($type);
     }
 
-    /**
-     * Copies non-UNDEFINED JSON-Schema/OAS fields from an {@see OA\Schema} into an {@see OA\Property}.
-     * swagger-php internals (`_context`, `_unmerged`, etc.) are excluded.
-     */
     private function schemaToProperty(string $name, OA\Schema $schema): OA\Property
     {
-        $props = ['property' => $name];
-
-        static $allowlist = [
-            'type',
-            'format',
-            'ref',
-            'oneOf',
-            'allOf',
-            'anyOf',
-            'items',
-            'enum',
-            'description',
-            'example',
-            'nullable',
-            'minimum',
-            'maximum',
-            'exclusiveMinimum',
-            'exclusiveMaximum',
-            'minLength',
-            'maxLength',
-            'pattern',
-            'minItems',
-            'maxItems',
-            'uniqueItems',
-            'multipleOf',
-            'properties',
-            'additionalProperties',
-            'required',
-            'deprecated',
-            'readOnly',
-            'writeOnly',
-            'default',
-            'title',
-        ];
-
-        foreach ($allowlist as $field) {
-            $value = $schema->{$field};
-
-            if (is_defined($value)) {
-                $props[$field] = $value;
-            }
-        }
-
-        return new OA\Property($props);
+        return SchemaToProperty::convert($name, $schema);
     }
 
     /**
