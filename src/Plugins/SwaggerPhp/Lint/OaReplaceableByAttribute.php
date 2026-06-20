@@ -74,7 +74,7 @@ final class OaReplaceableByAttribute implements Rule, ComponentSchemaRule, Opera
         private readonly AuthoredAnnotationScanner $scanner,
         private readonly SchemaEquivalence $equivalence,
         private readonly LoggerInterface $logger,
-        private readonly OaAttributeArgumentMapper $mapper = new OaAttributeArgumentMapper(),
+        private OaAttributeArgumentMapper $mapper = new OaAttributeArgumentMapper(),
     ) {}
 
     /**
