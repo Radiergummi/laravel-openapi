@@ -69,20 +69,74 @@ final readonly class UriParameterResolver
         ?string $bindingField = null,
     ): UriParameterDescriptor {
         $type = $this->resolveType($parameter);
-        $optional = $type->isNullable();
 
         // NullableType extends UnionType, unwrap to get the concrete inner type.
         $innerType = $type instanceof NullableType
             ? $type->getWrappedType()
             : $type;
 
+        return $this->buildDescriptor(
+            name: $parameter->getName(),
+            type: $type,
+            optional: $type->isNullable(),
+            whereConstraint: $whereConstraint,
+            modelBinding: $this->resolveModelBinding($innerType, $bindingField),
+            enumCases: $this->resolveEnumCases($innerType),
+        );
+    }
+
+    /**
+     * Resolves a URI placeholder that has no corresponding controller signature parameter
+     * (invokable controllers, `Request`-only actions, the parent of a scoped/nested binding).
+     *
+     * The type defaults to `string`, which is always correct: a path segment is read from the URL
+     * as a string. Model-class recovery is intentionally not attempted, since reflection cannot see
+     * a bound model without a typed signature parameter. `where*` constraints still enrich the
+     * schema (uuid/integer/enum/pattern).
+     *
+     * @param null|string $whereConstraint Raw regex from `$route->wheres[]`, or null when none.
+     * @param null|string $bindingField    Custom binding field from a `{param:field}` segment, or
+     *                                     null. Reserved for parity with {@see resolve()}; an
+     *                                     unsignatured bind stays a bare string.
+     * @param bool        $optional        True when the placeholder is `{name?}`.
+     */
+    public function resolveUnsignatured(
+        string $name,
+        ?string $whereConstraint,
+        ?string $bindingField = null,
+        bool $optional = false,
+    ): UriParameterDescriptor {
+        return $this->buildDescriptor(
+            name: $name,
+            type: Type::builtin(TypeIdentifier::STRING),
+            optional: $optional,
+            whereConstraint: $whereConstraint,
+            modelBinding: null,
+            enumCases: null,
+        );
+    }
+
+    /**
+     * @param null|list<string> $enumCases Case values from a backed-enum signature type, or null.
+     */
+    private function buildDescriptor(
+        string $name,
+        Type $type,
+        bool $optional,
+        ?string $whereConstraint,
+        ?RouteModelBinding $modelBinding,
+        ?array $enumCases,
+    ): UriParameterDescriptor {
         [$resolvedConstraint, $whereKind] = $this->resolveConstraint($whereConstraint);
 
-        $modelBinding = $this->resolveModelBinding($innerType, $bindingField);
-        $enumCases = $this->resolveEnumCases($innerType);
+        // A `whereIn()` constraint enumerates its literal alternatives; surface them as the schema's
+        // enum when the type did not already provide cases (a backed enum wins).
+        if ($whereKind === WhereKind::In && $enumCases === null && $resolvedConstraint !== null) {
+            $enumCases = explode('|', $resolvedConstraint);
+        }
 
         return new UriParameterDescriptor(
-            name: $parameter->getName(),
+            name: $name,
             type: $type,
             optional: $optional,
             whereConstraint: $resolvedConstraint,

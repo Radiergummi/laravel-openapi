@@ -85,6 +85,15 @@ than a bare `string`. The type and format are resolved in this order:
 3. **Otherwise a bare `string`** — the default for an unbound `{segment}` or a
    non-Eloquent `UrlRoutable`.
 
+Every URI placeholder emits a path parameter (`in: path, required: true`), even
+when it is not a typed action argument — invokable controllers, `Request`-only
+actions, and the parent of a scoped/nested binding (`{team}` in
+`/teams/{team}/members/{member}` where only `$member` is type-hinted). Such a
+placeholder defaults to `type: string` and is still enriched from any `where*`
+constraint on the route (uuid/integer/enum/pattern). Recovering the bound model's
+key type, however, requires a type-hinted signature parameter: an unsignatured
+bind stays a bare `string`.
+
 The model-key step applies only when the route binds via that model's primary
 key. A custom-key binding (`/posts/{post:slug}`) or an overridden
 `getRouteKeyName()` resolves against a different column whose type the model's

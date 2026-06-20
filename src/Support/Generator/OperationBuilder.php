@@ -41,6 +41,7 @@ use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
+use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
 use ReflectionException;
@@ -115,18 +116,7 @@ final readonly class OperationBuilder
     public function build(ActionDescriptor $action, array $defaultTags): OperationDescriptor
     {
         $pathParams = $this->uriExtractor->extract(
-            array_map(
-                fn(ReflectionParameter $parameter): array
-                    => [
-                        $this->uriResolver->resolve(
-                            $parameter,
-                            $action->constraintFor($parameter->getName()),
-                            $action->bindingFieldFor($parameter->getName()),
-                        ),
-                        $parameter,
-                    ],
-                $action->uriParameters,
-            ),
+            $this->resolveUriParameterPairs($action),
         );
         // Dedup by (name, in) across resolvers; later resolver wins, except names claimed by an
         // explicit #[QueryParam] attribute, which authoring locks.
@@ -277,6 +267,53 @@ final readonly class OperationBuilder
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
+    }
+
+    /**
+     * Builds the descriptor/reflection pairs for the extractor: signature-derived parameters first,
+     * then any URI placeholder absent from the signature (invokable controllers, `Request`-only
+     * actions, the parent of a scoped/nested binding) synthesized as a string path parameter.
+     *
+     * @return list<array{UriParameterDescriptor, ?ReflectionParameter}>
+     *
+     * @throws UnsupportedException
+     */
+    private function resolveUriParameterPairs(ActionDescriptor $action): array
+    {
+        $pairs = [];
+        $declaredNames = [];
+
+        foreach ($action->uriParameters as $parameter) {
+            $name = $parameter->getName();
+            $declaredNames[$name] = true;
+            $pairs[] = [
+                $this->uriResolver->resolve(
+                    $parameter,
+                    $action->constraintFor($name),
+                    $action->bindingFieldFor($name),
+                ),
+                $parameter,
+            ];
+        }
+
+        foreach ($action->uriPlaceholders() as [$name, $optional]) {
+            if (isset($declaredNames[$name])) {
+                continue;
+            }
+
+            $declaredNames[$name] = true;
+            $pairs[] = [
+                $this->uriResolver->resolveUnsignatured(
+                    $name,
+                    $action->constraintFor($name),
+                    $action->bindingFieldFor($name),
+                    $optional,
+                ),
+                null,
+            ];
+        }
+
+        return $pairs;
     }
 
     /** @return list<string> */

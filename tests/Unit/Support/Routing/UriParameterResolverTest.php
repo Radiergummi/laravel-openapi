@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Routing\UrlRoutable;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
+use Radiergummi\OpenApi\Support\Routing\WhereKind;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UlidArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UuidArticle;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 uses()->group('routing', 'openapi');
@@ -171,3 +173,61 @@ it('leaves the key type null for a non-Eloquent routable', function (): void {
         ->and($descriptor->modelBinding->modelClass)->toBe(RoutableWithRequiredCtorArg::class)
         ->and($descriptor->modelBinding->type)->toBeNull();
 });
+
+// region resolveUnsignatured
+
+it('synthesizes a bare string descriptor for an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured('team', whereConstraint: null);
+
+    expect($descriptor->name)->toBe('team')
+        ->and($descriptor->type->getTypeIdentifier())->toBe(TypeIdentifier::STRING)
+        ->and($descriptor->optional)->toBeFalse()
+        ->and($descriptor->whereConstraint)->toBeNull()
+        ->and($descriptor->whereKind)->toBeNull()
+        ->and($descriptor->enumCases)->toBeNull()
+        ->and($descriptor->modelBinding)->toBeNull();
+});
+
+it('classifies a uuid where on an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured(
+        'id',
+        whereConstraint: '[\da-fA-F]{8}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{4}-[\da-fA-F]{12}',
+    );
+
+    expect($descriptor->whereKind)->toBe(WhereKind::Uuid);
+});
+
+it('classifies a number where on an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured('id', whereConstraint: '[0-9]+');
+
+    expect($descriptor->whereKind)->toBe(WhereKind::Number);
+});
+
+it('classifies a literal-alternation where on an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured('status', whereConstraint: 'draft|published');
+
+    expect($descriptor->whereKind)->toBe(WhereKind::In);
+});
+
+it('classifies a custom regex where on an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured('slug', whereConstraint: '[a-z-]+');
+
+    expect($descriptor->whereKind)->toBe(WhereKind::Custom)
+        ->and($descriptor->whereConstraint)->toBe('[a-z-]+');
+});
+
+it('never recovers a model binding for an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured('article', whereConstraint: null, bindingField: 'slug');
+
+    expect($descriptor->modelBinding)->toBeNull()
+        ->and($descriptor->enumCases)->toBeNull();
+});
+
+it('propagates the optional flag for an unsignatured placeholder', function (): void {
+    $descriptor = $this->resolver->resolveUnsignatured('opt', whereConstraint: null, optional: true);
+
+    expect($descriptor->optional)->toBeTrue()
+        ->and($descriptor->type->getTypeIdentifier())->toBe(TypeIdentifier::STRING);
+});
+
+// endregion
