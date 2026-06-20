@@ -21,7 +21,9 @@ use function class_exists;
 use function count;
 use function in_array;
 use function Radiergummi\OpenApi\copy_schema_fields;
+use function strrpos;
 use function strtolower;
+use function substr;
 
 /**
  * Resolves a {@see TypeNode} into an {@see OA\Schema}, covering structural shapes symfony/type-info
@@ -43,6 +45,18 @@ final readonly class TypeNodeToSchema
         'non-empty-array',
         'non-empty-list',
         'iterable',
+    ];
+
+    /**
+     * Collection generic bases that carry the same key semantics as `array<…>`. Matched by short
+     * class name (case-insensitive), since PHPDoc may write `Collection`,
+     * `\Illuminate\Support\Collection`, or `EloquentCollection`.
+     */
+    private const array COLLECTION_GENERICS = [
+        'collection',
+        'eloquentcollection',
+        'lazycollection',
+        'enumerable',
     ];
 
     public function __construct(
@@ -183,25 +197,27 @@ final readonly class TypeNodeToSchema
         Reflector $context,
         callable $classSchema,
     ): ?OA\Schema {
-        if (!in_array(
-            strtolower($node->type->name),
-            self::ARRAY_GENERICS,
-            strict: true,
-        )) {
+        if (!$this->isArrayLikeGeneric($node->type->name)) {
             return null;
         }
 
         // array<K, V>: a string key denotes a map (additionalProperties), an int key a list.
         if (count($node->genericTypes) === 2) {
             [$key, $value] = $node->genericTypes;
-            $valueSchema = $this->resolve($value, $context, $classSchema)
-                ?? new OA\Schema([]);
 
             if ($key instanceof IdentifierTypeNode && $this->isStringKey($key->name)) {
-                return new OA\Schema(['type' => 'object', 'additionalProperties' => $valueSchema]);
+                // An opaque `mixed` value is a permissive map, matching the Spatie Data path.
+                $additionalProperties = $this->isMixed($value)
+                    ? true
+                    : $this->resolve($value, $context, $classSchema) ?? new OA\Schema([]);
+
+                return new OA\Schema([
+                    'type' => 'object',
+                    'additionalProperties' => $additionalProperties,
+                ]);
             }
 
-            return $this->listOf($valueSchema);
+            return $this->listOf($this->resolve($value, $context, $classSchema));
         }
 
         // list<V> / array<V>: single argument is the value type.
@@ -225,6 +241,26 @@ final readonly class TypeNodeToSchema
             ['string', 'array-key', 'non-empty-string'],
             strict: true,
         );
+    }
+
+    /** Whether a generic base denotes an array/list or a collection sharing its key semantics. */
+    private function isArrayLikeGeneric(string $name): bool
+    {
+        $lower = strtolower($name);
+
+        if (in_array($lower, self::ARRAY_GENERICS, strict: true)) {
+            return true;
+        }
+
+        $separator = strrpos($lower, '\\');
+        $shortName = $separator === false ? $lower : substr($lower, $separator + 1);
+
+        return in_array($shortName, self::COLLECTION_GENERICS, strict: true);
+    }
+
+    private function isMixed(TypeNode $node): bool
+    {
+        return $node instanceof IdentifierTypeNode && strtolower($node->name) === 'mixed';
     }
 
     /**

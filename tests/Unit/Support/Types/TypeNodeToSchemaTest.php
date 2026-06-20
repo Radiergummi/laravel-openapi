@@ -122,6 +122,81 @@ it('resolves array<int, T> into a list of T', function (): void {
         ->and($schema['items']['type'])->toBe('string');
 });
 
+it('resolves array<string, mixed> into a permissive map', function (): void {
+    $schema = resolveTypeToArray('array<string, mixed>');
+
+    expect($schema['type'])->toBe('object')
+        ->and($schema['additionalProperties'])->toBeTrue();
+});
+
+it('keeps an unreadable map value as an empty schema, not a permissive map', function (): void {
+    foreach (
+        [
+            'array<string, NotARealClassXyz>',
+            'Illuminate\Support\Collection<string, NotARealClassXyz>',
+        ] as $expression
+    ) {
+        $schema = resolveTypeToArray($expression);
+
+        expect($schema['type'])->toBe('object')
+            ->and($schema['additionalProperties'])->toBe([]);
+    }
+});
+
+it('resolves Collection<string, T> into an object with additionalProperties', function (): void {
+    $schema = resolveTypeToArray('Illuminate\Support\Collection<string, int>');
+
+    expect($schema['type'])->toBe('object')
+        ->and($schema['additionalProperties']['type'])->toBe('integer');
+});
+
+it('resolves Collection<string, ClassName> into a map of $ref values', function (): void {
+    $schema = resolveTypeToArray('Illuminate\Support\Collection<string, \stdClass>');
+
+    expect($schema['type'])->toBe('object')
+        ->and($schema['additionalProperties'])->toBe(['$ref' => '#/components/schemas/stdClass']);
+});
+
+it('resolves Collection<string, mixed> into a permissive map', function (): void {
+    $schema = resolveTypeToArray('Illuminate\Support\Collection<string, mixed>');
+
+    expect($schema['type'])->toBe('object')
+        ->and($schema['additionalProperties'])->toBeTrue();
+});
+
+it('resolves a nested Collection<string, Collection<string, T>> map', function (): void {
+    $schema = resolveTypeToArray(
+        'Illuminate\Support\Collection<string, Illuminate\Support\Collection<string, int>>',
+    );
+
+    expect($schema['type'])->toBe('object')
+        ->and($schema['additionalProperties']['type'])->toBe('object')
+        ->and($schema['additionalProperties']['additionalProperties']['type'])->toBe('integer');
+});
+
+it('resolves Collection<int, T> into a list of T', function (): void {
+    $schema = resolveTypeToArray('Illuminate\Support\Collection<int, \stdClass>');
+
+    expect($schema['type'])->toBe('array')
+        ->and($schema['items'])->toBe(['$ref' => '#/components/schemas/stdClass']);
+});
+
+it('resolves a single-argument Collection<T> into a list of T', function (): void {
+    $schema = resolveTypeToArray('Illuminate\Support\Collection<\stdClass>');
+
+    expect($schema['type'])->toBe('array')
+        ->and($schema['items'])->toBe(['$ref' => '#/components/schemas/stdClass']);
+});
+
+it('treats the other recognised collection generics as array-like', function (): void {
+    foreach (['EloquentCollection', 'LazyCollection', 'Enumerable'] as $base) {
+        $schema = resolveTypeToArray("{$base}<string, int>");
+
+        expect($schema['type'])->toBe('object')
+            ->and($schema['additionalProperties']['type'])->toBe('integer');
+    }
+});
+
 it('resolves a bare scalar identifier', function (): void {
     expect(resolveTypeToArray('string'))->toBe(['type' => 'string'])
         ->and(resolveTypeToArray('bool'))->toBe(['type' => 'boolean']);
@@ -156,8 +231,8 @@ it('always emits items for a list, even when the element is unreadable', functio
         ->and($schema)->toHaveKey('items');
 });
 
-it('returns null for a non-array generic so the caller keeps its fallback', function (): void {
-    expect(resolveType('Illuminate\Support\Collection<int, \stdClass>'))->toBeNull();
+it('returns null for an unrecognised generic so the caller keeps its fallback', function (): void {
+    expect(resolveType('SplObjectStorage<\stdClass, int>'))->toBeNull();
 });
 
 it('returns null for a bare array identifier with no shape', function (): void {
