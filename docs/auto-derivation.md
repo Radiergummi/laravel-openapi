@@ -179,6 +179,17 @@ A property appears in `required` only when it has a non-nullable
 `$casts`, `$fillable`, or `$appends` are never required — they may be absent
 at runtime and the generator has no way to prove otherwise.
 
+### `readOnly`
+
+Server-managed columns are marked `readOnly: true`: the primary key
+(`getKeyName()`, so a custom `$primaryKey` is honoured, not a hard-coded `id`),
+the timestamp columns (`created_at` / `updated_at`, respecting renames), and the
+soft-delete column (`deleted_at`, when the model uses `SoftDeletes`). A client
+never sets these, so the response schema marks them read-only. Nothing else gains
+the keyword, and an authored `readOnly` (e.g. via `#[ResponseField]`) is never
+overwritten. Request-side `writeOnly` remains attribute-driven
+(`#[RequestField(writeOnly: true)]`).
+
 ### Example
 
 ```php
