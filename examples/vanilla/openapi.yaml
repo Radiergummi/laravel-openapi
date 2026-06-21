@@ -428,6 +428,7 @@ components:
           type: string
         id:
           type: string
+          readOnly: true
         number:
           type: string
         origin:
@@ -439,11 +440,13 @@ components:
             - string
             - 'null'
           format: date-time
+          readOnly: true
         updated_at:
           type:
             - string
             - 'null'
           format: date-time
+          readOnly: true
       type: object
   responses:
     ValidationFailed:
