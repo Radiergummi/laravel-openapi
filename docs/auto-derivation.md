@@ -75,8 +75,10 @@ than a bare `string`. The type and format are resolved in this order:
 
 1. **An explicit route constraint wins.** `->whereNumber('flight')` →
    `type: integer`; `->whereUuid('flight')` → `string` + `format: uuid`;
-   `->whereIn(...)` → an `enum`; any other `->where(...)` regex → `pattern`.
-   These are the author's stated intent.
+   `->whereIn(...)` → an `enum` (only on a string-typed parameter, since the
+   alternatives are strings; an int-typed param keeps `type: integer` with no
+   enum); any other `->where(...)` regex → `pattern`. These are the author's
+   stated intent.
 2. **Otherwise the bound model's key.** With no route constraint, the key type
    is read by reflection from the model: an integer key (`getKeyType()`) →
    `type: integer`; a `HasUuids` model → `string` + `format: uuid`; a `HasUlids`
@@ -84,6 +86,15 @@ than a bare `string`. The type and format are resolved in this order:
    `string`.
 3. **Otherwise a bare `string`** — the default for an unbound `{segment}` or a
    non-Eloquent `UrlRoutable`.
+
+Every URI placeholder emits a path parameter (`in: path, required: true`), even
+when it is not a typed action argument — invokable controllers, `Request`-only
+actions, and the parent of a scoped/nested binding (`{team}` in
+`/teams/{team}/members/{member}` where only `$member` is type-hinted). Such a
+placeholder defaults to `type: string` and is still enriched from any `where*`
+constraint on the route (uuid/integer/enum/pattern). Recovering the bound model's
+key type, however, requires a type-hinted signature parameter: an unsignatured
+bind stays a bare `string`.
 
 The model-key step applies only when the route binds via that model's primary
 key. A custom-key binding (`/posts/{post:slug}`) or an overridden

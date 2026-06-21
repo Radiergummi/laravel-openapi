@@ -80,3 +80,9 @@ it('returns null from bindingFieldFor() for a plain binding', function (): void 
 
     expect($descriptor->bindingFieldFor('post'))->toBeNull();
 });
+
+it('exposes no placeholders for a static route', function (): void {
+    $descriptor = descriptorForClosureRoute('health', static fn(): null => null);
+
+    expect($descriptor->uriPlaceholders())->toBe([]);
+});
