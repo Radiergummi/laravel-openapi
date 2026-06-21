@@ -130,8 +130,16 @@ final readonly class UriParameterResolver
         [$resolvedConstraint, $whereKind] = $this->resolveConstraint($whereConstraint);
 
         // A `whereIn()` constraint enumerates its literal alternatives; surface them as the schema's
-        // enum when the type did not already provide cases (a backed enum wins).
-        if ($whereKind === WhereKind::In && $enumCases === null && $resolvedConstraint !== null) {
+        // enum when the type did not already provide cases (a backed enum wins). Only for a string
+        // type: the alternatives are always strings, so attaching them to an `int` parameter would
+        // emit string enum values on an integer schema (a value/type mismatch). An int param with
+        // `whereIn` therefore stays a bare `{type: integer}`, which is never wrong.
+        if (
+            $whereKind === WhereKind::In
+            && $enumCases === null
+            && $resolvedConstraint !== null
+            && $type->isIdentifiedBy(TypeIdentifier::STRING)
+        ) {
             $enumCases = explode('|', $resolvedConstraint);
         }
 

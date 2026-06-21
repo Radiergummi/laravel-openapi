@@ -75,8 +75,10 @@ than a bare `string`. The type and format are resolved in this order:
 
 1. **An explicit route constraint wins.** `->whereNumber('flight')` →
    `type: integer`; `->whereUuid('flight')` → `string` + `format: uuid`;
-   `->whereIn(...)` → an `enum`; any other `->where(...)` regex → `pattern`.
-   These are the author's stated intent.
+   `->whereIn(...)` → an `enum` (only on a string-typed parameter, since the
+   alternatives are strings; an int-typed param keeps `type: integer` with no
+   enum); any other `->where(...)` regex → `pattern`. These are the author's
+   stated intent.
 2. **Otherwise the bound model's key.** With no route constraint, the key type
    is read by reflection from the model: an integer key (`getKeyType()`) →
    `type: integer`; a `HasUuids` model → `string` + `format: uuid`; a `HasUlids`

@@ -216,6 +216,27 @@ it('classifies a custom regex where on an unsignatured placeholder', function ()
         ->and($descriptor->whereConstraint)->toBe('[a-z-]+');
 });
 
+it('surfaces a whereIn alternation as enum cases for a signatured string param', function (): void {
+    $param = reflectFunctionParameter(static function (string $status): void {}, 'status');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: 'draft|published');
+
+    expect($descriptor->whereKind)->toBe(WhereKind::In)
+        ->and($descriptor->enumCases)->toBe(['draft', 'published']);
+});
+
+it('does not attach a string whereIn enum to a signatured int param', function (): void {
+    // `whereIn('id', [1, 2, 3])` writes the literal-alternation regex `1|2|3`, which classifies as
+    // WhereKind::In. Its alternatives are strings, so they must not land as enum values on the
+    // integer schema (a value/type mismatch); the param stays a bare {type: integer}.
+    $param = reflectFunctionParameter(static function (int $id): void {}, 'id');
+
+    $descriptor = $this->resolver->resolve($param, whereConstraint: '1|2|3');
+
+    expect($descriptor->whereKind)->toBe(WhereKind::In)
+        ->and($descriptor->enumCases)->toBeNull();
+});
+
 it('never recovers a model binding for an unsignatured placeholder', function (): void {
     $descriptor = $this->resolver->resolveUnsignatured('article', whereConstraint: null, bindingField: 'slug');
 

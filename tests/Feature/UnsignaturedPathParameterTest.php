@@ -6,10 +6,6 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
-use Radiergummi\OpenApi\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 
 uses()->group('openapi', 'routing');
 
@@ -150,21 +146,18 @@ it('emits an optional unsignatured placeholder as required with the optional not
         ->and($slug['description'])->toContain('Optional in URL');
 });
 
-it('emits zero path.parameter-undeclared findings for an unsignatured placeholder', function (): void {
-    Route::get('/teams/{team}/members/{member}', static fn(string $member): array => [])
-        ->name('lint-test.unsignatured-path');
+it('documents the unsignatured parent of a scoped binding so the linter has nothing to flag', function (): void {
+    // #416 exists because the generator and linter disagreed: the linter flagged {team} as an
+    // undeclared path parameter the generator never emitted. Asserting the parameter is present in
+    // the generated spec is the regression guard (it fails on the pre-fix code, where {team} was
+    // dropped); the path.parameter-undeclared rule then has nothing to report.
+    Route::get('/teams/{team}/members/{member}', static fn(string $member): array => []);
 
-    $collector = new ArrayFindingsCollector();
-    $this->app->forgetScopedInstances();
-    $this->app->instance(FindingsCollector::class, $collector);
+    $team = pathParameter(generateSpec(), '/teams/{team}/members/{member}', 'team');
 
-    $this->app->make(OpenApiGenerator::class)
-        ->generate($this->app->make(SpecRegistry::class)->default(), 'testing');
-
-    $findings = collect($collector->all())
-        ->filter(static fn($finding) => $finding->ruleId === 'path.parameter-undeclared');
-
-    expect($findings)->toBeEmpty();
+    expect($team)->not->toBeNull()
+        ->and($team['in'])->toBe('path')
+        ->and($team['required'])->toBeTrue();
 });
 
 final class InvokableTeamMemberController
