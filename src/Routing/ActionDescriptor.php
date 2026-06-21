@@ -52,8 +52,13 @@ final class ActionDescriptor
 
     /**
      * @param null|ReflectionClass<object> $controller
-     * @param list<string>                 $throws     Fully-qualified exception class names
-     *                                                 resolved from the action's at-throws lines.
+     * @param list<string>                 $throws            Fully-qualified exception class names
+     *                                                        resolved from the action's at-throws
+     *                                                        lines.
+     * @param array<string, string>        $paramDescriptions Action `@param` description text keyed
+     *                                                        by parameter name; the lowest-precedence
+     *                                                        fallback for a path/query parameter
+     *                                                        description.
      */
     public function __construct(
         public readonly Route $route,
@@ -63,6 +68,7 @@ final class ActionDescriptor
         public readonly ?string $description,
         public readonly array $throws = [],
         public readonly ?ReflectionFunction $closure = null,
+        public readonly array $paramDescriptions = [],
     ) {}
 
     /**
