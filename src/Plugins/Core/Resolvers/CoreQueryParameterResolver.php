@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Resolvers;
 
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
 use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidatorRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\QueryAccessorRead;
 use Radiergummi\OpenApi\Plugins\Core\Support\RequestQueryAccessorReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
+use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use ReflectionMethod;
 
@@ -27,14 +30,17 @@ use function in_array;
 use function sprintf;
 
 /**
- * Composes query parameters from three sources (ascending precedence; later wins on name collision):
+ * Composes query parameters from four sources (ascending precedence; later wins on name collision):
  *
  *  1. Request-accessor reads (`$request->query()`, typed accessors) via {@see RequestQueryAccessorReader}.
  *     Typed accessors (`string()`/`integer()`/`boolean()`) count as query params only on GET/HEAD.
  *  2. Inline `validate()` rules on GET/HEAD routes via {@see InlineValidatorRulesReader}.
  *     Nested dotted keys map to wire notation (`filter[name]`, `ids[]`); arrays-of-objects are dropped.
  *     DELETE routes are skipped (validated fields may be body or query string).
- *  3. `#[QueryParam]` attributes on the action and its controller; method-level wins over class-level.
+ *  3. A {@see FormRequest} type-hinted on a GET/HEAD action via {@see FormRequestRulesReader}, flattened
+ *     the same way as inline rules. Same precedence tier as inline `validate()`, applied after it (a
+ *     route rarely has both). The request body for the same FormRequest is suppressed on GET/HEAD.
+ *  4. `#[QueryParam]` attributes on the action and its controller; method-level wins over class-level.
  */
 #[Scoped]
 final readonly class CoreQueryParameterResolver implements QueryParameterResolver
@@ -46,6 +52,8 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         private InlineValidatorRulesReader $validationReader,
         private ValidationRulesToSchema $rulesMapper,
         private LoggerInterface $logger,
+        private FormRequestRulesReader $formRequestRulesReader,
+        private PayloadParameterScanner $scanner,
     ) {}
 
     /**
@@ -61,6 +69,10 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         );
 
         foreach ($this->inlineValidationParameters($descriptor) as $name => $parameter) {
+            $byName[$name] = $parameter;
+        }
+
+        foreach ($this->formRequestParameters($descriptor) as $name => $parameter) {
             $byName[$name] = $parameter;
         }
 
@@ -253,6 +265,86 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
                     'Inline validation in %s: rule key(s) %s cannot be expressed as query parameters; '
                     . 'dropped. Annotate the action with #[QueryParam] to document them.',
                     $actionName,
+                    implode(', ', $droppedKeys),
+                ),
+            );
+        }
+
+        return $parameters;
+    }
+
+    // endregion
+
+    // region FormRequest query source
+
+    /**
+     * Surfaces a GET/HEAD action's {@see FormRequest} `rules()` as query parameters, flattened the
+     * same way as inline `validate()` rules. The request body for the same FormRequest is suppressed
+     * on these verbs by {@see FormRequestRequestSchemaResolver}. DELETE is intentionally left to its
+     * request body (body-vs-query ambiguous), mirroring the inline path's DELETE handling.
+     *
+     * @return array<string, OA\Parameter>
+     */
+    private function formRequestParameters(ActionDescriptor $descriptor): array
+    {
+        $method = $descriptor->method;
+
+        if ($method === null || !in_array($descriptor->httpMethod, self::BODYLESS_METHODS, true)) {
+            return [];
+        }
+
+        $formRequestClass = $this->scanner->candidateOfType($method, FormRequest::class);
+
+        if ($formRequestClass === null) {
+            return [];
+        }
+
+        $actionName = $this->actionName($method);
+        $result = $this->formRequestRulesReader->read($formRequestClass);
+
+        if ($result->rules === null) {
+            $this->logger->notice(
+                sprintf(
+                    'FormRequest %s rules() could not be read statically (%s); no query parameters '
+                    . 'inferred. Annotate the action with #[QueryParam] to document them.',
+                    $formRequestClass,
+                    $result->degradeReason,
+                ),
+            );
+
+            return [];
+        }
+
+        $mapped = $this->rulesMapper->process($result->rules, sourceClass: $formRequestClass);
+
+        /** @var array<string, OA\Parameter> $parameters */
+        $parameters = [];
+
+        /** @var list<string> $droppedKeys */
+        $droppedKeys = [];
+
+        if ($mapped['additionalPropertiesField'] !== null) {
+            $droppedKeys[] = '*';
+        }
+
+        foreach ($mapped['fields'] as $fieldName => $fieldDescriptor) {
+            $this->flattenField(
+                wireName: $fieldName,
+                dottedPath: $fieldName,
+                descriptor: $fieldDescriptor,
+                ancestorsRequired: true,
+                descriptions: [],
+                parameters: $parameters,
+                droppedKeys: $droppedKeys,
+            );
+        }
+
+        if ($droppedKeys !== []) {
+            $this->logger->notice(
+                sprintf(
+                    'FormRequest %s: rule key(s) %s cannot be expressed as query parameters; dropped. '
+                    . 'Annotate the action with #[QueryParam] to document them.',
+                    $formRequestClass,
                     implode(', ', $droppedKeys),
                 ),
             );

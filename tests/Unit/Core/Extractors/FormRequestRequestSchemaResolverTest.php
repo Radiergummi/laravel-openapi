@@ -7,6 +7,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\FormRequestRequestSchemaResolver;
+use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
@@ -36,6 +37,7 @@ function makeFormRequestResolver(): FormRequestRequestSchemaResolver
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: new ArrayFindingsCollector(),
         explicitSchema: new ExplicitClassSchema(new NullLogger()),
+        rulesReader: new FormRequestRulesReader(),
     );
 
     return new FormRequestRequestSchemaResolver(
@@ -103,6 +105,7 @@ it('registers the FormRequest schema in the component registry', function (): vo
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: new ArrayFindingsCollector(),
         explicitSchema: new ExplicitClassSchema(new NullLogger()),
+        rulesReader: new FormRequestRulesReader(),
     );
     $resolver = new FormRequestRequestSchemaResolver(
         schemaBuilder: $builder,

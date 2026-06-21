@@ -8,6 +8,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
+use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\SchemaFromFormRequest;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
@@ -31,6 +32,7 @@ beforeEach(function (): void {
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: $this->findings,
         explicitSchema: new ExplicitClassSchema(new NullLogger()),
+        rulesReader: new FormRequestRulesReader(),
     );
 });
 
@@ -177,6 +179,7 @@ it('registers a placeholder schema, logs a warning, and emits a finding when rul
         synthesiser: new FakerExampleSynthesiser(enabled: false),
         findings: $findings,
         explicitSchema: new ExplicitClassSchema(new NullLogger()),
+        rulesReader: new FormRequestRulesReader(),
     );
 
     $brokenClass = new class () extends FormRequest {

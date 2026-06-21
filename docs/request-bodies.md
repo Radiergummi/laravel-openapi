@@ -10,6 +10,13 @@ Validation rules become schema constraints either way; the lint surface is
 identical. The conventions differ in what each offers beyond input
 validation.
 
+A request body is only attached to a **write verb** (`POST`/`PUT`/`PATCH`). A
+`FormRequest` type-hinted on a **GET/HEAD** action surfaces its `rules()` as
+**query parameters** instead of a request body (GET request bodies are
+discouraged by the OpenAPI spec) — see [Auto-derivation → Query parameters from
+the method body](auto-derivation.md#query-parameters-from-the-method-body). A
+`FormRequest` on a `DELETE` action is left unchanged (no body, no query params).
+
 ## FormRequest vs Spatie Data
 
 | Aspect | `FormRequest` (Core) | Spatie `Data` class (plugin) |
