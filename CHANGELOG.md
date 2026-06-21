@@ -93,6 +93,7 @@ All notable changes to this project are documented here.
 - New `migration.document-annotation-in-config` lint rule (SwaggerPhp plugin, level 4) detects document-level `@OA\Info` / `@OA\Server` / `@OA\SecurityScheme` / root `@OA\Tag` annotations and reports the `config/openapi.php` key each maps to (`info` / `servers` / `security_schemes` / `tags`) plus a paste-ready config snippet in the fix hint. Reports + scaffolds only — no auto-fix (config files are classless, and removing an annotation without writing config would lose the metadata). (#199)
 - `openapi:lint --show-diff` prints a unified diff of every edit a `--fix`/`--check` run would make, to stdout; it never changes the exit code and is not part of the `--format=json` envelope. Combined with a real `--fix` it warns it previews changes that are also being written. (#369)
 - Native PHPDoc `Collection<string, X>` (and `EloquentCollection` / `LazyCollection` / `Enumerable`) generics now infer `{type: object, additionalProperties: <X>}`, matching the existing `array<string, X>` map inference; `mixed`-valued string-keyed maps emit `additionalProperties: true`. (#409)
+- Eloquent model `@property` / `@property-read` tags now contribute their trailing prose as the property `description` in the generated schema (whitespace-trimmed; empty descriptions skipped; an authored attribute description or a documented backed-enum case list is never overwritten). (#415)
 
 ## [0.1.0] - 2026-05-18
 

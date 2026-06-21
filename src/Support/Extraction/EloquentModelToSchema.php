@@ -43,11 +43,13 @@ use function in_array;
 use function is_a;
 use function ltrim;
 use function Radiergummi\OpenApi\copy_schema_fields;
+use function Radiergummi\OpenApi\is_undefined;
 use function str_replace;
 use function str_starts_with;
 use function strtok;
 use function strtolower;
 use function substr;
+use function trim;
 use function ucwords;
 
 /**
@@ -105,6 +107,34 @@ final class EloquentModelToSchema
             return null;
         }
 
+        $property = $this->buildPropertyFor($metadata, $propertyName);
+        $tag = $metadata['propertyTags'][$propertyName] ?? null;
+
+        return $property === null
+            ? null
+            : $this->applyTagDescription($property, $tag);
+    }
+
+    /**
+     * Builds the property for a name without decorating it; the caller applies the docblock
+     * description once to the single result, so every branch (cast, enum, timestamp, untyped
+     * fallback) is covered by one chokepoint.
+     *
+     * @param array{
+     *     reflection: ReflectionClass<Model>,
+     *     casts: array<string, string>,
+     *     propertyTags: array<string, PropertyTagValueNode>,
+     *     appends: list<string>,
+     *     fillable: list<string>,
+     *     hidden: list<string>,
+     *     visible: list<string>,
+     *     timestamps: list<string>,
+     * } $metadata
+     *
+     * @throws ReflectionException
+     */
+    private function buildPropertyFor(array $metadata, string $propertyName): ?OA\Property
+    {
         $castString = $metadata['casts'][$propertyName] ?? null;
         $tag = $metadata['propertyTags'][$propertyName] ?? null;
 
@@ -166,6 +196,29 @@ final class EloquentModelToSchema
         }
 
         return null;
+    }
+
+    /**
+     * Sets a `@property`/`@property-read` tag's trailing prose as the property description, unless
+     * one is already present or the tag carries none. A description sibling to `$ref` is valid in
+     * OpenAPI 3.1, so a relation `@property-read Author $author The author.` keeps its prose. Lets
+     * an authored attribute or an inline documented-enum case list pre-empt the free prose.
+     */
+    private function applyTagDescription(
+        OA\Property $property,
+        ?PropertyTagValueNode $tag,
+    ): OA\Property {
+        if ($tag === null) {
+            return $property;
+        }
+
+        $description = trim($tag->description);
+
+        if ($description !== '' && is_undefined($property->description)) {
+            $property->description = $description;
+        }
+
+        return $property;
     }
 
     /**
@@ -610,6 +663,10 @@ final class EloquentModelToSchema
                     $property->example = $examples[$property->property];
                 }
             }
+        }
+
+        foreach ($properties as $property) {
+            $this->applyTagDescription($property, $propertyTags[$property->property] ?? null);
         }
 
         // Non-nullable @property tags mark the property required, regardless of the cast type.
