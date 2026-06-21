@@ -299,7 +299,6 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
             return [];
         }
 
-        $actionName = $this->actionName($method);
         $result = $this->formRequestRulesReader->read($formRequestClass);
 
         if ($result->rules === null) {

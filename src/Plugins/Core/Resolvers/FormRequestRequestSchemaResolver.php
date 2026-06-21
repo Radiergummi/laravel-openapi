@@ -23,7 +23,8 @@ use function in_array;
  *
  * A FormRequest on a GET/HEAD action yields no request body: GET request bodies are discouraged by
  * the OpenAPI spec, and {@see CoreQueryParameterResolver} surfaces the same `rules()` as query
- * parameters instead. POST/PUT/PATCH/DELETE keep the request body.
+ * parameters instead. POST/PUT/PATCH keep the request body. A DELETE body never serializes anyway:
+ * `OperationDescriptor::shouldAttachBody()` only attaches one on POST/PUT/PATCH.
  */
 #[Scoped]
 final readonly class FormRequestRequestSchemaResolver implements RequestSchemaResolver
