@@ -14,6 +14,7 @@ use Illuminate\Routing\Router;
 use Radiergummi\OpenApi\Events\RouteSkipped;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
@@ -35,6 +36,7 @@ final readonly class RouteIntrospector
         private Container $container,
         private DocCommentParser $parser,
         private ThrowsExtractor $throwsExtractor,
+        private DocBlockParser $docBlockParser,
     ) {}
 
     /**
@@ -86,6 +88,7 @@ final readonly class RouteIntrospector
                     description: $docComment?->description,
                     throws: $throws,
                     closure: $fn,
+                    paramDescriptions: $this->paramDescriptions($comment),
                 );
             }
 
@@ -142,6 +145,21 @@ final readonly class RouteIntrospector
             summary: $docComment?->summary,
             description: $docComment?->description,
             throws: $throws,
+            paramDescriptions: $this->paramDescriptions($comment),
         );
+    }
+
+    /**
+     * `@param` description text keyed by parameter name, or `[]` when the docblock is absent.
+     *
+     * @return array<string, string>
+     */
+    private function paramDescriptions(string|false $comment): array
+    {
+        if ($comment === false) {
+            return [];
+        }
+
+        return $this->docBlockParser->parse($comment)->paramDescriptions();
     }
 }

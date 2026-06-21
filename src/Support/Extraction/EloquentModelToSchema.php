@@ -73,6 +73,8 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
      * }>
      */
     private array $metadataCache = [];
@@ -129,6 +131,8 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
      * } $metadata
      *
      * @throws ReflectionException
@@ -237,6 +241,8 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
      * }
      *
      * @throws ReflectionException
@@ -299,6 +305,12 @@ final class EloquentModelToSchema
             'hidden' => array_values($model->getHidden()),
             'visible' => array_values($model->getVisible()),
             'timestamps' => $timestamps,
+            'primaryKey' => $model->getKeyName(),
+            // The SoftDeletes trait adds getDeletedAtColumn(); guard rather than checking the trait
+            // so a custom trait exposing the same contract is also recognised.
+            'softDeleteColumn' => method_exists($model, 'getDeletedAtColumn')
+                ? $model->getDeletedAtColumn()
+                : null,
         ];
     }
 
@@ -669,6 +681,16 @@ final class EloquentModelToSchema
             $this->applyTagDescription($property, $propertyTags[$property->property] ?? null);
         }
 
+        // Server-managed columns (primary key, timestamps, soft-delete) must never be sent by a
+        // client; mark them readOnly. is_undefined guards against clobbering an authored value.
+        $readOnlyNames = $this->readOnlyNames($metadata);
+
+        foreach ($properties as $property) {
+            if (in_array($property->property, $readOnlyNames, strict: true) && is_undefined($property->readOnly)) {
+                $property->readOnly = true;
+            }
+        }
+
         // Non-nullable @property tags mark the property required, regardless of the cast type.
         $required = [];
 
@@ -687,5 +709,35 @@ final class EloquentModelToSchema
         }
 
         return new OA\Schema($schemaArgs);
+    }
+
+    /**
+     * The server-managed column names that should be marked readOnly: the primary key, the timestamp
+     * columns, and the soft-delete column (when the model soft-deletes).
+     *
+     * @param array{
+     *     reflection: ReflectionClass<Model>,
+     *     casts: array<string, string>,
+     *     propertyTags: array<string, PropertyTagValueNode>,
+     *     appends: list<string>,
+     *     fillable: list<string>,
+     *     hidden: list<string>,
+     *     visible: list<string>,
+     *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
+     * } $metadata
+     *
+     * @return list<string>
+     */
+    private function readOnlyNames(array $metadata): array
+    {
+        $names = [$metadata['primaryKey'], ...$metadata['timestamps']];
+
+        if ($metadata['softDeleteColumn'] !== null) {
+            $names[] = $metadata['softDeleteColumn'];
+        }
+
+        return $names;
     }
 }
