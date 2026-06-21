@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route as RouteFacade;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Routing\DocCommentParser;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Support\Routing\ThrowsExtractor;
@@ -26,6 +27,7 @@ it('emits an ActionDescriptor with null controller/method when the route points 
         container: app(),
         parser: new DocCommentParser(),
         throwsExtractor: ThrowsExtractor::create(),
+        docBlockParser: DocBlockParser::create(),
     );
 
     /** @var list<ActionDescriptor> $descriptors */
@@ -48,6 +50,7 @@ it('emits an ActionDescriptor with null method when the route points at a non-ex
         container: app(),
         parser: new DocCommentParser(),
         throwsExtractor: ThrowsExtractor::create(),
+        docBlockParser: DocBlockParser::create(),
     );
 
     /** @var list<ActionDescriptor> $descriptors */
