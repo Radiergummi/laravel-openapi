@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Routing;
 
 use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Support\Routing\UriPlaceholderExtractor;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionFunction;
@@ -49,8 +50,13 @@ final class ActionDescriptor
 
     /**
      * @param null|ReflectionClass<object> $controller
-     * @param list<string>                 $throws     Fully-qualified exception class names
-     *                                                 resolved from the action's at-throws lines.
+     * @param list<string>                 $throws            Fully-qualified exception class names
+     *                                                        resolved from the action's at-throws
+     *                                                        lines.
+     * @param array<string, string>        $paramDescriptions Action `@param` description text keyed
+     *                                                        by parameter name; the lowest-precedence
+     *                                                        fallback for a path/query parameter
+     *                                                        description.
      */
     public function __construct(
         public readonly Route $route,
@@ -60,6 +66,7 @@ final class ActionDescriptor
         public readonly ?string $description,
         public readonly array $throws = [],
         public readonly ?ReflectionFunction $closure = null,
+        public readonly array $paramDescriptions = [],
     ) {}
 
     /**
@@ -190,6 +197,16 @@ final class ActionDescriptor
     public function bindingFieldFor(string $parameterName): ?string
     {
         return $this->route->bindingFieldFor($parameterName);
+    }
+
+    /**
+     * Extracts every URI placeholder from the route template as `[bareName, optional]`.
+     *
+     * @return list<array{string, bool}>
+     */
+    public function uriPlaceholders(): array
+    {
+        return UriPlaceholderExtractor::extract($this->route->uri());
     }
 
     /**

@@ -41,6 +41,7 @@ use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
+use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
 use ReflectionException;
@@ -58,6 +59,7 @@ use function class_basename;
 use function implode;
 use function in_array;
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
@@ -115,18 +117,8 @@ final readonly class OperationBuilder
     public function build(ActionDescriptor $action, array $defaultTags): OperationDescriptor
     {
         $pathParams = $this->uriExtractor->extract(
-            array_map(
-                fn(ReflectionParameter $parameter): array
-                    => [
-                        $this->uriResolver->resolve(
-                            $parameter,
-                            $action->constraintFor($parameter->getName()),
-                            $action->bindingFieldFor($parameter->getName()),
-                        ),
-                        $parameter,
-                    ],
-                $action->uriParameters,
-            ),
+            $this->resolveUriParameterPairs($action),
+            $action->paramDescriptions,
         );
         // Dedup by (name, in) across resolvers; later resolver wins, except names claimed by an
         // explicit #[QueryParam] attribute, which authoring locks.
@@ -156,6 +148,26 @@ final readonly class OperationBuilder
         }
 
         $queryParams = array_values($queryParamsByKey);
+
+        // Lowest-precedence query-param descriptions: fill only empties left by every resolver, so
+        // a #[QueryParam] or inline-validate() description always wins. Plugin-agnostic, so it lives
+        // here rather than in any one resolver. Resolvers carry the description on the parameter's
+        // schema, so the fallback is read and written there too.
+        foreach ($queryParams as $param) {
+            if ($param->in !== 'query' || !$param->schema instanceof OA\Schema) {
+                continue;
+            }
+
+            if (is_defined($param->schema->description) && $param->schema->description !== '') {
+                continue;
+            }
+
+            $fallback = $action->paramDescriptions[$param->name] ?? null;
+
+            if ($fallback !== null) {
+                $param->schema->description = $fallback;
+            }
+        }
 
         $security = $this->resolveSecurity($action);
         $headerParams = $this->readHeaderAttributes($action);
@@ -277,6 +289,53 @@ final readonly class OperationBuilder
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
+    }
+
+    /**
+     * Builds the descriptor/reflection pairs for the extractor: signature-derived parameters first,
+     * then any URI placeholder absent from the signature (invokable controllers, `Request`-only
+     * actions, the parent of a scoped/nested binding) synthesized as a string path parameter.
+     *
+     * @return list<array{UriParameterDescriptor, ?ReflectionParameter}>
+     *
+     * @throws UnsupportedException
+     */
+    private function resolveUriParameterPairs(ActionDescriptor $action): array
+    {
+        $pairs = [];
+        $declaredNames = [];
+
+        foreach ($action->uriParameters as $parameter) {
+            $name = $parameter->getName();
+            $declaredNames[$name] = true;
+            $pairs[] = [
+                $this->uriResolver->resolve(
+                    $parameter,
+                    $action->constraintFor($name),
+                    $action->bindingFieldFor($name),
+                ),
+                $parameter,
+            ];
+        }
+
+        foreach ($action->uriPlaceholders() as [$name, $optional]) {
+            if (isset($declaredNames[$name])) {
+                continue;
+            }
+
+            $declaredNames[$name] = true;
+            $pairs[] = [
+                $this->uriResolver->resolveUnsignatured(
+                    $name,
+                    $action->constraintFor($name),
+                    $action->bindingFieldFor($name),
+                    $optional,
+                ),
+                null,
+            ];
+        }
+
+        return $pairs;
     }
 
     /** @return list<string> */

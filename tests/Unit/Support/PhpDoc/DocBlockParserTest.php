@@ -44,6 +44,27 @@ it('exposes raw value nodes for arbitrary tags', function (): void {
     expect(makeDocBlockParser()->parse($comment)->tagValues('@param'))->toHaveCount(1);
 });
 
+it('maps each described @param to its trimmed description by bare name', function (): void {
+    $comment = "/**\n * @param string \$slug The post slug.\n * @param int \$page The page number.\n */";
+
+    expect(makeDocBlockParser()->parse($comment)->paramDescriptions())->toBe([
+        'slug' => 'The post slug.',
+        'page' => 'The page number.',
+    ]);
+});
+
+it('omits a typed-but-undescribed @param from the description map', function (): void {
+    $comment = "/**\n * @param string \$slug The post slug.\n * @param int \$page\n */";
+
+    expect(makeDocBlockParser()->parse($comment)->paramDescriptions())->toBe([
+        'slug' => 'The post slug.',
+    ]);
+});
+
+it('returns an empty description map for a malformed comment', function (): void {
+    expect(makeDocBlockParser()->parse('not a doc comment')->paramDescriptions())->toBe([]);
+});
+
 it('exposes the @deprecated reason text', function (): void {
     $comment = "/**\n * @deprecated Use bar() instead.\n */";
 

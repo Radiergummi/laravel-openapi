@@ -43,11 +43,13 @@ use function in_array;
 use function is_a;
 use function ltrim;
 use function Radiergummi\OpenApi\copy_schema_fields;
+use function Radiergummi\OpenApi\is_undefined;
 use function str_replace;
 use function str_starts_with;
 use function strtok;
 use function strtolower;
 use function substr;
+use function trim;
 use function ucwords;
 
 /**
@@ -71,6 +73,8 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
      * }>
      */
     private array $metadataCache = [];
@@ -105,6 +109,36 @@ final class EloquentModelToSchema
             return null;
         }
 
+        $property = $this->buildPropertyFor($metadata, $propertyName);
+        $tag = $metadata['propertyTags'][$propertyName] ?? null;
+
+        return $property === null
+            ? null
+            : $this->applyTagDescription($property, $tag);
+    }
+
+    /**
+     * Builds the property for a name without decorating it; the caller applies the docblock
+     * description once to the single result, so every branch (cast, enum, timestamp, untyped
+     * fallback) is covered by one chokepoint.
+     *
+     * @param array{
+     *     reflection: ReflectionClass<Model>,
+     *     casts: array<string, string>,
+     *     propertyTags: array<string, PropertyTagValueNode>,
+     *     appends: list<string>,
+     *     fillable: list<string>,
+     *     hidden: list<string>,
+     *     visible: list<string>,
+     *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
+     * } $metadata
+     *
+     * @throws ReflectionException
+     */
+    private function buildPropertyFor(array $metadata, string $propertyName): ?OA\Property
+    {
         $castString = $metadata['casts'][$propertyName] ?? null;
         $tag = $metadata['propertyTags'][$propertyName] ?? null;
 
@@ -169,6 +203,29 @@ final class EloquentModelToSchema
     }
 
     /**
+     * Sets a `@property`/`@property-read` tag's trailing prose as the property description, unless
+     * one is already present or the tag carries none. A description sibling to `$ref` is valid in
+     * OpenAPI 3.1, so a relation `@property-read Author $author The author.` keeps its prose. Lets
+     * an authored attribute or an inline documented-enum case list pre-empt the free prose.
+     */
+    private function applyTagDescription(
+        OA\Property $property,
+        ?PropertyTagValueNode $tag,
+    ): OA\Property {
+        if ($tag === null) {
+            return $property;
+        }
+
+        $description = trim($tag->description);
+
+        if ($description !== '' && is_undefined($property->description)) {
+            $property->description = $description;
+        }
+
+        return $property;
+    }
+
+    /**
      * Gathers (and memoises) reflection-level metadata for a model class, or null when
      * the model is not instantiable. Non-instantiable models (abstract, etc.) would throw
      * from `new $modelClass()`; returning null lets callers degrade without aborting the run.
@@ -184,6 +241,8 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
      * }
      *
      * @throws ReflectionException
@@ -246,6 +305,12 @@ final class EloquentModelToSchema
             'hidden' => array_values($model->getHidden()),
             'visible' => array_values($model->getVisible()),
             'timestamps' => $timestamps,
+            'primaryKey' => $model->getKeyName(),
+            // The SoftDeletes trait adds getDeletedAtColumn(); guard rather than checking the trait
+            // so a custom trait exposing the same contract is also recognised.
+            'softDeleteColumn' => method_exists($model, 'getDeletedAtColumn')
+                ? $model->getDeletedAtColumn()
+                : null,
         ];
     }
 
@@ -612,6 +677,20 @@ final class EloquentModelToSchema
             }
         }
 
+        foreach ($properties as $property) {
+            $this->applyTagDescription($property, $propertyTags[$property->property] ?? null);
+        }
+
+        // Server-managed columns (primary key, timestamps, soft-delete) must never be sent by a
+        // client; mark them readOnly. is_undefined guards against clobbering an authored value.
+        $readOnlyNames = $this->readOnlyNames($metadata);
+
+        foreach ($properties as $property) {
+            if (in_array($property->property, $readOnlyNames, strict: true) && is_undefined($property->readOnly)) {
+                $property->readOnly = true;
+            }
+        }
+
         // Non-nullable @property tags mark the property required, regardless of the cast type.
         $required = [];
 
@@ -630,5 +709,35 @@ final class EloquentModelToSchema
         }
 
         return new OA\Schema($schemaArgs);
+    }
+
+    /**
+     * The server-managed column names that should be marked readOnly: the primary key, the timestamp
+     * columns, and the soft-delete column (when the model soft-deletes).
+     *
+     * @param array{
+     *     reflection: ReflectionClass<Model>,
+     *     casts: array<string, string>,
+     *     propertyTags: array<string, PropertyTagValueNode>,
+     *     appends: list<string>,
+     *     fillable: list<string>,
+     *     hidden: list<string>,
+     *     visible: list<string>,
+     *     timestamps: list<string>,
+     *     primaryKey: string,
+     *     softDeleteColumn: null|string,
+     * } $metadata
+     *
+     * @return list<string>
+     */
+    private function readOnlyNames(array $metadata): array
+    {
+        $names = [$metadata['primaryKey'], ...$metadata['timestamps']];
+
+        if ($metadata['softDeleteColumn'] !== null) {
+            $names[] = $metadata['softDeleteColumn'];
+        }
+
+        return $names;
     }
 }
