@@ -76,6 +76,7 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
      *     table: string,
@@ -123,7 +124,11 @@ final class EloquentModelToSchema
 
         $tag = $metadata['propertyTags'][$propertyName] ?? null;
         $this->applyTagDescription($property, $tag);
-        $this->applyMigrationColumn($property, $this->migrationColumnsFor($metadata['table'])[$propertyName] ?? null);
+        $this->applyMigrationColumn(
+            $property,
+            $this->migrationColumnsFor($metadata['table'])[$propertyName] ?? null,
+            $metadata['attributes'],
+        );
 
         return $property;
     }
@@ -142,6 +147,7 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
      *     table: string,
@@ -253,6 +259,7 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
      *     table: string,
@@ -318,6 +325,9 @@ final class EloquentModelToSchema
             'hidden' => array_values($model->getHidden()),
             'visible' => array_values($model->getVisible()),
             'timestamps' => $timestamps,
+            // A model's static $attributes declares per-column defaults; getAttributes() on a fresh
+            // instance returns them verbatim (raw, uncast), the lowest-precedence default source.
+            'attributes' => $model->getAttributes(),
             'primaryKey' => $model->getKeyName(),
             // The SoftDeletes trait adds getDeletedAtColumn(); guard rather than checking the trait
             // so a custom trait exposing the same contract is also recognised.
@@ -567,61 +577,85 @@ final class EloquentModelToSchema
      * attribute left the field undefined. The migration is authored and never-wrong, yet ranks below
      * those richer sources, so every write is guarded by `is_undefined`. Nullability only relaxes a
      * scalar type to include `null`; it never touches the `required` derivation.
+     *
+     * The model's static `$attributes` is the lowest-precedence `default` source: it fills only where
+     * the cast / `@property` / attribute and the migration `->default()` all left `default` undefined.
+     *
+     * @param array<string, mixed> $attributes The model's static `$attributes`, keyed by column name.
      */
-    private function applyMigrationColumn(OA\Property $property, ?ColumnMetadata $column): void
+    private function applyMigrationColumn(OA\Property $property, ?ColumnMetadata $column, array $attributes): void
     {
-        if ($column === null) {
-            return;
-        }
-
         // A `$ref` property (a relation or enum cast) takes only a description sibling in OAS 3.1;
         // type-shaping keywords next to a `$ref` would be ignored or invalid, so apply none of them.
+        // A `default` sibling is likewise dropped, so the $attributes fill is skipped here too.
         if (is_defined($property->ref)) {
-            if ($column->description !== null && is_undefined($property->description)) {
+            if ($column?->description !== null && is_undefined($property->description)) {
                 $property->description = $column->description;
             }
 
             return;
         }
 
-        if ($column->type !== null && is_undefined($property->type)) {
-            $property->type = $column->type;
+        if ($column !== null) {
+            if ($column->type !== null && is_undefined($property->type)) {
+                $property->type = $column->type;
+            }
+
+            if ($column->format !== null && is_undefined($property->format)) {
+                $property->format = $column->format;
+            }
+
+            if ($column->pattern !== null && is_undefined($property->pattern)) {
+                $property->pattern = $column->pattern;
+            }
+
+            if ($column->maxLength !== null && is_undefined($property->maxLength)) {
+                $property->maxLength = $column->maxLength;
+            }
+
+            if ($column->minimum !== null && is_undefined($property->minimum)) {
+                $property->minimum = $column->minimum;
+            }
+
+            if ($column->multipleOf !== null && is_undefined($property->multipleOf)) {
+                $property->multipleOf = $column->multipleOf;
+            }
+
+            if ($column->enum !== null && is_undefined($property->enum)) {
+                $property->enum = $column->enum;
+            }
+
+            if ($column->hasDefault && is_undefined($property->default)) {
+                $property->default = $column->default;
+            }
+
+            if ($column->description !== null && is_undefined($property->description)) {
+                $property->description = $column->description;
+            }
+
+            if ($column->nullable) {
+                $this->relaxToNullable($property);
+            }
         }
 
-        if ($column->format !== null && is_undefined($property->format)) {
-            $property->format = $column->format;
-        }
+        // Lowest-precedence default: runs after the migration default write above, so a migration
+        // (or any earlier) default wins by leaving `default` already defined.
+        $this->applyAttributeDefault($property, $attributes);
+    }
 
-        if ($column->pattern !== null && is_undefined($property->pattern)) {
-            $property->pattern = $column->pattern;
-        }
+    /**
+     * Fills a property's `default` from the model's static `$attributes` entry for its column, but
+     * only when no higher-precedence source already set it. `array_key_exists` (not `isset`) honours
+     * an explicit `'column' => null` default, distinguishing it from an absent entry.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function applyAttributeDefault(OA\Property $property, array $attributes): void
+    {
+        $name = $property->property;
 
-        if ($column->maxLength !== null && is_undefined($property->maxLength)) {
-            $property->maxLength = $column->maxLength;
-        }
-
-        if ($column->minimum !== null && is_undefined($property->minimum)) {
-            $property->minimum = $column->minimum;
-        }
-
-        if ($column->multipleOf !== null && is_undefined($property->multipleOf)) {
-            $property->multipleOf = $column->multipleOf;
-        }
-
-        if ($column->enum !== null && is_undefined($property->enum)) {
-            $property->enum = $column->enum;
-        }
-
-        if ($column->hasDefault && is_undefined($property->default)) {
-            $property->default = $column->default;
-        }
-
-        if ($column->description !== null && is_undefined($property->description)) {
-            $property->description = $column->description;
-        }
-
-        if ($column->nullable) {
-            $this->relaxToNullable($property);
+        if (is_string($name) && is_undefined($property->default) && array_key_exists($name, $attributes)) {
+            $property->default = $attributes[$name];
         }
     }
 
@@ -802,7 +836,11 @@ final class EloquentModelToSchema
         $migrationColumns = $this->migrationColumnsFor($metadata['table']);
 
         foreach ($properties as $property) {
-            $this->applyMigrationColumn($property, $migrationColumns[$property->property] ?? null);
+            $this->applyMigrationColumn(
+                $property,
+                $migrationColumns[$property->property] ?? null,
+                $metadata['attributes'],
+            );
         }
 
         // Server-managed columns (primary key, timestamps, soft-delete) must never be sent by a
@@ -848,6 +886,7 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
      *     table: string,
