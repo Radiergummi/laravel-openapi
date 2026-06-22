@@ -41,6 +41,7 @@ use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
@@ -49,6 +50,7 @@ use ReflectionParameter;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
+use function array_any;
 use function array_filter;
 use function array_map;
 use function array_merge;
@@ -59,8 +61,10 @@ use function class_basename;
 use function implode;
 use function in_array;
 use function is_array;
+use function is_string;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
+use function str_starts_with;
 
 /**
  * Builds the property array dispatched onto OA\Get/OA\Post/etc. for one route action.
@@ -83,6 +87,7 @@ final readonly class OperationBuilder
         private ExampleFileLoader $fileLoader,
         private ResolverFaultBoundary $faultBoundary,
         private DocBlockParser $docBlockParser,
+        private RouteMiddlewareGatherer $middlewareGatherer,
         /**
          * @var list<RefSchemaResolver>
          */
@@ -241,6 +246,7 @@ final readonly class OperationBuilder
         $this->applyResponseExamples($action, $responses);
         $this->applyResponseExampleFiles($action, $responses, $primaryResponse);
         $this->applyResponseHeaders($action, $responses);
+        $this->applyConventionalResponseHeaders($action, $responses, $primaryResponse);
         $this->applyLinkAttributes($action, $primaryResponse);
 
         [$summary, $summaryProvenance] = $this->resolveSummary($action, $resolvedConvention);
@@ -1017,6 +1023,81 @@ final readonly class OperationBuilder
         }
 
         return new OA\Header($props);
+    }
+
+    /**
+     * Appends headers Laravel always emits for a route, derived from signals the route carries:
+     * `Location` on a 201 (created-resource redirect) and the rate-limit pair under throttle
+     * middleware. Authored {@see ResponseHeaderAttribute} headers run first, so a name already
+     * present on a response wins and the convention skips it.
+     *
+     * Rate-limit headers attach to the primary (success) response only: Laravel decorates a passing
+     * response, not the 429, which carries a different header set.
+     *
+     * @param list<OA\Response> $responses
+     */
+    private function applyConventionalResponseHeaders(
+        ActionDescriptor $descriptor,
+        array $responses,
+        OA\Response $primaryResponse,
+    ): void {
+        foreach ($responses as $response) {
+            if ((string) $response->response === '201') {
+                $this->appendDerivedHeader($response, 'Location', new OA\Schema([
+                    'type' => 'string',
+                    'format' => 'uri-reference',
+                ]), 'URL of the created resource');
+            }
+        }
+
+        if (!$this->hasThrottleMiddleware($descriptor)) {
+            return;
+        }
+
+        $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Limit', new OA\Schema([
+            'type' => 'integer',
+        ]), 'The maximum number of requests allowed within the rate-limit window.');
+
+        $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Remaining', new OA\Schema([
+            'type' => 'integer',
+        ]), 'The number of requests remaining in the current rate-limit window.');
+    }
+
+    /** Appends a header to a response unless one of the same name is already present. */
+    private function appendDerivedHeader(
+        OA\Response $response,
+        string $name,
+        OA\Schema $schema,
+        string $description,
+    ): void {
+        $existing = is_array($response->headers) ? $response->headers : [];
+
+        foreach ($existing as $header) {
+            if ($header instanceof OA\Header && $header->header === $name) {
+                return;
+            }
+        }
+
+        $existing[] = new OA\Header([
+            'header' => $name,
+            'schema' => $schema,
+            'description' => $description,
+        ]);
+
+        $response->headers = $existing;
+    }
+
+    private function hasThrottleMiddleware(ActionDescriptor $descriptor): bool
+    {
+        $middleware = array_filter(
+            $this->middlewareGatherer->middlewareFor($descriptor->route),
+            is_string(...),
+        );
+
+        return array_any(
+            $middleware,
+            static fn(string $entry): bool => $entry === 'throttle' || str_starts_with($entry, 'throttle:'),
+        );
     }
 
     /** Links are per-operation, not per-controller. */

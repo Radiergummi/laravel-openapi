@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
 
@@ -42,6 +43,7 @@ function builderWithResolvers(
         fileLoader: app(ExampleFileLoader::class),
         faultBoundary: $boundary,
         docBlockParser: app(DocBlockParser::class),
+        middlewareGatherer: app(RouteMiddlewareGatherer::class),
         queryParameterResolvers: $queryParameterResolvers,
         primaryResponseResolvers: $primaryResponseResolvers,
     );

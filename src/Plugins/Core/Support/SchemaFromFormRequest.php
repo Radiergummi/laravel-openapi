@@ -13,7 +13,6 @@ use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
-use Radiergummi\OpenApi\Plugins\Core\Support\SpecTime\SpecTimeRequest;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
@@ -23,7 +22,6 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
 use ReflectionException;
-use Throwable;
 
 use function array_any;
 use function array_key_exists;
@@ -48,6 +46,7 @@ final readonly class SchemaFromFormRequest
         private FakerExampleSynthesiser $synthesiser,
         private FindingsCollector $findings,
         private ExplicitClassSchema $explicitSchema,
+        private FormRequestRulesReader $rulesReader,
     ) {}
 
     /**
@@ -104,23 +103,18 @@ final readonly class SchemaFromFormRequest
             ]);
         }
 
-        try {
-            // configure() wires a permissive route + user resolver so rules() can call
-            // $this->route('foo') / $this->user() without throwing.
-            $args = SpecTimeRequest::resolveConstructorDeps($formRequestClass);
-            $instance = new $formRequestClass(...$args);
-            SpecTimeRequest::configure($instance);
-            $rules = $instance->rules();
-        } catch (Throwable $exception) {
+        $rulesResult = $this->rulesReader->read($formRequestClass);
+
+        if ($rulesResult->rules === null) {
             $this->logger->warning(
                 sprintf(
                     'SchemaFromFormRequest failed for %s: %s',
                     $formRequestClass,
-                    $exception->getMessage(),
+                    $rulesResult->degradeReason,
                 ),
             );
 
-            $this->emitDegradedFinding($formRequestClass, $exception);
+            $this->emitDegradedFinding($formRequestClass, $rulesResult->degradeReason);
             $this->registry->setHasFileFields($formRequestClass, false);
 
             return new OA\Schema([
@@ -132,7 +126,7 @@ final readonly class SchemaFromFormRequest
             ]);
         }
 
-        $result = $this->rulesMapper->process($rules, sourceClass: $formRequestClass);
+        $result = $this->rulesMapper->process($rulesResult->rules, sourceClass: $formRequestClass);
         $fieldMap = $result['fields'];
         $additionalPropertiesField = $result['additionalPropertiesField'];
 
@@ -202,7 +196,7 @@ final readonly class SchemaFromFormRequest
     /**
      * @param class-string<FormRequest> $formRequestClass
      */
-    private function emitDegradedFinding(string $formRequestClass, Throwable $exception): void
+    private function emitDegradedFinding(string $formRequestClass, ?string $reason): void
     {
         $file = null;
         $line = null;
@@ -222,7 +216,7 @@ final readonly class SchemaFromFormRequest
                 message: sprintf(
                     'Schema introspection failed for %s: %s',
                     $formRequestClass,
-                    $exception->getMessage(),
+                    $reason,
                 ),
                 location: new FindingLocation(file: $file, line: $line),
                 fixHint: 'rules() threw during introspection. Common causes: a type-check against runtime state (e.g., `instanceof User`), a call into a container service that is not bound at spec-time, or a `match`/`switch` on a runtime value. Refactor rules() to depend only on the request payload, or suppress this finding on the FormRequest class with `#[IgnoreLint(\'request-body.schema-degraded\', reason: \'…\')]` and document the limitation in the API description.',
