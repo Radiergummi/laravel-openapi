@@ -616,3 +616,14 @@ it('never grafts an $attributes default onto a $ref property', function (): void
         ->toBe('#/components/schemas/ArticleStatus')
         ->and(is_undefined($property->default))->toBeTrue();
 });
+
+it('fills the $attributes default with no migration column present', function (): void {
+    // The common real-world case: a model declares $attributes defaults but no migration is read,
+    // so the column-less path must still fill `default` (and still skip an absent entry).
+    $schema = buildModelSchema(AttributesDefaultArticle::class, readMigrationColumns: false);
+
+    expect(modelProperty($schema, 'summary')->default)
+        ->toBe('No summary provided.')
+        ->and(modelProperty($schema, 'state')->default)->toBe('draft')
+        ->and(is_undefined(modelProperty($schema, 'name')->default))->toBeTrue();
+});
