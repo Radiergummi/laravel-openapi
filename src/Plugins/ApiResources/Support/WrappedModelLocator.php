@@ -34,6 +34,11 @@ final class WrappedModelLocator
      */
     private array $cache = [];
 
+    /**
+     * @var array<class-string<JsonResource>, null|class-string>
+     */
+    private array $valueObjectCache = [];
+
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
         private readonly TypeNodeResolver $typeNodeResolver,
@@ -52,17 +57,51 @@ final class WrappedModelLocator
             return $this->cache[$resourceClass];
         }
 
-        return $this->cache[$resourceClass] = $this->resolve($resourceClass);
+        /** @var null|class-string<Model> $modelClass */
+        $modelClass = $this->resolveClassName(
+            $resourceClass,
+            static fn(string $className): bool => is_a($className, Model::class, allow_string: true),
+        );
+
+        return $this->cache[$resourceClass] = $modelClass;
     }
 
     /**
+     * The wrapped class when it is a non-`Model` value object, for typing its public properties.
+     * Returns null when the wrapped class is a `Model` (that is {@see locate}'s job) or absent.
+     *
      * @param class-string<JsonResource> $resourceClass
      *
-     * @return null|class-string<Model>
+     * @return null|class-string
      *
      * @throws ReflectionException
      */
-    private function resolve(string $resourceClass): ?string
+    public function locateValueObject(string $resourceClass): ?string
+    {
+        if (array_key_exists($resourceClass, $this->valueObjectCache)) {
+            return $this->valueObjectCache[$resourceClass];
+        }
+
+        return $this->valueObjectCache[$resourceClass] = $this->resolveClassName(
+            $resourceClass,
+            static fn(string $className): bool => !is_a($className, Model::class, allow_string: true),
+        );
+    }
+
+    /**
+     * The first wrapped class accepted by `$matches`, taken from `@mixin` (preferred) then the
+     * `@extends` generic argument. Filtering inside both loops preserves the tag precedence even
+     * when an earlier tag names a class of the other kind (e.g. a non-Model `@mixin` alongside a
+     * Model `@extends`).
+     *
+     * @param class-string<JsonResource>   $resourceClass
+     * @param callable(class-string): bool $matches
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function resolveClassName(string $resourceClass, callable $matches): ?string
     {
         $reflection = new ReflectionClass($resourceClass);
         $docComment = $reflection->getDocComment();
@@ -78,12 +117,10 @@ final class WrappedModelLocator
                 continue;
             }
 
-            $modelClass = $this->modelClassOf(
-                $this->typeNodeResolver->resolveClassName($tag->type, $reflection),
-            );
+            $className = $this->typeNodeResolver->resolveClassName($tag->type, $reflection);
 
-            if ($modelClass !== null) {
-                return $modelClass;
+            if ($className !== null && class_exists($className) && $matches($className)) {
+                return $className;
             }
         }
 
@@ -92,32 +129,13 @@ final class WrappedModelLocator
                 continue;
             }
 
-            $modelClass = $this->modelClassOf(
-                $this->typeNodeResolver->genericValueClass($tag->type, $reflection),
-            );
+            $className = $this->typeNodeResolver->genericValueClass($tag->type, $reflection);
 
-            if ($modelClass !== null) {
-                return $modelClass;
+            if ($className !== null && class_exists($className) && $matches($className)) {
+                return $className;
             }
         }
 
         return null;
-    }
-
-    /**
-     * @return null|class-string<Model>
-     */
-    private function modelClassOf(?string $className): ?string
-    {
-        if ($className === null || !class_exists($className)) {
-            return null;
-        }
-
-        if (!is_a($className, Model::class, allow_string: true)) {
-            return null;
-        }
-
-        /** @var class-string<Model> $className */
-        return $className;
     }
 }
