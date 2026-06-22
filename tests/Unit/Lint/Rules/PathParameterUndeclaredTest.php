@@ -31,7 +31,27 @@ it('emits no finding when all placeholders are declared as path parameters', fun
     'single placeholder declared'      => ['/users/{userId}', ['userId']],
     'RFC 6570 operator-prefixed name'  => ['/files/{+path}', ['path']],
     'no placeholders at all'           => ['/users', []],
+    'custom-key binding {param:field}' => ['/members/{member:slug}', ['member']],
+    'custom-key + optional'            => ['/members/{member:slug?}', ['member']],
+    'operator prefix + custom key'     => ['/files/{+path:disk}', ['path']],
 ]);
+
+it('reports an undeclared custom-key placeholder under its bare name', function (): void {
+    $operation = OperationNodeFactory::makeOperation(
+        pathUri: '/members/{member:slug}',
+        parameters: [],
+        responses: [],
+    );
+
+    $findings = iterator_to_array(
+        new PathParameterUndeclared()->checkOperation($operation, OperationNodeFactory::emptyContext()),
+    );
+
+    expect($findings)
+        ->toHaveCount(1)
+        ->and($findings[0]->message)->toContain('"{member}"')
+        ->and($findings[0]->fixHint)->toContain('name="member"');
+});
 
 it('emits a finding for an undeclared path placeholder', function (): void {
     $operation = OperationNodeFactory::makeOperation(

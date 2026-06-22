@@ -12,11 +12,10 @@ use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Tree\ParameterNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
+use Radiergummi\OpenApi\Support\Routing\UriPlaceholderExtractor;
 
 use function array_map;
 use function in_array;
-use function ltrim;
-use function preg_match_all;
 use function sprintf;
 
 /**
@@ -72,16 +71,9 @@ final class PathParameterUndeclared implements Rule, OperationRuleVisitor
      */
     private function extractPlaceholders(string $pathUri): array
     {
-        if (preg_match_all("/\{([^?}]+)\??}/", $pathUri, $matches)) {
-            return array_map(
-                static fn(string $name): string => ltrim($name, '+#./;?&=,!@|'),
-                $matches[1],
-            );
-        }
-
-        return [];
+        return array_map(
+            static fn(array $placeholder): string => $placeholder[0],
+            UriPlaceholderExtractor::extract($pathUri),
+        );
     }
-
-
-
 }

@@ -41,6 +41,7 @@ use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
+use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
@@ -49,6 +50,7 @@ use ReflectionParameter;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
+use function array_any;
 use function array_filter;
 use function array_map;
 use function array_merge;
@@ -59,8 +61,10 @@ use function class_basename;
 use function implode;
 use function in_array;
 use function is_array;
+use function is_string;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
+use function str_starts_with;
 
 /**
  * Builds the property array dispatched onto OA\Get/OA\Post/etc. for one route action.
@@ -83,6 +87,7 @@ final readonly class OperationBuilder
         private ExampleFileLoader $fileLoader,
         private ResolverFaultBoundary $faultBoundary,
         private DocBlockParser $docBlockParser,
+        private RouteMiddlewareGatherer $middlewareGatherer,
         /**
          * @var list<RefSchemaResolver>
          */
@@ -241,6 +246,7 @@ final readonly class OperationBuilder
         $this->applyResponseExamples($action, $responses);
         $this->applyResponseExampleFiles($action, $responses, $primaryResponse);
         $this->applyResponseHeaders($action, $responses);
+        $this->applyConventionalResponseHeaders($action, $responses, $primaryResponse);
         $this->applyLinkAttributes($action, $primaryResponse);
 
         [$summary, $summaryProvenance] = $this->resolveSummary($action, $resolvedConvention);
@@ -453,14 +459,22 @@ final readonly class OperationBuilder
             return $auto;
         }
 
+        $mediaTypes = $this->declaredMediaTypes($override->mediaTypes);
+
         if ($auto === null) {
+            // No resolved schema exists, so build a fresh object-fallback schema per entry:
+            // swagger-php can set parent back-references during serialization, so one instance
+            // must not be shared across media types.
+            $content = $mediaTypes !== null
+                ? array_map(
+                    fn(MediaType $type): OA\MediaType => $type->schema(new OA\Schema(['type' => 'object'])),
+                    $mediaTypes,
+                )
+                : [($override->mediaType ?? MediaType::Json)->schema(new OA\Schema(['type' => 'object']))];
+
             $body = new OA\RequestBody([
                 'required' => $override->required ?? true,
-                'content' => [
-                    ($override->mediaType ?? MediaType::Json)->schema(
-                        new OA\Schema(['type' => 'object']),
-                    ),
-                ],
+                'content' => $content,
             ]);
 
             if ($override->description !== null) {
@@ -478,7 +492,19 @@ final readonly class OperationBuilder
             $auto->required = $override->required;
         }
 
-        if ($override->mediaType !== null && is_array($auto->content)) {
+        if ($mediaTypes !== null && is_array($auto->content)) {
+            $resolved = $auto->content[0] ?? null;
+
+            // Fan out the already-resolved auto-body schema across every declared type, sharing
+            // the single resolved schema reference (e.g. a $ref wrapper) across entries.
+            if ($resolved instanceof OA\MediaType && $resolved->schema instanceof OA\Schema) {
+                $schema = $resolved->schema;
+                $auto->content = array_map(
+                    fn(MediaType $type): OA\MediaType => $type->schema($schema),
+                    $mediaTypes,
+                );
+            }
+        } elseif ($override->mediaType !== null && is_array($auto->content)) {
             foreach ($auto->content as $media) {
                 if ($media instanceof OA\MediaType) {
                     $media->mediaType = $override->mediaType->value;
@@ -487,6 +513,40 @@ final readonly class OperationBuilder
         }
 
         return $auto;
+    }
+
+    /**
+     * Normalises a declared `mediaTypes` list, treating null and empty as "not declared".
+     *
+     * @param null|list<MediaType> $mediaTypes
+     *
+     * @return null|non-empty-list<MediaType>
+     */
+    private function declaredMediaTypes(?array $mediaTypes): ?array
+    {
+        return $mediaTypes === null || $mediaTypes === [] ? null : $mediaTypes;
+    }
+
+    /**
+     * Builds the content entries for a resolved schema, one per declared media type or a single
+     * entry under the default when none are declared.
+     *
+     * @param null|list<MediaType> $mediaTypes
+     *
+     * @return non-empty-list<OA\MediaType>
+     */
+    private function contentEntriesFor(OA\Schema $schema, ?array $mediaTypes, MediaType $default): array
+    {
+        $declared = $this->declaredMediaTypes($mediaTypes);
+
+        if ($declared === null) {
+            return [$default->schema($schema)];
+        }
+
+        return array_map(
+            fn(MediaType $type): OA\MediaType => $type->schema($schema),
+            $declared,
+        );
     }
 
     /**
@@ -634,16 +694,20 @@ final readonly class OperationBuilder
 
         // Inline schema wins over $ref when both are supplied.
         if ($attribute->schema !== null) {
-            $props['content'] = [
-                $mediaType->schema(SchemaFromArrayDefinition::build($attribute->schema)),
-            ];
+            $props['content'] = $this->contentEntriesFor(
+                SchemaFromArrayDefinition::build($attribute->schema),
+                $attribute->mediaTypes,
+                $mediaType,
+            );
         } else {
             $schemaRef = $this->resolveRefSchema($attribute->ref, $descriptor);
 
             if ($schemaRef !== null) {
-                $props['content'] = [
-                    $mediaType->schema(new OA\Schema(['ref' => $schemaRef])),
-                ];
+                $props['content'] = $this->contentEntriesFor(
+                    new OA\Schema(['ref' => $schemaRef]),
+                    $attribute->mediaTypes,
+                    $mediaType,
+                );
             }
         }
 
@@ -959,6 +1023,81 @@ final readonly class OperationBuilder
         }
 
         return new OA\Header($props);
+    }
+
+    /**
+     * Appends headers Laravel always emits for a route, derived from signals the route carries:
+     * `Location` on a 201 (created-resource redirect) and the rate-limit pair under throttle
+     * middleware. Authored {@see ResponseHeaderAttribute} headers run first, so a name already
+     * present on a response wins and the convention skips it.
+     *
+     * Rate-limit headers attach to the primary (success) response only: Laravel decorates a passing
+     * response, not the 429, which carries a different header set.
+     *
+     * @param list<OA\Response> $responses
+     */
+    private function applyConventionalResponseHeaders(
+        ActionDescriptor $descriptor,
+        array $responses,
+        OA\Response $primaryResponse,
+    ): void {
+        foreach ($responses as $response) {
+            if ((string) $response->response === '201') {
+                $this->appendDerivedHeader($response, 'Location', new OA\Schema([
+                    'type' => 'string',
+                    'format' => 'uri-reference',
+                ]), 'URL of the created resource');
+            }
+        }
+
+        if (!$this->hasThrottleMiddleware($descriptor)) {
+            return;
+        }
+
+        $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Limit', new OA\Schema([
+            'type' => 'integer',
+        ]), 'The maximum number of requests allowed within the rate-limit window.');
+
+        $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Remaining', new OA\Schema([
+            'type' => 'integer',
+        ]), 'The number of requests remaining in the current rate-limit window.');
+    }
+
+    /** Appends a header to a response unless one of the same name is already present. */
+    private function appendDerivedHeader(
+        OA\Response $response,
+        string $name,
+        OA\Schema $schema,
+        string $description,
+    ): void {
+        $existing = is_array($response->headers) ? $response->headers : [];
+
+        foreach ($existing as $header) {
+            if ($header instanceof OA\Header && $header->header === $name) {
+                return;
+            }
+        }
+
+        $existing[] = new OA\Header([
+            'header' => $name,
+            'schema' => $schema,
+            'description' => $description,
+        ]);
+
+        $response->headers = $existing;
+    }
+
+    private function hasThrottleMiddleware(ActionDescriptor $descriptor): bool
+    {
+        $middleware = array_filter(
+            $this->middlewareGatherer->middlewareFor($descriptor->route),
+            is_string(...),
+        );
+
+        return array_any(
+            $middleware,
+            static fn(string $entry): bool => $entry === 'throttle' || str_starts_with($entry, 'throttle:'),
+        );
     }
 
     /** Links are per-operation, not per-controller. */

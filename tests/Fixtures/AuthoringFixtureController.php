@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Attributes\RequestBody;
 use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Attributes\ResponseExample;
+use Radiergummi\OpenApi\Attributes\ResponseHeader;
 use Radiergummi\OpenApi\Attributes\Security;
 use Radiergummi\OpenApi\Attributes\Webhook;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -185,6 +186,28 @@ class AuthoringFixtureController extends Controller
     #[Response(status: 201, description: 'Created')]
     #[Response(status: 202, description: 'Accepted')]
     public function multiTwoxxResponseAction(): array
+    {
+        return [];
+    }
+
+    /**
+     * Fixture for response-header inference: an authored Location header on the 201 response must
+     * win over the convention-derived one (custom description kept, no duplicate appended).
+     */
+    #[Response(status: 201, description: 'Created')]
+    #[ResponseHeader(name: 'Location', status: 201, description: 'Authored location')]
+    public function authoredLocationAction(): array
+    {
+        return [];
+    }
+
+    /**
+     * Fixture for response-header inference: an authored X-RateLimit-Limit header on the primary
+     * (200) response must win over the convention-derived one, while the un-authored sibling
+     * X-RateLimit-Remaining is still appended by the convention.
+     */
+    #[ResponseHeader(name: 'X-RateLimit-Limit', description: 'Authored limit')]
+    public function authoredRateLimitAction(): array
     {
         return [];
     }

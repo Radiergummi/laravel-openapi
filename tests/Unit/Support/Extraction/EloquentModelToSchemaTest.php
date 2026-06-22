@@ -9,6 +9,7 @@ use OpenApi\Annotations as OA;
 use OpenApi\Generator;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\MigrationColumnReader;
 use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
@@ -17,6 +18,7 @@ use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\AbstractModel;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\AttributesDefaultArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle;
@@ -28,6 +30,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Models\OverriddenTimestampsArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\ShapedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\UntimestampedArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\VisibleArticle;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\Widget;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
 use function Radiergummi\OpenApi\is_undefined;
@@ -42,7 +45,7 @@ uses()->group('openapi');
  *
  * @param class-string<Model> $modelClass
  */
-function buildModelSchema(string $modelClass): OA\Schema
+function buildModelSchema(string $modelClass, bool $readMigrationColumns = true): OA\Schema
 {
     $registry = new ComponentSchemaRegistry();
     $logger = new NullLogger();
@@ -56,6 +59,11 @@ function buildModelSchema(string $modelClass): OA\Schema
         docBlockParser: DocBlockParser::create(),
         logger: $logger,
         factoryExampleReader: new ModelFactoryExampleReader(seed: 1234, logger: $logger),
+        migrationColumnReader: new MigrationColumnReader(
+            migrationsDirectory: dirname(__DIR__, 3) . '/Fixtures/Migrations',
+            logger: $logger,
+        ),
+        readMigrationColumns: $readMigrationColumns,
     );
 
     $key = $reader->build($modelClass);
@@ -493,4 +501,129 @@ it('keeps the @property prose as a description sibling of a $ref relation proper
     expect($author->ref)
         ->toBe('#/components/schemas/Author')
         ->and($author->description)->toBe("The article's primary author.");
+});
+
+it('enriches an uncast string column with the migration format', function (): void {
+    // last_ip has no cast; the migration's ipAddress() supplies format: ip and nullable.
+    $property = modelProperty(buildModelSchema(Widget::class), 'last_ip');
+
+    expect($property->format)->toBe('ip')
+        ->and($property->type)->toBe(['string', 'null']);
+});
+
+it('reads maxLength from the migration for an uncast column', function (): void {
+    $property = modelProperty(buildModelSchema(Widget::class), 'name');
+
+    expect($property->maxLength)->toBe(120);
+});
+
+it('lets a cast win over the migration type, enriching only undefined fields', function (): void {
+    // decimal:2 cast yields type: string; the decimal(8,2) migration would say number.
+    // The cast type survives, but the migration fills the otherwise-undefined multipleOf.
+    $property = modelProperty(buildModelSchema(Widget::class), 'price');
+
+    expect($property->type)->toBe('string')
+        ->and($property->multipleOf)->toBe(0.01);
+});
+
+it('relaxes an uncast unsigned column to minimum 0', function (): void {
+    $property = modelProperty(buildModelSchema(Widget::class), 'quantity');
+
+    expect($property->minimum)->toBe(0);
+});
+
+it('reads an enum column into the property enum', function (): void {
+    $property = modelProperty(buildModelSchema(Widget::class), 'size');
+
+    expect($property->enum)->toBe(['small', 'medium', 'large']);
+});
+
+it('reads a migration comment as the property description', function (): void {
+    $property = modelProperty(buildModelSchema(Widget::class), 'notes');
+
+    expect($property->description)->toBe('Free-form operator notes.');
+});
+
+it('reads a literal migration default', function (): void {
+    $property = modelProperty(buildModelSchema(Widget::class), 'label');
+
+    expect($property->default)->toBe('unlabelled');
+});
+
+it('leaves a json-cast column untouched by the migration object type', function (): void {
+    // configuration is cast to array and the migration declares json; both agree on object,
+    // so the result is an object either way (cast wins on type).
+    $property = modelProperty(buildModelSchema(Widget::class), 'configuration');
+
+    expect($property->type)->toBe('object');
+});
+
+it('emits the baseline schema when migration reading is disabled', function (): void {
+    $property = modelProperty(buildModelSchema(Widget::class, readMigrationColumns: false), 'last_ip');
+
+    expect(is_undefined($property->format))->toBeTrue()
+        ->and(is_undefined($property->type))->toBeTrue();
+});
+
+it('leaves an enum-cast $ref property untouched by a migration enum column', function (): void {
+    // status is cast to a backed enum (a $ref); the migration's enum('status', [...]) must not
+    // graft an `enum`/`type` sibling onto the $ref.
+    $property = modelProperty(buildModelSchema(Widget::class), 'status');
+
+    expect($property->ref)
+        ->toBe('#/components/schemas/ArticleStatus')
+        ->and(is_undefined($property->enum))->toBeTrue()
+        ->and(is_undefined($property->type))->toBeTrue();
+});
+
+it('fills the property default from the model $attributes array', function (): void {
+    $schema = buildModelSchema(AttributesDefaultArticle::class);
+
+    expect(modelProperty($schema, 'summary')->default)
+        ->toBe('No summary provided.')
+        ->and(modelProperty($schema, 'priority')->default)->toBe(0);
+});
+
+it('honours an explicit null $attributes default and emits it as default: null', function (): void {
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'archived_at');
+
+    // array_key_exists, not isset: an explicit `'archived_at' => null` is a real default of null,
+    // distinct from an absent entry, and must serialise as "default": null.
+    expect(is_undefined($property->default))->toBeFalse()
+        ->and($property->default)->toBeNull();
+});
+
+it('lets a migration ->default() outrank the $attributes entry for the same column', function (): void {
+    // state has both a migration ->default('published') and an $attributes 'draft'; the migration
+    // default is written first and the lower-precedence $attributes read is skipped by is_undefined.
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'state');
+
+    expect($property->default)->toBe('published');
+});
+
+it('writes no default for a property absent from $attributes', function (): void {
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'name');
+
+    expect(is_undefined($property->default))->toBeTrue();
+});
+
+it('never grafts an $attributes default onto a $ref property', function (): void {
+    // status is an enum-cast $ref; its $attributes entry must not add a sibling default that a
+    // bare $ref would ignore in OAS 3.1.
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'status');
+
+    expect($property->ref)
+        ->toBe('#/components/schemas/ArticleStatus')
+        ->and(is_undefined($property->default))->toBeTrue();
+});
+
+it('fills the $attributes default with no migration column present', function (): void {
+    // The common real-world case: a model declares $attributes defaults but no migration is read,
+    // so the column-less path must still fill `default` (and still skip an absent entry).
+    $schema = buildModelSchema(AttributesDefaultArticle::class, readMigrationColumns: false);
+
+    expect(modelProperty($schema, 'summary')->default)
+        ->toBe('No summary provided.')
+        ->and(modelProperty($schema, 'state')->default)->toBe('draft')
+        ->and(is_undefined(modelProperty($schema, 'name')->default))->toBeTrue();
 });

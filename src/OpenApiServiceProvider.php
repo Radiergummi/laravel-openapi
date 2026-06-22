@@ -420,6 +420,32 @@ class OpenApiServiceProvider extends ServiceProvider
         );
 
         $this->app->scoped(
+            Support\Extraction\MigrationColumnReader::class,
+            static fn(Container $app): Support\Extraction\MigrationColumnReader
+                => new Support\Extraction\MigrationColumnReader(
+                    migrationsDirectory: database_path('migrations'),
+                    logger: $app->make(LoggerInterface::class),
+                ),
+        );
+
+        $this->app->scoped(
+            Support\Extraction\EloquentModelToSchema::class,
+            static fn(Container $app): Support\Extraction\EloquentModelToSchema
+                => new Support\Extraction\EloquentModelToSchema(
+                    registry: $app->make(ComponentSchemaRegistry::class),
+                    jsonSchemaFromType: $app->make(Support\Generator\JsonSchemaFromType::class),
+                    typeNodeToSchema: $app->make(Support\Types\TypeNodeToSchema::class),
+                    typeResolver: $app->make(TypeResolver::class),
+                    typeNodeResolver: $app->make(TypeNodeResolver::class),
+                    docBlockParser: $app->make(DocBlockParser::class),
+                    logger: $app->make(LoggerInterface::class),
+                    factoryExampleReader: $app->make(Support\Extraction\ModelFactoryExampleReader::class),
+                    migrationColumnReader: $app->make(Support\Extraction\MigrationColumnReader::class),
+                    readMigrationColumns: (bool) (config('openapi.read_migration_columns') ?? true),
+                ),
+        );
+
+        $this->app->scoped(
             Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver::class,
             static function (Container $app): Plugins\Core\Resolvers\DiscriminatedRequestSchemaResolver {
                 $registry = $app->make(OpenApiRegistry::class);
@@ -605,6 +631,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     fileLoader: $app->make(ExampleFileLoader::class),
                     faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
                     docBlockParser: $app->make(DocBlockParser::class),
+                    middlewareGatherer: $app->make(RouteMiddlewareGatherer::class),
                     refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
                     queryParameterResolvers: self::makeAll($app, $registry->queryParameterResolvers),
                     primaryResponseResolvers: self::makeAll($app, $registry->primaryResponseResolvers),

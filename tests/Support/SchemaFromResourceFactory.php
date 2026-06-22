@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Support\SchemaFromResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\WrappedModelLocator;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Extraction\ModelFactoryExampleReader;
+use Radiergummi\OpenApi\Support\Extraction\PublicPropertyTypeReader;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
@@ -48,10 +49,16 @@ final class SchemaFromResourceFactory
 
     public static function toArrayReader(?ComponentSchemaRegistry $registry = null): ResourceToArrayReader
     {
+        $registry ??= new ComponentSchemaRegistry();
+
         return new ResourceToArrayReader(
             returnLiteralFinder: new SingleReturnArrayLiteralFinder(new MethodBodyScanner()),
             wrappedModelLocator: self::wrappedModelLocator(),
-            modelToSchema: self::modelToSchema($registry ?? new ComponentSchemaRegistry()),
+            modelToSchema: self::modelToSchema($registry),
+            publicPropertyTypeReader: new PublicPropertyTypeReader(
+                jsonSchemaFromType: new JsonSchemaFromType(new NullLogger(), $registry),
+                typeResolver: TypeResolver::create(),
+            ),
         );
     }
 

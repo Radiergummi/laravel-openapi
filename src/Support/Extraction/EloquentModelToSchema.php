@@ -41,8 +41,11 @@ use function class_exists;
 use function enum_exists;
 use function in_array;
 use function is_a;
+use function is_array;
+use function is_string;
 use function ltrim;
 use function Radiergummi\OpenApi\copy_schema_fields;
+use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 use function str_replace;
 use function str_starts_with;
@@ -73,8 +76,10 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
+     *     table: string,
      * }>
      */
     private array $metadataCache = [];
@@ -88,6 +93,8 @@ final class EloquentModelToSchema
         private readonly DocBlockParser $docBlockParser,
         private readonly LoggerInterface $logger,
         private readonly ModelFactoryExampleReader $factoryExampleReader,
+        private readonly ?MigrationColumnReader $migrationColumnReader = null,
+        private readonly bool $readMigrationColumns = true,
     ) {}
 
     /**
@@ -110,11 +117,20 @@ final class EloquentModelToSchema
         }
 
         $property = $this->buildPropertyFor($metadata, $propertyName);
-        $tag = $metadata['propertyTags'][$propertyName] ?? null;
 
-        return $property === null
-            ? null
-            : $this->applyTagDescription($property, $tag);
+        if ($property === null) {
+            return null;
+        }
+
+        $tag = $metadata['propertyTags'][$propertyName] ?? null;
+        $this->applyTagDescription($property, $tag);
+        $this->applyMigrationColumn(
+            $property,
+            $this->migrationColumnsFor($metadata['table'])[$propertyName] ?? null,
+            $metadata['attributes'],
+        );
+
+        return $property;
     }
 
     /**
@@ -131,8 +147,10 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
+     *     table: string,
      * } $metadata
      *
      * @throws ReflectionException
@@ -241,8 +259,10 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
+     *     table: string,
      * }
      *
      * @throws ReflectionException
@@ -305,12 +325,16 @@ final class EloquentModelToSchema
             'hidden' => array_values($model->getHidden()),
             'visible' => array_values($model->getVisible()),
             'timestamps' => $timestamps,
+            // A model's static $attributes declares per-column defaults; getAttributes() on a fresh
+            // instance returns them verbatim (raw, uncast), the lowest-precedence default source.
+            'attributes' => $model->getAttributes(),
             'primaryKey' => $model->getKeyName(),
             // The SoftDeletes trait adds getDeletedAtColumn(); guard rather than checking the trait
             // so a custom trait exposing the same contract is also recognised.
             'softDeleteColumn' => method_exists($model, 'getDeletedAtColumn')
                 ? $model->getDeletedAtColumn()
                 : null,
+            'table' => $model->getTable(),
         ];
     }
 
@@ -534,6 +558,134 @@ final class EloquentModelToSchema
     }
 
     /**
+     * Migration-declared column metadata for a table, keyed by column. Empty when migration reading
+     * is disabled or no reader is wired.
+     *
+     * @return array<string, ColumnMetadata>
+     */
+    private function migrationColumnsFor(string $table): array
+    {
+        if (!$this->readMigrationColumns || $this->migrationColumnReader === null) {
+            return [];
+        }
+
+        return $this->migrationColumnReader->columnsForTable($table);
+    }
+
+    /**
+     * Enriches a property with migration-declared signals, but only where the cast / `@property` /
+     * attribute left the field undefined. The migration is authored and never-wrong, yet ranks below
+     * those richer sources, so every write is guarded by `is_undefined`. Nullability only relaxes a
+     * scalar type to include `null`; it never touches the `required` derivation.
+     *
+     * The model's static `$attributes` is the lowest-precedence `default` source: it fills only where
+     * the cast / `@property` / attribute and the migration `->default()` all left `default` undefined.
+     *
+     * @param array<string, mixed> $attributes The model's static `$attributes`, keyed by column name.
+     */
+    private function applyMigrationColumn(OA\Property $property, ?ColumnMetadata $column, array $attributes): void
+    {
+        // A `$ref` property (a relation or enum cast) takes only a description sibling in OAS 3.1;
+        // type-shaping keywords next to a `$ref` would be ignored or invalid, so apply none of them.
+        // A `default` sibling is likewise dropped, so the $attributes fill is skipped here too.
+        if (is_defined($property->ref)) {
+            if ($column?->description !== null && is_undefined($property->description)) {
+                $property->description = $column->description;
+            }
+
+            return;
+        }
+
+        if ($column !== null) {
+            if ($column->type !== null && is_undefined($property->type)) {
+                $property->type = $column->type;
+            }
+
+            if ($column->format !== null && is_undefined($property->format)) {
+                $property->format = $column->format;
+            }
+
+            if ($column->pattern !== null && is_undefined($property->pattern)) {
+                $property->pattern = $column->pattern;
+            }
+
+            if ($column->maxLength !== null && is_undefined($property->maxLength)) {
+                $property->maxLength = $column->maxLength;
+            }
+
+            if ($column->minimum !== null && is_undefined($property->minimum)) {
+                $property->minimum = $column->minimum;
+            }
+
+            if ($column->multipleOf !== null && is_undefined($property->multipleOf)) {
+                $property->multipleOf = $column->multipleOf;
+            }
+
+            if ($column->enum !== null && is_undefined($property->enum)) {
+                $property->enum = $column->enum;
+            }
+
+            if ($column->hasDefault && is_undefined($property->default)) {
+                $property->default = $column->default;
+            }
+
+            if ($column->description !== null && is_undefined($property->description)) {
+                $property->description = $column->description;
+            }
+
+            if ($column->nullable) {
+                $this->relaxToNullable($property);
+            }
+        }
+
+        // Lowest-precedence default: runs after the migration default write above, so a migration
+        // (or any earlier) default wins by leaving `default` already defined.
+        $this->applyAttributeDefault($property, $attributes);
+    }
+
+    /**
+     * Fills a property's `default` from the model's static `$attributes` entry for its column, but
+     * only when no higher-precedence source already set it. `array_key_exists` (not `isset`) honours
+     * an explicit `'column' => null` default, distinguishing it from an absent entry.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    private function applyAttributeDefault(OA\Property $property, array $attributes): void
+    {
+        $name = $property->property;
+
+        if (is_string($name) && is_undefined($property->default) && array_key_exists($name, $attributes)) {
+            $property->default = $attributes[$name];
+        }
+    }
+
+    /**
+     * Widens a property's scalar type to admit null (`string` → `['string', 'null']`), the OAS 3.1
+     * nullable idiom. A property with no resolved type or an already-nullable union is left alone.
+     */
+    private function relaxToNullable(OA\Property $property): void
+    {
+        $type = $property->type;
+
+        // No resolved type to widen (the undefined sentinel is itself a string, so guard it first).
+        if (is_undefined($type)) {
+            return;
+        }
+
+        if (is_string($type)) {
+            if ($type !== 'null') {
+                $property->type = [$type, 'null'];
+            }
+
+            return;
+        }
+
+        if (is_array($type) && !in_array('null', $type, strict: true)) {
+            $property->type = [...$type, 'null'];
+        }
+    }
+
+    /**
      * Related models become a pooled `$ref`; other classes are shaped by JsonSchemaFromType.
      * Supplied as the class-schema strategy to TypeNodeToSchema.
      *
@@ -681,6 +833,16 @@ final class EloquentModelToSchema
             $this->applyTagDescription($property, $propertyTags[$property->property] ?? null);
         }
 
+        $migrationColumns = $this->migrationColumnsFor($metadata['table']);
+
+        foreach ($properties as $property) {
+            $this->applyMigrationColumn(
+                $property,
+                $migrationColumns[$property->property] ?? null,
+                $metadata['attributes'],
+            );
+        }
+
         // Server-managed columns (primary key, timestamps, soft-delete) must never be sent by a
         // client; mark them readOnly. is_undefined guards against clobbering an authored value.
         $readOnlyNames = $this->readOnlyNames($metadata);
@@ -724,8 +886,10 @@ final class EloquentModelToSchema
      *     hidden: list<string>,
      *     visible: list<string>,
      *     timestamps: list<string>,
+     *     attributes: array<string, mixed>,
      *     primaryKey: string,
      *     softDeleteColumn: null|string,
+     *     table: string,
      * } $metadata
      *
      * @return list<string>
