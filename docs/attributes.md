@@ -24,10 +24,10 @@ Attach to controller classes or methods.
 | `Description` | class, method | no | Same as `#[Summary]` but for the long-form description. On a Data / JsonResource class it sets the component schema's `description`. |
 | `Tag` | class, method | yes | Add a tag to the already-derived set (merge, not replace). |
 | `QueryParam` | class, method | yes | Document an ad-hoc query string parameter. Each instance defines one parameter. |
-| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (a `Radiergummi\OpenApi\Enums\MediaType` case, e.g., `MediaType::MultipartFormData`). Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
+| `RequestBody` | method | no | Override the request-body `description`, `required`, or `mediaType` (a `Radiergummi\OpenApi\Enums\MediaType` case, e.g., `MediaType::MultipartFormData`). Pass `mediaTypes:` a list of `MediaType` cases to offer the same body under several content types (one entry per type, same schema); `mediaTypes` wins over `mediaType`. Set `discriminator:` to a property name to switch the body to a `oneOf` + `discriminator` built from `#[RequestVariant]` branches. |
 | `RequestVariant` | method | yes | Declare one branch of a discriminated request body. Requires `#[RequestBody(discriminator: '…')]` on the same method. See [Discriminated request bodies](#discriminated-request-bodies). |
 | `ResponseResource` | class, method | no | Explicit response-resource class for the 200 response. `collection: true/false` overrides envelope detection; `null` auto-detects. |
-| `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. |
+| `Response` | method | yes | Add an extra response by status code, with optional `ref` (a resolver-resolved class), inline `schema`, and `mediaType`. Pass `mediaTypes:` a list of `MediaType` cases to emit the same response under several content types (one entry per type, same schema); `mediaTypes` wins over `mediaType`. |
 | `Example` | method | yes | Named example payload for the request body. |
 | `ResponseExample` | method | yes | Named example for a specific response status. |
 | `ResponseExampleFile` | method | yes | Attach a JSON file's contents as the example for a response (primary by default; `status:` targets a specific one). Path is relative to the project root and must be valid JSON. |
