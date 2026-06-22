@@ -546,6 +546,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Read migration columns
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, response schemas inferred from Eloquent models are enriched
+    | with signals read statically from `database/migrations/*.php`: column
+    | formats (uuid, ip, date, date-time), `maxLength`, unsigned `minimum`,
+    | decimal `multipleOf`, enum members, nullability, defaults, and column
+    | comments. These rank below `$casts`, `@property` tags, and authoring
+    | attributes (they only fill fields those sources left undefined). Set to
+    | false to skip migration parsing entirely.
+    |
+    */
+
+    'read_migration_columns' => true,
+
+    /*
+    |--------------------------------------------------------------------------
     | Routes
     |--------------------------------------------------------------------------
     |
