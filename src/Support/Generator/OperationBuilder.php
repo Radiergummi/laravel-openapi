@@ -453,14 +453,22 @@ final readonly class OperationBuilder
             return $auto;
         }
 
+        $mediaTypes = $this->declaredMediaTypes($override->mediaTypes);
+
         if ($auto === null) {
+            // No resolved schema exists, so build a fresh object-fallback schema per entry:
+            // swagger-php can set parent back-references during serialization, so one instance
+            // must not be shared across media types.
+            $content = $mediaTypes !== null
+                ? array_map(
+                    fn(MediaType $type): OA\MediaType => $type->schema(new OA\Schema(['type' => 'object'])),
+                    $mediaTypes,
+                )
+                : [($override->mediaType ?? MediaType::Json)->schema(new OA\Schema(['type' => 'object']))];
+
             $body = new OA\RequestBody([
                 'required' => $override->required ?? true,
-                'content' => [
-                    ($override->mediaType ?? MediaType::Json)->schema(
-                        new OA\Schema(['type' => 'object']),
-                    ),
-                ],
+                'content' => $content,
             ]);
 
             if ($override->description !== null) {
@@ -478,7 +486,19 @@ final readonly class OperationBuilder
             $auto->required = $override->required;
         }
 
-        if ($override->mediaType !== null && is_array($auto->content)) {
+        if ($mediaTypes !== null && is_array($auto->content)) {
+            $resolved = $auto->content[0] ?? null;
+
+            // Fan out the already-resolved auto-body schema across every declared type, sharing
+            // the single resolved schema reference (e.g. a $ref wrapper) across entries.
+            if ($resolved instanceof OA\MediaType && $resolved->schema instanceof OA\Schema) {
+                $schema = $resolved->schema;
+                $auto->content = array_map(
+                    fn(MediaType $type): OA\MediaType => $type->schema($schema),
+                    $mediaTypes,
+                );
+            }
+        } elseif ($override->mediaType !== null && is_array($auto->content)) {
             foreach ($auto->content as $media) {
                 if ($media instanceof OA\MediaType) {
                     $media->mediaType = $override->mediaType->value;
@@ -487,6 +507,40 @@ final readonly class OperationBuilder
         }
 
         return $auto;
+    }
+
+    /**
+     * Normalises a declared `mediaTypes` list, treating null and empty as "not declared".
+     *
+     * @param null|list<MediaType> $mediaTypes
+     *
+     * @return null|non-empty-list<MediaType>
+     */
+    private function declaredMediaTypes(?array $mediaTypes): ?array
+    {
+        return $mediaTypes === null || $mediaTypes === [] ? null : $mediaTypes;
+    }
+
+    /**
+     * Builds the content entries for a resolved schema, one per declared media type or a single
+     * entry under the default when none are declared.
+     *
+     * @param null|list<MediaType> $mediaTypes
+     *
+     * @return non-empty-list<OA\MediaType>
+     */
+    private function contentEntriesFor(OA\Schema $schema, ?array $mediaTypes, MediaType $default): array
+    {
+        $declared = $this->declaredMediaTypes($mediaTypes);
+
+        if ($declared === null) {
+            return [$default->schema($schema)];
+        }
+
+        return array_map(
+            fn(MediaType $type): OA\MediaType => $type->schema($schema),
+            $declared,
+        );
     }
 
     /**
@@ -634,16 +688,20 @@ final readonly class OperationBuilder
 
         // Inline schema wins over $ref when both are supplied.
         if ($attribute->schema !== null) {
-            $props['content'] = [
-                $mediaType->schema(SchemaFromArrayDefinition::build($attribute->schema)),
-            ];
+            $props['content'] = $this->contentEntriesFor(
+                SchemaFromArrayDefinition::build($attribute->schema),
+                $attribute->mediaTypes,
+                $mediaType,
+            );
         } else {
             $schemaRef = $this->resolveRefSchema($attribute->ref, $descriptor);
 
             if ($schemaRef !== null) {
-                $props['content'] = [
-                    $mediaType->schema(new OA\Schema(['ref' => $schemaRef])),
-                ];
+                $props['content'] = $this->contentEntriesFor(
+                    new OA\Schema(['ref' => $schemaRef]),
+                    $attribute->mediaTypes,
+                    $mediaType,
+                );
             }
         }
 

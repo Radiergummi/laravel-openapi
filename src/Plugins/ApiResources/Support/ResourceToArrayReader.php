@@ -19,13 +19,16 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
+use Radiergummi\OpenApi\Support\Extraction\PublicPropertyTypeReader;
 use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
+use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
+use ReflectionNamedType;
 
 use function array_key_exists;
 use function class_exists;
@@ -66,6 +69,7 @@ final class ResourceToArrayReader
         private readonly SingleReturnArrayLiteralFinder $returnLiteralFinder,
         private readonly WrappedModelLocator $wrappedModelLocator,
         private readonly EloquentModelToSchema $modelToSchema,
+        private readonly PublicPropertyTypeReader $publicPropertyTypeReader,
     ) {}
 
     /**
@@ -105,6 +109,7 @@ final class ResourceToArrayReader
         $fields = $this->fieldsFromArrayNode(
             $literal,
             optional: false,
+            resourceClass: $resourceClass,
             modelClass: $modelClass,
             unreadableMergePayload: $hasUnreadableMergePayload,
         );
@@ -135,7 +140,8 @@ final class ResourceToArrayReader
      * `merge()`/`mergeWhen()` spread; any other unkeyed entry, a spread, or a non-literal key
      * causes the whole literal to be refused (null) rather than partially documented.
      *
-     * @param null|class-string<Model> $modelClass
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
      *
      * @return null|list<InferredResourceField>
      *
@@ -144,6 +150,7 @@ final class ResourceToArrayReader
     private function fieldsFromArrayNode(
         Array_ $array,
         bool $optional,
+        string $resourceClass,
         ?string $modelClass,
         bool &$unreadableMergePayload,
     ): ?array {
@@ -155,7 +162,13 @@ final class ResourceToArrayReader
             }
 
             if ($item->key === null) {
-                $merged = $this->fieldsFromMergeCall($item->value, $optional, $modelClass, $unreadableMergePayload);
+                $merged = $this->fieldsFromMergeCall(
+                    $item->value,
+                    $optional,
+                    $resourceClass,
+                    $modelClass,
+                    $unreadableMergePayload,
+                );
 
                 if ($merged === null) {
                     return null;
@@ -176,7 +189,7 @@ final class ResourceToArrayReader
                 return null;
             }
 
-            $fields[] = $this->resolveValue((string) $key, $item->value, $optional, $modelClass);
+            $fields[] = $this->resolveValue((string) $key, $item->value, $optional, $resourceClass, $modelClass);
         }
 
         return $fields;
@@ -187,7 +200,8 @@ final class ResourceToArrayReader
      * empty list when the payload is not a literal (flagged as unreadable). Returns null when
      * the entry is not a merge call: a plain unkeyed entry makes the whole literal unknowable.
      *
-     * @param null|class-string<Model> $modelClass
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
      *
      * @return null|list<InferredResourceField>
      *
@@ -196,6 +210,7 @@ final class ResourceToArrayReader
     private function fieldsFromMergeCall(
         Expr $value,
         bool $optional,
+        string $resourceClass,
         ?string $modelClass,
         bool &$unreadableMergePayload,
     ): ?array {
@@ -218,6 +233,7 @@ final class ResourceToArrayReader
         $merged = $this->fieldsFromArrayNode(
             $payload,
             optional: $optional || $methodName === self::MERGE_WHEN,
+            resourceClass: $resourceClass,
             modelClass: $modelClass,
             unreadableMergePayload: $unreadableMergePayload,
         );
@@ -268,13 +284,19 @@ final class ResourceToArrayReader
     }
 
     /**
-     * @param null|class-string<Model> $modelClass
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
      *
      * @throws ReflectionException
      */
-    private function resolveValue(string $name, Expr $value, bool $optional, ?string $modelClass): InferredResourceField
-    {
-        $wrapped = $this->resolveConditionalWrapper($name, $value, $modelClass);
+    private function resolveValue(
+        string $name,
+        Expr $value,
+        bool $optional,
+        string $resourceClass,
+        ?string $modelClass,
+    ): InferredResourceField {
+        $wrapped = $this->resolveConditionalWrapper($name, $value, $resourceClass, $modelClass);
 
         if ($wrapped !== null) {
             return $wrapped;
@@ -286,7 +308,13 @@ final class ResourceToArrayReader
             return $nested;
         }
 
-        $modelProperty = $this->resolveModelProperty($name, $value, $optional, $modelClass);
+        $valueObjectProperty = $this->resolveValueObjectProperty($name, $value, $optional, $resourceClass);
+
+        if ($valueObjectProperty !== null) {
+            return $valueObjectProperty;
+        }
+
+        $modelProperty = $this->resolveModelProperty($name, $value, $optional, $resourceClass, $modelClass);
 
         if ($modelProperty !== null) {
             return $modelProperty;
@@ -309,12 +337,17 @@ final class ResourceToArrayReader
      * Resolves `$this->when()`, `$this->whenLoaded()`, `$this->whenCounted()`, and any other
      * `when`-prefixed resource method as an optional field (presence is runtime-decided).
      *
-     * @param null|class-string<Model> $modelClass
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
      *
      * @throws ReflectionException
      */
-    private function resolveConditionalWrapper(string $name, Expr $value, ?string $modelClass): ?InferredResourceField
-    {
+    private function resolveConditionalWrapper(
+        string $name,
+        Expr $value,
+        string $resourceClass,
+        ?string $modelClass,
+    ): ?InferredResourceField {
         $methodName = $this->resourceMethodName($value);
 
         if ($methodName === null || !str_starts_with($methodName, self::WHEN)) {
@@ -326,12 +359,24 @@ final class ResourceToArrayReader
 
         if ($methodName === self::WHEN && isset($arguments[1])) {
             // Condition is never analysed; use the value argument only.
-            return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
+            return $this->resolveValue(
+                $name,
+                $arguments[1]->value,
+                optional: true,
+                resourceClass: $resourceClass,
+                modelClass: $modelClass,
+            );
         }
 
         if ($methodName === self::WHEN_LOADED) {
             if (isset($arguments[1])) {
-                return $this->resolveValue($name, $arguments[1]->value, optional: true, modelClass: $modelClass);
+                return $this->resolveValue(
+                    $name,
+                    $arguments[1]->value,
+                    optional: true,
+                    resourceClass: $resourceClass,
+                    modelClass: $modelClass,
+                );
             }
 
             $relationProperty = $this->modelPropertyFromRelationArgument($name, $arguments[0] ?? null, $modelClass);
@@ -443,9 +488,11 @@ final class ResourceToArrayReader
 
     /**
      * Resolves a `$this->field` / `$this->resource->field` reference against the wrapped model's
-     * metadata. Falls back to unconstrained when the model or field is unknown.
+     * metadata. When the wrapped class is a non-Model value object, the field is typed from its
+     * public property instead. Falls back to unconstrained when neither yields a type.
      *
-     * @param null|class-string<Model> $modelClass
+     * @param class-string<JsonResource> $resourceClass
+     * @param null|class-string<Model>   $modelClass
      *
      * @throws ReflectionException
      */
@@ -453,6 +500,7 @@ final class ResourceToArrayReader
         string $name,
         Expr $value,
         bool $optional,
+        string $resourceClass,
         ?string $modelClass,
     ): ?InferredResourceField {
         $fieldName = $this->modelFieldName($value);
@@ -463,6 +511,9 @@ final class ResourceToArrayReader
 
         $property = $modelClass !== null ? $this->modelToSchema->propertyFor($modelClass, $fieldName) : null;
 
+        // The Model path is tried first; a non-Model value object is the fallback for shape (B).
+        $property ??= $this->valueObjectProperty($resourceClass, $fieldName);
+
         if ($property === null) {
             return $this->unconstrained($name, $optional);
         }
@@ -470,6 +521,96 @@ final class ResourceToArrayReader
         $property->property = $name;
 
         return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * Shape (A): resolves `$this-><wrappedProp>-><field>` against the value object declared as
+     * `<wrappedProp>`'s type on the resource. Returns null when the receiver is not that shape or
+     * the field cannot be typed without guessing.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function resolveValueObjectProperty(
+        string $name,
+        Expr $value,
+        bool $optional,
+        string $resourceClass,
+    ): ?InferredResourceField {
+        if (
+            !$value instanceof PropertyFetch
+            || !$value->name instanceof Identifier
+            || !$value->var instanceof PropertyFetch
+            || !$value->var->name instanceof Identifier
+            || !$this->isThisVariable($value->var->var)
+        ) {
+            return null;
+        }
+
+        $valueObjectClass = $this->propertyTypeClass($resourceClass, $value->var->name->toString());
+
+        if ($valueObjectClass === null) {
+            return null;
+        }
+
+        $property = $this->publicPropertyTypeReader->propertyFor($valueObjectClass, $value->name->toString());
+
+        if ($property === null) {
+            return null;
+        }
+
+        $property->property = $name;
+
+        return InferredResourceField::ofProperty($name, required: !$optional, property: $property);
+    }
+
+    /**
+     * Shape (B) value-object property: the wrapped class from `@mixin`/`@extends` is a non-Model,
+     * typed by its public property. Returns null when there is no value object or no typed property.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function valueObjectProperty(string $resourceClass, string $fieldName): ?OA\Property
+    {
+        $valueObjectClass = $this->wrappedModelLocator->locateValueObject($resourceClass);
+
+        if ($valueObjectClass === null) {
+            return null;
+        }
+
+        return $this->publicPropertyTypeReader->propertyFor($valueObjectClass, $fieldName);
+    }
+
+    /**
+     * The single named class a property is statically typed as on the given class, or null when
+     * the property is missing, untyped, or a union/intersection (not a single known class).
+     *
+     * @param class-string $class
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function propertyTypeClass(string $class, string $propertyName): ?string
+    {
+        $reflection = new ReflectionClass($class);
+
+        if (!$reflection->hasProperty($propertyName)) {
+            return null;
+        }
+
+        $type = $reflection->getProperty($propertyName)->getType();
+
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $className = $type->getName();
+
+        return class_exists($className) ? $className : null;
     }
 
     /**
