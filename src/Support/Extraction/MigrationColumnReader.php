@@ -29,6 +29,7 @@ use function array_all;
 use function array_is_list;
 use function file_get_contents;
 use function glob;
+use function in_array;
 use function is_dir;
 use function is_int;
 use function is_string;
@@ -50,6 +51,9 @@ final class MigrationColumnReader
 {
     private const string SCHEMA_FACADE = 'Illuminate\Support\Facades\Schema';
 
+    /** Matches both colon- and hyphen-separated six-octet forms; mirrors ValidationRulesToSchema. */
+    private const string MAC_ADDRESS_PATTERN = '^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$';
+
     /**
      * Column-defining heads that imply a coarse type the cast would not.
      *
@@ -69,8 +73,6 @@ final class MigrationColumnReader
     private const array FORMAT_HEADS = [
         'uuid' => 'uuid',
         'foreignuuid' => 'uuid',
-        'ulid' => 'uuid',
-        'foreignulid' => 'uuid',
         'ipaddress' => 'ip',
         'date' => 'date',
         'datetime' => 'date-time',
@@ -116,6 +118,10 @@ final class MigrationColumnReader
         'time' => true,
         'timetz' => true,
         'binary' => true,
+        // A ULID (26-char base32) is not a UUID and has no standard OpenAPI format, matching the
+        // package's HasUlids path: recognise the column but emit a bare string.
+        'ulid' => true,
+        'foreignulid' => true,
     ];
 
     /**
@@ -232,7 +238,7 @@ final class MigrationColumnReader
             && $node->class instanceof Name
             && $node->name instanceof Identifier
             && !$node->isFirstClassCallable()
-            && ($node->name->toLowerString() === 'create' || $node->name->toLowerString() === 'table')
+            && in_array($node->name->toLowerString(), ['create', 'table'], strict: true)
             && $this->facadeMatches($node->class);
     }
 
@@ -378,7 +384,10 @@ final class MigrationColumnReader
         }
 
         foreach ($modifiers as $modifier) {
-            if ($modifier->name instanceof Identifier && $modifier->name->toLowerString() === 'change') {
+            if (
+                $modifier->name instanceof Identifier
+                && $modifier->name->toLowerString() === 'change'
+            ) {
                 return true;
             }
         }
@@ -395,7 +404,7 @@ final class MigrationColumnReader
     {
         // Heads that compute from their arguments take precedence over the flat lookup tables.
         $computed = match ($head) {
-            'macaddress' => new ColumnMetadata(type: 'string', pattern: '^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$'),
+            'macaddress' => new ColumnMetadata(type: 'string', pattern: self::MAC_ADDRESS_PATTERN),
             'decimal', 'unsigneddecimal' => $this->decimalMetadata($head, $arguments),
             'string', 'char' => $this->lengthMetadata($arguments),
             'enum', 'set' => $this->enumMetadata($arguments),
@@ -504,7 +513,8 @@ final class MigrationColumnReader
             switch ($modifier->name->toLowerString()) {
                 case 'nullable':
                     // `->nullable(false)` re-asserts NOT NULL; treat a literal false as non-nullable.
-                    $nullable = !isset($arguments[0]) || $this->literal($arguments[0]->value) !== false;
+                    $nullable = !isset($arguments[0])
+                        || $this->literal($arguments[0]->value) !== false;
 
                     break;
 

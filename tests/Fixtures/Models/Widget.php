@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
 
 /**
- * Maps onto the `widgets` fixture migration. A `name` cast deliberately collides with the
- * migration's `string('name', 120)` column so cast-vs-migration precedence is observable.
+ * Maps onto the `widgets` fixture migration. `price` is cast to `decimal:2` while the migration
+ * declares `decimal('price', 8, 2)`, so cast-vs-migration precedence is observable; the other
+ * fillable columns are left uncast so the migration is their only source of field metadata.
  *
  * @property string $price
  */

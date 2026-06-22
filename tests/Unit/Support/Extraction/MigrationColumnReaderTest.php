@@ -32,6 +32,14 @@ it('reads uuid columns as format uuid', function (): void {
         ->and(widgetColumns()['owner_id']->format)->toBe('uuid');
 });
 
+it('emits no format for a ulid column', function (): void {
+    // A ULID is not a UUID and has no standard OpenAPI format; the column stays a bare string.
+    $column = widgetColumns()['reference'];
+
+    expect($column->format)->toBeNull()
+        ->and($column->type)->toBeNull();
+});
+
 it('reads ipAddress as format ip and nullable', function (): void {
     $column = widgetColumns()['last_ip'];
 
@@ -92,6 +100,14 @@ it('reads literal defaults', function (): void {
         ->and(widgetColumns()['label']->default)->toBe('unlabelled')
         ->and(widgetColumns()['weight']->default)->toBe(0)
         ->and(widgetColumns()['active']->default)->toBeTrue();
+});
+
+it('records an explicit null default as a set default', function (): void {
+    // ->default(null) is a real default value, distinct from no default at all.
+    $column = widgetColumns()['nickname'];
+
+    expect($column->hasDefault)->toBeTrue()
+        ->and($column->default)->toBeNull();
 });
 
 it('reads a column comment as description', function (): void {

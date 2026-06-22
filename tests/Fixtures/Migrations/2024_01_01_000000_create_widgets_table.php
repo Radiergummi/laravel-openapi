@@ -13,6 +13,7 @@ return new class () extends Migration {
         Schema::create('widgets', function (Blueprint $table): void {
             $table->uuid('id');
             $table->foreignUuid('owner_id');
+            $table->ulid('reference');
             $table->ipAddress('last_ip')->nullable();
             $table->macAddress('mac');
             $table->date('released_on');
@@ -33,6 +34,7 @@ return new class () extends Migration {
             $table->string('label')->default('unlabelled');
             $table->integer('weight')->default(0);
             $table->boolean('active')->default(true);
+            $table->string('nickname')->default(null);
             $table->string('notes')->comment('Free-form operator notes.');
             $table->string('expression')->default(DB::raw('CURRENT_TIMESTAMP'));
             $table->string('untouched');
