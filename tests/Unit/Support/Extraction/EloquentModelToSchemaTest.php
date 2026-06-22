@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\AbstractModel;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
+use Radiergummi\OpenApi\Tests\Fixtures\Models\AttributesDefaultArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\ClassFormCastArticle;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\CustomTimestampColumnsArticle;
@@ -573,4 +574,45 @@ it('leaves an enum-cast $ref property untouched by a migration enum column', fun
         ->toBe('#/components/schemas/ArticleStatus')
         ->and(is_undefined($property->enum))->toBeTrue()
         ->and(is_undefined($property->type))->toBeTrue();
+});
+
+it('fills the property default from the model $attributes array', function (): void {
+    $schema = buildModelSchema(AttributesDefaultArticle::class);
+
+    expect(modelProperty($schema, 'summary')->default)
+        ->toBe('No summary provided.')
+        ->and(modelProperty($schema, 'priority')->default)->toBe(0);
+});
+
+it('honours an explicit null $attributes default and emits it as default: null', function (): void {
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'archived_at');
+
+    // array_key_exists, not isset: an explicit `'archived_at' => null` is a real default of null,
+    // distinct from an absent entry, and must serialise as "default": null.
+    expect(is_undefined($property->default))->toBeFalse()
+        ->and($property->default)->toBeNull();
+});
+
+it('lets a migration ->default() outrank the $attributes entry for the same column', function (): void {
+    // state has both a migration ->default('published') and an $attributes 'draft'; the migration
+    // default is written first and the lower-precedence $attributes read is skipped by is_undefined.
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'state');
+
+    expect($property->default)->toBe('published');
+});
+
+it('writes no default for a property absent from $attributes', function (): void {
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'name');
+
+    expect(is_undefined($property->default))->toBeTrue();
+});
+
+it('never grafts an $attributes default onto a $ref property', function (): void {
+    // status is an enum-cast $ref; its $attributes entry must not add a sibling default that a
+    // bare $ref would ignore in OAS 3.1.
+    $property = modelProperty(buildModelSchema(AttributesDefaultArticle::class), 'status');
+
+    expect($property->ref)
+        ->toBe('#/components/schemas/ArticleStatus')
+        ->and(is_undefined($property->default))->toBeTrue();
 });
