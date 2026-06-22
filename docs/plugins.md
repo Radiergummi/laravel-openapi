@@ -472,9 +472,10 @@ knob.
 
 ### `fractal()` helper / facade / Manager call shapes
 
-The two dominant Fractal invocation styles — the `fractal()` helper and the
-`Spatie\Fractalistic\Fractal` facade — are documented without any
-`#[FractalResponse]`, as is the injected-`Manager` resource-construction style:
+The dominant Fractal invocation styles — the `fractal()` helper, the
+`Spatie\Fractalistic\Fractal` facade, and the `spatie/laravel-fractal`
+`$this->fractal` builder — are documented without any `#[FractalResponse]`, as is
+the injected-`Manager` resource-construction style:
 
 ```php
 public function show(): JsonResponse
@@ -487,6 +488,14 @@ public function index(): JsonResponse
     return Fractal::create()
         ->collection(Booking::all(), new BookingTransformer())
         ->respond();                                                              // {data: [$ref]}
+}
+
+public function listing(): JsonResponse
+{
+    return $this->fractal
+        ->collection(Booking::all())
+        ->transformWith(new BookingTransformer())                                 // {data: [$ref]}
+        ->respond();
 }
 
 public function managed(Manager $fractal): JsonResponse
@@ -502,12 +511,15 @@ The binding reads the first `return` expression (and, for the `Manager` style, a
 and requires:
 
 - an `->item(…)` / `->collection(…)` chain link whose root is literally the
-  `fractal()` helper or the `Fractal` facade (so the same method names on an
-  unrelated service or query builder never match), or a single `new Item(…)` /
-  `new Collection(…)` resource — `item` / `Item` binds the single envelope,
-  `collection` / `Collection` the collection envelope;
+  `fractal()` helper, the `Fractal` facade, or the `$this->fractal` property (so
+  the same method names on an unrelated service or query builder never match), or
+  a single `new Item(…)` / `new Collection(…)` resource — `item` / `Item` binds
+  the single envelope, `collection` / `Collection` the collection envelope;
 - a transformer named by a literal `new T()` or `T::class` argument that extends
-  `TransformerAbstract` and yields documentable fields.
+  `TransformerAbstract` and yields documentable fields. The transformer is taken
+  from the `item()` / `collection()` second argument, or — when that is absent —
+  from a separate `->transformWith(new T())` / `->transformWith(T::class)` link in
+  the same chain.
 
 A trailing `->serializeWith(new ArraySerializer())` / `JsonApiSerializer` maps
 onto the matching serializer envelope. All Fractal classes are matched by name,
@@ -516,9 +528,10 @@ so neither package need be installed for the scan to run.
 The **bare two-argument helper** `fractal($data, new T())` is **refused**: item
 vs collection is not statically knowable from the first argument, so the
 generator emits a generation-log note rather than guessing an envelope — annotate
-those actions with `#[FractalResponse]`. A variable/dynamic transformer, an
-unrecognised serializer, or a transformer with no documentable fields likewise
-degrade with a note; `#[FractalResponse]` always wins where declared.
+those actions with `#[FractalResponse]`. A variable/dynamic transformer (including
+a `->transformWith($this->getTransformer(…))` wrap), an unrecognised serializer, or
+a transformer with no documentable fields likewise degrade with a note;
+`#[FractalResponse]` always wins where declared.
 
 Lint rules:
 

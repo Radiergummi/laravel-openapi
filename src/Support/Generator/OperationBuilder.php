@@ -41,6 +41,7 @@ use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
+use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
 use ReflectionException;
@@ -58,6 +59,7 @@ use function class_basename;
 use function implode;
 use function in_array;
 use function is_array;
+use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
 
 /**
@@ -115,18 +117,8 @@ final readonly class OperationBuilder
     public function build(ActionDescriptor $action, array $defaultTags): OperationDescriptor
     {
         $pathParams = $this->uriExtractor->extract(
-            array_map(
-                fn(ReflectionParameter $parameter): array
-                    => [
-                        $this->uriResolver->resolve(
-                            $parameter,
-                            $action->constraintFor($parameter->getName()),
-                            $action->bindingFieldFor($parameter->getName()),
-                        ),
-                        $parameter,
-                    ],
-                $action->uriParameters,
-            ),
+            $this->resolveUriParameterPairs($action),
+            $action->paramDescriptions,
         );
         // Dedup by (name, in) across resolvers; later resolver wins, except names claimed by an
         // explicit #[QueryParam] attribute, which authoring locks.
@@ -156,6 +148,26 @@ final readonly class OperationBuilder
         }
 
         $queryParams = array_values($queryParamsByKey);
+
+        // Lowest-precedence query-param descriptions: fill only empties left by every resolver, so
+        // a #[QueryParam] or inline-validate() description always wins. Plugin-agnostic, so it lives
+        // here rather than in any one resolver. Resolvers carry the description on the parameter's
+        // schema, so the fallback is read and written there too.
+        foreach ($queryParams as $param) {
+            if ($param->in !== 'query' || !$param->schema instanceof OA\Schema) {
+                continue;
+            }
+
+            if (is_defined($param->schema->description) && $param->schema->description !== '') {
+                continue;
+            }
+
+            $fallback = $action->paramDescriptions[$param->name] ?? null;
+
+            if ($fallback !== null) {
+                $param->schema->description = $fallback;
+            }
+        }
 
         $security = $this->resolveSecurity($action);
         $headerParams = $this->readHeaderAttributes($action);
@@ -279,6 +291,53 @@ final readonly class OperationBuilder
         );
     }
 
+    /**
+     * Builds the descriptor/reflection pairs for the extractor: signature-derived parameters first,
+     * then any URI placeholder absent from the signature (invokable controllers, `Request`-only
+     * actions, the parent of a scoped/nested binding) synthesized as a string path parameter.
+     *
+     * @return list<array{UriParameterDescriptor, ?ReflectionParameter}>
+     *
+     * @throws UnsupportedException
+     */
+    private function resolveUriParameterPairs(ActionDescriptor $action): array
+    {
+        $pairs = [];
+        $declaredNames = [];
+
+        foreach ($action->uriParameters as $parameter) {
+            $name = $parameter->getName();
+            $declaredNames[$name] = true;
+            $pairs[] = [
+                $this->uriResolver->resolve(
+                    $parameter,
+                    $action->constraintFor($name),
+                    $action->bindingFieldFor($name),
+                ),
+                $parameter,
+            ];
+        }
+
+        foreach ($action->uriPlaceholders() as [$name, $optional]) {
+            if (isset($declaredNames[$name])) {
+                continue;
+            }
+
+            $declaredNames[$name] = true;
+            $pairs[] = [
+                $this->uriResolver->resolveUnsignatured(
+                    $name,
+                    $action->constraintFor($name),
+                    $action->bindingFieldFor($name),
+                    $optional,
+                ),
+                null,
+            ];
+        }
+
+        return $pairs;
+    }
+
     /** @return list<string> */
     private function explicitQueryParameterNames(ActionDescriptor $action): array
     {
@@ -394,14 +453,22 @@ final readonly class OperationBuilder
             return $auto;
         }
 
+        $mediaTypes = $this->declaredMediaTypes($override->mediaTypes);
+
         if ($auto === null) {
+            // No resolved schema exists, so build a fresh object-fallback schema per entry:
+            // swagger-php can set parent back-references during serialization, so one instance
+            // must not be shared across media types.
+            $content = $mediaTypes !== null
+                ? array_map(
+                    fn(MediaType $type): OA\MediaType => $type->schema(new OA\Schema(['type' => 'object'])),
+                    $mediaTypes,
+                )
+                : [($override->mediaType ?? MediaType::Json)->schema(new OA\Schema(['type' => 'object']))];
+
             $body = new OA\RequestBody([
                 'required' => $override->required ?? true,
-                'content' => [
-                    ($override->mediaType ?? MediaType::Json)->schema(
-                        new OA\Schema(['type' => 'object']),
-                    ),
-                ],
+                'content' => $content,
             ]);
 
             if ($override->description !== null) {
@@ -419,7 +486,19 @@ final readonly class OperationBuilder
             $auto->required = $override->required;
         }
 
-        if ($override->mediaType !== null && is_array($auto->content)) {
+        if ($mediaTypes !== null && is_array($auto->content)) {
+            $resolved = $auto->content[0] ?? null;
+
+            // Fan out the already-resolved auto-body schema across every declared type, sharing
+            // the single resolved schema reference (e.g. a $ref wrapper) across entries.
+            if ($resolved instanceof OA\MediaType && $resolved->schema instanceof OA\Schema) {
+                $schema = $resolved->schema;
+                $auto->content = array_map(
+                    fn(MediaType $type): OA\MediaType => $type->schema($schema),
+                    $mediaTypes,
+                );
+            }
+        } elseif ($override->mediaType !== null && is_array($auto->content)) {
             foreach ($auto->content as $media) {
                 if ($media instanceof OA\MediaType) {
                     $media->mediaType = $override->mediaType->value;
@@ -428,6 +507,40 @@ final readonly class OperationBuilder
         }
 
         return $auto;
+    }
+
+    /**
+     * Normalises a declared `mediaTypes` list, treating null and empty as "not declared".
+     *
+     * @param null|list<MediaType> $mediaTypes
+     *
+     * @return null|non-empty-list<MediaType>
+     */
+    private function declaredMediaTypes(?array $mediaTypes): ?array
+    {
+        return $mediaTypes === null || $mediaTypes === [] ? null : $mediaTypes;
+    }
+
+    /**
+     * Builds the content entries for a resolved schema, one per declared media type or a single
+     * entry under the default when none are declared.
+     *
+     * @param null|list<MediaType> $mediaTypes
+     *
+     * @return non-empty-list<OA\MediaType>
+     */
+    private function contentEntriesFor(OA\Schema $schema, ?array $mediaTypes, MediaType $default): array
+    {
+        $declared = $this->declaredMediaTypes($mediaTypes);
+
+        if ($declared === null) {
+            return [$default->schema($schema)];
+        }
+
+        return array_map(
+            fn(MediaType $type): OA\MediaType => $type->schema($schema),
+            $declared,
+        );
     }
 
     /**
@@ -575,16 +688,20 @@ final readonly class OperationBuilder
 
         // Inline schema wins over $ref when both are supplied.
         if ($attribute->schema !== null) {
-            $props['content'] = [
-                $mediaType->schema(SchemaFromArrayDefinition::build($attribute->schema)),
-            ];
+            $props['content'] = $this->contentEntriesFor(
+                SchemaFromArrayDefinition::build($attribute->schema),
+                $attribute->mediaTypes,
+                $mediaType,
+            );
         } else {
             $schemaRef = $this->resolveRefSchema($attribute->ref, $descriptor);
 
             if ($schemaRef !== null) {
-                $props['content'] = [
-                    $mediaType->schema(new OA\Schema(['ref' => $schemaRef])),
-                ];
+                $props['content'] = $this->contentEntriesFor(
+                    new OA\Schema(['ref' => $schemaRef]),
+                    $attribute->mediaTypes,
+                    $mediaType,
+                );
             }
         }
 

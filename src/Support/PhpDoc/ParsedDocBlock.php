@@ -53,6 +53,32 @@ final readonly class ParsedDocBlock
     }
 
     /**
+     * Each `@param` tag's description text, keyed by bare parameter name (no leading `$`).
+     *
+     * Trimmed; entries without a description are skipped. The `@param` *type* is not exposed:
+     * parameter types already come from the signature, `where` constraints, or route-model binding.
+     *
+     * @return array<string, string>
+     */
+    public function paramDescriptions(): array
+    {
+        $descriptions = [];
+
+        foreach ($this->node->getParamTagValues() as $tag) {
+            $name = ltrim($tag->parameterName, '$');
+            $description = trim($tag->description);
+
+            if ($name === '' || $description === '') {
+                continue;
+            }
+
+            $descriptions[$name] = $description;
+        }
+
+        return $descriptions;
+    }
+
+    /**
      * Reason from a `@deprecated` tag, `''` for a bare tag, or null when absent.
      */
     public function deprecation(): ?string

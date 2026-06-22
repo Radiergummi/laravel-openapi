@@ -10,8 +10,8 @@ source.
 | Summary | First paragraph of the method's PHPDoc, or `#[Summary]` / `#[Operation(summary: …)]`. |
 | Description | Remaining paragraphs of the method's PHPDoc (markdown permitted), or `#[Description]` / `#[Operation(description: …)]`. |
 | `operationId` | Route name (sanitised to a codegen-safe identifier — `:`/`{}` and other disallowed characters become `_`, while `.`/`-`/`_` are kept), or `{method}_{sanitized_path}`. |
-| Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. A custom-key binding (`/posts/{post:slug}`, including scoped-nested `{parent}/{child:field}`) emits the standard `{post}` template segment and notes the bound field in the description (`Bound by slug of Post.`). |
-| Query parameters | Request-accessor reads in the method body — `$request->query('sort')` / `input('q')` → `string`, `string('name')` / `integer('page')` / `boolean('active')` → their named type (bounded scan; see [Query parameters from the method body](#query-parameters-from-the-method-body)). On GET/HEAD routes, inline `validate()` keys become query parameters (name, schema, `required` from the rules) instead of a request body. With the QueryBuilder plugin enabled, a literal `QueryBuilder::for(...)` chain's `allowedFilters` / `allowedSorts` / `allowedIncludes` become `filter[…]` / `sort` / `include` parameters (see [Plugins → QueryBuilder](plugins.md#querybuilder)). `#[QueryParam]` attributes win for their name; other names compose. |
+| Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. A custom-key binding (`/posts/{post:slug}`, including scoped-nested `{parent}/{child:field}`) emits the standard `{post}` template segment and notes the bound field in the description (`Bound by slug of Post.`). An action `@param $name <description>` supplies the parameter description as a lowest-precedence fallback. |
+| Query parameters | Request-accessor reads in the method body — `$request->query('sort')` / `input('q')` → `string`, `string('name')` / `integer('page')` / `boolean('active')` → their named type (bounded scan; see [Query parameters from the method body](#query-parameters-from-the-method-body)). On GET/HEAD routes, inline `validate()` keys become query parameters (name, schema, `required` from the rules) instead of a request body. With the QueryBuilder plugin enabled, a literal `QueryBuilder::for(...)` chain's `allowedFilters` / `allowedSorts` / `allowedIncludes` become `filter[…]` / `sort` / `include` parameters (see [Plugins → QueryBuilder](plugins.md#querybuilder)). `#[QueryParam]` attributes win for their name; other names compose. An action `@param $name <description>` supplies the parameter description as a lowest-precedence fallback (attribute and inline-`validate()` comment descriptions win). |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema: fields are inferred from a single-`return [...]` `toArray()` literal (`$this->field` typed from the wrapped `@mixin`/`@extends` model — or, when that class is a non-Model value object, from its statically-typed public properties; `$this->wrapped->field` likewise types from the value object declared as `$wrapped`'s type, with untyped or union-typed source properties staying unconstrained; nested resources as `$ref`s, `when*` wrappers optional) composed with declared `#[ResourceField]` attributes, which win per field; a passthrough or dynamic `toArray()` falls back to the wrapped model's schema (see [Plugins → ApiResources](plugins.md#apiresources)). A **base** resource return type (`JsonResource`, bare `ResourceCollection`, `AnonymousResourceCollection`) resolves the concrete resource from the method's return expression — `X::collection(…)` / `X::make(…)` / `new X(…)`, `->toResource(…)`, or a `@return …Collection<X>` generic; a collection only claims the paginated envelope when its source visibly ends in a `paginate()`-family call, looking through paginator-preserving links like `withQueryString()` (bounded scan; see [Plugins → ApiResources → Resolving the resource from the return expression](plugins.md#resolving-the-resource-from-the-return-expression)). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`; the same schema is recovered from a directly-returned `Model::find()`/`findOrFail()`/`firstOrFail()` call on an untyped action (bounded scan). See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). A non-paginator return type whose body unconditionally calls `paginate()`/`simplePaginate()`/`cursorPaginate()` gets the matching paginated envelope when an item class is declared (`#[ResponseResource(Model::class)]` or a `@return Paginator<Item>` generic); this defers to API Resources / Spatie Data whenever the return type or a resource-naming `#[ResponseResource]` is one of theirs. With the Fractal plugin enabled, a transformer's schema is inferred from its single-`return [...]` `transform()` literal (`$model->field` typed from the typed parameter, casts by their JSON type) composed with `#[TransformerField]` attributes, which win per field; the `$entity_transformer` + `itemResponse()`/`listResponse()` base-controller convention binds it without an attribute (see [Plugins → Fractal](plugins.md#fractal)). |
 | Security | `auth:*` / `scope:*` / `scopes:*` (and Sanctum's `abilities:*` / `ability:*`) middleware — route-declared or controller-applied, including constructor `$this->middleware(...)` and the static `HasMiddleware` form (see [Controller middleware](#controller-middleware)) — → a per-operation `security` requirement against the derived scheme(s): Passport's OAuth2 flows, a `sanctum` http/bearer scheme when any route uses `auth:sanctum`, or `openapi.security_schemes`. Sanctum's all-of `abilities:a,b` lists both as scopes on one requirement; its any-of `ability:a,b` emits one OR-alternative requirement per ability. Map project-specific guard middleware to a declared scheme via `openapi.security_middleware_map`. When the route is authed but no scheme is derivable, `security` is omitted (not `[]`, which means *public*) and `operation.security-missing` flags it. |
@@ -75,8 +75,10 @@ than a bare `string`. The type and format are resolved in this order:
 
 1. **An explicit route constraint wins.** `->whereNumber('flight')` →
    `type: integer`; `->whereUuid('flight')` → `string` + `format: uuid`;
-   `->whereIn(...)` → an `enum`; any other `->where(...)` regex → `pattern`.
-   These are the author's stated intent.
+   `->whereIn(...)` → an `enum` (only on a string-typed parameter, since the
+   alternatives are strings; an int-typed param keeps `type: integer` with no
+   enum); any other `->where(...)` regex → `pattern`. These are the author's
+   stated intent.
 2. **Otherwise the bound model's key.** With no route constraint, the key type
    is read by reflection from the model: an integer key (`getKeyType()`) →
    `type: integer`; a `HasUuids` model → `string` + `format: uuid`; a `HasUlids`
@@ -85,12 +87,28 @@ than a bare `string`. The type and format are resolved in this order:
 3. **Otherwise a bare `string`** — the default for an unbound `{segment}` or a
    non-Eloquent `UrlRoutable`.
 
+Every URI placeholder emits a path parameter (`in: path, required: true`), even
+when it is not a typed action argument — invokable controllers, `Request`-only
+actions, and the parent of a scoped/nested binding (`{team}` in
+`/teams/{team}/members/{member}` where only `$member` is type-hinted). Such a
+placeholder defaults to `type: string` and is still enriched from any `where*`
+constraint on the route (uuid/integer/enum/pattern). Recovering the bound model's
+key type, however, requires a type-hinted signature parameter: an unsignatured
+bind stays a bare `string`.
+
 The model-key step applies only when the route binds via that model's primary
 key. A custom-key binding (`/posts/{post:slug}`) or an overridden
 `getRouteKeyName()` resolves against a different column whose type the model's
 key metadata does not describe, so those stay `string` (and the bound field is
 still named in the description — `Bound by slug of Post.`). A `#[PathParam]`
 attribute is the escape hatch for anything reflection cannot reach.
+
+The action method's `@param $name <description>` PHPDoc text supplies the
+**description** for the matching path or query parameter, as the lowest-precedence
+fallback: a `#[PathParam]` / `#[QueryParam]` description and an inline-`validate()`
+trailing comment still win, and the synthetic model-binding text (`Bound by slug of
+Post.`) is used only when no `@param` is present. The `@param` *type* is never read —
+the signature, route constraint, and binding already determine type and format.
 
 A segment type-hinted as a backed enum (implicit enum binding — `show(Status
 $status)`) references a shared enum component — `schema: {$ref:
@@ -149,7 +167,7 @@ allow-list).
 For each property, the type is resolved in this order:
 
 1. **`$casts`** — the cast value drives the schema type. `datetime` / `date` → `string` (format `date-time` / `date`); `decimal:N` → `string`; a backed-enum class-string → a `$ref` to the [shared enum component](#shared-enum-components). The JSON casts `array` / `json` / `collection` document as a list (`type: array`, with typed `items` when the element is a scalar) when the column's `@property` tag is list-shaped — `list<T>`, `non-empty-list<T>`, `array<T>`, `non-empty-array<T>`, `array<int, T>`, or `T[]`, one level deep — and as an object otherwise (map-shaped generics like `array<string, T>`, no tag); the `object` cast is always an object. The class-form casts of the modern `casts()` method are recognised equivalently — `AsCollection::class` / `AsEncryptedCollection::class` / `AsArrayObject::class` / `AsEncryptedArrayObject::class` behave like the JSON casts above (same `@property` disambiguation), and `AsStringable::class` → `string`. A custom `CastsAttributes` cast is unknowable here and defers to the `@property` tag below rather than forcing the column untyped.
-2. **`@property` / `@property-read` docblock** — scalar types (`int`, `bool`, `float`, `string`) are mapped directly; `?T` marks the property as nullable. A class type that is itself a `Model` subclass becomes a `$ref` to that model's component schema (built recursively; cycles are guarded). An **array-shape** type — `array{lat: float, lng: float}`, a nested `array{meta: array{…}}`, an optional key (`array{unit?: string}`, omitted from `required`), the list forms `list<array{…}>` / `array{…}[]`, or a string-keyed map `array<string, T>` (→ `additionalProperties`) — is resolved into the corresponding object/array schema rather than dropped to a bare `array`. Collection generics (`Collection<string, T>`, and likewise `EloquentCollection` / `LazyCollection` / `Enumerable`) are treated identically to `array<…>`: a string key yields a map (`additionalProperties`), an int key (or a single type argument) yields a list. A `mixed` map value yields a permissive `additionalProperties: true`.
+2. **`@property` / `@property-read` docblock** — scalar types (`int`, `bool`, `float`, `string`) are mapped directly; `?T` marks the property as nullable. A class type that is itself a `Model` subclass becomes a `$ref` to that model's component schema (built recursively; cycles are guarded). An **array-shape** type — `array{lat: float, lng: float}`, a nested `array{meta: array{…}}`, an optional key (`array{unit?: string}`, omitted from `required`), the list forms `list<array{…}>` / `array{…}[]`, or a string-keyed map `array<string, T>` (→ `additionalProperties`) — is resolved into the corresponding object/array schema rather than dropped to a bare `array`. Collection generics (`Collection<string, T>`, and likewise `EloquentCollection` / `LazyCollection` / `Enumerable`) are treated identically to `array<…>`: a string key yields a map (`additionalProperties`), an int key (or a single type argument) yields a list. A `mixed` map value yields a permissive `additionalProperties: true`. The tag's **trailing text** (any prose after the property name) becomes the property `description`; it is skipped when empty or when a description is already present (so an authored attribute or a documented backed-enum case list wins). OpenAPI 3.1 permits a `description` sibling to `$ref`, so a relation property (`@property-read Author $author The post's author.`) keeps its prose.
 3. **`$appends` accessor return type** — a legacy-style accessor (`getReadingTimeAttribute(): int`) contributes its return type for an appended attribute.
 4. **Timestamp default** — a framework-managed timestamp column with no explicit cast or tag is typed `string` / format `date-time`, nullable (matching runtime: unsaved models and `NULL` columns carry no value).
 5. **Unknown** — if none of the above supply a type, an unconstrained schema with no `type` is emitted.
@@ -160,6 +178,17 @@ A property appears in `required` only when it has a non-nullable
 `@property` or `@property-read` annotation. Properties known only from
 `$casts`, `$fillable`, or `$appends` are never required — they may be absent
 at runtime and the generator has no way to prove otherwise.
+
+### `readOnly`
+
+Server-managed columns are marked `readOnly: true`: the primary key
+(`getKeyName()`, so a custom `$primaryKey` is honoured, not a hard-coded `id`),
+the timestamp columns (`created_at` / `updated_at`, respecting renames), and the
+soft-delete column (`deleted_at`, when the model uses `SoftDeletes`). A client
+never sets these, so the response schema marks them read-only. Nothing else gains
+the keyword, and an authored `readOnly` (e.g. via `#[ResponseField]`) is never
+overwritten. Request-side `writeOnly` remains attribute-driven
+(`#[RequestField(writeOnly: true)]`).
 
 ### Example
 

@@ -36,23 +36,30 @@ final readonly class UriParametersExtractor
     ) {}
 
     /**
-     * @param list<array{UriParameterDescriptor, ?ReflectionParameter}> $parameters Descriptor/reflection pairs.
-     *                                                                              ReflectionParameter is null when
-     *                                                                              unavailable.
+     * @param list<array{UriParameterDescriptor, ?ReflectionParameter}> $parameters        Descriptor/reflection pairs.
+     *                                                                                     ReflectionParameter is null
+     *                                                                                     when unavailable.
+     * @param array<string, string>                                     $paramDescriptions Action `@param` description
+     *                                                                                     text keyed by parameter name;
+     *                                                                                     lowest-precedence fallback.
      *
      * @return list<OA\Parameter>
      */
-    public function extract(array $parameters): array
+    public function extract(array $parameters, array $paramDescriptions = []): array
     {
         return array_map(
-            fn(array $pair): OA\Parameter => $this->buildParameter($pair[0], $pair[1]),
+            fn(array $pair): OA\Parameter => $this->buildParameter($pair[0], $pair[1], $paramDescriptions),
             $parameters,
         );
     }
 
+    /**
+     * @param array<string, string> $paramDescriptions
+     */
     private function buildParameter(
         UriParameterDescriptor $descriptor,
         ?ReflectionParameter $reflectionParameter,
+        array $paramDescriptions,
     ): OA\Parameter {
         $schema = $this->schemaFromType->fromType($descriptor->type);
 
@@ -79,9 +86,11 @@ final readonly class UriParametersExtractor
             'schema' => $schema,
         ];
 
-        $description = $fieldDescriptor !== null
-            ? ($fieldDescriptor->description ?? $this->buildDescription($descriptor))
-            : $this->buildDescription($descriptor);
+        // Lowest-precedence chain: #[PathParam] description ?? @param description ?? synthetic.
+        $attributeDescription = $fieldDescriptor !== null ? $fieldDescriptor->description : null;
+        $description = $attributeDescription
+            ?? $paramDescriptions[$descriptor->name]
+            ?? $this->buildDescription($descriptor);
 
         if ($descriptor->optional) {
             $note = 'Optional in URL — the segment may be omitted when calling this route.';

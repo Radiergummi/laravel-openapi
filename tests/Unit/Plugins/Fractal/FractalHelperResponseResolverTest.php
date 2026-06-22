@@ -54,14 +54,46 @@ uses()->group('openapi', 'plugin:fractal');
  */
 class HelperResolverFakeService
 {
-    public function item(mixed $data, mixed $transformer): mixed
+    public function item(mixed $data, mixed $transformer = null): mixed
     {
         return $data;
     }
 
-    public function collection(mixed $data, mixed $transformer): mixed
+    public function collection(mixed $data, mixed $transformer = null): mixed
     {
         return $data;
+    }
+}
+
+/**
+ * Stands in for `spatie/laravel-fractal`'s `Fractal` builder as the `$this->fractal` property
+ * type; the package is not a test dependency. Actions are parse-only, never invoked.
+ */
+class HelperResolverFractalBuilder
+{
+    public function item(mixed $data, mixed $transformer = null): self
+    {
+        return $this;
+    }
+
+    public function collection(mixed $data, mixed $transformer = null): self
+    {
+        return $this;
+    }
+
+    public function transformWith(mixed $transformer): self
+    {
+        return $this;
+    }
+
+    public function serializeWith(mixed $serializer): self
+    {
+        return $this;
+    }
+
+    public function respond(): JsonResponse
+    {
+        return new JsonResponse();
     }
 }
 
@@ -73,6 +105,7 @@ class HelperResolverFixtureController
     public function __construct(
         private readonly Manager $manager = new Manager(),
         private readonly HelperResolverFakeService $service = new HelperResolverFakeService(),
+        private readonly HelperResolverFractalBuilder $fractal = new HelperResolverFractalBuilder(),
     ) {}
 
     public function helperItem(): JsonResponse
@@ -170,6 +203,87 @@ class HelperResolverFixtureController
     public function plain(): mixed
     {
         return ['ok' => true];
+    }
+
+    public function propertyItem(): JsonResponse
+    {
+        return $this->fractal
+            ->item(new Article())
+            ->transformWith(new InferredArticleTransformer())
+            ->respond();
+    }
+
+    public function propertyCollection(): JsonResponse
+    {
+        return $this->fractal
+            ->collection([])
+            ->transformWith(new InferredArticleTransformer())
+            ->respond();
+    }
+
+    public function propertyClassConstTransformer(): JsonResponse
+    {
+        return $this->fractal
+            ->item(new Article())
+            ->transformWith(InferredArticleTransformer::class)
+            ->respond();
+    }
+
+    public function propertyTransformWithSerializer(): JsonResponse
+    {
+        return $this->fractal
+            ->collection([])
+            ->transformWith(new InferredArticleTransformer())
+            ->serializeWith(new ArraySerializer())
+            ->respond();
+    }
+
+    /** Transformer supplied on item() still wins; no transformWith() needed. */
+    public function propertyItemArgumentTransformer(): JsonResponse
+    {
+        return $this->fractal
+            ->item(new Article(), new InferredArticleTransformer())
+            ->respond();
+    }
+
+    /** Unrelated service rooting the same chain: must not match. */
+    public function servicePropertyTransformWith(): mixed
+    {
+        return $this->service
+            ->collection([])
+            ->transformWith(new InferredArticleTransformer());
+    }
+
+    public function propertyDynamicTransformer(): JsonResponse
+    {
+        $transformer = new InferredArticleTransformer();
+
+        return $this->fractal
+            ->item(new Article())
+            ->transformWith($transformer)
+            ->respond();
+    }
+
+    public function propertyNoTransformer(): JsonResponse
+    {
+        return $this->fractal->item(new Article())->respond();
+    }
+
+    public function propertyEmptyTransformer(): JsonResponse
+    {
+        return $this->fractal
+            ->item(new Article())
+            ->transformWith(new EmptyTransformer())
+            ->respond();
+    }
+
+    #[FractalResponse(transformer: InferredArticleTransformer::class)]
+    public function propertyAttributed(): JsonResponse
+    {
+        return $this->fractal
+            ->item(new Article())
+            ->transformWith(new InferredArticleTransformer())
+            ->respond();
     }
 }
 
@@ -390,6 +504,96 @@ it('does not fire on collection() called on a non-Fractal receiver', function ()
 
 it('stays silent for a method without any whitelisted call shape', function (): void {
     $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('plain'));
+
+    expect($response)->toBeNull();
+});
+
+it('binds $this->fractal->item()->transformWith() to the single envelope', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyItem'));
+
+    $schema = helperContentSchema($response);
+
+    expect($schema)->not->toBeNull()
+        ->and($schema->properties[0]->property)->toBe('data');
+});
+
+it('binds $this->fractal->collection()->transformWith() to the collection envelope', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyCollection'));
+
+    $schema = helperContentSchema($response);
+
+    expect($schema->properties[0]->property)->toBe('data')
+        ->and($schema->properties[0]->type)->toBe('array');
+});
+
+it('reads the transformWith() transformer from a ::class argument', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(
+        helperDescriptor('propertyClassConstTransformer'),
+    );
+
+    expect(helperContentSchema($response))->not->toBeNull();
+});
+
+it('composes transformWith() with serializeWith() on the property chain', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(
+        helperDescriptor('propertyTransformWithSerializer'),
+    );
+
+    $schema = helperContentSchema($response);
+
+    // ArraySerializer collections are a top-level array, not a {data: [...]} wrapper.
+    expect($schema->type)->toBe('array');
+});
+
+it('prefers the item() argument transformer over transformWith() on the property chain', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(
+        helperDescriptor('propertyItemArgumentTransformer'),
+    );
+
+    expect(helperContentSchema($response))->not->toBeNull();
+});
+
+it('does not fire on transformWith() rooted on a non-Fractal property', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(
+        helperDescriptor('servicePropertyTransformWith'),
+    );
+
+    expect($response)->toBeNull();
+});
+
+it('refuses a variable transformWith() argument', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(
+        helperDescriptor('propertyDynamicTransformer'),
+    );
+
+    expect($response)->toBeNull();
+});
+
+it('refuses a property chain with no transformer anywhere', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyNoTransformer'));
+
+    expect($response)->toBeNull();
+});
+
+it('refuses a transformWith() transformer with no documentable fields, noting it', function (): void {
+    $logger = helperRecordingLogger();
+    $response = helperResolver($logger)->resolvePrimaryResponse(
+        helperDescriptor('propertyEmptyTransformer'),
+    );
+
+    expect($response)->toBeNull();
+
+    $noted = array_any(
+        $logger->records,
+        static fn(array $record): bool => str_contains($record['message'], EmptyTransformer::class)
+            && str_contains($record['message'], 'yields no documentable fields'),
+    );
+
+    expect($noted)->toBeTrue();
+});
+
+it('never scans a property-chain action carrying #[FractalResponse]', function (): void {
+    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyAttributed'));
 
     expect($response)->toBeNull();
 });

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\Generator\OperationDescriptor;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Tests\Fixtures\AuthoringFixtureController;
+use Radiergummi\OpenApi\Tests\Fixtures\ParamDocblockQueryController;
+
+use function Radiergummi\OpenApi\is_defined;
 
 uses()->group('openapi');
 
@@ -117,6 +121,82 @@ it('populates externalDocs from #[ExternalDocs]', function (): void {
     expect($op->externalDocs)->not
         ->toBeNull()
         ->and($op->externalDocs?->url)->toBe('https://notion.so/runbook');
+});
+
+// endregion
+
+// region @param query-parameter description fallback
+
+/**
+ * Builds the operation for a {@see ParamDocblockQueryController} method with an explicit
+ * `paramDescriptions` map injected onto the descriptor, returning its `sort` query parameter.
+ *
+ * The map is injected rather than authored as a `@param` tag because a query key is not a PHP
+ * signature parameter, so the docblock would be stripped by Pint's `no_superfluous_phpdoc_tags`.
+ *
+ * @param array<string, string> $paramDescriptions
+ */
+function buildQueryParameter(string $method, array $paramDescriptions): OA\Parameter
+{
+    Route::get('/op-builder-query/' . $method, [ParamDocblockQueryController::class, $method]);
+
+    $descriptors = array_values(
+        array_filter(
+            iterator_to_array(app(RouteIntrospector::class)->discover(), false),
+            static fn($d): bool
+                => $d->method?->getName() === $method
+                && $d->controller?->getName() === ParamDocblockQueryController::class,
+        ),
+    );
+
+    expect($descriptors)->toHaveCount(1);
+    $original = $descriptors[0];
+
+    $descriptor = new ActionDescriptor(
+        route: $original->route,
+        controller: $original->controller,
+        method: $original->method,
+        summary: $original->summary,
+        description: $original->description,
+        paramDescriptions: $paramDescriptions,
+    );
+
+    $op = app(OperationBuilder::class)->build($descriptor, []);
+
+    $queryParameters = array_values(
+        array_filter(
+            $op->parameters,
+            static fn(OA\Parameter $p): bool => $p->in === 'query' && $p->name === 'sort',
+        ),
+    );
+
+    expect($queryParameters)->toHaveCount(1);
+
+    return $queryParameters[0];
+}
+
+it('fills an undescribed query parameter from the @param description map', function (): void {
+    $parameter = buildQueryParameter('accessorRead', ['sort' => 'The sort order.']);
+
+    expect($parameter->schema->description)->toBe('The sort order.');
+});
+
+it('keeps a #[QueryParam] description over the @param description', function (): void {
+    $parameter = buildQueryParameter('attributeDescribed', ['sort' => 'The docblock sort.']);
+
+    expect($parameter->schema->description)->toBe('The attribute sort.');
+});
+
+it('keeps an inline-validate() comment description over the @param description', function (): void {
+    $parameter = buildQueryParameter('validateCommented', ['sort' => 'The docblock sort.']);
+
+    expect($parameter->schema->description)->toBe('The inline sort comment.');
+});
+
+it('leaves a query parameter undescribed when the @param map has no entry', function (): void {
+    $parameter = buildQueryParameter('accessorRead', []);
+
+    expect(is_defined($parameter->schema->description))->toBeFalse();
 });
 
 // endregion
