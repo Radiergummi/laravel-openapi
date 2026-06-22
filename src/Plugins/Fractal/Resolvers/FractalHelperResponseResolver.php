@@ -14,7 +14,9 @@ use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\NodeFinder;
@@ -44,10 +46,13 @@ use function sprintf;
 /**
  * Infers the primary response from Fractal invocation styles via bounded body scan.
  *
- * Three call shapes are recognised within the first {@see self::STATEMENT_LIMIT} statements:
- * `fractal()->item(…)`/`->collection(…)`, `Fractal::create()->item(…)`, and an injected
- * `Manager` fed a `new Item(…)`/`new Collection(…)`. Classes are matched by FQCN string so
- * the plugin never depends on the packages being installed. Actions carrying a
+ * Four call shapes are recognised within the first {@see self::STATEMENT_LIMIT} statements:
+ * `fractal()->item(…)`/`->collection(…)`, `Fractal::create()->item(…)`, the
+ * `spatie/laravel-fractal` `$this->fractal->item(…)->transformWith(new T()|T::class)` builder,
+ * and an injected `Manager` fed a `new Item(…)`/`new Collection(…)`. In the chained shapes the
+ * transformer may come from the `item()`/`collection()` second argument or, failing that, a
+ * separate `->transformWith(…)` link. Classes are matched by FQCN string so the plugin never
+ * depends on the packages being installed. Actions carrying a
  * {@see PrimaryResponseAuthoringAttribute} are skipped. The bare two-argument
  * `fractal($data, new T())` is refused: item vs collection is not statically knowable.
  */
@@ -57,6 +62,9 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     public const int STATEMENT_LIMIT = 10;
 
     private const string HELPER_FUNCTION = 'fractal';
+
+    /** The `$this->fractal` property name accepted as a `spatie/laravel-fractal` builder root. */
+    private const string FRACTAL_PROPERTY = 'fractal';
 
     /** FQCN strings accepted as the `Fractal::create()` entrypoint. */
     private const array FACADE_CLASSES = [
@@ -76,6 +84,8 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     private const string RESOURCE_COLLECTION_CLASS = 'League\\Fractal\\Resource\\Collection';
 
     private const string SERIALIZE_WITH_METHOD = 'serializeWith';
+
+    private const string TRANSFORM_WITH_METHOD = 'transformWith';
 
     /** `new` serializer FQCN → modelled enum case. An unrecognised serializer refuses. */
     private const array SERIALIZER_CLASSES = [
@@ -214,16 +224,23 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
     }
 
     /**
-     * Matches a chained `fractal()->item(…)` / `Fractal::create()->collection(…)` shape.
-     * Only the `fractal()` helper or the Fractalistic facade qualify as the root, preventing
-     * false positives on unrelated services with the same method names.
+     * Matches a chained `fractal()->item(…)` / `Fractal::create()->collection(…)` /
+     * `$this->fractal->item(…)->transformWith(…)` shape. Only the `fractal()` helper, the
+     * Fractalistic facade, or the `$this->fractal` builder property qualify as the root,
+     * preventing false positives on unrelated services with the same method names. The
+     * transformer is read from the `item()`/`collection()` second argument, falling back to a
+     * separate `->transformWith(…)` link when that argument is absent.
      */
     private function matchChainedShape(Expr $expression): ?FractalCallShape
     {
         $serializer = Serializer::DataArray;
+        $transformerFromChain = null;
 
         $node = $expression;
 
+        // The fluent chain nests outermost-first, so `->transformWith(…)` (written after
+        // `item()`/`collection()`) is visited before the `item`/`collection` link: capture here,
+        // use below, in a single pass.
         while ($node instanceof MethodCall && $node->name instanceof Node\Identifier) {
             $methodName = $node->name->toString();
 
@@ -231,12 +248,16 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
                 $serializer = $this->serializerFrom($node->args);
             }
 
+            if ($methodName === self::TRANSFORM_WITH_METHOD) {
+                $transformerFromChain = $this->transformerArgument($node->args, 0);
+            }
+
             if ($methodName === self::ITEM_METHOD || $methodName === self::COLLECTION_METHOD) {
                 if (!$this->isFractalEntrypoint($node->var)) {
                     return null;
                 }
 
-                $transformerClass = $this->transformerArgument($node->args, 1);
+                $transformerClass = $this->transformerArgument($node->args, 1) ?? $transformerFromChain;
 
                 if ($transformerClass === null) {
                     return null;
@@ -277,7 +298,10 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
         return self::SERIALIZER_CLASSES[$class->toString()] ?? null;
     }
 
-    /** Whether the expression is the `fractal()` helper call or the `Fractal::create()` facade call. */
+    /**
+     * Whether the expression is the `fractal()` helper call, the `Fractal::create()` facade call,
+     * or the `$this->fractal` builder property.
+     */
     private function isFractalEntrypoint(Expr $receiver): bool
     {
         if ($receiver instanceof FuncCall) {
@@ -290,6 +314,13 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
                 && $this->isFacadeClass($receiver->class->toString())
                 && $receiver->name instanceof Node\Identifier
                 && $receiver->name->toString() === self::FACADE_FACTORY_METHOD;
+        }
+
+        if ($receiver instanceof PropertyFetch) {
+            return $receiver->var instanceof Variable
+                && $receiver->var->name === 'this'
+                && $receiver->name instanceof Node\Identifier
+                && $receiver->name->toString() === self::FRACTAL_PROPERTY;
         }
 
         return false;
