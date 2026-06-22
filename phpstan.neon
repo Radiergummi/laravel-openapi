@@ -37,6 +37,9 @@ parameters:
         # Fixtures carrying intentionally-malformed PHPDoc (e.g., a broken @phpstan-import-type)
         # to exercise resolver error paths — the broken annotation is the point of the fixture.
         - tests/Fixtures/Types/*
+        # Migration fixtures exercise the column reader's degrade paths (dynamic names, a
+        # non-literal enum member referencing an undefined enum), which PHPStan would flag.
+        - tests/Fixtures/Migrations/*
     tmpDir: .cache/phpstan
 
     editorUrl: 'phpstorm://open?file=%%file%%&line=%%line%%'
