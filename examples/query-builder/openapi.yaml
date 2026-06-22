@@ -118,6 +118,12 @@ paths:
       responses:
         '201':
           description: 'The created flight'
+          headers:
+            Location:
+              description: 'URL of the created resource'
+              schema:
+                type: string
+                format: uri-reference
           content:
             application/json:
               schema:
@@ -262,6 +268,12 @@ paths:
       responses:
         '201':
           description: 'The created booking'
+          headers:
+            Location:
+              description: 'URL of the created resource'
+              schema:
+                type: string
+                format: uri-reference
           content:
             application/json:
               schema:

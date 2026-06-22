@@ -43,6 +43,70 @@ function buildOperation(string $method, array $tags = []): OperationDescriptor
     return app(OperationBuilder::class)->build($descriptors[0], $tags);
 }
 
+/**
+ * Like {@see buildOperation()} but registers the route behind the given middleware, so the
+ * throttle-derived rate-limit headers can be exercised.
+ *
+ * @param list<string> $middleware
+ */
+function buildOperationBehind(string $method, array $middleware): OperationDescriptor
+{
+    Route::get('/op-builder-mw/' . $method, [AuthoringFixtureController::class, $method])
+        ->middleware($middleware);
+
+    $descriptors = array_values(
+        array_filter(
+            iterator_to_array(app(RouteIntrospector::class)->discover(), false),
+            static fn($d): bool
+                => $d->method?->getName() === $method
+                && $d->controller?->getName() === AuthoringFixtureController::class
+                && str_starts_with((string) $d->route->uri(), 'op-builder-mw/'),
+        ),
+    );
+
+    expect($descriptors)->toHaveCount(1);
+
+    return app(OperationBuilder::class)->build($descriptors[0], []);
+}
+
+/**
+ * Returns the `OA\Header` named `$name` on the response with status `$status`, or null.
+ */
+function responseHeader(OperationDescriptor $op, string $status, string $name): ?OA\Header
+{
+    foreach ($op->responses as $response) {
+        if ((string) $response->response !== $status) {
+            continue;
+        }
+
+        foreach (is_array($response->headers) ? $response->headers : [] as $header) {
+            if ($header instanceof OA\Header && $header->header === $name) {
+                return $header;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @return list<string> Every header name across every response of the operation.
+ */
+function responseHeaderNames(OperationDescriptor $op): array
+{
+    $names = [];
+
+    foreach ($op->responses as $response) {
+        foreach (is_array($response->headers) ? $response->headers : [] as $header) {
+            if ($header instanceof OA\Header && is_string($header->header)) {
+                $names[] = $header->header;
+            }
+        }
+    }
+
+    return $names;
+}
+
 // endregion
 
 // region build()
@@ -121,6 +185,105 @@ it('populates externalDocs from #[ExternalDocs]', function (): void {
     expect($op->externalDocs)->not
         ->toBeNull()
         ->and($op->externalDocs?->url)->toBe('https://notion.so/runbook');
+});
+
+// endregion
+
+// region conventional response headers
+
+it('emits a Location header on a 201 response', function (): void {
+    $op = buildOperation('createdResponseAction');
+
+    $location = responseHeader($op, '201', 'Location');
+
+    expect($location)->not
+        ->toBeNull()
+        ->and($location?->schema->type)->toBe('string')
+        ->and($location?->schema->format)->toBe('uri-reference');
+});
+
+it('emits no Location header when no response is a 201', function (): void {
+    $op = buildOperation('publicAction');
+
+    expect(responseHeaderNames($op))->not->toContain('Location');
+});
+
+it('emits the rate-limit headers on a throttle:args route', function (): void {
+    $op = buildOperationBehind('publicAction', ['throttle:60,1']);
+
+    $primaryStatus = (string) $op->responses[0]->response;
+
+    expect(responseHeader($op, $primaryStatus, 'X-RateLimit-Limit')?->schema->type)->toBe('integer')
+        ->and(responseHeader($op, $primaryStatus, 'X-RateLimit-Remaining')?->schema->type)->toBe('integer');
+});
+
+it('emits the rate-limit headers on a bare throttle route', function (): void {
+    $op = buildOperationBehind('publicAction', ['throttle']);
+
+    $primaryStatus = (string) $op->responses[0]->response;
+
+    expect(responseHeader($op, $primaryStatus, 'X-RateLimit-Limit'))->not
+        ->toBeNull()
+        ->and(responseHeader($op, $primaryStatus, 'X-RateLimit-Remaining'))->not->toBeNull();
+});
+
+it('emits no rate-limit headers when the route is not throttled', function (): void {
+    $op = buildOperation('publicAction');
+
+    expect(responseHeaderNames($op))
+        ->not->toContain('X-RateLimit-Limit')
+        ->not->toContain('X-RateLimit-Remaining');
+});
+
+it('emits only Location on an un-throttled 201 route', function (): void {
+    $op = buildOperation('createdResponseAction');
+
+    expect(responseHeader($op, '201', 'Location'))->not
+        ->toBeNull()
+        ->and(responseHeaderNames($op))
+        ->not->toContain('X-RateLimit-Limit')
+        ->not->toContain('X-RateLimit-Remaining');
+});
+
+it('emits only the rate-limit headers on a throttled non-201 route', function (): void {
+    $op = buildOperationBehind('publicAction', ['throttle:60,1']);
+
+    $primaryStatus = (string) $op->responses[0]->response;
+
+    expect(responseHeader($op, $primaryStatus, 'X-RateLimit-Limit'))->not
+        ->toBeNull()
+        ->and(responseHeaderNames($op))->not->toContain('Location');
+});
+
+it('keeps an authored Location header over the convention on a 201 response', function (): void {
+    $op = buildOperation('authoredLocationAction');
+
+    $locations = array_values(
+        array_filter(
+            responseHeaderNames($op),
+            static fn(string $name): bool => $name === 'Location',
+        ),
+    );
+
+    expect($locations)->toHaveCount(1)
+        ->and(responseHeader($op, '201', 'Location')?->description)->toBe('Authored location');
+});
+
+it('keeps an authored rate-limit header while the sibling is still derived', function (): void {
+    $op = buildOperationBehind('authoredRateLimitAction', ['throttle:60,1']);
+
+    $primaryStatus = (string) $op->responses[0]->response;
+
+    $limits = array_values(
+        array_filter(
+            responseHeaderNames($op),
+            static fn(string $name): bool => $name === 'X-RateLimit-Limit',
+        ),
+    );
+
+    expect($limits)->toHaveCount(1)
+        ->and(responseHeader($op, $primaryStatus, 'X-RateLimit-Limit')?->description)->toBe('Authored limit')
+        ->and(responseHeader($op, $primaryStatus, 'X-RateLimit-Remaining'))->not->toBeNull();
 });
 
 // endregion
