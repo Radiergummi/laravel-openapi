@@ -64,6 +64,10 @@ wins over the `auth` middleware entry.
         'uri' => 'docs',           // GET /api/docs
         'renderer' => 'scalar',    // 'scalar' (default) or 'swagger-ui'
         'spec_url' => env('OPENAPI_PLAYGROUND_SPEC_URL'), // null = auto-derive from route
+        'auth' => [
+            'persist'          => true,   // Swagger UI: keep tokens across page reloads
+            'preferred_scheme' => null,   // null = renderer picks the first scheme
+        ],
     ],
 ],
 ```
@@ -82,6 +86,14 @@ URL is derived automatically from the spec route, which works correctly when Lar
 `TrustProxies` middleware is configured to forward proxy headers. Set this key to an absolute URL
 when `TrustProxies` cannot be used, for example when a CDN hosts the spec at a fixed URL or a
 proxy strips forwarded headers. See [Recipes → Serving docs behind a reverse proxy](recipes.md#serving-docs-behind-a-reverse-proxy).
+`auth.persist` (default `true`) passes `persistAuthorization: true` to Swagger UI,
+keeping entered tokens alive across page reloads. Scalar persists tokens within a
+session by design — this setting has no effect for Scalar.
+
+`auth.preferred_scheme` (default `null`) names the security scheme to present first
+in the Authorize dialog. When `null`, each renderer picks the first scheme from the
+document. Set it to match a key under `security_schemes` (e.g., `'bearer'`, `'sanctum'`)
+to pre-select that scheme.
 
 Because the spec and playground mount under `prefix` (default `api`), they appear
 in `php artisan route:list --path=api` alongside your own API routes. This is

@@ -13,6 +13,9 @@
         window.ui = SwaggerUIBundle({
             url: "{{ $specUrl }}",
             dom_id: '#swagger-ui',
+            @if($persistAuth)
+            persistAuthorization: true,
+            @endif
         });
     </script>
 </body>

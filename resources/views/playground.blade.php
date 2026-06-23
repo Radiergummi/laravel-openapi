@@ -6,7 +6,13 @@
     <title>API Reference</title>
 </head>
 <body>
-    <script id="api-reference" data-url="{{ $specUrl }}"></script>
+    <script
+        id="api-reference"
+        data-url="{{ $specUrl }}"
+        @if($preferredScheme)
+        data-configuration="{{ json_encode(['authentication' => ['preferredSecurityScheme' => $preferredScheme]]) }}"
+        @endif
+    ></script>
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>
