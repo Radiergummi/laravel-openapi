@@ -47,7 +47,23 @@ it('surfaces a GET FormRequest as query parameters in wire notation with no requ
         ->and($parameters['page']['schema']['type'])->toBe('integer')
         ->and($parameters['filter[name]']['required'])->toBeFalse()
         ->and($parameters['ids[]']['schema']['type'])->toBe('array')
-        ->and($parameters['ids[]']['schema']['items']['type'])->toBe('integer');
+        ->and($parameters['ids[]']['schema']['items']['type'])->toBe('integer')
+        ->and($parameters['ids[]']['style'])->toBe('form')
+        ->and($parameters['ids[]']['explode'])->toBeTrue()
+        // A scalar query parameter carries no serialization keywords.
+        ->and($parameters['term'])->not->toHaveKeys(['style', 'explode'])
+        ->and($parameters['page'])->not->toHaveKeys(['style', 'explode']);
+});
+
+it('does not flag its own inferred array query parameter as missing explode', function (): void {
+    Route::get('/oa-fixture/fr-explode', [SearchController::class, 'index']);
+
+    $this->artisan('openapi:lint', [
+        '--level' => 1,
+        '--only' => 'parameter.query-array-no-explode',
+        '--uri' => 'oa-fixture/fr-explode',
+        '--format' => 'json',
+    ])->assertExitCode(0);
 });
 
 it('still emits a request body for the same FormRequest on POST', function (): void {

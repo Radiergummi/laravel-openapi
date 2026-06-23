@@ -407,11 +407,17 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
             $schema = new OA\Schema([]);
             $descriptor->applyTo($schema);
 
-            $parameters[$name] = $this->parameter(
-                $name,
-                $schema,
-                required: $ancestorsRequired && $descriptor->required === true,
-            );
+            // A repeated `name[]` parameter is form-style with explode: each value is its own
+            // `name[]=…` pair. Declaring it removes the serialization ambiguity flagged by the
+            // parameter.query-array-no-explode lint rule.
+            $parameters[$name] = new OA\Parameter([
+                'name' => $name,
+                'in' => 'query',
+                'required' => $ancestorsRequired && $descriptor->required === true,
+                'style' => 'form',
+                'explode' => true,
+                'schema' => $schema,
+            ]);
 
             return;
         }

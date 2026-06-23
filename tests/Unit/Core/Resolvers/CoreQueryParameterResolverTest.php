@@ -273,6 +273,16 @@ it('emits an open (untyped) schema for a #[QueryParam] without an explicit type'
     expect($perPage?->schema->type)->not->toBe(['string', 'null']);
 });
 
+it('does not add style/explode to a #[QueryParam] array — the explicit attribute wins untouched', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('arrayAttributeParam'));
+
+    $identifiers = queryParameterNamed($parameters, 'ids');
+
+    expect($identifiers?->style)->toBe(Generator::UNDEFINED)
+        ->and($identifiers?->explode)->toBe(Generator::UNDEFINED);
+});
+
 // endregion
 
 // region GET inline-validate hand-off
@@ -327,14 +337,32 @@ it('maps nested and array rule keys to wire notation and drops object arrays wit
     expect(queryParameterNames($parameters))->toBe(['filter[name]', 'ids[]'])
         ->and($filterName?->required)->toBeTrue()
         ->and($filterName?->schema->type)->toBe('string')
+        // A scalar query parameter carries no serialization keywords (both stay UNDEFINED).
+        ->and($filterName?->style)->toBe(Generator::UNDEFINED)
+        ->and($filterName?->explode)->toBe(Generator::UNDEFINED)
         ->and($identifiers?->required)->toBeFalse()
         ->and($identifiers?->schema->type)->toBe('array')
         ->and($identifiers?->schema->items->type)->toBe('integer')
+        // An inferred array query parameter is emitted as a repeated `name[]` (form/explode).
+        ->and($identifiers?->style)->toBe('form')
+        ->and($identifiers?->explode)->toBeTrue()
         ->and(array_any(
             $logger->records,
             static fn(array $record): bool => str_contains($record['message'], 'rows')
                 && str_contains($record['message'], 'cannot be expressed as query parameters'),
         ))->toBeTrue();
+});
+
+it('keeps style/explode on an array parameter independent of nullable/enum item rules', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('enumArraySearch'));
+
+    $tags = queryParameterNamed($parameters, 'tags[]');
+
+    expect($tags?->schema->type)->toBe('array')
+        ->and($tags?->schema->items->enum)->toBe(['red', 'green', 'blue'])
+        ->and($tags?->style)->toBe('form')
+        ->and($tags?->explode)->toBeTrue();
 });
 
 it('degrades dynamic rules on a GET route with a generation-log note', function (): void {

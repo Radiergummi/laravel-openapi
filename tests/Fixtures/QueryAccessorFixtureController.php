@@ -179,6 +179,12 @@ class QueryAccessorFixtureController extends Controller
         return new JsonResponse([$request->query('per_page')]);
     }
 
+    #[QueryParam('ids', type: 'array')]
+    public function arrayAttributeParam(Request $request): JsonResponse
+    {
+        return new JsonResponse([$request->query('ids')]);
+    }
+
     // endregion
 
     // region GET inline-validate hand-off
@@ -202,6 +208,16 @@ class QueryAccessorFixtureController extends Controller
             'ids.*' => 'integer',
             'rows' => 'array',
             'rows.*.price' => 'required|numeric',
+        ]);
+
+        return new JsonResponse($validated);
+    }
+
+    public function enumArraySearch(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tags' => 'array',
+            'tags.*' => 'nullable|in:red,green,blue',
         ]);
 
         return new JsonResponse($validated);

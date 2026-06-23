@@ -439,7 +439,8 @@ describe query parameters rather than a request body: each key becomes a
 parameter with its rule-derived schema, `required` from the rules, and a
 trailing `//` comment as its description. Nested keys map to the query-string
 wire format — `filter.name` → `filter[name]`, a scalar list (`ids` + `ids.*`)
-→ a repeatable `ids[]` with an array schema. An array of *objects*
+→ a repeatable `ids[]` with an array schema, emitted with `style: form` and
+`explode: true` (PHP's `name[]` repeated-pair wire format). An array of *objects*
 (`rows.*.price`) or a bare `*` rule has no honest parameter-name
 representation; those keys are dropped with a generation-log note.
 
