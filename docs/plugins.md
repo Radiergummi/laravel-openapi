@@ -17,6 +17,15 @@ package or convention. Six plugins ship with the package:
 Plugins are listed in `config/openapi.plugins` and resolved from the
 container, in declaration order, after Core registers.
 
+### Installed-but-disabled hints
+
+When an integration package (`league/fractal` / `spatie/laravel-fractal`,
+`spatie/laravel-query-builder`) is installed but its plugin is not enabled,
+`openapi:generate` prints a one-line advisory on stderr pointing you at the
+config line that would let it infer schemas and parameters from that package.
+The hint is advisory only: nothing is ever auto-enabled, and the document
+written to stdout under `--output=-` stays untouched.
+
 To write your own, see [Plugin authoring](plugin-authoring.md).
 
 ## SpatieData

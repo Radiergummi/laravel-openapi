@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Console\OutputStyle;
+use Illuminate\Console\View\Components\Factory;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use OpenApi\Analysis;
 use OpenApi\Annotations as OA;
 use OpenApi\Context;
+use Radiergummi\OpenApi\Support\Diagnostics\PluginHintInspector;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
@@ -17,16 +20,21 @@ use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\Console\Exception\InvalidArgumentException;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use Throwable;
 use UnexpectedValueException;
 
 use function app;
+use function array_filter;
+use function array_values;
+use function config;
 use function count;
 use function dirname;
 use function file_put_contents;
 use function fwrite;
 use function in_array;
+use function is_string;
 use function is_writable;
 use function realpath;
 
@@ -59,6 +67,7 @@ class GenerateCommand extends Command
         SpecRegistry $registry,
         InclusionEvaluator $evaluator,
         RouteIntrospector $introspector,
+        PluginHintInspector $pluginHints,
     ): int {
         $specName = $this->argument('spec');
         $outputOverride = $this->option('output');
@@ -83,6 +92,8 @@ class GenerateCommand extends Command
         if ($explain) {
             $this->emitExplain($evaluator, $introspector, $registry->all());
         }
+
+        $this->emitPluginHints($pluginHints);
 
         foreach ($targets as $spec) {
             $document = $orchestrator->generateOne($spec->name, app()->environment());
@@ -113,6 +124,44 @@ class GenerateCommand extends Command
     }
 
     // region Private helpers
+
+    /**
+     * Prints an advisory once per applicable integration package, on stderr so the document a
+     * subsequent `--output=-` writes to stdout stays parseable. Advisory only: never auto-enables.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function emitPluginHints(PluginHintInspector $pluginHints): void
+    {
+        $enabledPlugins = array_values(array_filter(
+            (array) config('openapi.plugins', []),
+            static fn(mixed $plugin): bool => is_string($plugin),
+        ));
+
+        $hints = $pluginHints->hints($enabledPlugins);
+
+        if ($hints === []) {
+            return;
+        }
+
+        $components = new Factory($this->errorOutput());
+
+        foreach ($hints as $hint) {
+            $components->warn($hint);
+        }
+    }
+
+    /**
+     * Wraps the command's error stream in an {@see OutputStyle} so console-component output lands on
+     * stderr. Falls back to the regular output when no separate error stream is available.
+     */
+    private function errorOutput(): OutputStyle
+    {
+        $output = $this->output->getOutput();
+        $errorStream = $output instanceof ConsoleOutputInterface ? $output->getErrorOutput() : $output;
+
+        return new OutputStyle($this->input, $errorStream);
+    }
 
     /**
      * @param list<SpecDefinition> $specs
