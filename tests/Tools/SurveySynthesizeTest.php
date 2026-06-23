@@ -291,6 +291,13 @@ it('rolls up the three-way responseCoverage across classified apps in the intern
                 'genuinelyMissing' => 3,
                 'genuinelyMissingByShape' => ['response()->json(<non-literal>)' => 2, 'multiple returns' => 1],
             ],
+            // Alpha is a Fractal-stack app: enabling its plugins lifts substantive 6 -> 9.
+            'responseCoverageStackEnabled' => [
+                'substantive' => 9,
+                'correctlyEmpty' => 1,
+                'genuinelyMissing' => 0,
+                'genuinelyMissingByShape' => [],
+            ],
         ]],
         ['name' => 'Beta', 'metrics' => [
             'apiOperations' => 4,
@@ -316,9 +323,19 @@ it('rolls up the three-way responseCoverage across classified apps in the intern
         'genuinelyMissingByShape' => ['multiple returns' => 3, 'response()->json(<non-literal>)' => 2],
     ]);
 
+    // Only Alpha carries a stack-enabled variant: 9 substantive, 1 correctly-empty, 0 genuinely-missing.
+    expect($synthesis['responseCoverageStackEnabled'])->toBe([
+        'appCount' => 1,
+        'substantive' => 9,
+        'correctlyEmpty' => 1,
+        'genuinelyMissing' => 0,
+    ]);
+
     $internal = surveyRenderInternalCandidate($synthesis);
     expect($internal)->toContain('## Response coverage (three-way, honest denominator)')
-        ->toContain('**8 substantive · 1 correctly-empty · 5 genuinely-missing**');
+        ->toContain('**8 substantive · 1 correctly-empty · 5 genuinely-missing**')
+        ->toContain('With stack-implied plugins enabled')
+        ->toContain('**9 substantive · 1 correctly-empty · 0 genuinely-missing**');
 });
 
 it('omits the responseCoverage section when no app carries a classification', function (): void {

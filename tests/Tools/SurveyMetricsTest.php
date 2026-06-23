@@ -124,6 +124,22 @@ it('counts a non-substantive op with no classification record as genuinely-missi
         ->and($m['responseCoverage']['genuinelyMissingByShape'])->toBe(['unclassified' => 1]);
 });
 
+it('maps detected integration packages to their plugin class-strings (stack-enabled variant)', function (): void {
+    expect(survey_stackPlugins(['league/fractal']))
+        ->toBe(['Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin'])
+        ->and(survey_stackPlugins(['spatie/laravel-query-builder']))
+        ->toBe(['Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin'])
+        // spatie/laravel-fractal also maps to the Fractal plugin; deduped when both are present.
+        ->and(survey_stackPlugins(['league/fractal', 'spatie/laravel-fractal']))
+        ->toBe(['Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin'])
+        ->and(survey_stackPlugins(['league/fractal', 'spatie/laravel-query-builder', 'unknown/pkg']))
+        ->toBe([
+            'Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin',
+            'Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin',
+        ])
+        ->and(survey_stackPlugins([]))->toBe([]);
+});
+
 it('adds coverage when a published spec is supplied', function (): void {
     $spec = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/spec.json'), true);
     $lint = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/lint.json'), true);

@@ -116,6 +116,12 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
     $coverageGenuinelyMissing = 0;
     $coverageByShape = [];
 
+    // Stack-enabled variant (#443): same three-way, measured with the app's stack-implied plugins on.
+    $stackApps = 0;
+    $stackSubstantive = 0;
+    $stackCorrectlyEmpty = 0;
+    $stackGenuinelyMissing = 0;
+
     foreach ($results as $entry) {
         $name = (string) ($entry['name'] ?? '');
         $metrics = is_array($entry['metrics'] ?? null) ? $entry['metrics'] : [];
@@ -173,6 +179,15 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
             }
         }
 
+        if (is_array($metrics['responseCoverageStackEnabled'] ?? null)) {
+            $stack = $metrics['responseCoverageStackEnabled'];
+            $app['responseCoverageStackEnabled'] = $stack;
+            $stackApps++;
+            $stackSubstantive += (int) ($stack['substantive'] ?? 0);
+            $stackCorrectlyEmpty += (int) ($stack['correctlyEmpty'] ?? 0);
+            $stackGenuinelyMissing += (int) ($stack['genuinelyMissing'] ?? 0);
+        }
+
         $apps[] = $app;
     }
 
@@ -207,6 +222,12 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
             'correctlyEmpty' => $coverageCorrectlyEmpty,
             'genuinelyMissing' => $coverageGenuinelyMissing,
             'genuinelyMissingByShape' => $coverageByShape,
+        ] : null,
+        'responseCoverageStackEnabled' => $stackApps > 0 ? [
+            'appCount' => $stackApps,
+            'substantive' => $stackSubstantive,
+            'correctlyEmpty' => $stackCorrectlyEmpty,
+            'genuinelyMissing' => $stackGenuinelyMissing,
         ] : null,
         'corpus' => [
             'appCount' => count($apps),
@@ -480,8 +501,25 @@ function surveyRenderInternalCandidate(array $synthesis): string
             (int) $coverage['correctlyEmpty'],
             (int) $coverage['genuinelyMissing'],
         );
+
+        // Out-of-box (above) vs stack-enabled: the gap is the coverage the app's own stack-implied
+        // plugins would add with a one-line config change (#443).
+        if (is_array($synthesis['responseCoverageStackEnabled'] ?? null)) {
+            $stack = $synthesis['responseCoverageStackEnabled'];
+            $out[] = '';
+            $out[] = sprintf(
+                'With stack-implied plugins enabled (across %d app(s)): **%d substantive · %d correctly-empty '
+                . '· %d genuinely-missing** — the out-of-box numbers above understate achievable coverage by '
+                . 'the difference.',
+                (int) $stack['appCount'],
+                (int) $stack['substantive'],
+                (int) $stack['correctlyEmpty'],
+                (int) $stack['genuinelyMissing'],
+            );
+        }
+
         $out[] = '';
-        $out[] = '| Genuinely-missing shape | Count |';
+        $out[] = '| Genuinely-missing shape (out-of-box) | Count |';
         $out[] = '|---|--:|';
 
         foreach ($coverage['genuinelyMissingByShape'] as $shape => $count) {

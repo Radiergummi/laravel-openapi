@@ -125,6 +125,34 @@ function survey_classificationIndex(array $classification): array
     return $index;
 }
 
+/**
+ * Maps detected third-party integration packages to the bundled plugin class-strings they enable, for
+ * the "stack-enabled" coverage variant. Deterministic; unknown packages are ignored. SpatieData and
+ * ApiResources are on by default and are not in this map.
+ *
+ * @param list<string> $detectedPackages composer package names present in the app
+ *
+ * @return list<string> plugin class-strings, deduped, in map order
+ */
+function survey_stackPlugins(array $detectedPackages): array
+{
+    $map = [
+        'league/fractal' => 'Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin',
+        'spatie/laravel-fractal' => 'Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin',
+        'spatie/laravel-query-builder' => 'Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin',
+    ];
+
+    $plugins = [];
+
+    foreach ($detectedPackages as $package) {
+        if (isset($map[$package]) && !in_array($map[$package], $plugins, true)) {
+            $plugins[] = $map[$package];
+        }
+    }
+
+    return $plugins;
+}
+
 /** Count properties of a request-body schema, following one $ref hop. */
 function survey_requestPropertyCount(array $schema, array $components): int
 {
@@ -434,5 +462,19 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
         }
     }
 
-    echo json_encode(surveyMetrics($spec, $lint, $run, $prefix, $published, $classification), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    $metrics = surveyMetrics($spec, $lint, $run, $prefix, $published, $classification);
+
+    // Stack-enabled variant: the same three-way coverage measured against the spec generated with the
+    // app's stack-implied plugins additionally enabled (generate-stack.php output). Reported alongside
+    // the out-of-the-box numbers so a Fractal/QueryBuilder app's achievable coverage is not understated.
+    if ($classification !== null && is_file("$appDir/generated-spec.stack.json")) {
+        $stackSpec = json_decode((string) file_get_contents("$appDir/generated-spec.stack.json"), true);
+
+        if (is_array($stackSpec) && isset($stackSpec['paths'])) {
+            $stackMetrics = surveyMetrics($stackSpec, $lint, $run, $prefix, null, $classification);
+            $metrics['responseCoverageStackEnabled'] = $stackMetrics['responseCoverage'];
+        }
+    }
+
+    echo json_encode($metrics, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
 }

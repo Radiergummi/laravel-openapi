@@ -120,6 +120,7 @@ and prefix yields identical output.
 | `crash.routesIntrospected` | Number of routes seen by the generator, if captured; `null` otherwise. |
 | `coverage` | Only present when the corpus entry provides a `publishedSpec`. Compares path×method keys (with `{param}` collapsed to `{}`) between the generated spec and the published one. Contains: `publishedOps` (keys in their spec), `ours` (keys in our spec), `intersection` (keys present in both), `covPercent` (`round(100 × intersection / publishedOps, 1)`). |
 | `responseCoverage` | Only present when the app dir has a `classify.json` (from `classify.php`). The honest three-way split of `apiOperations`, since neither `responseSchemas` (pessimistic: counts a correct empty 2xx as a miss) nor `completenessPercent` (optimistic: credits a give-up empty 2xx as complete) is right. Contains `substantive` (a real payload — today's `responseSchemas`), `correctlyEmpty` (the action is genuinely no-content: `void`/`never`, `return;`, `return null;`, `response()->noContent()`), `genuinelyMissing` (the action returns a body the generator emitted empty/thin), and `genuinelyMissingByShape` (a rollup of the give-up shapes). The three counts partition `apiOperations` exactly; `genuinelyMissing` is the real denominator to size response-inference levers against. An op with no classification record counts conservatively as `genuinelyMissing` under the `unclassified` shape. |
+| `responseCoverageStackEnabled` | Only present when the app dir has both a `classify.json` and a `generated-spec.stack.json` (from `generate-stack.php`). The same three-way split measured against the spec generated with the app's **stack-implied** plugins additionally enabled (e.g. `FractalPlugin` when `league/fractal` is installed). Reported next to `responseCoverage` so a Fractal/QueryBuilder app's achievable coverage is not understated by the out-of-the-box default plugin set — enabling an opt-in plugin the stack obviously needs is a one-line config change. Measured: enabling Fractal on InvoiceNinja moves substantive 67 → 322 of 522. |
 
 ### `classify.php` (action source-shape classifier)
 
@@ -130,6 +131,15 @@ per route: `{uri, verb, action, returnType, shape}`). `metrics.php` reads `class
 dir when present and joins it with spec substantive-ness; `completeness.php --classify=<classify.json>`
 prints the same three-way line. The classifier mirrors the library's reader whitelist — it labels
 refused shapes too, but never decides substantive-ness itself.
+
+### `generate-stack.php` (stack-enabled spec)
+
+`generate-stack.php <repo-dir>` boots the app, detects installed integration packages by their marker
+class (`league/fractal` → `FractalPlugin`, `spatie/laravel-query-builder` → `QueryBuilderPlugin`),
+merges those plugins onto the configured set **at runtime via `config()`** (the app's committed config
+is never edited), and generates to stdout. `corpus.sh` writes this to `generated-spec.stack.json`;
+`metrics.php` then emits `responseCoverageStackEnabled` beside the default `responseCoverage`. The
+package→plugin map is `survey_stackPlugins()` in `metrics.php` (deterministic; unknown packages ignored).
 
 ## The short version (a new app)
 
