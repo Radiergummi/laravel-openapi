@@ -588,6 +588,11 @@ return [
             'enabled' => env('APP_ENV') === 'local',
             'uri' => 'docs',
             'renderer' => 'scalar',
+            // Explicit spec URL used by the playground renderer (the data-url / url attribute).
+            // When null (the default), the URL is derived from the spec route automatically.
+            // Set via env to point the playground at a CDN-hosted or proxy-corrected spec URL
+            // when TrustProxies middleware cannot be used.
+            'spec_url' => env('OPENAPI_PLAYGROUND_SPEC_URL'),
         ],
     ],
 

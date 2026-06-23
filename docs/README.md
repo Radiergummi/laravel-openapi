@@ -14,7 +14,7 @@ New to the package? Read [Getting started](getting-started.md), then
 | [Auto-derivation](auto-derivation.md) | Which part of the spec comes from which part of your code. |
 | [Request bodies](request-bodies.md) | `FormRequest` vs Spatie Data; validation-rule → schema mapping. |
 | [Attributes](attributes.md) | Escape-hatch catalog. |
-| [Recipes](recipes.md) | Short snippets for streaming, multipart, polymorphism, links, operationIds, and security schemes. |
+| [Recipes](recipes.md) | Short snippets for streaming, multipart, polymorphism, links, operationIds, security schemes, and serving docs behind a reverse proxy. |
 | [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal, SwaggerPhp. |
 | [Migrating from L5-Swagger](migrating-from-l5-swagger.md) | Positioning vs annotation-driven swagger-php, and the end-to-end migration path. |
 | [Linting](linting.md) | `openapi:lint`, severity levels, rule catalog, `#[IgnoreLint]`. |
