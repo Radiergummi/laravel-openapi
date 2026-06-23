@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Support\Str;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use ReflectionClass;
 use Symfony\Component\Process\Exception\LogicException;
 use Symfony\Component\Process\Exception\ProcessSignaledException;
 use Symfony\Component\Process\Exception\ProcessStartFailedException;
@@ -18,6 +19,7 @@ use function array_filter;
 use function array_map;
 use function array_values;
 use function base_path;
+use function class_exists;
 use function config_path;
 use function explode;
 use function fnmatch;
@@ -111,7 +113,10 @@ class LintRouteFilter
     private static function isVendorOrUnresolvable(ActionDescriptor $descriptor): bool
     {
         if ($descriptor->controller === null && $descriptor->method === null) {
-            return true;
+            // The introspector nulls both reflectors when the action method does not exist on an
+            // otherwise-resolvable first-party controller. Keep those so the missing-method lint
+            // rule can flag them; still drop closures (no controller class) and vendor controllers.
+            return self::isVendorOrUnresolvableMissingMethod($descriptor);
         }
 
         $file = $descriptor->method?->getFileName()
@@ -122,6 +127,23 @@ class LintRouteFilter
         }
 
         return str_contains($file, '/vendor/');
+    }
+
+    /**
+     * Whether a both-reflectors-null descriptor is a closure/vendor route rather than a first-party
+     * controller with a missing action method.
+     */
+    private static function isVendorOrUnresolvableMissingMethod(ActionDescriptor $descriptor): bool
+    {
+        $controllerClass = $descriptor->route->getControllerClass();
+
+        if ($controllerClass === null || !class_exists($controllerClass)) {
+            return true;
+        }
+
+        $file = new ReflectionClass($controllerClass)->getFileName();
+
+        return $file === false || str_contains($file, '/vendor/');
     }
 
     /**

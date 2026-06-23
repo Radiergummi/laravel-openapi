@@ -9,6 +9,7 @@ use Illuminate\Contracts\Container\Container;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\Plugin;
+use Radiergummi\OpenApi\Lint\Rules\ActionMethodMissing;
 use Radiergummi\OpenApi\Lint\Rules\ActionMissingReturnType;
 use Radiergummi\OpenApi\Lint\Rules\ComponentNameNamingInconsistent;
 use Radiergummi\OpenApi\Lint\Rules\ComponentOrphaned;
@@ -235,6 +236,7 @@ final class BaselineRegistration
 
         HideExposeConflict::class,
         VisibilityAttributeNoOp::class,
+        ActionMethodMissing::class,
 
         SpecUnknownReference::class,
         SpecRouteOrphaned::class,

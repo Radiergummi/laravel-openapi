@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Routing\Route;
 use Illuminate\Support\Str;
 use Radiergummi\OpenApi\Lint\DiffMode;
 use Radiergummi\OpenApi\Lint\DiffScope;
 use Radiergummi\OpenApi\Lint\LintRouteFilter;
+use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\BrokenController;
 use Radiergummi\OpenApi\Tests\Fixtures\Lint\CleanController;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
@@ -272,6 +274,52 @@ it('unions --path files with --diff changes', function (): void {
     );
 
     expect($filtered)->toHaveCount(2);
+});
+
+// endregion
+
+// region missing-method routes
+
+it('keeps a first-party route whose action method does not exist', function (): void {
+    $action = CleanController::class . '@nonexistentMethod';
+
+    // Mirrors RouteIntrospector degrading both reflectors to null for a missing method.
+    $descriptor = new ActionDescriptor(
+        route: new Route(['GET'], 'clean/missing', ['uses' => $action, 'controller' => $action]),
+        controller: null,
+        method: null,
+        summary: null,
+        description: null,
+    );
+
+    $filtered = makeStubFilter(defaultRef: null, diffFiles: [])->filter(
+        descriptors: [$descriptor],
+        uriGlob: null,
+        files: [],
+        diff: null,
+    );
+
+    expect($filtered)->toHaveCount(1);
+});
+
+it('still drops a closure route', function (): void {
+    $descriptor = new ActionDescriptor(
+        route: new Route(['GET'], 'closure', ['uses' => static fn(): array => []]),
+        controller: null,
+        method: null,
+        summary: null,
+        description: null,
+        closure: new ReflectionFunction(static fn(): array => []),
+    );
+
+    $filtered = makeStubFilter(defaultRef: null, diffFiles: [])->filter(
+        descriptors: [$descriptor],
+        uriGlob: null,
+        files: [],
+        diff: null,
+    );
+
+    expect($filtered)->toBe([]);
 });
 
 // endregion
