@@ -280,7 +280,7 @@ it('unions --path files with --diff changes', function (): void {
 
 // region missing-method routes
 
-it('keeps a first-party route whose action method does not exist', function (): void {
+it('keeps a first-party missing-method route for the route-rule pass but not the tree walk', function (): void {
     $action = CleanController::class . '@nonexistentMethod';
 
     // Mirrors RouteIntrospector degrading both reflectors to null for a missing method.
@@ -292,17 +292,25 @@ it('keeps a first-party route whose action method does not exist', function (): 
         description: null,
     );
 
-    $filtered = makeStubFilter(defaultRef: null, diffFiles: [])->filter(
+    $filter = makeStubFilter(defaultRef: null, diffFiles: []);
+
+    // The tree-walk scope drops it (the generator emits no operation for it); the route-rule scope
+    // keeps it so the missing-method lint rule can flag it.
+    expect($filter->filter(
         descriptors: [$descriptor],
         uriGlob: null,
         files: [],
         diff: null,
-    );
-
-    expect($filtered)->toHaveCount(1);
+    ))->toBe([])
+        ->and($filter->filterForRouteRules(
+            descriptors: [$descriptor],
+            uriGlob: null,
+            files: [],
+            diff: null,
+        ))->toHaveCount(1);
 });
 
-it('still drops a closure route', function (): void {
+it('drops a closure route from both the tree-walk and the route-rule scope', function (): void {
     $descriptor = new ActionDescriptor(
         route: new Route(['GET'], 'closure', ['uses' => static fn(): array => []]),
         controller: null,
@@ -312,14 +320,20 @@ it('still drops a closure route', function (): void {
         closure: new ReflectionFunction(static fn(): array => []),
     );
 
-    $filtered = makeStubFilter(defaultRef: null, diffFiles: [])->filter(
+    $filter = makeStubFilter(defaultRef: null, diffFiles: []);
+
+    expect($filter->filter(
         descriptors: [$descriptor],
         uriGlob: null,
         files: [],
         diff: null,
-    );
-
-    expect($filtered)->toBe([]);
+    ))->toBe([])
+        ->and($filter->filterForRouteRules(
+            descriptors: [$descriptor],
+            uriGlob: null,
+            files: [],
+            diff: null,
+        ))->toBe([]);
 });
 
 // endregion
