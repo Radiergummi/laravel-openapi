@@ -33,9 +33,12 @@ use Radiergummi\OpenApi\Plugins\Core\Envelopes\NoneEnvelope;
 use Radiergummi\OpenApi\Plugins\Core\Envelopes\Rfc7807Envelope;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\PaginatorResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorSchemaFactory;
+use Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin;
 use Radiergummi\OpenApi\Plugins\Fractal\Resolvers\TransformerRefSchemaResolver;
 use Radiergummi\OpenApi\Plugins\Fractal\Support\SchemaFromTransformer;
+use Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Diagnostics\PluginHintInspector;
 use Radiergummi\OpenApi\Support\Extraction\FakerExampleSynthesiser;
 use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
@@ -173,7 +176,33 @@ class OpenApiServiceProvider extends ServiceProvider
         $this->registerApiResourcesPlugin();
         $this->registerFractalPlugin();
         $this->registerSwaggerPhpPlugin();
+        $this->registerPluginHints();
         $this->registerGenerator();
+    }
+
+    /**
+     * Binds the installed-but-disabled plugin diagnostic.
+     *
+     * The package-to-plugin map lives here because this is the glue layer permitted to name plugin
+     * classes; {@see PluginHintInspector} itself stays plugin-agnostic.
+     */
+    private function registerPluginHints(): void
+    {
+        $this->app->scoped(
+            PluginHintInspector::class,
+            static fn(): PluginHintInspector => new PluginHintInspector([
+                [
+                    'markers' => ['League\Fractal\Manager', 'Spatie\Fractal\Fractal'],
+                    'package' => 'league/fractal',
+                    'plugin' => FractalPlugin::class,
+                ],
+                [
+                    'markers' => ['Spatie\QueryBuilder\QueryBuilder'],
+                    'package' => 'spatie/laravel-query-builder',
+                    'plugin' => QueryBuilderPlugin::class,
+                ],
+            ]),
+        );
     }
 
     /**

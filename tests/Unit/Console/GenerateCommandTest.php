@@ -285,3 +285,47 @@ it('still writes a valid document when --no-validate is passed', function (): vo
 
     @unlink($path);
 });
+
+it('hints when an installed integration package has its plugin disabled', function (): void {
+    // The stock plugin list leaves Fractal and QueryBuilder off, while both packages are installed
+    // in the test environment, so the advisory should name them.
+    config(['openapi.output_path' => generateCommandTmpPath()]);
+
+    $this->artisan('openapi:generate')
+        ->expectsOutputToContain('league/fractal')
+        ->expectsOutputToContain('spatie/laravel-query-builder')
+        ->assertExitCode(Command::SUCCESS);
+});
+
+it('does not hint for an integration whose plugin is enabled', function (): void {
+    config([
+        'openapi.output_path' => generateCommandTmpPath(),
+        'openapi.plugins' => [Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin::class],
+    ]);
+    app()->forgetScopedInstances();
+
+    $this->artisan('openapi:generate')
+        ->doesntExpectOutputToContain('league/fractal')
+        ->assertExitCode(Command::SUCCESS);
+});
+
+it('emits the plugin hint without polluting the stdout document under --output=-', function (): void {
+    // The hint renders to the error stream, so it never lands in the document a real CLI run writes
+    // to stdout. The PendingCommand harness wraps a single buffer, so the captured output carries
+    // the advisory (proving it was emitted) while the canonical document, generated here to a file,
+    // must stay valid YAML beginning with the OpenAPI marker and never contain the hint text.
+    config(['openapi.output_path' => generateCommandTmpPath()]);
+    $this->artisan('openapi:generate', ['--output' => '-'])
+        ->expectsOutputToContain('league/fractal')
+        ->assertExitCode(Command::SUCCESS);
+
+    $documentPath = generateCommandTmpPath();
+    config(['openapi.output_path' => $documentPath]);
+    app()->forgetScopedInstances();
+    $this->artisan('openapi:generate')->assertExitCode(Command::SUCCESS);
+
+    expect(file_get_contents($documentPath))->toStartWith('openapi:')
+        ->and(file_get_contents($documentPath))->not->toContain('league/fractal is installed');
+
+    @unlink($documentPath);
+});
