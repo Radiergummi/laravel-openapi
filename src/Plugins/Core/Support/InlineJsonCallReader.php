@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Http\JsonResponse;
 use OpenApi\Annotations\Schema;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
@@ -12,6 +13,7 @@ use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
@@ -25,12 +27,14 @@ use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use Radiergummi\OpenApi\Support\MethodBody\UnqualifiedHelperCall;
 
 use function in_array;
+use function is_a;
 use function is_int;
 use function sprintf;
 use function strtolower;
 
 /**
- * Policy-free reader for `response()->json(...)` calls in a controller method body.
+ * Policy-free reader for `response()->json(...)` calls and `new JsonResponse(...)` constructions in
+ * a controller method body.
  *
  * Extracts the literal status and body schema; degrade conditions are reported as phrases on
  * {@see InlineJsonCallResult}. Callers apply their own status-range policy.
@@ -97,6 +101,18 @@ final readonly class InlineJsonCallReader
         return UnqualifiedHelperCall::resolvesToGlobalHelper($receiver->name);
     }
 
+    /**
+     * Whether the node is a `new JsonResponse(...)` construction of Illuminate's JsonResponse (or a
+     * subclass). Relies on the scanner's NameResolver, so both the imported and fully-qualified
+     * source forms resolve to a fully-qualified class name here.
+     */
+    public function isJsonResponseConstruction(Node $node): bool
+    {
+        return $node instanceof New_
+            && $node->class instanceof Name
+            && is_a($node->class->toString(), JsonResponse::class, true);
+    }
+
     // endregion
 
     // region Per-call reading
@@ -104,7 +120,7 @@ final readonly class InlineJsonCallReader
     /**
      * @param list<Stmt> $statements the scanned top-level statements (the chain walk searches them)
      */
-    public function read(array $statements, MethodCall $call): InlineJsonCallResult
+    public function read(array $statements, MethodCall|New_ $call): InlineJsonCallResult
     {
         $arguments = $call->getArgs();
 
@@ -135,8 +151,11 @@ final readonly class InlineJsonCallReader
      * @param list<Stmt>      $statements
      * @param array<int, Arg> $arguments
      */
-    private function resolveStatus(array $statements, MethodCall $call, array $arguments): int|InlineJsonCallResult
-    {
+    private function resolveStatus(
+        array $statements,
+        MethodCall|New_ $call,
+        array $arguments,
+    ): int|InlineJsonCallResult {
         $chainStatus = $this->statusFromChain($statements, $call);
 
         if ($chainStatus instanceof InlineJsonCallResult) {
@@ -172,7 +191,7 @@ final readonly class InlineJsonCallReader
      *
      * @param list<Stmt> $statements
      */
-    private function statusFromChain(array $statements, MethodCall $call): int|InlineJsonCallResult|null
+    private function statusFromChain(array $statements, MethodCall|New_ $call): int|InlineJsonCallResult|null
     {
         $current = $call;
         $statusOverride = null;
@@ -218,7 +237,7 @@ final readonly class InlineJsonCallReader
      *
      * @param list<Stmt> $statements
      */
-    private function chainParentOf(array $statements, MethodCall $call): ?MethodCall
+    private function chainParentOf(array $statements, MethodCall|New_ $call): ?MethodCall
     {
         $parent = $this->statementNodeFinder->findFirst(
             $statements,

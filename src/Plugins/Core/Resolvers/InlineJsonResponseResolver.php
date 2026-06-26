@@ -10,6 +10,7 @@ use Override;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
@@ -36,10 +37,10 @@ use function is_int;
 use function sprintf;
 
 /**
- * Infers the primary response from a literal `response()->json([...])` or `response()->noContent()`
- * call in the controller method body. Only the global `response()` helper is matched; the facade
- * and `new JsonResponse()` are out of scope by design. Actions with a typed return or a
- * {@see PrimaryResponseAuthoringAttribute} are skipped.
+ * Infers the primary response from a literal `response()->json([...])`, `response()->noContent()`,
+ * or `new JsonResponse([...], status)` construction in the controller method body. The OO
+ * construction is read with the same rules as the helper form; the `Response` facade remains out of
+ * scope. Actions with a typed return or a {@see PrimaryResponseAuthoringAttribute} are skipped.
  */
 #[Scoped]
 final readonly class InlineJsonResponseResolver implements PrimaryResponseResolver
@@ -97,21 +98,28 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         $call = $this->findJsonCall($statements);
 
-        if (!$call instanceof MethodCall) {
-            $conditionalCall = $this->statementNodeFinder->findFirst(
-                $statements,
-                ConditionalContextPolicy::IncludeConditionalContexts,
-                fn(Node $node): bool => $this->callReader->isJsonHelperCall($node),
-            );
-
-            if ($conditionalCall !== null) {
-                $this->note($method, 'only runs conditionally, so it is not the canonical success response');
-            }
-
-            return null;
+        if ($call instanceof MethodCall) {
+            return $this->responseFromCall($call, $method, $statements);
         }
 
-        return $this->responseFromCall($call, $method, $statements);
+        $construction = $this->findJsonResponseConstruction($statements);
+
+        if ($construction instanceof New_) {
+            return $this->responseFromCall($construction, $method, $statements);
+        }
+
+        $conditionalCall = $this->statementNodeFinder->findFirst(
+            $statements,
+            ConditionalContextPolicy::IncludeConditionalContexts,
+            fn(Node $node): bool => $this->callReader->isJsonHelperCall($node)
+                || $this->callReader->isJsonResponseConstruction($node),
+        );
+
+        if ($conditionalCall !== null) {
+            $this->note($method, 'only runs conditionally, so it is not the canonical success response');
+        }
+
+        return null;
     }
 
     /**
@@ -313,6 +321,36 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         return null;
     }
 
+    /**
+     * Returns the matched `new JsonResponse(...)` construction, preferring returned constructions
+     * over assigned ones.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function findJsonResponseConstruction(array $statements): ?New_
+    {
+        $returnStatements = array_values(
+            array_filter(
+                $statements,
+                static fn(Stmt $statement): bool => $statement instanceof Return_,
+            ),
+        );
+
+        foreach ([$returnStatements, $statements] as $candidates) {
+            $construction = $this->statementNodeFinder->findFirst(
+                $candidates,
+                ConditionalContextPolicy::SkipConditionalContexts,
+                fn(Node $node): bool => $this->callReader->isJsonResponseConstruction($node),
+            );
+
+            if ($construction instanceof New_) {
+                return $construction;
+            }
+        }
+
+        return null;
+    }
+
     // endregion
 
     // region Guards & logging
@@ -320,8 +358,11 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     /**
      * @param list<Stmt> $statements
      */
-    private function responseFromCall(MethodCall $call, ReflectionMethod $method, array $statements): ?OA\Response
-    {
+    private function responseFromCall(
+        MethodCall|New_ $call,
+        ReflectionMethod $method,
+        array $statements,
+    ): ?OA\Response {
         $result = $this->callReader->read($statements, $call);
 
         if ($result->status === null) {
@@ -331,7 +372,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         // An explicit status defers the resource convention; an absent one (helper default 200) does not.
-        $statusIsExplicit = $this->callReader->isJsonHelperCall($call)
+        $statusIsExplicit = ($this->callReader->isJsonHelperCall($call) || $call instanceof New_)
             && $this->hasExplicitStatus($call, $statements);
 
         $status = $this->ensureSuccessStatus($result->status, $method);
@@ -371,7 +412,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
      *
      * @param list<Stmt> $statements
      */
-    private function hasExplicitStatus(MethodCall $call, array $statements): bool
+    private function hasExplicitStatus(MethodCall|New_ $call, array $statements): bool
     {
         $statusArgument = array_find(
             $call->getArgs(),

@@ -9,6 +9,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
@@ -56,6 +57,13 @@ function inlineJsonSchema(OA\Response $response): array
     expect($serialized['content'])->toHaveKey('application/json');
 
     return $serialized['content']['application/json']['schema'];
+}
+
+/** Whether the response carries the transient marker that defers the resource-status convention. */
+function inlineJsonExplicit(OA\Response $response): bool
+{
+    return is_array($response->x)
+        && ($response->x[OperationBuilder::EXPLICIT_STATUS_EXTENSION] ?? null) === true;
 }
 
 // endregion
@@ -473,6 +481,134 @@ it('steps aside silently when the action carries a #[FractalResponse] authoring 
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
+});
+
+// endregion
+
+// region OO JsonResponse construction
+
+it('reads a new JsonResponse([...]) construction at parity with the helper form', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedObject'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('200')
+        ->and($response->description)->toBe('OK')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('constructed');
+});
+
+it('leaves a status-less construction non-explicit so the resource convention can still promote', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedObject'));
+
+    expect(inlineJsonExplicit($response))->toBeFalse();
+});
+
+it('marks a new JsonResponse([...], 201) explicit so it defers the resource convention', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedWithStatus'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('201')
+        ->and($response->description)->toBe('Created')
+        ->and(inlineJsonExplicit($response))->toBeTrue()
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('constructed');
+});
+
+it('matches a construction of an app subclass of Illuminate JsonResponse', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedSubclass'));
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('200')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('constructed');
+});
+
+it('reads named data and status arguments on a construction', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedNamedArguments'));
+
+    expect($response->response)->toBe('201')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('queued');
+});
+
+it('documents a 204 from new JsonResponse([], 204) without a body schema', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedNoContent'),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and($response->description)->toBe('No Content')
+        ->and($logger->records)->toBeEmpty();
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($response, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
+});
+
+it('resolves a class-constant status (HTTP_NO_CONTENT) on a construction', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedNoContentConstant'),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and($response->description)->toBe('No Content');
+});
+
+it('returns null for an argument-less new JsonResponse() (parity with the empty helper)', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedEmpty'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toBeEmpty();
+});
+
+it('degrades a non-literal status on a construction with a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedDynamicStatus'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('status');
+});
+
+it('steps aside on a non-2xx construction so it does not claim the primary response', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedNonSuccess'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('non-2xx')
+        ->and($logger->records[0]['message'])->toContain('403');
+});
+
+it('ignores a construction of an unrelated class that merely shares the JsonResponse name', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedUnrelatedClass'),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toBeEmpty();
+});
+
+it('prefers a returned construction over one only assigned to a variable', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('constructedAssignedThenReturned'),
+    );
+
+    expect($response->response)->toBe('201')
+        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('second');
 });
 
 // endregion
