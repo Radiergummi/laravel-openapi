@@ -61,8 +61,12 @@ When a resource's `toArray()` is a **single `return [...]` array literal** —
 the dominant shape in real apps — its keys become response properties without
 any annotation. A body that builds the array in a variable and returns it
 (`$data = [...]; return $data;`) is read the same way, as long as the variable
-is assigned that literal exactly once, unconditionally. Each value resolves
-best-effort:
+is assigned that literal exactly once, unconditionally. A *conditional* later
+addition (`if (…) { $data += [...]; }`) is fine — its keys stay unread and the
+base literal remains a never-wrong subset — but an *unconditional* extra write
+(`$data['k'] = …` or `$data += [...]`) would drop always-present fields, so the
+reader refuses it and falls back to the wrapped model's schema instead. Each
+value resolves best-effort:
 
 ```php
 /** @mixin Booking */
@@ -353,8 +357,9 @@ When a transformer's `transform()` is a **single `return [...]` array
 literal** — the canonical transformer shape — its keys become response
 properties without any annotation. A body that builds the array in a variable
 and returns it (`$data = [...]; return $data;`) is read the same way, as long
-as the variable is assigned that literal exactly once, unconditionally. Each
-value resolves best-effort:
+as the variable is assigned that literal exactly once, unconditionally; a
+*conditional* later `$data += [...]` is fine, but an *unconditional* extra write
+makes the reader refuse and degrade. Each value resolves best-effort:
 
 ```php
 final class BookingTransformer extends TransformerAbstract

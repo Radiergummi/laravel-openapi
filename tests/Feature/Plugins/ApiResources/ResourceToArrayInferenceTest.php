@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\ConditionalArticleResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\ConditionalMergeArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\ConditionalVariableReturnResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\DeclaredAndInferredResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\DynamicToArrayResource;
@@ -20,6 +21,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestingArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\OpaqueValuesResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\PassthroughArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\SelfReferencingCategoryResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\UnconditionalMergeResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\UnlessArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\UntypedReceiverResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\ValueObjectResource;
@@ -112,6 +114,16 @@ class ToArrayInferenceController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function conditionalMerge(): ConditionalMergeArticleResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function unconditionalMerge(): UnconditionalMergeResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
 /**
@@ -200,6 +212,32 @@ it('falls back to the wrapped model when the returned variable is assigned condi
         ->and($spec['components']['schemas'])->not->toHaveKey('ConditionalVariableReturnResource');
 });
 
+it('reads the base literal when a conditional $data += [...] augments it (Koel SongResource)', function (): void {
+    Route::get('/articles-conditional-merge', [ToArrayInferenceController::class, 'conditionalMerge']);
+
+    $schema = resourceComponent(generateSpec(), 'ConditionalMergeArticleResource');
+    $properties = $schema['properties'];
+
+    // The base literal resolves; the conditionally-merged `subtitle` key stays unread.
+    expect($properties)->toHaveKeys(['id', 'title'])
+        ->and($properties)->not->toHaveKey('subtitle')
+        ->and($properties['title']['type'])->toBe('string')
+        ->and($schema['required'])->toBe(['id', 'title']);
+});
+
+it('falls back to the wrapped model when an unconditional write augments the base literal', function (): void {
+    Route::get('/articles-unconditional-merge', [ToArrayInferenceController::class, 'unconditionalMerge']);
+
+    $spec = generateSpec();
+    $schema = $spec['paths']['/articles-unconditional-merge']['get']['responses']['200']['content']['application/json']['schema'];
+
+    // An always-present element write means the base literal alone would understate the value, so
+    // the reader refuses and the wrapped model schema is emitted instead.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/Article')
+        ->and($spec['components']['schemas'])->toHaveKey('Article')
+        ->and($spec['components']['schemas'])->not->toHaveKey('UnconditionalMergeResource');
+});
+
 // endregion
 
 // region Nested resources
@@ -258,9 +296,11 @@ it('marks $this->unless() fields optional, mirroring $this->when()', function ()
     $schema = resourceComponent(generateSpec(), 'UnlessArticleResource');
     $properties = $schema['properties'];
 
-    expect($properties)->toHaveKeys(['id', 'subtitle', 'internal_notes', 'editor'])
+    expect($properties)->toHaveKeys(['id', 'subtitle', 'internal_notes', 'draft_note', 'editor'])
         // unless() resolves its value argument and types it from the model, like when().
         ->and($properties['internal_notes']['type'])->toBe('string')
+        // A null value argument has no derivable type, so the optional field stays unconstrained.
+        ->and($properties['draft_note'])->toBe([])
         // unless() wrapping a nested resource argument marks the $ref field optional.
         ->and($properties['editor']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
         // Both the when()-wrapped and unless()-wrapped keys are absent from required.

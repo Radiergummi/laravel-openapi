@@ -6,7 +6,9 @@ namespace Radiergummi\OpenApi\Support\MethodBody;
 
 use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
+use PhpParser\Node\Expr\ArrayDimFetch;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\AssignOp;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Stmt;
@@ -79,8 +81,13 @@ final readonly class SingleReturnArrayLiteralFinder
      * The array literal a returned variable is assigned, when it is assigned exactly once on the
      * unconditional path and that assignment's value is an array literal. Refuses a dynamically-
      * named variable, zero or multiple assignments, a conditional assignment, or a non-literal
-     * value (a `$data += [...]` augmentation is an `AssignOp\Plus`, not an `Assign`, so it never
-     * counts as the assignment).
+     * value.
+     *
+     * Any further unconditional write that mutates the variable after the literal (an element
+     * write `$data['k'] = …` or a compound assignment like `$data += [...]`) also refuses: the
+     * base literal alone would understate the value, so the caller's richer fallback (e.g. the
+     * wrapped model schema) is the honest answer. The same writes guarded behind a condition stay
+     * unread, leaving the base literal as a never-wrong subset of the genuinely-present fields.
      *
      * @param list<Stmt> $statements
      */
@@ -112,10 +119,40 @@ final readonly class SingleReturnArrayLiteralFinder
             return null;
         }
 
+        $unconditionalMutations = $this->statementNodeFinder->findAll(
+            $statements,
+            ConditionalContextPolicy::SkipConditionalContexts,
+            fn(Node $node): bool => $this->mutatesVariable($node, $variableName),
+        );
+
+        if ($unconditionalMutations !== []) {
+            return null;
+        }
+
         /** @var Assign $assignment */
         $assignment = $unconditionalAssignments[0];
 
         return $assignment->expr instanceof Array_ ? $assignment->expr : null;
+    }
+
+    /**
+     * Whether the node mutates the named variable after its assignment: an element write
+     * (`$data['k'] = …`, an `Assign` whose target is an array-dimension fetch rooted at the
+     * variable) or any compound assignment (`$data += …`, `$data['k'] .= …`).
+     */
+    private function mutatesVariable(Node $node, string $variableName): bool
+    {
+        $target = match (true) {
+            $node instanceof AssignOp => $node->var,
+            $node instanceof Assign && $node->var instanceof ArrayDimFetch => $node->var,
+            default => null,
+        };
+
+        while ($target instanceof ArrayDimFetch) {
+            $target = $target->var;
+        }
+
+        return $target instanceof Variable && $target->name === $variableName;
     }
 
     /**
