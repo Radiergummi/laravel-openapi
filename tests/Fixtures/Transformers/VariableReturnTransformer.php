@@ -7,20 +7,20 @@ namespace Radiergummi\OpenApi\Tests\Fixtures\Transformers;
 use League\Fractal\TransformerAbstract;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 
-use function array_merge;
-
 /**
- * A dynamic `transform()` body — the returned variable is assigned a non-literal expression
- * (a runtime merge), outside the bounded case; the reader must refuse it.
+ * Builds the transform array in a `$data` variable and returns it; reads like the inline literal.
  */
-final class DynamicBodyTransformer extends TransformerAbstract
+final class VariableReturnTransformer extends TransformerAbstract
 {
     /**
      * @return array<string, mixed>
      */
     public function transform(Article $article): array
     {
-        $data = array_merge(['id' => $article->id], $article->toArray());
+        $data = [
+            'id' => $article->id,
+            'title' => $article->title,
+        ];
 
         return $data;
     }

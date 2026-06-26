@@ -59,7 +59,10 @@ automatically.
 
 When a resource's `toArray()` is a **single `return [...]` array literal** —
 the dominant shape in real apps — its keys become response properties without
-any annotation. Each value resolves best-effort:
+any annotation. A body that builds the array in a variable and returns it
+(`$data = [...]; return $data;`) is read the same way, as long as the variable
+is assigned that literal exactly once, unconditionally. Each value resolves
+best-effort:
 
 ```php
 /** @mixin Booking */
@@ -98,11 +101,12 @@ class BookingResource extends JsonResource
   `OtherResource::collection(...)` values become a `$ref` to the nested
   resource's schema (an array of `$ref`s for `::collection`), cycle-guarded
   for self-referencing resources.
-- `$this->when(...)` and `$this->whenLoaded(...)` mark the key **optional**
-  (kept in `properties`, omitted from `required`) and resolve their inner
-  value; a bare `whenLoaded('relation')` resolves the relation against the
-  model. `$this->whenCounted(...)` documents an optional `integer`; any other
-  `when*` wrapper keeps the key as an unconstrained optional property.
+- `$this->when(...)`, `$this->unless(...)` (its inverse), and
+  `$this->whenLoaded(...)` mark the key **optional** (kept in `properties`,
+  omitted from `required`) and resolve their inner value; a bare
+  `whenLoaded('relation')` resolves the relation against the model.
+  `$this->whenCounted(...)` documents an optional `integer`; any other `when*`
+  wrapper keeps the key as an unconstrained optional property.
 - `$this->merge([...])` / `$this->mergeWhen(..., [...])` inline their literal
   payload's keys at the top level (optional for `mergeWhen`); a non-literal
   payload is skipped with a generation-log note.
@@ -347,7 +351,10 @@ envelopes: `DataArraySerializer` (default), `ArraySerializer`, and
 
 When a transformer's `transform()` is a **single `return [...]` array
 literal** — the canonical transformer shape — its keys become response
-properties without any annotation. Each value resolves best-effort:
+properties without any annotation. A body that builds the array in a variable
+and returns it (`$data = [...]; return $data;`) is read the same way, as long
+as the variable is assigned that literal exactly once, unconditionally. Each
+value resolves best-effort:
 
 ```php
 final class BookingTransformer extends TransformerAbstract

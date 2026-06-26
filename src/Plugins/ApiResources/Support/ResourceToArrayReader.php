@@ -52,6 +52,8 @@ final class ResourceToArrayReader
 {
     private const string WHEN = 'when';
 
+    private const string UNLESS = 'unless';
+
     private const string WHEN_LOADED = 'whenLoaded';
 
     private const string WHEN_COUNTED = 'whenCounted';
@@ -334,8 +336,9 @@ final class ResourceToArrayReader
     }
 
     /**
-     * Resolves `$this->when()`, `$this->whenLoaded()`, `$this->whenCounted()`, and any other
-     * `when`-prefixed resource method as an optional field (presence is runtime-decided).
+     * Resolves `$this->when()`, `$this->unless()`, `$this->whenLoaded()`, `$this->whenCounted()`,
+     * and any other `when`-prefixed resource method as an optional field (presence is
+     * runtime-decided).
      *
      * @param class-string<JsonResource> $resourceClass
      * @param null|class-string<Model>   $modelClass
@@ -350,15 +353,16 @@ final class ResourceToArrayReader
     ): ?InferredResourceField {
         $methodName = $this->resourceMethodName($value);
 
-        if ($methodName === null || !str_starts_with($methodName, self::WHEN)) {
+        if ($methodName === null || !$this->isConditionalWrapperName($methodName)) {
             return null;
         }
 
         /** @var MethodCall $value */
         $arguments = $value->getArgs();
 
-        if ($methodName === self::WHEN && isset($arguments[1])) {
-            // Condition is never analysed; use the value argument only.
+        if (($methodName === self::WHEN || $methodName === self::UNLESS) && isset($arguments[1])) {
+            // Condition is never analysed; use the value argument only. unless() is when()'s inverse:
+            // both carry the value at index 1.
             return $this->resolveValue(
                 $name,
                 $arguments[1]->value,
@@ -395,6 +399,15 @@ final class ResourceToArrayReader
         }
 
         return $this->unconstrained($name, optional: true);
+    }
+
+    /**
+     * Whether the method name is a conditional-presence wrapper: any `when`-prefixed method
+     * (`when`, `whenLoaded`, `whenCounted`, …) or its inverse `unless`.
+     */
+    private function isConditionalWrapperName(string $name): bool
+    {
+        return str_starts_with($name, self::WHEN) || $name === self::UNLESS;
     }
 
     // endregion
@@ -475,7 +488,7 @@ final class ResourceToArrayReader
 
         $firstArgument = ($arguments[0] ?? null)?->value;
         $wrapperName = $firstArgument !== null ? $this->resourceMethodName($firstArgument) : null;
-        $conditional = $wrapperName !== null && str_starts_with($wrapperName, self::WHEN);
+        $conditional = $wrapperName !== null && $this->isConditionalWrapperName($wrapperName);
 
         /** @var class-string<JsonResource> $resourceClass */
         return InferredResourceField::ofNestedResource(

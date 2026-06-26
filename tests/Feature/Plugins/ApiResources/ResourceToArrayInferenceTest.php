@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 use LogicException;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\ConditionalArticleResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\ConditionalVariableReturnResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\DeclaredAndInferredResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\DynamicToArrayResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\DynamicUnmappedResource;
@@ -19,8 +20,10 @@ use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestingArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\OpaqueValuesResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\PassthroughArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\SelfReferencingCategoryResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\UnlessArticleResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\UntypedReceiverResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\ValueObjectResource;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\VariableReturnArticleResource;
 
 use function array_any;
 use function array_filter;
@@ -94,6 +97,21 @@ class ToArrayInferenceController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function variableReturn(): VariableReturnArticleResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function unless(): UnlessArticleResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function conditionalVariableReturn(): ConditionalVariableReturnResource
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
 /**
@@ -156,6 +174,34 @@ it('keeps every always-present key required', function (): void {
 
 // endregion
 
+// region Variable-return toArray()
+
+it('reads a toArray() that assigns the array to a variable and returns it', function (): void {
+    Route::get('/articles-variable', [ToArrayInferenceController::class, 'variableReturn']);
+
+    $schema = resourceComponent(generateSpec(), 'VariableReturnArticleResource');
+    $properties = $schema['properties'];
+
+    // Same shape the inline-literal form would yield: model-backed scalars plus a nested $ref.
+    expect($properties)->toHaveKeys(['id', 'title', 'author'])
+        ->and($properties['title']['type'])->toBe('string')
+        ->and($properties['author']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and($schema['required'])->toBe(['id', 'title', 'author']);
+});
+
+it('falls back to the wrapped model when the returned variable is assigned conditionally', function (): void {
+    Route::get('/articles-conditional-variable', [ToArrayInferenceController::class, 'conditionalVariableReturn']);
+
+    $spec = generateSpec();
+    $schema = $spec['paths']['/articles-conditional-variable']['get']['responses']['200']['content']['application/json']['schema'];
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/Article')
+        ->and($spec['components']['schemas'])->toHaveKey('Article')
+        ->and($spec['components']['schemas'])->not->toHaveKey('ConditionalVariableReturnResource');
+});
+
+// endregion
+
 // region Nested resources
 
 it('emits $refs for nested resource values and arrays for ::collection()', function (): void {
@@ -204,6 +250,21 @@ it('marks when()/whenLoaded()/whenCounted() keys optional and resolves their val
         ->and($properties['merged_always']['type'])->toBe('string')
         ->and($properties['merged_maybe']['type'])->toBe('integer')
         ->and($schema['required'])->toBe(['id', 'merged_always']);
+});
+
+it('marks $this->unless() fields optional, mirroring $this->when()', function (): void {
+    Route::get('/articles-unless', [ToArrayInferenceController::class, 'unless']);
+
+    $schema = resourceComponent(generateSpec(), 'UnlessArticleResource');
+    $properties = $schema['properties'];
+
+    expect($properties)->toHaveKeys(['id', 'subtitle', 'internal_notes', 'editor'])
+        // unless() resolves its value argument and types it from the model, like when().
+        ->and($properties['internal_notes']['type'])->toBe('string')
+        // unless() wrapping a nested resource argument marks the $ref field optional.
+        ->and($properties['editor']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        // Both the when()-wrapped and unless()-wrapped keys are absent from required.
+        ->and($schema['required'])->toBe(['id']);
 });
 
 // endregion
