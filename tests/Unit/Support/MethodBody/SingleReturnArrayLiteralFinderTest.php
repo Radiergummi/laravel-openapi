@@ -42,8 +42,79 @@ it('refuses a method with an early conditional return', function (): void {
     expect($literal)->toBeNull();
 });
 
-it('refuses a return of a variable', function (): void {
+it('resolves a return of a variable assigned a single array literal', function (): void {
     $literal = returnLiteralFinder()->find(new ReflectionMethod(ReturnLiteralFixture::class, 'variableReturn'));
+
+    expect($literal)
+        ->toBeInstanceOf(Array_::class)
+        ->and($literal->items)->toHaveCount(1);
+});
+
+it('refuses a variable assigned conditionally', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'conditionalVariableAssignment'),
+    );
+
+    expect($literal)->toBeNull();
+});
+
+it('refuses a variable assigned more than once', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'variableAssignedTwice'),
+    );
+
+    expect($literal)->toBeNull();
+});
+
+it('refuses a variable assigned a non-array expression', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'variableAssignedNonArray'),
+    );
+
+    expect($literal)->toBeNull();
+});
+
+it('refuses a returned variable that is an unassigned parameter', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'parameterReturn'),
+    );
+
+    expect($literal)->toBeNull();
+});
+
+it('resolves a variable assigned an empty array literal', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'emptyVariableReturn'),
+    );
+
+    expect($literal)
+        ->toBeInstanceOf(Array_::class)
+        ->and($literal->items)->toHaveCount(0);
+});
+
+it('resolves the base literal when later writes to the variable are conditional', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'conditionalMergeAfterLiteral'),
+    );
+
+    // The conditional `$payload += [...]` additions stay unread; the base literal still resolves.
+    expect($literal)
+        ->toBeInstanceOf(Array_::class)
+        ->and($literal->items)->toHaveCount(1);
+});
+
+it('refuses a variable with an unconditional array-element write after the literal', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'unconditionalArrayDimWrite'),
+    );
+
+    expect($literal)->toBeNull();
+});
+
+it('refuses a variable with an unconditional compound-assignment merge after the literal', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'unconditionalMergeWrite'),
+    );
 
     expect($literal)->toBeNull();
 });

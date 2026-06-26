@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicKeyTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\InferredArticleTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\SpreadTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\UntypedParameterTransformer;
+use Radiergummi\OpenApi\Tests\Fixtures\Transformers\VariableReturnTransformer;
 use RuntimeException;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
 
@@ -148,6 +149,14 @@ it('keeps model fetches unconstrained when the parameter carries no model type',
     expect(transformerField($fields, 'id')->unconstrainedPaths)
         ->toBe(['id'])
         ->and(transformerField($fields, 'kind')->property->type)->toBe('string');
+});
+
+it('reads a transform() that assigns the array to a variable and returns it', function (): void {
+    $fields = readTransformerFields(VariableReturnTransformer::class);
+
+    expect(array_map(static fn(InferredTransformerField $field): string => $field->name, $fields))
+        ->toBe(['id', 'title'])
+        ->and(transformerField($fields, 'title')->property->type)->toBe('string');
 });
 
 it('refuses a dynamic transform() body', function (): void {

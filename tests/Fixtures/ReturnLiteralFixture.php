@@ -59,6 +59,83 @@ class ReturnLiteralFixture
     }
 
     /** @return array<string, mixed> */
+    public function conditionalVariableAssignment(bool $condition): array
+    {
+        $payload = ['id' => 1];
+
+        if ($condition) {
+            $payload = ['name' => 'Widget'];
+        }
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function variableAssignedTwice(): array
+    {
+        $payload = ['id' => 1];
+        $payload = ['name' => 'Widget'];
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function variableAssignedNonArray(): array
+    {
+        $payload = array_merge(['id' => 1], ['name' => 'Widget']);
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function emptyVariableReturn(): array
+    {
+        $payload = [];
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function conditionalMergeAfterLiteral(bool $condition): array
+    {
+        $payload = ['id' => 1];
+
+        if ($condition) {
+            $payload += ['name' => 'Widget'];
+        }
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function unconditionalArrayDimWrite(): array
+    {
+        $payload = ['id' => 1];
+        $payload['name'] = 'Widget';
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function unconditionalMergeWrite(): array
+    {
+        $payload = ['id' => 1];
+        $payload += ['name' => 'Widget'];
+
+        return $payload;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    public function parameterReturn(array $payload): array
+    {
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
     public function mergedReturn(): array
     {
         return array_merge(['id' => 1], ['name' => 'Widget']);
