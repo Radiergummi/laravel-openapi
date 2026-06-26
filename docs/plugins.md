@@ -215,6 +215,12 @@ only when the body's `::collection($source)` argument visibly ends in a
 body is available). Attribute-resolved collections always use `{data, links, meta}`
 since attributes carry no body context.
 
+When a method has several top-level `return` statements, each is resolved
+through the same whitelist and the resource is emitted only when they **all
+agree** on class, cardinality, and pagination (a bare `return;` or `return null;`
+guard clause is ignored). Multiple returns that diverge — or where any branch is
+unresolvable — keep degrading.
+
 Anything else — a conditional return, a variable of unknown origin, an
 unrecognised chained call, a receiver that would need dataflow — degrades to the
 previous behaviour with a generation-log note; `#[ResponseResource]` is the

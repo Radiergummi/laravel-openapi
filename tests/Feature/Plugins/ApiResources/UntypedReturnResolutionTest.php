@@ -150,17 +150,15 @@ it('does not resolve a resource for an untyped response()->json() action and emi
     expect($noted)->toBeFalse();
 });
 
-it('leaves an untyped conditional-return action as no content without a refusal notice', function (): void {
+it('resolves an untyped action whose two returns are the same resource without a refusal notice', function (): void {
     Route::get('/untyped-conditional', [UntypedReturnController::class, 'untypedConditional']);
 
     $logger = recordingLogger();
     app()->instance(LoggerInterface::class, $logger);
 
-    $spec = generateSpec();
-    $response = $spec['paths']['/untyped-conditional']['get']['responses']['200'] ?? null;
+    $schema = untypedSuccessSchema(generateSpec(), '/untyped-conditional');
 
-    expect($response)->not->toBeNull()
-        ->and($response['content'] ?? [])->not->toHaveKey('application/json');
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/UntypedReturnResource');
 
     $noted = array_any(
         $logger->records,
