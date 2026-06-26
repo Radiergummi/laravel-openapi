@@ -106,6 +106,7 @@ All notable changes to this project are documented here.
 - Response schemas derived from Eloquent models now mark the primary key (`getKeyName()`), the timestamp columns (`created_at` / `updated_at`), and the soft-delete column (`deleted_at`, when the model uses `SoftDeletes`) `readOnly: true`; these are server-managed and a client never sets them. Nothing else gains the keyword, and an authored `readOnly` is never overwritten. (#419)
 - Inferred response headers (Tier-0): a `201` response gets a `Location` header (`string`, `uri-reference`), and `throttle` middleware adds `X-RateLimit-Limit` / `X-RateLimit-Remaining` (`integer`) to the success response. An authored `#[ResponseHeader]` of the same name wins. (#420)
 - `openapi:generate` emits an advisory hint on stderr when an integration package (`league/fractal`, `spatie/laravel-fractal`, `spatie/laravel-query-builder`) is installed but its plugin is not enabled, pointing at the `config/openapi.php` line that would let it infer schemas and parameters. Advisory only: never auto-enables, never pollutes the `--output=-` document. (#444)
+- Inferred array query parameters (`ids[]` from a scalar-list validation rule) now carry `style: form` and `explode: true`, matching PHP's `name[]` repeated-pair wire format and removing the ambiguous serialisation that tripped the library's own `parameter.query-array-no-explode` lint rule. Scalar query parameters and explicit `#[QueryParam]` arrays are unchanged. (#454)
 
 ## [0.1.0] - 2026-05-18
 
