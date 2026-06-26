@@ -112,6 +112,14 @@ parameters:
                 - tests/Fixtures/Lint/ReturnTypeNudgeController.php
                 - tests/Feature/Plugins/ApiResources/UntypedReturnResolutionTest.php
                 - tests/Unit/Plugins/ApiResources/ResourceClassLocatorTest.php
+        # The container-return fixtures reproduce loosely-typed consumer code: an action typed
+        # `: Collection` / Eloquent `Collection` whose body actually returns a resource collection
+        # (`X::collection(...)`). The mismatched signature is the input under test — the gate-widen
+        # reads the body's resource factory regardless of the (imprecise) container return type.
+        -
+            identifier: return.type
+            paths:
+                - tests/Feature/Plugins/ApiResources/ContainerReturnTypeTest.php
         # Attribute-misuse fixtures intentionally trip the bundled PHPStan rules so the linter
         # / generator tests have something to consume. The static rules report the misuse for
         # everyone else; here the misuse is the test input. Identifiers use camelCase because

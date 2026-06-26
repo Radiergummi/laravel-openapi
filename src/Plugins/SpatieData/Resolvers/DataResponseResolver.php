@@ -11,9 +11,12 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
+use Radiergummi\OpenApi\Plugins\SpatieData\Support\DataReturnExpressionReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\GenericContainerReturnType;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionException;
+use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionUnionType;
 use RuntimeException;
@@ -32,8 +35,9 @@ use function sprintf;
  *
  * Handles: a bare `Data` subclass (`$ref`), a `DataCollection` (array of `$ref`s, item class from
  * the `@return` generic), and a union (`oneOf`, collapsing to a bare `$ref` for a single member).
- * Paginated collections are deferred to `PaginatorResponseResolver`. Returns null when the return
- * type is not a Data class or non-paginating collection, or the collection generic is missing.
+ * A generic-container return type (`Collection`, `array`, …) falls back to the return-expression
+ * body scan for a literal `DataClass::collect(...)` / `new DataClass(...)` factory. Paginated
+ * collections are deferred to `PaginatorResponseResolver`. Returns null when no Data shape resolves.
  */
 #[Scoped]
 final readonly class DataResponseResolver implements PrimaryResponseResolver
@@ -41,6 +45,7 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
     public function __construct(
         private DataRefSchemaResolver $refResolver,
         private ReturnTypeExtractor $returnTypeExtractor,
+        private DataReturnExpressionReader $returnExpressionReader,
         private LoggerInterface $logger,
     ) {}
 
@@ -64,32 +69,69 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             return $this->resolveUnion($returnType);
         }
 
-        if (!$returnType instanceof ReflectionNamedType || $returnType->isBuiltin()) {
+        if (!$returnType instanceof ReflectionNamedType) {
             return null;
         }
 
-        $returnClass = $returnType->getName();
+        if (!$returnType->isBuiltin()) {
+            $returnClass = $returnType->getName();
 
-        // Paginated collections are claimed by PaginatorResponseResolver.
-        if (PaginatorKind::fromClass($returnClass) !== null) {
-            return null;
-        }
-
-        if (is_a($returnClass, Data::class, allow_string: true)) {
-            /** @var class-string<Data> $returnClass */
-            $ref = $this->refResolver->resolveRef($returnClass);
-
-            if ($ref === null) {
+            // Paginated collections are claimed by PaginatorResponseResolver.
+            if (PaginatorKind::fromClass($returnClass) !== null) {
                 return null;
             }
 
-            return $this->response(new OA\Schema(['ref' => $ref]));
+            if (is_a($returnClass, Data::class, allow_string: true)) {
+                /** @var class-string<Data> $returnClass */
+                $ref = $this->refResolver->resolveRef($returnClass);
+
+                return $ref === null ? null : $this->response(new OA\Schema(['ref' => $ref]));
+            }
+
+            if (is_a($returnClass, DataCollection::class, allow_string: true)) {
+                return $this->resolveDataCollection($reflector, $descriptor, $returnClass);
+            }
         }
 
-        if (!is_a($returnClass, DataCollection::class, allow_string: true)) {
+        // A generic container (`Collection`, `array`, …) carries no item type; the body's Data
+        // factory is the only evidence. Degrades silently when no literal factory is matched.
+        if (!GenericContainerReturnType::matches($returnType) || $descriptor->method === null) {
             return null;
         }
 
+        $target = $this->returnExpressionReader->read($descriptor->method);
+
+        if ($target === null) {
+            return null;
+        }
+
+        $ref = $this->refResolver->resolveRef($target->dataClass);
+
+        if ($ref === null) {
+            return null;
+        }
+
+        return $target->isCollection
+            ? $this->response(new OA\Schema([
+                'type' => 'array',
+                'items' => new OA\Items(['ref' => $ref]),
+            ]))
+            : $this->response(new OA\Schema(['ref' => $ref]));
+    }
+
+    /**
+     * Array of `$ref`s for a typed `DataCollection`, with the item class from the `@return` generic.
+     * Warns and returns null when the generic is absent (the item shape is undeclared).
+     *
+     * @throws ReflectionException
+     * @throws RuntimeException
+     * @throws UnsupportedException
+     */
+    private function resolveDataCollection(
+        ReflectionFunctionAbstract $reflector,
+        ActionDescriptor $descriptor,
+        string $returnClass,
+    ): ?OA\Response {
         $itemClass = $this->returnTypeExtractor->genericArgument($reflector);
 
         if (
