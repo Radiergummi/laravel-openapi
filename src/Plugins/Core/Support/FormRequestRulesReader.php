@@ -7,6 +7,8 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Foundation\Http\FormRequest;
 use Radiergummi\OpenApi\Plugins\Core\Support\SpecTime\SpecTimeRequest;
+use ReflectionException;
+use ReflectionMethod;
 use Throwable;
 
 use function method_exists;
@@ -25,6 +27,10 @@ use function sprintf;
 #[Scoped]
 final readonly class FormRequestRulesReader
 {
+    public function __construct(
+        private FormRequestStaticRulesReader $staticRulesReader = new FormRequestStaticRulesReader(),
+    ) {}
+
     /**
      * @param class-string<FormRequest> $formRequestClass
      */
@@ -45,7 +51,31 @@ final readonly class FormRequestRulesReader
 
             return FormRequestRulesResult::recovered($instance->rules());
         } catch (Throwable $exception) {
-            return FormRequestRulesResult::degraded($exception->getMessage());
+            // Invocation threw on runtime state. Fall back to a static read of the rules() array
+            // literal before giving up; many rules() bodies hold the base rules as a plain literal.
+            $staticRules = $this->readStaticRules($formRequestClass);
+
+            if ($staticRules !== null) {
+                return FormRequestRulesResult::recovered($staticRules);
+            }
+
+            return FormRequestRulesResult::degraded(
+                sprintf('%s (no static rules() literal to fall back to)', $exception->getMessage()),
+            );
+        }
+    }
+
+    /**
+     * @param class-string<FormRequest> $formRequestClass
+     *
+     * @return null|array<string, array<int, mixed>|string>
+     */
+    private function readStaticRules(string $formRequestClass): ?array
+    {
+        try {
+            return $this->staticRulesReader->read(new ReflectionMethod($formRequestClass, 'rules'));
+        } catch (ReflectionException) {
+            return null;
         }
     }
 }

@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
+use Radiergummi\OpenApi\Support\MethodBody\RuleFieldLiteralMapper;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionClass;
 use ReflectionException;
@@ -28,8 +29,6 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use Throwable;
 
-use function array_all;
-use function array_is_list;
 use function array_key_exists;
 use function array_values;
 use function is_a;
@@ -251,7 +250,7 @@ final readonly class InlineValidatorRulesReader
                 return InlineValidationScanResult::degraded('the rules array has a non-string key');
             }
 
-            $fieldRules = $this->fieldRulesOf($item->value);
+            $fieldRules = RuleFieldLiteralMapper::map($item->value);
 
             if ($fieldRules === null) {
                 $skippedFields[] = $fieldName;
@@ -275,55 +274,6 @@ final readonly class InlineValidatorRulesReader
         }
 
         return InlineValidationScanResult::recovered($rules, $descriptions, $skippedFields);
-    }
-
-    /**
-     * Evaluates one field's ruleset: passes through literal strings and string-list constants;
-     * for array literals keeps only literal elements and drops dynamic ones (e.g. `Rule::unique()`
-     * refines validation, not the schema shape). Returns null for fully dynamic values.
-     *
-     * @return null|array<int, mixed>|string
-     */
-    private function fieldRulesOf(Expr $value): string|array|null
-    {
-        if (!$value instanceof Array_) {
-            try {
-                $evaluated = AstLiteralEvaluator::evaluate($value);
-            } catch (NonLiteralValueException) {
-                return null;
-            }
-
-            if (is_string($evaluated)) {
-                return $evaluated;
-            }
-
-            if (
-                is_array($evaluated)
-                && array_is_list($evaluated)
-                && array_all($evaluated, static fn(mixed $element): bool => is_string($element))
-            ) {
-                return $evaluated;
-            }
-
-            return null;
-        }
-
-        $elements = [];
-
-        foreach ($value->items as $item) {
-            if ($item->unpack || $item->key !== null) {
-                return null;
-            }
-
-            try {
-                $elements[] = AstLiteralEvaluator::evaluate($item->value);
-            } catch (NonLiteralValueException) {
-                // Dynamic element (a Rule object, a call): keep the literal rest of the list.
-                continue;
-            }
-        }
-
-        return $elements;
     }
 
     /**

@@ -245,6 +245,13 @@ and `$this->user()` returns the same stub. Property accesses, method calls,
 and array iteration on the stub all terminate without throwing, so the rules
 array's *structure* (keys, types, required-ness) is preserved.
 
+When invoking `rules()` *does* throw anyway (a runtime read the stub cannot
+satisfy), the generator falls back to a static read of the method body's rule
+literal — a bare `return [ … ];` or a `$rules = [ … ]; … return $rules;` — through
+the same bounded AST scan used for inline `validate()`. The base literal entries
+are recovered; a conditional `$rules['x'] = …` tweak is ignored, and a genuinely
+dynamic `rules()` with no readable literal still degrades (now with a log note).
+
 The stub values inside `Rule::in([...])`, `Rule::unique(...)->ignore(...)`, and
 similar are opaque placeholders, so the constraint is dropped from the schema —
 the stub stringifies to an empty value and the `enum` key is omitted entirely.
