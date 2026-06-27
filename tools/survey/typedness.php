@@ -129,9 +129,17 @@ function typedness_substantiveByKey(array $spec, string $apiPrefix): array
  */
 function typednessMetrics(array $spec, ?array $classify, string $apiPrefix = '/api'): array
 {
+    // Headline counts come straight from surveyMetrics() so they reproduce metrics.php by
+    // construction. The collapsed-key map below backs only the classify join: it dedups
+    // structurally-identical paths (e.g. /users/{id} + /users/{slug}), so it must not be
+    // what counts operations.
+    $base = surveyMetrics($spec, ['findings' => []], [
+        'generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => '',
+    ], $apiPrefix);
+    $apiOperations = $base['apiOperations'];
+    $substantive = $base['responseSchemas'];
+
     $substantiveByKey = typedness_substantiveByKey($spec, $apiPrefix);
-    $apiOperations = count($substantiveByKey);
-    $substantive = count(array_filter($substantiveByKey));
 
     $record = [
         'apiOperations' => $apiOperations,
@@ -278,8 +286,32 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
         exit(1);
     }
 
+    $empty = ['apiOperations' => 0, 'substantive' => 0, 'correctlyEmpty' => 0, 'typed' => 0, 'typedCovered' => 0];
+    $accumulate = static function (array $bucket, array $record) use ($empty): array {
+        $bucket['apiOperations'] += $record['apiOperations'];
+        $bucket['substantive'] += $record['substantiveResponses'];
+        $bucket['correctlyEmpty'] += (int) ($record['correctlyEmptyActions'] ?? 0);
+        $bucket['typed'] += (int) ($record['typedActions'] ?? 0);
+        $bucket['typedCovered'] += (int) ($record['typedCovered'] ?? 0);
+
+        return $bucket;
+    };
+    $summarise = static function (array $bucket): array {
+        $bodied = $bucket['apiOperations'] - $bucket['correctlyEmpty'];
+
+        return [
+            'apiOperations' => $bucket['apiOperations'],
+            'substantiveResponses' => $bucket['substantive'],
+            'substantivePercent' => $bucket['apiOperations'] > 0 ? round(100 * $bucket['substantive'] / $bucket['apiOperations'], 1) : 0.0,
+            'honestPercent' => $bodied > 0 ? round(100 * $bucket['substantive'] / $bodied, 1) : 0.0,
+            'typedActions' => $bucket['typed'],
+            'typedReturnCoverage' => $bucket['typed'] > 0 ? round(100 * $bucket['typedCovered'] / $bucket['typed'], 1) : null,
+        ];
+    };
+
     $perApp = [];
     $tiers = [];
+    $total = $empty;
 
     foreach ($corpus['apps'] as $app) {
         $name = (string) $app['name'];
@@ -295,28 +327,15 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
         $record['tier'] = $tier;
         $perApp[] = $record;
 
-        $bucket = $tiers[$tier] ??= ['apiOperations' => 0, 'substantive' => 0, 'correctlyEmpty' => 0, 'typed' => 0, 'typedCovered' => 0];
-        $bucket['apiOperations'] += $record['apiOperations'];
-        $bucket['substantive'] += $record['substantiveResponses'];
-        $bucket['correctlyEmpty'] += (int) ($record['correctlyEmptyActions'] ?? 0);
-        $bucket['typed'] += (int) ($record['typedActions'] ?? 0);
-        $bucket['typedCovered'] += (int) ($record['typedCovered'] ?? 0);
-        $tiers[$tier] = $bucket;
+        $tiers[$tier] = $accumulate($tiers[$tier] ?? $empty, $record);
+        $total = $accumulate($total, $record);
     }
 
-    $rollup = [];
+    $rollup = array_map($summarise, $tiers);
 
-    foreach ($tiers as $tier => $bucket) {
-        $bodied = $bucket['apiOperations'] - $bucket['correctlyEmpty'];
-        $rollup[$tier] = [
-            'apiOperations' => $bucket['apiOperations'],
-            'substantiveResponses' => $bucket['substantive'],
-            'substantivePercent' => $bucket['apiOperations'] > 0 ? round(100 * $bucket['substantive'] / $bucket['apiOperations'], 1) : 0.0,
-            'honestPercent' => $bodied > 0 ? round(100 * $bucket['substantive'] / $bodied, 1) : 0.0,
-            'typedActions' => $bucket['typed'],
-            'typedReturnCoverage' => $bucket['typed'] > 0 ? round(100 * $bucket['typedCovered'] / $bucket['typed'], 1) : null,
-        ];
-    }
-
-    echo json_encode(['byTier' => $rollup, 'perApp' => $perApp], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    echo json_encode([
+        'byTier' => $rollup,
+        'corpus' => $summarise($total),
+        'perApp' => $perApp,
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
 }

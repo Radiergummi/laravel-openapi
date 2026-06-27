@@ -78,10 +78,11 @@ void action from a generator give-up, which is exactly why #413 exists).
 **Provenance.** Recorded corpus run **2026-06-26**, library commit `0c1d9e3f`, 11 apps, PHP 8.4,
 **published default plugin set** (Fractal/QueryBuilder off — the honest "untouched install").
 `substantive`/`apiOperations` are **freshly recomputed by `typedness.php`** from each app's recorded
-`generated-spec.json`; they reproduce the recorded `results.json` exactly for the 9 apps it scored,
-and additionally fill **InvoiceNinja (67/522)** and **Koel (56/170)**, which were `null` in
-`results.json` (the metrics step fataled under the worktree autoloader, #468 — the specs themselves
-generated cleanly, `generateExit: 0`). The action-typedness join consumes the recorded
+`generated-spec.json` — the headline counts call `metrics.php`'s `surveyMetrics()` directly, so they
+reproduce the recorded `results.json` **by construction** (same counting logic), matching for the 9
+apps it scored, and additionally fill **InvoiceNinja (67/522)** and **Koel (56/170)**, which were
+`null` in `results.json` (the metrics step fataled under the worktree autoloader, #468 — the specs
+themselves generated cleanly, `generateExit: 0`). The action-typedness join consumes the recorded
 **`classify.json`** (#413 classifier spike, same run); it is **cited recorded data**, not freshly
 re-runnable here until #413 lands the classifier.
 
@@ -91,9 +92,13 @@ re-runnable here until #413 lands the classifier.
 |------|-------:|-------------:|--------:|--------------:|--------------------:|
 | **well-typed** | 470 | 60.9% | **73.9%** | 222 | **87.8%** |
 | mixed | 219 | 30.1% | 32.5% | 54 | 79.6% |
-| dynamic | 240 | 7.9% | 7.9% | 2 | — |
-| dynamic-fractal (Fractal off) | 680 | 10.7% | 10.9% | 2 | — |
+| dynamic | 240 | 7.9% | 7.9% | 2 | 0% (n=2) |
+| dynamic-fractal (Fractal off) | 680 | 10.7% | 10.9% | 2 | 0% (n=2) |
 | **corpus (11)** | 1609 | 27.6% | 29.6% | 280 | **85.0%** |
+
+(`typedReturnCoverage` for the two dynamic tiers is over a negligible `n=2` typed actions — the
+whole point is that dynamic apps barely *have* typed returns. The corpus-wide 85.0% is emitted
+directly by `typedness.php --corpus` as the `corpus.typedReturnCoverage` field.)
 
 ### Well-typed apps, per app
 
