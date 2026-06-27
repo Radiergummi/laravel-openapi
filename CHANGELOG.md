@@ -79,6 +79,7 @@ All notable changes to this project are documented here.
 - `ValidationRulesToSchema` maps additional rules (`multiple_of`, Email/Exists/Unique/NotIn objects, wildcard keys) it previously dropped (#83).
 - ApiResources: actions that return an API Resource without declaring a return type (relying on convention or a third-party doc attribute) now resolve their response schema via the return-expression reader, instead of emitting no content; the refusal notice is suppressed on the untyped path to avoid a notice per non-resource action. (#391)
 - `path.parameter-undeclared` no longer false-positives on custom-key route bindings (`{param:field}`); URI-placeholder extraction is now shared between the generator and the linter. (#426)
+- Survey tooling: `tools/survey/metrics.php` resolves its Composer autoloader from the main checkout when run from a git worktree (which has no `vendor/` of its own), so parsing a YAML published spec no longer fatals and false-FAILs those apps. (#468)
 
 ### Documentation
 - README refreshed for the current feature set (Tier-1 method-body inference, SwaggerPhp plugin) and trimmed to a gentle overview that defers detail to `docs/`.

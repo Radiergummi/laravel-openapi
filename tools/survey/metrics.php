@@ -325,7 +325,7 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
             $autoloader = survey_resolveAutoloader();
 
             if ($autoloader === null) {
-                fwrite(STDERR, "metrics.php: could not locate vendor/autoload.php to parse a YAML spec "
+                fwrite(STDERR, 'metrics.php: could not locate vendor/autoload.php to parse a YAML spec '
                     . "(is the main checkout composer-installed?)\n");
                 exit(2);
             }
