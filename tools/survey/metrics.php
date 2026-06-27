@@ -255,6 +255,41 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
     return $metrics;
 }
 
+/** First existing path from an ordered candidate list, or null when none exist. */
+function survey_firstExistingFile(array $candidates): ?string
+{
+    foreach ($candidates as $candidate) {
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Locate a Composer autoloader.
+ *
+ * The survey can point LIB at a git worktree, which shares the main repo's .git but has no
+ * vendor/ of its own (only the main checkout is composer-installed). Prefer this checkout's
+ * vendor/, then fall back to the main checkout resolved via the shared git common dir.
+ */
+function survey_resolveAutoloader(): ?string
+{
+    $candidates = [dirname(__DIR__, 2) . '/vendor/autoload.php'];
+
+    $commonDir = trim((string) @shell_exec(
+        'git -C ' . escapeshellarg(__DIR__)
+        . ' rev-parse --path-format=absolute --git-common-dir 2>/dev/null',
+    ));
+
+    if ($commonDir !== '' && ($mainGitDir = realpath($commonDir)) !== false) {
+        $candidates[] = dirname($mainGitDir) . '/vendor/autoload.php';
+    }
+
+    return survey_firstExistingFile($candidates);
+}
+
 // CLI entry — only when invoked directly, so the file is safe to require in tests.
 if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__FILE__)) {
     $appDir = $argv[1] ?? null;
@@ -287,7 +322,15 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
         $published = json_decode($raw, true);
 
         if (!is_array($published)) {
-            require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+            $autoloader = survey_resolveAutoloader();
+
+            if ($autoloader === null) {
+                fwrite(STDERR, "metrics.php: could not locate vendor/autoload.php to parse a YAML spec "
+                    . "(is the main checkout composer-installed?)\n");
+                exit(2);
+            }
+
+            require_once $autoloader;
             $published = (array) Symfony\Component\Yaml\Yaml::parse($raw);
         }
 
