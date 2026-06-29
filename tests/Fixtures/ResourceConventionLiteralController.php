@@ -38,4 +38,10 @@ class ResourceConventionLiteralController extends Controller
     {
         return response()->noContent();
     }
+
+    // DELETE destroy → convention says 204, but a content-bearing json body (200) must win.
+    public function destroy(string $widget): JsonResponse
+    {
+        return response()->json(['message' => 'Deleted.']);
+    }
 }

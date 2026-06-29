@@ -597,6 +597,13 @@ the convention. The convention's **status** likewise defers to a status read
 from an inline [`response()->json([...], <status>)`](#inline-json-responses)
 call — a status the author actually wrote is honoured over the conventional one.
 
+The `destroy` convention's `204 No Content` additionally defers to a
+**content-bearing** body: a `destroy` returning
+`response()->json(['message' => '...'])` (a body with no explicit status) keeps
+its `200` and the body's schema rather than being relabelled to a bodyless `204`.
+The conventional `204` applies only when the action is genuinely body-less
+(`noContent()`, a bare `new JsonResponse()`, or an empty `response()->json([])`).
+
 ## What if convention isn't enough?
 
 Authoring attributes live in `Radiergummi\OpenApi\Attributes`. Pick the
