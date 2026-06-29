@@ -14,6 +14,7 @@ use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
+use Radiergummi\OpenApi\Support\Routing\GenericContainerReturnType;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunctionAbstract;
@@ -29,10 +30,11 @@ use function is_string;
  * {@see ResourceResponseResolver} and the ApiResources lint rules so resolution is defined once.
  *
  * Resolution order: `#[ResponseResource]`, then concrete return type (or `#[Collects]` /
- * `$collects`). When the signature names a base resource type, or declares no resource return type
- * at all (absent/builtin), {@see ReturnExpressionResourceReader} inspects the return expression;
- * refusal leaves the endpoint ambiguous. On the untyped path the refusal notice is suppressed,
- * since the reader then runs on every action and most are not resources.
+ * `$collects`). When the signature names a base resource type, declares no resource return type at
+ * all (absent/builtin), or names a generic container (`Collection`, Eloquent `Collection`,
+ * `LazyCollection`), {@see ReturnExpressionResourceReader} inspects the return expression; refusal
+ * leaves the endpoint ambiguous. On the untyped and container paths the refusal notice is
+ * suppressed, since the reader then runs on every such action and most are not resources.
  */
 final readonly class ResourceClassLocator implements ResourceTargetLocator
 {
@@ -81,6 +83,13 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         }
 
         $name = $returnType->getName();
+
+        if (GenericContainerReturnType::matches($returnType)) {
+            // A generic container (`Collection`, Eloquent `Collection`, `LazyCollection`) carries
+            // no item type, so the body's resource factory is the only evidence. Silent, since the
+            // scan now runs on every container-returning action and most are not resources.
+            return $this->locateFromReturnExpression($descriptor, silent: true);
+        }
 
         if (!is_a($name, JsonResource::class, allow_string: true)) {
             return null;
