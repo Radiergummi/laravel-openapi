@@ -113,6 +113,9 @@ parameters:
                 - tests/Fixtures/Lint/ReturnTypeNudgeController.php
                 - tests/Feature/Plugins/ApiResources/UntypedReturnResolutionTest.php
                 - tests/Unit/Plugins/ApiResources/ResourceClassLocatorTest.php
+                # Bare `return;` fixtures need an untyped method (a void return mixed with a
+                # resource return is itself the input under test for sentinel-branch handling).
+                - tests/Unit/Plugins/ApiResources/ReturnExpressionResourceReaderTest.php
         # The container-return fixtures reproduce loosely-typed consumer code: an action typed
         # `: Collection` / Eloquent `Collection` whose body actually returns a resource collection
         # (`X::collection(...)`). The mismatched signature is the input under test — the gate-widen
