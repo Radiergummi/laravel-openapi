@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Lint;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Support\Str;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use ReflectionClass;
 use Symfony\Component\Process\Exception\LogicException;
 use Symfony\Component\Process\Exception\ProcessSignaledException;
 use Symfony\Component\Process\Exception\ProcessStartFailedException;
@@ -18,6 +19,7 @@ use function array_filter;
 use function array_map;
 use function array_values;
 use function base_path;
+use function class_exists;
 use function config_path;
 use function explode;
 use function fnmatch;
@@ -40,6 +42,11 @@ class LintRouteFilter
     /**
      * Apply --uri glob, --path, and --diff filters. A config change widens scope to all routes.
      *
+     * Drops closures, vendor controllers, and first-party routes whose action method does not
+     * exist: the tree-walk scope mirrors the generated document, which never emits an operation
+     * for a missing-method route. {@see filterForRouteRules()} keeps the latter so the
+     * missing-method lint rule can still flag them.
+     *
      * @param list<ActionDescriptor> $descriptors
      * @param list<string>           $files       Explicit source files (`--path`), absolute or base-relative.
      * @param ?DiffScope             $diff        The `--diff` scope, or null when not requested.
@@ -54,8 +61,54 @@ class LintRouteFilter
      */
     public function filter(array $descriptors, ?string $uriGlob, array $files, ?DiffScope $diff): array
     {
-        $descriptors = $this->dropClosureAndVendorRoutes($descriptors);
+        return $this->narrow(
+            $this->dropClosureAndVendorRoutes($descriptors, keepMissingMethod: false),
+            $uriGlob,
+            $files,
+            $diff,
+        );
+    }
 
+    /**
+     * The same scope narrowing as {@see filter()}, but keeping first-party missing-method routes so
+     * the per-route lint pass can flag them. These routes are deliberately excluded from the
+     * tree-walk scope (no operation is generated for them), so they must not re-enter it.
+     *
+     * @param list<ActionDescriptor> $descriptors
+     * @param list<string>           $files
+     *
+     * @return list<ActionDescriptor>
+     *
+     * @throws LogicException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws RuntimeException
+     */
+    public function filterForRouteRules(array $descriptors, ?string $uriGlob, array $files, ?DiffScope $diff): array
+    {
+        return $this->narrow(
+            $this->dropClosureAndVendorRoutes($descriptors, keepMissingMethod: true),
+            $uriGlob,
+            $files,
+            $diff,
+        );
+    }
+
+    /**
+     * @param list<ActionDescriptor> $descriptors
+     * @param list<string>           $files
+     *
+     * @return list<ActionDescriptor>
+     *
+     * @throws LogicException
+     * @throws ProcessSignaledException
+     * @throws ProcessStartFailedException
+     * @throws ProcessTimedOutException
+     * @throws RuntimeException
+     */
+    private function narrow(array $descriptors, ?string $uriGlob, array $files, ?DiffScope $diff): array
+    {
         if (is_string($uriGlob) && $uriGlob !== '') {
             $descriptors = array_values(
                 array_filter(
@@ -94,24 +147,33 @@ class LintRouteFilter
      *
      * @return list<ActionDescriptor>
      */
-    private function dropClosureAndVendorRoutes(array $descriptors): array
+    private function dropClosureAndVendorRoutes(array $descriptors, bool $keepMissingMethod): array
     {
         return array_values(
             array_filter(
                 $descriptors,
                 static fn(ActionDescriptor $descriptor): bool
-                    => !self::isVendorOrUnresolvable($descriptor),
+                    => !self::isVendorOrUnresolvable($descriptor, $keepMissingMethod),
             ),
         );
     }
 
     /**
      * True for closure routes (no controller), unresolvable source files, and vendor controllers.
+     *
+     * When `$keepMissingMethod` is set, a both-reflectors-null descriptor for an existing
+     * first-party controller (the introspector nulls both reflectors when the action method does
+     * not exist) is retained so the missing-method lint rule can flag it; closures and vendor
+     * controllers are still dropped.
      */
-    private static function isVendorOrUnresolvable(ActionDescriptor $descriptor): bool
+    private static function isVendorOrUnresolvable(ActionDescriptor $descriptor, bool $keepMissingMethod): bool
     {
         if ($descriptor->controller === null && $descriptor->method === null) {
-            return true;
+            if (!$keepMissingMethod) {
+                return true;
+            }
+
+            return self::isVendorOrUnresolvableMissingMethod($descriptor);
         }
 
         $file = $descriptor->method?->getFileName()
@@ -122,6 +184,23 @@ class LintRouteFilter
         }
 
         return str_contains($file, '/vendor/');
+    }
+
+    /**
+     * Whether a both-reflectors-null descriptor is a closure/vendor route rather than a first-party
+     * controller with a missing action method.
+     */
+    private static function isVendorOrUnresolvableMissingMethod(ActionDescriptor $descriptor): bool
+    {
+        $controllerClass = $descriptor->route->getControllerClass();
+
+        if ($controllerClass === null || !class_exists($controllerClass)) {
+            return true;
+        }
+
+        $file = new ReflectionClass($controllerClass)->getFileName();
+
+        return $file === false || str_contains($file, '/vendor/');
     }
 
     /**

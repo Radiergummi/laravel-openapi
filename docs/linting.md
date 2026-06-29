@@ -601,6 +601,7 @@ is enabled.
 | `header.invalid-name` | 1 | Header name contains invalid characters. |
 | `link.invalid-operation` | 1 | Link references an operationId that doesn't exist in the document. |
 | `multipart.file-without-multipart` | 1 | Data class carries a file property but a #[RequestBody] override forces a non-multipart body — the spec contradicts the code. |
+| `operation.action-method-missing` | 1 | Route action resolves to a controller method that does not exist; the operation is documented but would fault at runtime. |
 | `operation.id-invalid-chars` | 1 | operationId is not a codegen-safe identifier. |
 | `operation.id-missing` | 1 | Operation has no operationId. |
 | `operation.security-missing` | 1 | Route enforces auth middleware but the operation declares no security, implying the endpoint is public. |

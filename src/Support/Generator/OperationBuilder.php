@@ -228,8 +228,21 @@ final readonly class OperationBuilder
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
 
-        // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status claimed it.
-        if ($primaryOverride === null && !$autoStatusIsExplicit && $convention?->successStatusCode !== null) {
+        // A 204 forbids a body; a content-bearing body-scanned response is stronger evidence of the
+        // real status, so it keeps its 200 + schema instead of being discarded for a bogus 204.
+        $conventionSuppressedByBody = $convention?->successStatusCode === 204
+            && $autoPrimaryResponse !== null
+            && is_array($autoPrimaryResponse->content)
+            && $autoPrimaryResponse->content !== [];
+
+        // Apply convention status unless an explicit #[Response(2xx)] or body-scanned status claimed
+        // it, or a 204 convention is yielding to a content-bearing body.
+        if (
+            $primaryOverride === null
+            && !$autoStatusIsExplicit
+            && $convention?->successStatusCode !== null
+            && !$conventionSuppressedByBody
+        ) {
             $primaryResponse = $this->applyConventionStatus($primaryResponse, $convention->successStatusCode);
         }
 
@@ -237,6 +250,7 @@ final readonly class OperationBuilder
             (string) $primaryResponse->response,
             $primaryOverride !== null,
             $autoStatusIsExplicit,
+            $conventionSuppressedByBody,
             $resolvedConvention,
             $action,
         );
@@ -1186,18 +1200,25 @@ final readonly class OperationBuilder
 
     /**
      * Provenance for the resolved success status code: explicit `#[Response(2xx)]`, a body-scanned
-     * explicit status, the convention, or the `200` fallback.
+     * explicit status, a content-bearing body overriding the conventional 204, the convention, or
+     * the `200` fallback.
      */
     private function statusProvenance(
         string $status,
         bool $hasResponseOverride,
         bool $bodyScannedExplicit,
+        bool $conventionSuppressedByBody,
         ?ResolvedConvention $convention,
         ActionDescriptor $descriptor,
     ): FieldProvenance {
         [$source, $reason, $superseded] = match (true) {
             $hasResponseOverride => ['#[Response] (method)', 'author override', []],
             $bodyScannedExplicit => ['response body', 'explicit status in handler body', []],
+            $conventionSuppressedByBody => [
+                'response body',
+                'content-bearing body overrides the conventional 204',
+                [],
+            ],
             $convention?->convention->successStatusCode !== null => [
                 class_basename($convention->resolver),
                 $this->conventionReason($descriptor),

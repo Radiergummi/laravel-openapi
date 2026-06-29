@@ -13,6 +13,7 @@ use Illuminate\Http\Resources\Json\ResourceCollection;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ReturnExpressionResourceReader;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
+use Radiergummi\OpenApi\Tests\Fixtures\Resources\LiteralOnlyResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestedAuthorResource;
 use ReflectionMethod;
 
@@ -131,6 +132,98 @@ class ReaderFixtureController
     public function wrappedNonModel(Request $request): JsonResource
     {
         return new JsonResource($request);
+    }
+
+    public function twoSameCollections(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            return NestedAuthorResource::collection(Author::all());
+        }
+
+        return NestedAuthorResource::collection(Author::all());
+    }
+
+    public function twoSameMakes(bool $flag): JsonResource
+    {
+        if ($flag) {
+            return NestedAuthorResource::make(Author::query()->firstOrFail());
+        }
+
+        return NestedAuthorResource::make(Author::query()->firstOrFail());
+    }
+
+    public function divergentResourceClass(bool $flag): JsonResource
+    {
+        if ($flag) {
+            return NestedAuthorResource::make(Author::query()->firstOrFail());
+        }
+
+        return LiteralOnlyResource::make(Author::query()->firstOrFail());
+    }
+
+    public function divergentCardinality(bool $flag): JsonResource
+    {
+        if ($flag) {
+            return NestedAuthorResource::collection(Author::all());
+        }
+
+        return NestedAuthorResource::make(Author::query()->firstOrFail());
+    }
+
+    public function divergentPagination(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            return NestedAuthorResource::collection(Author::query()->paginate());
+        }
+
+        return NestedAuthorResource::collection(Author::all());
+    }
+
+    public function oneDynamicBranch(bool $flag): mixed
+    {
+        if ($flag) {
+            return NestedAuthorResource::collection(Author::all());
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function variableUnwrapBranches(bool $flag): AnonymousResourceCollection
+    {
+        $authors = NestedAuthorResource::collection(Author::all());
+
+        if ($flag) {
+            return $authors;
+        }
+
+        return NestedAuthorResource::collection(Author::all());
+    }
+
+    public function nullLiteralThenResource(bool $flag): ?AnonymousResourceCollection
+    {
+        if ($flag) {
+            return null;
+        }
+
+        return NestedAuthorResource::collection(Author::all());
+    }
+
+    public function earlyBareReturnThenResource(bool $flag)
+    {
+        if ($flag) {
+            return;
+        }
+
+        return NestedAuthorResource::collection(Author::all());
+    }
+
+    public function allBareOrNull(bool $flag)
+    {
+        if ($flag) {
+            return;
+        }
+
+        return null;
     }
 }
 
@@ -294,3 +387,77 @@ it('memoises per method so the refusal note fires once per run', function (): vo
         static fn(array $record): bool => str_contains($record['message'], 'nonWhitelistedChain'),
     ))->toHaveCount(1);
 });
+
+// region Multiple returns reconciliation
+
+it('infers when two returns resolve to the same collection resource', function (): void {
+    $target = readerFor()->read(readerMethod('twoSameCollections'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue()
+        ->and($target?->paginated)->toBeFalse();
+});
+
+it('infers when two returns resolve to the same single ::make() resource', function (): void {
+    $target = readerFor()->read(readerMethod('twoSameMakes'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('degrades when returns resolve to divergent resource classes with one note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('divergentResourceClass'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'divergentResourceClass'),
+        ))->toHaveCount(1);
+});
+
+it('degrades when returns resolve to divergent cardinality', function (): void {
+    expect(readerFor()->read(readerMethod('divergentCardinality')))->toBeNull();
+});
+
+it('degrades when returns resolve to divergent pagination', function (): void {
+    expect(readerFor()->read(readerMethod('divergentPagination')))->toBeNull();
+});
+
+it('degrades when one branch is a dynamic, non-whitelisted return', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('oneDynamicBranch'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains($record['message'], 'oneDynamicBranch'),
+        ))->toHaveCount(1);
+});
+
+it('unwraps a returned variable per branch before reconciling', function (): void {
+    $target = readerFor()->read(readerMethod('variableUnwrapBranches'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('ignores an explicit return null; branch alongside a resource branch', function (): void {
+    $target = readerFor()->read(readerMethod('nullLiteralThenResource'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('ignores an early bare return; branch alongside a resource branch', function (): void {
+    $target = readerFor()->read(readerMethod('earlyBareReturnThenResource'));
+
+    expect($target?->resourceClass)->toBe(NestedAuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('degrades when every branch is a bare or null sentinel return', function (): void {
+    expect(readerFor()->read(readerMethod('allBareOrNull')))->toBeNull();
+});
+
+// endregion
