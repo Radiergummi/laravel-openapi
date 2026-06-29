@@ -457,3 +457,70 @@ Contract notes for custom resolvers:
 
 > [!NOTE]
 > This package documents your error shapes; it does not install a Laravel exception handler that emits them. The recipes cookbook for matching runtime handlers is separate.
+
+## Serving docs behind a reverse proxy
+
+When the playground is accessed through a reverse proxy, load balancer, or CDN, the spec URL
+embedded in the playground page must reflect the public host and path, not the internal origin
+address. There are two paths, depending on your infrastructure.
+
+### Path A: configure TrustProxies (recommended)
+
+`DocsController::playground()` derives the spec URL via Laravel's `route()` helper, which goes
+through `UrlGenerator`. That generator respects `X-Forwarded-Host`, `X-Forwarded-Proto`,
+`X-Forwarded-Port`, and `X-Forwarded-Prefix` **only when the request has passed through Laravel's
+`TrustProxies` middleware**. Without it, those headers are ignored — a deliberate security boundary.
+
+Enable `TrustProxies` and configure which proxies and headers to trust. On Laravel 11+ this
+middleware is registered in `bootstrap/app.php`:
+
+```php
+// bootstrap/app.php
+$app->withMiddleware(function (Middleware $middleware): void {
+    $middleware->trustProxies(
+        at: '*',  // or a specific CIDR range / IP list
+        headers: Request::HEADER_X_FORWARDED_FOR
+            | Request::HEADER_X_FORWARDED_HOST
+            | Request::HEADER_X_FORWARDED_PORT
+            | Request::HEADER_X_FORWARDED_PREFIX
+            | Request::HEADER_X_FORWARDED_PROTO,
+    );
+});
+```
+
+On Laravel 10 and below, edit `app/Http/Middleware/TrustProxies.php` and add the middleware to
+the `$middleware` stack in `app/Http/Kernel.php`. Once active, the playground's spec URL is
+derived correctly from the forwarded headers and no library config is needed.
+
+> [!IMPORTANT]
+> Trusting `'*'` accepts forwarded headers from any source. In production, prefer a specific IP
+> or CIDR range matching your load balancer so internal traffic cannot spoof the host.
+
+### Path B: set an explicit spec URL
+
+When `TrustProxies` cannot be used — the proxy strips forwarded headers, the spec is hosted on a
+CDN at a fixed URL, or you need the playground to point at a different environment's spec — set the
+`routes.playground.spec_url` config key to the canonical absolute URL:
+
+```php
+// config/openapi.php
+'routes' => [
+    // ...
+    'playground' => [
+        'enabled'  => env('APP_ENV') === 'local',
+        'uri'      => 'docs',
+        'renderer' => 'scalar',
+        'spec_url' => env('OPENAPI_PLAYGROUND_SPEC_URL'),
+    ],
+],
+```
+
+Then set the environment variable in your deploy pipeline:
+
+```dotenv
+OPENAPI_PLAYGROUND_SPEC_URL=https://api.example.com/api/openapi.yaml
+```
+
+When `spec_url` is set to a non-blank value, the playground passes it verbatim to the renderer
+as the `data-url` / `url` attribute, bypassing route derivation. When null or blank (the default),
+the existing route-derived URL is used.

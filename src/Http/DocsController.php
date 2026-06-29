@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 use function app;
+use function blank;
+use function config;
 use function file_exists;
 use function response;
 use function route;
@@ -78,6 +80,9 @@ final class DocsController extends Controller
             ? 'openapi::playground-swagger-ui'
             : 'openapi::playground';
 
-        return view($view, ['specUrl' => route($definition->specRouteName())]);
+        $configuredUrl = config('openapi.routes.playground.spec_url');
+        $specUrl = blank($configuredUrl) ? route($definition->specRouteName()) : $configuredUrl;
+
+        return view($view, ['specUrl' => $specUrl]);
     }
 }
