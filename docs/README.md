@@ -13,6 +13,7 @@ New to the package? Read [Getting started](getting-started.md), then
 | [Getting started](getting-started.md) | Install, generate the first spec, view the playground. |
 | [Auto-derivation](auto-derivation.md) | Which part of the spec comes from which part of your code. |
 | [Request bodies](request-bodies.md) | `FormRequest` vs Spatie Data; validation-rule → schema mapping. |
+| [What needs attributes, and why](what-needs-attributes.md) | The gradient: well-typed code is automatic; dynamic/runtime-shaped code needs an attribute, and why. |
 | [Attributes](attributes.md) | Escape-hatch catalog. |
 | [Recipes](recipes.md) | Short snippets for streaming, multipart, polymorphism, links, operationIds, and security schemes. |
 | [Plugins](plugins.md) | Bundled plugins: SpatieData, ApiResources, QueryBuilder, Fractal, SwaggerPhp. |
