@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
       - name: Probe result marker
         id: marker
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: quality-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'rector.php', 'phpunit.xml', '.github/workflows/**') }}
@@ -47,7 +47,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
       - name: Cache Composer packages
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-quality-${{ hashFiles('composer.lock') }}
@@ -59,7 +59,7 @@ jobs:
       # analysis incremental across runs.
       - name: Cache PHPStan result cache
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .cache/phpstan
           key: phpstan-${{ runner.os }}-${{ github.sha }}
@@ -67,7 +67,7 @@ jobs:
             phpstan-${{ runner.os }}-
       - name: Cache Pint result cache
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .cache/pint.json
           key: pint-${{ runner.os }}-${{ github.sha }}
@@ -75,7 +75,7 @@ jobs:
             pint-${{ runner.os }}-
       - name: Cache Rector result cache
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .cache/rector
           key: rector-${{ runner.os }}-${{ github.sha }}
@@ -115,7 +115,7 @@ jobs:
         run: echo "${GITHUB_SHA}" > .ci-marker
       - name: Persist result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: ${{ steps.marker.outputs.cache-primary-key }}

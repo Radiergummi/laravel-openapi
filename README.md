@@ -7,8 +7,14 @@
 > Batteries-included OpenAPI 3.1 generation for Laravel.
 
 Generate an OpenAPI 3.1 document from your existing Laravel routes — no handwritten YAML, no sprawling annotation
-blocks. The spec is *derived* from the types, PHPDoc, attributes, and conventions your code already uses. Where
-convention can't reach, a range of authoring attributes fills the gap, and a bundled linter reports what's still thin.
+blocks. The spec is *derived* from the types, PHPDoc, attributes, and conventions your code already uses.
+
+**The better-typed your app, the less you write.** A modern, well-typed Laravel app — typed controller returns, typed
+request objects, PHPDoc'd models — produces a near-complete spec on its own, with no authoring attributes at all.
+<!-- coverage figure: pending #460 measurement --> The less your code expresses in types, the more you reach for an
+authoring attribute to state what the code leaves implicit. Where convention can't reach, those attributes fill the
+gap, and a bundled linter reports what's still thin — naming both the gap and the attribute that closes it. See
+[What needs attributes, and why](docs/what-needs-attributes.md) for the gradient in full.
 
 From a typed controller action (plain Laravel, no DTOs or extra packages) `openapi:generate` produces the full
 operation — parameters, response, and a reusable component schema:

@@ -33,6 +33,15 @@ To write your own, see [Plugin authoring](plugin-authoring.md).
 Reads request and response schemas from Spatie Data classes, including
 `DataCollection<…>` and `PaginatedDataCollection<…>`.
 
+When an action types its return as a **generic container** that carries no item
+type — `Illuminate\Support\Collection`, Eloquent `Collection`, `LazyCollection`,
+or builtin `array` — and names the Data class only in the body, the response is
+resolved from the return expression (a bounded scan of the first 10 statements):
+a literal `DataClass::collect(...)` yields an array of `$ref`s, and `new
+DataClass(...)` a single `$ref`. The Data class must be a real `Data` subclass;
+any other shape (a service call, a conditional or multiple returns, a non-Data
+class) degrades silently to no schema.
+
 `spatie/laravel-data` is an optional runtime dependency. The plugin entry
 stays in `config/openapi.plugins` either way; without the package installed
 it no-ops. Install `spatie/laravel-data` to activate.
@@ -170,8 +179,10 @@ degrades to a permissive `items: { type: object }`.
 Many actions type their return as a **base** resource class — `JsonResource`, a
 bare `ResourceCollection`, or `AnonymousResourceCollection` — and name the
 concrete resource only in the method body. Others declare **no return type at
-all** (relying on convention or a third-party doc attribute). In both cases the
-signature yields nothing concrete, so the generator reads the method's **return
+all** (relying on convention or a third-party doc attribute), or a **generic
+container** that carries no item type (`Illuminate\Support\Collection`, Eloquent
+`Collection`, `LazyCollection`, builtin `array`). In each case the signature
+yields nothing concrete, so the generator reads the method's **return
 expression** (a bounded scan of the first 10 statements; no dataflow):
 
 ```php

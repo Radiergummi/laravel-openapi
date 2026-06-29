@@ -51,7 +51,7 @@ jobs:
           persist-credentials: false
       - name: Probe result marker
         id: marker
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: tests-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
@@ -70,7 +70,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
       - name: Cache Composer packages
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-php${{ matrix.php }}-l${{ matrix.laravel-major }}-${{ hashFiles('composer.json') }}
@@ -134,7 +134,7 @@ jobs:
         run: echo "${GITHUB_SHA}" > .ci-marker
       - name: Persist result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: ${{ steps.marker.outputs.cache-primary-key }}
@@ -150,7 +150,7 @@ jobs:
           persist-credentials: false
       - name: Probe result marker
         id: marker
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: swaglow-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
@@ -169,7 +169,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
       - name: Cache Composer packages
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-swaglow-${{ hashFiles('composer.json') }}
@@ -225,7 +225,7 @@ jobs:
         run: echo "${GITHUB_SHA}" > .ci-marker
       - name: Persist result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: ${{ steps.marker.outputs.cache-primary-key }}
@@ -247,7 +247,7 @@ jobs:
       # runs and uploads as before. Coverage owns no marker of its own (the test job writes this one).
       - name: Probe test result marker (identical inputs ⇒ identical coverage)
         id: marker
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: tests-${{ runner.os }}-php8.4-l12-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
@@ -266,7 +266,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
       - name: Cache Composer packages
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-coverage-${{ hashFiles('composer.json') }}
@@ -323,7 +323,7 @@ jobs:
           persist-credentials: false
       - name: Probe result marker
         id: marker
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: snapshot-${{ runner.os }}-${{ hashFiles('src/**', 'tests/**', 'config/**', 'examples/**', 'composer.json', 'composer.lock', 'phpstan.neon', 'pint.json', 'phpunit.xml', '.github/workflows/**') }}
@@ -342,7 +342,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
       - name: Cache Composer packages
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-snapshot-${{ hashFiles('composer.lock') }}
@@ -376,7 +376,7 @@ jobs:
         run: echo "${GITHUB_SHA}" > .ci-marker
       - name: Persist result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: ${{ steps.marker.outputs.cache-primary-key }}
@@ -396,7 +396,7 @@ jobs:
           persist-credentials: false
       - name: Probe result marker
         id: marker
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: tooling-${{ runner.os }}-${{ hashFiles('tools/survey/**', '.claude/skills/survey/**', 'tests/Tools/**', 'tests/Fixtures/survey/**', 'composer.json', 'composer.lock', 'phpunit.xml', '.github/workflows/**') }}
@@ -415,7 +415,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
       - name: Cache Composer packages
         if: steps.marker.outputs.cache-hit != 'true'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: composer-${{ runner.os }}-tooling-${{ hashFiles('composer.json') }}
@@ -446,7 +446,7 @@ jobs:
         run: echo "${GITHUB_SHA}" > .ci-marker
       - name: Persist result marker
         if: ${{ success() && steps.marker.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .ci-marker
           key: ${{ steps.marker.outputs.cache-primary-key }}

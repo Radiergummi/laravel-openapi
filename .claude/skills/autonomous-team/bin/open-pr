@@ -53,5 +53,5 @@ gh pr create \
   --title "$title" \
   --body "$body" \
   --assignee "$assignee" \
-  "${label_args[@]}" \
-  "${draft_args[@]}"
+  "${label_args[@]+"${label_args[@]}"}" \
+  "${draft_args[@]+"${draft_args[@]}"}"
