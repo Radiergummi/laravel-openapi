@@ -8,6 +8,10 @@ use Radiergummi\OpenApi\Support\Generator\OperationDescriptor;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Tests\Fixtures\ResourceConventionDefaultController;
 use Radiergummi\OpenApi\Tests\Fixtures\ResourceConventionLiteralController;
+use Radiergummi\OpenApi\Tests\Fixtures\ResourceDestroyEmptyJsonController;
+use Radiergummi\OpenApi\Tests\Fixtures\ResourceDestroyExplicitStatusController;
+use Radiergummi\OpenApi\Tests\Fixtures\ResourceDestroyNoContentController;
+use Radiergummi\OpenApi\Tests\Fixtures\ResourceStoreEmptyJsonController;
 
 uses()->group('openapi');
 
@@ -69,6 +73,52 @@ it('keeps a ->noContent() 204 over the store convention (201)', function (): voi
 
 it('still applies the resource convention when the json() call has no explicit status', function (): void {
     $op = buildResourceOperation('post', '/things', ResourceConventionDefaultController::class, 'store');
+
+    expect(resourcePrimaryStatus($op))->toBe('201');
+});
+
+it('keeps a content-bearing body-scan 200 over the destroy convention (204)', function (): void {
+    $op = buildResourceOperation('delete', '/widgets/{widget}', ResourceConventionLiteralController::class, 'destroy');
+
+    expect(resourcePrimaryStatus($op))->toBe('200');
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($op->responses[0], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized['content']['application/json']['schema']['properties'])->toHaveKey('message')
+        ->and($serialized['content']['application/json']['schema']['properties']['message']['type'])->toBe('string');
+});
+
+it('keeps a body-less ->noContent() 204 for the destroy convention', function (): void {
+    $op = buildResourceOperation('delete', '/widgets/{widget}', ResourceDestroyNoContentController::class, 'destroy');
+
+    expect(resourcePrimaryStatus($op))->toBe('204');
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($op->responses[0], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
+});
+
+it('keeps an explicit json([...], 202) status over the destroy convention (204)', function (): void {
+    $op = buildResourceOperation('delete', '/widgets/{widget}', ResourceDestroyExplicitStatusController::class, 'destroy');
+
+    expect(resourcePrimaryStatus($op))->toBe('202');
+});
+
+it('keeps the destroy convention 204 for an empty json([]) body', function (): void {
+    $op = buildResourceOperation('delete', '/widgets/{widget}', ResourceDestroyEmptyJsonController::class, 'destroy');
+
+    expect(resourcePrimaryStatus($op))->toBe('204');
+
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($op->responses[0], JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($serialized)->not->toHaveKey('content');
+});
+
+it('still relabels an empty json([]) store body to the store convention (201)', function (): void {
+    $op = buildResourceOperation('post', '/widgets', ResourceStoreEmptyJsonController::class, 'store');
 
     expect(resourcePrimaryStatus($op))->toBe('201');
 });
