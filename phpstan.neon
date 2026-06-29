@@ -28,6 +28,7 @@ parameters:
         - tools/survey/metrics.php
         - tools/survey/aggregate.php
         - tools/survey/synthesize.php
+        - tools/survey/typedness.php
         - .claude/skills/survey/bin/survey-assemble-spec
         - .claude/skills/survey/bin/survey-harvest-docs
     excludePaths:
