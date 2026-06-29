@@ -147,7 +147,23 @@ final readonly class LintRunner
     ): LintResult {
         // region Descriptor collection + path/diff filtering
 
-        $descriptors = $this->collectDescriptors($options);
+        $globalFiltered = $this->collectGlobalFiltered();
+
+        // Tree-walk scope mirrors the generated document, which never emits an operation for a
+        // missing-method route. The per-route lint pass needs those routes, so it runs over a
+        // superset that keeps them; re-admitting them to the tree walk would draw spurious findings.
+        $descriptors = $this->routeFilter->filter(
+            descriptors: $globalFiltered,
+            uriGlob: $options->uriGlob,
+            files: $options->files,
+            diff: $options->diff,
+        );
+        $routeRuleDescriptors = $this->routeFilter->filterForRouteRules(
+            descriptors: $globalFiltered,
+            uriGlob: $options->uriGlob,
+            files: $options->files,
+            diff: $options->diff,
+        );
 
         // Stage-emitted findings bypass the tree-walk path restriction, so they need a URI gate.
         $allowedRouteUris = null;
@@ -157,8 +173,17 @@ final readonly class LintRunner
         $allowedSchemaClasses = [];
         $allComponentClasses = [];
 
+        // Tree-walk path scope: the dead-routes-dropped set, so tree-walk rules never see an
+        // operation the generator emitted for a missing-method route. Null when unscoped.
+        $treeWalkUris = null;
+
         if ($options->isScoped) {
-            $allowedRouteUris = self::descriptorUriSet($descriptors);
+            $treeWalkUris = self::descriptorUriSet($descriptors);
+
+            // The route-rule set is a superset that keeps missing-method routes. Gating findings by
+            // its URIs lets per-route findings on those routes survive; their operations are still
+            // excluded from the tree walk via $treeWalkUris, so no tree-walk finding leaks through.
+            $allowedRouteUris = self::descriptorUriSet($routeRuleDescriptors);
         }
 
         // endregion
@@ -254,6 +279,8 @@ final readonly class LintRunner
             $operations = $this->walkSpec(
                 $document,
                 $descriptors,
+                $routeRuleDescriptors,
+                $treeWalkUris,
                 $rules,
                 $specSuppressions,
                 $specLocal,
@@ -308,19 +335,14 @@ final readonly class LintRunner
     }
 
     /**
-     * Discovers routes, drops global-filter rejects, then applies --path/--files/--diff narrowing.
+     * Discovers routes and drops global-filter rejects, before --path/--files/--diff narrowing.
      *
      * @return list<ActionDescriptor>
      *
-     * @throws LogicException
-     * @throws ProcessRuntimeException
-     * @throws ProcessSignaledException
-     * @throws ProcessStartFailedException
-     * @throws ProcessTimedOutException
      * @throws ReflectionException
      * @throws UnexpectedValueException
      */
-    private function collectDescriptors(LintOptions $options): array
+    private function collectGlobalFiltered(): array
     {
         $descriptors = [];
 
@@ -332,12 +354,7 @@ final readonly class LintRunner
             $descriptors[] = $descriptor;
         }
 
-        return $this->routeFilter->filter(
-            descriptors: $descriptors,
-            uriGlob: $options->uriGlob,
-            files: $options->files,
-            diff: $options->diff,
-        );
+        return $descriptors;
     }
 
     /**
@@ -599,8 +616,14 @@ final readonly class LintRunner
     /**
      * Runs the tree walk, RouteRule pass, and MetaSuppressionStale for one spec.
      *
+     * The RouteRule pass runs over `$routeRuleDescriptors`, which (unlike the tree-walk
+     * `$descriptors`) keeps first-party missing-method routes so they can be flagged without
+     * re-entering the tree-walk scope and drawing spurious operation/response findings.
+     *
      * @param list<Rule>                  $rules
-     * @param list<ActionDescriptor>      $descriptors
+     * @param list<ActionDescriptor>      $descriptors          Tree-walk scope (mirrors the document).
+     * @param list<ActionDescriptor>      $routeRuleDescriptors Per-route pass scope (superset).
+     * @param null|array<string, true>    $treeWalkUris         In-scope tree-walk URIs; null = unscoped.
      * @param list<SuppressionDirective>  $suppressions
      * @param list<string>                $only
      * @param list<string>                $skip
@@ -613,6 +636,8 @@ final readonly class LintRunner
     private function walkSpec(
         OA\OpenApi $document,
         array $descriptors,
+        array $routeRuleDescriptors,
+        ?array $treeWalkUris,
         array $rules,
         array $suppressions,
         ArrayFindingsCollector $specLocal,
@@ -631,9 +656,16 @@ final readonly class LintRunner
             MetaSuppressionStale::ID,
         ];
 
-        // Restrict to the allowed set so rules don't fire on routes excluded by --path/--diff.
-        if ($descriptors !== [] && is_array($document->paths)) {
-            $document->paths = self::inScopePathItems($document, self::descriptorUriSet($descriptors));
+        // Restrict to the allowed set so rules don't fire on routes excluded by --uri/--path/--diff,
+        // including missing-method routes: the per-route pass handles those, but the tree walk must
+        // not see the operations the generator still emits for them. A scoped run narrows even to an
+        // empty set (nothing left to walk); an unscoped run narrows to its discovered routes.
+        if (is_array($document->paths)) {
+            if ($treeWalkUris !== null) {
+                $document->paths = self::inScopePathItems($document, $treeWalkUris);
+            } elseif ($descriptors !== []) {
+                $document->paths = self::inScopePathItems($document, self::descriptorUriSet($descriptors));
+            }
         }
 
         $treeBuilder = new SpecTreeBuilder(
@@ -680,7 +712,7 @@ final readonly class LintRunner
         );
 
         if ($routeRules !== []) {
-            foreach ($descriptors as $descriptor) {
+            foreach ($routeRuleDescriptors as $descriptor) {
                 $defaults = FindingLocation::fromDescriptor($descriptor);
 
                 foreach ($routeRules as $rule) {

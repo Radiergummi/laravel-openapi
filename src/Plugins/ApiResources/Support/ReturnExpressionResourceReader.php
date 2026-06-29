@@ -15,6 +15,7 @@ use PhpParser\Node\Expr\ArrowFunction;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\Closure as ClosureExpression;
+use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_ as NewExpression;
 use PhpParser\Node\Expr\StaticCall;
@@ -54,8 +55,9 @@ use function sprintf;
  *
  * The `@return` generic wins over the body scan. The scan then matches a narrow whitelist in the
  * first {@see self::STATEMENT_LIMIT} statements: one unconditional return (or the variable it
- * names, assigned exactly once on the unconditional path), unwrapped through resource-preserving
- * chains (`->additional(...)`). Recognised shapes: `X::collection(...)`, `X::collect(...)`,
+ * names, assigned exactly once on the unconditional path), or several top-level returns that all
+ * resolve to the same resource (bare `return;` / `return null;` ignored), unwrapped through
+ * resource-preserving chains (`->additional(...)`). Recognised shapes: `X::collection(...)`, `X::collect(...)`,
  * `X::make(...)`, `new X(...)`, `->toResource(X::class)`, `->toResourceCollection(X::class)`, bare
  * `$model->toResource()` on a Model-typed parameter, and `new JsonResource($model)` wrapping one.
  *
@@ -145,6 +147,11 @@ final class ReturnExpressionResourceReader
         }
 
         $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+
+        if (count($this->methodLevelReturns($statements)) > 1) {
+            return $this->reconcileMultipleReturns($statements, $method, $silent);
+        }
+
         $returnExpression = $this->canonicalReturnExpression($statements, $method, log: !$silent);
 
         if ($returnExpression === null) {
@@ -160,6 +167,92 @@ final class ReturnExpressionResourceReader
         }
 
         return $this->targetFromExpression($expression, $method, $silent);
+    }
+
+    /**
+     * Resolves a method with several top-level returns by reconciling every resource-bearing
+     * branch through the single-return path. Emits the target only when all branches agree;
+     * bare `return;` and `return null;` are ignored sentinels, and any unresolvable or divergent
+     * branch (or no resource branch at all) degrades to null.
+     *
+     * @param list<Stmt> $statements
+     *
+     * @throws ReflectionException
+     */
+    private function reconcileMultipleReturns(
+        array $statements,
+        ReflectionMethod $method,
+        bool $silent,
+    ): ?ResourceTarget {
+        $resolved = [];
+
+        foreach ($this->methodLevelReturns($statements) as $return) {
+            $expression = $return->expr;
+
+            if ($expression === null || $this->isNullLiteral($expression)) {
+                continue;
+            }
+
+            if ($expression instanceof Variable) {
+                $expression = $this->expressionAssignedTo($expression, $statements, $method, log: false);
+            }
+
+            $target = $expression !== null
+                ? $this->targetFromExpression($expression, $method, silent: true)
+                : null;
+
+            if ($target === null) {
+                $this->note(
+                    $method,
+                    'has a return path that does not resolve to a resource type',
+                    $silent,
+                );
+
+                return null;
+            }
+
+            $resolved[] = $target;
+        }
+
+        if ($resolved === []) {
+            return null;
+        }
+
+        $first = $resolved[0];
+
+        foreach ($resolved as $target) {
+            if (!$this->targetsMatch($first, $target)) {
+                $this->note(
+                    $method,
+                    'has multiple returns resolving to different resource types',
+                    $silent,
+                );
+
+                return null;
+            }
+        }
+
+        return $first;
+    }
+
+    /**
+     * Two targets are the same iff all four fields match.
+     */
+    private function targetsMatch(ResourceTarget $first, ResourceTarget $second): bool
+    {
+        return $first->resourceClass === $second->resourceClass
+            && $first->isCollection === $second->isCollection
+            && $first->modelClass === $second->modelClass
+            && $first->paginated === $second->paginated;
+    }
+
+    /**
+     * Whether the expression is the `null` literal (`return null;`), a non-resource sentinel.
+     */
+    private function isNullLiteral(Expr $expression): bool
+    {
+        return $expression instanceof ConstFetch
+            && $expression->name->toLowerString() === 'null';
     }
 
     // region Return-expression location

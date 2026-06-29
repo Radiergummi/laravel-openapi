@@ -152,6 +152,24 @@ class ReturnExpressionController extends Controller
             ->additional(['meta' => ['generated' => true]]);
     }
 
+    public function sameTypeMultipleReturns(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            return NestedAuthorResource::collection(Author::query()->paginate());
+        }
+
+        return NestedAuthorResource::collection(Author::query()->paginate());
+    }
+
+    public function divergentMultipleReturns(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            return NestedAuthorResource::collection(Author::all());
+        }
+
+        return LiteralOnlyResource::collection(Author::all());
+    }
+
     public function refusedVariable(): AnonymousResourceCollection
     {
         return $this->authors();
@@ -269,6 +287,37 @@ it('resolves the resource through a whitelisted ->additional() chain', function 
 
     expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
         ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+});
+
+it('resolves the resource when all returns are the same collection type', function (): void {
+    Route::get('/authors-multi', [ReturnExpressionController::class, 'sameTypeMultipleReturns']);
+
+    $spec = generateSpec();
+    $schema = successSchema($spec, '/authors-multi');
+
+    expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+});
+
+it('degrades when the multiple returns resolve to divergent resources', function (): void {
+    Route::get('/authors-divergent', [ReturnExpressionController::class, 'divergentMultipleReturns']);
+
+    $logger = recordingLogger();
+    app()->instance(LoggerInterface::class, $logger);
+
+    $spec = generateSpec();
+    $response = $spec['paths']['/authors-divergent']['get']['responses']['200'] ?? null;
+
+    expect($response)->not->toBeNull()
+        ->and($response['content'] ?? [])->not->toHaveKey('application/json');
+
+    $noted = array_any(
+        $logger->records,
+        static fn(array $record): bool => str_contains($record['message'], 'divergentMultipleReturns')
+            && str_contains($record['message'], 'ResponseResource'),
+    );
+
+    expect($noted)->toBeTrue();
 });
 
 // endregion
