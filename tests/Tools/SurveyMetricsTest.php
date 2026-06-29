@@ -82,3 +82,8 @@ it('adds coverage when a published spec is supplied', function (): void {
         ->and($m['coverage']['intersection'])->toBe(1)
         ->and($m['coverage']['covPercent'])->toBe(50.0);
 });
+
+it('picks the first existing file from the autoloader candidate list', function (): void {
+    expect(survey_firstExistingFile(['/no/such/file', __FILE__, '/another/missing']))->toBe(__FILE__)
+        ->and(survey_firstExistingFile(['/no/such/file', '/also/missing']))->toBeNull();
+});
