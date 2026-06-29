@@ -63,6 +63,7 @@ wins over the `auth` middleware entry.
         'enabled' => env('APP_ENV') === 'local', // local-only by default
         'uri' => 'docs',           // GET /api/docs
         'renderer' => 'scalar',    // 'scalar' (default) or 'swagger-ui'
+        'spec_url' => env('OPENAPI_PLAYGROUND_SPEC_URL'), // null = auto-derive from route
     ],
 ],
 ```
@@ -74,6 +75,13 @@ publishing. Swagger UI is offered for teams (e.g., migrating from
 `darkaonline/l5-swagger`) already standardised on its layout and "Try it out"
 affordances. Any unrecognised value falls back to Scalar. In multi-spec mode the
 renderer is global; each spec's playground still points at its own document.
+
+`routes.playground.spec_url` (env: `OPENAPI_PLAYGROUND_SPEC_URL`) overrides the URL the
+playground passes to the renderer as the spec location. When null or blank (the default), the
+URL is derived automatically from the spec route, which works correctly when Laravel's
+`TrustProxies` middleware is configured to forward proxy headers. Set this key to an absolute URL
+when `TrustProxies` cannot be used, for example when a CDN hosts the spec at a fixed URL or a
+proxy strips forwarded headers. See [Recipes → Serving docs behind a reverse proxy](recipes.md#serving-docs-behind-a-reverse-proxy).
 
 Because the spec and playground mount under `prefix` (default `api`), they appear
 in `php artisan route:list --path=api` alongside your own API routes. This is
