@@ -22,6 +22,7 @@ the remaining generalization work.
 | `sha` | Exact commit SHA — the reproducibility fixed point |
 | `apiPrefix` | URL prefix used to scope `apiOperations` and `completenessPercent` |
 | `php` | PHP major.minor required by the bootstrap script |
+| `typedness` | Architectural segmentation tier (`well-typed`, `mixed`, `dynamic`, `dynamic-fractal`) used by `typedness.php`. See [`well-typed-bar.md`](well-typed-bar.md) for the criteria. |
 | `publishedSpec` | Repo-relative path to the app's own published spec, or `null` |
 | `bootstrap` | Repo-relative path to the per-app bootstrap script |
 
@@ -75,6 +76,7 @@ code is never modified or committed — this is black-box.
 | `run.sh <name>` | Run `openapi:generate` + `openapi:lint` in the app; capture spec, logs, exit codes; print a scorecard line. A crash is captured as data, not aborted on. |
 | `compare.php <generated> <published>` | Path×method coverage of our spec vs an app's published one. Accepts JSON or YAML. Defaults `LIB` to this repo; override the `LIB` env var to point elsewhere. |
 | `completeness.php <generated> [--prefix=/api]` | Per-operation completeness scoreboard: request body (where the verb needs one) + substantive 2xx response, under an API prefix. The gate for the attribute-completion pass. |
+| `typedness.php <app-dir> [--prefix=/api]` / `typedness.php --corpus <ws>` | Segments API operations by action-return shape (typed payload / correctly-empty / dynamic) and reports unaided substantive coverage *conditioned* on that shape — the well-typed coverage bar (#460). The `--corpus` mode rolls up by each app's `typedness` tier. Consumes a per-app `classify.json` (the #413 classifier artifact); without it, emits only the spec-only substantive figure. See [`well-typed-bar.md`](well-typed-bar.md). |
 | `synthesize.php <ws-dir>` | Reads `results.json` + `manifest.json` + every `apps/*/lift.json` and emits two report **candidates** into `<ws-dir>` (a public field-report candidate and an internal synthesis candidate). Deterministic; writes only to `<ws-dir>`, never the curated docs. Safe to `require` in tests. |
 | `bootstrap/_lib.sh` | Shared bootstrap helpers sourced by every per-app script: `survey_link_library` (composer path repo + require, then asserts the vendor link actually resolves to `$LIB`), `survey_scaffold_env` (`.env`, sqlite, `key:generate`), `survey_publish_config` (publishes the package config), `survey_blocked` (records `blocked-compat` as data without aborting). |
 | `bootstrap/<name>.sh` | Per-app clean-clone → runnable. Sources `_lib.sh`, calls the shared scaffold functions, then applies any app-specific deltas (database driver, queue config, extra composer packages, etc.). |
