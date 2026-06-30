@@ -31,7 +31,7 @@ annotations are uncommitted app-side scratch. Both runs ended with `libraryClean
 | Baseline request bodies | 92 | 0 |
 | Baseline lint findings | 65 (all `response.no-error`) | 132 |
 | Harvested attributes (deterministic, from published spec) | 0 | 342 |
-| Authored attributes (agent judgment) | ~48 files | 50 files |
+| Authored attributes (agent judgment) | 50 files | 50 files |
 | **Final completeness** | **98.5%** | **86.8%** |
 | **Completeness lift** | **+0.9 pts** | **+43.6 pts** |
 | Final response schemas | 128 (+28) | 144 (+67) |
@@ -50,7 +50,7 @@ signposted attribute work.
 
 - **97.6% complete with zero attributes.** The library read the Spatie `Data` return shapes, 92
   FormRequest request bodies, and Sanctum security unaided.
-- The authored pass (≈48 files) was bounded and mechanical: `#[ExceptionResponse]` on ~10 app
+- The authored pass (50 files) was bounded and mechanical: `#[ExceptionResponse]` on ~10 app
   exception classes, `#[Response]` overrides on imperative/array-returning methods, 7
   `#[RequestBody]`/`#[RequestField]`. Completeness moved only **+0.9 pts** because almost nothing was
   missing; the +28 response schemas are mostly inlined object/`Data` shapes the attributes spelled
