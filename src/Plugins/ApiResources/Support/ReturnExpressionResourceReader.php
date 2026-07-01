@@ -9,12 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\UseResource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
-use PhpParser\Node;
 use PhpParser\Node\Expr;
-use PhpParser\Node\Expr\ArrowFunction;
-use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\ClassConstFetch;
-use PhpParser\Node\Expr\Closure as ClosureExpression;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_ as NewExpression;
@@ -23,15 +19,14 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
-use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
-use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
-use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnVariableRefusal;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
@@ -44,7 +39,6 @@ use function class_exists;
 use function count;
 use function in_array;
 use function is_a;
-use function is_array;
 use function is_string;
 use function method_exists;
 use function sprintf;
@@ -97,16 +91,13 @@ final class ReturnExpressionResourceReader
      */
     private array $cache = [];
 
-    private readonly StatementNodeFinder $statementNodeFinder;
-
     public function __construct(
         private readonly MethodBodyScanner $scanner,
         private readonly DocBlockParser $docBlockParser,
         private readonly TypeNodeResolver $typeNodeResolver,
         private readonly LoggerInterface $logger,
-    ) {
-        $this->statementNodeFinder = new StatementNodeFinder();
-    }
+        private readonly ReturnExpressionResolver $returnExpressionResolver = new ReturnExpressionResolver(),
+    ) {}
 
     public static function create(?LoggerInterface $logger = null): self
     {
@@ -438,13 +429,7 @@ final class ReturnExpressionResourceReader
      */
     private function methodLevelReturns(array $statements): array
     {
-        $found = [];
-
-        foreach ($statements as $statement) {
-            $this->collectMethodLevelReturns($statement, $found);
-        }
-
-        return $found;
+        return $this->returnExpressionResolver->methodLevelReturns($statements);
     }
 
     // endregion
@@ -452,37 +437,9 @@ final class ReturnExpressionResourceReader
     // region Call-shape matching
 
     /**
-     * @param list<Return_> $found
-     */
-    private function collectMethodLevelReturns(Node $node, array &$found): void
-    {
-        if (
-            $node instanceof ClosureExpression
-            || $node instanceof ArrowFunction
-            || $node instanceof ClassLike
-        ) {
-            return;
-        }
-
-        if ($node instanceof Return_) {
-            $found[] = $node;
-        }
-
-        foreach ($node->getSubNodeNames() as $subNodeName) {
-            /** @var mixed $children */
-            $children = $node->{$subNodeName};
-
-            foreach (is_array($children) ? $children : [$children] as $child) {
-                if ($child instanceof Node) {
-                    $this->collectMethodLevelReturns($child, $found);
-                }
-            }
-        }
-    }
-
-    /**
-     * Resolves `return $variable;` through the single unconditional assignment to that variable.
-     * A conditional reassignment makes the type a guess. Pass `log: false` to suppress the notice.
+     * Resolves `return $variable;` through the single unconditional assignment to that variable,
+     * refused when the variable is dynamically named, not assigned exactly once on the
+     * unconditional path, or mutated after its assignment. Pass `log: false` to suppress the notice.
      *
      * @param list<Stmt> $statements
      */
@@ -492,50 +449,35 @@ final class ReturnExpressionResourceReader
         ReflectionMethod $method,
         bool $log = true,
     ): ?Expr {
-        $variableName = $variable->name;
+        $resolution = $this->returnExpressionResolver->resolveVariable($variable, $statements);
 
-        if (!is_string($variableName)) {
-            if ($log) {
-                $this->note($method, 'returns a dynamically-named variable');
-            }
-
-            return null;
+        if ($resolution->expression !== null) {
+            return $resolution->expression;
         }
 
-        $isAssignmentToVariable = static fn(Node $node): bool
-            => $node instanceof Assign
-            && $node->var instanceof Variable
-            && $node->var->name === $variableName;
-
-        $allAssignments = $this->statementNodeFinder->findAll(
-            $statements,
-            ConditionalContextPolicy::IncludeConditionalContexts,
-            $isAssignmentToVariable,
-        );
-        $unconditionalAssignments = $this->statementNodeFinder->findAll(
-            $statements,
-            ConditionalContextPolicy::SkipConditionalContexts,
-            $isAssignmentToVariable,
-        );
-
-        if (count($allAssignments) !== 1 || count($unconditionalAssignments) !== 1) {
-            if ($log) {
-                $this->note(
-                    $method,
-                    sprintf(
-                        'returns $%s, which is not assigned exactly once on the unconditional path',
-                        $variableName,
-                    ),
-                );
-            }
-
-            return null;
+        if ($log) {
+            $this->note($method, $this->refusalReason($resolution->refusal, $variable));
         }
 
-        /** @var Assign $assignment */
-        $assignment = $unconditionalAssignments[0];
+        return null;
+    }
 
-        return $assignment->expr;
+    /**
+     * The existing per-refusal notice wording, preserved verbatim so the log surface is unchanged.
+     */
+    private function refusalReason(?ReturnVariableRefusal $refusal, Variable $variable): string
+    {
+        return match ($refusal) {
+            ReturnVariableRefusal::DynamicallyNamedVariable => 'returns a dynamically-named variable',
+            ReturnVariableRefusal::MutatedAfterAssignment => sprintf(
+                'returns $%s, which is mutated after its single unconditional assignment',
+                is_string($variable->name) ? $variable->name : '{dynamic}',
+            ),
+            default => sprintf(
+                'returns $%s, which is not assigned exactly once on the unconditional path',
+                is_string($variable->name) ? $variable->name : '{dynamic}',
+            ),
+        };
     }
 
     /**

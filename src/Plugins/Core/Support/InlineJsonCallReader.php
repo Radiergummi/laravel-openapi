@@ -21,9 +21,9 @@ use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
+use Radiergummi\OpenApi\Support\MethodBody\UnqualifiedHelperCall;
 
 use function array_find;
-use function function_exists;
 use function in_array;
 use function is_int;
 use function sprintf;
@@ -94,13 +94,7 @@ final readonly class InlineJsonCallReader
             return false;
         }
 
-        if ($receiver->name->isFullyQualified()) {
-            return true;
-        }
-
-        $namespacedName = $receiver->name->getAttribute('namespacedName');
-
-        return !($namespacedName instanceof Name && function_exists($namespacedName->toString()));
+        return UnqualifiedHelperCall::resolvesToGlobalHelper($receiver->name);
     }
 
     // endregion

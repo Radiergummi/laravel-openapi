@@ -5,23 +5,20 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
-use PhpParser\Node;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\Variable;
-use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Stmt\Expression;
-use PhpParser\Node\Stmt\Return_;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
 use Radiergummi\OpenApi\Support\MethodBody\RuleFieldLiteralMapper;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
 use ReflectionMethod;
 
 use function count;
 use function in_array;
-use function is_array;
 use function is_string;
 
 /**
@@ -44,8 +41,12 @@ final readonly class FormRequestStaticRulesReader
 
     public function __construct(
         private MethodBodyScanner $scanner,
+        private ReturnExpressionResolver $returnExpressionResolver = new ReturnExpressionResolver(),
     ) {
-        $this->bareReturnFinder = new SingleReturnArrayLiteralFinder($this->scanner);
+        $this->bareReturnFinder = new SingleReturnArrayLiteralFinder(
+            $this->scanner,
+            $this->returnExpressionResolver,
+        );
     }
 
     /**
@@ -76,12 +77,7 @@ final readonly class FormRequestStaticRulesReader
             return null;
         }
 
-        /** @var list<Return_> $returns */
-        $returns = [];
-
-        foreach ($statements as $statement) {
-            $this->collectReturns($statement, $returns);
-        }
+        $returns = $this->returnExpressionResolver->methodLevelReturns($statements);
 
         if (count($returns) !== 1) {
             return null;
@@ -155,32 +151,5 @@ final readonly class FormRequestStaticRulesReader
         }
 
         return $rules === [] ? null : $rules;
-    }
-
-    /**
-     * Depth-first return collection, skipping nested function-like scopes (closures, anon classes).
-     *
-     * @param list<Return_> $returns
-     */
-    private function collectReturns(Node $node, array &$returns): void
-    {
-        if ($node instanceof FunctionLike) {
-            return;
-        }
-
-        if ($node instanceof Return_) {
-            $returns[] = $node;
-        }
-
-        foreach ($node->getSubNodeNames() as $subNodeName) {
-            /** @var mixed $children */
-            $children = $node->{$subNodeName};
-
-            foreach (is_array($children) ? $children : [$children] as $child) {
-                if ($child instanceof Node) {
-                    $this->collectReturns($child, $returns);
-                }
-            }
-        }
     }
 }

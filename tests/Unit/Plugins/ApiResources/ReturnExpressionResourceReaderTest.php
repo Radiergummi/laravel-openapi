@@ -225,6 +225,33 @@ class ReaderFixtureController
 
         return null;
     }
+
+    public function mutatedAfterAssignment(): AnonymousResourceCollection
+    {
+        /** @var AnonymousResourceCollection $resources */
+        $resources = NestedAuthorResource::collection(Author::all());
+        $resources['extra'] = NestedAuthorResource::make(Author::query()->firstOrFail());
+
+        return $resources;
+    }
+
+    public function conditionallyAssignedVariable(bool $flag): AnonymousResourceCollection
+    {
+        if ($flag) {
+            $resources = NestedAuthorResource::collection(Author::query()->paginate());
+        } else {
+            $resources = NestedAuthorResource::collection(Author::all());
+        }
+
+        return $resources;
+    }
+
+    public function dynamicallyNamedVariable(string $name): AnonymousResourceCollection
+    {
+        $$name = NestedAuthorResource::collection(Author::all());
+
+        return $$name;
+    }
 }
 
 function readerFor(?LoggerInterface $logger = null): ReturnExpressionResourceReader
@@ -323,6 +350,57 @@ it('refuses a collection call on an abstract resource subclass with a note', fun
         ->and(array_filter(
             $logger->records,
             static fn(array $record): bool => str_contains($record['message'], 'abstractClassCollection'),
+        ))->toHaveCount(1);
+});
+
+it('refuses a conditionally-assigned returned variable with the not-assigned-once note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('conditionallyAssignedVariable'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains(
+                $record['message'],
+                'The return expression of ' . ReaderFixtureController::class . '::conditionallyAssignedVariable'
+                . ' returns $resources, which is not assigned exactly once on the unconditional path;'
+                . ' the concrete resource stays unresolved. Annotate the action with #[ResponseResource]'
+                . ' to document the response.',
+            ),
+        ))->toHaveCount(1);
+});
+
+it('refuses a dynamically-named returned variable with the dynamic-variable note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('dynamicallyNamedVariable'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains(
+                $record['message'],
+                'The return expression of ' . ReaderFixtureController::class . '::dynamicallyNamedVariable'
+                . ' returns a dynamically-named variable;'
+                . ' the concrete resource stays unresolved. Annotate the action with #[ResponseResource]'
+                . ' to document the response.',
+            ),
+        ))->toHaveCount(1);
+});
+
+it('refuses a returned variable mutated after its assignment with the mutation note', function (): void {
+    $logger = recordingLogger();
+    $target = readerFor($logger)->read(readerMethod('mutatedAfterAssignment'));
+
+    expect($target)->toBeNull()
+        ->and(array_filter(
+            $logger->records,
+            static fn(array $record): bool => str_contains(
+                $record['message'],
+                'The return expression of ' . ReaderFixtureController::class . '::mutatedAfterAssignment'
+                . ' returns $resources, which is mutated after its single unconditional assignment;'
+                . ' the concrete resource stays unresolved. Annotate the action with #[ResponseResource]'
+                . ' to document the response.',
+            ),
         ))->toHaveCount(1);
 });
 
