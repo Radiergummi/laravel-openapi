@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\DescribedStatus;
 use ReflectionClass;
 use stdClass;
+use Symfony\Component\TypeInfo\Type;
 
 uses()->group('openapi');
 
@@ -224,6 +225,7 @@ it('promotes a backed enum leaf to a $ref component with case descriptions', fun
         parsePhpDocType('\\' . DescribedStatus::class),
         new ReflectionClass(stdClass::class),
     );
+    assert($type instanceof Type);
 
     // No leaf callback: the built-in enum-component path applies.
     $schema = $engine->fromType($type);
@@ -249,6 +251,7 @@ it('lets a non-null leaf callback win over the built-in enum path', function ():
         parsePhpDocType('\\' . DescribedStatus::class),
         new ReflectionClass(stdClass::class),
     );
+    assert($type instanceof Type);
 
     $schema = $engine->fromType(
         $type,
@@ -266,6 +269,7 @@ it('falls back to the built-in path when the leaf callback returns null', functi
         parsePhpDocType('\\' . DescribedStatus::class),
         new ReflectionClass(stdClass::class),
     );
+    assert($type instanceof Type);
 
     // A callback that declines (returns null) must not suppress the enum component.
     $schema = $engine->fromType($type, static fn(string $fqcn): ?OA\Schema => null);

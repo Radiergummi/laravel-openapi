@@ -85,8 +85,8 @@ final readonly class JsonSchemaFromType
 
     /**
      * @param null|callable(string): ?OA\Schema $leafClassSchema resolves a leaf class FQCN to a
-     *                                                            schema; when it returns non-null it
-     *                                                            wins over the built-in leaf handling
+     *                                                           schema; when it returns non-null it
+     *                                                           wins over the built-in leaf handling
      */
     public function fromType(Type $type, ?callable $leafClassSchema = null): OA\Schema
     {
@@ -305,7 +305,8 @@ final readonly class JsonSchemaFromType
      * collection classes are array-like; any other generic class (`JsonResource<int>`) is not, and
      * degrades to the unmapped fallback.
      *
-     * @param null|callable(string): ?OA\Schema $leafClassSchema
+     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
+     * @param null|callable(string): ?OA\Schema                                                                                 $leafClassSchema
      */
     private function fromCollectionType(CollectionType $type, ?callable $leafClassSchema): OA\Schema
     {
@@ -340,6 +341,8 @@ final readonly class JsonSchemaFromType
      * A string-keyed collection is a map; an integer-keyed one is a list. `array<int|string, V>`
      * (the shape `T[]` and `iterable<V>` resolve to) is a list, matching the phpstan path's treatment
      * of `T[]` / `iterable<T>`.
+     *
+     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
      */
     private function isMap(CollectionType $type): bool
     {
@@ -367,6 +370,8 @@ final readonly class JsonSchemaFromType
     /**
      * Whether the collection wraps an array/iterable builtin or one of the recognised collection
      * classes; a generic over any other class (e.g. `JsonResource<int>`) is not array-like.
+     *
+     * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
      */
     private function isArrayLikeCollection(CollectionType $type): bool
     {

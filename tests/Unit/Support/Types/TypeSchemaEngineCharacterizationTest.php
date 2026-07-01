@@ -11,6 +11,7 @@ use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
 use stdClass;
+use Symfony\Component\TypeInfo\Type;
 
 uses()->group('openapi');
 
@@ -68,6 +69,7 @@ it('class 3: DateTime object formats to string/date-time (no leaf callback overr
         parsePhpDocType('\DateTimeImmutable'),
         new ReflectionClass(stdClass::class),
     );
+    assert($type instanceof Type);
 
     $schema = json_decode(json_encode(characterizationEngine()->fromType($type)), associative: true);
 
@@ -94,6 +96,7 @@ it('class 6: a nullable type is wrapped exactly once', function (): void {
         parsePhpDocType('?int'),
         new ReflectionClass(stdClass::class),
     );
+    assert($type instanceof Type);
 
     $schema = characterizationEngine()->fromType($type);
 
@@ -126,6 +129,7 @@ it('class 10: exotic Type subclasses land on the non-crashing fallback', functio
         parsePhpDocType('\stdClass&\Countable'),
         new ReflectionClass(stdClass::class),
     );
+    assert($type instanceof Type);
 
     $schema = json_decode(json_encode(characterizationEngine()->fromType($type)), associative: true);
 
