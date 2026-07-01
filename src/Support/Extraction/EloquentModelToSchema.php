@@ -22,7 +22,6 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
-use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
@@ -87,7 +86,6 @@ final class EloquentModelToSchema
     public function __construct(
         private readonly ComponentSchemaRegistry $registry,
         private readonly JsonSchemaFromType $jsonSchemaFromType,
-        private readonly TypeNodeToSchema $typeNodeToSchema,
         private readonly TypeResolver $typeResolver,
         private readonly TypeNodeResolver $typeNodeResolver,
         private readonly DocBlockParser $docBlockParser,
@@ -486,15 +484,12 @@ final class EloquentModelToSchema
         TypeNode $node,
         ReflectionClass $reflection,
     ): ?OA\Property {
-        // TypeNodeToSchema handles array shapes and list/map forms; classTagSchema handles
-        // model $refs and non-model classes. Nullability is applied by the resolver.
-        $schema = $this->typeNodeToSchema->resolve(
-            $node,
-            $reflection,
-            $this->classTagSchema(...),
-        );
+        // The unified engine handles array shapes, list/map forms, and scalars; classTagSchema (the
+        // leaf-class callback) handles model $refs and non-model classes. Nullability is applied by
+        // the engine. The boundary returns null for an unresolvable type string, so we degrade.
+        $type = $this->typeNodeResolver->toType($node, $reflection);
 
-        if ($schema === null) {
+        if ($type === null) {
             $this->logger->warning('EloquentModelToSchema: unresolvable @property type, using empty fallback', [
                 'model' => $reflection->getName(),
                 'property' => $name,
@@ -504,7 +499,10 @@ final class EloquentModelToSchema
             return null;
         }
 
-        return $this->propertyFromSchema($name, $schema);
+        return $this->propertyFromSchema(
+            $name,
+            $this->jsonSchemaFromType->fromType($type, $this->classTagSchema(...)),
+        );
     }
 
     /**
@@ -687,7 +685,7 @@ final class EloquentModelToSchema
 
     /**
      * Related models become a pooled `$ref`; other classes are shaped by JsonSchemaFromType.
-     * Supplied as the class-schema strategy to TypeNodeToSchema.
+     * Supplied as the leaf-class callback to JsonSchemaFromType.
      *
      * @throws ReflectionException
      */

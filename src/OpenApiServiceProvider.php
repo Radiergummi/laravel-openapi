@@ -463,7 +463,6 @@ class OpenApiServiceProvider extends ServiceProvider
                 => new Support\Extraction\EloquentModelToSchema(
                     registry: $app->make(ComponentSchemaRegistry::class),
                     jsonSchemaFromType: $app->make(Support\Generator\JsonSchemaFromType::class),
-                    typeNodeToSchema: $app->make(Support\Types\TypeNodeToSchema::class),
                     typeResolver: $app->make(TypeResolver::class),
                     typeNodeResolver: $app->make(TypeNodeResolver::class),
                     docBlockParser: $app->make(DocBlockParser::class),

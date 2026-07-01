@@ -15,7 +15,6 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
-use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\AbstractModel;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\AttributesDefaultArticle;
@@ -53,7 +52,6 @@ function buildModelSchema(string $modelClass, bool $readMigrationColumns = true)
     $reader = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
@@ -149,7 +147,6 @@ it('maps an enum cast to a $ref into a shared reusable enum component', function
     $reader = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),
@@ -190,7 +187,6 @@ it('emits a $ref for a @property-read model relation and registers the nested co
     $reader = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),

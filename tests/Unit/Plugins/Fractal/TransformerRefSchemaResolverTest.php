@@ -17,7 +17,6 @@ use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\SingleReturnArrayLiteralFinder;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
-use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\DynamicBodyTransformer;
 use Radiergummi\OpenApi\Tests\Fixtures\Transformers\InferredArticleTransformer;
 use Symfony\Component\TypeInfo\TypeResolver\TypeResolver;
@@ -37,7 +36,6 @@ function makeTransformerRefResolver(): TransformerRefSchemaResolver
         modelToSchema: new EloquentModelToSchema(
             registry: $registry,
             jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-            typeNodeToSchema: new TypeNodeToSchema(),
             typeResolver: TypeResolver::create(),
             typeNodeResolver: TypeNodeResolver::create(),
             docBlockParser: DocBlockParser::create(),
