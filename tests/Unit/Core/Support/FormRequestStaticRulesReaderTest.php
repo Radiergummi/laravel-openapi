@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestStaticRulesReader;
+use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\FormRequestStatic\BareReturnFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FormRequestStatic\ComputedRulesFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FormRequestStatic\ConditionalTweakFormRequest;
@@ -20,7 +21,7 @@ uses()->group('openapi');
  */
 function readStaticRules(string $formRequest): ?array
 {
-    $reader = new FormRequestStaticRulesReader();
+    $reader = new FormRequestStaticRulesReader(new MethodBodyScanner());
 
     return $reader->read(new ReflectionMethod($formRequest, 'rules'));
 }

@@ -28,7 +28,7 @@ use function sprintf;
 final readonly class FormRequestRulesReader
 {
     public function __construct(
-        private FormRequestStaticRulesReader $staticRulesReader = new FormRequestStaticRulesReader(),
+        private FormRequestStaticRulesReader $staticRulesReader,
     ) {}
 
     /**

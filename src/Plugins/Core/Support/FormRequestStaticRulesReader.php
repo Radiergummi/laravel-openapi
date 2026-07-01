@@ -43,7 +43,7 @@ final readonly class FormRequestStaticRulesReader
     private SingleReturnArrayLiteralFinder $bareReturnFinder;
 
     public function __construct(
-        private MethodBodyScanner $scanner = new MethodBodyScanner(),
+        private MethodBodyScanner $scanner,
     ) {
         $this->bareReturnFinder = new SingleReturnArrayLiteralFinder($this->scanner);
     }
