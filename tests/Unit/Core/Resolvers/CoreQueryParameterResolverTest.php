@@ -7,7 +7,6 @@ use OpenApi\Generator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
-use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidatorRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\RequestQueryAccessorReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -30,7 +29,7 @@ function makeCoreQueryParameterResolver(?LoggerInterface $logger = null): CoreQu
         validationReader: new InlineValidatorRulesReader($scanner),
         rulesMapper: new ValidationRulesToSchema(),
         logger: $logger ?? new NullLogger(),
-        formRequestRulesReader: new FormRequestRulesReader(),
+        formRequestRulesReader: formRequestRulesReader(),
         scanner: new PayloadParameterScanner(),
     );
 }

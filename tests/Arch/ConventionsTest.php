@@ -33,6 +33,25 @@ foreach ($plugins as $plugin) {
         );
 }
 
+// Scoped-scanner integrity — the #[Scoped] MethodBodyScanner holds a per-run AST cache, so a
+// constructor parameter defaulting to `= new MethodBodyScanner()` would hand any hand-constructed
+// consumer a private, empty-cache instance and defeat the shared cache. Production consumers must
+// require the dependency and let the container autowire the one scoped instance. Scoped narrowly to
+// ctor-parameter defaults: factory bodies (`create()`) legitimately build a scanner for test use.
+test('no src class defaults a constructor parameter to a new MethodBodyScanner', function (): void {
+    $offenders = [];
+
+    foreach (phpFilesUnder(srcPath()) as $file) {
+        $contents = file_get_contents($file);
+
+        if ($contents !== false && preg_match('/=\s*new\s+MethodBodyScanner\s*\(/', $contents) === 1) {
+            $offenders[] = $file;
+        }
+    }
+
+    expect($offenders)->toBe([]);
+});
+
 // @internal isolation — the documented public extension surface (Contracts/) must not leak
 // implementation types tagged @internal. Reflection-based rather than a namespace denylist:
 // Contracts legitimately uses non-@internal classes that live alongside @internal ones (e.g.

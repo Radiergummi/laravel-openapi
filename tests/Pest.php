@@ -6,7 +6,10 @@ use Pest\Expectation;
 use PHPUnit\Framework\Assert;
 use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
+use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestStaticRulesReader;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
+use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\TestCase;
 use Symfony\Component\Yaml\Yaml;
@@ -87,6 +90,16 @@ function generateSpec(?string $specName = null, string $environment = 'testing')
     $env = $environment !== 'testing' ? $environment : app()->environment();
 
     return Yaml::parse(app(OpenApiGenerator::class)->generate($spec, $env)->toYaml());
+}
+
+/**
+ * A {@see FormRequestRulesReader} backed by a fresh scanner, for tests that construct the reader
+ * directly. Production wires the whole chain onto the one scoped {@see MethodBodyScanner}; tests
+ * that build it by hand supply their own scanner here.
+ */
+function formRequestRulesReader(): FormRequestRulesReader
+{
+    return new FormRequestRulesReader(new FormRequestStaticRulesReader(new MethodBodyScanner()));
 }
 
 /**

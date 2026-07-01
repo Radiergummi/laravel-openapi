@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Tests\Fixtures\FormRequestQuery\SearchFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FormRequestQuery\ThrowingRulesFormRequest;
 use Radiergummi\OpenApi\Tests\Fixtures\FormRequestStatic\ComputedRulesFormRequest;
@@ -13,7 +12,7 @@ use Radiergummi\OpenApi\Tests\Fixtures\SimpleFormRequest;
 uses()->group('openapi');
 
 beforeEach(function (): void {
-    $this->reader = new FormRequestRulesReader();
+    $this->reader = formRequestRulesReader();
 });
 
 it('returns the raw, unmapped rules array', function (): void {

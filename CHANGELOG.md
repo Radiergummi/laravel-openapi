@@ -86,6 +86,7 @@ All notable changes to this project are documented here.
 - `path.parameter-undeclared` no longer false-positives on custom-key route bindings (`{param:field}`); URI-placeholder extraction is now shared between the generator and the linter. (#426)
 - A resourceful `destroy` that returns `response()->json([...])` now documents the real `200` and its body instead of a bogus `204 No Content`; the conventional `204` applies only to genuinely body-less actions (`noContent()`, a bare `new JsonResponse()`, or an empty `response()->json([])`). (#452)
 - Survey tooling: `tools/survey/metrics.php` resolves its Composer autoloader from the main checkout when run from a git worktree (which has no `vendor/` of its own), so parsing a YAML published spec no longer fatals and false-FAILs those apps. (#468)
+- Each controller source file is now parsed once per generation run: the FormRequest rules readers no longer hand-roll a private `MethodBodyScanner` via constructor defaults, so every production consumer autowires the one `#[Scoped]` scanner and shares its per-run AST cache. (#485)
 
 ### Documentation
 - README refreshed for the current feature set (Tier-1 method-body inference, SwaggerPhp plugin) and trimmed to a gentle overview that defers detail to `docs/`.
