@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Lint;
 
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Attributes\IgnoreLint;
+use Radiergummi\OpenApi\Attributes\Webhook;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintOptions;
@@ -29,6 +30,15 @@ class InlineResponseReturnTypeController
 #[IgnoreLint('operation.return-type-missing', reason: 'intentional')]
 class SuppressedReturnTypeController
 {
+    public function untyped(): mixed
+    {
+        return null;
+    }
+}
+
+class WebhookReturnTypeController
+{
+    #[Webhook(name: 'order.shipped')]
     public function untyped(): mixed
     {
         return null;
@@ -110,4 +120,11 @@ it('is suppressed by #[IgnoreLint] on the controller class', function (): void {
     app()->forgetScopedInstances();
 
     expect(returnTypeMissingFindings('rt/suppressed'))->toBe([]);
+});
+
+it('does not fire for a webhook action, which is not response-schema-bearing', function (): void {
+    Route::post('rt/webhook', [WebhookReturnTypeController::class, 'untyped'])->name('rt.webhook');
+    app()->forgetScopedInstances();
+
+    expect(returnTypeMissingFindings('rt/webhook'))->toBe([]);
 });
