@@ -111,6 +111,7 @@ use Radiergummi\OpenApi\Lint\Rules\VisibilityAttributeNoOp;
 use Radiergummi\OpenApi\Lint\Rules\WebhookDescriptionMissing;
 use Radiergummi\OpenApi\Lint\Rules\WebhookNameDuplicate;
 use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Extraction\TypedReturnResponseResolver;
 use Radiergummi\OpenApi\Support\Generator\Stages\ComponentsStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\ErrorResponseInferenceStage;
 use Radiergummi\OpenApi\Support\Generator\Stages\OverridesStage;
@@ -273,6 +274,11 @@ final class BaselineRegistration
         foreach ($plugins as $pluginClass) {
             $container->make($pluginClass)->register($registry);
         }
+
+        // Registered after the plugin loop so it is the last primary-response resolver: the
+        // convention plugins win wherever they apply; this language-level typed-return fallback fires
+        // only when they all decline (and when Core is disabled entirely).
+        $registry->addPrimaryResponseResolver(TypedReturnResponseResolver::class);
 
         // ComponentsStage runs after the plugin loop so late schema contributors are included.
         $registry->addStage(ComponentsStage::class);
