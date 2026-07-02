@@ -61,7 +61,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
-- Widened dependency support: `zircote/swagger-php` `^5.8 || ^6.1.2` and `symfony/type-info` `^7.3 || ^8.0`; PHPDoc parsing now uses `phpstan/phpdoc-parser` + `symfony/type-info`.
+- Widened dependency support: `zircote/swagger-php` `^5.8 || ^6.1.2` and `symfony/type-info` `^7.4 || ^8.0`; PHPDoc parsing now uses `phpstan/phpdoc-parser` + `symfony/type-info`.
 - Auto-derived operation tags come from the controller's pluralised short class name; operation-ID derivation is selectable via `openapi.operation_id_strategy`.
 - Pipeline order is expressed as a single ordered sequence in `BaselineRegistration::assemble()`; resolver fault isolation is centralized in `ResolverFaultBoundary`; pipeline classes are scoped singletons (Octane-safe).
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).

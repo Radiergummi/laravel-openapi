@@ -140,9 +140,10 @@ final class TypeNodeResolver
 
     /**
      * Works around a symfony/type-info quirk: a bare same-namespace class name (no `use` import) is
-     * wrapped in a {@see CollectionType} even though it is a plain object. A genuine array/collection
-     * generic wraps a {@see GenericType}, so a CollectionType wrapping any non-GenericType is the
-     * quirk and gets unwrapped to the real type.
+     * wrapped in a {@see CollectionType} even though it is a plain object. The quirk always wraps an
+     * {@see ObjectType}, so only that case is unwrapped — a genuine array/collection wraps a
+     * {@see GenericType} (`array<K, V>`, `list<T>`, `Collection<T>`) or a bare {@see BuiltinType}
+     * (bare `array` / `iterable`), and both must survive as CollectionType for the list/map mapping.
      */
     private function normalizeSameNamespaceClass(Type $type): Type
     {
@@ -150,7 +151,7 @@ final class TypeNodeResolver
             return Type::nullable($this->normalizeSameNamespaceClass($type->getWrappedType()));
         }
 
-        if ($type instanceof CollectionType && !$type->getWrappedType() instanceof GenericType) {
+        if ($type instanceof CollectionType && $type->getWrappedType() instanceof ObjectType) {
             return $type->getWrappedType();
         }
 

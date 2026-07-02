@@ -120,6 +120,13 @@ it('resolves array<int, T> into a list of T', function (): void {
         ->and($schema['items']['type'])->toBe('string');
 });
 
+it('maps bare array and bare iterable to an untyped array (not the unmapped-string stub)', function (): void {
+    // Both resolve to a CollectionType wrapping a BuiltinType, which must survive normalization and
+    // reach the list mapping — the same-namespace unwrap only applies to a wrapped ObjectType.
+    expect(structuralSchema('array'))->toBe(['type' => 'array', 'items' => []])
+        ->and(structuralSchema('iterable'))->toBe(['type' => 'array', 'items' => []]);
+});
+
 // endregion
 
 // region Maps
