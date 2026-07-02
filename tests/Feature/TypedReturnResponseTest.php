@@ -133,6 +133,16 @@ class TypedReturnController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function objectUnion(): PlainReturnDto|PlainReturnAddress
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function nullableDto(): ?PlainReturnDto
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
 function typedReturnSchema(string $uri): mixed
@@ -293,6 +303,30 @@ it('leaves a nested unbuildable object field unconstrained inside an array shape
     expect($schema['type'])->toBe('object')
         ->and($schema['properties']['ok']['type'])->toBe('boolean')
         ->and($schema['properties']['svc'])->toBe([]);
+});
+
+it('documents an object union return as a oneOf of component refs', function (): void {
+    Route::get('/typed/object-union', [TypedReturnController::class, 'objectUnion']);
+
+    $schema = typedReturnSchema('/typed/object-union');
+
+    // Union members are normalized (sorted) by the type engine, so assert the set, not the order.
+    $refs = array_map(static fn(array $member): string => $member['$ref'], $schema['oneOf'] ?? []);
+
+    expect($refs)->toEqualCanonicalizing([
+        '#/components/schemas/PlainReturnDto',
+        '#/components/schemas/PlainReturnAddress',
+    ]);
+});
+
+it('wraps a nullable plain-DTO return in the OAS 3.1 nullable idiom', function (): void {
+    Route::get('/typed/nullable-dto', [TypedReturnController::class, 'nullableDto']);
+
+    $schema = typedReturnSchema('/typed/nullable-dto');
+
+    expect($schema['oneOf'] ?? null)->toHaveCount(2)
+        ->and($schema['oneOf'][0]['$ref'])->toBe('#/components/schemas/PlainReturnDto')
+        ->and($schema['oneOf'][1])->toBe(['type' => 'null']);
 });
 
 it('shapes a plain DTO with every convention plugin disabled (language-level path)', function (): void {
