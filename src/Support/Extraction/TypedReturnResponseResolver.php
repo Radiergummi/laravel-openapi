@@ -156,9 +156,8 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
     /**
      * The engine's leaf callback for the array-shape / list / map paths: defer format objects and
      * backed enums to the engine, build a nested plain object into its own component, and leave an
-     * unbuildable nested object unconstrained (never the engine's "unmapped object" stub). The engine
-     * routes collection/container classes through its own collection handling, not here, so only plain
-     * object leaves reach this callback.
+     * unbuildable nested object unconstrained (never the engine's "unmapped object" stub). Collection
+     * and container classes are handled by the engine's own collection path, not routed here.
      *
      * @return callable(string): ?OA\Schema
      */
