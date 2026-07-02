@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Extensions\SchemaContext;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionClass;
 
 use function array_key_exists;
@@ -21,6 +22,7 @@ use function array_values;
 use function class_basename;
 use function class_exists;
 use function explode;
+use function in_array;
 use function md5;
 use function substr;
 
@@ -51,6 +53,13 @@ final class ComponentSchemaRegistry
      * @var array<string, OA\Parameter>
      */
     private array $parameters = [];
+    /**
+     * Producer/confidence metadata for the winning schema, keyed by component key. Side channel
+     * for `openapi:why`; never serialized into the document.
+     *
+     * @var array<string, SchemaProvenance>
+     */
+    private array $provenance = [];
     /**
      * @var array<string, string>
      */
@@ -84,7 +93,7 @@ final class ComponentSchemaRegistry
      * Reserves the key so a later class registration with the same basename is disambiguated
      * rather than silently overwriting it. Idempotent.
      */
-    public function registerNamed(string $key, OA\Schema $schema): void
+    public function registerNamed(string $key, OA\Schema $schema, ?SchemaProvenance $provenance = null): void
     {
         if (array_key_exists($key, $this->schemas)) {
             return;
@@ -99,6 +108,10 @@ final class ComponentSchemaRegistry
 
         $this->schemas[$key] = $schema;
         $this->keyToClass[$key] = self::NAMED_KEY_OWNER;
+
+        if ($provenance !== null) {
+            $this->provenance[$key] = $provenance;
+        }
     }
 
     public function hasKey(string $key): bool
@@ -175,16 +188,22 @@ final class ComponentSchemaRegistry
      * @param class-string         $className
      * @param Closure(): OA\Schema $factory
      */
-    public function buildOnce(string $className, Closure $factory): string
+    public function buildOnce(string $className, Closure $factory, ?SchemaProvenance $provenance = null): string
     {
         if ($this->isInProgress($className) || $this->isRegisteredOrReserved($className)) {
+            // A second, different producer reached an already-owned class: record it as contested
+            // without building its schema (the cheap, always-on signal).
+            if ($provenance !== null) {
+                $this->recordContestedProducer($className, $provenance->producer);
+            }
+
             return $this->reserveKey($className);
         }
 
         $this->markInProgress($className);
 
         try {
-            $this->register($className, $factory());
+            $this->register($className, $factory(), $provenance);
         } finally {
             $this->markComplete($className);
         }
@@ -345,7 +364,7 @@ final class ComponentSchemaRegistry
      *
      * @param class-string $className
      */
-    public function register(string $className, OA\Schema $schema): void
+    public function register(string $className, OA\Schema $schema, ?SchemaProvenance $provenance = null): void
     {
         if (array_key_exists($className, $this->classToKey) && array_key_exists(
             $this->classToKey[$className],
@@ -366,6 +385,47 @@ final class ComponentSchemaRegistry
         );
 
         $this->schemas[$key] = $schema;
+
+        if ($provenance !== null) {
+            $this->provenance[$key] = $provenance;
+        }
+    }
+
+    /**
+     * Appends a losing producer to the winning schema's provenance without building its schema.
+     *
+     * No-op when the class has no key yet, its winner carries no provenance (the cycle guard
+     * reserved the key but no producer stored one), the contender is the winning producer itself,
+     * or the contender is already recorded.
+     *
+     * @param class-string $className
+     * @param class-string $contender
+     */
+    private function recordContestedProducer(string $className, string $contender): void
+    {
+        $key = $this->classToKey[$className] ?? null;
+
+        if ($key === null) {
+            return;
+        }
+
+        $existing = $this->provenance[$key] ?? null;
+
+        if ($existing === null || $existing->producer === $contender) {
+            return;
+        }
+
+        if (in_array($contender, $existing->supersededBy, strict: true)) {
+            return;
+        }
+
+        // SchemaProvenance is readonly; grow supersededBy by replacing the entry, not mutating it.
+        $this->provenance[$key] = new SchemaProvenance(
+            $existing->producer,
+            $existing->degraded,
+            $existing->reason,
+            [...$existing->supersededBy, $contender],
+        );
     }
 
     /**
@@ -382,6 +442,38 @@ final class ComponentSchemaRegistry
     public function keyFor(string $className): ?string
     {
         return $this->classToKey[$className] ?? null;
+    }
+
+    /**
+     * Returns the producer/confidence metadata for a component key, or null when none was recorded
+     * (e.g. a key reserved by the cycle guard that never received a producer).
+     */
+    public function provenanceFor(string $key): ?SchemaProvenance
+    {
+        return $this->provenance[$key] ?? null;
+    }
+
+    /**
+     * Returns the producer/confidence metadata for a class's component, or null when the class is
+     * unreserved or its winning schema carried no provenance.
+     *
+     * @param class-string $className
+     */
+    public function provenanceForClass(string $className): ?SchemaProvenance
+    {
+        $key = $this->classToKey[$className] ?? null;
+
+        return $key === null ? null : ($this->provenance[$key] ?? null);
+    }
+
+    /**
+     * Returns the recorded producer/confidence metadata keyed by component key.
+     *
+     * @return array<string, SchemaProvenance>
+     */
+    public function allProvenance(): array
+    {
+        return $this->provenance;
     }
 
     /**

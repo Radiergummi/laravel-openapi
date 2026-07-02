@@ -18,6 +18,7 @@ use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionClassConstant;
@@ -68,6 +69,7 @@ final readonly class SchemaFromFormRequest
         $key = $this->registry->buildOnce(
             $formRequestClass,
             fn(): OA\Schema => $this->buildSchema($formRequestClass),
+            new SchemaProvenance(self::class),
         );
 
         return new OA\Schema(['ref' => $this->registry->qualifyKey($key)]);

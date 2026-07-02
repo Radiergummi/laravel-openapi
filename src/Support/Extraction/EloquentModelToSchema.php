@@ -21,6 +21,7 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
 use ReflectionException;
@@ -711,6 +712,7 @@ final class EloquentModelToSchema
         return $this->registry->buildOnce(
             $modelClass,
             fn(): OA\Schema => $this->schemaFor($modelClass),
+            new SchemaProvenance(self::class),
         );
     }
 
