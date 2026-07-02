@@ -8,7 +8,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route as RouteFacade;
+use Radiergummi\OpenApi\Attributes\Deprecated;
+use Radiergummi\OpenApi\Attributes\Description;
+use Radiergummi\OpenApi\Attributes\ExternalDocs;
 use Radiergummi\OpenApi\Attributes\Operation;
+use Radiergummi\OpenApi\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Attributes\Response;
 use Radiergummi\OpenApi\Attributes\Summary;
 
@@ -61,6 +65,29 @@ class ProvenanceDocblockController extends Controller
 class ProvenancePlainController extends Controller
 {
     public function arbitrary(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+}
+
+class ProvenanceTotalController extends Controller
+{
+    #[Description('A described action')]
+    #[Operation(operationId: 'total.described')]
+    #[ExternalDocs('https://example.test/docs')]
+    public function described(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+
+    #[Deprecated('Use v2')]
+    public function retired(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+
+    #[PublicEndpoint]
+    public function open(): JsonResponse
     {
         return new JsonResponse();
     }
@@ -175,3 +202,64 @@ it('prints no Fields block without the --fields flag', function (): void {
 
     expect(str_contains($output, 'Fields:'))->toBeFalse();
 });
+
+// region Total provenance — fields that carried no provenance before #482
+
+it('reports provenance for description, operationId, and externalDocs', function (): void {
+    RouteFacade::get('total/described', [ProvenanceTotalController::class, 'described'])
+        ->name('total.described');
+    app()->forgetScopedInstances();
+
+    $output = whyOutput('total.described');
+
+    expect($output)
+        ->toContain('description')
+        ->toContain('A described action')
+        ->toContain('#[Description] (method)')
+        ->toContain('operationId')
+        ->toContain('total.described')
+        ->toContain('externalDocs')
+        ->toContain('https://example.test/docs')
+        ->toContain('#[ExternalDocs]');
+});
+
+it('reports provenance for a deprecated flag from the attribute', function (): void {
+    RouteFacade::get('total/retired', [ProvenanceTotalController::class, 'retired'])
+        ->name('total.retired');
+    app()->forgetScopedInstances();
+
+    $output = whyOutput('total.retired');
+
+    expect($output)
+        ->toContain('deprecated')
+        ->toContain('#[Deprecated]');
+});
+
+it('reports public security provenance for a #[PublicEndpoint] action', function (): void {
+    RouteFacade::get('total/open', [ProvenanceTotalController::class, 'open'])
+        ->name('total.open');
+    app()->forgetScopedInstances();
+
+    $output = whyOutput('total.open');
+
+    expect($output)
+        ->toContain('security')
+        ->toContain('#[PublicEndpoint]');
+});
+
+it('reports public security via middleware for a route with no auth middleware', function (): void {
+    RouteFacade::get('total/plain', [ProvenancePlainController::class, 'arbitrary'])
+        ->name('total.plain');
+    app()->forgetScopedInstances();
+
+    $output = whyOutput('total.plain');
+
+    // No auth middleware and no #[PublicEndpoint]: the security extractor returns an empty (public)
+    // requirement, attributed to the middleware source with the no-middleware reason.
+    expect($output)
+        ->toContain('security')
+        ->toContain('public')
+        ->toContain('no auth middleware on the route');
+});
+
+// endregion

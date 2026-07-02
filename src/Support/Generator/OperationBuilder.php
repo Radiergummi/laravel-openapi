@@ -38,8 +38,10 @@ use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Provenance\FieldCandidate;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
+use Radiergummi\OpenApi\Support\Provenance\ResolvedField;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
@@ -52,6 +54,7 @@ use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
 use function array_any;
 use function array_filter;
+use function array_keys;
 use function array_map;
 use function array_merge;
 use function array_unique;
@@ -264,7 +267,7 @@ final readonly class OperationBuilder
         $this->applyLinkAttributes($action, $primaryResponse);
 
         [$summary, $summaryProvenance] = $this->resolveSummary($action, $resolvedConvention);
-        $description = $this->resolveDescription($action);
+        [$description, $descriptionProvenance] = $this->resolveDescription($action);
 
         if ($operationOverride !== null) {
             $baseTags = match (true) {
@@ -289,11 +292,17 @@ final readonly class OperationBuilder
         }
 
         $tags = $this->mergeTags($baseTags, $additionalTags);
+        $operationId = $operationOverride?->operationId;
 
         $provenance = array_values(array_filter([
             $summaryProvenance,
+            $descriptionProvenance,
             $statusProvenance,
             $this->tagProvenance($tags, $operationOverride, $additionalTags),
+            $this->deprecatedProvenance($action, $deprecation),
+            $this->operationIdProvenance($operationId),
+            $this->externalDocsProvenance($externalDocs),
+            $this->securityProvenance($action, $security),
         ]));
 
         return new OperationDescriptor(
@@ -305,7 +314,7 @@ final readonly class OperationBuilder
             responses: $responses,
             requestBody: $requestBody,
             deprecated: $deprecation !== null,
-            operationId: $operationOverride?->operationId,
+            operationId: $operationId,
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
@@ -1169,33 +1178,46 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(SummaryAttribute::class),
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
-
         $conventionSummary = $convention?->convention->summary;
-        $summary = $methodAttr ?? $descriptor->summary ?? $classAttr ?? $conventionSummary;
+        $conventionSource = $convention?->resolver !== null
+            ? class_basename($convention->resolver)
+            : 'convention';
 
-        if ($summary === null) {
+        $resolved = ResolvedField::merge('summary', [
+            $this->candidate($methodAttr, '#[Summary] (method)', 'author override'),
+            $this->candidate($descriptor->summary, 'docblock', 'method docblock summary'),
+            $this->candidate($classAttr, '#[Summary] (class)', 'class-level override'),
+            $this->candidate(
+                $conventionSummary,
+                $conventionSource,
+                $this->conventionReason($descriptor),
+                $conventionSummary !== null ? "convention '{$conventionSummary}'" : null,
+            ),
+        ]);
+
+        if ($resolved === null) {
             return [null, null];
         }
 
-        // The winning branch decides the source; the convention is the only candidate worth
-        // showing as superseded, since it is what surprises authors who expected it to apply.
-        [$source, $reason] = match (true) {
-            $methodAttr !== null => ['#[Summary] (method)', 'author override'],
-            $descriptor->summary !== null => ['docblock', 'method docblock summary'],
-            $classAttr !== null => ['#[Summary] (class)', 'class-level override'],
-            default => [
-                $convention?->resolver !== null ? class_basename($convention->resolver) : 'convention',
-                $this->conventionReason($descriptor),
-            ],
-        };
+        /** @var string $summary */
+        $summary = $resolved->value;
 
-        $superseded = [];
+        return [$summary, $resolved->toProvenance($summary)];
+    }
 
-        if ($summary !== $conventionSummary && $conventionSummary !== null) {
-            $superseded[] = "convention '{$conventionSummary}'";
-        }
-
-        return [$summary, new FieldProvenance('summary', $summary, $source, $reason, $superseded)];
+    /**
+     * A present {@see FieldCandidate} when `$value` is non-null, else an absent one. Absent
+     * candidates never win and are never recorded as superseded, so their `$reason` is cosmetic.
+     */
+    private function candidate(
+        mixed $value,
+        string $source,
+        string $reason,
+        ?string $supersededLabel = null,
+    ): FieldCandidate {
+        return $value === null
+            ? FieldCandidate::absent($source, $reason)
+            : FieldCandidate::present($value, $source, $reason, $supersededLabel);
     }
 
     /**
@@ -1211,23 +1233,45 @@ final readonly class OperationBuilder
         ?ResolvedConvention $convention,
         ActionDescriptor $descriptor,
     ): FieldProvenance {
-        [$source, $reason, $superseded] = match (true) {
-            $hasResponseOverride => ['#[Response] (method)', 'author override', []],
-            $bodyScannedExplicit => ['response body', 'explicit status in handler body', []],
-            $conventionSuppressedByBody => [
-                'response body',
-                'content-bearing body overrides the conventional 204',
-                [],
-            ],
-            $convention?->convention->successStatusCode !== null => [
-                class_basename($convention->resolver),
-                $this->conventionReason($descriptor),
-                [],
-            ],
-            default => ['default', 'no convention matched', []],
-        };
+        // The winning status value is already resolved; exactly one branch decided it, so only that
+        // branch's candidate is present. Status records no superseded candidates (matching today's
+        // provenance), which holds because every non-deciding branch — including the `default`
+        // fallback — is absent.
+        $conventional = $convention?->convention->successStatusCode !== null;
+        $default = !$hasResponseOverride
+            && !$bodyScannedExplicit
+            && !$conventionSuppressedByBody
+            && !$conventional;
 
-        return new FieldProvenance('status', $status, $source, $reason, $superseded);
+        $resolved = ResolvedField::merge('status', [
+            $hasResponseOverride
+                ? FieldCandidate::present($status, '#[Response] (method)', 'author override')
+                : FieldCandidate::absent('#[Response] (method)', 'no 2xx response attribute'),
+            $bodyScannedExplicit
+                ? FieldCandidate::present($status, 'response body', 'explicit status in handler body')
+                : FieldCandidate::absent('response body', 'no explicit body status'),
+            $conventionSuppressedByBody
+                ? FieldCandidate::present(
+                    $status,
+                    'response body',
+                    'content-bearing body overrides the conventional 204',
+                )
+                : FieldCandidate::absent('response body', 'convention not suppressed by body'),
+            $conventional
+                ? FieldCandidate::present(
+                    $status,
+                    class_basename($convention->resolver),
+                    $this->conventionReason($descriptor),
+                )
+                : FieldCandidate::absent('convention', 'no convention status'),
+            $default
+                ? FieldCandidate::present($status, 'default', 'no convention matched')
+                : FieldCandidate::absent('default', 'a higher-precedence branch decided'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($status);
     }
 
     /**
@@ -1247,20 +1291,150 @@ final readonly class OperationBuilder
         }
 
         $value = implode(', ', $tags);
+        $replaces = $operationOverride?->tags !== null && $operationOverride->replace;
+        $merges = $operationOverride?->tags !== null && !$replaces;
+        $tagAttributes = !$merges && !$replaces && $additionalTags !== [];
 
-        if ($operationOverride?->tags !== null && $operationOverride->replace) {
-            return new FieldProvenance('tags', $value, '#[Operation] (replace)', 'attribute tags replace controller-derived');
+        // Exactly one branch describes how the tag list was formed; the rest are absent, so tags
+        // record no superseded candidates (matching today's provenance).
+        $resolved = ResolvedField::merge('tags', [
+            $replaces
+                ? FieldCandidate::present($tags, '#[Operation] (replace)', 'attribute tags replace controller-derived')
+                : FieldCandidate::absent('#[Operation] (replace)', 'no replacing #[Operation] tags'),
+            $merges
+                ? FieldCandidate::present($tags, '#[Operation] (merge)', 'attribute tags merged with controller-derived')
+                : FieldCandidate::absent('#[Operation] (merge)', 'no merging #[Operation] tags'),
+            $tagAttributes
+                ? FieldCandidate::present($tags, '#[Tag]', 'attribute tags merged with controller-derived')
+                : FieldCandidate::absent('#[Tag]', 'no #[Tag] attributes'),
+            !$replaces && !$merges && !$tagAttributes
+                ? FieldCandidate::present($tags, 'controller-derived', 'controller short name')
+                : FieldCandidate::absent('controller-derived', 'a tag attribute decided'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($value);
+    }
+
+    /**
+     * Provenance for a `true` deprecation flag: the `#[Deprecated]`/native `\Deprecated` attribute
+     * wins over the `@deprecated` docblock tag. Absent when the operation is not deprecated.
+     */
+    private function deprecatedProvenance(ActionDescriptor $descriptor, ?string $deprecation): ?FieldProvenance
+    {
+        if ($deprecation === null) {
+            return null;
         }
 
-        if ($operationOverride?->tags !== null) {
-            return new FieldProvenance('tags', $value, '#[Operation] (merge)', 'attribute tags merged with controller-derived');
+        $hasAttribute = $this->firstDeprecatedAttribute($descriptor) !== null;
+
+        $resolved = ResolvedField::merge('deprecated', [
+            $hasAttribute
+                ? FieldCandidate::present(true, '#[Deprecated]', 'author override')
+                : FieldCandidate::absent('#[Deprecated]', 'no deprecation attribute'),
+            FieldCandidate::present(true, 'docblock', '@deprecated tag'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance('true');
+    }
+
+    /**
+     * Provenance for an author-set `operationId`. Only `#[Operation(operationId)]` supplies one, so
+     * this is a single-source entry; absent when unset.
+     */
+    private function operationIdProvenance(?string $operationId): ?FieldProvenance
+    {
+        $resolved = ResolvedField::merge('operationId', [
+            $this->candidate($operationId, '#[Operation]', 'author override'),
+        ]);
+
+        return $resolved?->toProvenance($operationId ?? '');
+    }
+
+    /**
+     * Provenance for an author-set `externalDocs`. Only `#[ExternalDocs]` supplies it; absent when
+     * unset.
+     */
+    private function externalDocsProvenance(?OA\ExternalDocumentation $externalDocs): ?FieldProvenance
+    {
+        if ($externalDocs === null) {
+            return null;
         }
 
-        if ($additionalTags !== []) {
-            return new FieldProvenance('tags', $value, '#[Tag]', 'attribute tags merged with controller-derived');
+        $url = is_string($externalDocs->url) ? $externalDocs->url : '';
+        $resolved = ResolvedField::merge('externalDocs', [
+            FieldCandidate::present($url, '#[ExternalDocs]', 'author override'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($url);
+    }
+
+    /**
+     * Provenance for the resolved `security`. Precedence mirrors {@see resolveSecurity()}:
+     * `#[PublicEndpoint]` (empty requirement) → `#[Security]` (method shadows class) → middleware.
+     * Absent when security is omitted (`null`): an unauthenticated, non-public operation.
+     *
+     * @param null|list<array<string, list<string>>> $security
+     */
+    private function securityProvenance(ActionDescriptor $descriptor, ?array $security): ?FieldProvenance
+    {
+        if ($security === null) {
+            return null;
         }
 
-        return new FieldProvenance('tags', $value, 'controller-derived', 'controller short name');
+        $isPublic = $this->hasAttribute($descriptor, PublicEndpoint::class);
+        $hasAttribute = !$isPublic && (
+            $descriptor->actionAttributes(SecurityAttribute::class) !== []
+            || $descriptor->controllerAttributes(SecurityAttribute::class) !== []
+        );
+        $value = $this->securityDisplayValue($security);
+        // An empty requirement is public regardless of source; a non-empty one came from middleware
+        // (the attribute and public cases are handled by the higher-precedence candidates).
+        $middlewareReason = $security === [] ? 'no auth middleware on the route' : 'auth middleware on the route';
+
+        $resolved = ResolvedField::merge('security', [
+            $isPublic
+                ? FieldCandidate::present($security, '#[PublicEndpoint]', 'declared public')
+                : FieldCandidate::absent('#[PublicEndpoint]', 'not marked public'),
+            $hasAttribute
+                ? FieldCandidate::present($security, '#[Security]', 'author override')
+                : FieldCandidate::absent('#[Security]', 'no security attribute'),
+            !$isPublic && !$hasAttribute
+                ? FieldCandidate::present($security, 'middleware', $middlewareReason)
+                : FieldCandidate::absent('middleware', 'a higher-precedence source decided'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($value);
+    }
+
+    /**
+     * A compact display string for a security requirement list: the scheme names, or `public` for
+     * the empty (explicitly public) requirement.
+     *
+     * @param list<array<string, list<string>>> $security
+     */
+    private function securityDisplayValue(array $security): string
+    {
+        if ($security === []) {
+            return 'public';
+        }
+
+        $schemes = [];
+
+        foreach ($security as $requirement) {
+            foreach (array_keys($requirement) as $scheme) {
+                $schemes[$scheme] = true;
+            }
+        }
+
+        return implode(', ', array_keys($schemes));
     }
 
     /**
@@ -1290,8 +1464,14 @@ final readonly class OperationBuilder
         return ($operationAttributes[0] ?? null)?->newInstance()->summary;
     }
 
-    /** Same precedence as {@see resolveSummary()}. */
-    private function resolveDescription(ActionDescriptor $descriptor): ?string
+    /**
+     * Same precedence as {@see resolveSummary()}: method `#[Description]`/`#[Operation]` → docblock
+     * → class `#[Description]`/`#[Operation]`. Returns the resolved description and its provenance
+     * (null provenance when no source supplied one).
+     *
+     * @return array{0: ?string, 1: ?FieldProvenance}
+     */
+    private function resolveDescription(ActionDescriptor $descriptor): array
     {
         $methodAttr = $this->readScopedDescription(
             $descriptor->actionAttributes(DescriptionAttribute::class),
@@ -1302,7 +1482,20 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
 
-        return $methodAttr ?? $descriptor->description ?? $classAttr;
+        $resolved = ResolvedField::merge('description', [
+            $this->candidate($methodAttr, '#[Description] (method)', 'author override'),
+            $this->candidate($descriptor->description, 'docblock', 'method docblock description'),
+            $this->candidate($classAttr, '#[Description] (class)', 'class-level override'),
+        ]);
+
+        if ($resolved === null) {
+            return [null, null];
+        }
+
+        /** @var string $description */
+        $description = $resolved->value;
+
+        return [$description, $resolved->toProvenance($description)];
     }
 
     /**
