@@ -820,13 +820,14 @@ final readonly class OperationBuilder
     ): FieldProvenance {
         // The winning status value is already resolved; exactly one branch decided it, so only that
         // branch's candidate is present. Status records no superseded candidates (matching today's
-        // provenance), which holds because every non-deciding branch — including the `default`
-        // fallback — is absent.
-        $conventional = $convention?->convention->successStatusCode !== null;
-        $default = !$hasResponseOverride
-            && !$bodyScannedExplicit
-            && !$conventionSuppressedByBody
-            && !$conventional;
+        // provenance), which holds because every non-deciding branch is absent — including the
+        // convention candidate when a higher-precedence branch (an explicit #[Response], a
+        // body-scanned status, or a content-bearing body suppressing a 204) already won, and the
+        // `default` fallback. A richer superseded record for status belongs to #484, not this
+        // byte-identical PR.
+        $higherBranchWon = $hasResponseOverride || $bodyScannedExplicit || $conventionSuppressedByBody;
+        $conventional = !$higherBranchWon && $convention?->convention->successStatusCode !== null;
+        $default = !$higherBranchWon && !$conventional;
 
         $resolved = ResolvedField::merge('status', [
             $hasResponseOverride

@@ -161,7 +161,11 @@ it('reports an explicit #[Response] status as the source, not the convention', f
     expect($output)
         ->toContain('status')
         ->toContain('201')
-        ->toContain('#[Response] (method)');
+        ->toContain('#[Response] (method)')
+        // The explicit #[Response] status records no superseded candidate: an author override that
+        // pre-empts the convention leaves supersededBy empty. A richer record belongs to #484, not
+        // this byte-identical PR — pin it so the merge order can't drift silently.
+        ->and(str_contains($output, 'superseded'))->toBeFalse();
 });
 
 it('degrades to default status and absent summary when no convention matches', function (): void {
