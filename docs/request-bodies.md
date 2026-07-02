@@ -13,7 +13,7 @@ validation.
 A request body is only attached to a **write verb** (`POST`/`PUT`/`PATCH`). A
 `FormRequest` type-hinted on a **GET/HEAD** action surfaces its `rules()` as
 **query parameters** instead of a request body (GET request bodies are
-discouraged by the OpenAPI spec) — see [Auto-derivation → Query parameters from
+discouraged by the OpenAPI spec) — see [Auto-derivation → Request parameters from
 the method body](auto-derivation.md#request-parameters-from-the-method-body). A
 `FormRequest` on a `DELETE` action is left unchanged (no body, no query params).
 
@@ -173,7 +173,7 @@ Boundaries, by design (no dataflow analysis):
 
 - Only **write methods** (POST/PUT/PATCH) produce a request body this way. On
   GET/HEAD routes the recovered keys become **query parameters** instead — see
-  [Auto-derivation → Query parameters from the method
+  [Auto-derivation → Request parameters from the method
   body](auto-derivation.md#request-parameters-from-the-method-body). A DELETE
   route gets neither: the validated fields may live in either place, so the
   generator refuses to guess and notes the action in the generation log —

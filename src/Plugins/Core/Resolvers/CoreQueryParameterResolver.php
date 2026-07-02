@@ -161,8 +161,11 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
      *
      * @param list<string> $unreadableAccessors
      */
-    private function noticeUnreadableAccessors(array $unreadableAccessors, ReflectionMethod $method, bool $bodylessVerb): void
-    {
+    private function noticeUnreadableAccessors(
+        array $unreadableAccessors,
+        ReflectionMethod $method,
+        bool $bodylessVerb,
+    ): void {
         /** @var array<string, list<string>> $byLocation */
         $byLocation = ['query' => [], 'cookie' => [], 'header' => []];
 
