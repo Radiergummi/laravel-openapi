@@ -15,6 +15,7 @@ use Radiergummi\OpenApi\Plugins\ApiResources\Resolvers\ResourceResponseResolver;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
 use Radiergummi\OpenApi\Support\Routing\GenericContainerReturnType;
+use Radiergummi\OpenApi\Support\Routing\LooseResponseReturnType;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionFunctionAbstract;
@@ -92,6 +93,15 @@ final readonly class ResourceClassLocator implements ResourceTargetLocator
         }
 
         if (!is_a($name, JsonResource::class, allow_string: true)) {
+            // A loose response wrapper (`JsonResponse`, `Response`, and their Symfony parents) is too
+            // generic to carry a resource type in its signature, but the action commonly returns a
+            // resource by convention (framework-coerced). Consult the body scan before giving up;
+            // a non-resource shape reads back null and keeps today's no-content behaviour. Silent,
+            // like the untyped/container paths, since most such actions are not resources.
+            if (LooseResponseReturnType::matches($returnType)) {
+                return $this->locateFromReturnExpression($descriptor, silent: true);
+            }
+
             return null;
         }
 

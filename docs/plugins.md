@@ -179,9 +179,11 @@ degrades to a permissive `items: { type: object }`.
 Many actions type their return as a **base** resource class — `JsonResource`, a
 bare `ResourceCollection`, or `AnonymousResourceCollection` — and name the
 concrete resource only in the method body. Others declare **no return type at
-all** (relying on convention or a third-party doc attribute), or a **generic
+all** (relying on convention or a third-party doc attribute), a **generic
 container** that carries no item type (`Illuminate\Support\Collection`, Eloquent
-`Collection`, `LazyCollection`, builtin `array`). In each case the signature
+`Collection`, `LazyCollection`, builtin `array`), or a **loose response wrapper**
+too generic to name a payload (`Illuminate\Http\JsonResponse`,
+`Illuminate\Http\Response`, and their Symfony parents). In each case the signature
 yields nothing concrete, so the generator reads the method's **return
 expression** (a bounded scan of the first 10 statements; no dataflow):
 
@@ -235,14 +237,28 @@ unresolvable — keep degrading.
 Anything else — a conditional return, a variable of unknown origin, an
 unrecognised chained call, a receiver that would need dataflow — degrades to the
 previous behaviour with a generation-log note; `#[ResponseResource]` is the
-escape hatch and always wins. On the **untyped** path that note is suppressed:
-the scan runs on every untyped action and most are not resources, so a notice
-per non-resource would be pure noise. The base-resource paths keep their notes.
+escape hatch and always wins. On the **untyped** and **loose-response-wrapper**
+paths that note is suppressed: the scan runs on every such action and most are
+not resources, so a notice per non-resource would be pure noise. The
+base-resource paths keep their notes.
 
 ### Collection endpoints
 
-For collection endpoints returning `JsonResponse` or an untyped value, name
-the resource and envelope explicitly:
+An action typed `JsonResponse` (or `Response`, or untyped) that returns a
+standard resource construction is now inferred from the body — no attribute
+needed:
+
+```php
+public function index(): JsonResponse
+{
+    return ProjectResource::collection(Project::query()->paginate());
+}
+```
+
+Reach for `#[ResponseResource]` only when the resource is not statically
+readable from the body (a genuinely loose runtime shape, a conditional return,
+or a receiver that would need dataflow); it names the resource and envelope
+explicitly and always wins:
 
 ```php
 #[OpenApi\ResponseResource(ProjectResource::class, collection: true)]

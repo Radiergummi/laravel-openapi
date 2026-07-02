@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Attributes\Collects;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Http\Response;
 use LogicException;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
 use stdClass;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class LocatorFixtureResource extends JsonResource {}
 
@@ -83,6 +86,58 @@ class LocatorFixtureController
     public function untypedNonResource()
     {
         return response()->json(['ok' => true]);
+    }
+
+    // The loose-return idiom under test: a JsonResponse/Response-typed action that returns a resource
+    // construction (framework-coerced at runtime). The declared-type mismatch is the point of the
+    // fixture, so the return.type contradiction is intentionally ignored per file convention.
+
+    public function jsonResponseMake(): JsonResponse
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return LocatorFixtureResource::make(new stdClass());
+    }
+
+    public function jsonResponseCollection(): JsonResponse
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return LocatorFixtureResource::collection([]);
+    }
+
+    public function jsonResponseNew(): JsonResponse
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return new LocatorFixtureResource(new stdClass());
+    }
+
+    public function illuminateResponseMake(): Response
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return LocatorFixtureResource::make(new stdClass());
+    }
+
+    public function symfonyResponseMake(): SymfonyResponse
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return LocatorFixtureResource::make(new stdClass());
+    }
+
+    public function jsonResponseNonResource(): JsonResponse
+    {
+        return response()->json(['ok' => true]);
+    }
+
+    public function looseReturnWithAttribute(): JsonResponse
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return LocatorFixtureResource::make(new stdClass());
+    }
+
+    #[ResponseResource(LocatorFixtureResource::class)]
+    public function looseReturnAttributed(): JsonResponse
+    {
+        /** @phpstan-ignore return.type (deliberately loose: the body scan must read the resource construction) */
+        return LocatorFixtureResource::make(new stdClass());
     }
 }
 
@@ -168,3 +223,53 @@ it('resolves the resource from the body of an untyped action', function (): void
 it('returns null for an untyped action that does not return a resource', function (): void {
     expect(ResourceClassLocator::create()->locate(locatorDescriptor('untypedNonResource')))->toBeNull();
 });
+
+// region GAP 1: loose response wrapper return types reach the body scan
+
+it('resolves a resource from the body of a JsonResponse-typed action', function (string $method): void {
+    $target = ResourceClassLocator::create()->locate(locatorDescriptor($method));
+
+    expect($target?->resourceClass)->toBe(LocatorFixtureResource::class);
+})->with([
+    'X::make()' => ['jsonResponseMake'],
+    'new X()' => ['jsonResponseNew'],
+]);
+
+it('resolves a collection from the body of a JsonResponse-typed action', function (): void {
+    $target = ResourceClassLocator::create()->locate(locatorDescriptor('jsonResponseCollection'));
+
+    expect($target?->resourceClass)
+        ->toBe(LocatorFixtureResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('resolves a resource for the parent Response / Symfony Response wrapper types', function (string $method): void {
+    $target = ResourceClassLocator::create()->locate(locatorDescriptor($method));
+
+    expect($target?->resourceClass)->toBe(LocatorFixtureResource::class);
+})->with([
+    'Illuminate\\Http\\Response' => ['illuminateResponseMake'],
+    'Symfony Response' => ['symfonyResponseMake'],
+]);
+
+it('does not claim a non-resource JsonResponse return (no double-claim with the inline-JSON resolver)', function (): void {
+    // A response()->json([...]) body under a JsonResponse type is Core's InlineJsonResponseResolver's
+    // to claim; the ApiResources path must read back null so the two never both fire.
+    expect(ResourceClassLocator::create()->locate(locatorDescriptor('jsonResponseNonResource')))->toBeNull();
+});
+
+// endregion
+
+// region Attribute-retirement proof: the loose-return inference makes #[ResponseResource] redundant
+
+it('infers the same resource with and without #[ResponseResource] on a loose JsonResponse return', function (): void {
+    $withAttribute = ResourceClassLocator::create()->locate(locatorDescriptor('looseReturnAttributed'));
+    $withoutAttribute = ResourceClassLocator::create()->locate(locatorDescriptor('looseReturnWithAttribute'));
+
+    expect($withoutAttribute?->resourceClass)
+        ->toBe(LocatorFixtureResource::class)
+        ->and($withoutAttribute?->resourceClass)->toBe($withAttribute?->resourceClass)
+        ->and($withoutAttribute?->isCollection)->toBe($withAttribute?->isCollection);
+});
+
+// endregion
