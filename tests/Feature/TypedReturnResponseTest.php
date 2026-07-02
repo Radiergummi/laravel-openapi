@@ -125,6 +125,14 @@ class TypedReturnController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    /**
+     * @return array{ok: bool, svc: PlainReturnService}
+     */
+    public function arrayWithService(): array
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
 function typedReturnSchema(string $uri): mixed
@@ -273,6 +281,18 @@ it('registers the baseline resolver last, so convention plugins win first', func
         // It appears exactly once, and is not the first (a plugin resolver precedes it).
         ->and(array_keys($resolvers, TypedReturnResponseResolver::class, true))->toHaveCount(1)
         ->and($resolvers[0])->not->toBe(TypedReturnResponseResolver::class);
+});
+
+it('leaves a nested unbuildable object field unconstrained inside an array shape, never stubbed', function (): void {
+    Route::get('/typed/array-service', [TypedReturnController::class, 'arrayWithService']);
+
+    $schema = typedReturnSchema('/typed/array-service');
+
+    // The service field has no baseline schema, so it stays unconstrained ({}), never the
+    // engine's "Unmapped object type" string stub.
+    expect($schema['type'])->toBe('object')
+        ->and($schema['properties']['ok']['type'])->toBe('boolean')
+        ->and($schema['properties']['svc'])->toBe([]);
 });
 
 it('shapes a plain DTO with every convention plugin disabled (language-level path)', function (): void {

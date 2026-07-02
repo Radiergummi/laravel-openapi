@@ -71,6 +71,30 @@ final class PromotedReadonlyDto
     ) {}
 }
 
+class DtoWithServiceProperty
+{
+    public function __construct(
+        public string $label = '',
+        public NoUsablePropertiesService $service = new NoUsablePropertiesService(),
+    ) {}
+}
+
+class MutualLeftDto
+{
+    public function __construct(
+        public string $id = '',
+        public ?MutualRightDto $right = null,
+    ) {}
+}
+
+class MutualRightDto
+{
+    public function __construct(
+        public string $name = '',
+        public ?MutualLeftDto $left = null,
+    ) {}
+}
+
 /**
  * @return array{SchemaFromPublicProperties, ComponentSchemaRegistry}
  */
@@ -204,6 +228,52 @@ it('reads promoted readonly constructor properties', function (): void {
     expect($types['id'])->toBe('string')
         ->and($types['count'])->toBe('integer')
         ->and($schema->required)->toEqualCanonicalizing(['id', 'count']);
+});
+
+it('omits a nested property whose class has no usable properties, never stubbing it', function (): void {
+    [$builder, $registry] = schemaFromPublicProperties();
+
+    $builder->buildRef(DtoWithServiceProperty::class);
+
+    $schema = $registry->schemaForKey('DtoWithServiceProperty');
+    $names = [];
+
+    foreach ($schema->properties as $property) {
+        $names[] = $property->property;
+    }
+
+    // The service property is omitted (its class yields no schema), never a stubbed component.
+    expect($names)->toBe(['label'])
+        ->and($registry->hasKey('NoUsablePropertiesService'))->toBeFalse();
+});
+
+it('builds mutually-referential classes without infinite recursion', function (): void {
+    [$builder, $registry] = schemaFromPublicProperties();
+
+    $reference = $builder->buildRef(MutualLeftDto::class);
+
+    expect($reference)->toBe('#/components/schemas/MutualLeftDto')
+        ->and($registry->hasKey('MutualRightDto'))->toBeTrue();
+
+    $rightProperty = null;
+
+    foreach ($registry->schemaForKey('MutualLeftDto')->properties as $property) {
+        if ($property->property === 'right') {
+            $rightProperty = $property;
+        }
+    }
+
+    $leftProperty = null;
+
+    foreach ($registry->schemaForKey('MutualRightDto')->properties as $property) {
+        if ($property->property === 'left') {
+            $leftProperty = $property;
+        }
+    }
+
+    // Each side references the other's component (nullable, so wrapped in oneOf with null).
+    expect($rightProperty->oneOf[0]->ref)->toBe('#/components/schemas/MutualRightDto')
+        ->and($leftProperty->oneOf[0]->ref)->toBe('#/components/schemas/MutualLeftDto');
 });
 
 it('is idempotent across repeated builds', function (): void {

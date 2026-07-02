@@ -154,21 +154,21 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
     }
 
     /**
-     * The engine's leaf callback for the array-shape / list / map paths: leave a container/resource
-     * wrapper unconstrained, defer format objects and backed enums to the engine, build a nested plain
-     * object into its own component, and leave an unbuildable nested object unconstrained (never the
-     * engine's "unmapped object" stub).
+     * The engine's leaf callback for the array-shape / list / map paths: defer format objects and
+     * backed enums to the engine, build a nested plain object into its own component, and leave an
+     * unbuildable nested object unconstrained (never the engine's "unmapped object" stub). The engine
+     * routes collection/container classes through its own collection handling, not here, so only plain
+     * object leaves reach this callback.
      *
      * @return callable(string): ?OA\Schema
      */
     private function leafCallback(): callable
     {
         return function (string $className): ?OA\Schema {
-            if ($this->isContainerLike($className)) {
-                return new OA\Schema([]);
-            }
-
-            if ($this->mapsToFormat($className) || is_a($className, BackedEnum::class, allow_string: true)) {
+            if (
+                $this->mapsToFormat($className)
+                || is_a($className, BackedEnum::class, allow_string: true)
+            ) {
                 return null;
             }
 

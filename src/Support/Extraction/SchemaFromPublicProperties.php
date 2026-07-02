@@ -70,7 +70,10 @@ final class SchemaFromPublicProperties
         // A collection/container object (Collection, DataCollection, JsonResource, paginator, …) is
         // shaped by its elements, not its public properties; walking its wrapper internals would emit
         // a meaningless schema. Its element schema is a convention plugin's job, so degrade here.
-        if (is_a($class, Traversable::class, allow_string: true) || is_a($class, ArrayAccess::class, allow_string: true)) {
+        if (
+            is_a($class, Traversable::class, allow_string: true)
+            || is_a($class, ArrayAccess::class, allow_string: true)
+        ) {
             return null;
         }
 
