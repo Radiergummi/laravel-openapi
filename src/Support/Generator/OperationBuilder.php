@@ -99,8 +99,8 @@ final readonly class OperationBuilder
         private ResolverFaultBoundary $faultBoundary,
         private DocBlockParser $docBlockParser,
         private RouteMiddlewareGatherer $middlewareGatherer,
-        private QueryParamReader $queryParamReader = new QueryParamReader(),
         private FindingsCollector $findings,
+        private QueryParamReader $queryParamReader = new QueryParamReader(),
         /**
          * @var list<RefSchemaResolver>
          */
