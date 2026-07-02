@@ -15,15 +15,20 @@ use Radiergummi\OpenApi\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
+use Radiergummi\OpenApi\Attributes\ResponseResource as ResponseResourceAttribute;
 use Radiergummi\OpenApi\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Attributes\Tag as TagAttribute;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConvention;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConventionResolver;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingLocation;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
@@ -43,6 +48,7 @@ use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\UriParameterResolver;
 use ReflectionAttribute;
 use ReflectionException;
+use ReflectionNamedType;
 use ReflectionParameter;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
@@ -92,6 +98,7 @@ final readonly class OperationBuilder
         private ResolverFaultBoundary $faultBoundary,
         private DocBlockParser $docBlockParser,
         private RouteMiddlewareGatherer $middlewareGatherer,
+        private FindingsCollector $findings,
         /**
          * @var list<RefSchemaResolver>
          */
@@ -236,6 +243,12 @@ final readonly class OperationBuilder
         $autoStatusIsExplicit = $this->takeExplicitStatusMarker($autoPrimaryResponse);
 
         $additionalResponses = $filteredAdditional;
+
+        $this->emitMissingResponseSchemaFinding(
+            $action,
+            responseProduced: $primaryOverride !== null || $autoPrimaryResponse !== null,
+        );
+
         $primaryResponse = $primaryOverride
             ?? $autoPrimaryResponse
             ?? new OA\Response(['response' => '200', 'description' => 'OK']);
@@ -327,6 +340,81 @@ final readonly class OperationBuilder
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
+    }
+
+    /**
+     * Reports an action that yields no response schema: no resolver produced a response, no
+     * `#[Response]`/`#[ResponseResource]` is present, and the return type is absent or one of
+     * `mixed`/`void`/`never`. Emitted here, where the response-resolution result is known, rather
+     * than re-derived by a lint rule (`operation.return-type-missing`).
+     */
+    private function emitMissingResponseSchemaFinding(ActionDescriptor $action, bool $responseProduced): void
+    {
+        // A produced response, an intended webhook, a response attribute, or a usable return type
+        // each means a schema could be inferred (or the operation is not response-schema-bearing).
+        if ($responseProduced || OverrideMatcher::webhookKeyFor($action) !== null) {
+            return;
+        }
+
+        if ($this->hasResponseAttribute($action) || $this->hasUsableReturnType($action)) {
+            return;
+        }
+
+        $controllerName = $action->controller?->getName();
+
+        $this->findings->emit(new Finding(
+            ruleId: 'operation.return-type-missing',
+            severity: Severity::Inconsistent,
+            message: sprintf(
+                '%s::%s() %s, so no response schema can be inferred',
+                $action->controller?->getShortName() ?? '(unknown)',
+                $action->method?->getName() ?? '(unknown)',
+                $this->missingReturnReason($action),
+            ),
+            location: FindingLocation::fromDescriptor($action),
+            fixHint: 'Add a return type to the action, or annotate it with #[Response] / #[ResponseResource].',
+            context: $controllerName !== null ? [Finding::CONTEXT_SOURCE_CLASS => $controllerName] : [],
+        ));
+    }
+
+    private function hasResponseAttribute(ActionDescriptor $descriptor): bool
+    {
+        return $descriptor->attributeInstances(ResponseAttribute::class) !== []
+            || $descriptor->attributeInstances(ResponseResourceAttribute::class) !== [];
+    }
+
+    /**
+     * A return type is "usable" when declared and not `mixed`, `void`, or `never`.
+     */
+    private function hasUsableReturnType(ActionDescriptor $descriptor): bool
+    {
+        $returnType = $descriptor->actionReflector?->getReturnType();
+
+        if ($returnType === null) {
+            return false;
+        }
+
+        // Union/intersection types are still a declared shape.
+        if (!$returnType instanceof ReflectionNamedType) {
+            return true;
+        }
+
+        return !in_array($returnType->getName(), ['mixed', 'void', 'never'], true);
+    }
+
+    /**
+     * Distinguishes an absent return type from an unusable one for the finding's reason.
+     */
+    private function missingReturnReason(ActionDescriptor $descriptor): string
+    {
+        $returnType = $descriptor->actionReflector?->getReturnType();
+
+        if ($returnType instanceof ReflectionNamedType
+            && in_array($returnType->getName(), ['mixed', 'void', 'never'], true)) {
+            return "declares a `{$returnType->getName()}` return type";
+        }
+
+        return 'has no return type or response attribute';
     }
 
     /**
