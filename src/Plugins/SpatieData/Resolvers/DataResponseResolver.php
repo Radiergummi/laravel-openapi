@@ -10,19 +10,22 @@ use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
-use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Plugins\SpatieData\Support\DataReturnExpressionReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 use Radiergummi\OpenApi\Support\Routing\GenericContainerReturnType;
+use Radiergummi\OpenApi\Support\Routing\ReturnContainer;
+use Radiergummi\OpenApi\Support\Routing\ReturnShape;
+use Radiergummi\OpenApi\Support\Routing\ReturnShapeResolver;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionException;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
-use ReflectionUnionType;
 use RuntimeException;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
+use Symfony\Component\TypeInfo\Type\ObjectType;
 
 use function array_map;
 use function class_exists;
@@ -45,6 +48,7 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
     public function __construct(
         private DataRefSchemaResolver $refResolver,
         private ReturnTypeExtractor $returnTypeExtractor,
+        private ReturnShapeResolver $shapeResolver,
         private DataReturnExpressionReader $returnExpressionReader,
         private LoggerInterface $logger,
     ) {}
@@ -63,29 +67,33 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             return null;
         }
 
-        $returnType = $reflector->getReturnType();
+        $shape = $this->shapeResolver->describe($reflector);
 
-        if ($returnType instanceof ReflectionUnionType) {
-            return $this->resolveUnion($returnType);
+        // A union of Data classes → oneOf (a bare $ref for a single member), nullable when the
+        // union includes a null member.
+        if ($shape->unionMembers !== []) {
+            return $this->resolveUnion($shape);
         }
 
-        if (!$returnType instanceof ReflectionNamedType) {
+        // Paginated collections are claimed by PaginatorResponseResolver.
+        if ($shape->container === ReturnContainer::Paginated) {
             return null;
         }
 
-        if (!$returnType->isBuiltin()) {
-            $returnClass = $returnType->getName();
+        $returnType = $reflector->getReturnType();
 
-            // Paginated collections are claimed by PaginatorResponseResolver.
-            if (PaginatorKind::fromClass($returnClass) !== null) {
-                return null;
-            }
+        if ($returnType instanceof ReflectionNamedType && !$returnType->isBuiltin()) {
+            $returnClass = $returnType->getName();
 
             if (is_a($returnClass, Data::class, allow_string: true)) {
                 /** @var class-string<Data> $returnClass */
                 $ref = $this->refResolver->resolveRef($returnClass);
 
-                return $ref === null ? null : $this->response(new OA\Schema(['ref' => $ref]));
+                if ($ref === null) {
+                    return null;
+                }
+
+                return $this->response($this->nullableWrap(new OA\Schema(['ref' => $ref]), $shape->nullable));
             }
 
             if (is_a($returnClass, DataCollection::class, allow_string: true)) {
@@ -170,16 +178,16 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    private function resolveUnion(ReflectionUnionType $union): ?OA\Response
+    private function resolveUnion(ReturnShape $shape): ?OA\Response
     {
         $refs = [];
 
-        foreach ($union->getTypes() as $member) {
-            if (!$member instanceof ReflectionNamedType || $member->isBuiltin()) {
+        foreach ($shape->unionMembers as $member) {
+            if (!$member instanceof ObjectType) {
                 continue;
             }
 
-            $class = $member->getName();
+            $class = $member->getClassName();
 
             if (!is_a($class, Data::class, allow_string: true)) {
                 continue;
@@ -197,13 +205,19 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
             return null;
         }
 
-        if (count($refs) === 1) {
-            return $this->response(new OA\Schema(['ref' => $refs[0]]));
-        }
+        $schema = count($refs) === 1
+            ? new OA\Schema(['ref' => $refs[0]])
+            : new OA\Schema([
+                'oneOf' => array_map(static fn(string $ref): OA\Schema => new OA\Schema(['ref' => $ref]), $refs),
+            ]);
 
-        return $this->response(new OA\Schema([
-            'oneOf' => array_map(static fn(string $ref): OA\Schema => new OA\Schema(['ref' => $ref]), $refs),
-        ]));
+        return $this->response($this->nullableWrap($schema, $shape->nullable));
+    }
+
+    /** Wraps the schema in the OAS 3.1 nullable idiom when the return type admits null. */
+    private function nullableWrap(OA\Schema $schema, bool $nullable): OA\Schema
+    {
+        return $nullable ? NullableSchema::wrap($schema) : $schema;
     }
 
     private function response(OA\Schema $schema): OA\Response

@@ -42,6 +42,11 @@ DataClass(...)` a single `$ref`. The Data class must be a real `Data` subclass;
 any other shape (a service call, a conditional or multiple returns, a non-Data
 class) degrades silently to no schema.
 
+A return typed as several Data classes (`FooData|BarData`) yields a `oneOf` of
+their `$ref`s (a single member collapses to a bare `$ref`). A nullable Data
+return (`?FooData`, or a union with a `null` member) is modelled nullable via the
+OAS 3.1 `oneOf … {type: null}` idiom.
+
 `spatie/laravel-data` is an optional runtime dependency. The plugin entry
 stays in `config/openapi.plugins` either way; without the package installed
 it no-ops. Install `spatie/laravel-data` to activate.
