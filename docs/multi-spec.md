@@ -212,8 +212,7 @@ Result: included in [v1]
 
 `openapi:why` answers *why a route is in a spec*. Pass `--fields` to also build the operation
 and answer the other "why": *why does this field have this value?* It prints the source and
-reason behind each derived `summary`, success `status`, and `tags`, mirroring the inclusion
-trace one layer in:
+reason behind every derived field it produced, mirroring the inclusion trace one layer in:
 
 ```bash
 php artisan openapi:why flights.store --fields
@@ -240,8 +239,10 @@ Fields:
 ```
 
 This is read-only instrumentation: it records decisions the generator already makes and never
-changes the generated document. Provenance currently covers `summary`, success status, and
-`tags`; response schemas, parameters, and security are not yet traced.
+changes the generated document. Provenance covers every single-valued operation field the
+generator derives — `summary`, `description`, success `status`, `tags`, `deprecated`,
+`operationId`, `externalDocs`, and `security`. A field with no value contributes no row.
+Per-parameter and response-schema provenance is not yet traced.
 
 ## Worked examples
 
