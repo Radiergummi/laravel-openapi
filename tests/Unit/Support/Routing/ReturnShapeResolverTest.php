@@ -90,6 +90,12 @@ class ReturnShapeFixture
         return new Collection();
     }
 
+    /** @return array<string, stdClass> */
+    public function stringKeyedMap(): array
+    {
+        return [];
+    }
+
     /** @return array{id: int, name: string} */
     public function arrayShape(): array
     {
@@ -229,6 +235,16 @@ it('describes a typed Collection as a single value carrying the collection type'
     // The schema engine renders a CollectionType as an array/map directly, so the descriptor keeps
     // the whole type on Single rather than duplicating its key-semantics to isolate an element.
     $shape = describeReturn('collection');
+
+    expect($shape->container)->toBe(ReturnContainer::Single)
+        ->and($shape->itemType)->toBeInstanceOf(CollectionType::class);
+});
+
+it('describes a string-keyed map as a single value carrying the collection type', function (): void {
+    // A string key makes `array<string, T>` a map, not a list: it stays Single with the whole
+    // CollectionType, which the schema engine renders as `additionalProperties`. This is the
+    // map-vs-list split #479's typed-return resolver builds on (Single.itemType fed to fromType).
+    $shape = describeReturn('stringKeyedMap');
 
     expect($shape->container)->toBe(ReturnContainer::Single)
         ->and($shape->itemType)->toBeInstanceOf(CollectionType::class);
