@@ -12,10 +12,8 @@ use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaPropertyFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantPropertyWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\RedundantPropertyController;
@@ -81,6 +79,22 @@ function memberPropertyOf(OA\OpenApi $document, string $schemaName, string $memb
             if ((string) $property->property === $member) {
                 return (array) $property->jsonSerialize();
             }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * The serialized property schema of a named member on an inferred component schema, or null.
+ *
+ * @return null|array<string, mixed>
+ */
+function inferredMemberProperty(?OA\Schema $schema, string $member): ?array
+{
+    foreach (is_array($schema?->properties) ? $schema->properties : [] as $property) {
+        if ((string) $property->property === $member) {
+            return (array) $property->jsonSerialize();
         }
     }
 
@@ -158,21 +172,19 @@ it('is disabled as a family by --skip migration.*', function (): void {
     expect(redundantPropertyFindings($result))->toBe([]);
 });
 
-it('leaves the emitted component byte-identical to the inference-only control', function (): void {
-    // The acceptance criterion: removing the redundant members yields the inference-only control
-    // document, so the flagged class's emitted component is identical between the harvested document
-    // and that control (load-bearing `role` description survives on both sides).
+it('leaves the emitted component byte-identical to the inferred view', function (): void {
+    // The acceptance criterion: removing the redundant members yields the inferred view, so the
+    // flagged class's emitted component is identical between the harvested document and the retained
+    // inference view (load-bearing `role` description survives on both sides).
     redundantPropertyRuleSetup();
 
     $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
-    $control = app(OpenApiGenerationOrchestrator::class)
-        ->inferenceOnly('default', [HarvestAuthoredAnnotationsStage::class], 'testing')
-        ->document;
+    $inferred = retainedInferenceView()->schemaForClass(RedundantPropertyMixedData::class);
 
-    expect(memberPropertyOf($control, 'RedundantPropertyMixedData', 'name'))
+    expect(inferredMemberProperty($inferred, 'name'))
         ->not->toBeNull()
         ->toBe(memberPropertyOf($harvested, 'RedundantPropertyMixedData', 'name'))
-        ->and(memberPropertyOf($control, 'RedundantPropertyMixedData', 'role'))
+        ->and(inferredMemberProperty($inferred, 'role'))
         ->not->toBeNull()
         ->toBe(memberPropertyOf($harvested, 'RedundantPropertyMixedData', 'role'));
 });

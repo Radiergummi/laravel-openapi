@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use OpenApi\Annotations as OA;
 use Pest\Expectation;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\PhpDocParser\Lexer\Lexer;
@@ -12,8 +13,12 @@ use PHPStan\PhpDocParser\ParserConfig;
 use PHPUnit\Framework\Assert;
 use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestStaticRulesReader;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\InferenceRetention;
+use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
@@ -119,6 +124,47 @@ function parsePhpDocType(string $expression): TypeNode
 function formRequestRulesReader(): FormRequestRulesReader
 {
     return new FormRequestRulesReader(new FormRequestStaticRulesReader(new MethodBodyScanner()));
+}
+
+/**
+ * Generates a spec with the inferred view retained, then assembles the {@see InferenceView} from the
+ * live registry and retention store, exactly as {@see LintRunner} does off its single generation.
+ * The swagger-php migration tests use this to compare against pure inference without a second pass.
+ */
+function retainedInferenceView(string $spec = 'default', string $environment = 'testing'): InferenceView
+{
+    $document = app(OpenApiGenerationOrchestrator::class)
+        ->generateOne($spec, $environment, retainInferredView: true);
+
+    return InferenceView::fromRetention(
+        $document,
+        app(ComponentSchemaRegistry::class),
+        app(InferenceRetention::class),
+    );
+}
+
+/**
+ * The JSON schema `$ref` of an inferred operation's response for the given status, or null.
+ * Used by the swagger-php migration tests to compare a pre-merge inferred operation's response
+ * schema against the harvested document's.
+ */
+function inferredResponseRef(?OA\Operation $operation, string $status = '200'): ?string
+{
+    foreach (is_array($operation?->responses) ? $operation->responses : [] as $response) {
+        if ((string) $response->response !== $status || !is_array($response->content)) {
+            continue;
+        }
+
+        foreach ($response->content as $mediaType) {
+            $ref = $mediaType->schema instanceof OA\Schema ? $mediaType->schema->ref : null;
+
+            if (is_string($ref) && str_starts_with($ref, '#/')) {
+                return $ref;
+            }
+        }
+    }
+
+    return null;
 }
 
 /**

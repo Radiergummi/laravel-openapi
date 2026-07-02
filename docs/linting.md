@@ -300,7 +300,7 @@ php artisan openapi:lint --level 4 --skip 'migration.*'  # a level-4 audit witho
 `migration.oa-redundant-with-inference` flags a class whose authored `#[OA\Schema]` / `@OA\Schema`
 the generator already derives from its typed properties. The decision is **provenance-based**: the
 class's authored schema is compared, by source class, against what inference produces for the same
-class in a second, inference-only generation — it fires only when inference reproduces *everything*
+class, retained as an inference-only view of the single generation — it fires only when inference reproduces *everything*
 the annotation said (a description or `additionalProperties: false` inference can't derive keeps the
 annotation essential, so it stays), and never when another surviving annotation still `$ref`s the
 schema. `--fix` removes the whole `#[OA\Schema]`+`#[OA\Property]` set, or the whole `@OA\Schema`
@@ -310,8 +310,8 @@ docblock block.
 controller method whose authored operation annotation — an `@OA\Get`/`@OA\Post`/… docblock or
 `#[OA\Get]`/`#[OA\Response]`/… attributes — the generator already reproduces. Each authored field
 the harvester merges (`summary` / `description` / `operationId` / `tags`, and the `responses` /
-`parameters` / `requestBody`) is compared against the matching operation in the same inference-only
-generation; it fires only when inference subsumes them all, so a human `description` or a runtime-only
+`parameters` / `requestBody`) is compared against the matching operation in the retained inference-only
+view; it fires only when inference subsumes them all, so a human `description` or a runtime-only
 response shape keeps the annotation. `--fix` removes the whole `@OA` operation docblock, or every
 `#[OA\*]` attribute on the method.
 
@@ -334,7 +334,7 @@ rule. The whole-class rule is all-or-nothing: a Spatie Data class mixing redunda
 `description`, an `enum`, a constraint) gets *nothing* flagged. This rule flags the individual members
 inference subsumes, leaving the enclosing schema and its load-bearing siblings in place. The verdict is
 the same subsumption oracle: the authored member `OA\Property` is compared against the matching property
-in the inference-only generation, and a finding fires only when inference reproduces everything the
+in the retained inference-only view, and a finding fires only when inference reproduces everything the
 member said. `--fix` removes just that one member's `#[OA\Property]` (or its `@OA\Property` docblock
 block), leaving sibling members byte-identical. Scope is **Spatie Data members only** — and this is a
 deliberate, sound boundary, not an oversight. A Data class's component is emitted by inference and named
@@ -382,8 +382,9 @@ improved**, never degraded. (Unlike a removal, a rewrite can *improve* the docum
 left a hand-authored `#[OA\Property]` inert, the equivalent `#[ResponseField]` is one the generator
 reads, so a field the annotation only declared may now actually appear.)
 
-Deciding redundancy requires that second generation, which is why the family is parked at level 4:
-it stays unpaid on default-level runs. A high-level audit (`--level max`) with the plugin enabled
+Deciding redundancy requires retaining that inference-only view during generation, which is why the
+family is parked at level 4: the retention stays unpaid on default-level runs. A high-level audit
+(`--level max`) with the plugin enabled
 *will* run it; `--skip 'migration.*'` opts back out. Removing an annotation may consolidate its
 component to inference's name; the documented API surface is preserved.
 

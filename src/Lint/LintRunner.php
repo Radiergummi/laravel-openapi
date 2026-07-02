@@ -15,7 +15,6 @@ use Laravel\Passport\Passport;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Console\LintCommand;
-use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Lint\Rules\MetaSuppressionStale;
@@ -27,6 +26,7 @@ use Radiergummi\OpenApi\Registry\OpenApiRegistry;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\InferenceRetention;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
@@ -210,8 +210,8 @@ final readonly class LintRunner
             );
         }
 
-        // Empty when no active rule needs inference; skips control generation entirely.
-        $inferenceExcludedStages = $this->inferenceExcludedStages($rules);
+        // When no active rule needs the inferred view, generation leaves retention off and pays nothing.
+        $retainInferredView = $this->rulesNeedInference($rules);
 
         // endregion
 
@@ -247,7 +247,7 @@ final readonly class LintRunner
             $this->container->forgetInstance(FindingsCollector::class);
             $this->container->instance(FindingsCollector::class, $specLocal);
 
-            $document = $this->orchestrator->generateOne($spec->name);
+            $document = $this->orchestrator->generateOne($spec->name, retainInferredView: $retainInferredView);
 
             // Re-resolve so the class map reflects schemas registered during this run.
             $liveRegistry = $this->container->make(ComponentSchemaRegistry::class);
@@ -271,9 +271,14 @@ final readonly class LintRunner
             $specSuppressions = [...$descriptorDirectives, ...$componentDirectives];
             $suppressionsAll = [...$suppressionsAll, ...$componentDirectives];
 
-            // Build inference control document before the walk; skipped when no rule needs it.
-            $inference = $inferenceExcludedStages !== []
-                ? InferenceView::from($this->orchestrator->inferenceOnly($spec->name, $inferenceExcludedStages))
+            // Assemble the inferred view from the single generation's retained side channel; empty
+            // when no rule needs it (retention stayed off).
+            $inference = $retainInferredView
+                ? InferenceView::fromRetention(
+                    $document,
+                    $liveRegistry,
+                    $this->container->make(InferenceRetention::class),
+                )
                 : new InferenceView();
 
             $operations = $this->walkSpec(
@@ -478,24 +483,20 @@ final readonly class LintRunner
     }
 
     /**
-     * Stages to exclude when building the inference-only control document. Empty when no active
-     * rule declares inference comparison, skipping control generation entirely.
+     * Whether any active rule needs the inferred view, so generation should retain it. When false,
+     * generation leaves retention off and the migration comparison stays unpaid.
      *
      * @param list<Rule> $rules
-     *
-     * @return list<class-string<SpecStage>>
      */
-    private function inferenceExcludedStages(array $rules): array
+    private function rulesNeedInference(array $rules): bool
     {
-        $stages = [];
-
         foreach ($rules as $rule) {
             if ($rule instanceof NeedsInferenceDocument) {
-                $stages = [...$stages, ...$rule->excludedStages()];
+                return true;
             }
         }
 
-        return array_values(array_unique($stages));
+        return false;
     }
 
     /**

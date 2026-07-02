@@ -4,13 +4,22 @@ declare(strict_types=1);
 
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Lint\InferenceView;
-use Radiergummi\OpenApi\Support\Generator\InferenceOnlyGeneration;
 
 uses()->group('openapi', 'lint');
 
 function inferenceViewFrom(OA\OpenApi $document): InferenceView
 {
-    return InferenceView::from(new InferenceOnlyGeneration($document, []));
+    $byName = [];
+
+    if ($document->components instanceof OA\Components && is_array($document->components->schemas)) {
+        foreach ($document->components->schemas as $schema) {
+            if (is_string($schema->schema)) {
+                $byName[$schema->schema] = $schema;
+            }
+        }
+    }
+
+    return new InferenceView(schemasByName: $byName);
 }
 
 it('resolves a control component schema by its component name', function (): void {
