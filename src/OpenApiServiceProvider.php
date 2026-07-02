@@ -661,6 +661,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     faultBoundary: $app->make(Support\Registry\ResolverFaultBoundary::class),
                     docBlockParser: $app->make(DocBlockParser::class),
                     middlewareGatherer: $app->make(RouteMiddlewareGatherer::class),
+                    queryParamReader: $app->make(Support\Attributes\QueryParamReader::class),
                     findings: $app->make(FindingsCollector::class),
                     refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
                     queryParameterResolvers: self::makeAll($app, $registry->queryParameterResolvers),

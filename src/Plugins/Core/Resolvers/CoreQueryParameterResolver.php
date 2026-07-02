@@ -9,7 +9,6 @@ use Illuminate\Foundation\Http\FormRequest;
 use OpenApi\Annotations as OA;
 use Override;
 use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Plugins\Core\Support\AccessorRead;
@@ -17,6 +16,7 @@ use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidatorRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\RequestAccessorReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Attributes\QueryParamReader;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
@@ -58,6 +58,7 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         private LoggerInterface $logger,
         private FormRequestRulesReader $formRequestRulesReader,
         private PayloadParameterScanner $scanner,
+        private QueryParamReader $queryParamReader = new QueryParamReader(),
     ) {}
 
     /**
@@ -494,20 +495,7 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
             return [];
         }
 
-        /** @var array<string, QueryParam> $merged */
-        $merged = [];
-
-        if ($descriptor->controller !== null) {
-            foreach ($descriptor->controller->getAttributes(QueryParam::class) as $attribute) {
-                $instance = $attribute->newInstance();
-                $merged[$instance->name] = $instance;
-            }
-        }
-
-        foreach ($reflector->getAttributes(QueryParam::class) as $attribute) {
-            $instance = $attribute->newInstance();
-            $merged[$instance->name] = $instance;
-        }
+        $merged = $this->queryParamReader->mergedByName($descriptor->controller, $reflector);
 
         /** @var array<string, OA\Parameter> $parameters */
         $parameters = [];
