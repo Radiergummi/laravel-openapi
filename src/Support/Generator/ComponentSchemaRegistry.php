@@ -449,8 +449,11 @@ final class ComponentSchemaRegistry
      * @param class-string         $className
      * @param Closure(): OA\Schema $factory
      */
-    private function retainRivalInferredSchema(string $className, Closure $factory, SchemaProvenance $provenance): void
-    {
+    private function retainRivalInferredSchema(
+        string $className,
+        Closure $factory,
+        SchemaProvenance $provenance,
+    ): void {
         if ($this->retention === null || !$this->retention->isEnabled()) {
             return;
         }
@@ -465,7 +468,9 @@ final class ComponentSchemaRegistry
         $winner = $this->provenanceFor($key);
 
         // A same-producer re-registration is not a contest; and stash each rival only once.
-        if (($winner !== null && $winner->producer === $provenance->producer) || $this->retention->hasInferredSchema($key)) {
+        $sameProducer = $winner !== null && $winner->producer === $provenance->producer;
+
+        if ($sameProducer || $this->retention->hasInferredSchema($key)) {
             return;
         }
 
