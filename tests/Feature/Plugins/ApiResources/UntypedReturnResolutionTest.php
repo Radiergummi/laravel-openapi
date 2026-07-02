@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceResponseAmbiguous;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
@@ -180,9 +181,13 @@ it('leaves an untyped scalar-return action as no content without a refusal notic
     expect($response)->not->toBeNull()
         ->and($response['content'] ?? [])->not->toHaveKey('application/json');
 
+    // A scalar return legitimately has no body, so the resource reader must emit no refusal notice
+    // (a NOTICE-level log). The info-level operation.return-type-missing finding, emitted at
+    // generation for the untyped return, is a separate channel and is expected here.
     $noted = array_any(
         $logger->records,
-        static fn(array $record): bool => str_contains($record['message'], 'untypedScalar'),
+        static fn(array $record): bool => $record['level'] === LogLevel::NOTICE
+            && str_contains($record['message'], 'untypedScalar'),
     );
 
     expect($noted)->toBeFalse();

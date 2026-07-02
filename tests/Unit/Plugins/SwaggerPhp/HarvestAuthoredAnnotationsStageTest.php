@@ -10,6 +10,7 @@ use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\InferenceRetention;
 use Radiergummi\OpenApi\Support\Spec\SpecDefinition;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\DanglingController;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\InvoiceController;
@@ -32,7 +33,7 @@ function harvestStage(
         $logger,
     );
 
-    return new HarvestAuthoredAnnotationsStage($scanner, $schemaRegistry, $logger, $findings);
+    return new HarvestAuthoredAnnotationsStage($scanner, $schemaRegistry, $logger, $findings, new InferenceRetention());
 }
 
 function harvestSpec(): SpecDefinition

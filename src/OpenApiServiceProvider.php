@@ -662,6 +662,7 @@ class OpenApiServiceProvider extends ServiceProvider
                     docBlockParser: $app->make(DocBlockParser::class),
                     middlewareGatherer: $app->make(RouteMiddlewareGatherer::class),
                     queryParamReader: $app->make(Support\Attributes\QueryParamReader::class),
+                    findings: $app->make(FindingsCollector::class),
                     refSchemaResolvers: self::makeAll($app, $registry->refSchemaResolvers),
                     queryParameterResolvers: self::makeAll($app, $registry->queryParameterResolvers),
                     primaryResponseResolvers: self::makeAll($app, $registry->primaryResponseResolvers),

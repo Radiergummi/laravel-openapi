@@ -11,7 +11,8 @@ source.
 | Description | Remaining paragraphs of the method's PHPDoc (markdown permitted), or `#[Description]` / `#[Operation(description: …)]`. |
 | `operationId` | Route name (sanitised to a codegen-safe identifier — `:`/`{}` and other disallowed characters become `_`, while `.`/`-`/`_` are kept), or `{method}_{sanitized_path}`. |
 | Path parameters | Action signature. Type hints, `Route::whereUuid()` / `whereNumber()` / `where(...)` constraints, and route-model-binding heuristics drive type and format. A custom-key binding (`/posts/{post:slug}`, including scoped-nested `{parent}/{child:field}`) emits the standard `{post}` template segment and notes the bound field in the description (`Bound by slug of Post.`). An action `@param $name <description>` supplies the parameter description as a lowest-precedence fallback. |
-| Query parameters | Request-accessor reads in the method body — `$request->query('sort')` / `input('q')` → `string`, `string('name')` / `integer('page')` / `boolean('active')` → their named type (bounded scan; see [Query parameters from the method body](#query-parameters-from-the-method-body)). On GET/HEAD routes, inline `validate()` keys — and the `rules()` of a `FormRequest` type-hinted on the action — become query parameters (name, schema, `required` from the rules) instead of a request body. With the QueryBuilder plugin enabled, a literal `QueryBuilder::for(...)` chain's `allowedFilters` / `allowedSorts` / `allowedIncludes` become `filter[…]` / `sort` / `include` parameters (see [Plugins → QueryBuilder](plugins.md#querybuilder)). `#[QueryParam]` attributes win for their name; other names compose. An action `@param $name <description>` supplies the parameter description as a lowest-precedence fallback (attribute and inline-`validate()` comment descriptions win). |
+| Query parameters | Request-accessor reads in the method body — `$request->query('sort')` / `input('q')` → `string`, `string('name')` / `integer('page')` / `boolean('active')` → their named type (bounded scan; see [Request parameters from the method body](#request-parameters-from-the-method-body)). On GET/HEAD routes, inline `validate()` keys — and the `rules()` of a `FormRequest` type-hinted on the action — become query parameters (name, schema, `required` from the rules) instead of a request body. With the QueryBuilder plugin enabled, a literal `QueryBuilder::for(...)` chain's `allowedFilters` / `allowedSorts` / `allowedIncludes` become `filter[…]` / `sort` / `include` parameters (see [Plugins → QueryBuilder](plugins.md#querybuilder)). `#[QueryParam]` attributes win for their name; other names compose. An action `@param $name <description>` supplies the parameter description as a lowest-precedence fallback (attribute and inline-`validate()` comment descriptions win). |
+| Header & cookie parameters | Request-accessor reads in the method body — `$request->cookie('session')` → a `cookie` parameter, `$request->header('X-Api-Key')` → a `header` parameter (both `string`, optional; bounded scan on every verb; see [Request parameters from the method body](#request-parameters-from-the-method-body)). Names are kept as literal tokens (never bracketed). `#[CookieParam]` / `#[Header]` attributes win for their name; other names compose. |
 | Request body | Spatie Data class on the action (or on a configured payload-indirection object); `FormRequest` is supported natively. Schema is built from PHP types and validation rules. Without a typed payload parameter, inline `validate()` calls and a controller-declared `$rules` property / `rules()` method are read from the method body (bounded scan; see [Request bodies → Inline validation in the controller](request-bodies.md#inline-validation-in-the-controller)). |
 | Response body | Spatie Data class or `DataCollection<…>` return type → component `$ref`. `JsonResource` subclass → component schema: fields are inferred from a single-`return [...]` `toArray()` literal (or a variable assigned one such literal once, unconditionally) (`$this->field` typed from the wrapped `@mixin`/`@extends` model, nested resources as `$ref`s, `when*`/`unless` wrappers optional) composed with declared `#[ResourceField]` attributes, which win per field; a passthrough or dynamic `toArray()` falls back to the wrapped model's schema (see [Plugins → ApiResources](plugins.md#apiresources)). A **base** resource return type (`JsonResource`, bare `ResourceCollection`, `AnonymousResourceCollection`) — or a **loose response wrapper** too generic to name a payload (`JsonResponse`, `Response`, and their Symfony parents) — resolves the concrete resource from the method's return expression — `X::collection(…)` / `X::make(…)` / `new X(…)`, `->toResource(…)`, or a `@return …Collection<X>` generic, or multiple returns that all resolve to the same resource (bare `return;` / `return null;` guards ignored); a collection only claims the paginated envelope when its source visibly ends in a `paginate()`-family call, looking through paginator-preserving links like `withQueryString()` (bounded scan; see [Plugins → ApiResources → Resolving the resource from the return expression](plugins.md#resolving-the-resource-from-the-return-expression)). Eloquent `Model` subclass → component schema built from `$casts`, `@property`/`@property-read` annotations, typed `$appends` accessors, and `$hidden`/`$visible`; the same schema is recovered from a directly-returned `Model::find()`/`findOrFail()`/`firstOrFail()` call on an untyped action (bounded scan). See [Eloquent model response schemas](#eloquent-model-response-schemas). Without a schema-bearing return type, a literal `response()->json([...])` in the method body is read instead (bounded scan; see [Inline JSON responses](#inline-json-responses)). A non-paginator return type whose body unconditionally calls `paginate()`/`simplePaginate()`/`cursorPaginate()` gets the matching paginated envelope when an item class is declared (`#[ResponseResource(Model::class)]` or a `@return Paginator<Item>` generic); this defers to API Resources / Spatie Data whenever the return type or a resource-naming `#[ResponseResource]` is one of theirs. With the Fractal plugin enabled, a transformer's schema is inferred from its single-`return [...]` `transform()` literal (or a variable assigned one such literal once, unconditionally) (`$model->field` typed from the typed parameter, casts by their JSON type) composed with `#[TransformerField]` attributes, which win per field; the `$entity_transformer` + `itemResponse()`/`listResponse()` base-controller convention binds it without an attribute (see [Plugins → Fractal](plugins.md#fractal)). |
 | Response headers | A `201` response → a `Location` header (`string`, `uri-reference`), the URL of the created resource. `throttle` middleware (route-declared or controller-applied, see [Controller middleware](#controller-middleware)) → `X-RateLimit-Limit` and `X-RateLimit-Remaining` (`integer`) on the success response. An authored `#[ResponseHeader]` of the same name on the same status always wins. |
@@ -400,22 +401,26 @@ Boundaries, by design (no dataflow analysis):
   `#[FractalResponse]` — is never scanned, even though the resolver consuming
   the attribute runs later: explicit authoring always wins.
 
-## Query parameters from the method body
+## Request parameters from the method body
 
-Filter, sort, and search parameters are rarely declared in a typed request —
-they are pulled straight off the request inside the action. The generator
-scans the **first 10 top-level statements** of the method for five accessor
-shapes on the request and documents each read as a query parameter typed by
-the accessor:
+Filter, sort, and search parameters — and the cookies and headers an action
+reads — are rarely declared in a typed request; they are pulled straight off the
+request inside the action. The generator scans the **first 10 top-level
+statements** of the method for the accessor shapes below and documents each read
+as a parameter typed by the accessor. `query`/`input`/`string`/`integer`/`boolean`
+become **query** parameters; `cookie` and `header` become **cookie** / **header**
+parameters:
 
 ```php
 public function index(Request $request): JsonResponse
 {
-    $sort = $request->query('sort');          // → sort: string
-    $term = $request->input('q');             // → q: string
-    $name = $request->string('name');         // → name: string
-    $page = $request->integer('page');        // → page: integer
-    $active = $request->boolean('active');    // → active: boolean
+    $sort = $request->query('sort');          // → sort: string  (query)
+    $term = $request->input('q');             // → q: string     (query)
+    $name = $request->string('name');         // → name: string  (query)
+    $page = $request->integer('page');        // → page: integer (query)
+    $active = $request->boolean('active');    // → active: boolean (query)
+    $session = $request->cookie('session');   // → session: string   (cookie)
+    $apiKey = $request->header('X-Api-Key');  // → X-Api-Key: string (header)
     // …
 }
 ```
@@ -424,8 +429,10 @@ The receiver must be the method's `Illuminate\Http\Request`(-subclass)-typed
 parameter or a zero-argument `request()` helper call — any other object with a
 same-named method (an Eloquent builder's `query()`, say) never matches. The
 parameter name is the first string-literal argument, positional or named
-(`key:`); a dotted key is documented in wire notation (`input('filter.name')`
-→ `filter[name]`). A literal default (`integer('per_page', 25)`) becomes the
+(`key:`); a dotted **query** key is documented in wire notation
+(`input('filter.name')` → `filter[name]`), while a cookie/header name is kept as
+its literal token (`header('X-Api-Key')` → `X-Api-Key`, never bracketed). A
+literal default (`integer('per_page', 25)`) becomes the
 schema `default` when its type matches the accessor's. Unlike the body and
 response scans, a read inside an `if` branch or a `->when(…)` closure still
 counts — a read claims nothing beyond "this parameter is consumed". A closure
@@ -454,18 +461,22 @@ with a generation-log note, consistent with the inline `validate()` path. A
 
 Boundaries, by design (no dataflow analysis):
 
-- Only the five accessors above are matched. `get()`, `has()`, `filled()`,
-  `date()`, `enum()`, `float()` and friends are not — use `#[QueryParam]`
-  where the idiom isn't covered.
+- Only the seven accessors above are matched. `get()`, `has()`, `filled()`,
+  `date()`, `enum()`, `float()` and friends are not — use `#[QueryParam]`,
+  `#[CookieParam]`, or `#[Header]` where the idiom isn't covered.
 - `query()` is matched on **every verb** — it can only read the query string.
   `input()` / `string()` / `integer()` / `boolean()` read the merged
   body-plus-query input, so they count as query parameters only on GET/HEAD
   routes; on body-carrying verbs they overwhelmingly mean body fields (which
-  the inline-validation scan already documents).
-- A non-literal parameter name (`$request->query($key)`) is never guessed at;
-  the read is skipped and the generation log notes the action. The note obeys
-  the same verb discipline as the read itself — a non-literal `integer($key)`
-  on a POST route is a body read, not an undocumented query parameter.
+  the inline-validation scan already documents). `cookie()` and `header()` are
+  verb-independent, so they are matched on **every verb**.
+- A non-literal parameter name (`$request->query($key)`, `$request->cookie($key)`)
+  is never guessed at; the read is skipped and the generation log notes the
+  action, naming the matching authoring attribute for that location
+  (`#[QueryParam]` / `#[CookieParam]` / `#[Header]`). The query note obeys the
+  same verb discipline as the read itself — a non-literal `integer($key)` on a
+  POST route is a body read, not an undocumented query parameter — while cookie
+  and header notes fire on every verb.
 - Inline `validate()` on a **DELETE** route produces neither a request body
   nor query parameters — DELETE may legitimately carry either, and the
   generator refuses to guess. The generation log notes the action;
@@ -474,7 +485,10 @@ Boundaries, by design (no dataflow analysis):
   an untyped one (`query('page')`). On a GET route, `validate()` rules beat an
   accessor read of the same name — they know `required` and the constraints.
 - An explicit `#[QueryParam]` wins **entirely** for its name (no merging);
-  parameters from different sources with different names compose.
+  parameters from different sources with different names compose. An inferred
+  cookie/header read yields the same way to a `#[CookieParam]` / `#[Header]` of
+  the same name. A query `x`, a cookie `x`, and a header `x` are distinct
+  parameters and all coexist.
 
 ### Pagination parameters
 

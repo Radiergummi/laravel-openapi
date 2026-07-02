@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources\Lint;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Route;
 use LogicException;
-use Radiergummi\OpenApi\Plugins\ApiResources\Lint\Rules\ResourceFieldsUndeclared;
-use Radiergummi\OpenApi\Plugins\ApiResources\Support\ResourceClassLocator;
-use Radiergummi\OpenApi\Tests\Support\ActionDescriptorFactory;
-use Radiergummi\OpenApi\Tests\Support\OperationNodeFactory;
-use Radiergummi\OpenApi\Tests\Support\SchemaFromResourceFactory;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\LintOptions;
+use Radiergummi\OpenApi\Lint\LintRunner;
 
 uses()->group('openapi', 'plugin:api-resources');
 
@@ -32,46 +32,66 @@ class AbstractReturnLintController
     }
 }
 
-abstract class AbstractLintResourceSubclass extends JsonResource {}
-
-class AbstractSubclassReturnLintController
+class PopulatedLintResource extends JsonResource
 {
-    public function returnsAbstractSubclass(): AbstractLintResourceSubclass
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+        ];
+    }
+}
+
+class PopulatedLintController
+{
+    public function show(): PopulatedLintResource
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
 }
 
-it('flags a resource response whose class declares no #[ResourceField]', function (): void {
-    $descriptor = ActionDescriptorFactory::forControllerMethod(BareLintController::class, 'show', '/bare');
+/**
+ * @return list<Finding>
+ */
+function resourceFieldsUndeclaredFindings(string $uri): array
+{
+    $result = app(LintRunner::class)->run(new LintOptions(
+        only: ['resource.fields-undeclared'],
+        uriGlob: $uri,
+    ));
 
-    $rule = new ResourceFieldsUndeclared(ResourceClassLocator::create(), SchemaFromResourceFactory::toArrayReader(), SchemaFromResourceFactory::wrappedModelLocator());
-    $node = OperationNodeFactory::forDescriptor($descriptor);
+    return $result->findings;
+}
 
-    $findings = iterator_to_array($rule->checkOperation($node, OperationNodeFactory::emptyContext()));
+it('flags a concrete resource that declares no #[ResourceField], with a reason', function (): void {
+    Route::get('fu/bare', [BareLintController::class, 'show'])->name('fu.bare');
+    app()->forgetScopedInstances();
+
+    $findings = resourceFieldsUndeclaredFindings('fu/bare');
 
     expect($findings)->toHaveCount(1)
-        ->and($findings[0]->ruleId)->toBe('resource.fields-undeclared');
+        ->and($findings[0]->ruleId)->toBe('resource.fields-undeclared')
+        ->and($findings[0]->severity)->toBe(Severity::Degraded)
+        ->and($findings[0]->location->routeUri)->toBe('fu/bare')
+        ->and($findings[0]->message)->toContain('declares no #[ResourceField]')
+        ->and($findings[0]->context[Finding::CONTEXT_SOURCE_CLASS] ?? null)
+        ->toBe(BareLintController::class);
 });
 
 it('does not fire when the action returns the abstract JsonResource base', function (): void {
-    $descriptor = ActionDescriptorFactory::forControllerMethod(AbstractReturnLintController::class, 'returnsAbstract', '/abstract');
+    Route::get('fu/abstract', [AbstractReturnLintController::class, 'returnsAbstract'])->name('fu.abstract');
+    app()->forgetScopedInstances();
 
-    $rule = new ResourceFieldsUndeclared(ResourceClassLocator::create(), SchemaFromResourceFactory::toArrayReader(), SchemaFromResourceFactory::wrappedModelLocator());
-    $node = OperationNodeFactory::forDescriptor($descriptor);
-
-    $findings = iterator_to_array($rule->checkOperation($node, OperationNodeFactory::emptyContext()));
-
-    expect($findings)->toBe([]);
+    expect(resourceFieldsUndeclaredFindings('fu/abstract'))->toBe([]);
 });
 
-it('does not fire when the action returns an abstract JsonResource subclass', function (): void {
-    $descriptor = ActionDescriptorFactory::forControllerMethod(AbstractSubclassReturnLintController::class, 'returnsAbstractSubclass', '/abstract-sub');
+it('does not fire when the reader resolves a non-empty declared shape from toArray()', function (): void {
+    Route::get('fu/populated', [PopulatedLintController::class, 'show'])->name('fu.populated');
+    app()->forgetScopedInstances();
 
-    $rule = new ResourceFieldsUndeclared(ResourceClassLocator::create(), SchemaFromResourceFactory::toArrayReader(), SchemaFromResourceFactory::wrappedModelLocator());
-    $node = OperationNodeFactory::forDescriptor($descriptor);
-
-    $findings = iterator_to_array($rule->checkOperation($node, OperationNodeFactory::emptyContext()));
-
-    expect($findings)->toBe([]);
+    expect(resourceFieldsUndeclaredFindings('fu/populated'))->toBe([]);
 });

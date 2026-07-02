@@ -12,10 +12,8 @@ use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer;
@@ -96,21 +94,19 @@ function responseRefFor(OA\OpenApi $document, string $needle): ?string
 // endregion
 
 it('leaves the affected operations unchanged once the redundant annotations are gone', function (): void {
-    // The "same API surface" invariant: removing the redundant annotations yields the
-    // inference-only control document, and the flagged operations' response schemas are identical
-    // between the harvested document and that control.
+    // The "same API surface" invariant: removing the redundant annotations yields the inferred view,
+    // and the flagged operations' response schemas are identical between the harvested document and
+    // the pre-merge operation retained off the same single generation.
     migrationRuleSetup();
 
     $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
-    $control = app(OpenApiGenerationOrchestrator::class)
-        ->inferenceOnly('default', [HarvestAuthoredAnnotationsStage::class], 'testing')
-        ->document;
+    $inference = retainedInferenceView();
 
-    expect(responseRefFor($control, 'redundant-attribute'))
+    expect(inferredResponseRef($inference->operationForRoute('get', 'redundant-attribute')))
         ->not
         ->toBeNull()
         ->toBe(responseRefFor($harvested, 'redundant-attribute'))
-        ->and(responseRefFor($control, 'redundant-docblock'))
+        ->and(inferredResponseRef($inference->operationForRoute('get', 'redundant-docblock')))
         ->not
         ->toBeNull()
         ->toBe(responseRefFor($harvested, 'redundant-docblock'));

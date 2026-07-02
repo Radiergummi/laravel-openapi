@@ -15,18 +15,27 @@ use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\ThrowsExtractor;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionParameter;
 use Throwable;
 
+use function array_map;
 use function base_path;
 use function class_basename;
 use function class_exists;
+use function in_array;
 use function interface_exists;
 use function is_a;
+use function ltrim;
 use function realpath;
 use function sprintf;
+use function str_contains;
+use function str_ends_with;
 use function str_starts_with;
 use function strtoupper;
 
@@ -45,6 +54,7 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
      */
     public function __construct(
         private FindingsCollector $findings,
+        private ThrowsExtractor $throwsExtractor,
         #[Config('openapi.exception_responses', default: [])]
         private array $exceptionMap = [],
     ) {}
@@ -81,8 +91,121 @@ final readonly class ThrowsErrorContributor implements ErrorResponseContributor
             );
         }
 
+        $this->emitTransitiveThrowsFindings($descriptor);
+
         return $descriptors;
         // endregion
+    }
+
+    /**
+     * Reports an Action `handle()` whose declared `@throws` are not redeclared on the controller
+     * method, at generation time (where the `@throws` are already walked) rather than by a lint
+     * rule re-running the walk (`throws.transitive-missing`).
+     */
+    private function emitTransitiveThrowsFindings(ActionDescriptor $descriptor): void
+    {
+        $method = $descriptor->method;
+
+        if ($method === null) {
+            return;
+        }
+
+        foreach ($method->getParameters() as $parameter) {
+            $actionClass = $this->resolveActionClass($parameter);
+
+            if ($actionClass === null) {
+                continue;
+            }
+
+            $this->compareTransitiveThrows($descriptor, $method, $actionClass);
+        }
+    }
+
+    /**
+     * @return null|class-string
+     */
+    private function resolveActionClass(ReflectionParameter $parameter): ?string
+    {
+        $type = $parameter->getType();
+
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $className = $type->getName();
+
+        if (!class_exists($className) || !$this->isActionClass($className)) {
+            return null;
+        }
+
+        return $className;
+    }
+
+    /**
+     * Heuristic: a class is an "Action" if its name ends with `Action` or it lives in a
+     * `Domain\*\Actions` namespace.
+     */
+    private function isActionClass(string $className): bool
+    {
+        return str_ends_with($className, 'Action') || str_contains($className, '\\Actions\\');
+    }
+
+    /**
+     * @param class-string $actionClass
+     */
+    private function compareTransitiveThrows(
+        ActionDescriptor $descriptor,
+        ReflectionMethod $method,
+        string $actionClass,
+    ): void {
+        try {
+            $handleMethod = new ReflectionMethod($actionClass, 'handle');
+        } catch (ReflectionException) {
+            return;
+        }
+
+        $exceptionTypes = $this->throwsExtractor->extract($handleMethod);
+
+        if ($exceptionTypes === []) {
+            return;
+        }
+
+        $controllerThrows = array_map(
+            static fn(string $fqcn): string => ltrim($fqcn, '\\'),
+            $descriptor->throws,
+        );
+
+        $actionShortName = $handleMethod->getDeclaringClass()->getShortName();
+        $controllerShortName = $descriptor->controller?->getShortName() ?? '(unknown)';
+        $controllerName = $descriptor->controller?->getName();
+        $methodName = $method->getName();
+        $location = FindingLocation::fromDescriptor($descriptor);
+
+        foreach ($exceptionTypes as $exceptionType) {
+            if ($exceptionType === '' || in_array($exceptionType, $controllerThrows, true)) {
+                continue;
+            }
+
+            $this->findings->emit(new Finding(
+                ruleId: 'throws.transitive-missing',
+                severity: Severity::Degraded,
+                message: sprintf(
+                    '%s::handle() declares @throws %s, but %s::%s() does not redeclare it',
+                    $actionShortName,
+                    $exceptionType,
+                    $controllerShortName,
+                    $methodName,
+                ),
+                location: $location,
+                fixHint: sprintf(
+                    'Add @throws %s to %s::%s() or add a matching #[ExceptionResponse] attribute.',
+                    $exceptionType,
+                    $controllerShortName,
+                    $methodName,
+                ),
+                context: $controllerName !== null ? [Finding::CONTEXT_SOURCE_CLASS => $controllerName] : [],
+            ));
+        }
     }
 
     /**

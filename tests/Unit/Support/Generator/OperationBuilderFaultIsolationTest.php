@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
@@ -44,6 +45,7 @@ function builderWithResolvers(
         faultBoundary: $boundary,
         docBlockParser: app(DocBlockParser::class),
         middlewareGatherer: app(RouteMiddlewareGatherer::class),
+        findings: app(FindingsCollector::class),
         queryParameterResolvers: $queryParameterResolvers,
         primaryResponseResolvers: $primaryResponseResolvers,
     );

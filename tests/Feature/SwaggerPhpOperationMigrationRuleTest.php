@@ -12,10 +12,8 @@ use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantOperationWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\OperationAnnotatedController;
@@ -122,15 +120,13 @@ it('is disabled as a family by --skip migration.*', function (): void {
 
 it('leaves the affected operation unchanged once the redundant annotation is gone', function (): void {
     // The "same API surface" invariant: the flagged operation's 200 response schema is identical
-    // between the harvested document and the inference-only control it would collapse to.
+    // between the harvested document and the pre-merge operation retained off the same generation.
     operationMigrationSetup();
 
     $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
-    $control = app(OpenApiGenerationOrchestrator::class)
-        ->inferenceOnly('default', [HarvestAuthoredAnnotationsStage::class], 'testing')
-        ->document;
+    $inference = retainedInferenceView();
 
-    expect(operationResponseRef($control, 'op-redundant'))
+    expect(inferredResponseRef($inference->operationForRoute('get', 'op-redundant')))
         ->not->toBeNull()
         ->toBe(operationResponseRef($harvested, 'op-redundant'));
 });

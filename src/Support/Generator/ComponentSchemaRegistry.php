@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Support\Generator;
 use Closure;
 use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
+use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\SchemaName;
 use Radiergummi\OpenApi\Enums\ComponentType;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
@@ -23,7 +24,9 @@ use function class_basename;
 use function class_exists;
 use function explode;
 use function in_array;
+use function json_encode;
 use function md5;
+use function sprintf;
 use function substr;
 
 /**
@@ -86,6 +89,15 @@ final class ComponentSchemaRegistry
      * @var array<class-string, bool>
      */
     private array $hasFileFields = [];
+
+    /**
+     * The retention collaborator and logger are optional so unit tests can `new` the registry
+     * without a container; both are resolved by the container in a real run.
+     */
+    public function __construct(
+        private readonly ?InferenceRetention $retention = null,
+        private readonly ?LoggerInterface $logger = null,
+    ) {}
 
     /**
      * Registers a schema under an explicit key (e.g. shared error envelopes).
@@ -195,6 +207,7 @@ final class ComponentSchemaRegistry
             // without building its schema (the cheap, always-on signal).
             if ($provenance !== null) {
                 $this->recordContestedProducer($className, $provenance->producer);
+                $this->retainRivalInferredSchema($className, $factory, $provenance);
             }
 
             return $this->reserveKey($className);
@@ -426,6 +439,80 @@ final class ComponentSchemaRegistry
             $existing->reason,
             [...$existing->supersededBy, $contender],
         );
+    }
+
+    /**
+     * When retention is active, builds what a rival producer would have emitted for an already-owned
+     * component and stashes it as the inferred view, leaving the winner untouched. Emits a diagnostic
+     * when the rival's schema differs from the winner. No-op unless retention is enabled.
+     *
+     * @param class-string         $className
+     * @param Closure(): OA\Schema $factory
+     */
+    private function retainRivalInferredSchema(
+        string $className,
+        Closure $factory,
+        SchemaProvenance $provenance,
+    ): void {
+        if ($this->retention === null || !$this->retention->isEnabled()) {
+            return;
+        }
+
+        $key = $this->classToKey[$className] ?? null;
+
+        // Only for a fully-registered winner (not a bare reserved key, not a mid-build re-entry).
+        if ($key === null || !array_key_exists($key, $this->schemas) || $this->isInProgress($className)) {
+            return;
+        }
+
+        $winner = $this->provenanceFor($key);
+
+        // A same-producer re-registration is not a contest; and stash each rival only once.
+        $sameProducer = $winner !== null && $winner->producer === $provenance->producer;
+
+        if ($sameProducer || $this->retention->hasInferredSchema($key)) {
+            return;
+        }
+
+        // The rival factory may buildOnce() nested classes; snapshot the registration state so any
+        // component it newly introduces is rolled back, leaving the winner document untouched. The
+        // in-progress flag guards the factory against self-recursion on this same class.
+        $schemas = $this->schemas;
+        $classToKey = $this->classToKey;
+        $keyToClass = $this->keyToClass;
+        $existingProvenance = $this->provenance;
+        $this->markInProgress($className);
+
+        try {
+            $rival = $factory();
+        } finally {
+            $this->markComplete($className);
+            $this->schemas = $schemas;
+            $this->classToKey = $classToKey;
+            $this->keyToClass = $keyToClass;
+            $this->provenance = $existingProvenance;
+        }
+
+        // Mirror register()'s transform dispatch so the diagnostic compares like against the
+        // transformed winner, not a raw factory output.
+        $rival->schema = $key;
+        OpenApiExtensions::applySchemaTransformers($rival, new SchemaContext($key, $className));
+        $this->retention->retainInferredSchema($key, $rival);
+
+        if ($this->schemasDiffer($this->schemas[$key], $rival)) {
+            $this->logger?->warning(sprintf(
+                'ComponentSchemaRegistry: producer %s built a different schema for the already-owned '
+                . 'component "%s" (winner: %s); keeping the winner.',
+                $provenance->producer,
+                $key,
+                $winner !== null ? $winner->producer : 'unknown',
+            ));
+        }
+    }
+
+    private function schemasDiffer(OA\Schema $winner, OA\Schema $rival): bool
+    {
+        return json_encode($winner->jsonSerialize()) !== json_encode($rival->jsonSerialize());
     }
 
     /**

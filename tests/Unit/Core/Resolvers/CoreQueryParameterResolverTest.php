@@ -8,7 +8,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\CoreQueryParameterResolver;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidatorRulesReader;
-use Radiergummi\OpenApi\Plugins\Core\Support\RequestQueryAccessorReader;
+use Radiergummi\OpenApi\Plugins\Core\Support\RequestAccessorReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
@@ -25,7 +25,7 @@ function makeCoreQueryParameterResolver(?LoggerInterface $logger = null): CoreQu
     $scanner = new MethodBodyScanner();
 
     return new CoreQueryParameterResolver(
-        accessorReader: new RequestQueryAccessorReader($scanner),
+        accessorReader: new RequestAccessorReader($scanner),
         validationReader: new InlineValidatorRulesReader($scanner),
         rulesMapper: new ValidationRulesToSchema(),
         logger: $logger ?? new NullLogger(),
@@ -66,6 +66,20 @@ function queryParameterNamed(array $parameters, string $name): ?OA\Parameter
 function queryParameterNames(array $parameters): array
 {
     return array_map(static fn(OA\Parameter $parameter): string => $parameter->name, $parameters);
+}
+
+/**
+ * @param list<OA\Parameter> $parameters
+ */
+function parameterNamedIn(array $parameters, string $name, string $in): ?OA\Parameter
+{
+    foreach ($parameters as $parameter) {
+        if ($parameter->name === $name && $parameter->in === $in) {
+            return $parameter;
+        }
+    }
+
+    return null;
 }
 
 // endregion
@@ -142,6 +156,70 @@ it('dedupes repeated reads of one name, preferring the typed accessor', function
     expect(queryParameterNames($parameters))->toBe(['page', 'q'])
         ->and(queryParameterNamed($parameters, 'page')?->schema->type)->toBe('integer')
         ->and(queryParameterNamed($parameters, 'q')?->schema->type)->toBe('string');
+});
+
+// endregion
+
+// region Cookie & header reads
+
+it('maps cookie() and header() reads to their own parameter locations', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('cookieAndHeaderReads'));
+
+    $session = parameterNamedIn($parameters, 'session', 'cookie');
+    $apiKey = parameterNamedIn($parameters, 'X-Api-Key', 'header');
+
+    expect($session?->in)->toBe('cookie')
+        ->and($session?->schema->type)->toBe('string')
+        ->and($session?->required)->toBeFalse()
+        ->and($apiKey?->in)->toBe('header')
+        ->and($apiKey?->schema->type)->toBe('string')
+        ->and(parameterNamedIn($parameters, 'sort', 'query'))->not->toBeNull();
+});
+
+it('emits cookie() and header() reads on a body-carrying verb', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('cookieAndHeaderReads', 'POST'));
+
+    // Cookies and headers are verb-independent, so they survive on POST where a typed body read
+    // would not.
+    expect(parameterNamedIn($parameters, 'session', 'cookie'))->not->toBeNull()
+        ->and(parameterNamedIn($parameters, 'X-Api-Key', 'header'))->not->toBeNull();
+});
+
+it('keeps a query, cookie, and header read of the same name as three distinct parameters', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('sameNameAcrossLocations'));
+
+    expect(parameterNamedIn($parameters, 'token', 'query'))->not->toBeNull()
+        ->and(parameterNamedIn($parameters, 'token', 'cookie'))->not->toBeNull()
+        ->and(parameterNamedIn($parameters, 'token', 'header'))->not->toBeNull();
+});
+
+it('keeps a dotted header name as a literal token, not wire notation', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('dottedHeaderName'));
+
+    expect(parameterNamedIn($parameters, 'X.Y', 'header'))->not->toBeNull()
+        ->and(parameterNamedIn($parameters, 'X[Y]', 'header'))->toBeNull();
+});
+
+it('notes a non-literal cookie name naming #[CookieParam], on every verb', function (): void {
+    $notesCookie = static fn(array $record): bool => str_contains($record['message'], 'non-literal parameter name')
+        && str_contains($record['message'], 'cookie parameters')
+        && str_contains($record['message'], '#[CookieParam]');
+
+    $getLogger = recordingLogger();
+    makeCoreQueryParameterResolver($getLogger)
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('dynamicCookieName'));
+
+    // Unlike a typed query read, a dynamic cookie() is not a body read on POST — the note still fires.
+    $postLogger = recordingLogger();
+    makeCoreQueryParameterResolver($postLogger)
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('dynamicCookieName', 'POST'));
+
+    expect(array_any($getLogger->records, $notesCookie))->toBeTrue()
+        ->and(array_any($postLogger->records, $notesCookie))->toBeTrue();
 });
 
 // endregion

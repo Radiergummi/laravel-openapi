@@ -49,67 +49,6 @@ it('runs registered stages in registration order', function (): void {
     expect($log->entries)->toBe(['a', 'b', 'c']);
 });
 
-it('skips excluded stages while preserving the order of the rest', function (): void {
-    $log = new stdClass();
-    $log->entries = [];
-
-    $make = static fn(string $name): SpecStage => new class ($log, $name) implements SpecStage {
-        public function __construct(private stdClass $log, private string $name) {}
-
-        public function apply(OpenApi $document, GenerationContext $context): void
-        {
-            $this->log->entries[] = $this->name;
-        }
-    };
-
-    $registry = new OpenApiRegistry();
-    $registry->addStage(StageA::class);
-    $registry->addStage(StageB::class);
-    $registry->addStage(StageC::class);
-
-    app()->bind(StageA::class, fn() => $make('a'));
-    app()->bind(StageB::class, fn() => $make('b'));
-    app()->bind(StageC::class, fn() => $make('c'));
-
-    $pipeline = new SpecPipeline(registry: $registry, container: app());
-
-    $spec = app(SpecRegistry::class)->default();
-    $pipeline->withoutStage(StageB::class)->run($spec, 'testing');
-
-    expect($log->entries)->toBe(['a', 'c']);
-});
-
-it('withoutStage returns a new pipeline, leaving the original intact', function (): void {
-    $log = new stdClass();
-    $log->entries = [];
-
-    $make = static fn(string $name): SpecStage => new class ($log, $name) implements SpecStage {
-        public function __construct(private stdClass $log, private string $name) {}
-
-        public function apply(OpenApi $document, GenerationContext $context): void
-        {
-            $this->log->entries[] = $this->name;
-        }
-    };
-
-    $registry = new OpenApiRegistry();
-    $registry->addStage(StageA::class);
-    $registry->addStage(StageB::class);
-
-    app()->bind(StageA::class, fn() => $make('a'));
-    app()->bind(StageB::class, fn() => $make('b'));
-
-    $pipeline = new SpecPipeline(registry: $registry, container: app());
-
-    $filtered = $pipeline->withoutStage(StageB::class);
-    expect($filtered)->not->toBe($pipeline);
-
-    $spec = app(SpecRegistry::class)->default();
-    $pipeline->run($spec, 'testing');
-
-    expect($log->entries)->toBe(['a', 'b']);
-});
-
 class StageA implements SpecStage
 {
     public function apply(OpenApi $document, GenerationContext $context): void {}

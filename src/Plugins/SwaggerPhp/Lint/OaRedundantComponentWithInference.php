@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
 use OpenApi\Annotations as OA;
 use Override;
-use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
@@ -23,7 +22,6 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\ComponentSubsumption;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\ScannerInferenceRefResolver;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use ReflectionClass;
@@ -212,14 +210,4 @@ final class OaRedundantComponentWithInference implements Rule, ApiRule, FixableR
     {
         return new RedundantOaAnnotationFixer();
     }
-
-    /**
-     * @return list<class-string<SpecStage>>
-     */
-    #[Override]
-    public function excludedStages(): array
-    {
-        return [HarvestAuthoredAnnotationsStage::class];
-    }
-
 }

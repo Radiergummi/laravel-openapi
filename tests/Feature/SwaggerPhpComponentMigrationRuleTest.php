@@ -12,10 +12,8 @@ use Radiergummi\OpenApi\Lint\LintResult;
 use Radiergummi\OpenApi\Lint\LintRunner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Fix\RedundantOaAnnotationFixer;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\OaRedundantComponentWithInference;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhpComponentMigration\RedundantComponentController;
@@ -195,11 +193,11 @@ it('leaves the operation referencing a removed component unchanged (same API sur
     componentMigrationSetup();
 
     $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
-    $control = app(OpenApiGenerationOrchestrator::class)
-        ->inferenceOnly('default', [HarvestAuthoredAnnotationsStage::class], 'testing')
-        ->document;
+    $inference = retainedInferenceView();
 
-    expect(componentResponseRef($control, 'component-redundant'))
+    // Inference inlines responses, so the retained operation carries the schema ref directly; the
+    // harvested side resolves its `#/components/responses/*` ref to the same schema.
+    expect(inferredResponseRef($inference->operationForRoute('get', 'component-redundant')))
         ->not->toBeNull()
         ->toBe(componentResponseRef($harvested, 'component-redundant'));
 });
