@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
 use OpenApi\Annotations as OA;
 use Override;
-use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
@@ -15,7 +14,6 @@ use Radiergummi\OpenApi\Lint\FindingLocation;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\ApiNode;
 use Radiergummi\OpenApi\Lint\Visitors\ApiRule;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\ConfigSnippetRenderer;
 
@@ -106,16 +104,4 @@ final class DocumentAnnotationMigration implements Rule, ApiRule, NeedsInference
             fixHint: sprintf("Move it into config/openapi.php:\n\n%s", $snippet),
         );
     }
-
-
-
-    /**
-     * @return list<class-string<SpecStage>>
-     */
-    #[Override]
-    public function excludedStages(): array
-    {
-        return [HarvestAuthoredAnnotationsStage::class];
-    }
-
 }

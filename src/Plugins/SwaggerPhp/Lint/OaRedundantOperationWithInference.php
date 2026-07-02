@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint;
 
 use Override;
-use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Contracts\Lint\NeedsInferenceDocument;
 use Radiergummi\OpenApi\Contracts\Lint\Rule;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
@@ -21,7 +20,6 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\AuthoredAnnotationShape;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OaRedundancyEngine;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\OperationSubsumption;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\Support\SchemaEquivalence;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use ReflectionException;
 use ReflectionMethod;
@@ -121,16 +119,4 @@ final class OaRedundantOperationWithInference implements Rule, OperationRule, Fi
     {
         return new RedundantOaAnnotationFixer();
     }
-
-    /**
-     * Excludes the annotation harvest so the comparison is against pure inference.
-     *
-     * @return list<class-string<SpecStage>>
-     */
-    #[Override]
-    public function excludedStages(): array
-    {
-        return [HarvestAuthoredAnnotationsStage::class];
-    }
-
 }

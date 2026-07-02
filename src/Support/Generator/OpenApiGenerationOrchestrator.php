@@ -11,7 +11,6 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Console\GenerateCommand;
-use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
 use Radiergummi\OpenApi\Http\DocsController;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -21,9 +20,6 @@ use ReflectionException;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 use UnexpectedValueException;
-
-use function is_array;
-use function Radiergummi\OpenApi\is_defined;
 
 /**
  * Drives multi-spec generation. Resets scoped state between specs via
@@ -51,11 +47,15 @@ final readonly class OpenApiGenerationOrchestrator
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    public function generateOne(string $name, ?string $environment = null): OA\OpenApi
-    {
+    public function generateOne(
+        string $name,
+        ?string $environment = null,
+        bool $retainInferredView = false,
+    ): OA\OpenApi {
         return $this->generateForSpec(
             $this->registry->get($name),
             $environment ?? $this->environment,
+            $retainInferredView,
         );
     }
 
@@ -66,10 +66,21 @@ final readonly class OpenApiGenerationOrchestrator
      * @throws UnexpectedValueException
      * @throws UnsupportedException
      */
-    private function generateForSpec(SpecDefinition $spec, string $environment): OA\OpenApi
-    {
+    private function generateForSpec(
+        SpecDefinition $spec,
+        string $environment,
+        bool $retainInferredView = false,
+    ): OA\OpenApi {
         return $this->withFreshScopedState(
-            fn(): OA\OpenApi => $this->container->make(OpenApiGenerator::class)->generate($spec, $environment),
+            function () use ($spec, $environment, $retainInferredView): OA\OpenApi {
+                // Flip retention on after the reset, so the fresh scoped store records the inferred
+                // view during this run; an ordinary generation leaves it disabled and pays nothing.
+                if ($retainInferredView) {
+                    $this->container->make(InferenceRetention::class)->enable();
+                }
+
+                return $this->container->make(OpenApiGenerator::class)->generate($spec, $environment);
+            },
         );
     }
 
@@ -138,74 +149,5 @@ final readonly class OpenApiGenerationOrchestrator
         }
 
         return $documents;
-    }
-
-    /**
-     * Generates the named spec with the given stages excluded. Used by the lint layer to determine
-     * what inference alone would produce. Findings from this control run are discarded.
-     *
-     * @param list<class-string<SpecStage>> $excludedStages
-     *
-     * @throws BindingResolutionException
-     * @throws InvalidArgumentException   if the named spec is not defined
-     * @throws ReflectionException
-     * @throws RuntimeException
-     * @throws UnexpectedValueException
-     * @throws UnsupportedException
-     */
-    public function inferenceOnly(
-        string $specName,
-        array $excludedStages,
-        ?string $environment = null,
-    ): InferenceOnlyGeneration {
-        $spec = $this->registry->get($specName);
-
-        return $this->withFreshScopedState(
-            function () use ($spec, $excludedStages, $environment): InferenceOnlyGeneration {
-                $document = $this->container
-                    ->make(SpecPipeline::class)
-                    ->withoutStage(...$excludedStages)
-                    ->run($spec, $environment ?? $this->environment);
-
-                // Re-resolve the registry: the pipeline repopulated it during the run.
-                $schemasByClass = $this->indexSchemasByClass(
-                    $document,
-                    $this->container->make(ComponentSchemaRegistry::class)->componentClassMap(),
-                );
-
-                return new InferenceOnlyGeneration($document, $schemasByClass);
-            },
-            discardFindings: true,
-        );
-    }
-
-    /**
-     * @param array<string, class-string> $classMap component name → source class
-     *
-     * @return array<class-string, OA\Schema>
-     */
-    private function indexSchemasByClass(OA\OpenApi $document, array $classMap): array
-    {
-        if (!$document->components instanceof OA\Components || !is_array($document->components->schemas)) {
-            return [];
-        }
-
-        $byName = [];
-
-        foreach ($document->components->schemas as $schema) {
-            if (is_defined($schema->schema)) {
-                $byName[$schema->schema] = $schema;
-            }
-        }
-
-        $byClass = [];
-
-        foreach ($classMap as $name => $class) {
-            if (isset($byName[$name])) {
-                $byClass[$class] = $byName[$name];
-            }
-        }
-
-        return $byClass;
     }
 }

@@ -16,11 +16,13 @@ use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Generator\GenerationContext;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
+use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Lint\SchemaNameCollision;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\InferenceRetention;
 use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionNamedType;
 
@@ -48,30 +50,36 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         private ComponentSchemaRegistry $schemaRegistry,
         private LoggerInterface $logger,
         private FindingsCollector $findings,
+        private InferenceRetention $retention,
     ) {}
 
     #[Override]
     public function apply(OA\OpenApi $document, GenerationContext $context): void
     {
         if (is_array($document->paths)) {
-            $this->harvestContainers($document->paths, $context);
+            $this->harvestContainers($document->paths, $context, recordInferred: true);
         }
 
         if (is_array($document->webhooks)) {
-            $this->harvestContainers($document->webhooks, $context);
+            $this->harvestContainers($document->webhooks, $context, recordInferred: false);
         }
     }
 
     /**
      * @param array<OA\PathItem|OA\Webhook> $containers
      */
-    private function harvestContainers(array $containers, GenerationContext $context): void
+    private function harvestContainers(array $containers, GenerationContext $context, bool $recordInferred): void
     {
         foreach ($containers as $container) {
+            $uri = $recordInferred && is_string($container->path) ? $container->path : null;
+
             foreach (HttpMethod::cases() as $method) {
                 $operation = $container->{$method->value} ?? Generator::UNDEFINED;
 
                 if ($operation instanceof OA\Operation) {
+                    // Snapshot the operation as inference produced it, before harvesting mutates it,
+                    // so the retained view can compare authored annotations against pure inference.
+                    $this->recordInferredOperation($operation, $uri);
                     $this->harvest($operation, $context);
                 }
             }
@@ -148,6 +156,24 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
         }
 
         $operation->responses = array_values($byStatus);
+    }
+
+    /**
+     * Snapshots the operation as inference produced it, before this merge mutates it, so the retained
+     * view can compare authored annotations against pure inference. The merge reassigns the array
+     * properties rather than editing them in place, so a shallow clone preserves the pre-merge state.
+     * No-op unless retention is active and the route URI is known.
+     */
+    private function recordInferredOperation(OA\Operation $operation, ?string $uri): void
+    {
+        if (!$this->retention->isEnabled() || $uri === null || !is_string($operation->method)) {
+            return;
+        }
+
+        $this->retention->retainInferredOperation(
+            InferenceView::operationKey($operation->method, $uri),
+            clone $operation,
+        );
     }
 
     /**
@@ -409,6 +435,12 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             }
 
             return;
+        }
+
+        // Inference never produced this component (the harvester is the sole contributor), so the
+        // retained inference-only view must exclude it, mirroring the harvester-excluded generation.
+        if ($this->retention->isEnabled()) {
+            $this->retention->markAuthoredOnlySchema($name);
         }
 
         $this->schemaRegistry->registerNamed($name, $schema, new SchemaProvenance(self::class));

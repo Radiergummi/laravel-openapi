@@ -7,13 +7,12 @@ namespace Radiergummi\OpenApi\Tests\Feature;
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
-use Radiergummi\OpenApi\Plugins\SwaggerPhp\Stages\HarvestAuthoredAnnotationsStage;
+use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Plugins\SwaggerPhp\SwaggerPhpPlugin;
-use Radiergummi\OpenApi\Support\Generator\InferenceOnlyGeneration;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Generator\InferenceRetention;
 use Radiergummi\OpenApi\Support\Generator\OpenApiGenerationOrchestrator;
-use Radiergummi\OpenApi\Support\Generator\OpenApiGenerator;
-use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\AttributeServer;
 use Radiergummi\OpenApi\Tests\Fixtures\SwaggerPhp\ServerController;
 
@@ -51,42 +50,58 @@ function schemaNames(OA\OpenApi $document): array
     return array_map(static fn(OA\Schema $s): string => $s->schema, $document->components->schemas);
 }
 
-function inferenceOnly(): InferenceOnlyGeneration
+/**
+ * Generates the harvested document with the inferred view retained, returning both the primary
+ * document and the {@see InferenceView} assembled from the retained side channel of that single run.
+ *
+ * @return array{document: OA\OpenApi, view: InferenceView}
+ */
+function generationWithRetainedView(): array
 {
-    return app(OpenApiGenerationOrchestrator::class)
-        ->inferenceOnly('default', [HarvestAuthoredAnnotationsStage::class], 'testing');
+    $document = app(OpenApiGenerationOrchestrator::class)
+        ->generateOne('default', 'testing', retainInferredView: true);
+
+    return [
+        'document' => $document,
+        'view' => InferenceView::fromRetention(
+            $document,
+            app(ComponentSchemaRegistry::class),
+            app(InferenceRetention::class),
+        ),
+    ];
 }
 
 // endregion
 
-it('excludes harvester-only schemas from the inference-only document', function (): void {
+it('excludes harvester-only schemas from the retained inference view', function (): void {
     controlRoutes();
     enableHarvesterWithFixtures();
 
-    // The normal (harvested) generation attaches the authored `Server` schema...
-    $harvested = app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
-    expect(schemaNames($harvested))->toContain('Server');
+    ['document' => $document, 'view' => $view] = generationWithRetainedView();
 
-    // ...but the inference-only document, built with the harvest stage excluded, must not.
-    expect(schemaNames(inferenceOnly()->document))->not->toContain('Server');
+    // The harvested document attaches the authored `Server` schema...
+    expect(schemaNames($document))->toContain('Server');
+
+    // ...but the retained inference view, sourced from the same single run, must not expose it.
+    expect($view->schemaForName('Server'))->toBeNull();
 });
 
-it('is unaffected by a prior in-scope harvested generation (scope isolation)', function (): void {
+it('retains no harvester schema even after a prior in-scope harvested generation (scope isolation)', function (): void {
     controlRoutes();
     enableHarvesterWithFixtures();
 
-    // Pollute the scoped ComponentSchemaRegistry with the harvested run first.
-    app(OpenApiGenerator::class)->generate(app(SpecRegistry::class)->default(), 'testing');
+    // Pollute the scoped state with a first harvested generation.
+    app(OpenApiGenerationOrchestrator::class)->generateOne('default', 'testing');
 
-    // The inference-only run must still be harvest-free — its fresh scoped state must not inherit `Server`.
-    expect(schemaNames(inferenceOnly()->document))->not->toContain('Server');
+    // A subsequent retained run gets fresh scoped state, so the view never inherits `Server`.
+    expect(generationWithRetainedView()['view']->schemaForName('Server'))->toBeNull();
 });
 
-it('omits a class inference produces no schema for from the class index', function (): void {
+it('omits a class inference produces no schema for from the retained view', function (): void {
     controlRoutes();
     enableHarvesterWithFixtures();
 
     // AttributeServer is a plain class with only an authored #[OA\Schema]; inference alone yields no
-    // component schema for it, so it must be absent from the source-class → schema index.
-    expect(inferenceOnly()->schemasByClass)->not->toHaveKey(AttributeServer::class);
+    // component schema for it, so it must have no inferred counterpart in the retained view.
+    expect(generationWithRetainedView()['view']->schemaForClass(AttributeServer::class))->toBeNull();
 });
