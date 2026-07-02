@@ -10,11 +10,15 @@ use Illuminate\Support\Str;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Generator\SpecStage;
+use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Events\RouteSkipped;
 use Radiergummi\OpenApi\Extensions\OpenApiExtensions;
 use Radiergummi\OpenApi\Extensions\OperationContext;
 use Radiergummi\OpenApi\Generator\GenerationContext;
+use Radiergummi\OpenApi\Lint\Finding;
+use Radiergummi\OpenApi\Lint\FindingLocation;
+use Radiergummi\OpenApi\Lint\FindingsCollector;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\Generator\OperationIdDeriver;
@@ -22,6 +26,7 @@ use Radiergummi\OpenApi\Support\Generator\OverrideMatcher;
 use Radiergummi\OpenApi\Support\Generator\TagDeriver;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
+use ReflectionClass;
 use ReflectionException;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
@@ -29,6 +34,8 @@ use UnexpectedValueException;
 
 use function array_values;
 use function assert;
+use function class_exists;
+use function sprintf;
 
 /**
  * Walks discovered routes, building `paths` and `webhooks` entries.
@@ -46,6 +53,7 @@ final readonly class PathsStage implements SpecStage
         private OperationBuilder $operationBuilder,
         private InclusionEvaluator $evaluator,
         private Dispatcher $events,
+        private FindingsCollector $findings,
         private TagDeriver $tagDeriver = new TagDeriver(),
         private OperationIdDeriver $operationIdDeriver = new OperationIdDeriver(),
     ) {}
@@ -65,6 +73,13 @@ final readonly class PathsStage implements SpecStage
         $webhookItems = [];
 
         foreach ($this->introspector->discover() as $descriptor) {
+            // A route pointing at a missing controller method yields no operation below; report it
+            // here (over the global-filtered set, matching the finding's route scope) rather than
+            // re-reflecting in a lint rule (`operation.action-method-missing`).
+            if ($this->evaluator->passesGlobalFilters($descriptor)) {
+                $this->emitMissingActionMethodFinding($descriptor);
+            }
+
             $decision = $this->evaluator->decide($descriptor, $context->spec, $context->environment);
 
             if (!$decision->included) {
@@ -144,6 +159,40 @@ final readonly class PathsStage implements SpecStage
                 new OperationContext($verbAction, $method),
             );
         }
+    }
+
+    /**
+     * Reports a route whose controller method does not exist (e.g. an over-registered resourceful
+     * route). Closures and routes whose controller class is itself absent are out of scope.
+     */
+    private function emitMissingActionMethodFinding(ActionDescriptor $descriptor): void
+    {
+        $controllerClass = $descriptor->route->getControllerClass();
+
+        if ($controllerClass === null || !class_exists($controllerClass)) {
+            return;
+        }
+
+        $actionMethod = $descriptor->route->getActionMethod();
+
+        // An invocable controller registers the class name as its action; reflect __invoke().
+        $methodName = $actionMethod === $controllerClass ? '__invoke' : $actionMethod;
+
+        if (new ReflectionClass($controllerClass)->hasMethod($methodName)) {
+            return;
+        }
+
+        $this->findings->emit(new Finding(
+            ruleId: 'operation.action-method-missing',
+            severity: Severity::Degraded,
+            message: sprintf(
+                '%s::%s() does not exist; the route points at a missing method and would fault at runtime.',
+                new ReflectionClass($controllerClass)->getShortName(),
+                $methodName,
+            ),
+            location: FindingLocation::fromDescriptor($descriptor),
+            fixHint: 'Implement the method, or stop registering the route (e.g. limit apiResource() with only:/except:).',
+        ));
     }
 
     private function normalisePath(string $uri): string

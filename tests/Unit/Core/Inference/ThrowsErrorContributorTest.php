@@ -6,6 +6,7 @@ use Illuminate\Routing\Route;
 use Radiergummi\OpenApi\Lint\ArrayFindingsCollector;
 use Radiergummi\OpenApi\Plugins\Core\ErrorContributors\ThrowsErrorContributor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\ThrowsExtractor;
 use Radiergummi\OpenApi\Tests\Fixtures\TeapotException;
 
 uses()->group('openapi');
@@ -27,6 +28,7 @@ function throwsDescriptor(array $throws): ActionDescriptor
 it('returns an empty list when throws is empty', function (): void {
     $contributor = new ThrowsErrorContributor(
         findings: new ArrayFindingsCollector(),
+        throwsExtractor: ThrowsExtractor::create(),
     );
 
     $result = $contributor->contribute(throwsDescriptor([]));
@@ -36,7 +38,7 @@ it('returns an empty list when throws is empty', function (): void {
 
 it('emits no findings when throws is empty', function (): void {
     $collector = new ArrayFindingsCollector();
-    $contributor = new ThrowsErrorContributor(findings: $collector);
+    $contributor = new ThrowsErrorContributor(findings: $collector, throwsExtractor: ThrowsExtractor::create());
 
     $contributor->contribute(throwsDescriptor([]));
 
@@ -50,6 +52,7 @@ it('emits no findings when throws is empty', function (): void {
 it('returns an ErrorDescriptor for an exception mapped in config', function (): void {
     $contributor = new ThrowsErrorContributor(
         findings: new ArrayFindingsCollector(),
+        throwsExtractor: ThrowsExtractor::create(),
         exceptionMap: [
             RuntimeException::class => ['status' => 500, 'description' => 'Server error'],
         ],
@@ -69,6 +72,7 @@ it('returns an ErrorDescriptor for an exception mapped in config', function (): 
 it('uses the #[ExceptionResponse] attribute even when config also maps the exception', function (): void {
     $contributor = new ThrowsErrorContributor(
         findings: new ArrayFindingsCollector(),
+        throwsExtractor: ThrowsExtractor::create(),
         exceptionMap: [
             TeapotException::class => ['status' => 500, 'description' => 'Config description'],
         ],
@@ -89,6 +93,7 @@ it('returns an empty list and emits a throws.unmapped finding for an unmapped ex
     $collector = new ArrayFindingsCollector();
     $contributor = new ThrowsErrorContributor(
         findings: $collector,
+        throwsExtractor: ThrowsExtractor::create(),
         exceptionMap: [],
     );
 
@@ -107,6 +112,7 @@ it('returns an empty list and emits a throws.unmapped finding for an unmapped ex
 it('populates exceptionClass when @throws is a real Throwable subclass', function (): void {
     $contributor = new ThrowsErrorContributor(
         findings: new ArrayFindingsCollector(),
+        throwsExtractor: ThrowsExtractor::create(),
         exceptionMap: [
             RuntimeException::class => ['status' => 500, 'description' => 'Server error'],
         ],
@@ -121,6 +127,7 @@ it('populates exceptionClass when @throws is a real Throwable subclass', functio
 it('populates exceptionClass when @throws references a Throwable interface', function (): void {
     $contributor = new ThrowsErrorContributor(
         findings: new ArrayFindingsCollector(),
+        throwsExtractor: ThrowsExtractor::create(),
         exceptionMap: [
             'Throwable' => ['status' => 500, 'description' => 'Server error'],
         ],
@@ -139,6 +146,7 @@ it('populates exceptionClass when @throws references a Throwable interface', fun
 it('resolves the descriptor but sets exceptionClass to null for a non-loadable class mapped by exact string', function (): void {
     $contributor = new ThrowsErrorContributor(
         findings: new ArrayFindingsCollector(),
+        throwsExtractor: ThrowsExtractor::create(),
         exceptionMap: [
             'App\\Exceptions\\SomeUnloadableName' => ['status' => 503, 'description' => 'Unavailable'],
         ],
