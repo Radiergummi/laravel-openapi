@@ -18,7 +18,6 @@ use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
-use Radiergummi\OpenApi\Support\Types\TypeNodeToSchema;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Article;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\User;
 use ReflectionClass;
@@ -128,7 +127,6 @@ function findReturnResolver(?LoggerInterface $logger = null): FindReturnModelRes
     $modelToSchema = new EloquentModelToSchema(
         registry: $registry,
         jsonSchemaFromType: new JsonSchemaFromType($logger, $registry),
-        typeNodeToSchema: new TypeNodeToSchema(),
         typeResolver: TypeResolver::create(),
         typeNodeResolver: TypeNodeResolver::create(),
         docBlockParser: DocBlockParser::create(),

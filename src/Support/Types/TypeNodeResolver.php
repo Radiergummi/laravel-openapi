@@ -14,7 +14,10 @@ use PHPStan\PhpDocParser\Ast\Type\UnionTypeNode;
 use ReflectionClass;
 use ReflectionMethod;
 use Reflector;
+use Symfony\Component\TypeInfo\Type;
 use Symfony\Component\TypeInfo\Type\CollectionType;
+use Symfony\Component\TypeInfo\Type\GenericType;
+use Symfony\Component\TypeInfo\Type\NullableType;
 use Symfony\Component\TypeInfo\Type\ObjectType;
 use Symfony\Component\TypeInfo\TypeContext\TypeContext;
 use Symfony\Component\TypeInfo\TypeContext\TypeContextFactory;
@@ -99,6 +102,60 @@ final class TypeNodeResolver
         }
 
         return null;
+    }
+
+    /**
+     * Converts a phpstan/phpdoc-parser {@see TypeNode} into a symfony/type-info {@see Type}, the
+     * canonical representation the schema engine consumes. The single phpstan → symfony bridge.
+     *
+     * Resolution runs through the reflection-derived {@see TypeContext} so relative/imported class
+     * names (`list<User>`, `array{author: Author}`) resolve; a bare `StringTypeResolver` throws on
+     * them. Returns null when the type string is unresolvable, e.g. it names a class the resolver
+     * cannot verify, so the caller degrades to its own fallback rather than aborting the run.
+     */
+    public function toType(TypeNode $node, Reflector $context): ?Type
+    {
+        $typeContext = $this->contextFor($context);
+
+        try {
+            return $this->normalizeSameNamespaceClass(
+                $this->stringResolver->resolve((string) $node, $typeContext),
+            );
+        } catch (Throwable) {
+            // A derived context can carry an unrelated class scope (Pest closures) or a name the
+            // resolver cannot verify. Retry context-free before giving up.
+            if ($typeContext === null) {
+                return null;
+            }
+
+            try {
+                return $this->normalizeSameNamespaceClass(
+                    $this->stringResolver->resolve((string) $node),
+                );
+            } catch (Throwable) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Works around a symfony/type-info quirk: a bare same-namespace class name (no `use` import) is
+     * wrapped in a {@see CollectionType} even though it is a plain object. The quirk always wraps an
+     * {@see ObjectType}, so only that case is unwrapped — a genuine array/collection wraps a
+     * {@see GenericType} (`array<K, V>`, `list<T>`, `Collection<T>`) or a bare {@see BuiltinType}
+     * (bare `array` / `iterable`), and both must survive as CollectionType for the list/map mapping.
+     */
+    private function normalizeSameNamespaceClass(Type $type): Type
+    {
+        if ($type instanceof NullableType) {
+            return Type::nullable($this->normalizeSameNamespaceClass($type->getWrappedType()));
+        }
+
+        if ($type instanceof CollectionType && $type->getWrappedType() instanceof ObjectType) {
+            return $type->getWrappedType();
+        }
+
+        return $type;
     }
 
     /**

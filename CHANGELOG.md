@@ -62,7 +62,7 @@ All notable changes to this project are documented here.
 
 ### Changed
 - `spatie/laravel-data` is now a soft dependency (moved from `require` to `require-dev`); Fractal and query-builder packages are opt-in.
-- Widened dependency support: `zircote/swagger-php` `^5.8 || ^6.1.2` and `symfony/type-info` `^7.3 || ^8.0`; PHPDoc parsing now uses `phpstan/phpdoc-parser` + `symfony/type-info`.
+- Widened dependency support: `zircote/swagger-php` `^5.8 || ^6.1.2` and `symfony/type-info` `^7.4 || ^8.0`; PHPDoc parsing now uses `phpstan/phpdoc-parser` + `symfony/type-info`.
 - Auto-derived operation tags come from the controller's pluralised short class name; operation-ID derivation is selectable via `openapi.operation_id_strategy`.
 - Pipeline order is expressed as a single ordered sequence in `BaselineRegistration::assemble()`; resolver fault isolation is centralized in `ResolverFaultBoundary`; pipeline classes are scoped singletons (Octane-safe).
 - Restructured namespaces to separate the public extension surface (`Contracts\`) from internal infrastructure (`Support\`).
@@ -71,6 +71,7 @@ All notable changes to this project are documented here.
 - A typed `UploadedFile` property on a Spatie `Data` class (transitively, through nested Data classes) emits a `multipart/form-data` body with a `format: binary` field, matching the FormRequest file-rule path; the `multipart.file-without-multipart` lint rule is reframed as a contradiction guard that fires only when a `#[RequestBody]` override forces a non-multipart media type onto a file-carrying payload. (#333)
 - The `migration.*` redundancy oracle (`SchemaEquivalence`) now follows a component `$ref` by name to its target schema on each side when the author and convention named the same component differently, so a parent schema whose only difference is a divergent child `$ref` name is no longer under-reported as non-redundant; resolution is conservative (an unresolvable ref keeps the annotation) and cycle-guarded. (#198)
 - Lint `Rule` contract now declares `id`, `severity`, and `description` as readable property requirements instead of getter methods; rule implementations declare them as plain typed properties with initializers. (#379)
+- Internal: unified the two docblock/type → schema engines on a single `symfony/type-info` `Type` representation (`TypeNodeToSchema` is removed; `JsonSchemaFromType` grew the structural array-shape/list/map cases and an optional leaf-class callback), with a `TypeNodeResolver::toType()` phpstan → symfony boundary. No spec output change except previously-unmapped array/collection shapes on the symfony path now resolve, `true`/`false` map to `boolean`, and array-shape properties serialize in sorted key order. (#480)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)

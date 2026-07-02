@@ -3,6 +3,12 @@
 declare(strict_types=1);
 
 use Pest\Expectation;
+use PHPStan\PhpDocParser\Ast\Type\TypeNode;
+use PHPStan\PhpDocParser\Lexer\Lexer;
+use PHPStan\PhpDocParser\Parser\ConstExprParser;
+use PHPStan\PhpDocParser\Parser\TokenIterator;
+use PHPStan\PhpDocParser\Parser\TypeParser;
+use PHPStan\PhpDocParser\ParserConfig;
 use PHPUnit\Framework\Assert;
 use Psr\Log\AbstractLogger;
 use Radiergummi\OpenApi\Lint\Finding;
@@ -90,6 +96,19 @@ function generateSpec(?string $specName = null, string $environment = 'testing')
     $env = $environment !== 'testing' ? $environment : app()->environment();
 
     return Yaml::parse(app(OpenApiGenerator::class)->generate($spec, $env)->toYaml());
+}
+
+/**
+ * Parses a PHPDoc type expression into a phpstan/phpdoc-parser {@see TypeNode}, for the type-engine
+ * tests that feed type strings through the resolver + schema engine.
+ */
+function parsePhpDocType(string $expression): TypeNode
+{
+    $config = new ParserConfig([]);
+    $lexer = new Lexer($config);
+    $typeParser = new TypeParser($config, new ConstExprParser($config));
+
+    return $typeParser->parse(new TokenIterator($lexer->tokenize($expression)));
 }
 
 /**
