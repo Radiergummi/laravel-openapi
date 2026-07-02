@@ -8,11 +8,13 @@ use Illuminate\Console\Command;
 use InvalidArgumentException;
 use Radiergummi\OpenApi\Enums\HttpMethod;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\Generator\TagDeriver;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionDecision;
 use Radiergummi\OpenApi\Support\Inclusion\InclusionEvaluator;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use Radiergummi\OpenApi\Support\Routing\RouteIntrospector;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Spec\SpecRegistry;
@@ -24,6 +26,7 @@ use UnexpectedValueException;
 use function app;
 use function array_map;
 use function array_values;
+use function class_basename;
 use function count;
 use function implode;
 use function str_contains;
@@ -201,6 +204,49 @@ class WhyCommand extends Command
             }
 
             $this->printProvenance($operation->provenance);
+        }
+
+        // Building the operations above populates the component registry as a side effect, so its
+        // provenance now covers the schemas this route references.
+        $this->printComponentProvenance(app(ComponentSchemaRegistry::class)->allProvenance());
+    }
+
+    /**
+     * Renders the producer (and any degraded/contested detail) behind each component schema this
+     * route pulled into the registry.
+     *
+     * @param array<string, SchemaProvenance> $provenance
+     *
+     * @throws InvalidArgumentException
+     */
+    private function printComponentProvenance(array $provenance): void
+    {
+        if ($provenance === []) {
+            return;
+        }
+
+        $this->line('');
+        $this->line('Components:');
+
+        foreach ($provenance as $key => $entry) {
+            $detail = class_basename($entry->producer);
+
+            if ($entry->degraded) {
+                $detail .= ' (degraded' . ($entry->reason !== null ? ": {$entry->reason}" : '') . ')';
+            } elseif ($entry->reason !== null) {
+                $detail .= " ({$entry->reason})";
+            }
+
+            $this->components->twoColumnDetail($key, $detail);
+
+            if ($entry->supersededBy !== []) {
+                $this->components->bulletList(
+                    array_map(
+                        static fn(string $producer): string => 'superseded: ' . class_basename($producer),
+                        $entry->supersededBy,
+                    ),
+                );
+            }
         }
     }
 

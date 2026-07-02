@@ -10,6 +10,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use Ramsey\Uuid\UuidInterface;
 use ReflectionEnumBackedCase;
 use Symfony\Component\TypeInfo\Type;
@@ -179,6 +180,7 @@ final readonly class JsonSchemaFromType
         $key = $this->registry->buildOnce(
             $enumClass,
             fn(): OA\Schema => $this->fromBackedEnumClass($enumClass),
+            new SchemaProvenance(self::class),
         );
 
         return $this->registry->qualifyKey($key);

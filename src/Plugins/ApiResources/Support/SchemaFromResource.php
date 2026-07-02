@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionClass;
 use ReflectionException;
 
@@ -137,7 +138,11 @@ final class SchemaFromResource
      */
     public function build(string $resourceClass): string
     {
-        return $this->registry->buildOnce($resourceClass, fn(): OA\Schema => $this->buildSchema($resourceClass));
+        return $this->registry->buildOnce(
+            $resourceClass,
+            fn(): OA\Schema => $this->buildSchema($resourceClass),
+            new SchemaProvenance(self::class),
+        );
     }
 
     /**

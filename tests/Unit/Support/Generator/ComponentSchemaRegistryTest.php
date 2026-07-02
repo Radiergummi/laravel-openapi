@@ -5,6 +5,7 @@ declare(strict_types=1);
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\DuplicateSchemaNameException;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Bar\CreateData as BarCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Baz\Bar\CreateData as BazBarCreateData;
 use Radiergummi\OpenApi\Tests\Fixtures\Registry\Domain\Data\Alpha\CreateData as AlphaCreateData;
@@ -295,6 +296,118 @@ it('is idempotent and first-wins on a repeated named-parameter key', function ()
 it('reports no parameters by default', function (): void {
     expect(new ComponentSchemaRegistry()->allParameters())->toBe([])
         ->and(new ComponentSchemaRegistry()->hasParameterKey('Anything'))->toBeFalse();
+});
+
+// endregion
+
+// region Schema provenance — producer / confidence recording
+
+it('records the producer on buildOnce and exposes it by class and by key', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->buildOnce(
+        stdClass::class,
+        fn(): OA\Schema => new OA\Schema(['type' => 'object']),
+        new SchemaProvenance(OA\Schema::class),
+    );
+
+    $byClass = $registry->provenanceForClass(stdClass::class);
+    $byKey = $registry->provenanceFor($registry->keyFor(stdClass::class) ?? '');
+
+    expect($byClass)->not->toBeNull()
+        ->and($byClass->producer)->toBe(OA\Schema::class)
+        ->and($byClass->degraded)->toBeFalse()
+        ->and($byClass->reason)->toBeNull()
+        ->and($byClass->supersededBy)->toBe([])
+        ->and($byKey)->toBe($byClass);
+});
+
+it('records the producer on registerNamed', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->registerNamed('Error', new OA\Schema(['type' => 'object']), new SchemaProvenance(OA\Schema::class));
+
+    expect($registry->provenanceFor('Error')?->producer)->toBe(OA\Schema::class);
+});
+
+it('round-trips the degraded flag and reason through register', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->register(
+        stdClass::class,
+        new OA\Schema(['type' => 'object']),
+        new SchemaProvenance(OA\Schema::class, degraded: true, reason: 'partial extraction'),
+    );
+
+    $provenance = $registry->provenanceForClass(stdClass::class);
+
+    expect($provenance?->degraded)->toBeTrue()
+        ->and($provenance?->reason)->toBe('partial extraction');
+});
+
+it('records a second, different producer as contested without disturbing the winner', function (): void {
+    $registry = new ComponentSchemaRegistry();
+    $winner = new OA\Schema(['type' => 'object']);
+
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => $winner, new SchemaProvenance(OA\Schema::class));
+
+    // The losing producer reaches the already-owned class; its factory must never run.
+    $registry->buildOnce(
+        stdClass::class,
+        function (): OA\Schema {
+            throw new RuntimeException('losing factory must not run');
+        },
+        new SchemaProvenance(OA\Property::class),
+    );
+
+    $provenance = $registry->provenanceForClass(stdClass::class);
+
+    expect($provenance?->producer)->toBe(OA\Schema::class)
+        ->and($provenance?->supersededBy)->toBe([OA\Property::class])
+        ->and($registry->schemaForKey($registry->keyFor(stdClass::class) ?? ''))->toBe($winner);
+});
+
+it('does not mark the same producer as contested when it re-registers', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => new OA\Schema([]), new SchemaProvenance(OA\Schema::class));
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => new OA\Schema([]), new SchemaProvenance(OA\Schema::class));
+
+    expect($registry->provenanceForClass(stdClass::class)?->supersededBy)->toBe([]);
+});
+
+it('records each contesting producer only once', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => new OA\Schema([]), new SchemaProvenance(OA\Schema::class));
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => new OA\Schema([]), new SchemaProvenance(OA\Property::class));
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => new OA\Schema([]), new SchemaProvenance(OA\Property::class));
+
+    expect($registry->provenanceForClass(stdClass::class)?->supersededBy)->toBe([OA\Property::class]);
+});
+
+it('returns null provenance for a key reserved by the cycle guard but never built', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $key = $registry->reserveKey(ProjectsCreateData::class);
+
+    expect($registry->provenanceFor($key))->toBeNull()
+        ->and($registry->provenanceForClass(ProjectsCreateData::class))->toBeNull();
+});
+
+it('returns null provenance for an unreserved class', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    expect($registry->provenanceForClass(ProjectsCreateData::class))->toBeNull();
+});
+
+it('records nothing when no provenance is supplied', function (): void {
+    $registry = new ComponentSchemaRegistry();
+
+    $registry->buildOnce(stdClass::class, fn(): OA\Schema => new OA\Schema([]));
+
+    expect($registry->provenanceForClass(stdClass::class))->toBeNull()
+        ->and($registry->allProvenance())->toBe([]);
 });
 
 // endregion

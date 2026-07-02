@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\Generator\ExplicitClassSchema;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\NullableSchema;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -94,7 +95,11 @@ final class SchemaFromDataClass implements FilePropertyChecker
      */
     public function build(string $dataClass): string
     {
-        return $this->registry->buildOnce($dataClass, fn(): OA\Schema => $this->buildSchema($dataClass));
+        return $this->registry->buildOnce(
+            $dataClass,
+            fn(): OA\Schema => $this->buildSchema($dataClass),
+            new SchemaProvenance(self::class),
+        );
     }
 
     /**

@@ -238,11 +238,25 @@ Fields:
   ...
 ```
 
+Below the fields, a `Components:` block names the builder that produced each component schema
+the route pulled into the shared `$ref` pool (a FormRequest, Spatie Data class, API Resource,
+Fractal transformer, backed enum, Eloquent model, or the swagger-php harvester). When more than
+one builder reached the same class, the first write wins and the losers are listed as
+`superseded:` beneath the winner:
+
+```
+Components:
+  FlightData ................................................. SchemaFromDataClass
+  Airport ......................................................... SchemaFromResource
+  ⇂ superseded: EloquentModelToSchema
+```
+
 This is read-only instrumentation: it records decisions the generator already makes and never
-changes the generated document. Provenance covers every single-valued operation field the
+changes the generated document. Field provenance covers every single-valued operation field the
 generator derives — `summary`, `description`, success `status`, `tags`, `deprecated`,
-`operationId`, `externalDocs`, and `security`. A field with no value contributes no row.
-Per-parameter and response-schema provenance is not yet traced.
+`operationId`, `externalDocs`, and `security`. A field with no value contributes no row, and a
+route referencing no components omits the `Components:` block. Per-parameter provenance is not
+yet traced.
 
 ## Worked examples
 

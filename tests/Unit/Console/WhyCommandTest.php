@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Unit\Console;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Radiergummi\OpenApi\Contracts\Routing\RouteFilter;
+use Radiergummi\OpenApi\Tests\Fixtures\EdgeCaseFixtureController;
 
 uses()->group('openapi');
 
@@ -44,6 +45,24 @@ it('--fields appends an operation field-provenance block', function (): void {
         ->artisan('openapi:why api/v1/flights --fields')
         ->expectsOutputToContain('Fields:')
         ->expectsOutputToContain('status')
+        ->assertSuccessful();
+});
+
+it('--fields surfaces the producer behind each referenced component schema', function (): void {
+    Route::get('api/v1/edge', [EdgeCaseFixtureController::class, 'unionReturnAction'])->name('v1.edge');
+    app()->forgetScopedInstances();
+
+    $this
+        ->artisan('openapi:why api/v1/edge --fields')
+        ->expectsOutputToContain('Components:')
+        ->expectsOutputToContain('SchemaFromDataClass')
+        ->assertSuccessful();
+});
+
+it('omits the component-provenance block for a route referencing no components', function (): void {
+    $this
+        ->artisan('openapi:why api/v1/flights --fields')
+        ->doesntExpectOutputToContain('Components:')
         ->assertSuccessful();
 });
 

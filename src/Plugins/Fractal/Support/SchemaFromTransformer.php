@@ -12,6 +12,7 @@ use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerInclude;
 use Radiergummi\OpenApi\Support\Extraction\FieldReferenceProperty;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionClass;
 use ReflectionException;
 
@@ -60,6 +61,7 @@ final readonly class SchemaFromTransformer
         return $this->registry->buildOnce(
             $transformerClass,
             fn(): OA\Schema => $this->buildSchema($transformerClass),
+            new SchemaProvenance(self::class),
         );
     }
 

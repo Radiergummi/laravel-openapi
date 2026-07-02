@@ -21,6 +21,7 @@ use Radiergummi\OpenApi\Plugins\SwaggerPhp\Support\AuthoredAnnotationScanner;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\ComponentReference;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
+use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use ReflectionNamedType;
 
 use function array_unique;
@@ -410,7 +411,7 @@ final readonly class HarvestAuthoredAnnotationsStage implements SpecStage
             return;
         }
 
-        $this->schemaRegistry->registerNamed($name, $schema);
+        $this->schemaRegistry->registerNamed($name, $schema, new SchemaProvenance(self::class));
 
         foreach ($this->collectRefNames($schema) as $referenced) {
             $nested = $this->scanner->schemaForName($referenced);
