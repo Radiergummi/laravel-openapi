@@ -140,7 +140,7 @@ final readonly class OperationBuilder
         // Dedup by (name, in) across resolvers; later resolver wins, except names claimed by an
         // explicit #[QueryParam] attribute, which authoring locks.
         $explicitQueryParameterNames = $this->explicitQueryParameterNames($action);
-        $queryParamsByKey = [];
+        $requestParamsByKey = [];
 
         foreach ($this->queryParameterResolvers as $queryResolver) {
             $resolved = $this->faultBoundary->isolate(
@@ -153,18 +153,32 @@ final readonly class OperationBuilder
                 $key = $param->name . "\0" . $param->in;
 
                 if (
-                    isset($queryParamsByKey[$key])
+                    isset($requestParamsByKey[$key])
                     && $param->in === 'query'
                     && in_array($param->name, $explicitQueryParameterNames, true)
                 ) {
                     continue;
                 }
 
-                $queryParamsByKey[$key] = $param;
+                $requestParamsByKey[$key] = $param;
             }
         }
 
-        $queryParams = array_values($queryParamsByKey);
+        // Split the resolver output by location: query keeps its own group, while inferred cookie
+        // and header reads are held in name-keyed maps so the attribute params can fold in last.
+        $queryParams = [];
+        $headerParamsByName = [];
+        $cookieParamsByName = [];
+
+        foreach ($requestParamsByKey as $param) {
+            if ($param->in === 'header') {
+                $headerParamsByName[$param->name] = $param;
+            } elseif ($param->in === 'cookie') {
+                $cookieParamsByName[$param->name] = $param;
+            } else {
+                $queryParams[] = $param;
+            }
+        }
 
         // Lowest-precedence query-param descriptions: fill only empties left by every resolver, so
         // a #[QueryParam] or inline-validate() description always wins. Plugin-agnostic, so it lives
@@ -187,8 +201,19 @@ final readonly class OperationBuilder
         }
 
         $security = $this->resolveSecurity($action);
-        $headerParams = $this->requestParameterApplier->headerParameters($action);
-        $cookieParams = $this->requestParameterApplier->cookieParameters($action);
+
+        // Fold the attribute header/cookie params in last, overwriting an inferred read of the same
+        // name so #[Header]/#[CookieParam] win — symmetric to the #[QueryParam] lock above.
+        foreach ($this->requestParameterApplier->headerParameters($action) as $param) {
+            $headerParamsByName[$param->name] = $param;
+        }
+
+        foreach ($this->requestParameterApplier->cookieParameters($action) as $param) {
+            $cookieParamsByName[$param->name] = $param;
+        }
+
+        $headerParams = array_values($headerParamsByName);
+        $cookieParams = array_values($cookieParamsByName);
         $requestBody = $this->bodyExtractor->extractFromMethod($action);
         $requestBody = $this->applyRequestBodyOverride($action, $requestBody);
         $this->exampleApplier->applyRequestExamples($action, $requestBody);

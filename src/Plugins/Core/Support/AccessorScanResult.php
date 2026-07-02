@@ -10,11 +10,11 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
  *
  * @internal
  */
-final readonly class QueryAccessorScanResult
+final readonly class AccessorScanResult
 {
     /**
-     * @param list<QueryAccessorRead> $reads
-     * @param list<string>            $unreadableAccessors
+     * @param list<AccessorRead> $reads
+     * @param list<string>       $unreadableAccessors
      */
     public function __construct(
         public array $reads = [],

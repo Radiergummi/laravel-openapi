@@ -179,6 +179,48 @@ it('emits header parameters from #[Header] attributes', function (): void {
         ->and($headerNames)->toContain('Idempotency-Key');
 });
 
+it('lets a #[Header] attribute win over an inferred header read of the same name', function (): void {
+    $op = buildOperation('inferredHeaderOverriddenByAttributeAction');
+
+    $headers = array_values(
+        array_filter($op->parameters, static fn(OA\Parameter $p): bool => $p->in === 'header'),
+    );
+
+    expect($headers)->toHaveCount(1)
+        ->and($headers[0]->name)->toBe('X-Api-Key')
+        ->and($headers[0]->required)->toBeTrue()
+        ->and($headers[0]->description)->toBe('Authored API key.');
+});
+
+it('lets a #[CookieParam] attribute win over an inferred cookie read of the same name', function (): void {
+    $op = buildOperation('inferredCookieOverriddenByAttributeAction');
+
+    $cookies = array_values(
+        array_filter($op->parameters, static fn(OA\Parameter $p): bool => $p->in === 'cookie'),
+    );
+
+    expect($cookies)->toHaveCount(1)
+        ->and($cookies[0]->name)->toBe('session')
+        ->and($cookies[0]->required)->toBeTrue();
+});
+
+it('keeps inferred query, cookie, and header reads of the same name as three parameters', function (): void {
+    $op = buildOperation('inferredRequestLocationsAction');
+
+    $locations = [];
+
+    foreach ($op->parameters as $parameter) {
+        if ($parameter->name === 'token') {
+            $locations[] = $parameter->in;
+        }
+    }
+
+    expect($locations)->toContain('query')
+        ->and($locations)->toContain('cookie')
+        ->and($locations)->toContain('header')
+        ->and($locations)->toHaveCount(3);
+});
+
 it('populates externalDocs from #[ExternalDocs]', function (): void {
     $op = buildOperation('withExternalDocsAction');
 
