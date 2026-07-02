@@ -469,16 +469,29 @@ final class ComponentSchemaRegistry
             return;
         }
 
-        // Guard the factory against self-recursion re-entering this same class.
+        // The rival factory may buildOnce() nested classes; snapshot the registration state so any
+        // component it newly introduces is rolled back, leaving the winner document untouched. The
+        // in-progress flag guards the factory against self-recursion on this same class.
+        $schemas = $this->schemas;
+        $classToKey = $this->classToKey;
+        $keyToClass = $this->keyToClass;
+        $existingProvenance = $this->provenance;
         $this->markInProgress($className);
 
         try {
             $rival = $factory();
         } finally {
             $this->markComplete($className);
+            $this->schemas = $schemas;
+            $this->classToKey = $classToKey;
+            $this->keyToClass = $keyToClass;
+            $this->provenance = $existingProvenance;
         }
 
+        // Mirror register()'s transform dispatch so the diagnostic compares like against the
+        // transformed winner, not a raw factory output.
         $rival->schema = $key;
+        OpenApiExtensions::applySchemaTransformers($rival, new SchemaContext($key, $className));
         $this->retention->retainInferredSchema($key, $rival);
 
         if ($this->schemasDiffer($this->schemas[$key], $rival)) {

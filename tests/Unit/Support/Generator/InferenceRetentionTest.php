@@ -9,6 +9,7 @@ use Radiergummi\OpenApi\Support\Generator\InferenceRetention;
 use Radiergummi\OpenApi\Support\Provenance\SchemaProvenance;
 use Radiergummi\OpenApi\Tests\Fixtures\Retention\RetentionChild;
 use Radiergummi\OpenApi\Tests\Fixtures\Retention\RetentionParent;
+use Radiergummi\OpenApi\Tests\Fixtures\Retention\RetentionStray;
 use Radiergummi\OpenApi\Tests\Fixtures\Retention\RetentionSubject;
 
 uses()->group('openapi');
@@ -120,6 +121,41 @@ it('stashes a contested schema whose nested $ref names a second contested class 
     // identical to a fresh all-inferred build even though the leaf resolved to an existing winner.
     expect($retention->hasInferredSchema($parentKey))->toBeTrue()
         ->and(propertyRef($stashedParent, 'child'))->toBe(ComponentReference::pointer($childKey));
+});
+
+it('rolls back a nested class a rival factory builds, leaving the winner document untouched', function (): void {
+    $retention = new InferenceRetention();
+    $retention->enable();
+    $registry = new ComponentSchemaRegistry($retention);
+
+    $key = $registry->buildOnce(
+        RetentionSubject::class,
+        static fn(): OA\Schema => new OA\Schema(['type' => 'object']),
+        new SchemaProvenance('ProducerA'),
+    );
+
+    $before = $registry->componentClassMap();
+
+    // The rival factory builds a nested class that was not registered during the winner build.
+    $registry->buildOnce(
+        RetentionSubject::class,
+        function () use ($registry): OA\Schema {
+            $registry->buildOnce(
+                RetentionStray::class,
+                static fn(): OA\Schema => new OA\Schema(['type' => 'object']),
+                new SchemaProvenance('ProducerB'),
+            );
+
+            return new OA\Schema(['type' => 'object']);
+        },
+        new SchemaProvenance('ProducerB'),
+    );
+
+    // The rival ran (its view is stashed) but its nested build left no trace in the winner document.
+    expect($retention->hasInferredSchema($key))->toBeTrue()
+        ->and($registry->componentClassMap())->toBe($before)
+        ->and($registry->keyFor(RetentionStray::class))->toBeNull()
+        ->and($registry->schemaForKey('RetentionStray'))->toBeNull();
 });
 
 it('warns when a rival producer builds a different schema for an owned component', function (): void {
