@@ -9,13 +9,16 @@ use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Attributes\FieldAttribute;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
 use Radiergummi\OpenApi\Support\Generator\SchemaDescriptor;
+use Radiergummi\OpenApi\Support\Provenance\FieldCandidate;
 use Radiergummi\OpenApi\Support\Routing\RouteModelBinding;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
 use Radiergummi\OpenApi\Support\Routing\WhereKind;
 use ReflectionAttribute;
 use ReflectionParameter;
 
+use function array_key_exists;
 use function array_map;
+use function is_string;
 use function Radiergummi\OpenApi\class_resource_name;
 use function Radiergummi\OpenApi\is_defined;
 use function sprintf;
@@ -33,6 +36,7 @@ final readonly class UriParametersExtractor
 {
     public function __construct(
         private JsonSchemaFromType $schemaFromType,
+        private FieldMetadataOverlay $overlay = new FieldMetadataOverlay(),
     ) {}
 
     /**
@@ -69,9 +73,14 @@ final readonly class UriParametersExtractor
 
         $fieldDescriptor = $this->resolveFieldDescriptor($reflectionParameter);
 
-        if ($fieldDescriptor?->example !== null) {
-            $schema->example = $fieldDescriptor->example;
-        }
+        // The attribute's example wins when present; an absent candidate leaves the inferred schema.
+        $this->overlay->apply($schema, [
+            'example' => [
+                $fieldDescriptor?->example !== null
+                    ? FieldCandidate::present($fieldDescriptor->example, '#[PathParam]', 'attribute example')
+                    : FieldCandidate::absent('#[PathParam]', 'no attribute example'),
+            ],
+        ]);
 
         $fieldDescriptor?->applyAdditionalProperties($schema);
         $fieldDescriptor?->applyVendorExtensions($schema);
@@ -86,11 +95,7 @@ final readonly class UriParametersExtractor
             'schema' => $schema,
         ];
 
-        // Lowest-precedence chain: #[PathParam] description ?? @param description ?? synthetic.
-        $attributeDescription = $fieldDescriptor !== null ? $fieldDescriptor->description : null;
-        $description = $attributeDescription
-            ?? $paramDescriptions[$descriptor->name]
-            ?? $this->buildDescription($descriptor);
+        $description = $this->resolveDescription($fieldDescriptor, $descriptor, $paramDescriptions);
 
         if ($descriptor->optional) {
             $note = 'Optional in URL — the segment may be omitted when calling this route.';
@@ -104,6 +109,30 @@ final readonly class UriParametersExtractor
         }
 
         return new OA\Parameter($props);
+    }
+
+    /**
+     * Lowest-precedence chain: `#[PathParam]` description, then the action `@param` description, then
+     * a synthetic description. The synthetic fallback is always present, so a winner always resolves.
+     *
+     * @param array<string, string> $paramDescriptions
+     */
+    private function resolveDescription(
+        ?SchemaDescriptor $fieldDescriptor,
+        UriParameterDescriptor $descriptor,
+        array $paramDescriptions,
+    ): string {
+        $resolved = $this->overlay->resolve('description', [
+            $fieldDescriptor?->description !== null
+                ? FieldCandidate::present($fieldDescriptor->description, '#[PathParam]', 'attribute description')
+                : FieldCandidate::absent('#[PathParam]', 'no attribute description'),
+            array_key_exists($descriptor->name, $paramDescriptions)
+                ? FieldCandidate::present($paramDescriptions[$descriptor->name], '@param', 'action @param description')
+                : FieldCandidate::absent('@param', 'no @param description'),
+            FieldCandidate::present($this->buildDescription($descriptor), 'convention', 'synthetic description'),
+        ]);
+
+        return is_string($resolved?->value) ? $resolved->value : '';
     }
 
     private function applyWhereKindOverrides(

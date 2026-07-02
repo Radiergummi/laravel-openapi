@@ -16,7 +16,7 @@ use Radiergummi\OpenApi\Lint\Fix\RemoveMode;
 use Radiergummi\OpenApi\Lint\LintContext;
 use Radiergummi\OpenApi\Lint\Tree\OperationNode;
 use Radiergummi\OpenApi\Lint\Visitors\OperationRule as OperationRuleVisitor;
-use ReflectionAttribute;
+use Radiergummi\OpenApi\Support\Attributes\QueryParamReader;
 
 use function array_count_values;
 use function array_map;
@@ -33,6 +33,10 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
     public Severity $severity = Severity::Degraded;
     public string $description = 'Two #[QueryParam] attributes on the same controller method share the same name.';
 
+    public function __construct(
+        private readonly QueryParamReader $queryParamReader = new QueryParamReader(),
+    ) {}
+
     /**
      * @return iterable<Finding>
      */
@@ -45,15 +49,15 @@ final class QueryParamDuplicate implements FixableRule, OperationRuleVisitor
             return;
         }
 
-        $attributes = $operation->descriptor->method->getAttributes(QueryParam::class);
+        $parameters = $this->queryParamReader->read(null, $operation->descriptor->method);
 
-        if ($attributes === []) {
+        if ($parameters === []) {
             return;
         }
 
         $names = array_map(
-            static fn(ReflectionAttribute $attribute): string => $attribute->newInstance()->name,
-            $attributes,
+            static fn(QueryParam $parameter): string => $parameter->name,
+            $parameters,
         );
 
         $counts = array_count_values($names);

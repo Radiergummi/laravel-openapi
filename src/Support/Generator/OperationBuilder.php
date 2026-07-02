@@ -25,6 +25,7 @@ use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Attributes\QueryParamReader;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
@@ -92,6 +93,7 @@ final readonly class OperationBuilder
         private ResolverFaultBoundary $faultBoundary,
         private DocBlockParser $docBlockParser,
         private RouteMiddlewareGatherer $middlewareGatherer,
+        private QueryParamReader $queryParamReader = new QueryParamReader(),
         /**
          * @var list<RefSchemaResolver>
          */
@@ -379,15 +381,10 @@ final readonly class OperationBuilder
     /** @return list<string> */
     private function explicitQueryParameterNames(ActionDescriptor $action): array
     {
-        $names = [];
-
-        foreach ([$action->controller, $action->actionReflector] as $reflector) {
-            foreach ($reflector?->getAttributes(QueryParam::class) ?? [] as $attribute) {
-                $names[] = $attribute->newInstance()->name;
-            }
-        }
-
-        return $names;
+        return array_map(
+            static fn(QueryParam $parameter): string => $parameter->name,
+            $this->queryParamReader->read($action->controller, $action->actionReflector),
+        );
     }
 
     /**
