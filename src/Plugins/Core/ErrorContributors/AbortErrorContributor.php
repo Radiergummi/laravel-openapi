@@ -20,6 +20,7 @@ use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
+use Radiergummi\OpenApi\Support\MethodBody\UnqualifiedHelperCall;
 use ReflectionMethod;
 use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -27,7 +28,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 use function array_key_exists;
 use function array_search;
-use function function_exists;
 use function is_int;
 use function is_string;
 use function sprintf;
@@ -118,17 +118,7 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
             return null;
         }
 
-        if ($call->name->isFullyQualified()) {
-            return $name;
-        }
-
-        $namespacedName = $call->name->getAttribute('namespacedName');
-
-        if ($namespacedName instanceof Name && function_exists($namespacedName->toString())) {
-            return null;
-        }
-
-        return $name;
+        return UnqualifiedHelperCall::resolvesToGlobalHelper($call->name) ? $name : null;
     }
 
     // endregion

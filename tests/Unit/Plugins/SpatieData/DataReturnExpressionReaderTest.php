@@ -64,6 +64,15 @@ class ReaderFixture
 
         return new ScalarOnlyData('b', 2);
     }
+
+    public function elementWriteAfterAssignment(): Collection
+    {
+        /** @var Collection<int|string, ScalarOnlyData> $data */
+        $data = ScalarOnlyData::collect(collect([]));
+        $data['extra'] = new ScalarOnlyData('x', 1);
+
+        return $data;
+    }
 }
 
 function readTarget(string $method): ?DataReturnTarget
@@ -106,4 +115,8 @@ it('returns null when the body is not a recognised factory shape', function (): 
 
 it('returns null for a conditional / multiple-return body', function (): void {
     expect(readTarget('conditional'))->toBeNull();
+});
+
+it('returns null when the returned variable is mutated after its single assignment', function (): void {
+    expect(readTarget('elementWriteAfterAssignment'))->toBeNull();
 });
