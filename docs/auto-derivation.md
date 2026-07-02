@@ -144,6 +144,39 @@ field to the enum's **full** case set. A `->only(...)` / `->except(...)` subset,
 or a unit (non-backed) enum, is not the canonical component, so it keeps an
 inline value list instead.
 
+## Typed return response schemas
+
+Type your returns to get response schemas. When an action's return type (or its
+`@return` PHPDoc) describes a concrete shape, the generator emits a `200
+application/json` response for it at the language level, without any convention
+package:
+
+- a **plain DTO** — a class whose public and constructor-promoted properties are
+  typed — becomes a component schema built from those properties (nested DTOs
+  become their own pooled `$ref`, and self- or mutually-referential classes are
+  cycle-safe);
+- a documented **`@return array{id: int, name: string}`** shape becomes an object
+  schema;
+- a **scalar**, a **backed enum** (a reusable `$ref`), a **string-keyed map**
+  (`@return array<string, int>` → `additionalProperties`), and a **typed
+  collection** (`@return list<Dto>` → an array of the element schema) each map
+  directly.
+
+A property is `required` unless its type is nullable. Nullability and unions on
+the return itself are honoured (`?Dto` wraps the schema in the OpenAPI 3.1
+nullable idiom; `Foo|Bar` becomes `oneOf`).
+
+Nothing is invented. A return that cannot be typed without guessing degrades to a
+bare `200 OK` with no body: an untyped / `mixed` / `void` return, a service object
+with no usable public properties, or a collection/resource wrapper whose element
+type is undeclared. A class carrying an authored `#[OA\Schema]` is left to that
+authored schema (surfaced by the SwaggerPhp plugin), never re-derived.
+
+This baseline runs **after** every convention plugin, so Spatie Data, Eloquent
+models, API Resources, Fractal transformers, and paginators keep the richer
+schemas documented below; the typed-return baseline fires only when none of them
+claims the action (including when the Core plugin is disabled).
+
 ## Eloquent model response schemas
 
 When a controller action's return type is an Eloquent `Model` subclass, the

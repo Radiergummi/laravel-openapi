@@ -9,6 +9,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Radiergummi\OpenApi\Support\Generator\JsonSchemaFromType;
+use Radiergummi\OpenApi\Support\Generator\NullableSchema;
 use Ramsey\Uuid\UuidInterface;
 use ReflectionClass;
 use ReflectionException;
@@ -35,6 +36,11 @@ use function Radiergummi\OpenApi\copy_schema_fields;
  * "Unmapped type" placeholder. Refusal lets the caller stay unconstrained rather than emit a
  * `oneOf` or a placeholder schema.
  *
+ * A plain object leaf (a non-format, non-enum class) is refused by default, since the engine can
+ * only stub it. A caller that can recurse into such a class supplies a `$leafClassSchema` callback:
+ * when it returns a schema for the object's class name that schema is used (e.g. a `$ref`), and when
+ * it returns null the property is still refused. Without a callback the behaviour is unchanged.
+ *
  * @internal
  */
 #[Scoped]
@@ -49,12 +55,18 @@ final readonly class PublicPropertyTypeReader
      * Returns a named property schema for `$class::$propertyName`, or null when it cannot be typed
      * without guessing.
      *
-     * @param class-string $class
+     * @param class-string                      $class
+     * @param null|callable(string): ?OA\Schema $leafClassSchema resolves a plain-object property's
+     *                                                           class name to a schema (e.g. a
+     *                                                           `$ref`); null refuses the property
      *
      * @throws ReflectionException
      */
-    public function propertyFor(string $class, string $propertyName): ?OA\Property
-    {
+    public function propertyFor(
+        string $class,
+        string $propertyName,
+        ?callable $leafClassSchema = null,
+    ): ?OA\Property {
         if (!class_exists($class)) {
             return null;
         }
@@ -84,14 +96,47 @@ final readonly class PublicPropertyTypeReader
             return null;
         }
 
-        if (!$this->isModelledType($type)) {
+        $schema = $this->schemaForType($type, $leafClassSchema);
+
+        if ($schema === null) {
             return null;
         }
 
-        return copy_schema_fields(
-            $this->jsonSchemaFromType->fromType($type),
-            new OA\Property(['property' => $propertyName]),
-        );
+        return copy_schema_fields($schema, new OA\Property(['property' => $propertyName]));
+    }
+
+    /**
+     * The schema for a resolved property type, or null when it cannot be typed without guessing.
+     *
+     * A modelled type (scalar, backed enum, DateTime/UUID/UrlRoutable) is handled by the engine,
+     * which also applies nullability. A plain object leaf is refused unless a `$leafClassSchema`
+     * callback resolves it (nullability then wrapped here, since the callback is class-only).
+     *
+     * @param null|callable(string): ?OA\Schema $leafClassSchema
+     */
+    private function schemaForType(Type $type, ?callable $leafClassSchema): ?OA\Schema
+    {
+        if ($this->isModelledType($type)) {
+            return $this->jsonSchemaFromType->fromType($type);
+        }
+
+        if ($leafClassSchema === null) {
+            return null;
+        }
+
+        $inner = $type instanceof NullableType ? $type->getWrappedType() : $type;
+
+        if (!$inner instanceof ObjectType) {
+            return null;
+        }
+
+        $schema = $leafClassSchema($inner->getClassName());
+
+        if ($schema === null) {
+            return null;
+        }
+
+        return $type instanceof NullableType ? NullableSchema::wrap($schema) : $schema;
     }
 
     /**

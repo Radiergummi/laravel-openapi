@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Support\Extraction;
 
+use ArrayAccess;
 use BackedEnum;
 use DateTimeInterface;
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
@@ -19,23 +21,26 @@ use Radiergummi\OpenApi\Support\Routing\ReturnShape;
 use Radiergummi\OpenApi\Support\Routing\ReturnShapeResolver;
 use Ramsey\Uuid\UuidInterface;
 use Symfony\Component\TypeInfo\Type;
+use Symfony\Component\TypeInfo\Type\BuiltinType;
 use Symfony\Component\TypeInfo\Type\EnumType;
 use Symfony\Component\TypeInfo\Type\ObjectType;
+use Symfony\Component\TypeInfo\TypeIdentifier;
+use Traversable;
 
 use function is_a;
 use function Radiergummi\OpenApi\copy_schema_fields;
 
 /**
- * The baseline primary-response resolver for statically-typed controller returns: a documented
- * `@return array{…}`, a scalar, a backed enum, a map, or a typed collection of those. It runs after
- * every convention plugin (Spatie Data, Eloquent, API Resource, Fractal, paginator), so it fires
- * only when none of them claims the action, the language-level fallback the "type your returns to
- * get response schemas" story promises. Works with the Core plugin disabled.
+ * The baseline primary-response resolver for statically-typed controller returns: a plain typed DTO,
+ * a documented `@return array{…}`, a scalar, a backed enum, a map, or a typed collection of those. It
+ * runs after every convention plugin (Spatie Data, Eloquent, API Resource, Fractal, paginator), so it
+ * fires only when none of them claims the action, the language-level fallback the "type your returns
+ * to get response schemas" story promises. Works with the Core plugin disabled.
  *
  * It never invents a schema: a return it cannot map without guessing (untyped / `mixed` / `void`, an
- * undeclared collection element, a plain object leaf) degrades to null, leaving the default
- * `200 OK`. The "unmapped object" stub {@see JsonSchemaFromType} would emit for a plain object leaf
- * is never surfaced, top-level or nested.
+ * undeclared collection element, a plain object with no usable public property) degrades to null,
+ * leaving the default `200 OK`. The "unmapped object" stub {@see JsonSchemaFromType} would emit for a
+ * plain object leaf is never surfaced; a nested object that cannot be built stays unconstrained.
  *
  * @internal
  */
@@ -45,6 +50,7 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
     public function __construct(
         private ReturnShapeResolver $shapeResolver,
         private JsonSchemaFromType $jsonSchemaFromType,
+        private SchemaFromPublicProperties $schemaFromPublicProperties,
     ) {}
 
     #[Override]
@@ -76,6 +82,22 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
             return null;
         }
 
+        // A bare `mixed` / `void` / `never` return carries no body shape; the engine would map it to
+        // an empty or "unmapped" stub, so degrade instead. (A `mixed` *element* of a list or shape
+        // still maps to an unconstrained item.)
+        if (
+            $shape->container === ReturnContainer::Single
+            && $shape->itemType instanceof BuiltinType
+            && $shape->itemType->isIdentifiedBy(
+                TypeIdentifier::MIXED,
+                TypeIdentifier::VOID,
+                TypeIdentifier::NEVER,
+                TypeIdentifier::NULL,
+            )
+        ) {
+            return null;
+        }
+
         $inner = $shape->container === ReturnContainer::ListOf
             ? $this->listSchema($shape->itemType)
             : $this->mappableSchema($shape->itemType);
@@ -102,41 +124,58 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
     }
 
     /**
-     * A real schema for a type the engine maps without inventing a stub, or null to degrade. A
-     * top-level plain object (not a DateTime/UUID/UrlRoutable format object) has no baseline schema
-     * source in this stage, so it degrades; a plain object reached nested through the engine flags
-     * the whole return as degraded rather than letting the "unmapped object" stub surface.
+     * A real schema for a type, or null to degrade. A top-level plain object is built directly from
+     * its public properties and degrades to null when none are usable; every other kind goes through
+     * the engine, whose plain-object leaves are resolved (or left unconstrained) by the callback so
+     * its "unmapped object" stub is never surfaced.
      */
     private function mappableSchema(Type $type): ?OA\Schema
     {
-        // A plain top-level object (not an enum, not a DateTime/UUID format object) has no baseline
-        // schema source in this stage.
-        if (
-            $type instanceof ObjectType
-            && !$type instanceof EnumType
-            && !$this->mapsToFormat($type->getClassName())
-        ) {
-            return null;
+        if ($type instanceof ObjectType && !$type instanceof EnumType) {
+            $className = $type->getClassName();
+
+            // A collection/resource/paginator wrapper is shaped by its elements, a convention plugin's
+            // job; it must degrade here even though it may also look like a format object (some
+            // implement UrlRoutable). Checked before the format deferral for that reason.
+            if ($this->isContainerLike($className)) {
+                return null;
+            }
+
+            // A top-level plain object is built directly, degrading on null rather than round-tripping
+            // through the engine and sniffing for its "unmapped object" stub.
+            if (!$this->mapsToFormat($className)) {
+                $reference = $this->schemaFromPublicProperties->buildRef($className);
+
+                return $reference === null ? null : new OA\Schema(['ref' => $reference]);
+            }
         }
 
-        $degraded = false;
-        $schema = $this->jsonSchemaFromType->fromType(
-            $type,
-            function (string $className) use (&$degraded): ?OA\Schema {
-                // Defer to the engine for the leaves it maps itself: format objects and backed enums.
-                if ($this->mapsToFormat($className) || is_a($className, BackedEnum::class, allow_string: true)) {
-                    return null;
-                }
+        return $this->jsonSchemaFromType->fromType($type, $this->leafCallback());
+    }
 
-                // Any other plain object leaf has no baseline schema: flag the degrade and hand back
-                // an empty schema so the engine never reaches its "unmapped object" stub.
-                $degraded = true;
-
+    /**
+     * The engine's leaf callback for the array-shape / list / map paths: leave a container/resource
+     * wrapper unconstrained, defer format objects and backed enums to the engine, build a nested plain
+     * object into its own component, and leave an unbuildable nested object unconstrained (never the
+     * engine's "unmapped object" stub).
+     *
+     * @return callable(string): ?OA\Schema
+     */
+    private function leafCallback(): callable
+    {
+        return function (string $className): ?OA\Schema {
+            if ($this->isContainerLike($className)) {
                 return new OA\Schema([]);
-            },
-        );
+            }
 
-        return $degraded ? null : $schema;
+            if ($this->mapsToFormat($className) || is_a($className, BackedEnum::class, allow_string: true)) {
+                return null;
+            }
+
+            $reference = $this->schemaFromPublicProperties->buildRef($className);
+
+            return $reference === null ? new OA\Schema([]) : new OA\Schema(['ref' => $reference]);
+        };
     }
 
     private function mapsToFormat(string $className): bool
@@ -144,5 +183,15 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
         return is_a($className, DateTimeInterface::class, allow_string: true)
             || is_a($className, UuidInterface::class, allow_string: true)
             || is_a($className, UrlRoutable::class, allow_string: true);
+    }
+
+    /**
+     * A collection/container object (Collection, resource collection, paginator, Data collection, …):
+     * its JSON shape is its elements, not its public properties, so the baseline defers it.
+     */
+    private function isContainerLike(string $className): bool
+    {
+        return is_a($className, Traversable::class, allow_string: true)
+            || is_a($className, ArrayAccess::class, allow_string: true);
     }
 }

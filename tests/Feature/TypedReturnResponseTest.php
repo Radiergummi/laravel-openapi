@@ -4,13 +4,43 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature;
 
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Route;
 use LogicException;
+use Radiergummi\OpenApi\Plugins\Core\Envelopes\NoneEnvelope;
+use Radiergummi\OpenApi\Registry\OpenApiRegistry;
+use Radiergummi\OpenApi\Support\Extraction\TypedReturnResponseResolver;
+use Radiergummi\OpenApi\Support\Generator\BaselineRegistration;
 use Radiergummi\OpenApi\Tests\Fixtures\Enums\ArticleStatus;
 use Radiergummi\OpenApi\Tests\Fixtures\ScalarOnlyData;
 
 uses()->group('openapi');
+
+class PlainReturnAddress
+{
+    public function __construct(
+        public string $street = '',
+        public string $city = '',
+    ) {}
+}
+
+/** A plain POPO — no Data/Resource/Model base, so only the baseline resolver can shape it. */
+class PlainReturnDto
+{
+    public function __construct(
+        public string $name = '',
+        public int $count = 0,
+        public ArticleStatus $status = ArticleStatus::Draft,
+        public PlainReturnAddress $address = new PlainReturnAddress(),
+        public ?string $note = null,
+    ) {}
+}
+
+class PlainReturnService
+{
+    public function handle(): void {}
+}
 
 class TypedReturnController extends Controller
 {
@@ -61,6 +91,7 @@ class TypedReturnController extends Controller
         throw new LogicException('Signature-only fixture; never invoked.');
     }
 
+    /** @phpstan-ignore missingType.return (an untyped return is the degrade case under test) */
     public function untyped()
     {
         throw new LogicException('Signature-only fixture; never invoked.');
@@ -71,9 +102,32 @@ class TypedReturnController extends Controller
     {
         throw new LogicException('Signature-only fixture; never invoked.');
     }
+
+    public function plainDto(): PlainReturnDto
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    /**
+     * @return list<PlainReturnDto>
+     */
+    public function plainDtoList(): array
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function service(): PlainReturnService
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
+
+    public function void(): void
+    {
+        throw new LogicException('Signature-only fixture; never invoked.');
+    }
 }
 
-function typedReturnSchema(string $uri): ?array
+function typedReturnSchema(string $uri): mixed
 {
     return generateSpec()['paths'][$uri]['get']['responses']['200']['content']['application/json']['schema'] ?? null;
 }
@@ -157,4 +211,86 @@ it('leaves a Spatie Data return to the SpatieData plugin, not the baseline', fun
 
     expect(typedReturnSchema('/typed/data')['$ref'] ?? null)
         ->toBe('#/components/schemas/ScalarOnlyData');
+});
+
+it('builds a component schema for a plain typed DTO return', function (): void {
+    Route::get('/typed/dto', [TypedReturnController::class, 'plainDto']);
+
+    $spec = generateSpec();
+    $schema = $spec['paths']['/typed/dto']['get']['responses']['200']['content']['application/json']['schema'] ?? null;
+
+    expect($schema['$ref'] ?? null)->toBe('#/components/schemas/PlainReturnDto');
+
+    $component = $spec['components']['schemas']['PlainReturnDto'] ?? null;
+
+    expect($component)->not->toBeNull()
+        ->and($component['type'])->toBe('object')
+        ->and($component['properties'])->toHaveKeys(['name', 'count', 'status', 'address', 'note'])
+        ->and($component['properties']['name']['type'])->toBe('string')
+        ->and($component['properties']['count']['type'])->toBe('integer')
+        ->and($component['properties']['status']['$ref'])->toBe('#/components/schemas/ArticleStatus')
+        ->and($component['properties']['address']['$ref'])->toBe('#/components/schemas/PlainReturnAddress')
+        // A nullable property is not required.
+        ->and($component['required'])->not->toContain('note')
+        ->and($component['required'])->toContain('name');
+
+    // The nested plain object is pooled as its own component.
+    expect($spec['components']['schemas']['PlainReturnAddress']['type'] ?? null)->toBe('object');
+});
+
+it('array-wraps a typed collection of plain DTOs', function (): void {
+    Route::get('/typed/dto-list', [TypedReturnController::class, 'plainDtoList']);
+
+    $schema = typedReturnSchema('/typed/dto-list');
+
+    expect($schema['type'])->toBe('array')
+        ->and($schema['items']['$ref'] ?? null)->toBe('#/components/schemas/PlainReturnDto');
+});
+
+it('degrades a service-object return with no usable properties to no response body', function (): void {
+    Route::get('/typed/service', [TypedReturnController::class, 'service']);
+
+    $response = generateSpec()['paths']['/typed/service']['get']['responses']['200'] ?? null;
+
+    expect($response)->not->toBeNull()
+        ->and($response['content'] ?? [])->not->toHaveKey('application/json');
+});
+
+it('degrades a void return to no response body', function (): void {
+    Route::get('/typed/void', [TypedReturnController::class, 'void']);
+
+    $response = generateSpec()['paths']['/typed/void']['get']['responses']['200'] ?? null;
+
+    expect($response)->not->toBeNull()
+        ->and($response['content'] ?? [])->not->toHaveKey('application/json');
+});
+
+it('registers the baseline resolver last, so convention plugins win first', function (): void {
+    $resolvers = app(OpenApiRegistry::class)->primaryResponseResolvers;
+
+    expect($resolvers)->not->toBeEmpty()
+        ->and($resolvers[count($resolvers) - 1])->toBe(TypedReturnResponseResolver::class)
+        // It appears exactly once, and is not the first (a plugin resolver precedes it).
+        ->and(array_keys($resolvers, TypedReturnResponseResolver::class, true))->toHaveCount(1)
+        ->and($resolvers[0])->not->toBe(TypedReturnResponseResolver::class);
+});
+
+it('shapes a plain DTO with every convention plugin disabled (language-level path)', function (): void {
+    // Rebind the registry with no plugins at all — not even Core — to prove the baseline resolver is
+    // Support-level and independent of any convention plugin.
+    app()->scoped(
+        OpenApiRegistry::class,
+        static fn(Container $app): OpenApiRegistry => BaselineRegistration::assemble(
+            $app,
+            plugins: [],
+            configRules: [],
+            errorEnvelopeResolver: NoneEnvelope::class,
+        ),
+    );
+
+    Route::get('/typed/dto-core-off', [TypedReturnController::class, 'plainDto']);
+
+    $schema = typedReturnSchema('/typed/dto-core-off');
+
+    expect($schema['$ref'] ?? null)->toBe('#/components/schemas/PlainReturnDto');
 });
