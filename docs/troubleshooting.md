@@ -128,9 +128,10 @@ the tool instead of reading the package source:
 php artisan openapi:why flights.store --fields
 ```
 
-It builds the operation and prints the source and reason behind each derived
-`summary`, success `status`, and `tags`, with an authoring attribute shown
-winning over the convention it superseded. See
+It builds the operation and prints the source and reason behind every derived
+field it produced — `summary`, `description`, success `status`, `tags`,
+`deprecated`, `operationId`, `externalDocs`, and `security` — with an authoring
+attribute shown winning over the convention it superseded. See
 [Explaining derived fields with `--fields`](multi-spec.md#explaining-derived-fields-with---fields).
 
 ## I changed a Data/FormRequest and the spec still shows the old shape

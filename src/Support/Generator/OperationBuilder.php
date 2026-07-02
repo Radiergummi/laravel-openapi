@@ -5,25 +5,16 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Support\Generator;
 
 use Deprecated as NativeDeprecated;
-use InvalidArgumentException;
 use OpenApi\Annotations as OA;
 use OpenApi\Generator;
-use Radiergummi\OpenApi\Attributes\BaseExample as BaseExampleAttribute;
-use Radiergummi\OpenApi\Attributes\CookieParam as CookieParamAttribute;
 use Radiergummi\OpenApi\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
-use Radiergummi\OpenApi\Attributes\Example as ExampleAttribute;
 use Radiergummi\OpenApi\Attributes\ExternalDocs as ExternalDocsAttribute;
-use Radiergummi\OpenApi\Attributes\Header as HeaderAttribute;
-use Radiergummi\OpenApi\Attributes\Link as LinkAttribute;
 use Radiergummi\OpenApi\Attributes\Operation as OperationAttribute;
 use Radiergummi\OpenApi\Attributes\PublicEndpoint;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Attributes\RequestBody as RequestBodyAttribute;
 use Radiergummi\OpenApi\Attributes\Response as ResponseAttribute;
-use Radiergummi\OpenApi\Attributes\ResponseExample as ResponseExampleAttribute;
-use Radiergummi\OpenApi\Attributes\ResponseExampleFile as ResponseExampleFileAttribute;
-use Radiergummi\OpenApi\Attributes\ResponseHeader as ResponseHeaderAttribute;
 use Radiergummi\OpenApi\Attributes\Security as SecurityAttribute;
 use Radiergummi\OpenApi\Attributes\Summary as SummaryAttribute;
 use Radiergummi\OpenApi\Attributes\Tag as TagAttribute;
@@ -37,9 +28,15 @@ use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\RequestBodyExtractor;
 use Radiergummi\OpenApi\Support\Extraction\SecurityExtractor;
 use Radiergummi\OpenApi\Support\Extraction\UriParametersExtractor;
+use Radiergummi\OpenApi\Support\Generator\Appliers\ExampleApplier;
+use Radiergummi\OpenApi\Support\Generator\Appliers\LinkApplier;
+use Radiergummi\OpenApi\Support\Generator\Appliers\RequestParameterApplier;
+use Radiergummi\OpenApi\Support\Generator\Appliers\ResponseHeaderApplier;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\Provenance\FieldCandidate;
 use Radiergummi\OpenApi\Support\Provenance\FieldProvenance;
 use Radiergummi\OpenApi\Support\Provenance\ResolvedConvention;
+use Radiergummi\OpenApi\Support\Provenance\ResolvedField;
 use Radiergummi\OpenApi\Support\Registry\ResolverFaultBoundary;
 use Radiergummi\OpenApi\Support\Routing\RouteMiddlewareGatherer;
 use Radiergummi\OpenApi\Support\Routing\UriParameterDescriptor;
@@ -50,8 +47,8 @@ use ReflectionParameter;
 use RuntimeException;
 use Symfony\Component\TypeInfo\Exception\UnsupportedException;
 
-use function array_any;
 use function array_filter;
+use function array_keys;
 use function array_map;
 use function array_merge;
 use function array_unique;
@@ -64,7 +61,6 @@ use function is_array;
 use function is_string;
 use function Radiergummi\OpenApi\is_defined;
 use function Radiergummi\OpenApi\is_undefined;
-use function str_starts_with;
 
 /**
  * Builds the property array dispatched onto OA\Get/OA\Post/etc. for one route action.
@@ -78,6 +74,14 @@ final readonly class OperationBuilder
      * convention must not overwrite it. Stripped before the response reaches the document.
      */
     public const string EXPLICIT_STATUS_EXTENSION = 'laravel-openapi-explicit-status';
+
+    private readonly RequestParameterApplier $requestParameterApplier;
+
+    private readonly ResponseHeaderApplier $responseHeaderApplier;
+
+    private readonly ExampleApplier $exampleApplier;
+
+    private readonly LinkApplier $linkApplier;
 
     public function __construct(
         private UriParameterResolver $uriResolver,
@@ -104,7 +108,15 @@ final readonly class OperationBuilder
          * @var list<OperationConventionResolver>
          */
         private array $operationConventionResolvers = [],
-    ) {}
+    ) {
+        // The appliers own one attribute-family's OA\* construction each; this builder orchestrates
+        // them and keeps field precedence. They are stateless, so building them here (rather than
+        // autowiring) keeps the wiring local without a shared-cache concern.
+        $this->requestParameterApplier = new RequestParameterApplier();
+        $this->responseHeaderApplier = new ResponseHeaderApplier($this->middlewareGatherer);
+        $this->exampleApplier = new ExampleApplier($this->fileLoader);
+        $this->linkApplier = new LinkApplier();
+    }
 
     /** @return list<OA\SecurityScheme> */
     public function buildSecuritySchemes(): array
@@ -175,11 +187,11 @@ final readonly class OperationBuilder
         }
 
         $security = $this->resolveSecurity($action);
-        $headerParams = $this->readHeaderAttributes($action);
-        $cookieParams = $this->readCookieAttributes($action);
+        $headerParams = $this->requestParameterApplier->headerParameters($action);
+        $cookieParams = $this->requestParameterApplier->cookieParameters($action);
         $requestBody = $this->bodyExtractor->extractFromMethod($action);
         $requestBody = $this->applyRequestBodyOverride($action, $requestBody);
-        $this->applyRequestExamples($action, $requestBody);
+        $this->exampleApplier->applyRequestExamples($action, $requestBody);
 
         $autoPrimaryResponse = null;
 
@@ -257,14 +269,14 @@ final readonly class OperationBuilder
 
         // Primary 2xx first; ErrorResponseInferenceStage appends errors later, skipping statuses already declared.
         $responses = [$primaryResponse, ...$additionalResponses];
-        $this->applyResponseExamples($action, $responses);
-        $this->applyResponseExampleFiles($action, $responses, $primaryResponse);
-        $this->applyResponseHeaders($action, $responses);
-        $this->applyConventionalResponseHeaders($action, $responses, $primaryResponse);
-        $this->applyLinkAttributes($action, $primaryResponse);
+        $this->exampleApplier->applyResponseExamples($action, $responses);
+        $this->exampleApplier->applyResponseExampleFiles($action, $responses, $primaryResponse);
+        $this->responseHeaderApplier->applyAuthored($action, $responses);
+        $this->responseHeaderApplier->applyConventional($action, $responses, $primaryResponse);
+        $this->linkApplier->apply($action, $primaryResponse);
 
         [$summary, $summaryProvenance] = $this->resolveSummary($action, $resolvedConvention);
-        $description = $this->resolveDescription($action);
+        [$description, $descriptionProvenance] = $this->resolveDescription($action);
 
         if ($operationOverride !== null) {
             $baseTags = match (true) {
@@ -289,11 +301,17 @@ final readonly class OperationBuilder
         }
 
         $tags = $this->mergeTags($baseTags, $additionalTags);
+        $operationId = $operationOverride?->operationId;
 
         $provenance = array_values(array_filter([
             $summaryProvenance,
+            $descriptionProvenance,
             $statusProvenance,
             $this->tagProvenance($tags, $operationOverride, $additionalTags),
+            $this->deprecatedProvenance($action, $deprecation),
+            $this->operationIdProvenance($operationId),
+            $this->externalDocsProvenance($externalDocs),
+            $this->securityProvenance($action, $security),
         ]));
 
         return new OperationDescriptor(
@@ -305,7 +323,7 @@ final readonly class OperationBuilder
             responses: $responses,
             requestBody: $requestBody,
             deprecated: $deprecation !== null,
-            operationId: $operationOverride?->operationId,
+            operationId: $operationId,
             externalDocs: $externalDocs,
             provenance: $provenance,
         );
@@ -412,52 +430,6 @@ final readonly class OperationBuilder
     {
         return $descriptor->actionAttributes($attribute) !== []
             || $descriptor->controllerAttributes($attribute) !== [];
-    }
-
-    /**
-     * Method-level entries win on name collision.
-     *
-     * @return list<OA\Parameter>
-     */
-    private function readHeaderAttributes(ActionDescriptor $descriptor): array
-    {
-        /** @var array<string, HeaderAttribute> $byName */
-        $byName = [];
-
-        foreach (
-            [
-                ...$descriptor->controllerAttributes(HeaderAttribute::class),
-                ...$descriptor->actionAttributes(HeaderAttribute::class),
-            ] as $attribute
-        ) {
-            $instance = $attribute->newInstance();
-            $byName[$instance->name] = $instance;
-        }
-
-        return array_values(array_map($this->buildHeaderParameter(...), $byName));
-    }
-
-    /**
-     * Method-level entries win on name collision.
-     *
-     * @return list<OA\Parameter>
-     */
-    private function readCookieAttributes(ActionDescriptor $descriptor): array
-    {
-        /** @var array<string, CookieParamAttribute> $byName */
-        $byName = [];
-
-        foreach (
-            [
-                ...$descriptor->controllerAttributes(CookieParamAttribute::class),
-                ...$descriptor->actionAttributes(CookieParamAttribute::class),
-            ] as $attribute
-        ) {
-            $instance = $attribute->newInstance();
-            $byName[$instance->name] = $instance;
-        }
-
-        return array_values(array_map($this->buildCookieParameter(...), $byName));
     }
 
     /**
@@ -573,76 +545,6 @@ final readonly class OperationBuilder
             ?? null;
 
         return $source?->newInstance();
-    }
-
-    /** @throws RuntimeException */
-    private function applyRequestExamples(ActionDescriptor $descriptor, ?OA\RequestBody $body): void
-    {
-        if ($body === null) {
-            return;
-        }
-
-        $content = $body->content;
-
-        if (!is_array($content) || $content === []) {
-            return;
-        }
-
-        $instances = [];
-
-        foreach ($descriptor->actionAttributes(ExampleAttribute::class) as $attribute) {
-            try {
-                $instances[] = $attribute->newInstance();
-            } catch (InvalidArgumentException) {
-                // Malformed #[Example] attribute; skip and continue generating
-            }
-        }
-
-        if ($instances === []) {
-            return;
-        }
-
-        $examples = $this->collectExamples($instances);
-
-        foreach ($content as $media) {
-            if ($media instanceof OA\MediaType) {
-                $media->examples = $examples;
-            }
-        }
-    }
-
-    /**
-     * @param list<BaseExampleAttribute> $instances
-     *
-     * @return list<OA\Examples>
-     *
-     * @throws RuntimeException
-     */
-    private function collectExamples(array $instances): array
-    {
-        $out = [];
-
-        foreach ($instances as $instance) {
-            // Resolve file-based examples at generation time.
-            $value = $instance->file !== null
-                ? $this->fileLoader->load($instance->file)
-                : $instance->value;
-
-            $properties = [
-                'example' => $instance->name,
-                // OA\Examples requires `summary`; fall back to the name.
-                'summary' => $instance->summary ?? $instance->name,
-                'value' => $value,
-            ];
-
-            if ($instance->description !== null) {
-                $properties['description'] = $instance->description;
-            }
-
-            $out[] = new OA\Examples($properties);
-        }
-
-        return $out;
     }
 
     private function resolveConvention(ActionDescriptor $descriptor): ?ResolvedConvention
@@ -846,314 +748,6 @@ final readonly class OperationBuilder
     }
 
     /**
-     * Examples for a status without a matching response are dropped silently.
-     *
-     * @param list<OA\Response> $responses
-     *
-     * @throws RuntimeException
-     */
-    private function applyResponseExamples(ActionDescriptor $descriptor, array $responses): void
-    {
-        $attributes = $descriptor->actionAttributes(ResponseExampleAttribute::class);
-
-        if ($attributes === []) {
-            return;
-        }
-
-        /** @var array<string, list<ResponseExampleAttribute>> $byStatus */
-        $byStatus = [];
-
-        foreach ($attributes as $attribute) {
-            try {
-                $instance = $attribute->newInstance();
-            } catch (InvalidArgumentException) {
-                // Malformed #[ResponseExample] attribute; skip and continue generating
-                continue;
-            }
-
-            $byStatus[(string) $instance->status][] = $instance;
-        }
-
-        foreach ($responses as $response) {
-            $status = (string) $response->response;
-
-            if (!isset($byStatus[$status])) {
-                continue;
-            }
-
-            $content = $response->content;
-
-            // An example implies a body; scaffold a media type when the response has none.
-            if (!is_array($content) || $content === []) {
-                $content = [MediaType::Json->schema()];
-                $response->content = $content;
-            }
-
-            $examples = $this->collectExamples($byStatus[$status]);
-
-            foreach ($content as $media) {
-                if ($media instanceof OA\MediaType) {
-                    $media->examples = $examples;
-                }
-            }
-        }
-    }
-
-    /**
-     * Attaches `#[ResponseExampleFile]` payloads as the singular media-type `example` on a response.
-     *
-     * `status: null` targets the already-resolved primary response. Files for a status with no
-     * matching response are dropped silently; so are files for a conventionally bodyless status
-     * (204/205/304) that has no content, since scaffolding a JSON body there is invalid OpenAPI.
-     * When a media type already carries named `examples` (e.g. from `#[ResponseExample]`), the
-     * singular `example` is left unset: the two are mutually exclusive on one media type.
-     *
-     * @param list<OA\Response> $responses
-     *
-     * @throws RuntimeException When a referenced file is missing or not valid JSON.
-     */
-    private function applyResponseExampleFiles(
-        ActionDescriptor $descriptor,
-        array $responses,
-        OA\Response $primaryResponse,
-    ): void {
-        $attributes = $descriptor->actionAttributes(ResponseExampleFileAttribute::class);
-
-        if ($attributes === []) {
-            return;
-        }
-
-        /** @var array<string, OA\Response> $byStatus */
-        $byStatus = [];
-
-        foreach ($responses as $response) {
-            $byStatus[(string) $response->response] = $response;
-        }
-
-        foreach ($attributes as $attribute) {
-            $instance = $attribute->newInstance();
-
-            $response = $instance->status !== null
-                ? ($byStatus[(string) $instance->status] ?? null)
-                : $primaryResponse;
-
-            if ($response === null) {
-                continue;
-            }
-
-            $content = $response->content;
-
-            if (!is_array($content) || $content === []) {
-                // A bodyless status must not gain a JSON body just to carry an example. The set is
-                // inlined deliberately: the canonical list is a private Lint-layer detail, and
-                // Support must not depend on Lint.
-                if (in_array((int) $response->response, [204, 205, 304], true)) {
-                    continue;
-                }
-
-                $content = [MediaType::Json->schema()];
-                $response->content = $content;
-            }
-
-            $example = $this->fileLoader->load($instance->file);
-
-            foreach ($content as $media) {
-                // Named examples and a singular example are mutually exclusive on one media type.
-                if ($media instanceof OA\MediaType && !is_array($media->examples)) {
-                    $media->example = $example;
-                }
-            }
-        }
-    }
-
-    /**
-     * Method-level entries win on `(status, name)` collision; unmatched headers are dropped silently.
-     *
-     * @param list<OA\Response> $responses
-     */
-    private function applyResponseHeaders(ActionDescriptor $descriptor, array $responses): void
-    {
-        /** @var array<string, array<string, ResponseHeaderAttribute>> $byStatus */
-        $byStatus = [];
-
-        foreach (
-            [
-                ...$descriptor->controllerAttributes(ResponseHeaderAttribute::class),
-                ...$descriptor->actionAttributes(ResponseHeaderAttribute::class),
-            ] as $attribute
-        ) {
-            $instance = $attribute->newInstance();
-            $byStatus[(string) $instance->status][$instance->name] = $instance;
-        }
-
-        if ($byStatus === []) {
-            return;
-        }
-
-        foreach ($responses as $response) {
-            $status = (string) $response->response;
-
-            if (!isset($byStatus[$status])) {
-                continue;
-            }
-
-            $existing = is_array($response->headers) ? $response->headers : [];
-
-            foreach ($byStatus[$status] as $headerAttribute) {
-                $existing[] = $this->buildResponseHeader($headerAttribute);
-            }
-
-            $response->headers = $existing;
-        }
-    }
-
-    private function buildResponseHeader(ResponseHeaderAttribute $header): OA\Header
-    {
-        $schemaProps = ['type' => $header->type];
-
-        if ($header->format !== null) {
-            $schemaProps['format'] = $header->format;
-        }
-
-        if ($header->example !== null) {
-            $schemaProps['example'] = $header->example;
-        }
-
-        $props = [
-            'header' => $header->name,
-            'schema' => new OA\Schema($schemaProps),
-        ];
-
-        if ($header->description !== null) {
-            $props['description'] = $header->description;
-        }
-
-        if ($header->required !== null) {
-            $props['required'] = $header->required;
-        }
-
-        if ($header->deprecated !== null) {
-            $props['deprecated'] = $header->deprecated;
-        }
-
-        return new OA\Header($props);
-    }
-
-    /**
-     * Appends headers Laravel always emits for a route, derived from signals the route carries:
-     * `Location` on a 201 (created-resource redirect) and the rate-limit pair under throttle
-     * middleware. Authored {@see ResponseHeaderAttribute} headers run first, so a name already
-     * present on a response wins and the convention skips it.
-     *
-     * Rate-limit headers attach to the primary (success) response only: Laravel decorates a passing
-     * response, not the 429, which carries a different header set.
-     *
-     * @param list<OA\Response> $responses
-     */
-    private function applyConventionalResponseHeaders(
-        ActionDescriptor $descriptor,
-        array $responses,
-        OA\Response $primaryResponse,
-    ): void {
-        foreach ($responses as $response) {
-            if ((string) $response->response === '201') {
-                $this->appendDerivedHeader($response, 'Location', new OA\Schema([
-                    'type' => 'string',
-                    'format' => 'uri-reference',
-                ]), 'URL of the created resource');
-            }
-        }
-
-        if (!$this->hasThrottleMiddleware($descriptor)) {
-            return;
-        }
-
-        $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Limit', new OA\Schema([
-            'type' => 'integer',
-        ]), 'The maximum number of requests allowed within the rate-limit window.');
-
-        $this->appendDerivedHeader($primaryResponse, 'X-RateLimit-Remaining', new OA\Schema([
-            'type' => 'integer',
-        ]), 'The number of requests remaining in the current rate-limit window.');
-    }
-
-    /** Appends a header to a response unless one of the same name is already present. */
-    private function appendDerivedHeader(
-        OA\Response $response,
-        string $name,
-        OA\Schema $schema,
-        string $description,
-    ): void {
-        $existing = is_array($response->headers) ? $response->headers : [];
-
-        foreach ($existing as $header) {
-            if ($header instanceof OA\Header && $header->header === $name) {
-                return;
-            }
-        }
-
-        $existing[] = new OA\Header([
-            'header' => $name,
-            'schema' => $schema,
-            'description' => $description,
-        ]);
-
-        $response->headers = $existing;
-    }
-
-    private function hasThrottleMiddleware(ActionDescriptor $descriptor): bool
-    {
-        $middleware = array_filter(
-            $this->middlewareGatherer->middlewareFor($descriptor->route),
-            is_string(...),
-        );
-
-        return array_any(
-            $middleware,
-            static fn(string $entry): bool => $entry === 'throttle' || str_starts_with($entry, 'throttle:'),
-        );
-    }
-
-    /** Links are per-operation, not per-controller. */
-    private function applyLinkAttributes(ActionDescriptor $descriptor, OA\Response $primaryResponse): void
-    {
-        $attrs = $descriptor->actionAttributes(LinkAttribute::class);
-
-        if ($attrs === []) {
-            return;
-        }
-
-        $links = is_array($primaryResponse->links) ? $primaryResponse->links : [];
-
-        foreach ($attrs as $attribute) {
-            $instance = $attribute->newInstance();
-            assert($instance instanceof LinkAttribute);
-
-            $props = ['link' => $instance->name];
-
-            if ($instance->operationId !== null) {
-                $props['operationId'] = $instance->operationId;
-            }
-
-            if ($instance->operationRef !== null) {
-                $props['operationRef'] = $instance->operationRef;
-            }
-
-            if ($instance->parameters !== []) {
-                $props['parameters'] = $instance->parameters;
-            }
-
-            if ($instance->description !== null) {
-                $props['description'] = $instance->description;
-            }
-
-            $links[] = new OA\Link($props);
-        }
-
-        $primaryResponse->links = $links;
-    }
-
-    /**
      * Precedence: action `#[Summary]` → action `#[Operation(summary)]` → docblock →
      * class `#[Summary]` → class `#[Operation(summary)]` → convention default.
      *
@@ -1169,33 +763,46 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(SummaryAttribute::class),
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
-
         $conventionSummary = $convention?->convention->summary;
-        $summary = $methodAttr ?? $descriptor->summary ?? $classAttr ?? $conventionSummary;
+        $conventionSource = $convention?->resolver !== null
+            ? class_basename($convention->resolver)
+            : 'convention';
 
-        if ($summary === null) {
+        $resolved = ResolvedField::merge('summary', [
+            $this->candidate($methodAttr, '#[Summary] (method)', 'author override'),
+            $this->candidate($descriptor->summary, 'docblock', 'method docblock summary'),
+            $this->candidate($classAttr, '#[Summary] (class)', 'class-level override'),
+            $this->candidate(
+                $conventionSummary,
+                $conventionSource,
+                $this->conventionReason($descriptor),
+                $conventionSummary !== null ? "convention '{$conventionSummary}'" : null,
+            ),
+        ]);
+
+        if ($resolved === null) {
             return [null, null];
         }
 
-        // The winning branch decides the source; the convention is the only candidate worth
-        // showing as superseded, since it is what surprises authors who expected it to apply.
-        [$source, $reason] = match (true) {
-            $methodAttr !== null => ['#[Summary] (method)', 'author override'],
-            $descriptor->summary !== null => ['docblock', 'method docblock summary'],
-            $classAttr !== null => ['#[Summary] (class)', 'class-level override'],
-            default => [
-                $convention?->resolver !== null ? class_basename($convention->resolver) : 'convention',
-                $this->conventionReason($descriptor),
-            ],
-        };
+        /** @var string $summary */
+        $summary = $resolved->value;
 
-        $superseded = [];
+        return [$summary, $resolved->toProvenance($summary)];
+    }
 
-        if ($summary !== $conventionSummary && $conventionSummary !== null) {
-            $superseded[] = "convention '{$conventionSummary}'";
-        }
-
-        return [$summary, new FieldProvenance('summary', $summary, $source, $reason, $superseded)];
+    /**
+     * A present {@see FieldCandidate} when `$value` is non-null, else an absent one. Absent
+     * candidates never win and are never recorded as superseded, so their `$reason` is cosmetic.
+     */
+    private function candidate(
+        mixed $value,
+        string $source,
+        string $reason,
+        ?string $supersededLabel = null,
+    ): FieldCandidate {
+        return $value === null
+            ? FieldCandidate::absent($source, $reason)
+            : FieldCandidate::present($value, $source, $reason, $supersededLabel);
     }
 
     /**
@@ -1211,23 +818,46 @@ final readonly class OperationBuilder
         ?ResolvedConvention $convention,
         ActionDescriptor $descriptor,
     ): FieldProvenance {
-        [$source, $reason, $superseded] = match (true) {
-            $hasResponseOverride => ['#[Response] (method)', 'author override', []],
-            $bodyScannedExplicit => ['response body', 'explicit status in handler body', []],
-            $conventionSuppressedByBody => [
-                'response body',
-                'content-bearing body overrides the conventional 204',
-                [],
-            ],
-            $convention?->convention->successStatusCode !== null => [
-                class_basename($convention->resolver),
-                $this->conventionReason($descriptor),
-                [],
-            ],
-            default => ['default', 'no convention matched', []],
-        };
+        // The winning status value is already resolved; exactly one branch decided it, so only that
+        // branch's candidate is present. Status records no superseded candidates (matching today's
+        // provenance), which holds because every non-deciding branch is absent — including the
+        // convention candidate when a higher-precedence branch (an explicit #[Response], a
+        // body-scanned status, or a content-bearing body suppressing a 204) already won, and the
+        // `default` fallback. A richer superseded record for status belongs to #484, not this
+        // byte-identical PR.
+        $higherBranchWon = $hasResponseOverride || $bodyScannedExplicit || $conventionSuppressedByBody;
+        $conventional = !$higherBranchWon && $convention?->convention->successStatusCode !== null;
+        $default = !$higherBranchWon && !$conventional;
 
-        return new FieldProvenance('status', $status, $source, $reason, $superseded);
+        $resolved = ResolvedField::merge('status', [
+            $hasResponseOverride
+                ? FieldCandidate::present($status, '#[Response] (method)', 'author override')
+                : FieldCandidate::absent('#[Response] (method)', 'no 2xx response attribute'),
+            $bodyScannedExplicit
+                ? FieldCandidate::present($status, 'response body', 'explicit status in handler body')
+                : FieldCandidate::absent('response body', 'no explicit body status'),
+            $conventionSuppressedByBody
+                ? FieldCandidate::present(
+                    $status,
+                    'response body',
+                    'content-bearing body overrides the conventional 204',
+                )
+                : FieldCandidate::absent('response body', 'convention not suppressed by body'),
+            $conventional
+                ? FieldCandidate::present(
+                    $status,
+                    class_basename($convention->resolver),
+                    $this->conventionReason($descriptor),
+                )
+                : FieldCandidate::absent('convention', 'no convention status'),
+            $default
+                ? FieldCandidate::present($status, 'default', 'no convention matched')
+                : FieldCandidate::absent('default', 'a higher-precedence branch decided'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($status);
     }
 
     /**
@@ -1247,20 +877,150 @@ final readonly class OperationBuilder
         }
 
         $value = implode(', ', $tags);
+        $replaces = $operationOverride?->tags !== null && $operationOverride->replace;
+        $merges = $operationOverride?->tags !== null && !$replaces;
+        $tagAttributes = !$merges && !$replaces && $additionalTags !== [];
 
-        if ($operationOverride?->tags !== null && $operationOverride->replace) {
-            return new FieldProvenance('tags', $value, '#[Operation] (replace)', 'attribute tags replace controller-derived');
+        // Exactly one branch describes how the tag list was formed; the rest are absent, so tags
+        // record no superseded candidates (matching today's provenance).
+        $resolved = ResolvedField::merge('tags', [
+            $replaces
+                ? FieldCandidate::present($tags, '#[Operation] (replace)', 'attribute tags replace controller-derived')
+                : FieldCandidate::absent('#[Operation] (replace)', 'no replacing #[Operation] tags'),
+            $merges
+                ? FieldCandidate::present($tags, '#[Operation] (merge)', 'attribute tags merged with controller-derived')
+                : FieldCandidate::absent('#[Operation] (merge)', 'no merging #[Operation] tags'),
+            $tagAttributes
+                ? FieldCandidate::present($tags, '#[Tag]', 'attribute tags merged with controller-derived')
+                : FieldCandidate::absent('#[Tag]', 'no #[Tag] attributes'),
+            !$replaces && !$merges && !$tagAttributes
+                ? FieldCandidate::present($tags, 'controller-derived', 'controller short name')
+                : FieldCandidate::absent('controller-derived', 'a tag attribute decided'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($value);
+    }
+
+    /**
+     * Provenance for a `true` deprecation flag: the `#[Deprecated]`/native `\Deprecated` attribute
+     * wins over the `@deprecated` docblock tag. Absent when the operation is not deprecated.
+     */
+    private function deprecatedProvenance(ActionDescriptor $descriptor, ?string $deprecation): ?FieldProvenance
+    {
+        if ($deprecation === null) {
+            return null;
         }
 
-        if ($operationOverride?->tags !== null) {
-            return new FieldProvenance('tags', $value, '#[Operation] (merge)', 'attribute tags merged with controller-derived');
+        $hasAttribute = $this->firstDeprecatedAttribute($descriptor) !== null;
+
+        $resolved = ResolvedField::merge('deprecated', [
+            $hasAttribute
+                ? FieldCandidate::present(true, '#[Deprecated]', 'author override')
+                : FieldCandidate::absent('#[Deprecated]', 'no deprecation attribute'),
+            FieldCandidate::present(true, 'docblock', '@deprecated tag'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance('true');
+    }
+
+    /**
+     * Provenance for an author-set `operationId`. Only `#[Operation(operationId)]` supplies one, so
+     * this is a single-source entry; absent when unset.
+     */
+    private function operationIdProvenance(?string $operationId): ?FieldProvenance
+    {
+        $resolved = ResolvedField::merge('operationId', [
+            $this->candidate($operationId, '#[Operation]', 'author override'),
+        ]);
+
+        return $resolved?->toProvenance($operationId ?? '');
+    }
+
+    /**
+     * Provenance for an author-set `externalDocs`. Only `#[ExternalDocs]` supplies it; absent when
+     * unset.
+     */
+    private function externalDocsProvenance(?OA\ExternalDocumentation $externalDocs): ?FieldProvenance
+    {
+        if ($externalDocs === null) {
+            return null;
         }
 
-        if ($additionalTags !== []) {
-            return new FieldProvenance('tags', $value, '#[Tag]', 'attribute tags merged with controller-derived');
+        $url = is_string($externalDocs->url) ? $externalDocs->url : '';
+        $resolved = ResolvedField::merge('externalDocs', [
+            FieldCandidate::present($url, '#[ExternalDocs]', 'author override'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($url);
+    }
+
+    /**
+     * Provenance for the resolved `security`. Precedence mirrors {@see resolveSecurity()}:
+     * `#[PublicEndpoint]` (empty requirement) → `#[Security]` (method shadows class) → middleware.
+     * Absent when security is omitted (`null`): an unauthenticated, non-public operation.
+     *
+     * @param null|list<array<string, list<string>>> $security
+     */
+    private function securityProvenance(ActionDescriptor $descriptor, ?array $security): ?FieldProvenance
+    {
+        if ($security === null) {
+            return null;
         }
 
-        return new FieldProvenance('tags', $value, 'controller-derived', 'controller short name');
+        $isPublic = $this->hasAttribute($descriptor, PublicEndpoint::class);
+        $hasAttribute = !$isPublic && (
+            $descriptor->actionAttributes(SecurityAttribute::class) !== []
+            || $descriptor->controllerAttributes(SecurityAttribute::class) !== []
+        );
+        $value = $this->securityDisplayValue($security);
+        // An empty requirement is public regardless of source; a non-empty one came from middleware
+        // (the attribute and public cases are handled by the higher-precedence candidates).
+        $middlewareReason = $security === [] ? 'no auth middleware on the route' : 'auth middleware on the route';
+
+        $resolved = ResolvedField::merge('security', [
+            $isPublic
+                ? FieldCandidate::present($security, '#[PublicEndpoint]', 'declared public')
+                : FieldCandidate::absent('#[PublicEndpoint]', 'not marked public'),
+            $hasAttribute
+                ? FieldCandidate::present($security, '#[Security]', 'author override')
+                : FieldCandidate::absent('#[Security]', 'no security attribute'),
+            !$isPublic && !$hasAttribute
+                ? FieldCandidate::present($security, 'middleware', $middlewareReason)
+                : FieldCandidate::absent('middleware', 'a higher-precedence source decided'),
+        ]);
+
+        assert($resolved !== null);
+
+        return $resolved->toProvenance($value);
+    }
+
+    /**
+     * A compact display string for a security requirement list: the scheme names, or `public` for
+     * the empty (explicitly public) requirement.
+     *
+     * @param list<array<string, list<string>>> $security
+     */
+    private function securityDisplayValue(array $security): string
+    {
+        if ($security === []) {
+            return 'public';
+        }
+
+        $schemes = [];
+
+        foreach ($security as $requirement) {
+            foreach (array_keys($requirement) as $scheme) {
+                $schemes[$scheme] = true;
+            }
+        }
+
+        return implode(', ', array_keys($schemes));
     }
 
     /**
@@ -1290,8 +1050,14 @@ final readonly class OperationBuilder
         return ($operationAttributes[0] ?? null)?->newInstance()->summary;
     }
 
-    /** Same precedence as {@see resolveSummary()}. */
-    private function resolveDescription(ActionDescriptor $descriptor): ?string
+    /**
+     * Same precedence as {@see resolveSummary()}: method `#[Description]`/`#[Operation]` → docblock
+     * → class `#[Description]`/`#[Operation]`. Returns the resolved description and its provenance
+     * (null provenance when no source supplied one).
+     *
+     * @return array{0: ?string, 1: ?FieldProvenance}
+     */
+    private function resolveDescription(ActionDescriptor $descriptor): array
     {
         $methodAttr = $this->readScopedDescription(
             $descriptor->actionAttributes(DescriptionAttribute::class),
@@ -1302,7 +1068,20 @@ final readonly class OperationBuilder
             $descriptor->controllerAttributes(OperationAttribute::class),
         );
 
-        return $methodAttr ?? $descriptor->description ?? $classAttr;
+        $resolved = ResolvedField::merge('description', [
+            $this->candidate($methodAttr, '#[Description] (method)', 'author override'),
+            $this->candidate($descriptor->description, 'docblock', 'method docblock description'),
+            $this->candidate($classAttr, '#[Description] (class)', 'class-level override'),
+        ]);
+
+        if ($resolved === null) {
+            return [null, null];
+        }
+
+        /** @var string $description */
+        $description = $resolved->value;
+
+        return [$description, $resolved->toProvenance($description)];
     }
 
     /**
@@ -1334,58 +1113,5 @@ final readonly class OperationBuilder
                 static fn(string $tag): bool => $tag !== '',
             ),
         );
-    }
-
-    private function buildHeaderParameter(HeaderAttribute $header): OA\Parameter
-    {
-        $schemaProps = ['type' => $header->type];
-
-        if ($header->format !== null) {
-            $schemaProps['format'] = $header->format;
-        }
-
-        if ($header->example !== null) {
-            $schemaProps['example'] = $header->example;
-        }
-
-        $props = [
-            'name' => $header->name,
-            'in' => 'header',
-            'required' => $header->required,
-            'schema' => new OA\Schema($schemaProps),
-        ];
-
-        if ($header->description !== null) {
-            $props['description'] = $header->description;
-        }
-
-        if ($header->deprecated !== null) {
-            $props['deprecated'] = $header->deprecated;
-        }
-
-        return new OA\Parameter($props);
-    }
-
-    private function buildCookieParameter(CookieParamAttribute $cookie): OA\Parameter
-    {
-        $schema = $cookie->descriptor()->toSchema();
-
-        // Cookies are always string-valued on the wire; default the schema type when unset.
-        if ($schema->type === Generator::UNDEFINED) {
-            $schema->type = 'string';
-        }
-
-        $props = [
-            'name' => $cookie->name,
-            'in' => 'cookie',
-            'required' => $cookie->required,
-            'schema' => $schema,
-        ];
-
-        if ($cookie->deprecated) {
-            $props['deprecated'] = true;
-        }
-
-        return new OA\Parameter($props);
     }
 }
