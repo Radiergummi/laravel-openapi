@@ -19,9 +19,9 @@ use Radiergummi\OpenApi\Support\Attributes\FieldDefault;
 final readonly class FieldCandidate
 {
     /**
-     * @param mixed  $value          The candidate value, or {@see FieldDefault::Unset} when absent.
-     * @param string $source         Attribute name + scope, resolver short-class, or `default`.
-     * @param string $reason         Short human string, e.g. `store → POST`, `author override`.
+     * @param mixed   $value           The candidate value, or {@see FieldDefault::Unset} when absent.
+     * @param string  $source          Attribute name + scope, resolver short-class, or `default`.
+     * @param string  $reason          Short human string, e.g. `store → POST`, `author override`.
      * @param ?string $supersededLabel How this candidate reads when it loses; defaults to `$source`.
      */
     public function __construct(
