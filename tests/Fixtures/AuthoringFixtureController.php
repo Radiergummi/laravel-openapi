@@ -6,8 +6,10 @@ namespace Radiergummi\OpenApi\Tests\Fixtures;
 
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\ValidationException;
+use Radiergummi\OpenApi\Attributes\CookieParam;
 use Radiergummi\OpenApi\Attributes\Deprecated;
 use Radiergummi\OpenApi\Attributes\Example;
 use Radiergummi\OpenApi\Attributes\ExternalDocs;
@@ -64,6 +66,30 @@ class AuthoringFixtureController extends Controller
     public function headeredAction(): array
     {
         return [];
+    }
+
+    /** An inferred header read of the same name yields to the #[Header] attribute. */
+    #[Header('X-Api-Key', description: 'Authored API key.', required: true)]
+    public function inferredHeaderOverriddenByAttributeAction(Request $request): array
+    {
+        return [$request->header('X-Api-Key')];
+    }
+
+    /** An inferred cookie read of the same name yields to the #[CookieParam] attribute. */
+    #[CookieParam('session', description: 'Authored session cookie.', required: true)]
+    public function inferredCookieOverriddenByAttributeAction(Request $request): array
+    {
+        return [$request->cookie('session')];
+    }
+
+    /** Inferred query, cookie, and header reads of the same name coexist as three parameters. */
+    public function inferredRequestLocationsAction(Request $request): array
+    {
+        return [
+            $request->query('token'),
+            $request->cookie('token'),
+            $request->header('token'),
+        ];
     }
 
     #[ExternalDocs(url: 'https://notion.so/runbook', description: 'Implementation notes')]

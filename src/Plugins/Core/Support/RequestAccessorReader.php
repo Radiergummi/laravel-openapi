@@ -33,23 +33,39 @@ use function is_string;
 use function str_contains;
 
 /**
- * Scans the first {@see self::STATEMENT_LIMIT} statements of a controller method for the five
- * whitelisted request accessor shapes (`query`, `input`, `string`, `integer`, `boolean`) and
- * reports each as a {@see QueryAccessorRead} with its parameter name and inferred type.
+ * Scans the first {@see self::STATEMENT_LIMIT} statements of a controller method for the
+ * whitelisted request accessor shapes and reports each as an {@see AccessorRead} with its
+ * parameter name, location, and inferred type. `query`/`input`/`string`/`integer`/`boolean`
+ * map to `query` parameters; `cookie` and `header` map to their own locations.
  *
- * Dotted keys are converted to wire notation (`filter.name` → `filter[name]`). Default values
- * are kept only when their PHP type matches the accessor's inferred type. A closure or arrow
- * function that re-declares the receiver variable name shadows it for its subtree.
+ * Query keys are converted to wire notation (`filter.name` → `filter[name]`); cookie/header
+ * names keep the raw literal token. Default values are kept only when their PHP type matches
+ * the accessor's inferred type. A closure or arrow function that re-declares the receiver
+ * variable name shadows it for its subtree.
  *
  * @internal
  */
 #[Scoped]
-final readonly class RequestQueryAccessorReader
+final readonly class RequestAccessorReader
 {
     public const int STATEMENT_LIMIT = 10;
 
     /**
-     * Accessor method → OpenAPI type.
+     * Accessor method → parameter location. Cookie and header names are string tokens, so their
+     * keys skip the dotted→bracket wire-name transform applied to query keys.
+     */
+    public const array ACCESSOR_LOCATIONS = [
+        'query' => 'query',
+        'input' => 'query',
+        'string' => 'query',
+        'integer' => 'query',
+        'boolean' => 'query',
+        'cookie' => 'cookie',
+        'header' => 'header',
+    ];
+
+    /**
+     * Accessor method → OpenAPI type. Cookies and headers are string-valued on the wire.
      */
     private const array ACCESSOR_TYPES = [
         'query' => 'string',
@@ -57,20 +73,26 @@ final readonly class RequestQueryAccessorReader
         'string' => 'string',
         'integer' => 'integer',
         'boolean' => 'boolean',
+        'cookie' => 'string',
+        'header' => 'string',
     ];
 
-    private const array UNTYPED_ACCESSORS = ['query', 'input'];
+    /**
+     * Accessors that do not name a scalar type: the untyped bag reads and the string-valued
+     * cookie/header locations. A typed read wins over these for the same query name.
+     */
+    private const array UNTYPED_ACCESSORS = ['query', 'input', 'cookie', 'header'];
 
     public function __construct(
         private MethodBodyScanner $scanner,
     ) {}
 
-    public function read(ReflectionMethod $method): QueryAccessorScanResult
+    public function read(ReflectionMethod $method): AccessorScanResult
     {
         $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
 
         if ($statements === []) {
-            return new QueryAccessorScanResult();
+            return new AccessorScanResult();
         }
 
         $requestParameterName = $this->requestParameterName($method);
@@ -82,7 +104,7 @@ final readonly class RequestQueryAccessorReader
             $this->collectAccessorCalls($statement, $requestParameterName, $calls);
         }
 
-        /** @var list<QueryAccessorRead> $reads */
+        /** @var list<AccessorRead> $reads */
         $reads = [];
 
         /** @var list<string> $unreadableAccessors */
@@ -93,7 +115,7 @@ final readonly class RequestQueryAccessorReader
             $keyArgument = $this->argument($call->getArgs(), 0, 'key');
 
             if ($keyArgument === null) {
-                // Zero-argument query()/input() reads the whole bag, not a named parameter.
+                // Zero-argument query()/cookie()/header() reads the whole bag, not a named parameter.
                 continue;
             }
 
@@ -105,7 +127,12 @@ final readonly class RequestQueryAccessorReader
                 continue;
             }
 
-            $name = is_string($key) ? $this->wireName($key) : null;
+            $location = self::ACCESSOR_LOCATIONS[$accessor];
+
+            // The dotted→bracket transform is query-only; a cookie/header name is a literal token.
+            $name = is_string($key)
+                ? ($location === 'query' ? $this->wireName($key) : $this->literalName($key))
+                : null;
 
             if ($name === null) {
                 $unreadableAccessors[] = $accessor;
@@ -115,16 +142,17 @@ final readonly class RequestQueryAccessorReader
 
             $type = self::ACCESSOR_TYPES[$accessor];
 
-            $reads[] = new QueryAccessorRead(
+            $reads[] = new AccessorRead(
                 name: $name,
                 accessor: $accessor,
+                location: $location,
                 type: $type,
                 typed: !in_array($accessor, self::UNTYPED_ACCESSORS, true),
                 default: $this->defaultValueOf($call, $type),
             );
         }
 
-        return new QueryAccessorScanResult($reads, $unreadableAccessors);
+        return new AccessorScanResult($reads, $unreadableAccessors);
     }
 
     // region Call-shape matching
@@ -264,6 +292,15 @@ final readonly class RequestQueryAccessorReader
         }
 
         return $name === '' ? null : $name;
+    }
+
+    /**
+     * Returns a cookie/header name unchanged. These are literal tokens (`X-Api-Key`, `session`),
+     * never bracketed; only empty or wildcard names are rejected.
+     */
+    private function literalName(string $key): ?string
+    {
+        return $key === '' || str_contains($key, '*') ? null : $key;
     }
 
     /**

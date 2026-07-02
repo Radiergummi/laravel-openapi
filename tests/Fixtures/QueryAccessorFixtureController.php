@@ -162,6 +162,42 @@ class QueryAccessorFixtureController extends Controller
 
     // endregion
 
+    // region Cookie & header reads
+
+    public function cookieAndHeaderReads(Request $request): JsonResponse
+    {
+        $sort = $request->query('sort');
+        $session = $request->cookie('session');
+        $apiKey = $request->header('X-Api-Key');
+
+        return new JsonResponse([$sort, $session, $apiKey]);
+    }
+
+    public function sameNameAcrossLocations(Request $request): JsonResponse
+    {
+        $queryToken = $request->query('token');
+        $cookieToken = $request->cookie('token');
+        $headerToken = $request->header('token');
+
+        return new JsonResponse([$queryToken, $cookieToken, $headerToken]);
+    }
+
+    public function dottedHeaderName(Request $request): JsonResponse
+    {
+        $value = $request->header('X.Y');
+
+        return new JsonResponse([$value]);
+    }
+
+    public function dynamicCookieName(Request $request): JsonResponse
+    {
+        $value = $request->cookie($this->dynamicKey());
+
+        return new JsonResponse([$value]);
+    }
+
+    // endregion
+
     // region #[QueryParam] precedence
 
     #[QueryParam('sort', description: 'Sort order.', type: 'string', enum: ['asc', 'desc'])]

@@ -80,6 +80,24 @@ it('lets an explicit #[QueryParam] win over an accessor read of the same name', 
         ->and($parameters['sort']['schema']['enum'])->toBe(['asc', 'desc']);
 });
 
+it('documents cookie() and header() reads as cookie/header parameters end to end', function (): void {
+    Route::post('/oa-fixture/request-locations', [QueryAccessorFixtureController::class, 'cookieAndHeaderReads']);
+
+    $spec = generateSpec();
+
+    $parameters = [];
+
+    foreach ($spec['paths']['/oa-fixture/request-locations']['post']['parameters'] ?? [] as $parameter) {
+        $parameters[$parameter['in'] . ':' . $parameter['name']] = $parameter;
+    }
+
+    // Cookies/headers are verb-independent, so both appear even on a POST route.
+    expect($parameters)->toHaveKey('cookie:session')
+        ->and($parameters['cookie:session']['schema']['type'])->toBe('string')
+        ->and($parameters)->toHaveKey('header:X-Api-Key')
+        ->and($parameters['header:X-Api-Key']['schema']['type'])->toBe('string');
+});
+
 // endregion
 
 // region GET inline-validate hand-off

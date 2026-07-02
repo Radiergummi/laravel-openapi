@@ -12,17 +12,16 @@ use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Enums\HttpMethod;
+use Radiergummi\OpenApi\Plugins\Core\Support\AccessorRead;
 use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineValidatorRulesReader;
-use Radiergummi\OpenApi\Plugins\Core\Support\QueryAccessorRead;
-use Radiergummi\OpenApi\Plugins\Core\Support\RequestQueryAccessorReader;
+use Radiergummi\OpenApi\Plugins\Core\Support\RequestAccessorReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\FieldDescriptor;
 use Radiergummi\OpenApi\Support\Extraction\PayloadParameterScanner;
 use Radiergummi\OpenApi\Support\Extraction\ValidationRulesToSchema;
 use ReflectionMethod;
 
-use function array_filter;
 use function array_unique;
 use function array_values;
 use function implode;
@@ -30,10 +29,12 @@ use function in_array;
 use function sprintf;
 
 /**
- * Composes query parameters from four sources (ascending precedence; later wins on name collision):
+ * Composes request parameters from four sources (ascending precedence; later wins on `(name, in)`
+ * collision):
  *
- *  1. Request-accessor reads (`$request->query()`, typed accessors) via {@see RequestQueryAccessorReader}.
- *     Typed accessors (`string()`/`integer()`/`boolean()`) count as query params only on GET/HEAD.
+ *  1. Request-accessor reads via {@see RequestAccessorReader}. `$request->query()`/typed accessors
+ *     become query parameters (typed accessors count only on GET/HEAD); `$request->cookie()` and
+ *     `$request->header()` become cookie/header parameters on every verb.
  *  2. Inline `validate()` rules on GET/HEAD routes via {@see InlineValidatorRulesReader}.
  *     Nested dotted keys map to wire notation (`filter[name]`, `ids[]`); arrays-of-objects are dropped.
  *     DELETE routes are skipped (validated fields may be body or query string).
@@ -41,6 +42,9 @@ use function sprintf;
  *     the same way as inline rules. Same precedence tier as inline `validate()`, applied after it (a
  *     route rarely has both). The request body for the same FormRequest is suppressed on GET/HEAD.
  *  4. `#[QueryParam]` attributes on the action and its controller; method-level wins over class-level.
+ *
+ * The inferred cookie/header reads are the lowest tier for their location; `#[CookieParam]`/`#[Header]`
+ * attributes fold in last (in `OperationBuilder`) and win, symmetric to the `#[QueryParam]` lock.
  */
 #[Scoped]
 final readonly class CoreQueryParameterResolver implements QueryParameterResolver
@@ -48,7 +52,7 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     private const array BODYLESS_METHODS = [HttpMethod::Get, HttpMethod::Head];
 
     public function __construct(
-        private RequestQueryAccessorReader $accessorReader,
+        private RequestAccessorReader $accessorReader,
         private InlineValidatorRulesReader $validationReader,
         private ValidationRulesToSchema $rulesMapper,
         private LoggerInterface $logger,
@@ -62,31 +66,35 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
     #[Override]
     public function resolveQueryParameters(ActionDescriptor $descriptor): array
     {
-        /** @var array<string, OA\Parameter> $byName */
-        $byName = array_map(
-            static fn(OA\Parameter $parameter): OA\Parameter => $parameter,
-            $this->accessorParameters($descriptor),
-        );
+        // Keyed by (name, in): a query `x` and a header `x` are distinct parameters, while a later
+        // query source (inline validate, FormRequest, #[QueryParam]) overwrites an accessor read of
+        // the same query name.
+        /** @var array<string, OA\Parameter> $byKey */
+        $byKey = [];
 
-        foreach ($this->inlineValidationParameters($descriptor) as $name => $parameter) {
-            $byName[$name] = $parameter;
+        foreach ($this->accessorParameters($descriptor) as $parameter) {
+            $byKey[$parameter->name . "\0" . $parameter->in] = $parameter;
         }
 
-        foreach ($this->formRequestParameters($descriptor) as $name => $parameter) {
-            $byName[$name] = $parameter;
+        foreach ($this->inlineValidationParameters($descriptor) as $parameter) {
+            $byKey[$parameter->name . "\0" . $parameter->in] = $parameter;
         }
 
-        foreach ($this->attributeParameters($descriptor) as $name => $parameter) {
-            $byName[$name] = $parameter;
+        foreach ($this->formRequestParameters($descriptor) as $parameter) {
+            $byKey[$parameter->name . "\0" . $parameter->in] = $parameter;
         }
 
-        return array_values($byName);
+        foreach ($this->attributeParameters($descriptor) as $parameter) {
+            $byKey[$parameter->name . "\0" . $parameter->in] = $parameter;
+        }
+
+        return array_values($byKey);
     }
 
     // region Accessor reads
 
     /**
-     * @return array<string, OA\Parameter>
+     * @return list<OA\Parameter>
      */
     private function accessorParameters(ActionDescriptor $descriptor): array
     {
@@ -99,57 +107,96 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         $scan = $this->accessorReader->read($method);
         $bodylessVerb = in_array($descriptor->httpMethod, self::BODYLESS_METHODS, true);
 
-        /** @var array<string, QueryAccessorRead> $chosen */
-        $chosen = [];
+        // Dedup per location; a query `x` and a header `x` are distinct parameters.
+        /** @var array<string, array<string, AccessorRead>> $chosen */
+        $chosen = ['query' => [], 'cookie' => [], 'header' => []];
 
         foreach ($scan->reads as $read) {
-            if (!$bodylessVerb && $read->accessor !== 'query') {
+            // On a body-carrying verb, input()/string()/integer()/boolean() read the merged
+            // body+query bag, so they mean body fields, not query parameters; only query() survives.
+            // Cookie and header reads are verb-independent and emit on every verb.
+            if ($read->location === 'query' && !$bodylessVerb && $read->accessor !== 'query') {
                 continue;
             }
 
-            $existing = $chosen[$read->name] ?? null;
+            $existing = $chosen[$read->location][$read->name] ?? null;
 
-            // Within the scan, a typed accessor (string()/integer()/boolean()) beats the
-            // untyped bag accessors for the same name; otherwise the first read wins.
+            // A typed accessor (string()/integer()/boolean()) beats the untyped bag accessors for
+            // the same name; otherwise the first read wins.
             if ($existing === null || (!$existing->typed && $read->typed)) {
-                $chosen[$read->name] = $read;
+                $chosen[$read->location][$read->name] = $read;
             }
         }
 
-        // On a body-carrying verb, non-literal input()/string()/integer()/boolean() names are
-        // body reads, not undocumented query parameters; only query() notes on every verb.
-        $unreadableAccessors = array_values(
-            array_filter(
-                $scan->unreadableAccessors,
-                static fn(string $accessor): bool => $bodylessVerb || $accessor === 'query',
-            ),
-        );
+        $this->noticeUnreadableAccessors($scan->unreadableAccessors, $method, $bodylessVerb);
 
-        if ($unreadableAccessors !== []) {
-            $this->logger->notice(
-                sprintf(
-                    'Request accessor read(s) in %s (%s) have a non-literal parameter name; those query '
-                    . 'parameters are not documented. Annotate the action with #[QueryParam] to document them.',
-                    $this->actionName($method),
-                    implode(', ', array_unique($unreadableAccessors)),
-                ),
-            );
-        }
-
-        /** @var array<string, OA\Parameter> $parameters */
+        /** @var list<OA\Parameter> $parameters */
         $parameters = [];
 
-        foreach ($chosen as $name => $read) {
-            $schemaProperties = ['type' => $read->type];
+        foreach ($chosen as $location => $reads) {
+            foreach ($reads as $name => $read) {
+                $schemaProperties = ['type' => $read->type];
 
-            if ($read->default !== null) {
-                $schemaProperties['default'] = $read->default;
+                if ($read->default !== null) {
+                    $schemaProperties['default'] = $read->default;
+                }
+
+                $parameters[] = $this->parameter(
+                    $name,
+                    new OA\Schema($schemaProperties),
+                    required: false,
+                    in: $location,
+                );
             }
-
-            $parameters[$name] = $this->parameter($name, new OA\Schema($schemaProperties), required: false);
         }
 
         return $parameters;
+    }
+
+    /**
+     * Notes accessor reads whose parameter name was not a static literal, grouped by location so
+     * each notice names the right override attribute. Query notes only when the read would be a
+     * query parameter (bodyless verb, or `query()` which only ever reads the query string); cookie
+     * and header notes fire on every verb.
+     *
+     * @param list<string> $unreadableAccessors
+     */
+    private function noticeUnreadableAccessors(
+        array $unreadableAccessors,
+        ReflectionMethod $method,
+        bool $bodylessVerb,
+    ): void {
+        /** @var array<string, list<string>> $byLocation */
+        $byLocation = ['query' => [], 'cookie' => [], 'header' => []];
+
+        foreach ($unreadableAccessors as $accessor) {
+            $location = RequestAccessorReader::ACCESSOR_LOCATIONS[$accessor];
+
+            if ($location === 'query' && !$bodylessVerb && $accessor !== 'query') {
+                continue;
+            }
+
+            $byLocation[$location][] = $accessor;
+        }
+
+        $attributes = ['query' => '#[QueryParam]', 'cookie' => '#[CookieParam]', 'header' => '#[Header]'];
+
+        foreach ($byLocation as $location => $accessors) {
+            if ($accessors === []) {
+                continue;
+            }
+
+            $this->logger->notice(
+                sprintf(
+                    'Request accessor read(s) in %s (%s) have a non-literal parameter name; those %s '
+                    . 'parameters are not documented. Annotate the action with %s to document them.',
+                    $this->actionName($method),
+                    implode(', ', array_unique($accessors)),
+                    $location,
+                    $attributes[$location],
+                ),
+            );
+        }
     }
 
     // endregion
@@ -161,11 +208,11 @@ final readonly class CoreQueryParameterResolver implements QueryParameterResolve
         return sprintf('%s::%s', $method->getDeclaringClass()->getName(), $method->getName());
     }
 
-    private function parameter(string $name, OA\Schema $schema, bool $required): OA\Parameter
+    private function parameter(string $name, OA\Schema $schema, bool $required, string $in = 'query'): OA\Parameter
     {
         return new OA\Parameter([
             'name' => $name,
-            'in' => 'query',
+            'in' => $in,
             'required' => $required,
             'schema' => $schema,
         ]);
