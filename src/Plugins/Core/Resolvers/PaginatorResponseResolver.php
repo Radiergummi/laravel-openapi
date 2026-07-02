@@ -16,6 +16,8 @@ use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorCallReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\PaginatorSchemaFactory;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
+use Radiergummi\OpenApi\Support\Routing\ReturnContainer;
+use Radiergummi\OpenApi\Support\Routing\ReturnShapeResolver;
 use Radiergummi\OpenApi\Support\Routing\ReturnTypeExtractor;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
@@ -39,6 +41,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
      */
     public function __construct(
         private ReturnTypeExtractor $returnTypeExtractor,
+        private ReturnShapeResolver $shapeResolver,
         private PaginatorSchemaFactory $schemaFactory,
         private PaginatorCallReader $paginatorCallReader,
         private LoggerInterface $logger,
@@ -60,14 +63,16 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
             return null;
         }
 
-        $kind = PaginatorKind::fromClass($returnType->getName());
+        // The descriptor answers "is this a paginator, and which kind" from the native type; a
+        // non-paginator return whose body paginates still needs the body scan.
+        $shape = $this->shapeResolver->describe($reflector);
+
+        $kind = $shape->container === ReturnContainer::Paginated
+            ? $shape->paginatorKind
+            : $this->kindFromBody($descriptor, $reflector, $returnType);
 
         if ($kind === null) {
-            $kind = $this->kindFromBody($descriptor, $reflector, $returnType);
-
-            if ($kind === null) {
-                return null;
-            }
+            return null;
         }
 
         $itemClass = $this->resolveItemClass($reflector);

@@ -388,6 +388,7 @@ class OpenApiServiceProvider extends ServiceProvider
 
                 return new PaginatorResponseResolver(
                     returnTypeExtractor: $app->make(ReturnTypeExtractor::class),
+                    shapeResolver: $app->make(Support\Routing\ReturnShapeResolver::class),
                     schemaFactory: $app->make(PaginatorSchemaFactory::class),
                     paginatorCallReader: $app->make(Plugins\Core\Support\PaginatorCallReader::class),
                     logger: $app->make(LoggerInterface::class),
