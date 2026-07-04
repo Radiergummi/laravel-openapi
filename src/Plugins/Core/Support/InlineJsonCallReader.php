@@ -11,7 +11,6 @@ use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
-use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Identifier;
@@ -22,9 +21,9 @@ use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\CallArgumentResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
+use Radiergummi\OpenApi\Support\MethodBody\ResponseJsonCall;
 use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
-use Radiergummi\OpenApi\Support\MethodBody\UnqualifiedHelperCall;
 
 use function in_array;
 use function is_a;
@@ -69,7 +68,7 @@ final readonly class InlineJsonCallReader
     /** Whether the node is a `->json(...)` call on a zero-argument `response()` helper. */
     public function isJsonHelperCall(Node $node): bool
     {
-        return $this->isFactoryMethodCall($node, 'json');
+        return ResponseJsonCall::matches($node);
     }
 
     /** Whether the node is a `->{$method}(...)` call on a zero-argument `response()` helper. */
@@ -88,17 +87,7 @@ final readonly class InlineJsonCallReader
      */
     public function isResponseHelperCall(Expr $receiver): bool
     {
-        if (
-            !$receiver instanceof FuncCall
-            || $receiver->isFirstClassCallable()
-            || !$receiver->name instanceof Name
-            || $receiver->name->toLowerString() !== 'response'
-            || $receiver->getArgs() !== []
-        ) {
-            return false;
-        }
-
-        return UnqualifiedHelperCall::resolvesToGlobalHelper($receiver->name);
+        return ResponseJsonCall::isResponseHelperReceiver($receiver);
     }
 
     /**
