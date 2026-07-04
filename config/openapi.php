@@ -593,6 +593,16 @@ return [
             // Set via env to point the playground at a CDN-hosted or proxy-corrected spec URL
             // when TrustProxies middleware cannot be used.
             'spec_url' => env('OPENAPI_PLAYGROUND_SPEC_URL'),
+            'auth' => [
+                // When true, Swagger UI persists tokens across page reloads via
+                // persistAuthorization. Scalar persists within a session by design;
+                // this setting has no effect for Scalar.
+                'persist' => true,
+
+                // Override which security scheme is presented first in the Authorize
+                // dialog. null lets the renderer pick (first scheme in the document).
+                'preferred_scheme' => null,
+            ],
         ],
     ],
 

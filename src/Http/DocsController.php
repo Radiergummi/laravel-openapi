@@ -83,6 +83,10 @@ final class DocsController extends Controller
         $configuredUrl = config('openapi.routes.playground.spec_url');
         $specUrl = blank($configuredUrl) ? route($definition->specRouteName()) : $configuredUrl;
 
-        return view($view, ['specUrl' => $specUrl]);
+        return view($view, [
+            'specUrl'         => $specUrl,
+            'persistAuth'     => (bool) config('openapi.routes.playground.auth.persist', true),
+            'preferredScheme' => config('openapi.routes.playground.auth.preferred_scheme'),
+        ]);
     }
 }
