@@ -75,6 +75,30 @@ class AuthoringFixtureController extends Controller
         return [$request->header('X-Api-Key')];
     }
 
+    /** Header names are case-insensitive, so a case-differing #[Header] and inferred read collapse. */
+    #[Header('x-api-key', description: 'Authored API key.', required: true)]
+    public function caseVariantHeaderInferredAndAttributeAction(Request $request): array
+    {
+        return [$request->header('X-Api-Key')];
+    }
+
+    /** Two #[Header] attributes differing only in case are the same header; the last one wins. */
+    #[Header('X-Request-Id')]
+    #[Header('x-request-id', required: true)]
+    public function caseVariantHeaderAttributesAction(): array
+    {
+        return [];
+    }
+
+    /** Two inferred header reads differing only in case are the same header. */
+    public function caseVariantInferredHeadersAction(Request $request): array
+    {
+        return [
+            $request->header('X-Api-Key'),
+            $request->header('x-api-key'),
+        ];
+    }
+
     /** An inferred cookie read of the same name yields to the #[CookieParam] attribute. */
     #[CookieParam('session', description: 'Authored session cookie.', required: true)]
     public function inferredCookieOverriddenByAttributeAction(Request $request): array

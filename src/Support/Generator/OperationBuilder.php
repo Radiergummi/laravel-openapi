@@ -181,7 +181,9 @@ final readonly class OperationBuilder
 
         foreach ($requestParamsByKey as $param) {
             if ($param->in === 'header') {
-                $headerParamsByName[$param->name] = $param;
+                // Header field names are case-insensitive (RFC 9110 §5.1), so case-differing reads
+                // are the same header; the stored param keeps its original casing on the wire.
+                $headerParamsByName[strtolower($param->name)] = $param;
             } elseif ($param->in === 'cookie') {
                 $cookieParamsByName[$param->name] = $param;
             } else {
@@ -214,7 +216,9 @@ final readonly class OperationBuilder
         // Fold the attribute header/cookie params in last, overwriting an inferred read of the same
         // name so #[Header]/#[CookieParam] win — symmetric to the #[QueryParam] lock above.
         foreach ($this->requestParameterApplier->headerParameters($action) as $param) {
-            $headerParamsByName[$param->name] = $param;
+            // Same case-insensitive key as the inferred fold above, so an attribute overwrites a
+            // case-differing inferred read of the same header (authoring wins, its casing wins).
+            $headerParamsByName[strtolower($param->name)] = $param;
         }
 
         foreach ($this->requestParameterApplier->cookieParameters($action) as $param) {
