@@ -192,6 +192,41 @@ it('lets a #[Header] attribute win over an inferred header read of the same name
         ->and($headers[0]->description)->toBe('Authored API key.');
 });
 
+it('collapses a case-differing inferred header read and #[Header] into one, attribute casing wins', function (): void {
+    $op = buildOperation('caseVariantHeaderInferredAndAttributeAction');
+
+    $headers = array_values(
+        array_filter($op->parameters, static fn(OA\Parameter $p): bool => $p->in === 'header'),
+    );
+
+    expect($headers)->toHaveCount(1)
+        ->and($headers[0]->name)->toBe('x-api-key')
+        ->and($headers[0]->required)->toBeTrue()
+        ->and($headers[0]->description)->toBe('Authored API key.');
+});
+
+it('collapses two case-differing #[Header] attributes into one, last writer wins', function (): void {
+    $op = buildOperation('caseVariantHeaderAttributesAction');
+
+    $headers = array_values(
+        array_filter($op->parameters, static fn(OA\Parameter $p): bool => $p->in === 'header'),
+    );
+
+    expect($headers)->toHaveCount(1)
+        ->and($headers[0]->name)->toBe('x-request-id')
+        ->and($headers[0]->required)->toBeTrue();
+});
+
+it('collapses two case-differing inferred header reads into one', function (): void {
+    $op = buildOperation('caseVariantInferredHeadersAction');
+
+    $headers = array_values(
+        array_filter($op->parameters, static fn(OA\Parameter $p): bool => $p->in === 'header'),
+    );
+
+    expect($headers)->toHaveCount(1);
+});
+
 it('lets a #[CookieParam] attribute win over an inferred cookie read of the same name', function (): void {
     $op = buildOperation('inferredCookieOverriddenByAttributeAction');
 

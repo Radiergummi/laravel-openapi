@@ -16,6 +16,7 @@ beforeEach(function (): void {
     Route::get('/oa-fixture/cookie/described', [CookieParamFixtureController::class, 'describedAction']);
     Route::get('/oa-fixture/cookie/multiple', [CookieParamFixtureController::class, 'multipleAction']);
     Route::get('/oa-fixture/cookie/override', [CookieParamFixtureController::class, 'overrideAction']);
+    Route::get('/oa-fixture/cookie/case-variant', [CookieParamFixtureController::class, 'caseVariantAction']);
 
     $this->spec = generateSpec();
 });
@@ -97,6 +98,16 @@ it('lets a method-level cookie override the class-level entry of the same name',
     expect($cookies)
         ->toHaveCount(1)
         ->and($cookies['tracking']['required'])->toBeTrue();
+});
+
+it('keeps case-differing cookie names as distinct cookies (RFC 6265 case-sensitivity)', function (): void {
+    $cookies = cookieParameters($this->spec['paths']['/oa-fixture/cookie/case-variant']['get']['parameters'] ?? []);
+
+    // The class-level `tracking` cookie rides along; the point is that `Session` and `session`
+    // stay two separate entries rather than collapsing.
+    expect($cookies)
+        ->toHaveKey('Session')
+        ->and($cookies)->toHaveKey('session');
 });
 
 it('never guesses cookies when the action carries no #[CookieParam]', function (): void {

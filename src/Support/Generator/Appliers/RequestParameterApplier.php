@@ -37,7 +37,9 @@ final readonly class RequestParameterApplier
             ] as $attribute
         ) {
             $instance = $attribute->newInstance();
-            $byName[$instance->name] = $instance;
+            // Header field names are case-insensitive (RFC 9110 §5.1), so two #[Header] entries
+            // differing only in case are the same header; the last declared one wins.
+            $byName[strtolower($instance->name)] = $instance;
         }
 
         return array_values(array_map($this->buildHeaderParameter(...), $byName));

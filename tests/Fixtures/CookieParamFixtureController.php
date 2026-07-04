@@ -57,4 +57,12 @@ class CookieParamFixtureController extends Controller
     {
         return [];
     }
+
+    /** Cookie names are case-sensitive (RFC 6265), so these stay two distinct cookies. */
+    #[CookieParam('Session')]
+    #[CookieParam('session')]
+    public function caseVariantAction(): array
+    {
+        return [];
+    }
 }
