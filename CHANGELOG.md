@@ -75,6 +75,7 @@ All notable changes to this project are documented here.
 - Lint `Rule` contract now declares `id`, `severity`, and `description` as readable property requirements instead of getter methods; rule implementations declare them as plain typed properties with initializers. (#379)
 - Internal: unified the two docblock/type → schema engines on a single `symfony/type-info` `Type` representation (`TypeNodeToSchema` is removed; `JsonSchemaFromType` grew the structural array-shape/list/map cases and an optional leaf-class callback), with a `TypeNodeResolver::toType()` phpstan → symfony boundary. No spec output change except previously-unmapped array/collection shapes on the symfony path now resolve, `true`/`false` map to `boolean`, and array-shape properties serialize in sorted key order. (#480)
 - Internal: the `migration.*` lint rules now compare authored annotations against a retained inference-only view of the single generation instead of running a second, harvester-excluded generation; the `SpecPipeline` is a plain executor again (no per-run stage exclusion), and an ordinary `openapi:generate` pays nothing for the retention. (#208, #483)
+- Internal: the body-scan readers now resolve a call argument by name or position through a single shared `Support\MethodBody\CallArgumentResolver`, replacing four copies of the same logic. No spec output change. (#512)
 
 ### Fixed
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)

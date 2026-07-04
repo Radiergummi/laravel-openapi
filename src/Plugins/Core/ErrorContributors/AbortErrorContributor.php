@@ -16,6 +16,7 @@ use Radiergummi\OpenApi\Contracts\Registry\ErrorResponseContributor;
 use Radiergummi\OpenApi\Errors\ErrorDescriptor;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
+use Radiergummi\OpenApi\Support\MethodBody\CallArgumentResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
@@ -193,16 +194,14 @@ final readonly class AbortErrorContributor implements ErrorResponseContributor
      */
     private function resolveArgument(array $arguments, array $parameters, string $parameterName): ?Arg
     {
-        foreach ($arguments as $argument) {
-            if ($argument->name !== null && $argument->name->toString() === $parameterName) {
-                return $argument;
-            }
-        }
+        $position = array_search($parameterName, $parameters, true);
 
-        $index = array_search($parameterName, $parameters, true);
-        $positional = $index === false ? null : ($arguments[$index] ?? null);
-
-        return $positional !== null && $positional->name === null ? $positional : null;
+        // A parameter the helper does not declare has no positional slot; only a named argument binds it.
+        return CallArgumentResolver::argument(
+            $arguments,
+            $parameterName,
+            $position === false ? -1 : $position,
+        );
     }
 
     private function literalValueOf(Expr $expression): mixed

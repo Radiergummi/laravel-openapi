@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Plugins\QueryBuilder\Support;
 
 use Illuminate\Container\Attributes\Scoped;
 use PhpParser\Node;
-use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\MethodCall;
@@ -14,6 +13,7 @@ use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
+use Radiergummi\OpenApi\Support\MethodBody\CallArgumentResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
@@ -287,7 +287,7 @@ final class QueryBuilderChainReader
             return null;
         }
 
-        $nameArgument = $this->argument($call->getArgs(), 0, 'name');
+        $nameArgument = CallArgumentResolver::argument($call->getArgs(), 'name', 0);
 
         if ($nameArgument === null) {
             return $call->name->toLowerString() === 'trashed' ? 'trashed' : null;
@@ -300,24 +300,6 @@ final class QueryBuilderChainReader
         }
 
         return is_string($value) ? $this->normaliseName($value, $kind) : null;
-    }
-
-    /**
-     * @param array<int, Arg> $arguments
-     */
-    private function argument(array $arguments, int $position, string $name): ?Arg
-    {
-        foreach ($arguments as $index => $argument) {
-            $matches = $argument->name === null
-                ? $index === $position
-                : $argument->name->toString() === $name;
-
-            if ($matches) {
-                return $argument;
-            }
-        }
-
-        return null;
     }
 
     /** Strips the leading `-` direction marker from sort names. Returns null for empty strings. */

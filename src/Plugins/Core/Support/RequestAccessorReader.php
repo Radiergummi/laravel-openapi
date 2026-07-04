@@ -7,7 +7,6 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\Request;
 use PhpParser\Node;
-use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\ArrowFunction;
 use PhpParser\Node\Expr\Closure as ClosureExpression;
 use PhpParser\Node\Expr\FuncCall;
@@ -16,6 +15,7 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
+use Radiergummi\OpenApi\Support\MethodBody\CallArgumentResolver;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use ReflectionMethod;
@@ -112,7 +112,7 @@ final readonly class RequestAccessorReader
 
         foreach ($calls as $call) {
             $accessor = $call->name instanceof Identifier ? $call->name->toLowerString() : '';
-            $keyArgument = $this->argument($call->getArgs(), 0, 'key');
+            $keyArgument = CallArgumentResolver::argument($call->getArgs(), 'key', 0);
 
             if ($keyArgument === null) {
                 // Zero-argument query()/cookie()/header() reads the whole bag, not a named parameter.
@@ -253,24 +253,6 @@ final readonly class RequestAccessorReader
     // region Argument resolution
 
     /**
-     * @param array<int, Arg> $arguments
-     */
-    private function argument(array $arguments, int $position, string $name): ?Arg
-    {
-        foreach ($arguments as $index => $argument) {
-            $matches = $argument->name === null
-                ? $index === $position
-                : $argument->name->toString() === $name;
-
-            if ($matches) {
-                return $argument;
-            }
-        }
-
-        return null;
-    }
-
-    /**
      * Converts a dotted key to wire notation (`filter.name` → `filter[name]`). Returns null for
      * wildcard or empty segments.
      */
@@ -309,7 +291,7 @@ final readonly class RequestAccessorReader
      */
     private function defaultValueOf(MethodCall $call, string $type): mixed
     {
-        $defaultArgument = $this->argument($call->getArgs(), 1, 'default');
+        $defaultArgument = CallArgumentResolver::argument($call->getArgs(), 'default', 1);
 
         if ($defaultArgument === null) {
             return null;
