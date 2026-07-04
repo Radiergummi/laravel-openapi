@@ -122,6 +122,12 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
     $stackCorrectlyEmpty = 0;
     $stackGenuinelyMissing = 0;
 
+    // Out-of-box coverage summed over just the stack-variant cohort, so the lift is one cohort
+    // against itself rather than a partial stack cohort against the whole corpus.
+    $stackBaselineSubstantive = 0;
+    $stackBaselineCorrectlyEmpty = 0;
+    $stackBaselineGenuinelyMissing = 0;
+
     foreach ($results as $entry) {
         $name = (string) ($entry['name'] ?? '');
         $metrics = is_array($entry['metrics'] ?? null) ? $entry['metrics'] : [];
@@ -186,6 +192,11 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
             $stackSubstantive += (int) ($stack['substantive'] ?? 0);
             $stackCorrectlyEmpty += (int) ($stack['correctlyEmpty'] ?? 0);
             $stackGenuinelyMissing += (int) ($stack['genuinelyMissing'] ?? 0);
+
+            $baseline = is_array($metrics['responseCoverage'] ?? null) ? $metrics['responseCoverage'] : [];
+            $stackBaselineSubstantive += (int) ($baseline['substantive'] ?? 0);
+            $stackBaselineCorrectlyEmpty += (int) ($baseline['correctlyEmpty'] ?? 0);
+            $stackBaselineGenuinelyMissing += (int) ($baseline['genuinelyMissing'] ?? 0);
         }
 
         $apps[] = $app;
@@ -228,6 +239,11 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
             'substantive' => $stackSubstantive,
             'correctlyEmpty' => $stackCorrectlyEmpty,
             'genuinelyMissing' => $stackGenuinelyMissing,
+            'outOfBox' => [
+                'substantive' => $stackBaselineSubstantive,
+                'correctlyEmpty' => $stackBaselineCorrectlyEmpty,
+                'genuinelyMissing' => $stackBaselineGenuinelyMissing,
+            ],
         ] : null,
         'corpus' => [
             'appCount' => count($apps),
@@ -502,18 +518,22 @@ function surveyRenderInternalCandidate(array $synthesis): string
             (int) $coverage['genuinelyMissing'],
         );
 
-        // Out-of-box (above) vs stack-enabled: the gap is the coverage the app's own stack-implied
-        // plugins would add with a one-line config change (#443).
+        // Stack-enabled lift, drawn from just the apps that have a stack variant so the before/after
+        // is one cohort against itself: enabling an app's stack-implied plugins is a one-line change.
         if (is_array($synthesis['responseCoverageStackEnabled'] ?? null)) {
             $stack = $synthesis['responseCoverageStackEnabled'];
+            $baseline = is_array($stack['outOfBox'] ?? null) ? $stack['outOfBox'] : [];
             $out[] = '';
             $out[] = sprintf(
-                'With stack-implied plugins enabled (across %d app(s)): **%d substantive · %d correctly-empty '
-                . '· %d genuinely-missing** — the out-of-box numbers above understate achievable coverage by '
-                . 'the difference.',
+                'Across the %d app(s) with a stack-implied plugin available, enabling those plugins moves '
+                . 'substantive coverage **%d → %d** (correctly-empty %d → %d, genuinely-missing %d → %d) over '
+                . 'that same cohort — the lift a one-line config change buys.',
                 (int) $stack['appCount'],
+                (int) ($baseline['substantive'] ?? 0),
                 (int) $stack['substantive'],
+                (int) ($baseline['correctlyEmpty'] ?? 0),
                 (int) $stack['correctlyEmpty'],
+                (int) ($baseline['genuinelyMissing'] ?? 0),
                 (int) $stack['genuinelyMissing'],
             );
         }
