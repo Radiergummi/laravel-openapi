@@ -180,6 +180,67 @@ class InlineJsonFixtureController extends Controller
 
     // endregion
 
+    // region OO JsonResponse construction
+
+    public function constructedObject(): JsonResponse
+    {
+        return new JsonResponse(['constructed' => true]);
+    }
+
+    public function constructedWithStatus(): JsonResponse
+    {
+        return new JsonResponse(['constructed' => true], 201);
+    }
+
+    public function constructedSubclass(): JsonResponse
+    {
+        return new CustomJsonResponse(['constructed' => true]);
+    }
+
+    public function constructedNamedArguments(): JsonResponse
+    {
+        return new JsonResponse(data: ['queued' => true], status: 201);
+    }
+
+    public function constructedNoContent(): JsonResponse
+    {
+        return new JsonResponse([], 204);
+    }
+
+    public function constructedNoContentConstant(): JsonResponse
+    {
+        return new JsonResponse([], JsonResponse::HTTP_NO_CONTENT);
+    }
+
+    public function constructedEmpty(): JsonResponse
+    {
+        return new JsonResponse();
+    }
+
+    public function constructedDynamicStatus(Request $request): JsonResponse
+    {
+        return new JsonResponse(['ok' => true], $request->integer('status'));
+    }
+
+    public function constructedNonSuccess(): JsonResponse
+    {
+        return new JsonResponse(['message' => 'Forbidden'], 403);
+    }
+
+    public function constructedUnrelatedClass(): object
+    {
+        return new Unrelated\JsonResponse(['ignored' => true]);
+    }
+
+    public function constructedAssignedThenReturned(): JsonResponse
+    {
+        $preview = new JsonResponse(['first' => true]);
+
+        return new JsonResponse(['second' => true], 201);
+    }
+
+    // endregion
+
     // region Refused shapes
 
     public function noContentStatus(): JsonResponse
