@@ -124,6 +124,63 @@ it('counts a non-substantive op with no classification record as genuinely-missi
         ->and($m['responseCoverage']['genuinelyMissingByShape'])->toBe(['unclassified' => 1]);
 });
 
+it('maps detected integration packages to their plugin class-strings (stack-enabled variant)', function (): void {
+    expect(survey_stackPlugins(['league/fractal']))
+        ->toBe(['Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin'])
+        ->and(survey_stackPlugins(['spatie/laravel-query-builder']))
+        ->toBe(['Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin'])
+        // spatie/laravel-fractal also maps to the Fractal plugin; deduped when both are present.
+        ->and(survey_stackPlugins(['league/fractal', 'spatie/laravel-fractal']))
+        ->toBe(['Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin'])
+        ->and(survey_stackPlugins(['league/fractal', 'spatie/laravel-query-builder', 'unknown/pkg']))
+        ->toBe([
+            'Radiergummi\OpenApi\Plugins\Fractal\FractalPlugin',
+            'Radiergummi\OpenApi\Plugins\QueryBuilder\QueryBuilderPlugin',
+        ])
+        ->and(survey_stackPlugins([]))->toBe([]);
+});
+
+it('emits responseCoverageStackEnabled beside responseCoverage when a stack spec is present (CLI)', function (): void {
+    // The stack spec resolves /api/dynamic's body (as a stack-implied plugin would); the default spec
+    // leaves it an empty-schema 200. The same classification joins both specs, so the stack variant
+    // lifts the op from genuinely-missing to substantive while the out-of-box block still reports it missing.
+    $appDir = sys_get_temp_dir() . '/survey-metrics-' . bin2hex(random_bytes(6));
+    mkdir($appDir, 0o777, true);
+
+    $unresolved = ['paths' => ['/api/dynamic' => ['get' => ['responses' => ['200' => ['content' => [
+        'application/json' => ['schema' => ['type' => 'object']],
+    ]]]]]]];
+    $resolved = ['paths' => ['/api/dynamic' => ['get' => ['responses' => ['200' => ['content' => [
+        'application/json' => ['schema' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]],
+    ]]]]]]];
+
+    file_put_contents("$appDir/generated-spec.json", (string) json_encode($unresolved));
+    file_put_contents("$appDir/generated-spec.stack.json", (string) json_encode($resolved));
+    file_put_contents("$appDir/classify.json", (string) json_encode([
+        ['uri' => '/api/dynamic', 'verb' => 'get', 'shape' => 'response()->json(<non-literal>)', 'returnType' => 'JsonResponse'],
+    ]));
+    file_put_contents("$appDir/lint.json", (string) json_encode(['findings' => []]));
+    file_put_contents("$appDir/run.json", (string) json_encode([
+        'generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => 'booted',
+    ]));
+
+    $script = __DIR__ . '/../../tools/survey/metrics.php';
+    exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($appDir) . ' --prefix=/api 2>&1', $stdout, $exit);
+
+    expect($exit)->toBe(0);
+
+    $m = json_decode(implode("\n", $stdout), true);
+
+    expect($m['responseCoverage']['substantive'])->toBe(0)
+        ->and($m['responseCoverage']['genuinelyMissing'])->toBe(1)
+        // Reported beside the out-of-box block, from the same classification join against the stack spec.
+        ->and($m['responseCoverageStackEnabled']['substantive'])->toBe(1)
+        ->and($m['responseCoverageStackEnabled']['genuinelyMissing'])->toBe(0);
+
+    array_map('unlink', array_filter(glob($appDir . '/*') ?: [], 'is_file'));
+    rmdir($appDir);
+});
+
 it('adds coverage when a published spec is supplied', function (): void {
     $spec = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/spec.json'), true);
     $lint = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/lint.json'), true);

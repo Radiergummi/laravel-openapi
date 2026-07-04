@@ -97,6 +97,16 @@ for name in ${names[@]+"${names[@]}"}; do
 
   WS="$WS" "$HARNESS/run.sh" "$name" < /dev/null || true
 
+  # Action source-shape classification (#413): enables the three-way responseCoverage metric. Best-effort
+  # — on failure no classify.json is written and metrics.php omits the three-way block.
+  ( cd "$repodir" && php "$HARNESS/classify.php" "$repodir" --prefix="$prefix" > "$appdir/classify.json" 2> "$appdir/classify.log" ) < /dev/null || true
+
+  # Stack-enabled spec (#443): regenerate with the app's stack-implied plugins (e.g. Fractal when
+  # league/fractal is installed) additionally enabled, so metrics.php can report achievable coverage
+  # next to the out-of-the-box number. Best-effort — on failure no stack spec is written and the
+  # stack-enabled coverage is simply omitted.
+  ( cd "$repodir" && php "$HARNESS/generate-stack.php" "$repodir" > "$appdir/generated-spec.stack.json" 2> "$appdir/generate-stack.log" ) < /dev/null || true
+
   pubArgs=()
   [[ "$published" != "-" ]] && pubArgs=("--published=$repodir/$published")
   metrics=$(php "$HARNESS/metrics.php" "$appdir" --prefix="$prefix" ${pubArgs[@]+"${pubArgs[@]}"})

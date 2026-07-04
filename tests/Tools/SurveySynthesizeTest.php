@@ -291,6 +291,13 @@ it('rolls up the three-way responseCoverage across classified apps in the intern
                 'genuinelyMissing' => 3,
                 'genuinelyMissingByShape' => ['response()->json(<non-literal>)' => 2, 'multiple returns' => 1],
             ],
+            // Alpha is a Fractal-stack app: enabling its plugins lifts substantive 6 -> 9.
+            'responseCoverageStackEnabled' => [
+                'substantive' => 9,
+                'correctlyEmpty' => 1,
+                'genuinelyMissing' => 0,
+                'genuinelyMissingByShape' => [],
+            ],
         ]],
         ['name' => 'Beta', 'metrics' => [
             'apiOperations' => 4,
@@ -316,9 +323,27 @@ it('rolls up the three-way responseCoverage across classified apps in the intern
         'genuinelyMissingByShape' => ['multiple returns' => 3, 'response()->json(<non-literal>)' => 2],
     ]);
 
+    // Only Alpha carries a stack-enabled variant (9/1/0). Its out-of-box baseline (6/1/3) is carried
+    // alongside so the rendered lift is drawn from the same one-app cohort, not the whole corpus.
+    expect($synthesis['responseCoverageStackEnabled'])->toBe([
+        'appCount' => 1,
+        'substantive' => 9,
+        'correctlyEmpty' => 1,
+        'genuinelyMissing' => 0,
+        'outOfBox' => [
+            'substantive' => 6,
+            'correctlyEmpty' => 1,
+            'genuinelyMissing' => 3,
+        ],
+    ]);
+
     $internal = surveyRenderInternalCandidate($synthesis);
     expect($internal)->toContain('## Response coverage (three-way, honest denominator)')
-        ->toContain('**8 substantive · 1 correctly-empty · 5 genuinely-missing**');
+        ->toContain('**8 substantive · 1 correctly-empty · 5 genuinely-missing**')
+        // Same-cohort lift (Alpha only): 6 -> 9, never the corpus-wide 8 -> 9 the old framing implied.
+        ->toContain('substantive coverage **6 → 9**')
+        ->toContain('genuinely-missing 3 → 0')
+        ->toContain('over that same cohort');
 });
 
 it('omits the responseCoverage section when no app carries a classification', function (): void {
