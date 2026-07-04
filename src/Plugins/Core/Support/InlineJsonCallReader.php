@@ -17,13 +17,13 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
 use Radiergummi\OpenApi\Support\Generator\SchemaFromArrayDefinition;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
+use Radiergummi\OpenApi\Support\MethodBody\CallArgumentResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\SchemaDefinitionFromLiteral;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use Radiergummi\OpenApi\Support\MethodBody\UnqualifiedHelperCall;
 
-use function array_find;
 use function in_array;
 use function is_int;
 use function sprintf;
@@ -147,7 +147,7 @@ final readonly class InlineJsonCallReader
             return $chainStatus;
         }
 
-        $statusArgument = $this->argument($arguments, 'status', self::STATUS_ARGUMENT_POSITION);
+        $statusArgument = CallArgumentResolver::argument($arguments, 'status', self::STATUS_ARGUMENT_POSITION);
 
         if ($statusArgument === null) {
             return 200;
@@ -254,24 +254,12 @@ final readonly class InlineJsonCallReader
 
     /**
      * @param array<int, Arg> $arguments
-     */
-    private function argument(array $arguments, string $name, int $position): ?Arg
-    {
-        return array_find(
-            $arguments,
-            fn(Arg $argument, int $index): bool
-                => $argument->name === null ? $index === $position : $argument->name->toString() === $name,
-        );
-    }
-
-    /**
-     * @param array<int, Arg> $arguments
      *
      * @return array{0: ?Schema, 1: bool, 2: ?string}
      */
     private function readBody(array $arguments): array
     {
-        $dataArgument = $this->argument($arguments, 'data', self::DATA_ARGUMENT_POSITION);
+        $dataArgument = CallArgumentResolver::argument($arguments, 'data', self::DATA_ARGUMENT_POSITION);
 
         if ($dataArgument === null) {
             return [null, true, null];
