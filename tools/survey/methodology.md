@@ -119,6 +119,17 @@ and prefix yields identical output.
 | `crash.bootOutcome` | Bootstrap outcome written by the bootstrap script: `ok`, `blocked-compat`, or `unknown`. |
 | `crash.routesIntrospected` | Number of routes seen by the generator, if captured; `null` otherwise. |
 | `coverage` | Only present when the corpus entry provides a `publishedSpec`. Compares path×method keys (with `{param}` collapsed to `{}`) between the generated spec and the published one. Contains: `publishedOps` (keys in their spec), `ours` (keys in our spec), `intersection` (keys present in both), `covPercent` (`round(100 × intersection / publishedOps, 1)`). |
+| `responseCoverage` | Only present when the app dir has a `classify.json` (from `classify.php`). The honest three-way split of `apiOperations`, since neither `responseSchemas` (pessimistic: counts a correct empty 2xx as a miss) nor `completenessPercent` (optimistic: credits a give-up empty 2xx as complete) is right. Contains `substantive` (a real payload — today's `responseSchemas`), `correctlyEmpty` (the action is genuinely no-content: `void`/`never`, `return;`, `return null;`, `response()->noContent()`), `genuinelyMissing` (the action returns a body the generator emitted empty/thin), and `genuinelyMissingByShape` (a rollup of the give-up shapes). The three counts partition `apiOperations` exactly; `genuinelyMissing` is the real denominator to size response-inference levers against. An op with no classification record counts conservatively as `genuinelyMissing` under the `unclassified` shape. |
+
+### `classify.php` (action source-shape classifier)
+
+The correctly-empty vs give-up-empty split is not in the spec — it needs the action's return shape.
+`classify.php <repo-dir> [--prefix=/api]` boots the consumer app, reflects each in-prefix action, and
+AST-classifies its return expression into a source-shape string, emitting `classify.json` (one record
+per route: `{uri, verb, action, returnType, shape}`). `metrics.php` reads `classify.json` from the app
+dir when present and joins it with spec substantive-ness; `completeness.php --classify=<classify.json>`
+prints the same three-way line. The classifier mirrors the library's reader whitelist — it labels
+refused shapes too, but never decides substantive-ness itself.
 
 ## The short version (a new app)
 

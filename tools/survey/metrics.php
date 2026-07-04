@@ -73,6 +73,58 @@ function survey_substantive(mixed $schema, array $components, array $seen = []):
     return is_array($type) && array_intersect($type, $scalars) !== [];
 }
 
+/**
+ * Whether an action's source shape means a 2xx is *correctly* empty (no body is the right answer),
+ * as opposed to a give-up empty (the action returns a body the generator could not resolve).
+ */
+function survey_isNoContentShape(string $shape, string $returnType): bool
+{
+    $returnType = strtolower(ltrim($returnType, '?'));
+
+    if ($returnType === 'void' || $returnType === 'never') {
+        return true;
+    }
+
+    $noContent = [
+        'response()->noContent()',
+        'return; (void)',
+        'no return (void-like)',
+        'void/no-body',
+    ];
+
+    return in_array($shape, $noContent, true) || str_starts_with($shape, 'scalar literal (null)');
+}
+
+/**
+ * Index classification records (from classify.php) by normalised "VERB /path" key, collapsing
+ * path parameters to {} so they join the spec's operation keys.
+ *
+ * @param list<array<string, mixed>> $classification
+ *
+ * @return array<string, array{shape: string, returnType: string}>
+ */
+function survey_classificationIndex(array $classification): array
+{
+    $index = [];
+
+    foreach ($classification as $record) {
+        $uri = (string) ($record['uri'] ?? '');
+        $verb = strtoupper((string) ($record['verb'] ?? ''));
+
+        if ($uri === '' || $verb === '') {
+            continue;
+        }
+
+        $key = $verb . ' ' . preg_replace('/\{[^}]+\}/', '{}', $uri);
+        $index[$key] = [
+            'shape' => (string) ($record['shape'] ?? 'unclassified'),
+            'returnType' => (string) ($record['returnType'] ?? ''),
+        ];
+    }
+
+    return $index;
+}
+
 /** Count properties of a request-body schema, following one $ref hop. */
 function survey_requestPropertyCount(array $schema, array $components): int
 {
@@ -110,7 +162,7 @@ function survey_operationKeys(array $spec): array
 /**
  * @param array{generateExit:int,lintExit:int,generateStderr:bool,bootOutcome:string,routesIntrospected?:int} $run
  */
-function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix = '/api', ?array $published = null): array
+function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix = '/api', ?array $published = null, ?array $classification = null): array
 {
     $components = $spec['components']['schemas'] ?? [];
     $verbs = ['get', 'post', 'put', 'patch', 'delete'];
@@ -124,6 +176,14 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
     $requestBodies = 0;
     $maxRequestProperties = 0;
     $complete = 0;
+
+    // Three-way response coverage (only when an action classification is supplied — the
+    // correctly-empty vs give-up-empty split needs the action's return shape, not the spec).
+    $classificationIndex = $classification !== null ? survey_classificationIndex($classification) : null;
+    $covSubstantive = 0;
+    $covCorrectlyEmpty = 0;
+    $covGenuinelyMissing = 0;
+    $covByShape = [];
 
     foreach (($spec['paths'] ?? []) as $path => $methods) {
         if (!is_array($methods)) {
@@ -203,8 +263,27 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
             if ($hasCompleteResponse && (!in_array($method, $bodyVerbs, true) || $hasBody)) {
                 $complete++;
             }
+
+            if ($classificationIndex !== null) {
+                if ($hasSubstantiveResponse) {
+                    $covSubstantive++;
+                } else {
+                    $normPath = preg_replace('/\{[^}]+\}/', '{}', (string) $path);
+                    $record = $classificationIndex[strtoupper($method) . ' ' . $normPath] ?? null;
+
+                    if ($record !== null && survey_isNoContentShape($record['shape'], $record['returnType'])) {
+                        $covCorrectlyEmpty++;
+                    } else {
+                        $covGenuinelyMissing++;
+                        $shape = $record['shape'] ?? 'unclassified';
+                        $covByShape[$shape] = ($covByShape[$shape] ?? 0) + 1;
+                    }
+                }
+            }
         }
     }
+
+    ksort($covByShape);
 
     $byRule = [];
     $byLevel = [];
@@ -239,6 +318,15 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
             'routesIntrospected' => $run['routesIntrospected'] ?? null,
         ],
     ];
+
+    if ($classificationIndex !== null) {
+        $metrics['responseCoverage'] = [
+            'substantive' => $covSubstantive,
+            'correctlyEmpty' => $covCorrectlyEmpty,
+            'genuinelyMissing' => $covGenuinelyMissing,
+            'genuinelyMissingByShape' => $covByShape,
+        ];
+    }
 
     if ($published !== null) {
         $ours = survey_operationKeys($spec);
@@ -315,6 +403,11 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
         'generateExit' => -1, 'lintExit' => -1, 'generateStderr' => true, 'bootOutcome' => 'unknown',
     ];
 
+    // Optional action classification (classify.php output) enables the three-way responseCoverage block.
+    $classification = is_file("$appDir/classify.json")
+        ? (json_decode((string) file_get_contents("$appDir/classify.json"), true) ?: null)
+        : null;
+
     $published = null;
 
     if ($publishedPath !== null && is_file($publishedPath)) {
@@ -341,5 +434,5 @@ if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__F
         }
     }
 
-    echo json_encode(surveyMetrics($spec, $lint, $run, $prefix, $published), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    echo json_encode(surveyMetrics($spec, $lint, $run, $prefix, $published, $classification), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
 }

@@ -280,3 +280,51 @@ it('embeds the provenance manifest verbatim in both candidates', function (): vo
             ->and($candidate)->toContain('1111111111111111111111111111111111111111'); // Alpha pinnedSha
     }
 });
+
+it('rolls up the three-way responseCoverage across classified apps in the internal candidate', function (): void {
+    $results = [
+        ['name' => 'Alpha', 'metrics' => [
+            'apiOperations' => 10,
+            'responseCoverage' => [
+                'substantive' => 6,
+                'correctlyEmpty' => 1,
+                'genuinelyMissing' => 3,
+                'genuinelyMissingByShape' => ['response()->json(<non-literal>)' => 2, 'multiple returns' => 1],
+            ],
+        ]],
+        ['name' => 'Beta', 'metrics' => [
+            'apiOperations' => 4,
+            'responseCoverage' => [
+                'substantive' => 2,
+                'correctlyEmpty' => 0,
+                'genuinelyMissing' => 2,
+                'genuinelyMissingByShape' => ['multiple returns' => 2],
+            ],
+        ]],
+        // An app with no classification must not break the rollup.
+        ['name' => 'Gamma', 'metrics' => ['apiOperations' => 5]],
+    ];
+
+    $synthesis = surveySynthesize($results, ['apps' => []], []);
+
+    expect($synthesis['responseCoverage'])->toBe([
+        'appCount' => 2,
+        'substantive' => 8,
+        'correctlyEmpty' => 1,
+        'genuinelyMissing' => 5,
+        // arsort by count: 'multiple returns' (3) outranks the json shape (2).
+        'genuinelyMissingByShape' => ['multiple returns' => 3, 'response()->json(<non-literal>)' => 2],
+    ]);
+
+    $internal = surveyRenderInternalCandidate($synthesis);
+    expect($internal)->toContain('## Response coverage (three-way, honest denominator)')
+        ->toContain('**8 substantive · 1 correctly-empty · 5 genuinely-missing**');
+});
+
+it('omits the responseCoverage section when no app carries a classification', function (): void {
+    [$results, $manifest, $lifts] = surveyFixtureInputs();
+    $synthesis = surveySynthesize($results, $manifest, $lifts);
+
+    expect($synthesis['responseCoverage'])->toBeNull()
+        ->and(surveyRenderInternalCandidate($synthesis))->not->toContain('Response coverage (three-way');
+});

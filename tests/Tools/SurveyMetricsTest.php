@@ -66,6 +66,64 @@ it('counts only substantive 2xx into responseSchemas, contentless ops into docum
         ->and($m['completenessPercent'])->toBe(66.7);
 });
 
+it('omits responseCoverage when no classification is supplied', function (): void {
+    $spec = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/spec.json'), true);
+    $run = ['generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => 'booted'];
+
+    $m = surveyMetrics($spec, ['findings' => []], $run, '/api');
+
+    expect($m)->not->toHaveKey('responseCoverage');
+});
+
+it('splits in-prefix ops into substantive / correctly-empty / genuinely-missing with a classification', function (): void {
+    // Three in-prefix ops: one substantive, one genuinely no-content (void), one that returns a
+    // body the generator could not resolve (empty-schema 200). The contentless vs give-up split
+    // can only come from the action source shape, not the spec.
+    $spec = ['paths' => [
+        '/api/show/{id}' => ['get' => ['responses' => ['200' => ['content' => [
+            'application/json' => ['schema' => ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]]],
+        ]]]]],
+        '/api/destroy/{id}' => ['delete' => ['responses' => ['204' => []]]],
+        '/api/dynamic' => ['get' => ['responses' => ['200' => ['content' => [
+            'application/json' => ['schema' => ['type' => 'object']],
+        ]]]]],
+    ]];
+
+    $run = ['generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => 'booted'];
+
+    $classification = [
+        ['uri' => '/api/show/{id}', 'verb' => 'get', 'shape' => 'resource::make', 'returnType' => 'JsonResource'],
+        ['uri' => '/api/destroy/{id}', 'verb' => 'delete', 'shape' => 'no return (void-like)', 'returnType' => 'void'],
+        ['uri' => '/api/dynamic', 'verb' => 'get', 'shape' => 'response()->json(<non-literal>)', 'returnType' => 'JsonResponse'],
+    ];
+
+    $m = surveyMetrics($spec, ['findings' => []], $run, '/api', null, $classification);
+
+    expect($m['responseCoverage']['substantive'])->toBe(1)
+        ->and($m['responseCoverage']['correctlyEmpty'])->toBe(1)
+        ->and($m['responseCoverage']['genuinelyMissing'])->toBe(1)
+        ->and($m['responseCoverage']['genuinelyMissingByShape'])->toBe(['response()->json(<non-literal>)' => 1])
+        // The three buckets partition apiOperations exactly.
+        ->and($m['responseCoverage']['substantive'] + $m['responseCoverage']['correctlyEmpty'] + $m['responseCoverage']['genuinelyMissing'])
+        ->toBe($m['apiOperations']);
+});
+
+it('counts a non-substantive op with no classification record as genuinely-missing (conservative)', function (): void {
+    $spec = ['paths' => [
+        '/api/mystery' => ['get' => ['responses' => ['200' => ['content' => [
+            'application/json' => ['schema' => ['type' => 'object']],
+        ]]]]],
+    ]];
+    $run = ['generateExit' => 0, 'lintExit' => 0, 'generateStderr' => false, 'bootOutcome' => 'booted'];
+
+    // Classification supplied but missing this op's record.
+    $m = surveyMetrics($spec, ['findings' => []], $run, '/api', null, []);
+
+    expect($m['responseCoverage']['genuinelyMissing'])->toBe(1)
+        ->and($m['responseCoverage']['correctlyEmpty'])->toBe(0)
+        ->and($m['responseCoverage']['genuinelyMissingByShape'])->toBe(['unclassified' => 1]);
+});
+
 it('adds coverage when a published spec is supplied', function (): void {
     $spec = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/spec.json'), true);
     $lint = json_decode((string) file_get_contents(__DIR__ . '/../Fixtures/survey/lint.json'), true);
