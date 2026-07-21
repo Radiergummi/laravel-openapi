@@ -296,15 +296,7 @@ final class AuthoredAnnotationScanner
     {
         try {
             return new Generator($this->logger)
-                ->withProcessorPipeline(
-                    // Drop the operation-id synthesiser so only truly authored operationIds are
-                    // indexed, not swagger-php-generated hashes. Drop AugmentTags too: it prunes any
-                    // root tag no operation references, which would hide an authored-but-unused
-                    // @OA\Tag the migration rule needs to see.
-                    static fn(Pipeline $pipeline): Pipeline => $pipeline
-                        ->remove(OperationId::class)
-                        ->remove(AugmentTags::class),
-                )
+                ->withProcessorPipeline($this->withoutGeneratedProcessors(...))
                 ->generate($this->scanPaths, validate: false);
         } catch (Throwable $exception) {
             $this->logger->warning(
@@ -313,6 +305,27 @@ final class AuthoredAnnotationScanner
 
             return null;
         }
+    }
+
+    /**
+     * Trims two default processors from the scan pipeline: the operation-id synthesiser, so only
+     * truly authored operationIds are indexed rather than swagger-php-generated hashes, and
+     * AugmentTags, which prunes any root tag no operation references (that would hide an
+     * authored-but-unused `@OA\Tag` the migration rule needs to see).
+     *
+     * The parameter carries no native type. swagger-php 6.4 hands the callback an
+     * `OpenApi\Utils\Pipeline`, while 5.8 to 6.3 hand it `OpenApi\Pipeline` (which 6.4 keeps as a
+     * subclass of the former), so a native type would break one end of the supported range. The
+     * PHPDoc names `OpenApi\Pipeline` because that is the one class present on every version;
+     * `remove()` mutates the pipeline in place, so nothing needs to be returned.
+     *
+     * @param Pipeline $pipeline
+     */
+    private function withoutGeneratedProcessors($pipeline): void
+    {
+        $pipeline
+            ->remove(OperationId::class)
+            ->remove(AugmentTags::class);
     }
 
     private function indexSchemas(OpenApi $document): void
