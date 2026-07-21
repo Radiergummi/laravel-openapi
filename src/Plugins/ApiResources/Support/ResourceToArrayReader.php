@@ -35,6 +35,7 @@ use function class_exists;
 use function is_a;
 use function is_int;
 use function is_string;
+use function method_exists;
 use function str_starts_with;
 
 /**
@@ -50,6 +51,8 @@ use function str_starts_with;
 #[Scoped]
 final class ResourceToArrayReader
 {
+    public const string TO_ARRAY = 'toArray';
+
     private const string WHEN = 'when';
 
     private const string UNLESS = 'unless';
@@ -63,7 +66,10 @@ final class ResourceToArrayReader
     private const string MERGE_WHEN = 'mergeWhen';
 
     /**
-     * @var array<class-string<JsonResource>, null|InferredToArrayFields>
+     * Keyed by `class::method`, since a resource may expose several readable field bags
+     * (`toArray()`, or JSON:API's `toAttributes()`/`toRelationships()`/…).
+     *
+     * @var array<string, null|InferredToArrayFields>
      */
     private array $cache = [];
 
@@ -76,30 +82,34 @@ final class ResourceToArrayReader
 
     /**
      * @param class-string<JsonResource> $resourceClass
+     * @param non-empty-string           $method        the array-returning method to read
      *
      * @throws ReflectionException
      */
-    public function read(string $resourceClass): ?InferredToArrayFields
+    public function read(string $resourceClass, string $method = self::TO_ARRAY): ?InferredToArrayFields
     {
-        if (array_key_exists($resourceClass, $this->cache)) {
-            return $this->cache[$resourceClass];
+        $key = $resourceClass . '::' . $method;
+
+        if (array_key_exists($key, $this->cache)) {
+            return $this->cache[$key];
         }
 
-        return $this->cache[$resourceClass] = $this->readFields($resourceClass);
+        return $this->cache[$key] = $this->readFields($resourceClass, $method);
     }
 
     /**
      * @param class-string<JsonResource> $resourceClass
+     * @param non-empty-string           $method
      *
      * @throws ReflectionException
      */
-    private function readFields(string $resourceClass): ?InferredToArrayFields
+    private function readFields(string $resourceClass, string $method): ?InferredToArrayFields
     {
-        if (!$this->overridesToArray($resourceClass)) {
+        if (!$this->overridesMethod($resourceClass, $method)) {
             return null;
         }
 
-        $literal = $this->returnLiteralFinder->find(new ReflectionMethod($resourceClass, 'toArray'));
+        $literal = $this->returnLiteralFinder->find(new ReflectionMethod($resourceClass, $method));
 
         if ($literal === null) {
             return null;
@@ -127,10 +137,32 @@ final class ResourceToArrayReader
      * Whether the resource overrides `toArray()` outside the framework.
      *
      * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
      */
     public function overridesToArray(string $resourceClass): bool
     {
-        $declaringClass = new ReflectionMethod($resourceClass, 'toArray')->getDeclaringClass()->getName();
+        return $this->overridesMethod($resourceClass, self::TO_ARRAY);
+    }
+
+    /**
+     * Whether the resource declares the given method outside the framework.
+     *
+     * A method the app never overrides carries no app-specific shape, so reading the
+     * framework's own declaration would document nothing useful.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     * @param non-empty-string           $method
+     *
+     * @throws ReflectionException
+     */
+    public function overridesMethod(string $resourceClass, string $method): bool
+    {
+        if (!method_exists($resourceClass, $method)) {
+            return false;
+        }
+
+        $declaringClass = new ReflectionMethod($resourceClass, $method)->getDeclaringClass()->getName();
 
         return !str_starts_with($declaringClass, 'Illuminate\\');
     }
@@ -182,7 +214,7 @@ final class ResourceToArrayReader
             }
 
             try {
-                $key = AstLiteralEvaluator::evaluate($item->key);
+                $key = AstLiteralEvaluator::evaluate($item->key, $resourceClass);
             } catch (NonLiteralValueException) {
                 return null;
             }

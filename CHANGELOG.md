@@ -5,6 +5,9 @@ All notable changes to this project are documented here.
 ## [Unreleased]
 
 ### Added
+- Laravel 13's first-party `JsonApiResource` is documented as a JSON:API resource object (`type`/`id`/`attributes`/`relationships`/`links`/`meta`), reading each member from its `to*()` literal with the same bounded rule as `toArray()`. Previously every such resource produced an empty schema. (#536)
+- `AstLiteralEvaluator` resolves `self::`/`static::` class constants when the caller supplies the enclosing class, so array literals keyed by class constants are no longer refused wholesale. (#538)
+- `WrappedModelLocator` reads `@template-extends` alongside `@extends` when locating the wrapped model.
 - **Tier-1 controller body inference**: request bodies from inline `validate()`, error responses from `abort()`/`abort_if()`/`abort_unless()`, primary responses from literal `response()->json()`, API Resource shapes from `toArray()`, Fractal `transform()` literals, and `spatie/laravel-query-builder` fluent chains; query parameters from `$request->*()` accessor reads, and inline `validate()` keys on GET/HEAD routes as query parameters. (#9, #10, #12, #13, #14, #15, #16)
 - **SwaggerPhp plugin** harvests hand-authored `#[OA\*]` / `@OA` annotations into the spec, with `migration.*` lint rules and `--fix` to delete annotations inference already covers. (#17, #122, #196)
 - Response schemas inferred from Eloquent model metadata (`$casts`, `$hidden`, `$appends`, migration columns, framework timestamps) and from concrete API Resources resolved off the controller's return expression. (#18, #108, #250)

@@ -278,6 +278,70 @@ Single responses wrap fields in `{ data: {…} }`; collection responses in
 > `toArray()` literal, and no wrapped model to fall back to — triggers the
 > `resource.fields-undeclared` lint rule (level 1).
 
+### First-party JSON:API resources
+
+Laravel 13's `Illuminate\Http\Resources\JsonApi\JsonApiResource` replaces
+`toArray()` with a set of document-member methods. Each is read with the same
+bounded single-`return [...]` literal rule as `toArray()`, and the result is
+assembled into a JSON:API **resource object** rather than a flat field bag:
+
+```php
+/** @template-extends ApiResource<Article> */
+class ArticleResource extends JsonApiResource
+{
+    public const string FIELD_TITLE = 'title';
+
+    public function toAttributes(Request $request): array
+    {
+        return [
+            self::FIELD_TITLE => $this->resource->title,
+            'publishedAt' => $this->resource->published_at,
+        ];
+    }
+
+    public function toRelationships(Request $request): array
+    {
+        return ['author' => $this->whenLoaded('author')];
+    }
+}
+```
+
+```yaml
+type: object
+required: [type, id]
+properties:
+  type: { type: string }
+  id: { type: string }
+  attributes:
+    type: object
+    required: [title, publishedAt]
+    properties:
+      title: { type: string }          # typed from the wrapped model
+      publishedAt: { type: string, format: date-time }
+  relationships:
+    type: object
+    properties:
+      author: { type: object }
+```
+
+Notes:
+
+- `type` and `id` are always emitted; Laravel derives them even when the
+  subclass leaves the framework defaults alone.
+- `attributes`, `relationships`, `links` and `meta` appear only when the
+  subclass overrides the corresponding method with a readable literal, so a
+  resource that emits no relationships gets no empty `relationships` object.
+- Relationship values are documented as objects. Only the relationship *names*
+  are statically known — the member is really `{data, links, meta}` and the
+  cardinality of `data` is not visible to the reader, so a permissive object is
+  emitted rather than a guessed shape.
+- `#[ResourceField]` declarations describe `attributes` members, and win per
+  field as they do for `toArray()`.
+- Constant keys (`self::FIELD_TITLE`) resolve, as do `static::` ones.
+
+Resources whose bodies are not single literals degrade to `type` + `id` only;
+`#[ResourceField]` is the escape hatch.
+
 Lint rules:
 
 | Rule | Level |

@@ -19,12 +19,14 @@ use PhpParser\Node\Scalar\String_;
 use function array_all;
 use function class_exists;
 use function constant;
+use function in_array;
 use function interface_exists;
 use function is_array;
 use function is_float;
 use function is_int;
 use function is_scalar;
 use function is_string;
+use function strtolower;
 
 /**
  * Evaluates a php-parser expression made up purely of compile-time literals: scalars,
@@ -32,25 +34,28 @@ use function is_string;
  * Anything dynamic throws {@see NonLiteralValueException}; callers degrade gracefully.
  *
  * Class constants resolve when the class autoloads and the constant's value is itself a literal
- * (enum cases and arrays containing objects throw). Unresolved `self::`/`static::` also throw.
+ * (enum cases and arrays containing objects throw). `self::`/`static::` resolve only when the
+ * caller supplies the enclosing class; without it they throw, as any other unresolved name does.
  *
  * @internal
  */
 final readonly class AstLiteralEvaluator
 {
     /**
+     * @param null|class-string $selfClass the enclosing class, resolving `self::`/`static::`
+     *
      * @throws NonLiteralValueException
      */
-    public static function evaluate(Expr $expression): mixed
+    public static function evaluate(Expr $expression, ?string $selfClass = null): mixed
     {
         return match (true) {
             $expression instanceof String_ => $expression->value,
             $expression instanceof Int_ => $expression->value,
             $expression instanceof Float_ => $expression->value,
             $expression instanceof ConstFetch => self::evaluateConstant($expression),
-            $expression instanceof Array_ => self::evaluateArray($expression),
-            $expression instanceof ClassConstFetch => self::evaluateClassConstant($expression),
-            $expression instanceof UnaryMinus => self::evaluateNegation($expression),
+            $expression instanceof Array_ => self::evaluateArray($expression, $selfClass),
+            $expression instanceof ClassConstFetch => self::evaluateClassConstant($expression, $selfClass),
+            $expression instanceof UnaryMinus => self::evaluateNegation($expression, $selfClass),
             default => throw NonLiteralValueException::for($expression),
         };
     }
@@ -69,11 +74,13 @@ final readonly class AstLiteralEvaluator
     }
 
     /**
+     * @param null|class-string $selfClass
+     *
      * @return array<int|string, mixed>
      *
      * @throws NonLiteralValueException
      */
-    private static function evaluateArray(Array_ $expression): array
+    private static function evaluateArray(Array_ $expression, ?string $selfClass): array
     {
         $values = [];
 
@@ -82,7 +89,7 @@ final readonly class AstLiteralEvaluator
                 throw NonLiteralValueException::for($expression);
             }
 
-            $value = self::evaluate($item->value);
+            $value = self::evaluate($item->value, $selfClass);
 
             if ($item->key === null) {
                 $values[] = $value;
@@ -90,7 +97,7 @@ final readonly class AstLiteralEvaluator
                 continue;
             }
 
-            $key = self::evaluate($item->key);
+            $key = self::evaluate($item->key, $selfClass);
 
             if (!is_int($key) && !is_string($key)) {
                 throw NonLiteralValueException::for($item->key);
@@ -106,15 +113,24 @@ final readonly class AstLiteralEvaluator
      * Resolves `Class::class` to its FQCN string, or any other constant to its literal value.
      * Triggers autoloading intentionally (the generator already autoloads app classes).
      *
+     * @param null|class-string $selfClass
+     *
      * @throws NonLiteralValueException
      */
-    private static function evaluateClassConstant(ClassConstFetch $expression): mixed
+    private static function evaluateClassConstant(ClassConstFetch $expression, ?string $selfClass): mixed
     {
         if (!$expression->class instanceof Name || !$expression->name instanceof Identifier) {
             throw NonLiteralValueException::for($expression);
         }
 
         $class = $expression->class->toString();
+
+        // `static::` resolves to the class being documented, not a runtime late-static-binding
+        // target: where a subclass overrides the constant, the documented class's value is the
+        // one that belongs in its schema.
+        if ($selfClass !== null && in_array(strtolower($class), ['self', 'static'], strict: true)) {
+            $class = $selfClass;
+        }
 
         if ($expression->name->toLowerString() === 'class') {
             return $class;
@@ -149,11 +165,13 @@ final readonly class AstLiteralEvaluator
     }
 
     /**
+     * @param null|class-string $selfClass
+     *
      * @throws NonLiteralValueException
      */
-    private static function evaluateNegation(UnaryMinus $expression): int|float
+    private static function evaluateNegation(UnaryMinus $expression, ?string $selfClass): int|float
     {
-        $value = self::evaluate($expression->expr);
+        $value = self::evaluate($expression->expr, $selfClass);
 
         if (!is_int($value) && !is_float($value)) {
             throw NonLiteralValueException::for($expression);

@@ -143,3 +143,39 @@ it('rejects non-literal expressions', function (string $code): void {
 ]);
 
 // endregion
+
+// region self:: / static:: resolution
+
+class SelfConstantHost
+{
+    public const string FIELD = 'title';
+
+    public const array SHAPE = ['a', 'b'];
+}
+
+it('resolves self:: against the supplied enclosing class', function (): void {
+    expect(AstLiteralEvaluator::evaluate(parseExpression('self::FIELD'), SelfConstantHost::class))
+        ->toBe('title');
+});
+
+it('resolves static:: against the supplied enclosing class', function (): void {
+    expect(AstLiteralEvaluator::evaluate(parseExpression('static::FIELD'), SelfConstantHost::class))
+        ->toBe('title');
+});
+
+it('resolves self:: keys nested inside an array literal', function (): void {
+    expect(AstLiteralEvaluator::evaluate(parseExpression('[self::FIELD => 1]'), SelfConstantHost::class))
+        ->toBe(['title' => 1]);
+});
+
+it('resolves self::class to the enclosing class name', function (): void {
+    expect(AstLiteralEvaluator::evaluate(parseExpression('self::class'), SelfConstantHost::class))
+        ->toBe(SelfConstantHost::class);
+});
+
+it('still throws on self:: when no enclosing class is supplied', function (): void {
+    expect(static fn(): mixed => evaluateLiteral('self::FIELD'))
+        ->toThrow(NonLiteralValueException::class);
+});
+
+// endregion
