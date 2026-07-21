@@ -21,6 +21,7 @@ use ReflectionClass;
 use ReflectionException;
 
 use function array_key_exists;
+use function array_map;
 use function assert;
 use function class_exists;
 use function implode;
@@ -38,6 +39,16 @@ use function sprintf;
  */
 final class SchemaFromResource
 {
+    private const string JSON_API_RESOURCE = 'Illuminate\\Http\\Resources\\JsonApi\\JsonApiResource';
+
+    private const string TO_ATTRIBUTES = 'toAttributes';
+
+    private const string TO_RELATIONSHIPS = 'toRelationships';
+
+    private const string TO_LINKS = 'toLinks';
+
+    private const string TO_META = 'toMeta';
+
     /**
      * Memoised wrapped-model ref per resource class; null means no fallback.
      *
@@ -86,8 +97,12 @@ final class SchemaFromResource
             return $this->wrappedModelRefs[$resourceClass];
         }
 
+        // A JSON:API resource always has a shape of its own (`type`/`id` at minimum), so the
+        // wrapped model must never stand in for it: the model's flat schema would contradict
+        // the resource-object envelope the app actually returns.
         if (
-            $this->declaredFields(new ReflectionClass($resourceClass)) !== []
+            self::isJsonApiResource($resourceClass)
+            || $this->declaredFields(new ReflectionClass($resourceClass)) !== []
             || $this->toArrayReader->read($resourceClass) !== null
         ) {
             return $this->wrappedModelRefs[$resourceClass] = null;
@@ -159,6 +174,161 @@ final class SchemaFromResource
             return $this->explicitSchema->toSchema($rawSchema, $reflection);
         }
 
+        $schema = self::isJsonApiResource($resourceClass)
+            ? $this->buildJsonApiSchema($resourceClass)
+            : $this->buildFlatSchema($resourceClass);
+
+        $title = $this->readClassAttributeValue($reflection, SummaryAttribute::class);
+
+        if ($title !== null) {
+            $schema->title = $title;
+        }
+
+        $description = $this->readClassAttributeValue($reflection, DescriptionAttribute::class);
+
+        if ($description !== null) {
+            $schema->description = $description;
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Whether the resource is one of Laravel's first-party JSON:API resources.
+     *
+     * Matched by name rather than an imported class-string: `JsonApiResource` only exists from
+     * Laravel 13 on, and the plugin must stay loadable on 12.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     */
+    private static function isJsonApiResource(string $resourceClass): bool
+    {
+        return is_a($resourceClass, self::JSON_API_RESOURCE, allow_string: true);
+    }
+
+    /**
+     * Builds the flat `{…fields}` object a conventional `toArray()` resource serialises to.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function buildFlatSchema(string $resourceClass): OA\Schema
+    {
+        [$properties, $required] = $this->fieldProperties(
+            $resourceClass,
+            ResourceToArrayReader::TO_ARRAY,
+            withDeclaredFields: true,
+        );
+
+        $props = ['type' => 'object', 'properties' => $properties];
+
+        if ($required !== []) {
+            $props['required'] = $required;
+        }
+
+        return new OA\Schema($props);
+    }
+
+    /**
+     * Builds the JSON:API resource object (`{type, id, attributes, relationships, links, meta}`)
+     * from the respective `to*()` methods.
+     *
+     * `type` and `id` are always present: Laravel derives them from the resource even when the
+     * subclass leaves the framework defaults in place. The remaining members only appear when the
+     * subclass overrides them with a readable literal, so an app that emits no relationships gets
+     * no empty `relationships` object.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     *
+     * @throws ReflectionException
+     */
+    private function buildJsonApiSchema(string $resourceClass): OA\Schema
+    {
+        $properties = [
+            new OA\Property(['property' => 'type', 'type' => 'string']),
+            new OA\Property(['property' => 'id', 'type' => 'string']),
+        ];
+
+        // #[ResourceField] declarations describe response fields, which for a JSON:API document
+        // live under `attributes`.
+        $members = [
+            'attributes' => [self::TO_ATTRIBUTES, true],
+            'relationships' => [self::TO_RELATIONSHIPS, false],
+            'links' => [self::TO_LINKS, false],
+            'meta' => [self::TO_META, false],
+        ];
+
+        foreach ($members as $member => [$method, $withDeclaredFields]) {
+            [$memberProperties, $memberRequired] = $this->fieldProperties(
+                $resourceClass,
+                $method,
+                $withDeclaredFields,
+            );
+
+            if ($member === 'relationships') {
+                $memberProperties = self::asRelationshipObjects($memberProperties);
+            }
+
+            if ($memberProperties === []) {
+                continue;
+            }
+
+            $memberProps = ['property' => $member, 'type' => 'object', 'properties' => $memberProperties];
+
+            if ($memberRequired !== []) {
+                $memberProps['required'] = $memberRequired;
+            }
+
+            $properties[] = new OA\Property($memberProps);
+        }
+
+        return new OA\Schema([
+            'type' => 'object',
+            'properties' => $properties,
+            'required' => ['type', 'id'],
+        ]);
+    }
+
+    /**
+     * Rewrites read relationship fields as JSON:API relationship objects.
+     *
+     * Only the relationship *names* are reliable here: the value in `toRelationships()` is a
+     * related resource (or a `whenLoaded()` wrapper around one), which the generic field reader
+     * would type as if it were an attribute. A relationship member is really
+     * `{data, links, meta}` with `data` holding resource identifiers, and the cardinality is not
+     * statically known, so each is documented as a permissive object rather than a wrong scalar.
+     *
+     * @param list<OA\Property> $properties
+     *
+     * @return list<OA\Property>
+     */
+    private static function asRelationshipObjects(array $properties): array
+    {
+        return array_map(
+            static fn(OA\Property $property): OA\Property => new OA\Property([
+                'property' => $property->property,
+                'type' => 'object',
+            ]),
+            $properties,
+        );
+    }
+
+    /**
+     * Collects the properties and required-field names contributed by one array-returning method,
+     * optionally merged with the class's `#[ResourceField]` declarations.
+     *
+     * @param class-string<JsonResource> $resourceClass
+     * @param non-empty-string           $method
+     *
+     * @return array{list<OA\Property>, list<string>}
+     *
+     * @throws ReflectionException
+     */
+    private function fieldProperties(string $resourceClass, string $method, bool $withDeclaredFields): array
+    {
+        $reflection = new ReflectionClass($resourceClass);
+
         /** @var list<OA\Property> $properties */
         $properties = [];
 
@@ -168,7 +338,7 @@ final class SchemaFromResource
         /** @var array<string, true> $seenNames */
         $seenNames = [];
 
-        foreach ($this->declaredFields($reflection) as $field) {
+        foreach ($withDeclaredFields ? $this->declaredFields($reflection) : [] as $field) {
             if (isset($seenNames[$field->name])) {
                 continue;
             }
@@ -181,7 +351,7 @@ final class SchemaFromResource
             }
         }
 
-        $inferred = $this->toArrayReader->read($resourceClass);
+        $inferred = $this->toArrayReader->read($resourceClass, $method);
 
         if ($inferred !== null) {
             /** @var list<string> $unconstrainedKeys */
@@ -206,13 +376,16 @@ final class SchemaFromResource
             }
 
             if ($unconstrainedKeys !== []) {
+                // #[ResourceField] only feeds the `attributes` member (withDeclaredFields); suggesting
+                // it for relationships/links/meta would point at a no-op.
                 $this->logger->notice(
                     sprintf(
-                        'toArray() of %s has keys whose values could not be statically typed (%s); '
-                        . 'they are documented as unconstrained properties. '
-                        . 'Declare a #[ResourceField] for each to document its type.',
+                        '%s() of %s has keys whose values could not be statically typed (%s); '
+                        . 'they are documented as unconstrained properties.%s',
+                        $method,
                         $resourceClass,
                         implode(', ', $unconstrainedKeys),
+                        $withDeclaredFields ? ' Declare a #[ResourceField] for each to document its type.' : '',
                     ),
                 );
             }
@@ -220,43 +393,27 @@ final class SchemaFromResource
             if ($inferred->hasUnreadableMergePayload) {
                 $this->logger->notice(
                     sprintf(
-                        'A merge()/mergeWhen() payload in %s::toArray() is not a literal array; '
+                        'A merge()/mergeWhen() payload in %s::%s() is not a literal array; '
                         . 'its keys are not documented. #[ResourceField] is the escape hatch.',
                         $resourceClass,
+                        $method,
                     ),
                 );
             }
-        } elseif ($seenNames === [] && $this->toArrayReader->overridesToArray($resourceClass)) {
+        } elseif ($seenNames === [] && $this->toArrayReader->overridesMethod($resourceClass, $method)) {
             // The wrapped-model fallback did not apply (buildRef would have short-circuited),
             // so a dynamic body with no declared fields leaves a genuinely empty schema.
             $this->logger->notice(
                 sprintf(
-                    'toArray() of %s is not a single statically-readable return-array literal and no '
+                    '%s() of %s is not a single statically-readable return-array literal and no '
                     . '#[ResourceField] or wrapped model (@mixin) is available; the response schema stays empty.',
+                    $method,
                     $resourceClass,
                 ),
             );
         }
 
-        $props = ['type' => 'object', 'properties' => $properties];
-
-        if ($required !== []) {
-            $props['required'] = $required;
-        }
-
-        $title = $this->readClassAttributeValue($reflection, SummaryAttribute::class);
-
-        if ($title !== null) {
-            $props['title'] = $title;
-        }
-
-        $description = $this->readClassAttributeValue($reflection, DescriptionAttribute::class);
-
-        if ($description !== null) {
-            $props['description'] = $description;
-        }
-
-        return new OA\Schema($props);
+        return [$properties, $required];
     }
 
     /**

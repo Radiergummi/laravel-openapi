@@ -37,6 +37,8 @@ use function in_array;
 use function is_string;
 use function is_writable;
 use function realpath;
+use function restore_error_handler;
+use function set_error_handler;
 
 class GenerateCommand extends Command
 {
@@ -195,7 +197,30 @@ class GenerateCommand extends Command
         $analysis = new Analysis([], $context);
         $analysis->openapi = $openapi;
 
-        $valid = $analysis->validate();
+        /** @var list<string> $warnings */
+        $warnings = [];
+
+        // swagger-php reports validation problems through trigger_error(). Laravel promotes those
+        // to ErrorExceptions, so a mere warning would abort generation before anything is written.
+        // Collect them here instead and report them as what they are.
+        set_error_handler(
+            static function (int $severity, string $message) use (&$warnings): bool {
+                $warnings[] = $message;
+
+                return true;
+            },
+            E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED,
+        );
+
+        try {
+            $valid = $analysis->validate();
+        } finally {
+            restore_error_handler();
+        }
+
+        foreach ($warnings as $warning) {
+            $this->components->warn($warning);
+        }
 
         if (!$valid) {
             $this->components->error('OpenAPI validation failed. The document may be incomplete.');

@@ -27,6 +27,9 @@ class MixinTaggedResource extends JsonResource {}
 /** @extends GenericBaseResource<Article> */
 class ExtendsTaggedResource extends GenericBaseResource {}
 
+/** @template-extends GenericBaseResource<Article> */
+class TemplateExtendsTaggedResource extends GenericBaseResource {}
+
 /**
  * @mixin Author
  *
@@ -104,4 +107,8 @@ it('finds the model in @extends even when @mixin names a non-Model', function ()
 it('finds the value object in @extends even when @mixin names a Model', function (): void {
     expect(wrappedModelLocator()->locateValueObject(ModelMixinNonModelExtendsResource::class))
         ->toBe(DocBlockParser::class);
+});
+
+it('resolves the wrapped model from a @template-extends tag', function (): void {
+    expect(wrappedModelLocator()->locate(TemplateExtendsTaggedResource::class))->toBe(Article::class);
 });

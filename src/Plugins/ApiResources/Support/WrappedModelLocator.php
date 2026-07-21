@@ -124,15 +124,18 @@ final class WrappedModelLocator
             }
         }
 
-        foreach ($parsed->tagValues('@extends') as $tag) {
-            if (!$tag instanceof ExtendsTagValueNode) {
-                continue;
-            }
+        // `@template-extends` is PHPStan's alias for `@extends`; both are in common use.
+        foreach (['@extends', '@template-extends'] as $tagName) {
+            foreach ($parsed->tagValues($tagName) as $tag) {
+                if (!$tag instanceof ExtendsTagValueNode) {
+                    continue;
+                }
 
-            $className = $this->typeNodeResolver->genericValueClass($tag->type, $reflection);
+                $className = $this->typeNodeResolver->genericValueClass($tag->type, $reflection);
 
-            if ($className !== null && class_exists($className) && $matches($className)) {
-                return $className;
+                if ($className !== null && class_exists($className) && $matches($className)) {
+                    return $className;
+                }
             }
         }
 

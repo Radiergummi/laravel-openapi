@@ -249,10 +249,12 @@ it('runs the validation pass by default, rejecting an invalid document', functio
     config(['openapi.output_path' => $path]);
     corruptGeneratedDocument();
 
-    // swagger-php's validate() emits an E_USER_WARNING for the items-less array; PHPUnit escalates
-    // that to an ErrorException — itself proof the validation pass executed. (In a real CLI run the
-    // pass returns false and the command prints "OpenAPI validation failed" and exits FAILURE.)
-    expect(fn(): int => $this->artisan('openapi:generate')->run())->toThrow(ErrorException::class);
+    // swagger-php reports the items-less array through trigger_error(). The command collects those
+    // warnings rather than letting the host's error handler escalate them to a fatal, then fails on
+    // validate()'s own verdict.
+    $this->artisan('openapi:generate')
+        ->expectsOutputToContain('OpenAPI validation failed')
+        ->assertExitCode(Command::FAILURE);
 
     expect(file_exists($path))->toBeFalse();
 
