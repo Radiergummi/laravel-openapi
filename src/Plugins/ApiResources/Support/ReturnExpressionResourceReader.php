@@ -12,8 +12,11 @@ use Illuminate\Http\Resources\Json\ResourceCollection;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\ConstFetch;
+use PhpParser\Node\Expr\FuncCall;
+use PhpParser\Node\Expr\Instanceof_;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_ as NewExpression;
+use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
@@ -33,14 +36,17 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
+use ReflectionProperty;
 
 use function array_key_exists;
 use function class_exists;
 use function count;
 use function in_array;
+use function interface_exists;
 use function is_a;
 use function is_string;
 use function method_exists;
+use function property_exists;
 use function sprintf;
 
 /**
@@ -73,6 +79,26 @@ final class ReturnExpressionResourceReader
     private const array RESOURCE_PRESERVING_CHAIN_METHODS = ['additional'];
 
     /**
+     * Eloquent static methods that return a model instance (not a query builder), so a
+     * `Model::x(...)->toResource()` receiver names the model. Query entrypoints (`query`, `where`,
+     * …) are absent: they return a builder, whose element type is not statically knowable here.
+     */
+    private const array MODEL_RETURNING_STATICS = [
+        'create',
+        'forcecreate',
+        'make',
+        'find',
+        'findornew',
+        'findorfail',
+        'first',
+        'firstornew',
+        'firstorcreate',
+        'firstorfail',
+        'updateorcreate',
+        'sole',
+    ];
+
+    /**
      * Paginator chain methods that don't change the paginated nature or item shape (URL/metadata
      * tweaks only). Item-mapping chains (`through()`) are absent: they may change item shape.
      * Any other trailing call falls back to the plain `{data}` envelope.
@@ -90,6 +116,14 @@ final class ReturnExpressionResourceReader
      * @var array<string, ?ResourceTarget>
      */
     private array $cache = [];
+
+    /**
+     * The method statements of the resolution in flight, so a receiver that is a local variable can
+     * be traced to its assignment. Set per `resolve()` call; only ever read synchronously within it.
+     *
+     * @var list<Stmt>
+     */
+    private array $resolutionStatements = [];
 
     public function __construct(
         private readonly MethodBodyScanner $scanner,
@@ -138,6 +172,7 @@ final class ReturnExpressionResourceReader
         }
 
         $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+        $this->resolutionStatements = $statements;
 
         if (count($this->methodLevelReturns($statements)) > 1) {
             return $this->reconcileMultipleReturns($statements, $method, $silent);
@@ -175,6 +210,7 @@ final class ReturnExpressionResourceReader
         ReflectionMethod $method,
         bool $silent,
     ): ?ResourceTarget {
+        $this->resolutionStatements = $statements;
         $resolved = [];
 
         foreach ($this->methodLevelReturns($statements) as $return) {
@@ -704,6 +740,327 @@ final class ReturnExpressionResourceReader
     }
 
     /**
+     * The Model class a `->toResource()` receiver expression resolves to, or null.
+     *
+     * Resolves the shapes whose type is statically declared, no dataflow:
+     *
+     * - a Model-typed parameter: `$model->toResource()`;
+     * - a property whose declared type is a Model: `$document->author->toResource()`;
+     * - a method call whose declared return type is a concrete Model:
+     *   `$repository->find($id)->toResource()`;
+     * - a "passthrough" call whose declared return type is the base `Model` (or `self`/`static`)
+     *   and which takes a Model-typed argument that does resolve: `$request->resolve($model)`,
+     *   `$this->reload($model)`. The returned instance is the one passed in, so its argument
+     *   carries the concrete type.
+     *
+     * @return null|class-string<Model>
+     *
+     * @throws ReflectionException
+     */
+    private function receiverModelClass(Expr $receiver, ReflectionMethod $method): ?string
+    {
+        if ($receiver instanceof Variable && is_string($receiver->name)) {
+            $parameterModel = $this->parameterModelClass($method, $receiver->name);
+
+            if ($parameterModel !== null) {
+                return $parameterModel;
+            }
+
+            // An `assert($var instanceof Model)` narrowing types the local directly, even when its
+            // assignment expression is not itself statically resolvable.
+            $asserted = $this->assertedModelClass($receiver->name, $method);
+
+            if ($asserted !== null) {
+                return $asserted;
+            }
+
+            // Otherwise trace the local's single unconditional assignment and resolve that.
+            $assigned = $this->expressionAssignedTo($receiver, $this->resolutionStatements, $method, log: false);
+
+            return $assigned === null ? null : $this->receiverModelClass($assigned, $method);
+        }
+
+        if ($receiver instanceof NewExpression && $receiver->class instanceof Name) {
+            $class = $receiver->class->toString();
+
+            return is_a($class, Model::class, allow_string: true) ? $class : null;
+        }
+
+        if (
+            $receiver instanceof StaticCall
+            && $receiver->class instanceof Name
+            && $receiver->name instanceof Identifier
+        ) {
+            $class = $receiver->class->toString();
+
+            return in_array($receiver->name->toLowerString(), self::MODEL_RETURNING_STATICS, strict: true)
+                && is_a($class, Model::class, allow_string: true)
+                    ? $class
+                    : null;
+        }
+
+        if ($receiver instanceof PropertyFetch && $receiver->name instanceof Identifier) {
+            $ownerClass = $this->expressionClass($receiver->var, $method);
+
+            return $ownerClass === null
+                ? null
+                : $this->propertyModelClass($ownerClass, $receiver->name->toString());
+        }
+
+        if ($receiver instanceof MethodCall && $receiver->name instanceof Identifier) {
+            return $this->methodCallModelClass($receiver, $method);
+        }
+
+        return null;
+    }
+
+    /**
+     * The Model class asserted for a local via `assert($var instanceof Model)`, or null.
+     *
+     * A common narrowing after a loosely-typed lookup (`$x = $request->user()->customer;
+     * assert($x instanceof Customer);`); the assertion states the concrete type the assignment
+     * expression alone does not carry.
+     *
+     * @return null|class-string<Model>
+     */
+    private function assertedModelClass(string $variableName, ReflectionMethod $method): ?string
+    {
+        foreach ($this->resolutionStatements as $statement) {
+            if (!$statement instanceof Stmt\Expression || !$statement->expr instanceof FuncCall) {
+                continue;
+            }
+
+            $call = $statement->expr;
+
+            if (!$call->name instanceof Name || $call->name->toLowerString() !== 'assert') {
+                continue;
+            }
+
+            $argument = $call->getArgs()[0]->value ?? null;
+
+            if (
+                !$argument instanceof Instanceof_
+                || !($argument->expr instanceof Variable && $argument->expr->name === $variableName)
+                || !$argument->class instanceof Name
+            ) {
+                continue;
+            }
+
+            $class = $argument->class->toString();
+
+            if (is_a($class, Model::class, allow_string: true)) {
+                /** @var class-string<Model> $class */
+                return $class;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The Model resolved from a method-call receiver: its declared concrete return type, or, for a
+     * base-`Model` passthrough, the first argument that resolves to a Model.
+     *
+     * @return null|class-string<Model>
+     *
+     * @throws ReflectionException
+     */
+    private function methodCallModelClass(MethodCall $call, ReflectionMethod $method): ?string
+    {
+        $ownerClass = $this->expressionClass($call->var, $method);
+
+        if ($ownerClass === null || !($call->name instanceof Identifier)) {
+            return null;
+        }
+
+        $returnType = $this->methodReturnType($ownerClass, $call->name->toString());
+
+        if ($returnType === null) {
+            return null;
+        }
+
+        // A concrete Model return names the resource directly.
+        if ($returnType !== Model::class && is_a($returnType, Model::class, allow_string: true)) {
+            /** @var class-string<Model> $returnType */
+            return $returnType;
+        }
+
+        // A base-Model (or self/static) return is a passthrough: the concrete type rides in on the
+        // argument. Anything else (a non-Model return) is not a resource source.
+        if ($returnType !== Model::class && !$this->isSelfReturn($ownerClass, $returnType)) {
+            return null;
+        }
+
+        foreach ($call->getArgs() as $argument) {
+            $modelClass = $this->receiverModelClass($argument->value, $method);
+
+            if ($modelClass !== null) {
+                return $modelClass;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The class an expression evaluates to, for receiver-chain resolution: `$this`, a typed
+     * parameter, a typed property, or a method's declared return type. Null when not statically
+     * known.
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function expressionClass(Expr $expression, ReflectionMethod $method): ?string
+    {
+        if ($expression instanceof Variable) {
+            if ($expression->name === 'this') {
+                return $method->getDeclaringClass()->getName();
+            }
+
+            return is_string($expression->name)
+                ? $this->parameterClass($method, $expression->name)
+                : null;
+        }
+
+        if ($expression instanceof PropertyFetch && $expression->name instanceof Identifier) {
+            $ownerClass = $this->expressionClass($expression->var, $method);
+
+            return $ownerClass === null
+                ? null
+                : $this->propertyClass($ownerClass, $expression->name->toString());
+        }
+
+        if ($expression instanceof MethodCall && $expression->name instanceof Identifier) {
+            $ownerClass = $this->expressionClass($expression->var, $method);
+            $returnType = $ownerClass === null
+                ? null
+                : $this->methodReturnType($ownerClass, $expression->name->toString());
+
+            return $returnType !== null && (class_exists($returnType) || interface_exists($returnType))
+                ? $returnType
+                : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * The class the named parameter is typed with (any class, not only Models), or null.
+     *
+     * @return null|class-string
+     */
+    private function parameterClass(ReflectionMethod $method, string $parameterName): ?string
+    {
+        foreach ($method->getParameters() as $parameter) {
+            if ($parameter->getName() !== $parameterName) {
+                continue;
+            }
+
+            $type = $parameter->getType();
+
+            return $type instanceof ReflectionNamedType && !$type->isBuiltin()
+                ? $this->asClassString($type->getName())
+                : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * The declared class of a property on the owner class, or null.
+     *
+     * @param class-string $ownerClass
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function propertyClass(string $ownerClass, string $property): ?string
+    {
+        if (!property_exists($ownerClass, $property)) {
+            return null;
+        }
+
+        $type = new ReflectionProperty($ownerClass, $property)->getType();
+
+        return $type instanceof ReflectionNamedType && !$type->isBuiltin()
+            ? $this->asClassString($type->getName())
+            : null;
+    }
+
+    /**
+     * Narrows a reflected type name to a known class-string, or null when no such class/interface
+     * is loadable.
+     *
+     * @return null|class-string
+     */
+    private function asClassString(string $name): ?string
+    {
+        return class_exists($name) || interface_exists($name) ? $name : null;
+    }
+
+    /**
+     * The declared property class when it is a Model subclass, or null.
+     *
+     * @param class-string $ownerClass
+     *
+     * @return null|class-string<Model>
+     *
+     * @throws ReflectionException
+     */
+    private function propertyModelClass(string $ownerClass, string $property): ?string
+    {
+        $class = $this->propertyClass($ownerClass, $property);
+
+        if ($class !== null && is_a($class, Model::class, allow_string: true)) {
+            /** @var class-string<Model> $class */
+            return $class;
+        }
+
+        return null;
+    }
+
+    /**
+     * The class named by a method's declared return type (nullable/`self`/`static` resolved), or
+     * null when untyped or a builtin.
+     *
+     * @param class-string $ownerClass
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function methodReturnType(string $ownerClass, string $methodName): ?string
+    {
+        if (!method_exists($ownerClass, $methodName)) {
+            return null;
+        }
+
+        $type = new ReflectionMethod($ownerClass, $methodName)->getReturnType();
+
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $name = $type->getName();
+
+        // `self`/`static` name the receiver's own class.
+        return in_array($name, ['self', 'static'], strict: true) ? $ownerClass : $this->asClassString($name);
+    }
+
+    /**
+     * Whether a resolved return type is the receiver's own class (a `self`/`static`/`$this`-style
+     * passthrough).
+     *
+     * @param class-string $ownerClass
+     */
+    private function isSelfReturn(string $ownerClass, string $returnType): bool
+    {
+        return $returnType === $ownerClass;
+    }
+
+    /**
      * Handles `->toResource(X::class)` / `->toResourceCollection(X::class)` and bare
      * `$model->toResource()` on a Model-typed parameter. Other receivers need dataflow and refuse.
      *
@@ -754,9 +1111,7 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        $modelClass = $call->var instanceof Variable && is_string($call->var->name)
-            ? $this->parameterModelClass($method, $call->var->name)
-            : null;
+        $modelClass = $this->receiverModelClass($call->var, $method);
 
         if ($modelClass === null) {
             $this->note(

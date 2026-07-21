@@ -12,6 +12,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Plugins\ApiResources\Support\ReturnExpressionResourceReader;
+use Radiergummi\OpenApi\Tests\Fixtures\Http\Resources\AuthorResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Models\Author;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\LiteralOnlyResource;
 use Radiergummi\OpenApi\Tests\Fixtures\Resources\NestedAuthorResource;
@@ -39,6 +40,59 @@ class ReaderFixtureController
     public function __construct(
         public Author $author,
     ) {}
+
+    public function methodReturnModelToResource(): JsonResource
+    {
+        return $this->findAuthor()->toResource();
+    }
+
+    public function findAuthor(): Author
+    {
+        return $this->author;
+    }
+
+    public function passthroughToResource(Author $author): JsonResource
+    {
+        return $this->reload($author)->toResource();
+    }
+
+    public function reload(Author $author): Model
+    {
+        return $author->refresh();
+    }
+
+    public function unresolvableReceiverToResource(): JsonResource
+    {
+        return $this->makeSomething()->toResource();
+    }
+
+    public function makeSomething(): Model
+    {
+        return $this->author;
+    }
+
+    public function localNewModelToResource(): JsonResource
+    {
+        $author = new Author();
+        $author->save();
+
+        return $author->toResource();
+    }
+
+    public function localStaticFactoryToResource(): JsonResource
+    {
+        $author = Author::create(['name' => 'x']);
+
+        return $author->toResource();
+    }
+
+    public function assertNarrowedLocalToResource(): JsonResource
+    {
+        $author = $this->author->fresh();
+        assert($author instanceof Author);
+
+        return $author->toResource();
+    }
 
     public function staticModelPaginate(): AnonymousResourceCollection
     {
@@ -435,8 +489,50 @@ it('emits no refusal notice when a @return-docblock collection has a conditional
         ))->toBeEmpty();
 });
 
-it('refuses a bare ->toResource() whose receiver is not a typed parameter', function (): void {
-    expect(readerFor()->read(readerMethod('propertyReceiverToResource')))->toBeNull();
+it('resolves a ->toResource() whose receiver is a Model-typed property', function (): void {
+    $target = readerFor()->read(readerMethod('propertyReceiverToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves a ->toResource() whose receiver is a method with a concrete Model return', function (): void {
+    $target = readerFor()->read(readerMethod('methodReturnModelToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves a ->toResource() through a base-Model passthrough call, from its argument', function (): void {
+    $target = readerFor()->read(readerMethod('passthroughToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('refuses a base-Model return with no Model-typed argument to carry the type', function (): void {
+    expect(readerFor()->read(readerMethod('unresolvableReceiverToResource')))->toBeNull();
+});
+
+it('resolves a ->toResource() on a local assigned from new Model()', function (): void {
+    $target = readerFor()->read(readerMethod('localNewModelToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves a ->toResource() on a local assigned from a model-returning static factory', function (): void {
+    $target = readerFor()->read(readerMethod('localStaticFactoryToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves a ->toResource() on a local narrowed by assert(instanceof)', function (): void {
+    $target = readerFor()->read(readerMethod('assertNarrowedLocalToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
 });
 
 it('resolves a bare ->toResource() through the model #[UseResource] attribute', function (): void {
