@@ -99,6 +99,23 @@ final class ReturnExpressionResourceReader
     ];
 
     /**
+     * Model instance methods that return the same model (instance or a refreshed copy of the same
+     * class), so `$model->x(...)` preserves the model type. Used to see through a passthrough
+     * callee's `return $param->refresh();`-style body.
+     */
+    private const array IDENTITY_PRESERVING_MODEL_CALLS = [
+        'refresh',
+        'fresh',
+        'load',
+        'loadmissing',
+        'loadcount',
+        'loadaggregate',
+        'setrelation',
+        'unsetrelation',
+        'withoutrelations',
+    ];
+
+    /**
      * Paginator chain methods that don't change the paginated nature or item shape (URL/metadata
      * tweaks only). Item-mapping chains (`through()`) are absent: they may change item shape.
      * Any other trailing call falls back to the plain `{data}` envelope.
@@ -768,7 +785,7 @@ final class ReturnExpressionResourceReader
 
             // An `assert($var instanceof Model)` narrowing types the local directly, even when its
             // assignment expression is not itself statically resolvable.
-            $asserted = $this->assertedModelClass($receiver->name, $method);
+            $asserted = $this->assertedModelClass($receiver->name);
 
             if ($asserted !== null) {
                 return $asserted;
@@ -823,7 +840,7 @@ final class ReturnExpressionResourceReader
      *
      * @return null|class-string<Model>
      */
-    private function assertedModelClass(string $variableName, ReflectionMethod $method): ?string
+    private function assertedModelClass(string $variableName): ?string
     {
         foreach ($this->resolutionStatements as $statement) {
             if (!$statement instanceof Stmt\Expression || !$statement->expr instanceof FuncCall) {
@@ -859,7 +876,7 @@ final class ReturnExpressionResourceReader
 
     /**
      * The Model resolved from a method-call receiver: its declared concrete return type, or, for a
-     * base-`Model` passthrough, the first argument that resolves to a Model.
+     * verified base-`Model` passthrough, the model type of the argument the callee returns.
      *
      * @return null|class-string<Model>
      *
@@ -885,21 +902,88 @@ final class ReturnExpressionResourceReader
             return $returnType;
         }
 
-        // A base-Model (or self/static) return is a passthrough: the concrete type rides in on the
-        // argument. Anything else (a non-Model return) is not a resource source.
+        // A base-Model (or self/static) return may be a passthrough: the concrete type rides in on
+        // the argument. Anything else (a non-Model return) is not a resource source.
         if ($returnType !== Model::class && !$this->isSelfReturn($ownerClass, $returnType)) {
             return null;
         }
 
-        foreach ($call->getArgs() as $argument) {
-            $modelClass = $this->receiverModelClass($argument->value, $method);
+        // Only trust the passthrough when the callee actually returns one of its parameters (the
+        // identity idiom, e.g. `resolve(Model $x): Model { return $x; }`). A method that merely
+        // has a base-Model signature but returns something unrelated must not borrow an argument's
+        // type, or the response schema would be silently wrong.
+        $parameterIndex = $this->calleeReturnedParameterIndex($ownerClass, $call->name->toString());
 
-            if ($modelClass !== null) {
-                return $modelClass;
+        if ($parameterIndex === null) {
+            return null;
+        }
+
+        $argument = $call->getArgs()[$parameterIndex]->value ?? null;
+
+        return $argument === null ? null : $this->receiverModelClass($argument, $method);
+    }
+
+    /**
+     * The zero-based index of the parameter a method returns by identity, or null when it does not
+     * return a parameter (or the body is not a single statically-readable return).
+     *
+     * Looks through identity-preserving model calls on the parameter (`refresh()`, `fresh()`,
+     * `load()`, …), which return the same model instance/shape.
+     *
+     * @param class-string $ownerClass
+     *
+     * @throws ReflectionException
+     */
+    private function calleeReturnedParameterIndex(string $ownerClass, string $methodName): ?int
+    {
+        if (!method_exists($ownerClass, $methodName)) {
+            return null;
+        }
+
+        $callee = new ReflectionMethod($ownerClass, $methodName);
+
+        if ($callee->isAbstract() || $callee->getDeclaringClass()->isInterface()) {
+            return null;
+        }
+
+        $statements = $this->scanner->firstStatements($callee, self::STATEMENT_LIMIT);
+        $returns = $this->methodLevelReturns($statements);
+
+        if (count($returns) !== 1 || $returns[0]->expr === null) {
+            return null;
+        }
+
+        $returnedName = $this->identityParameterName($returns[0]->expr);
+
+        if ($returnedName === null) {
+            return null;
+        }
+
+        foreach ($callee->getParameters() as $index => $parameter) {
+            if ($parameter->getName() === $returnedName) {
+                return $index;
             }
         }
 
         return null;
+    }
+
+    /**
+     * The variable name an expression is the identity of: a bare `$var`, or `$var` behind a chain
+     * of identity-preserving model calls (`$var->refresh()`, `$var->fresh()->load(...)`). Null for
+     * anything else.
+     */
+    private function identityParameterName(Expr $expression): ?string
+    {
+        while (
+            $expression instanceof MethodCall
+            && $expression->name instanceof Identifier
+            && in_array($expression->name->toLowerString(), self::IDENTITY_PRESERVING_MODEL_CALLS, strict: true)
+        ) {
+            $expression = $expression->var;
+        }
+
+        return $expression instanceof Variable && is_string($expression->name) ? $expression->name : null;
     }
 
     /**

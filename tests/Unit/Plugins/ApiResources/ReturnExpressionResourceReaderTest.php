@@ -61,6 +61,17 @@ class ReaderFixtureController
         return $author->refresh();
     }
 
+    public function nonReturningPassthroughToResource(Author $author): JsonResource
+    {
+        return $this->currentActor($author)->toResource();
+    }
+
+    public function currentActor(Author $subject): Model
+    {
+        // Ignores its argument and returns an unrelated model — must NOT be treated as a passthrough.
+        return new ReaderFixtureCuratedAuthor();
+    }
+
     public function unresolvableReceiverToResource(): JsonResource
     {
         return $this->makeSomething()->toResource();
@@ -512,6 +523,10 @@ it('resolves a ->toResource() through a base-Model passthrough call, from its ar
 
 it('refuses a base-Model return with no Model-typed argument to carry the type', function (): void {
     expect(readerFor()->read(readerMethod('unresolvableReceiverToResource')))->toBeNull();
+});
+
+it('refuses a base-Model call that does not return its argument (no false passthrough)', function (): void {
+    expect(readerFor()->read(readerMethod('nonReturningPassthroughToResource')))->toBeNull();
 });
 
 it('resolves a ->toResource() on a local assigned from new Model()', function (): void {
