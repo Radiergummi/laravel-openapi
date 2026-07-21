@@ -80,6 +80,7 @@ All notable changes to this project are documented here.
 - Internal: the body-scan readers now resolve a call argument by name or position through a single shared `Support\MethodBody\CallArgumentResolver`, replacing four copies of the same logic. No spec output change. (#512)
 
 ### Fixed
+- Compatibility with `zircote/swagger-php` 6.4, which moved `OpenApi\Pipeline` to `OpenApi\Utils\Pipeline` and now hands the base class to `withProcessorPipeline()` callbacks. The SwaggerPhp harvester's callback no longer pins the old subclass in a parameter type, so the scan works across the whole supported range (5.8, 6.1 to 6.4).
 - Lint now surfaces top-level and field-level bare `oneOf` / `anyOf` schemas across components, responses, and request bodies. (#294, #318)
 - Edit-time PHPStan rules resolve positionally-written attribute arguments, not just named ones. (#322)
 - `ErrorResponseInferenceStage` catches `Exception` only, so misbehaving resolvers throwing `Error`/`TypeError` fail loudly. (#308)
