@@ -209,10 +209,17 @@ Recognised shapes:
 - The two-statement form `$projects = X::collection(...); return $projects;`,
   as long as the variable is assigned exactly once on the unconditional path.
 - `->toResource(X::class)` / `->toResourceCollection(X::class)` — the literal
-  class argument is decisive. A bare `$model->toResource()` works when `$model`
-  is a Model-typed parameter: the resource resolves through Laravel's own
-  convention (the model's `#[UseResource]` attribute, then the
-  `App\Http\Resources\{Model}Resource` guess).
+  class argument is decisive. A bare `$model->toResource()` (no class argument)
+  resolves through Laravel's own convention (the model's `#[UseResource]`
+  attribute, then the `App\Http\Resources\{Model}Resource` guess) whenever the
+  receiver's Model type is statically declared. That covers a Model-typed
+  parameter, a Model-typed property, a method whose declared return is a concrete
+  Model, a base-`Model`/`self` passthrough call typed from its Model argument
+  (`$request->resolve($model)->toResource()`), a local assigned from
+  `new Model()` or a model-returning static factory
+  (`Model::create()`/`findOrFail()`/`firstOrFail()`/…), and a local narrowed by
+  `assert($model instanceof Model)`. A receiver whose type is not statically
+  known (a query-builder chain, an untyped local) still refuses.
 - `new JsonResource($model)` (the base class itself) wrapping a Model-typed
   parameter documents the **wrapped model's schema** directly.
 - A `@return AnonymousResourceCollection<ProjectResource>` docblock generic is
