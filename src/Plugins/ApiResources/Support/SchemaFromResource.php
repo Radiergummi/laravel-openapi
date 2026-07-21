@@ -231,8 +231,8 @@ final class SchemaFromResource
     }
 
     /**
-     * Builds the JSON:API resource object — `{type, id, attributes, relationships, links, meta}`
-     * — from the respective `to*()` methods.
+     * Builds the JSON:API resource object (`{type, id, attributes, relationships, links, meta}`)
+     * from the respective `to*()` methods.
      *
      * `type` and `id` are always present: Laravel derives them from the resource even when the
      * subclass leaves the framework defaults in place. The remaining members only appear when the
@@ -376,14 +376,16 @@ final class SchemaFromResource
             }
 
             if ($unconstrainedKeys !== []) {
+                // #[ResourceField] only feeds the `attributes` member (withDeclaredFields); suggesting
+                // it for relationships/links/meta would point at a no-op.
                 $this->logger->notice(
                     sprintf(
                         '%s() of %s has keys whose values could not be statically typed (%s); '
-                        . 'they are documented as unconstrained properties. '
-                        . 'Declare a #[ResourceField] for each to document its type.',
+                        . 'they are documented as unconstrained properties.%s',
                         $method,
                         $resourceClass,
                         implode(', ', $unconstrainedKeys),
+                        $withDeclaredFields ? ' Declare a #[ResourceField] for each to document its type.' : '',
                     ),
                 );
             }
