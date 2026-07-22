@@ -16,7 +16,7 @@ function survey_refName(string $ref): ?string
     return preg_match('#/components/schemas/(.+)$#', $ref, $m) ? $m[1] : null;
 }
 
-/** Substantive-2xx test — mirrors completeness.php. */
+/** Substantive-2xx test — the one home, shared by completeness.php and typedness.php. */
 function survey_substantive(mixed $schema, array $components, array $seen = []): bool
 {
     if (!is_array($schema)) {
@@ -56,6 +56,18 @@ function survey_substantive(mixed $schema, array $components, array $seen = []):
             return survey_substantive($properties['data'], $components, $seen);
         }
 
+        // A JSON:API resource object carries its payload in `attributes`; `type`/`id` and the
+        // other envelope members are structure, not shape. Keyed on the closed member set, so
+        // an object that merely happens to have a `type` and an `id` is unaffected.
+        if (isset($properties['type'], $properties['id'])) {
+            $envelope = ['type', 'id', 'attributes', 'relationships', 'links', 'meta'];
+
+            if (array_diff(array_keys($properties), $envelope) === []) {
+                return isset($properties['attributes'])
+                    && survey_substantive($properties['attributes'], $components, $seen);
+            }
+        }
+
         return true;
     }
 
@@ -93,6 +105,106 @@ function survey_isNoContentShape(string $shape, string $returnType): bool
     ];
 
     return in_array($shape, $noContent, true) || str_starts_with($shape, 'scalar literal (null)');
+}
+
+/**
+ * Score one operation on the two axes the survey measures: its 2xx response and its request body.
+ *
+ * The single home of both classifications, shared by surveyMetrics() and completeness.php so the
+ * two cannot drift. `hasAnyResponse` rides along because documentedResponses counts any 2xx
+ * (contentless included) and that is not recoverable from the response bucket.
+ *
+ * @param array<string, mixed>                          $operation
+ * @param array<string, mixed>                          $components
+ * @param null|array{shape: string, returnType: string} $classificationRecord
+ *
+ * @return array{
+ *     response: 'correctlyEmpty'|'genuinelyMissing'|'substantive',
+ *     body: 'documented'|'notApplicable'|'undocumentedOnWrite',
+ *     hasAnyResponse: bool,
+ *     hasSecurity: bool,
+ * }
+ */
+function survey_operationOutcome(
+    array $operation,
+    string $method,
+    array $components,
+    ?array $classificationRecord,
+): array {
+    $hasAnyResponse = false;
+    $hasAffirmativeNoContent = false;
+    $hasSubstantiveResponse = false;
+
+    foreach (($operation['responses'] ?? []) as $code => $response) {
+        if (!preg_match('/^2/', (string) $code) || !is_array($response)) {
+            continue;
+        }
+
+        $hasAnyResponse = true;
+        $content = $response['content'] ?? null;
+
+        if (!is_array($content) || $content === []) {
+            // Only 204/205 affirm that no body is the right answer. A contentless 200/201/202 is
+            // the generator's give-up path and must earn nothing on its own.
+            if (in_array((string) $code, ['204', '205'], true)) {
+                $hasAffirmativeNoContent = true;
+            }
+
+            continue;
+        }
+
+        foreach ($content as $media) {
+            if (isset($media['schema']) && survey_substantive($media['schema'], $components)) {
+                $hasSubstantiveResponse = true;
+
+                break 2;
+            }
+        }
+    }
+
+    $classifiedNoContent = $classificationRecord !== null && survey_isNoContentShape(
+        $classificationRecord['shape'],
+        $classificationRecord['returnType'],
+    );
+
+    $hasBody = false;
+
+    foreach (($operation['requestBody']['content'] ?? []) as $media) {
+        if (isset($media['schema']) && is_array($media['schema'])) {
+            $hasBody = true;
+
+            break;
+        }
+    }
+
+    return [
+        'response' => match (true) {
+            $hasSubstantiveResponse => 'substantive',
+            $classifiedNoContent || $hasAffirmativeNoContent => 'correctlyEmpty',
+            default => 'genuinelyMissing',
+        },
+        'body' => match (true) {
+            $hasBody => 'documented',
+            in_array($method, ['post', 'put', 'patch'], true) => 'undocumentedOnWrite',
+            default => 'notApplicable',
+        },
+        'hasAnyResponse' => $hasAnyResponse,
+        'hasSecurity' => array_key_exists('security', $operation),
+    ];
+}
+
+/**
+ * Whether an operation counts as complete under the given measurement basis.
+ *
+ * Classified (an action classification was supplied) credits a correctly-empty response; strict
+ * cannot tell one from a give-up empty, so it credits a substantive payload only.
+ *
+ * @param array{response: string, body: string, hasAnyResponse: bool, hasSecurity: bool} $outcome
+ */
+function survey_isComplete(array $outcome, string $basis): bool
+{
+    return $outcome['response'] === 'substantive'
+        || ($basis === 'classified' && $outcome['response'] === 'correctlyEmpty');
 }
 
 /**
@@ -194,7 +306,6 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
 {
     $components = $spec['components']['schemas'] ?? [];
     $verbs = ['get', 'post', 'put', 'patch', 'delete'];
-    $bodyVerbs = ['post', 'put', 'patch'];
 
     $paths = count($spec['paths'] ?? []);
     $operations = 0;
@@ -203,11 +314,14 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
     $documentedResponses = 0;
     $requestBodies = 0;
     $maxRequestProperties = 0;
+    $operationsWithSecurity = 0;
     $complete = 0;
+    $bodyBuckets = ['documented' => 0, 'undocumentedOnWrite' => 0, 'notApplicable' => 0];
 
     // Three-way response coverage (only when an action classification is supplied — the
     // correctly-empty vs give-up-empty split needs the action's return shape, not the spec).
     $classificationIndex = $classification !== null ? survey_classificationIndex($classification) : null;
+    $basis = $classificationIndex !== null ? 'classified' : 'strict';
     $covSubstantive = 0;
     $covCorrectlyEmpty = 0;
     $covGenuinelyMissing = 0;
@@ -234,78 +348,54 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
 
             $apiOperations++;
 
-            $hasBody = false;
-
+            // maxRequestProperties needs the media schema itself, which the outcome does not
+            // carry, so it keeps its own walk rather than widening the seam for one metric.
             foreach (($op['requestBody']['content'] ?? []) as $media) {
                 if (isset($media['schema']) && is_array($media['schema'])) {
-                    $hasBody = true;
                     $maxRequestProperties = max($maxRequestProperties, survey_requestPropertyCount($media['schema'], $components));
                 }
             }
 
-            if ($hasBody) {
+            $normalisedPath = preg_replace('/\{[^}]+\}/', '{}', (string) $path);
+            $record = $classificationIndex !== null
+                ? ($classificationIndex[strtoupper($method) . ' ' . $normalisedPath] ?? null)
+                : null;
+            $outcome = survey_operationOutcome($op, $method, $components, $record);
+
+            $bodyBuckets[$outcome['body']]++;
+
+            if ($outcome['body'] === 'documented') {
                 $requestBodies++;
-            }
-
-            $hasAnyResponse = false;       // any 2xx outcome documented (incl. contentless)
-            $hasContentlessResponse = false; // explicit no-content 2xx (e.g., 204) — documented, no schema
-            $hasSubstantiveResponse = false; // a 2xx whose content schema carries real shape
-
-            foreach (($op['responses'] ?? []) as $code => $response) {
-                if (!preg_match('/^2/', (string) $code) || !is_array($response)) {
-                    continue;
-                }
-
-                $hasAnyResponse = true;
-                $content = $response['content'] ?? null;
-
-                if (!is_array($content) || $content === []) {
-                    $hasContentlessResponse = true;
-
-                    continue;
-                }
-
-                foreach ($content as $media) {
-                    if (isset($media['schema']) && survey_substantive($media['schema'], $components)) {
-                        $hasSubstantiveResponse = true;
-
-                        break 2;
-                    }
-                }
             }
 
             // responseSchemas counts only substantive schemas — a contentless 2xx carries
             // none, so it lands in documentedResponses instead (see #254).
-            if ($hasSubstantiveResponse) {
+            if ($outcome['response'] === 'substantive') {
                 $responseSchemas++;
             }
 
-            if ($hasAnyResponse) {
+            if ($outcome['hasAnyResponse']) {
                 $documentedResponses++;
             }
 
-            // Completeness credits a substantive schema OR a contentless 2xx (parity with
-            // completeness.php — a 204 is a complete response), but not an empty-schema 2xx.
-            $hasCompleteResponse = $hasSubstantiveResponse || $hasContentlessResponse;
+            if ($outcome['hasSecurity']) {
+                $operationsWithSecurity++;
+            }
 
-            if ($hasCompleteResponse && (!in_array($method, $bodyVerbs, true) || $hasBody)) {
+            if (survey_isComplete($outcome, $basis)) {
                 $complete++;
             }
 
             if ($classificationIndex !== null) {
-                if ($hasSubstantiveResponse) {
-                    $covSubstantive++;
-                } else {
-                    $normPath = preg_replace('/\{[^}]+\}/', '{}', (string) $path);
-                    $record = $classificationIndex[strtoupper($method) . ' ' . $normPath] ?? null;
+                match ($outcome['response']) {
+                    'substantive' => $covSubstantive++,
+                    'correctlyEmpty' => $covCorrectlyEmpty++,
+                    default => $covGenuinelyMissing++,
+                };
 
-                    if ($record !== null && survey_isNoContentShape($record['shape'], $record['returnType'])) {
-                        $covCorrectlyEmpty++;
-                    } else {
-                        $covGenuinelyMissing++;
-                        $shape = $record['shape'] ?? 'unclassified';
-                        $covByShape[$shape] = ($covByShape[$shape] ?? 0) + 1;
-                    }
+                if ($outcome['response'] === 'genuinelyMissing') {
+                    $shape = $record['shape'] ?? 'unclassified';
+                    $covByShape[$shape] = ($covByShape[$shape] ?? 0) + 1;
                 }
             }
         }
@@ -332,7 +422,10 @@ function surveyMetrics(array $spec, array $lint, array $run, string $apiPrefix =
         'requestBodies' => $requestBodies,
         'maxRequestProperties' => $maxRequestProperties,
         'componentSchemas' => count($components),
+        'operationsWithSecurity' => $operationsWithSecurity,
+        'requestBodyCoverage' => $bodyBuckets,
         'completenessPercent' => $apiOperations > 0 ? round(100 * $complete / $apiOperations, 1) : 0.0,
+        'completenessBasis' => $basis,
         'lintFindings' => [
             'total' => count($lint['findings'] ?? []),
             'byLevel' => $byLevel,

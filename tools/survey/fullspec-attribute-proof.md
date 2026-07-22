@@ -23,6 +23,11 @@ annotations are uncommitted app-side scratch. Both runs ended with `libraryClean
 
 ## The contrast
 
+> **Figures are stale as of the completeness-scorer fix.** Every percentage below was
+> computed under the pre-fix scorer (verb-gated body term, contentless-`200` credit, no
+> JSON:API unwrap). Re-measurement under the corrected scorer is tracked by **#557**.
+
+
 | | **Lychee** (well-typed) | **Vito** (imperative / dynamic) |
 |---|---:|---:|
 | API operations (`/api`) | 205 | 146 |

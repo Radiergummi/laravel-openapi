@@ -75,6 +75,11 @@ void action from a generator give-up, which is exactly why #413 exists).
 
 ## 4. Measured results
 
+> **Figures are stale as of the completeness-scorer fix.** `typedness.php` shares
+> `survey_substantive()` with `metrics.php`, which now scores a JSON:API resource object by
+> its `attributes`, so `substantivePercent` and the counts below move. Re-measurement is
+> tracked by **#557**.
+
 **Provenance.** Recorded corpus run **2026-06-26**, library commit `0c1d9e3f`, 11 apps, PHP 8.4,
 **published default plugin set** (Fractal/QueryBuilder off — the honest "untouched install").
 `substantive`/`apiOperations` are **freshly recomputed by `typedness.php`** from each app's recorded

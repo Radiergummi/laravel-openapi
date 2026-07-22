@@ -28,13 +28,15 @@ app's comparison against **its own published spec**, not any third-party benchma
 
 ## Annotation lift (per app, from Layer B1)
 
-| Application | Baseline % | After harvest % | After agent % | Harvested attrs | Authored attrs |
-|---|--:|--:|--:|--:|--:|
-| Alpha | 90 | 92 | 100 | 14 | 3 |
-| Gamma | 8.3 | 8.3 | 75 | 0 | 1 |
+| Application | Basis | Baseline % | After harvest % | After agent % | Request bodies (base → final) | Harvested attrs | Authored attrs |
+|---|---|--:|--:|--:|--:|--:|--:|
+| Alpha | classified | 90 | 92 | 100 | 12 → 21 | 14 | 3 |
+| Gamma | — | 8.3 | 8.3 | 75 | — → — | 0 | 1 |
 
 Harvested attributes are transcribed from each app's own published spec; authored
 attributes are added by the annotation pass. The two are tracked separately.
+The percentage is response-axis-only, read under the stated basis; request bodies are
+reported beside it because documenting them is a large part of what annotation does.
 
 ## Provenance
 

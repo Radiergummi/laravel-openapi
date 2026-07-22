@@ -27,8 +27,11 @@ const ENV = `export PATH="/opt/homebrew/opt/php@8.4/bin:$PATH"; export WS="${WS}
 const METRICS = {
   type: 'object', additionalProperties: true,
   properties: { apiOperations: { type: 'integer' }, responseSchemas: { type: 'integer' },
-    requestBodies: { type: 'integer' }, completenessPercent: { type: 'number' } },
-  required: ['apiOperations', 'completenessPercent'],
+    requestBodies: { type: 'integer' }, completenessPercent: { type: 'number' },
+    completenessBasis: { type: 'string' } },
+  // The percentage is response-axis-only and reads differently per basis, so both the basis and
+  // the request-body axis have to travel with it.
+  required: ['apiOperations', 'completenessPercent', 'completenessBasis', 'requestBodies'],
 }
 const measureSchema = { type: 'object', additionalProperties: false,
   properties: { metrics: METRICS }, required: ['metrics'] }
