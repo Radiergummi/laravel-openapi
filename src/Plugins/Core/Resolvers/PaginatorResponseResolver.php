@@ -9,6 +9,7 @@ use OpenApi\Annotations as OA;
 use Override;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Attributes\ResponseResource;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -49,7 +50,7 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
     ) {}
 
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $reflector = $descriptor->actionReflector;
 
@@ -91,11 +92,11 @@ final readonly class PaginatorResponseResolver implements PrimaryResponseResolve
 
         $envelope = $this->schemaFactory->envelope($kind, $this->itemsFor($itemClass));
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($envelope)],
-        ]);
+        ]));
     }
 
     /**

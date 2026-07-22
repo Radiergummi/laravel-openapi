@@ -16,6 +16,7 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
@@ -72,7 +73,7 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
      * @throws ReflectionException
      */
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $method = $descriptor->method;
         $controller = $descriptor->controller;
@@ -135,11 +136,11 @@ final readonly class EntityTransformerResponseResolver implements PrimaryRespons
             ? $this->envelopeFactory->collection($ref)
             : $this->envelopeFactory->single($ref);
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($envelope)],
-        ]);
+        ]));
     }
 
     // region Call-shape matching

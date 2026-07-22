@@ -378,7 +378,7 @@ function helperContentSchema(?OA\Response $response, string $mediaType = 'applic
 // endregion
 
 it('binds fractal()->item() to the single envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('helperItem'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('helperItem')));
 
     $schema = helperContentSchema($response);
 
@@ -387,7 +387,7 @@ it('binds fractal()->item() to the single envelope', function (): void {
 });
 
 it('binds fractal()->collection() to the collection envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('helperCollection'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('helperCollection')));
 
     $schema = helperContentSchema($response);
 
@@ -396,13 +396,13 @@ it('binds fractal()->collection() to the collection envelope', function (): void
 });
 
 it('reads the transformer from a ::class argument', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('classConstTransformer'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('classConstTransformer')));
 
     expect(helperContentSchema($response))->not->toBeNull();
 });
 
 it('binds an injected Manager + new Item() to the single envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('managerItem'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('managerItem')));
 
     $schema = helperContentSchema($response);
 
@@ -411,7 +411,7 @@ it('binds an injected Manager + new Item() to the single envelope', function ():
 });
 
 it('binds an injected Manager + new Collection() to the collection envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('managerCollection'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('managerCollection')));
 
     $schema = helperContentSchema($response);
 
@@ -420,7 +420,7 @@ it('binds an injected Manager + new Collection() to the collection envelope', fu
 });
 
 it('maps serializeWith(ArraySerializer) onto the ArraySerializer envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('arraySerializer'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('arraySerializer')));
 
     $schema = helperContentSchema($response);
 
@@ -429,27 +429,27 @@ it('maps serializeWith(ArraySerializer) onto the ArraySerializer envelope', func
 });
 
 it('maps serializeWith(JsonApiSerializer) onto the JsonApi envelope and media type', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('jsonApiSerializer'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('jsonApiSerializer')));
 
     expect(helperContentSchema($response, 'application/vnd.api+json'))->not->toBeNull()
         ->and(helperContentSchema($response))->toBeNull();
 });
 
 it('refuses the bare two-argument helper form', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('bareTwoArgument'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('bareTwoArgument')));
 
     expect($response)->toBeNull();
 });
 
 it('refuses a variable transformer argument', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('variableTransformer'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('variableTransformer')));
 
     expect($response)->toBeNull();
 });
 
 it('refuses a transformer with no documentable fields, noting it', function (): void {
     $logger = helperRecordingLogger();
-    $response = helperResolver($logger)->resolvePrimaryResponse(helperDescriptor('emptyTransformer'));
+    $response = primaryResponseAnnotation(helperResolver($logger)->resolvePrimaryResponse(helperDescriptor('emptyTransformer')));
 
     expect($response)->toBeNull();
 
@@ -464,7 +464,7 @@ it('refuses a transformer with no documentable fields, noting it', function (): 
 
 it('refuses an unrecognised serializer, noting it', function (): void {
     $logger = helperRecordingLogger();
-    $response = helperResolver($logger)->resolvePrimaryResponse(helperDescriptor('unknownSerializer'));
+    $response = primaryResponseAnnotation(helperResolver($logger)->resolvePrimaryResponse(helperDescriptor('unknownSerializer')));
 
     expect($response)->toBeNull();
 
@@ -477,37 +477,37 @@ it('refuses an unrecognised serializer, noting it', function (): void {
 });
 
 it('never scans an action carrying #[FractalResponse]', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('attributed'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('attributed')));
 
     expect($response)->toBeNull();
 });
 
 it('refuses a named non-HTTP return type', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('typedModelReturn'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('typedModelReturn')));
 
     expect($response)->toBeNull();
 });
 
 it('does not fire on item() called on a non-Fractal receiver', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('serviceItem'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('serviceItem')));
 
     expect($response)->toBeNull();
 });
 
 it('does not fire on collection() called on a non-Fractal receiver', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('serviceCollection'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('serviceCollection')));
 
     expect($response)->toBeNull();
 });
 
 it('stays silent for a method without any whitelisted call shape', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('plain'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('plain')));
 
     expect($response)->toBeNull();
 });
 
 it('binds $this->fractal->item()->transformWith() to the single envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyItem'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyItem')));
 
     $schema = helperContentSchema($response);
 
@@ -516,7 +516,7 @@ it('binds $this->fractal->item()->transformWith() to the single envelope', funct
 });
 
 it('binds $this->fractal->collection()->transformWith() to the collection envelope', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyCollection'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyCollection')));
 
     $schema = helperContentSchema($response);
 
@@ -525,17 +525,17 @@ it('binds $this->fractal->collection()->transformWith() to the collection envelo
 });
 
 it('reads the transformWith() transformer from a ::class argument', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(
         helperDescriptor('propertyClassConstTransformer'),
-    );
+    ));
 
     expect(helperContentSchema($response))->not->toBeNull();
 });
 
 it('composes transformWith() with serializeWith() on the property chain', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(
         helperDescriptor('propertyTransformWithSerializer'),
-    );
+    ));
 
     $schema = helperContentSchema($response);
 
@@ -544,40 +544,40 @@ it('composes transformWith() with serializeWith() on the property chain', functi
 });
 
 it('prefers the item() argument transformer over transformWith() on the property chain', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(
         helperDescriptor('propertyItemArgumentTransformer'),
-    );
+    ));
 
     expect(helperContentSchema($response))->not->toBeNull();
 });
 
 it('does not fire on transformWith() rooted on a non-Fractal property', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(
         helperDescriptor('servicePropertyTransformWith'),
-    );
+    ));
 
     expect($response)->toBeNull();
 });
 
 it('refuses a variable transformWith() argument', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(
         helperDescriptor('propertyDynamicTransformer'),
-    );
+    ));
 
     expect($response)->toBeNull();
 });
 
 it('refuses a property chain with no transformer anywhere', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyNoTransformer'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyNoTransformer')));
 
     expect($response)->toBeNull();
 });
 
 it('refuses a transformWith() transformer with no documentable fields, noting it', function (): void {
     $logger = helperRecordingLogger();
-    $response = helperResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(helperResolver($logger)->resolvePrimaryResponse(
         helperDescriptor('propertyEmptyTransformer'),
-    );
+    ));
 
     expect($response)->toBeNull();
 
@@ -591,7 +591,7 @@ it('refuses a transformWith() transformer with no documentable fields, noting it
 });
 
 it('never scans a property-chain action carrying #[FractalResponse]', function (): void {
-    $response = helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyAttributed'));
+    $response = primaryResponseAnnotation(helperResolver()->resolvePrimaryResponse(helperDescriptor('propertyAttributed')));
 
     expect($response)->toBeNull();
 });

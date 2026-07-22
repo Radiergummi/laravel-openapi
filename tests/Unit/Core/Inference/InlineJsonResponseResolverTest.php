@@ -9,7 +9,6 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
@@ -59,19 +58,12 @@ function inlineJsonSchema(OA\Response $response): array
     return $serialized['content']['application/json']['schema'];
 }
 
-/** Whether the response carries the transient marker that defers the resource-status convention. */
-function inlineJsonExplicit(OA\Response $response): bool
-{
-    return is_array($response->x)
-        && ($response->x[OperationBuilder::EXPLICIT_STATUS_EXTENSION] ?? null) === true;
-}
-
 // endregion
 
 // region Literal bodies
 
 it('builds an object schema with typed properties from a literal array', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('literalObject'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('literalObject')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('200')
@@ -88,7 +80,7 @@ it('builds an object schema with typed properties from a literal array', functio
 });
 
 it('recurses into nested literal arrays', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('nestedLiteral'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('nestedLiteral')));
 
     $schema = inlineJsonSchema($response);
     $nested = $schema['properties']['data'];
@@ -100,7 +92,7 @@ it('recurses into nested literal arrays', function (): void {
 });
 
 it('builds an array schema with typed items from a literal list', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('listOfScalars'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('listOfScalars')));
 
     $schema = inlineJsonSchema($response);
 
@@ -109,7 +101,7 @@ it('builds an array schema with typed items from a literal list', function (): v
 });
 
 it('builds an array schema with object items from a literal list of objects', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('listOfObjects'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('listOfObjects')));
 
     $schema = inlineJsonSchema($response);
 
@@ -119,7 +111,7 @@ it('builds an array schema with object items from a literal list of objects', fu
 });
 
 it('keeps a dynamic value under a literal key as an unconstrained property', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('partialLiteral'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('partialLiteral')));
 
     $schema = inlineJsonSchema($response);
 
@@ -130,7 +122,7 @@ it('keeps a dynamic value under a literal key as an unconstrained property', fun
 });
 
 it('matches a json call wrapped in a further method chain', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('chainedCall'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('chainedCall')));
 
     expect(inlineJsonSchema($response)['properties'])->toHaveKey('cached');
 });
@@ -138,9 +130,9 @@ it('matches a json call wrapped in a further method chain', function (): void {
 it('refuses a json call chained into a body-mutating method and logs a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('setDataChain'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -148,7 +140,7 @@ it('refuses a json call chained into a body-mutating method and logs a note', fu
 });
 
 it('reads a literal ->setStatusCode() over the json chain and keeps the body', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('setStatusCodeLiteral'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('setStatusCodeLiteral')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('201')
@@ -157,7 +149,7 @@ it('reads a literal ->setStatusCode() over the json chain and keeps the body', f
 });
 
 it('resolves a class-constant ->setStatusCode() over the json chain', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('setStatusCodeConstant'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('setStatusCodeConstant')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('201')
@@ -167,9 +159,9 @@ it('resolves a class-constant ->setStatusCode() over the json chain', function (
 it('refuses a non-literal ->setStatusCode() and logs a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('setStatusCodeDynamic'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -179,9 +171,9 @@ it('refuses a non-literal ->setStatusCode() and logs a note', function (): void 
 it('refuses a literal non-2xx ->setStatusCode() and logs a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('setStatusCodeNonSuccess'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -192,7 +184,7 @@ it('refuses a literal non-2xx ->setStatusCode() and logs a note', function (): v
 it('documents a 204 from ->noContent() without a body schema', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContent'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContent')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('204')
@@ -208,9 +200,9 @@ it('documents a 204 from ->noContent() without a body schema', function (): void
 it('reads a literal status argument on ->noContent() and stays body-less', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('noContentExplicitStatus'),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('200')
@@ -226,9 +218,9 @@ it('reads a literal status argument on ->noContent() and stays body-less', funct
 it('reads a named status argument on ->noContent()', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('noContentNamedStatus'),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('202')
@@ -239,9 +231,9 @@ it('reads a named status argument on ->noContent()', function (): void {
 it('degrades a non-literal status argument on ->noContent() with a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('noContentDynamicStatus'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -251,9 +243,9 @@ it('degrades a non-literal status argument on ->noContent() with a note', functi
 it('degrades a non-2xx literal status on ->noContent() with a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('noContentNonSuccess'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -262,7 +254,7 @@ it('degrades a non-2xx literal status on ->noContent() with a note', function ()
 });
 
 it('documents explicit sequential integer keys as a JSON array (AST path)', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('integerKeyedList'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('integerKeyedList')));
 
     $schema = inlineJsonSchema($response);
 
@@ -272,9 +264,9 @@ it('documents explicit sequential integer keys as a JSON array (AST path)', func
 });
 
 it('documents explicit sequential integer keys as a JSON array (evaluated class-constant path)', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('integerKeyedListConstant'),
-    );
+    ));
 
     $schema = inlineJsonSchema($response);
 
@@ -284,7 +276,7 @@ it('documents explicit sequential integer keys as a JSON array (evaluated class-
 });
 
 it('prefers a returned json call over an earlier one only assigned to a variable', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('assignedThenReturned'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('assignedThenReturned')));
 
     expect($response->response)->toBe('201')
         ->and(inlineJsonSchema($response)['properties'])->toHaveKey('second');
@@ -295,21 +287,21 @@ it('prefers a returned json call over an earlier one only assigned to a variable
 // region Status arguments
 
 it('uses a literal status argument as the response status', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('literalStatus'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('literalStatus')));
 
     expect($response->response)->toBe('201')
         ->and($response->description)->toBe('Created');
 });
 
 it('resolves a class-constant status argument', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('classConstantStatus'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('classConstantStatus')));
 
     expect($response->response)->toBe('202')
         ->and($response->description)->toBe('Accepted');
 });
 
 it('reads named data and status arguments regardless of order', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('namedArguments'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('namedArguments')));
 
     expect($response->response)->toBe('201');
 
@@ -322,7 +314,7 @@ it('reads named data and status arguments regardless of order', function (): voi
 it('refuses the call and logs a note when the status argument is not literal', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('dynamicStatus'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('dynamicStatus')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -332,9 +324,9 @@ it('refuses the call and logs a note when the status argument is not literal', f
 it('refuses a straight-line non-2xx literal so the success response is not evicted', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('guardedSuccessWithTerminalError'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -345,7 +337,7 @@ it('refuses a straight-line non-2xx literal so the success response is not evict
 it('refuses a nonsense literal status via the 2xx guard', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('nonsenseStatus'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('nonsenseStatus')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -355,7 +347,7 @@ it('refuses a nonsense literal status via the 2xx guard', function (): void {
 it('documents a 204 without a body schema', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContentStatus'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noContentStatus')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('204')
@@ -375,7 +367,7 @@ it('documents a 204 without a body schema', function (): void {
 it('refuses a variable body and logs a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('variableBody'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('variableBody')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -385,7 +377,7 @@ it('refuses a variable body and logs a note', function (): void {
 it('refuses a model expression body and logs a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('modelBody'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('modelBody')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1);
@@ -394,7 +386,7 @@ it('refuses a model expression body and logs a note', function (): void {
 it('refuses the whole array when a key is dynamic', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('dynamicKey'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('dynamicKey')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1);
@@ -403,7 +395,7 @@ it('refuses the whole array when a key is dynamic', function (): void {
 it('refuses a json call that only occurs in a conditional context and logs a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('conditionalOnly'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('conditionalOnly')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -417,7 +409,7 @@ it('refuses a json call that only occurs in a conditional context and logs a not
 it('skips silently when json() has no data argument', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('emptyJson'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('emptyJson')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -426,7 +418,7 @@ it('skips silently when json() has no data argument', function (): void {
 it('skips silently for an empty array literal', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('emptyArrayBody'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('emptyArrayBody')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -435,7 +427,7 @@ it('skips silently for an empty array literal', function (): void {
 it('skips silently when no json call is present', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noJsonCall'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('noJsonCall')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -444,7 +436,7 @@ it('skips silently when no json call is present', function (): void {
 it('skips silently when the json call sits beyond the statement limit', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('beyondStatementLimit'));
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(inlineJsonActionDescriptor('beyondStatementLimit')));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -453,9 +445,9 @@ it('skips silently when the json call sits beyond the statement limit', function
 it('never scans an action whose return type already carries schema information', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('typedReturnWithJsonBody'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -464,9 +456,9 @@ it('never scans an action whose return type already carries schema information',
 it('steps aside silently when the action carries a #[ResponseResource] authoring attribute', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('resourceAuthored', InlineJsonWithAttributeController::class),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -475,9 +467,9 @@ it('steps aside silently when the action carries a #[ResponseResource] authoring
 it('steps aside silently when the action carries a #[FractalResponse] authoring attribute', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('fractalAuthored', InlineJsonWithAttributeController::class),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -488,7 +480,7 @@ it('steps aside silently when the action carries a #[FractalResponse] authoring 
 // region OO JsonResponse construction
 
 it('reads a new JsonResponse([...]) construction at parity with the helper form', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedObject'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedObject')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('200')
@@ -497,23 +489,24 @@ it('reads a new JsonResponse([...]) construction at parity with the helper form'
 });
 
 it('leaves a status-less construction non-explicit so the resource convention can still promote', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedObject'));
+    $result = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedObject'));
 
-    expect(inlineJsonExplicit($response))->toBeFalse();
+    expect($result)->not->toBeNull()
+        ->and($result->statusIsExplicit)->toBeFalse();
 });
 
 it('marks a new JsonResponse([...], 201) explicit so it defers the resource convention', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedWithStatus'));
+    $result = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedWithStatus'));
 
-    expect($response)->not->toBeNull()
-        ->and($response->response)->toBe('201')
-        ->and($response->description)->toBe('Created')
-        ->and(inlineJsonExplicit($response))->toBeTrue()
-        ->and(inlineJsonSchema($response)['properties'])->toHaveKey('constructed');
+    expect($result)->not->toBeNull()
+        ->and($result->statusIsExplicit)->toBeTrue()
+        ->and($result->response->response)->toBe('201')
+        ->and($result->response->description)->toBe('Created')
+        ->and(inlineJsonSchema($result->response)['properties'])->toHaveKey('constructed');
 });
 
 it('matches a construction of an app subclass of Illuminate JsonResponse', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedSubclass'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedSubclass')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('200')
@@ -521,7 +514,7 @@ it('matches a construction of an app subclass of Illuminate JsonResponse', funct
 });
 
 it('reads named data and status arguments on a construction', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedNamedArguments'));
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(inlineJsonActionDescriptor('constructedNamedArguments')));
 
     expect($response->response)->toBe('201')
         ->and(inlineJsonSchema($response)['properties'])->toHaveKey('queued');
@@ -530,9 +523,9 @@ it('reads named data and status arguments on a construction', function (): void 
 it('documents a 204 from new JsonResponse([], 204) without a body schema', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedNoContent'),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('204')
@@ -546,9 +539,9 @@ it('documents a 204 from new JsonResponse([], 204) without a body schema', funct
 });
 
 it('resolves a class-constant status (HTTP_NO_CONTENT) on a construction', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedNoContentConstant'),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('204')
@@ -558,9 +551,9 @@ it('resolves a class-constant status (HTTP_NO_CONTENT) on a construction', funct
 it('returns null for an argument-less new JsonResponse() (parity with the empty helper)', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedEmpty'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
@@ -569,9 +562,9 @@ it('returns null for an argument-less new JsonResponse() (parity with the empty 
 it('degrades a non-literal status on a construction with a note', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedDynamicStatus'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -581,9 +574,9 @@ it('degrades a non-literal status on a construction with a note', function (): v
 it('steps aside on a non-2xx construction so it does not claim the primary response', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedNonSuccess'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toHaveCount(1)
@@ -594,18 +587,18 @@ it('steps aside on a non-2xx construction so it does not claim the primary respo
 it('ignores a construction of an unrelated class that merely shares the JsonResponse name', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedUnrelatedClass'),
-    );
+    ));
 
     expect($response)->toBeNull()
         ->and($logger->records)->toBeEmpty();
 });
 
 it('prefers a returned construction over one only assigned to a variable', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('constructedAssignedThenReturned'),
-    );
+    ));
 
     expect($response->response)->toBe('201')
         ->and(inlineJsonSchema($response)['properties'])->toHaveKey('second');

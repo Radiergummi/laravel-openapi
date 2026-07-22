@@ -187,7 +187,7 @@ function findReturnRef(OA\Response $response): string
 // region Matched shapes
 
 it('resolves a returned find() to a 200 model $ref', function (): void {
-    $response = findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('find'));
+    $response = primaryResponseAnnotation(findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('find')));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('200')
@@ -196,14 +196,14 @@ it('resolves a returned find() to a 200 model $ref', function (): void {
 });
 
 it('resolves a returned findOrFail() to a 200 model $ref', function (): void {
-    $response = findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('findOrFail'));
+    $response = primaryResponseAnnotation(findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('findOrFail')));
 
     expect($response)->not->toBeNull()
         ->and(findReturnRef($response))->toContain('User');
 });
 
 it('resolves a returned firstOrFail() to a 200 model $ref', function (): void {
-    $response = findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('firstOrFail'));
+    $response = primaryResponseAnnotation(findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('firstOrFail')));
 
     expect($response)->not->toBeNull()
         ->and(findReturnRef($response))->toContain('User');
@@ -294,7 +294,7 @@ it('keeps a non-Model class lookup silent (no notice)', function (): void {
 
 it('builds the schema from a real model fixture', function (): void {
     // Article carries metadata, proving the reader actually builds a component (not just a name).
-    $response = findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('article'));
+    $response = primaryResponseAnnotation(findReturnResolver()->resolvePrimaryResponse(findReturnDescriptor('article')));
 
     expect($response)->not->toBeNull()
         ->and(findReturnRef($response))->toContain('Article');
