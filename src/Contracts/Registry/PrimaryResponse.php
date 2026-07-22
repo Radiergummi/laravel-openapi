@@ -12,7 +12,9 @@ use OpenApi\Annotations as OA;
  * convention must not overwrite.
  *
  * Part of the {@see PrimaryResponseResolver} seam; not a committed public contract while the
- * package is pre-1.0.
+ * package is pre-1.0. Unlike the sibling {@see OperationConvention}, construction goes through
+ * named constructors rather than a public one, so further cases (a resolver claiming an action
+ * that has no success response, say) can be added without reshaping this one.
  */
 final readonly class PrimaryResponse
 {
