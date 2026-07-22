@@ -6,6 +6,7 @@ namespace Radiergummi\OpenApi\Plugins\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use OpenApi\Annotations\Schema;
 use PhpParser\Node;
 use PhpParser\Node\Arg;
@@ -111,6 +112,18 @@ final readonly class InlineJsonCallReader
         return $node instanceof New_
             && $node->class instanceof Name
             && is_a($node->class->toString(), JsonResponse::class, true);
+    }
+
+    /**
+     * Whether the node is a `new Response(...)` construction of Illuminate's HTTP Response (or a
+     * subclass, which includes JsonResponse — callers wanting only the plain form test
+     * {@see isJsonResponseConstruction()} first). Relies on the scanner's NameResolver.
+     */
+    public function isResponseConstruction(Node $node): bool
+    {
+        return $node instanceof New_
+            && $node->class instanceof Name
+            && is_a($node->class->toString(), Response::class, true);
     }
 
     // endregion

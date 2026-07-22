@@ -8,11 +8,13 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Plugins\Core\Resolvers\InlineJsonResponseResolver;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
+use Radiergummi\OpenApi\Plugins\Core\Support\SameClassResponseHelperReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonFixtureController;
 use Radiergummi\OpenApi\Tests\Fixtures\InlineJsonWithAttributeController;
+use Radiergummi\OpenApi\Tests\Fixtures\SameClassHelperController;
 
 uses()->group('openapi');
 
@@ -20,9 +22,13 @@ uses()->group('openapi');
 
 function inlineJsonResolver(?LoggerInterface $logger = null): InlineJsonResponseResolver
 {
+    $scanner = new MethodBodyScanner();
+    $callReader = new InlineJsonCallReader();
+
     return new InlineJsonResponseResolver(
-        new MethodBodyScanner(),
-        new InlineJsonCallReader(),
+        $scanner,
+        $callReader,
+        new SameClassResponseHelperReader($scanner, $callReader),
         $logger ?? new NullLogger(),
     );
 }
@@ -609,6 +615,186 @@ it('prefers a returned construction over one only assigned to a variable', funct
 
     expect($response->response)->toBe('201')
         ->and(inlineJsonSchema($response)['properties'])->toHaveKey('second');
+});
+
+// endregion
+
+// region Same-class status helper
+
+/**
+ * @return array<string, mixed>
+ */
+function sameClassHelperSerialized(OA\Response $response): array
+{
+    /** @var array<string, mixed> $serialized */
+    $serialized = json_decode(json_encode($response, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+    return $serialized;
+}
+
+it('reads a same-class $this->empty() helper as a contentless 204', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('destroy', SameClassHelperController::class),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and($response->description)->toBe('No Content')
+        ->and(inlineJsonExplicit($response))->toBeTrue()
+        ->and($logger->records)->toBeEmpty()
+        ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+});
+
+it('reads an explicit positional status argument on a same-class helper', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('reset', SameClassHelperController::class),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('205')
+        ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+});
+
+it('reads an explicit named status argument on a same-class helper', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('resetNamed', SameClassHelperController::class),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('205');
+});
+
+it('resolves a same-class helper whose body carries a whitelisted header chain', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('viaBodyChain', SameClassHelperController::class),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+});
+
+it('resolves a same-class helper returned through a whitelisted header chain at the call site', function (): void {
+    $response = inlineJsonResolver()->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('destroyChainedHeaders', SameClassHelperController::class),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204');
+});
+
+it('resolves each per-construction body-less shape (make / new Response / noContent)', function (): void {
+    $resolver = inlineJsonResolver();
+
+    foreach (['viaMake', 'viaNewResponse', 'viaNoContent'] as $action) {
+        $response = $resolver->resolvePrimaryResponse(
+            inlineJsonActionDescriptor($action, SameClassHelperController::class),
+        );
+
+        expect($response)->not->toBeNull()
+            ->and($response->response)->toBe('204')
+            ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+    }
+});
+
+it('refuses a same-class helper with a non-readable status argument and logs a note', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('dynamicStatus', SameClassHelperController::class),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('$this->empty()');
+});
+
+it('refuses a same-class helper whose derived status is non-2xx', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('viaServerError', SameClassHelperController::class),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('non-2xx')
+        ->and($logger->records[0]['message'])->toContain('500');
+});
+
+it('refuses a same-class helper whose body is chained into a body-mutating call', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('viaBodyMutating', SameClassHelperController::class),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('body');
+});
+
+it('refuses a same-class helper chained into a body-mutating call at the call site', function (): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor('callSiteBodyMutating', SameClassHelperController::class),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toHaveCount(1)
+        ->and($logger->records[0]['message'])->toContain('body');
+});
+
+it('refuses a same-class helper whose response is reached through a variable', function (): void {
+    $logger = recordingLogger();
+
+    // Both the ->setData() mutation case and the plain assignment case refuse: the gate keys on
+    // directness, not on spotting the mutation the trace cannot see.
+    foreach (['viaCached', 'viaAssignedNoContent'] as $action) {
+        $logger = recordingLogger();
+
+        $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+            inlineJsonActionDescriptor($action, SameClassHelperController::class),
+        );
+
+        expect($response)->toBeNull()
+            ->and($logger->records)->toHaveCount(1)
+            ->and($logger->records[0]['message'])->toContain('variable');
+    }
+});
+
+it('refuses a same-class helper that delegates to another helper (no hop)', function (): void {
+    $resolver = inlineJsonResolver();
+
+    // Delegation reached through a variable, and delegation returned directly, both refuse.
+    foreach (['viaAccepted', 'viaAcceptedDirect'] as $action) {
+        $logger = recordingLogger();
+
+        $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+            inlineJsonActionDescriptor($action, SameClassHelperController::class),
+        );
+
+        expect($response)->toBeNull()
+            ->and($logger->records)->toHaveCount(1);
+    }
+});
+
+it('skips a body-bearing same-class helper silently', function (): void {
+    // A positional make(204) documents a body (arg 0 is content), and $this->ok() returns a
+    // json() body: neither is a body-less status helper, so both fall through without a note.
+    foreach (['viaPositionalMake', 'viaOk'] as $action) {
+        $logger = recordingLogger();
+
+        $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+            inlineJsonActionDescriptor($action, SameClassHelperController::class),
+        );
+
+        expect($response)->toBeNull()
+            ->and($logger->records)->toBeEmpty();
+    }
 });
 
 // endregion

@@ -394,7 +394,19 @@ still applies, so a conventional `store` with no explicit status is promoted to
 runtime strips the body — as does a bare `response()->noContent()`. A
 `response()->noContent($status)` is read at its status argument
 (`noContent(202)` / `noContent(status: 202)` documents `202`, still body-less);
-a non-literal or non-2xx status degrades. A chained
+a non-literal or non-2xx status degrades. A **same-class status helper** the
+action returns directly — `return $this->empty();`, where a base or trait method
+`empty(int $status = Response::HTTP_NO_CONTENT)` returns a body-less construction
+(`response()->noContent()`, `response()->make(status: …)`, `new Response(status:
+…)`, or `new JsonResponse(status: …)`) — is read one hop for its status, documenting
+a contentless `204` (or `205`). The status comes from an explicit call-site
+argument first (`$this->empty(Response::HTTP_RESET_CONTENT)` /
+`$this->empty(status: …)`), else the helper's `status` parameter default. The read
+stays deliberately narrow: only a **directly-returned body-less construction** in
+the helper is trusted — a construction assigned to a variable first, a body-bearing
+one, a helper that delegates to another method, or one chained into a
+body-mutating call all degrade with a note rather than risk documenting a body-less
+response that actually carries a body. A chained
 `->setStatusCode(<literal>)` — `response()->json([...])->setStatusCode(201)`,
 class constants such as `Response::HTTP_CREATED` included — overrides the status
 and likewise wins over the convention. When several calls match, a **returned**
@@ -407,6 +419,12 @@ Boundaries, by design (no dataflow analysis):
   construction are matched; the `Response` facade is not. A direct
   `new \Symfony\Component\HttpFoundation\JsonResponse(...)` (the framework base
   class, not Illuminate's) is also out of scope.
+- A returned **same-class status helper** (`$this->empty()`) is read one hop for a
+  body-less status only, never for a body. A helper that **delegates** to a further
+  same-class helper (`accepted()` calling `$this->empty(status: 202)`) is not
+  followed — that hop degrades to the bare success response, pending a later
+  measure. A helper declared in a **vendor** class, one with more than one return,
+  or one whose response is reached through a variable is likewise not read.
 - A **dynamic value under a literal key** keeps its property with an
   unconstrained schema — the key is a fact worth documenting even when the
   value's type isn't statically known. A **dynamic key** (or a spread entry)
