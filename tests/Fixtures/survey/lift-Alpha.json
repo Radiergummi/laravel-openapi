@@ -1,9 +1,9 @@
 {
   "app": "Alpha",
   "apiPrefix": "/api",
-  "baseline": { "completenessPercent": 90.0, "responseSchemas": 27, "apiOperations": 30 },
-  "afterHarvest": { "completenessPercent": 92.0, "responseSchemas": 28, "apiOperations": 30 },
-  "afterAgent": { "completenessPercent": 100.0, "responseSchemas": 30, "apiOperations": 30 },
+  "baseline": { "completenessPercent": 90.0, "completenessBasis": "classified", "responseSchemas": 27, "requestBodies": 12, "apiOperations": 30 },
+  "afterHarvest": { "completenessPercent": 92.0, "completenessBasis": "classified", "responseSchemas": 28, "requestBodies": 15, "apiOperations": 30 },
+  "afterAgent": { "completenessPercent": 100.0, "completenessBasis": "classified", "responseSchemas": 30, "requestBodies": 21, "apiOperations": 30 },
   "attributesApplied": {
     "harvested": { "total": 14, "byFile": { "app/Http/Controllers/UserController.php": 8, "app/Http/Controllers/TeamController.php": 6 } },
     "authored": [

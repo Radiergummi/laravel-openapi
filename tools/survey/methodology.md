@@ -27,19 +27,28 @@ a complete spec and (b) learn whether the attribute surface suffices.
 - **Tiered gap handling:** attribute first → if none fits, file **one issue per
   distinct gap** → apply the minimal `openapi.overrides` / `transformDocument()`
   fallback to keep completeness.
-- **"Substantive" response** = the 2xx content schema, resolved through `$ref` and
-  a single-key `{data:…}` envelope unwrap, carries ≥1 property (or is an explicit
-  no-content 2xx). An empty `{data:$ref}` does **not** count.
+- **"Substantive" response** = the 2xx content schema, resolved through `$ref`, a
+  single-key `{data:…}` envelope unwrap and a JSON:API resource object (scored by its
+  `attributes`), carries ≥1 property. An empty `{data:$ref}` does **not** count, and
+  neither does a contentless 2xx — that is the `correctly-empty` bucket's job.
 - **Scope** to the API prefix (`/api` usually). Don't document the web/UI/tooling
   surface.
 
 ## Procedure
 
-### Phase 0 — Pick target, baseline
+### Phase 0 — Pick target, classify, baseline
 1. Pick an app that boots far enough for `route:list` + `generate`. Note the pin
    and the linked library HEAD.
-2. Baseline: `generate` → `completeness.php <spec> --prefix=/api` (expect a low %),
-   and `openapi:lint --path=api` finding count. Record both in the app's runbook.
+2. Classify the app's actions **before annotating anything**:
+   `classify.php <repo-dir> --prefix=/api > <app-dir>/classify.json`. `completeness.php`
+   auto-detects that file beside the spec and prints the path it used, so every later
+   measurement is on the `classified` basis. Classification reads the action's return
+   shape, which annotation does not change, so pinning it to pre-annotation source keeps
+   the start and end measurements comparable — taking it later would fold a **basis
+   change** into what reads as annotation lift.
+3. Baseline: `generate` → `completeness.php <spec> --prefix=/api` (expect a low %),
+   and `openapi:lint --path=api` finding count. Record both in the app's runbook,
+   along with the printed basis.
 
 ### Phase 1 — Analyze (read-only)
 Discover the controller domains from `route:list`, and for each domain extract the
@@ -62,14 +71,16 @@ execution order:
 4. Record in the runbook; file/note gaps + any escape-hatch fallback.
 
 ### Phase 3 — Finalize
-1. Full gate: `completeness.php` → **100%**; `lint --path=api` → **0 findings**
-   (or `#[IgnoreLint]` with a reason).
+1. Full gate: `completeness.php` → `genuinely-missing: 0` **and**
+   `undocumented-on-write: 0`; `lint --path=api` → **0 findings** (or `#[IgnoreLint]`
+   with a reason). Without a classification the response half falls back to the weaker
+   `substantive == ops` minus the app's enumerated no-content ops.
 2. Parity spot-check ~10 varied ops vs the app's published spec, if any: match /
    ours-thinner / ours-richer / theirs-drift.
 3. File the deduped gaps as issues (one per gap).
-4. Final report: completeness start→end, lint delta, parity table, ranked gap
-   list — and the verdict: did attributes alone suffice, or where was a fallback
-   needed?
+4. Final report: completeness start→end **on the same basis** (Phase 0 pins it),
+   the request-body bucket start→end, lint delta, parity table, ranked gap list —
+   and the verdict: did attributes alone suffice, or where was a fallback needed?
 5. Confirm the library checkout is clean; app edits stay uncommitted scratch.
 
 ## Attribute playbook (gap → attribute) — app-agnostic
@@ -104,12 +115,15 @@ and prefix yields identical output.
 | `paths` | Number of distinct path items in `spec.paths`. |
 | `operations` | Total operations across all verbs (`get post put patch delete`) in all paths. |
 | `apiOperations` | Operations whose path starts with `apiPrefix`. All per-operation metrics below are scoped to this set. |
-| `responseSchemas` | API operations with a **substantive** 2xx response. Substantive means the 2xx content schema, resolved through `$ref` hops and a single-key `{data:…}` envelope, carries ≥1 property, OR is a scalar/array/`additionalProperties` type. An empty object does not count, and a contentless 2xx (no `content` key) carries no schema so it does not count here — it lands in `documentedResponses`. |
+| `responseSchemas` | API operations with a **substantive** 2xx response. Substantive means the 2xx content schema, resolved through `$ref` hops, a single-key `{data:…}` envelope and a JSON:API resource object (`{type, id, attributes, …}`, scored by its `attributes` alone), carries ≥1 property, OR is a scalar/array/`additionalProperties` type. An empty object does not count, and a contentless 2xx (no `content` key) carries no schema so it does not count here — it lands in `documentedResponses`. |
 | `documentedResponses` | API operations that document **any** 2xx outcome — a substantive schema, an empty-schema body, or a contentless 2xx (e.g., `204`) alike. The superset of `responseSchemas`; tracks "does the op describe a success outcome at all" without flip-flopping when a bare-200 gains a not-yet-substantive schema. |
 | `requestBodies` | API operations that have a request body with a schema in at least one media type. |
 | `maxRequestProperties` | Largest property count across all request-body schemas (following one `$ref` hop). |
 | `componentSchemas` | Number of entries in `spec.components.schemas`. |
-| `completenessPercent` | `round(100 × complete / apiOperations, 1)`. An operation is complete when it has a substantive 2xx response **or** a contentless 2xx (a `204` is a complete response, mirroring `completeness.php`) AND, for `post`/`put`/`patch`, also a request body. An empty-schema 2xx does not count. |
+| `completenessPercent` | `round(100 × complete / apiOperations, 1)`, **response-axis only** — the verb no longer gates it (the request-body axis is its own bucket, see `requestBodyCoverage`). Completeness is read under `completenessBasis`: `classified` counts a substantive **or** correctly-empty response, `strict` counts a substantive one only. An empty-schema 2xx never counts, and neither does a contentless `200`/`201`/`202` — the generator's give-up path. |
+| `completenessBasis` | `classified` when an action classification was supplied, `strict` otherwise. It states which rule produced `completenessPercent`, so the number is never compared across bases. |
+| `requestBodyCoverage` | The request-body axis, partitioning `apiOperations` exactly: `documented` (a request body with a schema in at least one media type), `undocumentedOnWrite` (a `post`/`put`/`patch` without one — **unresolved**: neither credited nor penalised, since a body-less write is legitimate), `notApplicable` (everything else). |
+| `operationsWithSecurity` | API operations carrying a `security` key (including an explicit empty one, which is still a documented decision). Counted in the positive direction so a drop reads as the regression it is; `completeness.php` prints the complement as `no-security`. |
 | `lintFindings.total` | Total number of findings in `lint.json`. |
 | `lintFindings.byLevel` | Map of `level → count` across all findings. |
 | `lintFindings.byRule` | Map of `rule_id → count` across all findings. |
@@ -119,7 +133,7 @@ and prefix yields identical output.
 | `crash.bootOutcome` | Bootstrap outcome written by the bootstrap script: `ok`, `blocked-compat`, or `unknown`. |
 | `crash.routesIntrospected` | Number of routes seen by the generator, if captured; `null` otherwise. |
 | `coverage` | Only present when the corpus entry provides a `publishedSpec`. Compares path×method keys (with `{param}` collapsed to `{}`) between the generated spec and the published one. Contains: `publishedOps` (keys in their spec), `ours` (keys in our spec), `intersection` (keys present in both), `covPercent` (`round(100 × intersection / publishedOps, 1)`). |
-| `responseCoverage` | Only present when the app dir has a `classify.json` (from `classify.php`). The honest three-way split of `apiOperations`, since neither `responseSchemas` (pessimistic: counts a correct empty 2xx as a miss) nor `completenessPercent` (optimistic: credits a give-up empty 2xx as complete) is right. Contains `substantive` (a real payload — today's `responseSchemas`), `correctlyEmpty` (the action is genuinely no-content: `void`/`never`, `return;`, `return null;`, `response()->noContent()`), `genuinelyMissing` (the action returns a body the generator emitted empty/thin), and `genuinelyMissingByShape` (a rollup of the give-up shapes). The three counts partition `apiOperations` exactly; `genuinelyMissing` is the real denominator to size response-inference levers against. An op with no classification record counts conservatively as `genuinelyMissing` under the `unclassified` shape. |
+| `responseCoverage` | Only present when the app dir has a `classify.json` (from `classify.php`). The honest three-way split of `apiOperations`, since `responseSchemas` alone is pessimistic (it counts a correct empty 2xx as a miss). Contains `substantive` (a real payload — today's `responseSchemas`), `correctlyEmpty` (the classification says the action is genuinely no-content — `void`/`never`, `return;`, `return null;`, `response()->noContent()` — **or** the operation documents an affirmative `204`/`205`; a contentless `200`/`201`/`202` is a give-up, not an affirmation), `genuinelyMissing` (the action returns a body the generator emitted empty/thin), and `genuinelyMissingByShape` (a rollup of the give-up shapes). The three counts partition `apiOperations` exactly; `genuinelyMissing` is the real denominator to size response-inference levers against. An op with no classification record counts conservatively as `genuinelyMissing` under the `unclassified` shape. |
 | `responseCoverageStackEnabled` | Only present when the app dir has both a `classify.json` and a `generated-spec.stack.json` (from `generate-stack.php`). The same three-way split measured against the spec generated with the app's **stack-implied** plugins additionally enabled (e.g. `FractalPlugin` when `league/fractal` is installed). Reported next to `responseCoverage` so a Fractal/QueryBuilder app's achievable coverage is not understated by the out-of-the-box default plugin set — enabling an opt-in plugin the stack obviously needs is a one-line config change. Measured: enabling Fractal on InvoiceNinja moves substantive 67 → 322 of 522. |
 
 ### `classify.php` (action source-shape classifier)

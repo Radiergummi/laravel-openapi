@@ -39,7 +39,8 @@ against a baseline from an older `main`.
    - **FAIL** if any app's generation crashes (non-zero gen_exit / error in the spec output) that
      was green on baseline.
    - **FAIL** if any deterministic metric **regresses** (paths, operations, schemas, parameters,
-     responses counts drop) vs baseline.
+     responses counts, `requestBodies`, `operationsWithSecurity` drop) vs baseline. Every watched
+     metric is higher-is-better, so a drop always reads as the regression it is.
    - **PASS** otherwise (equal or improved across the corpus).
 
 ## Reporting

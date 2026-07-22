@@ -578,28 +578,34 @@ function surveyRenderInternalCandidate(array $synthesis): string
     $out[] = '';
     $out[] = '## Annotation lift (per app, from Layer B1)';
     $out[] = '';
-    $out[] = '| Application | Baseline % | After harvest % | After agent % | Harvested attrs | Authored attrs |';
-    $out[] = '|---|--:|--:|--:|--:|--:|';
+    $out[] = '| Application | Basis | Baseline % | After harvest % | After agent % | '
+        . 'Request bodies (base → final) | Harvested attrs | Authored attrs |';
+    $out[] = '|---|---|--:|--:|--:|--:|--:|--:|';
 
     foreach ($synthesis['lift'] as $lift) {
         $out[] = sprintf(
-            '| %s | %s | %s | %s | %d | %d |',
+            '| %s | %s | %s | %s | %s | %s → %s | %d | %d |',
             $lift['app'],
+            (string) ($lift['baseline']['completenessBasis'] ?? '—'),
             (string) ($lift['baseline']['completenessPercent'] ?? '—'),
             (string) ($lift['afterHarvest']['completenessPercent'] ?? '—'),
             (string) ($lift['afterAgent']['completenessPercent'] ?? '—'),
+            (string) ($lift['baseline']['requestBodies'] ?? '—'),
+            (string) ($lift['afterAgent']['requestBodies'] ?? '—'),
             $lift['harvested'],
             $lift['authored'],
         );
     }
 
     if ($synthesis['lift'] === []) {
-        $out[] = '| _no lift measured_ | | | | | |';
+        $out[] = '| _no lift measured_ | | | | | | | |';
     }
 
     $out[] = '';
     $out[] = 'Harvested attributes are transcribed from each app\'s own published spec; authored';
     $out[] = 'attributes are added by the annotation pass. The two are tracked separately.';
+    $out[] = 'The percentage is response-axis-only, read under the stated basis; request bodies are';
+    $out[] = 'reported beside it because documenting them is a large part of what annotation does.';
     $out[] = '';
     $out[] = survey_renderProvenance($synthesis['provenance']);
 
