@@ -23,6 +23,9 @@ use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
+use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
+use PHPStan\PhpDocParser\Ast\PhpDoc\TemplateTagValueNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
@@ -31,6 +34,7 @@ use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnVariableRefusal;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
+use Radiergummi\OpenApi\Support\PhpDoc\ParsedDocBlock;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
 use ReflectionClass;
 use ReflectionException;
@@ -45,6 +49,7 @@ use function in_array;
 use function interface_exists;
 use function is_a;
 use function is_string;
+use function ltrim;
 use function method_exists;
 use function property_exists;
 use function sprintf;
@@ -908,11 +913,14 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        // Only trust the passthrough when the callee actually returns one of its parameters (the
-        // identity idiom, e.g. `resolve(Model $x): Model { return $x; }`). A method that merely
-        // has a base-Model signature but returns something unrelated must not borrow an argument's
-        // type, or the response schema would be silently wrong.
-        $parameterIndex = $this->calleeReturnedParameterIndex($ownerClass, $call->name->toString());
+        // Only trust the passthrough when the callee's declared type or body ties the return to one
+        // of its parameters. An identity `@return T` generic states this outright (regardless of
+        // body branches); otherwise the body must actually return the parameter (e.g.
+        // `resolve(Model $x): Model { return $x; }`). A method that merely has a base-Model
+        // signature but returns something unrelated must not borrow an argument's type, or the
+        // response schema would be silently wrong.
+        $parameterIndex = $this->genericReturnParameterIndex($ownerClass, $call->name->toString())
+            ?? $this->calleeReturnedParameterIndex($ownerClass, $call->name->toString());
 
         if ($parameterIndex === null) {
             return null;
@@ -966,6 +974,99 @@ final class ReturnExpressionResourceReader
         }
 
         return null;
+    }
+
+    /**
+     * The zero-based index of the parameter an identity `@return T` generic borrows its type from,
+     * or null when the callee declares no such generic.
+     *
+     * Matches the declared-type idiom `@template T … @param T $x … @return T`: the method's generic
+     * return type *is* the argument's type, so the concrete resource rides in on that argument.
+     * Unlike {@see calleeReturnedParameterIndex()} this reads only the docblock, so a multi-branch
+     * body does not defeat it. Requires the `@return` to be a bare template identifier bound to
+     * exactly one parameter; anything richer (`@return T[]`, `@return Collection<T>`, or two
+     * parameters typed `T`) is an ambiguous borrow and refuses.
+     *
+     * @param class-string $ownerClass
+     *
+     * @throws ReflectionException
+     */
+    private function genericReturnParameterIndex(string $ownerClass, string $methodName): ?int
+    {
+        if (!method_exists($ownerClass, $methodName)) {
+            return null;
+        }
+
+        $method = new ReflectionMethod($ownerClass, $methodName);
+        $docComment = $method->getDocComment();
+
+        if ($docComment === false) {
+            return null;
+        }
+
+        $parsed = $this->docBlockParser->parse($docComment);
+        $returnType = $parsed->returnType();
+
+        if (!$returnType instanceof IdentifierTypeNode) {
+            return null;
+        }
+
+        if (!in_array($returnType->name, $this->templateNames($parsed), strict: true)) {
+            return null;
+        }
+
+        $parameterName = $this->soleParameterNameTypedAs($parsed, $returnType->name);
+
+        if ($parameterName === null) {
+            return null;
+        }
+
+        foreach ($method->getParameters() as $index => $parameter) {
+            if ($parameter->getName() === $parameterName) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The names declared by the method's `@template` tags.
+     *
+     * @return list<string>
+     */
+    private function templateNames(ParsedDocBlock $parsed): array
+    {
+        $names = [];
+
+        foreach ($parsed->tagValues('@template') as $tag) {
+            if ($tag instanceof TemplateTagValueNode) {
+                $names[] = $tag->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * The bare parameter name whose `@param` type is exactly the given template, or null when none
+     * is — or more than one is, an ambiguous borrow.
+     */
+    private function soleParameterNameTypedAs(ParsedDocBlock $parsed, string $templateName): ?string
+    {
+        $names = [];
+
+        foreach ($parsed->tagValues('@param') as $tag) {
+            if (
+                $tag instanceof ParamTagValueNode
+                && $tag->type instanceof IdentifierTypeNode
+                && $tag->type->name === $templateName
+            ) {
+                $names[] = ltrim($tag->parameterName, '$');
+            }
+        }
+
+        return count($names) === 1 ? $names[0] : null;
     }
 
     /**

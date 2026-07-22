@@ -105,6 +105,51 @@ class ReaderFixtureController
         return $author->toResource();
     }
 
+    public function genericPassthroughToResource(Author $author): JsonResource
+    {
+        return $this->resolveGeneric($author)->toResource();
+    }
+
+    /**
+     * A declared identity generic: the return is exactly the argument's type regardless of the
+     * body's branches. `calleeReturnedParameterIndex()` cannot prove this (two returns), so only
+     * the generic docblock read resolves it.
+     *
+     * @template TModel of Model
+     *
+     * @param TModel $model
+     *
+     * @return TModel
+     */
+    public function resolveGeneric(Model $model): Model
+    {
+        if ($model->getKey() === null) {
+            return $model;
+        }
+
+        return $model;
+    }
+
+    public function genericListReturnToResource(Author $author): JsonResource
+    {
+        return $this->firstGeneric([$author])->toResource();
+    }
+
+    /**
+     * The template rides in on a `list<TModel>` parameter, not a bare `TModel` one, so there is no
+     * single argument whose type is the return — must refuse.
+     *
+     * @template TModel of Model
+     *
+     * @param list<TModel> $models
+     *
+     * @return TModel
+     */
+    public function firstGeneric(array $models): Model
+    {
+        return $models[0];
+    }
+
     public function staticModelPaginate(): AnonymousResourceCollection
     {
         return NestedAuthorResource::collection(Author::paginate());
@@ -527,6 +572,17 @@ it('refuses a base-Model return with no Model-typed argument to carry the type',
 
 it('refuses a base-Model call that does not return its argument (no false passthrough)', function (): void {
     expect(readerFor()->read(readerMethod('nonReturningPassthroughToResource')))->toBeNull();
+});
+
+it('resolves a ->toResource() through an identity @return T generic, from its argument', function (): void {
+    $target = readerFor()->read(readerMethod('genericPassthroughToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('refuses an identity generic whose template rides in on a list<T> parameter', function (): void {
+    expect(readerFor()->read(readerMethod('genericListReturnToResource')))->toBeNull();
 });
 
 it('resolves a ->toResource() on a local assigned from new Model()', function (): void {
