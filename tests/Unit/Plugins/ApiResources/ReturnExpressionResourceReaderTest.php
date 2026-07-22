@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Database\Eloquent\Attributes\UseResource;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -31,6 +32,19 @@ class ReaderFixtureCuratedAuthor extends Model
 }
 
 abstract class ReaderFixtureAbstractResource extends JsonResource {}
+
+/**
+ * A relation/accessor typed only via a class-level `@property` tag (no native typed property),
+ * the conventional Eloquent shape.
+ *
+ * @property      string                  $label
+ * @property      Author                  $primaryAuthor
+ * @property-read Collection<int, Author> $contributors
+ */
+class ReaderFixtureDocument extends Model
+{
+    protected $guarded = [];
+}
 
 /**
  * Parse-only fixture; actions are never invoked.
@@ -103,6 +117,51 @@ class ReaderFixtureController
         assert($author instanceof Author);
 
         return $author->toResource();
+    }
+
+    public function genericPassthroughToResource(Author $author): JsonResource
+    {
+        return $this->resolveGeneric($author)->toResource();
+    }
+
+    /**
+     * A declared identity generic: the return is exactly the argument's type regardless of the
+     * body's branches. `calleeReturnedParameterIndex()` cannot prove this (two returns), so only
+     * the generic docblock read resolves it.
+     *
+     * @template TModel of Model
+     *
+     * @param TModel $model
+     *
+     * @return TModel
+     */
+    public function resolveGeneric(Model $model): Model
+    {
+        if ($model->getKey() === null) {
+            return $model;
+        }
+
+        return $model;
+    }
+
+    public function genericListReturnToResource(Author $author): JsonResource
+    {
+        return $this->firstGeneric([$author])->toResource();
+    }
+
+    /**
+     * The template rides in on a `list<TModel>` parameter, not a bare `TModel` one, so there is no
+     * single argument whose type is the return — must refuse.
+     *
+     * @template TModel of Model
+     *
+     * @param list<TModel> $models
+     *
+     * @return TModel
+     */
+    public function firstGeneric(array $models): Model
+    {
+        return $models[0];
     }
 
     public function staticModelPaginate(): AnonymousResourceCollection
@@ -187,6 +246,30 @@ class ReaderFixtureController
     public function propertyReceiverToResource(): JsonResource
     {
         return $this->author->toResource();
+    }
+
+    public function docblockRelationPropertyToResource(ReaderFixtureDocument $document): JsonResource
+    {
+        return $document->primaryAuthor->toResource();
+    }
+
+    public function docblockRelationCollectionToResourceCollection(
+        ReaderFixtureDocument $document,
+    ): ResourceCollection {
+        return $document->contributors->toResourceCollection();
+    }
+
+    public function methodReturnCollectionToResourceCollection(): ResourceCollection
+    {
+        return $this->authors()->toResourceCollection();
+    }
+
+    /**
+     * @return Collection<int, Author>
+     */
+    public function authors(): Collection
+    {
+        return $this->author->newCollection();
     }
 
     public function attributedModelToResource(ReaderFixtureCuratedAuthor $author): JsonResource
@@ -507,6 +590,27 @@ it('resolves a ->toResource() whose receiver is a Model-typed property', functio
         ->and($target?->isCollection)->toBeFalse();
 });
 
+it('resolves a ->toResource() whose receiver is a @property-typed relation', function (): void {
+    $target = readerFor()->read(readerMethod('docblockRelationPropertyToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves ->toResourceCollection() from a @property Collection<Model> relation element', function (): void {
+    $target = readerFor()->read(readerMethod('docblockRelationCollectionToResourceCollection'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('resolves ->toResourceCollection() from a method @return Collection<Model> generic', function (): void {
+    $target = readerFor()->read(readerMethod('methodReturnCollectionToResourceCollection'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
 it('resolves a ->toResource() whose receiver is a method with a concrete Model return', function (): void {
     $target = readerFor()->read(readerMethod('methodReturnModelToResource'));
 
@@ -527,6 +631,17 @@ it('refuses a base-Model return with no Model-typed argument to carry the type',
 
 it('refuses a base-Model call that does not return its argument (no false passthrough)', function (): void {
     expect(readerFor()->read(readerMethod('nonReturningPassthroughToResource')))->toBeNull();
+});
+
+it('resolves a ->toResource() through an identity @return T generic, from its argument', function (): void {
+    $target = readerFor()->read(readerMethod('genericPassthroughToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('refuses an identity generic whose template rides in on a list<T> parameter', function (): void {
+    expect(readerFor()->read(readerMethod('genericListReturnToResource')))->toBeNull();
 });
 
 it('resolves a ->toResource() on a local assigned from new Model()', function (): void {
