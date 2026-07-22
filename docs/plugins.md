@@ -190,7 +190,10 @@ container** that carries no item type (`Illuminate\Support\Collection`, Eloquent
 too generic to name a payload (`Illuminate\Http\JsonResponse`,
 `Illuminate\Http\Response`, and their Symfony parents). In each case the signature
 yields nothing concrete, so the generator reads the method's **return
-expression** (a bounded scan of the first 10 statements; no dataflow):
+expression**. What makes the read sound is that the method has exactly one
+unconditional return (or several that agree), not how far the scan looked — it
+reads the whole method body, bounded only by a 100-statement backstop against
+pathological input, and does no dataflow:
 
 ```php
 public function index(): AnonymousResourceCollection
@@ -218,8 +221,12 @@ Recognised shapes:
   (`$request->resolve($model)->toResource()`), a local assigned from
   `new Model()` or a model-returning static factory
   (`Model::create()`/`findOrFail()`/`firstOrFail()`/…), and a local narrowed by
-  `assert($model instanceof Model)`. A receiver whose type is not statically
-  known (a query-builder chain, an untyped local) still refuses.
+  `assert($model instanceof Model)`. The narrowing counts only when the `assert`
+  **precedes** the return being resolved, the name is **not rebound** between the
+  two (a reassignment, destructuring, reference, `foreach` target, and so on),
+  and it is the **only** such assert — otherwise the asserted type would be a
+  guess. A receiver whose type is not statically known (a query-builder chain, an
+  untyped local) still refuses.
 - `new JsonResource($model)` (the base class itself) wrapping a Model-typed
   parameter documents the **wrapped model's schema** directly.
 - A `@return AnonymousResourceCollection<ProjectResource>` docblock generic is

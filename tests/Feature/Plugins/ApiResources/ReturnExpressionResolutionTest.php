@@ -109,6 +109,28 @@ class ReturnExpressionController extends Controller
         return $author->toResource();
     }
 
+    public function guardClausesThenToResource(Author $author, bool $denied): ?JsonResource
+    {
+        if ($denied) {
+            return null;
+        }
+
+        $step1 = 1;
+        $step2 = 2;
+        $step3 = 3;
+        $step4 = 4;
+        $step5 = 5;
+        $step6 = 6;
+        $step7 = 7;
+        $step8 = 8;
+        $step9 = 9;
+        $step10 = 10;
+        $step11 = 11;
+        $step12 = 12;
+
+        return $author->toResource();
+    }
+
     public function toResourceExplicit(Author $author): JsonResource
     {
         return $author->toResource(NestedAuthorResource::class);
@@ -348,6 +370,14 @@ it('resolves a bare $model->toResource() through the conventional resource class
     Route::get('/authors/{author}', [ReturnExpressionController::class, 'toResourceConvention']);
 
     $schema = successSchema(generateSpec(), '/authors/{author}');
+
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/AuthorResource');
+});
+
+it('resolves a trailing ->toResource() behind a run of guard clauses', function (): void {
+    Route::get('/guarded-authors/{author}', [ReturnExpressionController::class, 'guardClausesThenToResource']);
+
+    $schema = successSchema(generateSpec(), '/guarded-authors/{author}');
 
     expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/AuthorResource');
 });
