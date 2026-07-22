@@ -239,7 +239,7 @@ final readonly class OperationBuilder
         }
 
         $autoPrimaryResponse = $autoPrimaryResult?->response;
-        $autoStatusIsExplicit = $autoPrimaryResult->statusIsExplicit ?? false;
+        $autoStatusIsExplicit = $autoPrimaryResult?->statusIsExplicit === true;
 
         $resolvedConvention = $this->resolveConvention($action);
         $convention = $resolvedConvention?->convention;

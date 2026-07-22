@@ -11,7 +11,8 @@ use OpenApi\Annotations as OA;
  * `$statusIsExplicit` marks a status the resolver read from the action itself, which the route
  * convention must not overwrite.
  *
- * @internal Part of the {@see PrimaryResponseResolver} seam; not a committed public contract.
+ * Part of the {@see PrimaryResponseResolver} seam; not a committed public contract while the
+ * package is pre-1.0.
  */
 final readonly class PrimaryResponse
 {
