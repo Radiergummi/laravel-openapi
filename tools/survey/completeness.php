@@ -44,8 +44,14 @@ if ($classifyPath === null && is_file(dirname($specPath) . '/classify.json')) {
 $classification = null;
 
 if ($classifyPath !== null && is_file($classifyPath)) {
-    $classification = json_decode((string) file_get_contents($classifyPath), true) ?: [];
-    printf("classification: %s\n", $classifyPath);
+    // A failed classify.php run leaves a zero-byte file beside the spec (the shell truncates the
+    // redirect target before the command runs). Empty/unparseable decodes to null here so the
+    // basis stays strict, matching metrics.php, rather than flipping to a classification we lack.
+    $classification = json_decode((string) file_get_contents($classifyPath), true) ?: null;
+
+    if ($classification !== null) {
+        printf("classification: %s\n", $classifyPath);
+    }
 }
 
 $spec = json_decode((string) file_get_contents($specPath), true);
@@ -80,11 +86,17 @@ foreach (($spec['paths'] ?? []) as $path => $methods) {
             continue;
         }
 
+        // "correctlyEmpty" asserts the empty body is right, which only a classification proves. Under
+        // the strict basis there is none, so the empty earns no credit and is reported plainly.
+        $responseLabel = $basis === 'strict' && $outcome['response'] === 'correctlyEmpty'
+            ? 'empty'
+            : $outcome['response'];
+
         $rows[] = sprintf(
             '  INCOMPLETE %-6s %-52s resp=%s body=%s',
             strtoupper($method),
             $path,
-            $outcome['response'],
+            $responseLabel,
             match ($outcome['body']) {
                 'documented' => 'documented',
                 'undocumentedOnWrite' => 'undocumented',
@@ -93,6 +105,10 @@ foreach (($spec['paths'] ?? []) as $path => $methods) {
         );
     }
 }
+
+// Every counted op is either complete or listed as incomplete, so the two must partition
+// apiOperations. Guards the printed count and percentage against silently drifting from metrics.php.
+assert($complete + count($rows) === $metrics['apiOperations']);
 
 printf(
     "%s ops: %d  complete: %d (%.1f%%, basis: %s)  no-security: %d\n",

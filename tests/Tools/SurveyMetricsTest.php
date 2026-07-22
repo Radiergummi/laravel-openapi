@@ -347,10 +347,10 @@ it('partitions the request-body axis into documented / undocumented-on-write / n
         ->and($m['requestBodies'])->toBe(1);
 });
 
-it('reproduces the gate-load-bearing response metrics bit-identically', function (): void {
-    // Mixes contentless 2xx, empty-schema 2xx, substantive 2xx and no-2xx ops. The expected
-    // values are what the pre-fix scorer produced; documentedResponses, responseSchemas and
-    // maxRequestProperties are out of scope and must not move.
+it('leaves documentedResponses and maxRequestProperties untouched by the scorer fix', function (): void {
+    // Mixes contentless 2xx, empty-schema 2xx, substantive 2xx and no-2xx ops. The scorer fix only
+    // touches the completeness percentage; the count metrics stay put. (responseSchemas is pinned
+    // here too, but that is fixture-specific: it does move for JSON:API {type,id} responses.)
     $spec = ['paths' => [
         '/api/no-content' => ['delete' => ['responses' => ['204' => []]]],
         '/api/contentless-200' => ['get' => ['responses' => ['200' => []]]],

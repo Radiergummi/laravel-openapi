@@ -91,6 +91,24 @@ it('picks up a classify.json sitting beside the spec and prints where it came fr
     survey_completeness_cleanup($dir);
 });
 
+it('treats a zero-byte adjacent classify.json as absent and scores strictly', function (): void {
+    $dir = survey_completeness_workspace();
+    // A failed classify.php run leaves the redirect target truncated to zero bytes beside the spec.
+    file_put_contents("$dir/classify.json", '');
+
+    [$output, $exit] = survey_completeness_run("$dir/generated-spec.json", '--prefix=/api');
+
+    expect($exit)->toBe(0)
+        ->and($output)->toContain('basis: strict')
+        // No classification is announced, and no three-way split is emitted.
+        ->and($output)->not->toContain('classification:')
+        ->and($output)->not->toContain('response coverage:')
+        // Strict scoring: only /api/toggle is substantive.
+        ->and($output)->toContain('complete: 1 (33.3%');
+
+    survey_completeness_cleanup($dir);
+});
+
 it('lets an explicit --classify win over the adjacent file', function (): void {
     $dir = survey_completeness_workspace();
     $explicit = "$dir/other-classify.json";
