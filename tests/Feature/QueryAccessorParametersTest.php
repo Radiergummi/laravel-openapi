@@ -30,6 +30,22 @@ function accessorQueryParameters(array $spec, string $path, string $verb): array
     return $parameters;
 }
 
+/**
+ * @param array<string, mixed> $spec
+ *
+ * @return array<string, array<string, mixed>> parameters of the operation, keyed by "in:name"
+ */
+function accessorParametersByLocation(array $spec, string $path, string $verb): array
+{
+    $parameters = [];
+
+    foreach ($spec['paths'][$path][$verb]['parameters'] ?? [] as $parameter) {
+        $parameters[$parameter['in'] . ':' . $parameter['name']] = $parameter;
+    }
+
+    return $parameters;
+}
+
 // endregion
 
 // region Accessor reads
@@ -96,6 +112,65 @@ it('documents cookie() and header() reads as cookie/header parameters end to end
         ->and($parameters['cookie:session']['schema']['type'])->toBe('string')
         ->and($parameters)->toHaveKey('header:X-Api-Key')
         ->and($parameters['header:X-Api-Key']['schema']['type'])->toBe('string');
+});
+
+// endregion
+
+// region Reserved-header denylist
+
+it('filters reserved / protocol headers out of inferred header parameters', function (): void {
+    Route::post('/oa-fixture/reserved-headers', [QueryAccessorFixtureController::class, 'reservedHeaderReads']);
+
+    $spec = generateSpec();
+    $parameters = accessorParametersByLocation($spec, '/oa-fixture/reserved-headers', 'post');
+    $headers = array_filter($parameters, static fn(array $parameter): bool => $parameter['in'] === 'header');
+
+    expect($headers)->toBe([]);
+});
+
+it('folds case when matching reserved headers', function (): void {
+    Route::post('/oa-fixture/reserved-headers-case', [QueryAccessorFixtureController::class, 'caseInsensitiveReservedHeaders']);
+
+    $spec = generateSpec();
+    $parameters = accessorParametersByLocation($spec, '/oa-fixture/reserved-headers-case', 'post');
+    $headers = array_filter($parameters, static fn(array $parameter): bool => $parameter['in'] === 'header');
+
+    expect($headers)->toBe([]);
+});
+
+it('still surfaces custom (non-reserved) headers, including X-Forwarded-For', function (): void {
+    Route::post('/oa-fixture/custom-headers', [QueryAccessorFixtureController::class, 'customHeaderReads']);
+
+    $spec = generateSpec();
+    $parameters = accessorParametersByLocation($spec, '/oa-fixture/custom-headers', 'post');
+
+    expect($parameters)->toHaveKey('header:X-Api-Key')
+        ->and($parameters)->toHaveKey('header:Stripe-Signature')
+        ->and($parameters)->toHaveKey('header:X-Forwarded-For');
+});
+
+it('keeps an explicit #[Header] of a reserved name (the attribute is never filtered)', function (): void {
+    Route::post('/oa-fixture/authorization-header', [QueryAccessorFixtureController::class, 'authorizationHeaderAttribute']);
+
+    $spec = generateSpec();
+    $parameters = accessorParametersByLocation($spec, '/oa-fixture/authorization-header', 'post');
+    $authHeaders = array_filter(
+        $parameters,
+        static fn(array $parameter): bool => $parameter['in'] === 'header' && $parameter['name'] === 'Authorization',
+    );
+
+    // The attribute wins and the inferred read of the same name is filtered: exactly one param.
+    expect($authHeaders)->toHaveCount(1)
+        ->and($parameters['header:Authorization']['description'])->toBe('Bearer token.');
+});
+
+it('does not filter a reserved name read from the cookie location', function (): void {
+    Route::post('/oa-fixture/reserved-cookie', [QueryAccessorFixtureController::class, 'reservedNameOnCookie']);
+
+    $spec = generateSpec();
+    $parameters = accessorParametersByLocation($spec, '/oa-fixture/reserved-cookie', 'post');
+
+    expect($parameters)->toHaveKey('cookie:Content-Type');
 });
 
 // endregion

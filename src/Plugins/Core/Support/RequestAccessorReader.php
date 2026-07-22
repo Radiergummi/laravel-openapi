@@ -31,6 +31,7 @@ use function is_bool;
 use function is_int;
 use function is_string;
 use function str_contains;
+use function strtolower;
 
 /**
  * Scans the first {@see self::STATEMENT_LIMIT} statements of a controller method for the
@@ -82,6 +83,31 @@ final readonly class RequestAccessorReader
      * cookie/header locations. A typed read wins over these for the same query name.
      */
     private const array UNTYPED_ACCESSORS = ['query', 'input', 'cookie', 'header'];
+
+    /**
+     * Reserved / protocol header names (lowercased, matched case-insensitively per RFC 9110 §5.1)
+     * that carry protocol, negotiation, or transport meaning rather than an API contract, so an
+     * inferred `$request->header(...)` read of one is not surfaced as a parameter. By invariant the
+     * set holds no `X-*` header, so every app-custom header (`X-Api-Key`, `Stripe-Signature`, the
+     * `X-Forwarded-*` proxy headers) still surfaces. Documenting a reserved header as a genuine API
+     * parameter is the `#[Header]` attribute's job, which never routes through this reader.
+     */
+    private const array RESERVED_HEADERS = [
+        // Authentication
+        'authorization', 'proxy-authorization',
+        // Representation (request bodies)
+        'content-type', 'content-length', 'content-encoding', 'content-language',
+        'content-location', 'content-md5', 'content-range',
+        // Content negotiation
+        'accept', 'accept-charset', 'accept-encoding', 'accept-language',
+        // Conditionals
+        'if-match', 'if-none-match', 'if-modified-since', 'if-unmodified-since', 'if-range',
+        // Controls, connection, transport
+        'host', 'connection', 'cache-control', 'pragma', 'expect', 'range', 'te', 'trailer',
+        'transfer-encoding', 'upgrade', 'via', 'max-forwards', 'forwarded', 'date', 'cookie',
+        // Client context (protocol, not API params)
+        'user-agent', 'referer', 'origin', 'from',
+    ];
 
     public function __construct(
         private MethodBodyScanner $scanner,
@@ -137,6 +163,12 @@ final readonly class RequestAccessorReader
             if ($name === null) {
                 $unreadableAccessors[] = $accessor;
 
+                continue;
+            }
+
+            // A reserved / protocol header is not a free-form API parameter; skip it silently. This
+            // is intentional filtering, not an unreadable accessor, so it earns no note.
+            if ($location === 'header' && $this->isReservedHeader($name)) {
                 continue;
             }
 
@@ -283,6 +315,12 @@ final readonly class RequestAccessorReader
     private function literalName(string $key): ?string
     {
         return $key === '' || str_contains($key, '*') ? null : $key;
+    }
+
+    /** Whether the header name is a reserved / protocol header, compared case-insensitively. */
+    private function isReservedHeader(string $name): bool
+    {
+        return in_array(strtolower($name), self::RESERVED_HEADERS, true);
     }
 
     /**
