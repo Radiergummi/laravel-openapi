@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Plugins\Core\Support;
 
 use Illuminate\Container\Attributes\Scoped;
+use Illuminate\Contracts\Routing\ResponseFactory;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
@@ -19,11 +21,16 @@ use Radiergummi\OpenApi\Support\MethodBody\NonLiteralValueException;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
 use ReflectionException;
 use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionProperty;
+use ReflectionType;
 
 use function count;
 use function in_array;
+use function is_a;
 use function is_int;
 use function method_exists;
+use function property_exists;
 use function str_contains;
 use function strtolower;
 
@@ -122,7 +129,7 @@ final readonly class SameClassResponseHelperReader
             return SameClassHelperResult::skip();
         }
 
-        $construction = $this->classifyConstruction($core);
+        $construction = $this->classifyConstruction($core, $callerClass);
 
         if ($construction === null) {
             return SameClassHelperResult::skip();
@@ -160,6 +167,13 @@ final readonly class SameClassResponseHelperReader
             $current instanceof MethodCall
             && ($current->var instanceof MethodCall || $current->var instanceof New_)
         ) {
+            // A make()/noContent() is a response construction, not a trailing link: stop here so a
+            // factory reached through an accessor (`$this->factory()->make()`) is read as the
+            // terminal, rather than descended past and mistaken for a body-mutating link.
+            if (self::isConstructionCall($current)) {
+                break;
+            }
+
             $name = $current->name instanceof Identifier ? strtolower($current->name->toString()) : null;
 
             if ($name === null || !in_array($name, self::PRESERVING_CHAIN_METHODS, true)) {
@@ -170,6 +184,18 @@ final readonly class SameClassResponseHelperReader
         }
 
         return [$current, $bodyMutatingChain];
+    }
+
+    /** Whether the call is a `->make()`/`->noContent()` response construction (whatever the receiver). */
+    private static function isConstructionCall(MethodCall $call): bool
+    {
+        if ($call->isFirstClassCallable() || !$call->name instanceof Identifier) {
+            return false;
+        }
+
+        $name = $call->name->toLowerString();
+
+        return $name === 'make' || $name === 'nocontent';
     }
 
     private function isThisCall(MethodCall $call): bool
@@ -184,18 +210,18 @@ final readonly class SameClassResponseHelperReader
      * Classifies the core as one of the recognised body-less-capable constructions, returning the
      * argument positions its body and status live at, or null when unrecognised.
      *
+     * @param class-string $callerClass the class `$this->` resolves against (to reflect a factory accessor)
+     *
      * @return null|array{bodyArgumentName: ?string, bodyArgumentPosition: ?int, statusArgumentPosition: int}
      */
-    private function classifyConstruction(MethodCall|New_ $core): ?array
+    private function classifyConstruction(MethodCall|New_ $core, string $callerClass): ?array
     {
-        // response()->noContent(<status>) — never carries a body; status is the first argument.
-        if ($this->callReader->isFactoryMethodCall($core, 'nocontent')) {
-            return ['bodyArgumentName' => null, 'bodyArgumentPosition' => null, 'statusArgumentPosition' => 0];
-        }
-
-        // response()->make($content = '', $status = 200) — content is the first argument.
-        if ($this->callReader->isFactoryMethodCall($core, 'make')) {
-            return ['bodyArgumentName' => 'content', 'bodyArgumentPosition' => 0, 'statusArgumentPosition' => 1];
+        // <recognised factory>->noContent(<status>) — never carries a body; status is arg 0.
+        // <recognised factory>->make($content = '', $status = 200) — content is arg 0.
+        if ($core instanceof MethodCall && $this->isRecognisedFactoryCall($core, $callerClass)) {
+            return $core->name instanceof Identifier && $core->name->toLowerString() === 'nocontent'
+                ? ['bodyArgumentName' => null, 'bodyArgumentPosition' => null, 'statusArgumentPosition' => 0]
+                : ['bodyArgumentName' => 'content', 'bodyArgumentPosition' => 0, 'statusArgumentPosition' => 1];
         }
 
         // new JsonResponse($data = null, $status = 200) — data is the first argument.
@@ -209,6 +235,82 @@ final readonly class SameClassResponseHelperReader
         }
 
         return null;
+    }
+
+    /**
+     * Whether the call is a `->make()`/`->noContent()` on a recognised response factory: the
+     * `response()` global helper, or a same-class accessor (`$this->x()` / `$this->prop`) whose
+     * declared return/property type reflects to a Laravel {@see ResponseFactory}. Declared-type
+     * reflection only — no value tracing — so the read stays Tier-0.
+     *
+     * @param class-string $callerClass
+     */
+    private function isRecognisedFactoryCall(MethodCall $core, string $callerClass): bool
+    {
+        if (!self::isConstructionCall($core)) {
+            return false;
+        }
+
+        return $this->callReader->isResponseHelperCall($core->var)
+            || $this->receiverReflectsToResponseFactory($core->var, $callerClass);
+    }
+
+    /**
+     * Whether the receiver's declared type reflects to a Laravel response factory.
+     *
+     * @param class-string $callerClass
+     */
+    private function receiverReflectsToResponseFactory(Expr $receiver, string $callerClass): bool
+    {
+        $type = $this->receiverDeclaredType($receiver, $callerClass);
+
+        return $type !== null && is_a($type, ResponseFactory::class, true);
+    }
+
+    /**
+     * The declared type name of a same-class `$this->x()` method or `$this->prop` property receiver,
+     * or null when the receiver is not such an accessor or has no single named type.
+     *
+     * @param class-string $callerClass
+     */
+    private function receiverDeclaredType(Expr $receiver, string $callerClass): ?string
+    {
+        if (
+            $receiver instanceof MethodCall
+            && !$receiver->isFirstClassCallable()
+            && $receiver->name instanceof Identifier
+            && $receiver->var instanceof Variable
+            && $receiver->var->name === 'this'
+            && method_exists($callerClass, $name = $receiver->name->toString())
+        ) {
+            try {
+                return $this->namedTypeName((new ReflectionMethod($callerClass, $name))->getReturnType());
+            } catch (ReflectionException) {
+                return null;
+            }
+        }
+
+        if (
+            $receiver instanceof PropertyFetch
+            && $receiver->name instanceof Identifier
+            && $receiver->var instanceof Variable
+            && $receiver->var->name === 'this'
+            && property_exists($callerClass, $name = $receiver->name->toString())
+        ) {
+            try {
+                return $this->namedTypeName((new ReflectionProperty($callerClass, $name))->getType());
+            } catch (ReflectionException) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    /** The class-string of a single, non-builtin named type, or null (a union/intersection/builtin). */
+    private function namedTypeName(?ReflectionType $type): ?string
+    {
+        return $type instanceof ReflectionNamedType && !$type->isBuiltin() ? $type->getName() : null;
     }
 
     /**

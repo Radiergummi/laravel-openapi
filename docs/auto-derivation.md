@@ -399,7 +399,12 @@ action returns directly — `return $this->empty();`, where a base or trait meth
 `empty(int $status = Response::HTTP_NO_CONTENT)` returns a body-less construction
 (`response()->noContent()`, `response()->make(status: …)`, `new Response(status:
 …)`, or `new JsonResponse(status: …)`) — is read one hop for its status, documenting
-a contentless `204` (or `205`). The status comes from an explicit call-site
+a contentless `204` (or `205`). The factory may also be reached through a same-class
+accessor — `$this->getResponseFactory()->make(status: …)` (a method) or
+`$this->responseFactory->make(status: …)` (a property) — recognised when the
+accessor's **declared return/property type** is a Laravel `ResponseFactory`
+(reflection only, no value tracing); a `->make()` on any other receiver type is not
+read. The status comes from an explicit call-site
 argument first (`$this->empty(Response::HTTP_RESET_CONTENT)` /
 `$this->empty(status: …)`), else the helper's `status` parameter default. The read
 stays deliberately narrow: only a **directly-returned body-less construction** in

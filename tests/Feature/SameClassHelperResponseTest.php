@@ -34,6 +34,18 @@ it('honours the derived 204 over the resource-action status convention', functio
         ->and($responses)->not->toHaveKey('201');
 });
 
+it('documents a contentless 204 for a factory-accessor helper (the motivating shape)', function (): void {
+    Route::delete('/oa-fixture/same-class/via-factory', [SameClassHelperController::class, 'viaFactory']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/oa-fixture/same-class/via-factory']['delete']['responses'];
+
+    expect($responses)
+        ->toHaveKey('204')
+        ->and($responses['204']['description'])->toBe('No Content')
+        ->and($responses['204'])->not->toHaveKey('content');
+});
+
 it('reads an explicit status argument on the helper end to end', function (): void {
     Route::put('/oa-fixture/same-class/reset', [SameClassHelperController::class, 'reset']);
 

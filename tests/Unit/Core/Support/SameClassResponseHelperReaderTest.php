@@ -36,6 +36,35 @@ it('reads the per-construction body-less shapes', function (string $method): voi
     'new JsonResponse through a whitelisted header chain' => 'jsonResponseWithHeaders',
 ]);
 
+it('reads a factory-accessor make() as its status', function (string $method): void {
+    // The receiver is a same-class accessor (method or property) whose declared type reflects to a
+    // Laravel ResponseFactory, so its ->make(status:) is the construction terminal.
+    $result = sameClassHelperReader()->read(SameClassHelperController::class, $method, []);
+
+    expect($result->status)->toBe(204)
+        ->and($result->note)->toBeNull();
+})->with([
+    'accessor method receiver, header chain, param-default status' => 'emptyViaFactory',
+    'typed property receiver, explicit named status' => 'emptyViaFactoryProperty',
+]);
+
+it('skips a factory-accessor make() that carries a body', function (): void {
+    // content is arg 0 of make(); a populated one is body-bearing, so it silently falls through.
+    $result = sameClassHelperReader()->read(SameClassHelperController::class, 'factoryMakeWithBody', []);
+
+    expect($result->status)->toBeNull()
+        ->and($result->note)->toBeNull();
+});
+
+it('skips a make() on a receiver whose declared type is not a response factory', function (): void {
+    // The tight guard: an arbitrary ->make() on a non-factory object is an unrecognised terminal, so
+    // it must not resolve — and, being unrecognised, it stays silent.
+    $result = sameClassHelperReader()->read(SameClassHelperController::class, 'nonFactoryMake', []);
+
+    expect($result->status)->toBeNull()
+        ->and($result->note)->toBeNull();
+});
+
 it('refuses when the body is reached through a variable', function (string $method): void {
     $result = sameClassHelperReader()->read(SameClassHelperController::class, $method, []);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Fixtures;
 
+use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,11 +19,34 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
  */
 abstract class SameClassHelperBaseController extends Controller
 {
+    public function __construct(protected ResponseFactory $responseFactory) {}
+
     // region Body-less helpers (resolve)
 
     protected function empty(int $status = SymfonyResponse::HTTP_NO_CONTENT): JsonResponse
     {
         return new JsonResponse(status: $status);
+    }
+
+    /** A response factory reached through a same-class accessor method. */
+    protected function getResponseFactory(): ResponseFactory
+    {
+        return response();
+    }
+
+    /**
+     * The motivating shape: a body-less status built through a factory accessor and returned via a
+     * whitelisted header chain. The status comes from this helper's own `status` default.
+     */
+    protected function emptyViaFactory(int $status = SymfonyResponse::HTTP_NO_CONTENT): SymfonyResponse
+    {
+        return $this->getResponseFactory()->make(status: $status)->withHeaders(['X-Trace' => 'on']);
+    }
+
+    /** A factory reached through a typed property receiver rather than an accessor method. */
+    protected function emptyViaFactoryProperty(): SymfonyResponse
+    {
+        return $this->responseFactory->make(status: SymfonyResponse::HTTP_NO_CONTENT);
     }
 
     protected function noContentHelper(): SymfonyResponse
@@ -120,7 +144,33 @@ abstract class SameClassHelperBaseController extends Controller
         return response()->json($data);
     }
 
+    /** A factory make() carrying a body: body-bearing, so it must not read as contentless. */
+    protected function factoryMakeWithBody(): SymfonyResponse
+    {
+        return $this->getResponseFactory()->make('body', SymfonyResponse::HTTP_OK);
+    }
+
+    /** A ->make() on a receiver whose declared type is not a ResponseFactory: the guard refuses. */
+    protected function nonFactoryMake(): SymfonyResponse
+    {
+        return $this->widget()->make(status: SymfonyResponse::HTTP_NO_CONTENT);
+    }
+
+    private function widget(): NotAResponseFactory
+    {
+        return new NotAResponseFactory();
+    }
+
     // endregion
+}
+
+/** A factory-shaped object that is deliberately NOT a Laravel ResponseFactory. */
+class NotAResponseFactory
+{
+    public function make(int $status = SymfonyResponse::HTTP_OK): SymfonyResponse
+    {
+        return new SymfonyResponse(status: $status);
+    }
 }
 
 /**
@@ -169,6 +219,16 @@ class SameClassHelperController extends SameClassHelperBaseController
     public function viaNewResponse(): SymfonyResponse
     {
         return $this->newResponseNoContent();
+    }
+
+    public function viaFactory(): SymfonyResponse
+    {
+        return $this->emptyViaFactory();
+    }
+
+    public function viaFactoryProperty(): SymfonyResponse
+    {
+        return $this->emptyViaFactoryProperty();
     }
 
     // endregion
@@ -227,6 +287,16 @@ class SameClassHelperController extends SameClassHelperBaseController
     public function viaOk(): JsonResponse
     {
         return $this->ok(['queued' => true]);
+    }
+
+    public function viaFactoryMakeWithBody(): SymfonyResponse
+    {
+        return $this->factoryMakeWithBody();
+    }
+
+    public function viaNonFactoryMake(): SymfonyResponse
+    {
+        return $this->nonFactoryMake();
     }
 
     // endregion

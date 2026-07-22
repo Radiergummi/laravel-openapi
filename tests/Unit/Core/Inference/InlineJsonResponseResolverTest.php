@@ -699,6 +699,39 @@ it('resolves each per-construction body-less shape (make / new Response / noCont
     }
 });
 
+it('reads a factory-accessor helper (the motivating shape) as a contentless 204', function (string $action): void {
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor($action, SameClassHelperController::class),
+    );
+
+    expect($response)->not->toBeNull()
+        ->and($response->response)->toBe('204')
+        ->and(inlineJsonExplicit($response))->toBeTrue()
+        ->and($logger->records)->toBeEmpty()
+        ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+})->with([
+    'accessor method receiver' => 'viaFactory',
+    'typed property receiver' => 'viaFactoryProperty',
+]);
+
+it('skips a factory-accessor helper that is body-bearing or on a non-factory receiver', function (string $action): void {
+    // A factory make() carrying a body, and a ->make() on a non-factory receiver, are both
+    // unrecognised body-less shapes: they fall through silently, never documenting a bogus 204.
+    $logger = recordingLogger();
+
+    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+        inlineJsonActionDescriptor($action, SameClassHelperController::class),
+    );
+
+    expect($response)->toBeNull()
+        ->and($logger->records)->toBeEmpty();
+})->with([
+    'factory make() with a body' => 'viaFactoryMakeWithBody',
+    'make() on a non-factory receiver' => 'viaNonFactoryMake',
+]);
+
 it('refuses a same-class helper with a non-readable status argument and logs a note', function (): void {
     $logger = recordingLogger();
 
