@@ -24,8 +24,10 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
 use PHPStan\PhpDocParser\Ast\PhpDoc\ParamTagValueNode;
+use PHPStan\PhpDocParser\Ast\PhpDoc\PropertyTagValueNode;
 use PHPStan\PhpDocParser\Ast\PhpDoc\TemplateTagValueNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
@@ -41,9 +43,12 @@ use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
+use Reflector;
 
 use function array_key_exists;
+use function array_values;
 use function class_exists;
+use function class_parents;
 use function count;
 use function in_array;
 use function interface_exists;
@@ -1163,15 +1168,135 @@ final class ReturnExpressionResourceReader
      */
     private function propertyClass(string $ownerClass, string $property): ?string
     {
-        if (!property_exists($ownerClass, $property)) {
+        if (property_exists($ownerClass, $property)) {
+            $type = new ReflectionProperty($ownerClass, $property)->getType();
+
+            if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
+                return $this->asClassString($type->getName());
+            }
+        }
+
+        // Eloquent relations and accessors have no native typed property; their type is declared in
+        // a class-level `@property`/`@property-read` tag (conventionally on the model, or a parent).
+        return $this->propertyClassFromDocBlock($ownerClass, $property);
+    }
+
+    /**
+     * The class named by a `@property`/`@property-read`/`@property-write` tag for the property,
+     * walking the class and its parents, or null. Nullable tags (`@property ?Foo`, `Foo|null`)
+     * resolve to the non-null class.
+     *
+     * @param class-string $ownerClass
+     *
+     * @return null|class-string
+     *
+     * @throws ReflectionException
+     */
+    private function propertyClassFromDocBlock(string $ownerClass, string $property): ?string
+    {
+        $tag = $this->propertyTagType($ownerClass, $property);
+
+        if ($tag === null) {
             return null;
         }
 
-        $type = new ReflectionProperty($ownerClass, $property)->getType();
+        [$type, $context] = $tag;
+        $resolved = $this->typeNodeResolver->resolveClassName($type, $context);
 
-        return $type instanceof ReflectionNamedType && !$type->isBuiltin()
-            ? $this->asClassString($type->getName())
-            : null;
+        return $resolved !== null && (class_exists($resolved) || interface_exists($resolved)) ? $resolved : null;
+    }
+
+    /**
+     * The `@property`/`@property-read`/`@property-write` type node declared for the property,
+     * walking the class and its parents, paired with the reflection whose namespace context
+     * resolves it. Null when no such tag exists.
+     *
+     * @param class-string $ownerClass
+     *
+     * @return null|array{0: TypeNode, 1: ReflectionClass<object>}
+     */
+    private function propertyTagType(string $ownerClass, string $property): ?array
+    {
+        foreach ([$ownerClass, ...array_values(class_parents($ownerClass) ?: [])] as $class) {
+            $reflection = new ReflectionClass($class);
+            $docComment = $reflection->getDocComment();
+
+            if ($docComment === false) {
+                continue;
+            }
+
+            $parsed = $this->docBlockParser->parse($docComment);
+
+            foreach (['@property', '@property-read', '@property-write'] as $tagName) {
+                foreach ($parsed->tagValues($tagName) as $tag) {
+                    if ($tag instanceof PropertyTagValueNode && ltrim($tag->propertyName, '$') === $property) {
+                        return [$tag->type, $reflection];
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The element Model of a `->toResourceCollection()` receiver whose declared type is a
+     * `Collection<…, Model>`-style generic, or null. Reads the generic value type from a
+     * `@property` collection relation (`$model->relation`) or a method's `@return C<Model>`
+     * (`$owner->items()`); no dataflow, so an untyped local (e.g. a query-builder `->get()`) refuses.
+     *
+     * @return null|class-string<Model>
+     *
+     * @throws ReflectionException
+     */
+    private function receiverCollectionElementModel(Expr $receiver, ReflectionMethod $method): ?string
+    {
+        if ($receiver instanceof PropertyFetch && $receiver->name instanceof Identifier) {
+            $ownerClass = $this->expressionClass($receiver->var, $method);
+            $tag = $ownerClass === null ? null : $this->propertyTagType($ownerClass, $receiver->name->toString());
+
+            return $tag === null ? null : $this->modelFromGeneric($tag[0], $tag[1]);
+        }
+
+        if ($receiver instanceof MethodCall && $receiver->name instanceof Identifier) {
+            $ownerClass = $this->expressionClass($receiver->var, $method);
+            $methodName = $receiver->name->toString();
+
+            if ($ownerClass === null || !method_exists($ownerClass, $methodName)) {
+                return null;
+            }
+
+            $callee = new ReflectionMethod($ownerClass, $methodName);
+            $docComment = $callee->getDocComment();
+
+            if ($docComment === false) {
+                return null;
+            }
+
+            $returnType = $this->docBlockParser->parse($docComment)->returnType();
+
+            return $returnType === null ? null : $this->modelFromGeneric($returnType, $callee);
+        }
+
+        return null;
+    }
+
+    /**
+     * The Model class named by a generic type's value parameter (`Collection<int, Foo>` → `Foo`),
+     * resolved in the given namespace context, or null when it is absent or not a Model.
+     *
+     * @return null|class-string<Model>
+     */
+    private function modelFromGeneric(TypeNode $node, Reflector $context): ?string
+    {
+        $element = $this->typeNodeResolver->genericValueClass($node, $context);
+
+        if ($element !== null && is_a($element, Model::class, allow_string: true)) {
+            /** @var class-string<Model> $element */
+            return $element;
+        }
+
+        return null;
     }
 
     /**
@@ -1287,6 +1412,17 @@ final class ReturnExpressionResourceReader
         }
 
         if ($methodName === 'toresourcecollection') {
+            $elementModel = $this->receiverCollectionElementModel($call->var, $method);
+            $resourceClass = $elementModel === null ? null : $this->conventionalResourceFor($elementModel);
+
+            if ($resourceClass !== null) {
+                return new ResourceTarget(
+                    $resourceClass,
+                    isCollection: true,
+                    paginated: $this->endsInPaginatingCall($call->var),
+                );
+            }
+
             $this->note(
                 $method,
                 'calls ->toResourceCollection() without naming the resource class',

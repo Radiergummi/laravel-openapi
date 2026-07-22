@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Radiergummi\OpenApi\Tests\Unit\Plugins\ApiResources;
 
 use Illuminate\Database\Eloquent\Attributes\UseResource;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -31,6 +32,19 @@ class ReaderFixtureCuratedAuthor extends Model
 }
 
 abstract class ReaderFixtureAbstractResource extends JsonResource {}
+
+/**
+ * A relation/accessor typed only via a class-level `@property` tag (no native typed property),
+ * the conventional Eloquent shape.
+ *
+ * @property      string                  $label
+ * @property      Author                  $primaryAuthor
+ * @property-read Collection<int, Author> $contributors
+ */
+class ReaderFixtureDocument extends Model
+{
+    protected $guarded = [];
+}
 
 /**
  * Parse-only fixture; actions are never invoked.
@@ -232,6 +246,30 @@ class ReaderFixtureController
     public function propertyReceiverToResource(): JsonResource
     {
         return $this->author->toResource();
+    }
+
+    public function docblockRelationPropertyToResource(ReaderFixtureDocument $document): JsonResource
+    {
+        return $document->primaryAuthor->toResource();
+    }
+
+    public function docblockRelationCollectionToResourceCollection(
+        ReaderFixtureDocument $document,
+    ): ResourceCollection {
+        return $document->contributors->toResourceCollection();
+    }
+
+    public function methodReturnCollectionToResourceCollection(): ResourceCollection
+    {
+        return $this->authors()->toResourceCollection();
+    }
+
+    /**
+     * @return Collection<int, Author>
+     */
+    public function authors(): Collection
+    {
+        return $this->author->newCollection();
     }
 
     public function attributedModelToResource(ReaderFixtureCuratedAuthor $author): JsonResource
@@ -550,6 +588,27 @@ it('resolves a ->toResource() whose receiver is a Model-typed property', functio
 
     expect($target?->resourceClass)->toBe(AuthorResource::class)
         ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves a ->toResource() whose receiver is a @property-typed relation', function (): void {
+    $target = readerFor()->read(readerMethod('docblockRelationPropertyToResource'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeFalse();
+});
+
+it('resolves ->toResourceCollection() from a @property Collection<Model> relation element', function (): void {
+    $target = readerFor()->read(readerMethod('docblockRelationCollectionToResourceCollection'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
+});
+
+it('resolves ->toResourceCollection() from a method @return Collection<Model> generic', function (): void {
+    $target = readerFor()->read(readerMethod('methodReturnCollectionToResourceCollection'));
+
+    expect($target?->resourceClass)->toBe(AuthorResource::class)
+        ->and($target?->isCollection)->toBeTrue();
 });
 
 it('resolves a ->toResource() whose receiver is a method with a concrete Model return', function (): void {
