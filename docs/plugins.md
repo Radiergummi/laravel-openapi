@@ -226,6 +226,10 @@ Recognised shapes:
   honoured and **wins over the body** when both are present.
 - A `->additional(...)` chained onto a matched expression is ignored — the
   resource class stays certain; the extra envelope keys are not modelled.
+- A resource wrapped in `response()->json(<resource>, <status>)` is unwrapped to
+  the resource, which is then resolved by the shapes above (`response()->json(X::make($m), 201)`
+  documents the `X` schema). The status is the inline-JSON resolver's concern; the
+  resource path documents the resource under the conventional success status.
 
 The envelope follows the expression: a collection whose source visibly ends in a
 `paginate()` / `simplePaginate()` / `cursorPaginate()` call documents the
