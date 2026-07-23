@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Feature\Lint;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Route;
+use Radiergummi\OpenApi\Attributes\ResponseResource;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\LintOptions;
@@ -70,6 +71,13 @@ class ResponseTypeAbstractController
     {
         return ConcreteThingResourceFixture::collection([]);
     }
+
+    // Declared type is the abstract base, but the escape hatch authors a concrete resource.
+    #[ResponseResource(ConcreteThingResourceFixture::class)]
+    public function authoredEscapeHatch(ResourceFetchingService $service): JsonResource
+    {
+        return $service->one();
+    }
 }
 
 /**
@@ -115,4 +123,5 @@ it('does not fire', function (string $method, string $uri): void {
 })->with([
     'concrete resource subclass' => ['concrete', 'rta/concrete'],
     'resolved anonymous collection' => ['resolvedCollection', 'rta/coll'],
+    'schema authored via #[ResponseResource] despite abstract return type' => ['authoredEscapeHatch', 'rta/authored'],
 ]);

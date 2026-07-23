@@ -117,6 +117,21 @@ it('stays silent when the component schema carries array items', function (): vo
     expect($findings)->toBe([]);
 });
 
+it('stays silent when the component schema carries a composition branch', function (): void {
+    $raw = new OA\Schema([
+        '_context' => new Context(),
+        'oneOf' => [
+            new OA\Schema(['_context' => new Context(), 'type' => 'object']),
+            new OA\Schema(['_context' => new Context(), 'type' => 'string']),
+        ],
+    ]);
+    [$response, $context] = abstractRuleFixture('JsonResource', JsonResource::class, componentRaw: $raw);
+
+    $findings = iterator_to_array(new OperationResponseTypeAbstract()->checkResponse($response, $context));
+
+    expect($findings)->toBe([]);
+});
+
 it('stays silent for a non-2xx response', function (): void {
     [$response, $context] = abstractRuleFixture('JsonResource', JsonResource::class, statusCode: 404);
 
