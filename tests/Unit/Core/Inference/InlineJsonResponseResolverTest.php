@@ -628,22 +628,22 @@ function sameClassHelperSerialized(OA\Response $response): array
 it('reads a same-class $this->empty() helper as a contentless 204', function (): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $result = inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor('destroy', SameClassHelperController::class),
     );
 
-    expect($response)->not->toBeNull()
-        ->and($response->response)->toBe('204')
-        ->and($response->description)->toBe('No Content')
-        ->and(inlineJsonExplicit($response))->toBeTrue()
+    expect($result)->not->toBeNull()
+        ->and($result->statusIsExplicit)->toBeTrue()
+        ->and($result->response->response)->toBe('204')
+        ->and($result->response->description)->toBe('No Content')
         ->and($logger->records)->toBeEmpty()
-        ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+        ->and(sameClassHelperSerialized($result->response))->not->toHaveKey('content');
 });
 
 it('reads an explicit positional status argument on a same-class helper', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('reset', SameClassHelperController::class),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('205')
@@ -651,18 +651,18 @@ it('reads an explicit positional status argument on a same-class helper', functi
 });
 
 it('reads an explicit named status argument on a same-class helper', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('resetNamed', SameClassHelperController::class),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('205');
 });
 
 it('resolves a same-class helper whose body carries a whitelisted header chain', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('viaBodyChain', SameClassHelperController::class),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('204')
@@ -670,9 +670,9 @@ it('resolves a same-class helper whose body carries a whitelisted header chain',
 });
 
 it('resolves a same-class helper returned through a whitelisted header chain at the call site', function (): void {
-    $response = inlineJsonResolver()->resolvePrimaryResponse(
+    $response = primaryResponseAnnotation(inlineJsonResolver()->resolvePrimaryResponse(
         inlineJsonActionDescriptor('destroyChainedHeaders', SameClassHelperController::class),
-    );
+    ));
 
     expect($response)->not->toBeNull()
         ->and($response->response)->toBe('204');
@@ -682,9 +682,9 @@ it('resolves each per-construction body-less shape (make / new Response / noCont
     $resolver = inlineJsonResolver();
 
     foreach (['viaMake', 'viaNewResponse', 'viaNoContent'] as $action) {
-        $response = $resolver->resolvePrimaryResponse(
+        $response = primaryResponseAnnotation($resolver->resolvePrimaryResponse(
             inlineJsonActionDescriptor($action, SameClassHelperController::class),
-        );
+        ));
 
         expect($response)->not->toBeNull()
             ->and($response->response)->toBe('204')
@@ -695,15 +695,15 @@ it('resolves each per-construction body-less shape (make / new Response / noCont
 it('reads a factory-accessor helper (the motivating shape) as a contentless 204', function (string $action): void {
     $logger = recordingLogger();
 
-    $response = inlineJsonResolver($logger)->resolvePrimaryResponse(
+    $result = inlineJsonResolver($logger)->resolvePrimaryResponse(
         inlineJsonActionDescriptor($action, SameClassHelperController::class),
     );
 
-    expect($response)->not->toBeNull()
-        ->and($response->response)->toBe('204')
-        ->and(inlineJsonExplicit($response))->toBeTrue()
+    expect($result)->not->toBeNull()
+        ->and($result->statusIsExplicit)->toBeTrue()
+        ->and($result->response->response)->toBe('204')
         ->and($logger->records)->toBeEmpty()
-        ->and(sameClassHelperSerialized($response))->not->toHaveKey('content');
+        ->and(sameClassHelperSerialized($result->response))->not->toHaveKey('content');
 })->with([
     'accessor method receiver' => 'viaFactory',
     'typed property receiver' => 'viaFactoryProperty',

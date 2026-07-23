@@ -256,7 +256,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     private function responseFromSameClassHelper(
         array $statements,
         ReflectionMethod $method,
-    ): OA\Response|false|null {
+    ): PrimaryResponse|false|null {
         $call = $this->findSameClassHelperCall($statements);
 
         if ($call === false) {
