@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Lint\FindingsCollector;
@@ -76,7 +77,7 @@ function faultIsolationDescriptor(): ActionDescriptor
 it('skips a primary-response resolver that throws and still emits the fallback 200', function (): void {
     $logger = recordingLogger();
     $throwing = new class () implements PrimaryResponseResolver {
-        public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+        public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
         {
             throw new RuntimeException('resolver blew up');
         }
@@ -94,6 +95,51 @@ it('skips a primary-response resolver that throws and still emits the fallback 2
         ->and($logger->records)->toHaveCount(1)
         ->and($logger->records[0]['message'])->toContain('fault-isolation')
         ->and($logger->records[0]['message'])->toContain('resolver blew up');
+});
+
+it('falls through a resolver returning null to the next one', function (): void {
+    $passing = new class () implements PrimaryResponseResolver {
+        public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
+        {
+            return null;
+        }
+    };
+    $claiming = new class () implements PrimaryResponseResolver {
+        public function resolvePrimaryResponse(ActionDescriptor $descriptor): PrimaryResponse
+        {
+            return PrimaryResponse::of(new OA\Response(['response' => '202', 'description' => 'Accepted']));
+        }
+    };
+
+    $builder = builderWithResolvers(
+        new ResolverFaultBoundary(recordingLogger()),
+        primaryResponseResolvers: [$passing, $claiming],
+    );
+
+    $operation = $builder->build(faultIsolationDescriptor(), []);
+
+    expect($operation->responses[0]->response)->toBe('202');
+});
+
+it('leaves a resolvers own vendor extensions on the response untouched', function (): void {
+    $resolver = new class () implements PrimaryResponseResolver {
+        public function resolvePrimaryResponse(ActionDescriptor $descriptor): PrimaryResponse
+        {
+            $response = new OA\Response(['response' => '200', 'description' => 'OK']);
+            $response->x = ['vendor-marker' => 'kept'];
+
+            return PrimaryResponse::of($response, statusIsExplicit: true);
+        }
+    };
+
+    $builder = builderWithResolvers(
+        new ResolverFaultBoundary(recordingLogger()),
+        primaryResponseResolvers: [$resolver],
+    );
+
+    $operation = $builder->build(faultIsolationDescriptor(), []);
+
+    expect($operation->responses[0]->x)->toBe(['vendor-marker' => 'kept']);
 });
 
 it('keeps the surviving resolvers output when one query-parameter resolver throws', function (): void {
@@ -183,7 +229,7 @@ it('dedups query parameters colliding on name+in across resolvers, last resolver
 it('lets a TypeError from a resolver abort the build instead of swallowing it', function (): void {
     $logger = recordingLogger();
     $throwing = new class () implements PrimaryResponseResolver {
-        public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+        public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
         {
             throw new TypeError('programming bug');
         }

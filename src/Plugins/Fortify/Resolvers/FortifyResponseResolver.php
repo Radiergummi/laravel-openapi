@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Container\Container;
 use OpenApi\Annotations as OA;
 use Override;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Fortify\Support\FortifyContractTable;
@@ -35,7 +36,7 @@ final readonly class FortifyResponseResolver implements PrimaryResponseResolver
     }
 
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $name = $descriptor->route->getName();
 
@@ -57,13 +58,15 @@ final readonly class FortifyResponseResolver implements PrimaryResponseResolver
             && $this->customization->isStock($entry->responseContract);
 
         if (!$emitBody) {
-            return new OA\Response(['response' => (string) $status, 'description' => $description]);
+            return PrimaryResponse::of(
+                new OA\Response(['response' => (string) $status, 'description' => $description]),
+            );
         }
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => (string) $status,
             'description' => $description,
             'content' => [MediaType::Json->schema($entry->successSchema)],
-        ]);
+        ]));
     }
 }

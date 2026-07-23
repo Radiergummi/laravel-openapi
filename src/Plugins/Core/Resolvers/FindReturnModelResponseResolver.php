@@ -15,6 +15,7 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -60,7 +61,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $method = $descriptor->method;
 
@@ -213,12 +214,12 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
     }
 
     /** Wraps a schema in a `200 OK application/json` response. */
-    private function jsonResponse(OA\Schema $schema): OA\Response
+    private function jsonResponse(OA\Schema $schema): PrimaryResponse
     {
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($schema)],
-        ]);
+        ]));
     }
 }

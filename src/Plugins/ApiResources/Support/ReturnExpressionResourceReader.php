@@ -33,6 +33,7 @@ use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
+use Radiergummi\OpenApi\Support\MethodBody\ResponseJsonCall;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnVariableRefusal;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
@@ -67,7 +68,8 @@ use function sprintf;
  * first {@see self::STATEMENT_LIMIT} statements: one unconditional return (or the variable it
  * names, assigned exactly once on the unconditional path), or several top-level returns that all
  * resolve to the same resource (bare `return;` / `return null;` ignored), unwrapped through
- * resource-preserving chains (`->additional(...)`). Recognised shapes: `X::collection(...)`, `X::collect(...)`,
+ * resource-preserving chains (`->additional(...)`) and out of a `response()->json(<resource>, …)`
+ * wrapper. Recognised shapes: `X::collection(...)`, `X::collect(...)`,
  * `X::make(...)`, `new X(...)`, `->toResource(X::class)`, `->toResourceCollection(X::class)`, bare
  * `$model->toResource()` on a Model-typed parameter, and `new JsonResource($model)` wrapping one.
  *
@@ -583,6 +585,16 @@ final class ReturnExpressionResourceReader
         $current = $expression;
 
         while (true) {
+            // `response()->json(<resource>, <status>)`: the status is Core's concern, the resource
+            // is ours, so unwrap to the data argument and resolve it as any other resource shape.
+            $jsonData = ResponseJsonCall::dataArgument($current);
+
+            if ($jsonData !== null) {
+                $current = $jsonData->value;
+
+                continue;
+            }
+
             if ($current instanceof StaticCall) {
                 return $this->targetFromStaticCall($current, $method, $silent);
             }

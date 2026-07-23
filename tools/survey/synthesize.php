@@ -219,7 +219,12 @@ function surveySynthesize(array $results, array $manifest, array $lifts): array
         ];
     }
 
-    arsort($coverageByShape);
+    // Order the shape rollup by a TOTAL order (count DESC, then shape ASC), mirroring
+    // survey_rankByRule; arsort's equal-count ordering is input-dependent, so the rendered
+    // candidate would not be byte-stable across equivalent inputs.
+    uksort($coverageByShape, static function (int|string $a, int|string $b) use ($coverageByShape): int {
+        return $coverageByShape[$b] <=> $coverageByShape[$a] ?: strcmp((string) $a, (string) $b);
+    });
 
     return [
         'provenance' => [

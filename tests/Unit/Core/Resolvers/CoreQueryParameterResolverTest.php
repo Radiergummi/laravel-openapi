@@ -196,6 +196,40 @@ it('keeps a query, cookie, and header read of the same name as three distinct pa
         ->and(parameterNamedIn($parameters, 'token', 'header'))->not->toBeNull();
 });
 
+it('filters reserved / protocol headers from inferred header parameters', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('reservedHeaderReads', 'POST'));
+
+    $headers = array_filter($parameters, static fn(OA\Parameter $parameter): bool => $parameter->in === 'header');
+
+    expect($headers)->toBe([]);
+});
+
+it('folds case when matching reserved headers', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('caseInsensitiveReservedHeaders', 'POST'));
+
+    $headers = array_filter($parameters, static fn(OA\Parameter $parameter): bool => $parameter->in === 'header');
+
+    expect($headers)->toBe([]);
+});
+
+it('still surfaces custom (non-reserved) headers, including X-Forwarded-For', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('customHeaderReads', 'POST'));
+
+    expect(parameterNamedIn($parameters, 'X-Api-Key', 'header'))->not->toBeNull()
+        ->and(parameterNamedIn($parameters, 'Stripe-Signature', 'header'))->not->toBeNull()
+        ->and(parameterNamedIn($parameters, 'X-Forwarded-For', 'header'))->not->toBeNull();
+});
+
+it('does not filter a reserved name read from the cookie location', function (): void {
+    $parameters = makeCoreQueryParameterResolver()
+        ->resolveQueryParameters(makeQueryAccessorDescriptor('reservedNameOnCookie', 'POST'));
+
+    expect(parameterNamedIn($parameters, 'Content-Type', 'cookie'))->not->toBeNull();
+});
+
 it('keeps a dotted header name as a literal token, not wire notation', function (): void {
     $parameters = makeCoreQueryParameterResolver()
         ->resolveQueryParameters(makeQueryAccessorDescriptor('dottedHeaderName'));

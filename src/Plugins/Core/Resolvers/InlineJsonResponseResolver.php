@@ -17,12 +17,12 @@ use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
 use Radiergummi\OpenApi\Plugins\Core\Support\SameClassResponseHelperReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Support\Generator\OperationBuilder;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
@@ -61,7 +61,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $method = $descriptor->method;
 
@@ -90,12 +90,12 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             }
 
             // noContent() is an affirmative body-less response; absent status defaults to 204.
-            return $this->markStatusExplicit(
+            return PrimaryResponse::of(
                 new OA\Response([
                     'response' => (string) $status,
                     'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
                 ]),
-                true,
+                statusIsExplicit: true,
             );
         }
 
@@ -292,12 +292,12 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        return $this->markStatusExplicit(
+        return PrimaryResponse::of(
             new OA\Response([
                 'response' => (string) $status,
                 'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
             ]),
-            true,
+            statusIsExplicit: true,
         );
     }
 
@@ -383,19 +383,6 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     }
 
     /**
-     * Tags a response with the transient marker that lets an explicit status win over the resource
-     * convention. {@see OperationBuilder} strips the marker before serialization.
-     */
-    private function markStatusExplicit(OA\Response $response, bool $explicit): OA\Response
-    {
-        if ($explicit) {
-            $response->x = [OperationBuilder::EXPLICIT_STATUS_EXTENSION => true];
-        }
-
-        return $response;
-    }
-
-    /**
      * Returns the matched `response()->json(...)` call, preferring returned calls over assigned ones.
      *
      * @param list<Stmt> $statements
@@ -465,7 +452,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         MethodCall|New_ $call,
         ReflectionMethod $method,
         array $statements,
-    ): ?OA\Response {
+    ): ?PrimaryResponse {
         $result = $this->callReader->read($statements, $call);
 
         if ($result->status === null) {
@@ -486,9 +473,9 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         // 204 must not carry a body.
         if ($status === 204) {
-            return $this->markStatusExplicit(
+            return PrimaryResponse::of(
                 new OA\Response(['response' => '204', 'description' => 'No Content']),
-                $statusIsExplicit,
+                statusIsExplicit: $statusIsExplicit,
             );
         }
 
@@ -503,11 +490,11 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
             return null;
         }
 
-        return $this->markStatusExplicit(new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => (string) $status,
             'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
             'content' => [MediaType::Json->schema($result->bodySchema)],
-        ]), $statusIsExplicit);
+        ]), statusIsExplicit: $statusIsExplicit);
     }
 
     /**

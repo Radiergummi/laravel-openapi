@@ -10,6 +10,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use OpenApi\Annotations as OA;
 use Override;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Enums\MediaType;
@@ -55,7 +56,7 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
      * @throws ReflectionException
      */
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $target = $this->locator->locate($descriptor);
 
@@ -73,11 +74,11 @@ final readonly class ResourceResponseResolver implements PrimaryResponseResolver
             default => $this->envelopeFactory->unpaginatedCollection($ref),
         };
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($envelope)],
-        ]);
+        ]));
     }
 
     /**

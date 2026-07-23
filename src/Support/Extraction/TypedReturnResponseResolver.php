@@ -11,6 +11,7 @@ use Illuminate\Container\Attributes\Scoped;
 use Illuminate\Contracts\Routing\UrlRoutable;
 use OpenApi\Annotations as OA;
 use Override;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -54,7 +55,7 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
     ) {}
 
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $reflector = $descriptor->actionReflector;
 
@@ -68,11 +69,11 @@ final readonly class TypedReturnResponseResolver implements PrimaryResponseResol
             return null;
         }
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($schema)],
-        ]);
+        ]));
     }
 
     private function schemaForShape(ReturnShape $shape): ?OA\Schema
