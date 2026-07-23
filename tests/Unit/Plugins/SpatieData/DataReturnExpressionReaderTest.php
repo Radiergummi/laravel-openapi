@@ -73,6 +73,26 @@ class ReaderFixture
 
         return $data;
     }
+
+    public function fourteenStatementsThenNewData(): ScalarOnlyData
+    {
+        $step1 = 1;
+        $step2 = 2;
+        $step3 = 3;
+        $step4 = 4;
+        $step5 = 5;
+        $step6 = 6;
+        $step7 = 7;
+        $step8 = 8;
+        $step9 = 9;
+        $step10 = 10;
+        $step11 = 11;
+        $step12 = 12;
+        $step13 = 13;
+        $step14 = 14;
+
+        return new ScalarOnlyData('name', 1);
+    }
 }
 
 function readTarget(string $method): ?DataReturnTarget
@@ -119,4 +139,12 @@ it('returns null for a conditional / multiple-return body', function (): void {
 
 it('returns null when the returned variable is mutated after its single assignment', function (): void {
     expect(readTarget('elementWriteAfterAssignment'))->toBeNull();
+});
+
+it('resolves a single return that sits past the first ten statements', function (): void {
+    $target = readTarget('fourteenStatementsThenNewData');
+
+    expect($target)->not->toBeNull()
+        ->and($target->dataClass)->toBe(ScalarOnlyData::class)
+        ->and($target->isCollection)->toBeFalse();
 });
