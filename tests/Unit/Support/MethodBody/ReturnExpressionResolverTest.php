@@ -88,6 +88,69 @@ it('refuses a dynamically-named returned variable', function (): void {
         ->and($resolution->refusal)->toBe(ReturnVariableRefusal::DynamicallyNamedVariable);
 });
 
+it('refuses a returned local rebound by a foreach value target', function (): void {
+    $resolution = resolveReturnVariable('foreachValueRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by a foreach key target', function (): void {
+    $resolution = resolveReturnVariable('foreachKeyRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by array destructuring', function (): void {
+    $resolution = resolveReturnVariable('arrayDestructuringRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by a reference alias', function (): void {
+    $resolution = resolveReturnVariable('referenceAliasRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by increment', function (): void {
+    $resolution = resolveReturnVariable('incrementRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by decrement', function (): void {
+    $resolution = resolveReturnVariable('decrementRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by a catch capture', function (): void {
+    $resolution = resolveReturnVariable('catchRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by a static declaration', function (): void {
+    $resolution = resolveReturnVariable('staticRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
+it('refuses a returned local rebound by a global declaration', function (): void {
+    $resolution = resolveReturnVariable('globalRebind');
+
+    expect($resolution->expression)->toBeNull()
+        ->and($resolution->refusal)->toBe(ReturnVariableRefusal::ReboundAfterAssignment);
+});
+
 it('does not descend into a closure body when collecting method-level returns', function (): void {
     $resolver = new ReturnExpressionResolver();
     $statements = new MethodBodyScanner()->firstStatements(

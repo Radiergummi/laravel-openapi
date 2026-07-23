@@ -101,6 +101,25 @@ final readonly class ReturnExpressionResolver
             return ReturnVariableResolution::refused(ReturnVariableRefusal::MutatedAfterAssignment);
         }
 
+        // Any value-replacing rebinding beyond the single plain assignment (a `foreach` target,
+        // destructuring, a reference alias, increment/decrement, a `catch` capture, or
+        // `static`/`global`/`unset`) leaves the assigned value stale, whether or not it is
+        // conditional. Compound assignment (`$v += …`) is excluded here: it is the additive
+        // mutation the gate above owns, refused only when unconditional so a *conditional* merge
+        // keeps the base value as a never-wrong subset. VariableRebinding matches the plain
+        // assignment too, so a clean single-assignment method yields exactly one match; more than
+        // one means an extra rebinding form is present.
+        $rebindings = $this->statementNodeFinder->findAll(
+            $statements,
+            ConditionalContextPolicy::IncludeConditionalContexts,
+            static fn(Node $node): bool
+                => !$node instanceof AssignOp && VariableRebinding::matches($node, $variableName),
+        );
+
+        if (count($rebindings) > 1) {
+            return ReturnVariableResolution::refused(ReturnVariableRefusal::ReboundAfterAssignment);
+        }
+
         /** @var Assign $assignment */
         $assignment = $unconditionalAssignments[0];
 
