@@ -319,7 +319,7 @@ it('rolls up the three-way responseCoverage across classified apps in the intern
         'substantive' => 8,
         'correctlyEmpty' => 1,
         'genuinelyMissing' => 5,
-        // arsort by count: 'multiple returns' (3) outranks the json shape (2).
+        // Total order by count DESC: 'multiple returns' (3) outranks the json shape (2).
         'genuinelyMissingByShape' => ['multiple returns' => 3, 'response()->json(<non-literal>)' => 2],
     ]);
 
@@ -344,6 +344,35 @@ it('rolls up the three-way responseCoverage across classified apps in the intern
         ->toContain('substantive coverage **6 → 9**')
         ->toContain('genuinely-missing 3 → 0')
         ->toContain('over that same cohort');
+});
+
+it('breaks equal-count genuinely-missing shapes on key ASC, independent of input order', function (): void {
+    // 'alpha' and 'zebra' tie at count 1; 'multiple returns' leads at 3. The two apps' shape maps
+    // are fed in both orders, so an insertion-order or arsort ordering would leak through.
+    $appWith = static fn(array $shapes): array => ['name' => 'x', 'metrics' => [
+        'apiOperations' => 5,
+        'responseCoverage' => [
+            'substantive' => 1,
+            'correctlyEmpty' => 0,
+            'genuinelyMissing' => 1,
+            'genuinelyMissingByShape' => $shapes,
+        ],
+    ]];
+
+    $high = ['zebra' => 1, 'multiple returns' => 2];
+    $low = ['alpha' => 1, 'multiple returns' => 1];
+
+    $first = [$appWith($high), $appWith($low)];
+    $second = [$appWith($low), $appWith($high)];
+
+    $expected = ['multiple returns' => 3, 'alpha' => 1, 'zebra' => 1];
+
+    // Count DESC leads (multiple returns=3); the alpha/zebra tie at 1 breaks on key ASC, and the
+    // result is byte-identical regardless of which app's shapes were seen first.
+    expect(surveySynthesize($first, ['apps' => []], [])['responseCoverage']['genuinelyMissingByShape'])
+        ->toBe($expected)
+        ->and(surveySynthesize($second, ['apps' => []], [])['responseCoverage']['genuinelyMissingByShape'])
+        ->toBe($expected);
 });
 
 it('omits the responseCoverage section when no app carries a classification', function (): void {
