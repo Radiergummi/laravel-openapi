@@ -45,7 +45,12 @@ use function sprintf;
 #[Scoped]
 final readonly class FindReturnModelResponseResolver implements PrimaryResponseResolver
 {
-    private const int STATEMENT_LIMIT = 10;
+    /**
+     * Pathological-input backstop, not a semantic bound: the guard that makes a match sound is the
+     * directly-returned, unconditional, literal-FQCN lookup call, not how far the scan looked. Set
+     * far above ordinary method length so a run of guard clauses never hides the trailing return.
+     */
+    private const int RETURN_SCAN_STATEMENT_LIMIT = 100;
 
     private const array LOOKUP_METHODS = ['find', 'findorfail', 'firstorfail'];
 
@@ -69,7 +74,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
             return null;
         }
 
-        $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
 
         if ($statements === []) {
             return null;

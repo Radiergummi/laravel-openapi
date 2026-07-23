@@ -248,9 +248,11 @@ array's *structure* (keys, types, required-ness) is preserved.
 When invoking `rules()` *does* throw anyway (a runtime read the stub cannot
 satisfy), the generator falls back to a static read of the method body's rule
 literal — a bare `return [ … ];` or a `$rules = [ … ]; … return $rules;` — through
-the same bounded AST scan used for inline `validate()`. The base literal entries
-are recovered; a conditional `$rules['x'] = …` tweak is ignored, and a genuinely
-dynamic `rules()` with no readable literal still degrades (now with a log note).
+a bounded AST scan of the method body (up to a 100-statement backstop). The base
+literal entries are recovered; a conditional `$rules['x'] = …` tweak is ignored, a
+`$rules` that a `foreach` target or reassignment rebinds after its base literal is
+refused (the base has gone stale), and a genuinely dynamic `rules()` with no
+readable literal still degrades (now with a log note).
 
 The stub values inside `Rule::in([...])`, `Rule::unique(...)->ignore(...)`, and
 similar are opaque placeholders, so the constraint is dropped from the schema —
