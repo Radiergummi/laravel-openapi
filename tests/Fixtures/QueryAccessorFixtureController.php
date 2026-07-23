@@ -7,6 +7,7 @@ namespace Radiergummi\OpenApi\Tests\Fixtures;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Radiergummi\OpenApi\Attributes\Header;
 use Radiergummi\OpenApi\Attributes\QueryParam;
 
 class QueryAccessorFixtureController extends Controller
@@ -192,6 +193,57 @@ class QueryAccessorFixtureController extends Controller
     public function dynamicCookieName(Request $request): JsonResponse
     {
         $value = $request->cookie($this->dynamicKey());
+
+        return new JsonResponse([$value]);
+    }
+
+    // endregion
+
+    // region Reserved-header denylist
+
+    public function reservedHeaderReads(Request $request): JsonResponse
+    {
+        $auth = $request->header('Authorization');
+        $contentType = $request->header('Content-Type');
+        $contentLength = $request->header('Content-Length');
+        $accept = $request->header('Accept');
+        $ifNoneMatch = $request->header('If-None-Match');
+        $host = $request->header('Host');
+
+        return new JsonResponse([$auth, $contentType, $contentLength, $accept, $ifNoneMatch, $host]);
+    }
+
+    public function caseInsensitiveReservedHeaders(Request $request): JsonResponse
+    {
+        $lower = $request->header('content-type');
+        $upper = $request->header('CONTENT-TYPE');
+        $mixed = $request->header('Content-Type');
+
+        return new JsonResponse([$lower, $upper, $mixed]);
+    }
+
+    public function customHeaderReads(Request $request): JsonResponse
+    {
+        $apiKey = $request->header('X-Api-Key');
+        $signature = $request->header('Stripe-Signature');
+        $forwardedFor = $request->header('X-Forwarded-For');
+
+        return new JsonResponse([$apiKey, $signature, $forwardedFor]);
+    }
+
+    /** An explicit #[Header] is authoritative: the denylist never touches the attribute path. */
+    #[Header('Authorization', description: 'Bearer token.')]
+    public function authorizationHeaderAttribute(Request $request): JsonResponse
+    {
+        $auth = $request->header('Authorization');
+
+        return new JsonResponse([$auth]);
+    }
+
+    public function reservedNameOnCookie(Request $request): JsonResponse
+    {
+        // The denylist is header-location only: a cookie of the same name is not filtered.
+        $value = $request->cookie('Content-Type');
 
         return new JsonResponse([$value]);
     }

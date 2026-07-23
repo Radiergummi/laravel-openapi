@@ -508,6 +508,16 @@ Boundaries, by design (no dataflow analysis):
   routes; on body-carrying verbs they overwhelmingly mean body fields (which
   the inline-validation scan already documents). `cookie()` and `header()` are
   verb-independent, so they are matched on **every verb**.
+- A `header()` read of a **reserved / protocol** name is not surfaced as a
+  parameter — `Authorization`, the `Content-*` representation headers, `Accept*`
+  negotiation, the conditionals (`If-*`), `Host`, `Cookie`, `User-Agent`, and the
+  rest of the RFC 9110 control/transport set. These are protocol plumbing, not an
+  API contract (`Authorization` is documented via the security requirement). The
+  match is case-insensitive; **no `X-*` header is reserved**, so every app-custom
+  header (`X-Api-Key`, `Stripe-Signature`, `X-Forwarded-For`) still surfaces. Only
+  the inferred read is filtered: an explicit `#[Header('Authorization')]` is
+  authoritative and always documented. The denylist is header-only — a `cookie()`
+  of the same name is untouched.
 - A non-literal parameter name (`$request->query($key)`, `$request->cookie($key)`)
   is never guessed at; the read is skipped and the generation log notes the
   action, naming the matching authoring attribute for that location
