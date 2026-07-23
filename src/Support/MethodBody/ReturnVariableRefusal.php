@@ -21,4 +21,11 @@ enum ReturnVariableRefusal
 
     /** Assigned once, but mutated afterwards (`$v['k'] = …`, `$v += …`), so the value is stale. */
     case MutatedAfterAssignment;
+
+    /**
+     * Assigned once by a plain assignment, but the name is rebound afterwards by a `foreach`
+     * target, destructuring, reference alias, increment/decrement, `catch`, or
+     * `static`/`global`/`unset`, so the assigned value no longer holds.
+     */
+    case ReboundAfterAssignment;
 }

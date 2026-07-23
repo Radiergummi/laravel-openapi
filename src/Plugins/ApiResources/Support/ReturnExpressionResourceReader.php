@@ -609,6 +609,12 @@ final class ReturnExpressionResourceReader
                 'returns $%s, which is mutated after its single unconditional assignment',
                 is_string($variable->name) ? $variable->name : '{dynamic}',
             ),
+            ReturnVariableRefusal::ReboundAfterAssignment => sprintf(
+                'returns $%s, which is rebound after its assignment (a foreach target, '
+                . 'destructuring, reference alias, increment/decrement, catch, or '
+                . 'static/global/unset)',
+                is_string($variable->name) ? $variable->name : '{dynamic}',
+            ),
             default => sprintf(
                 'returns $%s, which is not assigned exactly once on the unconditional path',
                 is_string($variable->name) ? $variable->name : '{dynamic}',
