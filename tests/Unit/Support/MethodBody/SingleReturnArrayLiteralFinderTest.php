@@ -125,8 +125,43 @@ it('refuses a computed return expression', function (): void {
     expect($literal)->toBeNull();
 });
 
-it('refuses a return beyond the statement limit', function (): void {
+it('resolves a bare return past the first ten statements', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'bareReturnPastTenStatements'),
+    );
+
+    expect($literal)->toBeInstanceOf(Array_::class);
+});
+
+it('resolves a variable return past the first ten statements', function (): void {
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'variableReturnPastTenStatements'),
+    );
+
+    expect($literal)
+        ->toBeInstanceOf(Array_::class)
+        ->and($literal->items)->toHaveCount(1);
+});
+
+it('resolves a return past the original ten-statement window', function (): void {
+    // The old window (10) hid this trailing return behind eleven leading statements.
     $literal = returnLiteralFinder()->find(new ReflectionMethod(ReturnLiteralFixture::class, 'beyondStatementLimit'));
+
+    expect($literal)->toBeInstanceOf(Array_::class);
+});
+
+it('refuses a return past the hundred-statement backstop', function (): void {
+    $literal = returnLiteralFinder()->find(new ReflectionMethod(ReturnLiteralFixture::class, 'returnBeyondBackstop'));
+
+    expect($literal)->toBeNull();
+});
+
+it('refuses when widening surfaces a second return past the window', function (): void {
+    // Both returns sit past statement ten, so only the wider window sees them; two returns must
+    // refuse rather than resolve the trailing one.
+    $literal = returnLiteralFinder()->find(
+        new ReflectionMethod(ReturnLiteralFixture::class, 'twoReturnsSurfacedPastWindow'),
+    );
 
     expect($literal)->toBeNull();
 });

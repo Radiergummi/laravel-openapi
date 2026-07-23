@@ -331,7 +331,8 @@ class Post extends Model
 
 An action that doesn't type its return still gets the model schema when it
 **directly returns** a `Model::find()` / `findOrFail()` / `firstOrFail()` static
-call (Tier-1 bounded scan of the first 10 statements):
+call (Tier-1 scan of the method body, bounded only by a 100-statement backstop
+against pathological input):
 
 ```php
 public function show(string $id)             // untyped return
