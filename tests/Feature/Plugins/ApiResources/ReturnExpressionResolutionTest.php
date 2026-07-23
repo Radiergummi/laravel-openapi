@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Radiergummi\OpenApi\Tests\Feature\Plugins\ApiResources;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
@@ -202,6 +203,23 @@ class ReturnExpressionController extends Controller
     public function attributeWins(): AnonymousResourceCollection
     {
         return NestedAuthorResource::collection(Author::all());
+    }
+
+    public function jsonWrappedSingle(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::make(Author::query()->firstOrFail()), 201);
+    }
+
+    public function jsonWrappedCollection(): JsonResponse
+    {
+        return response()->json(NestedAuthorResource::collection(Author::query()->paginate()), 201);
+    }
+
+    public function jsonWrappedNonResource(): JsonResponse
+    {
+        $payload = ['ok' => true];
+
+        return response()->json($payload, 201);
     }
 
     private function authors(): AnonymousResourceCollection
@@ -583,6 +601,44 @@ it('still flags resource.response-ambiguous for an unresolvable collection', fun
 
     expect($findings)->toHaveCount(1)
         ->and($findings[0]->ruleId)->toBe('resource.response-ambiguous');
+});
+
+// endregion
+
+// region response()->json(<resource>) unwrapping
+
+it('resolves a resource wrapped in response()->json(X::make(...), status)', function (): void {
+    Route::get('/json-single', [ReturnExpressionController::class, 'jsonWrappedSingle']);
+
+    $spec = generateSpec();
+    $responses = $spec['paths']['/json-single']['get']['responses'];
+    $schema = successSchema($spec, '/json-single');
+
+    // The resource $ref wins over the empty inline-JSON shape; only one 2xx is emitted.
+    expect($schema['properties']['data']['$ref'])->toBe('#/components/schemas/NestedAuthorResource')
+        ->and($spec['components']['schemas']['NestedAuthorResource']['properties'])->toHaveKeys(['id', 'name'])
+        ->and($responses)->not->toHaveKey('201');
+});
+
+it('resolves a collection wrapped in response()->json(X::collection(...), status)', function (): void {
+    Route::get('/json-collection', [ReturnExpressionController::class, 'jsonWrappedCollection']);
+
+    $schema = successSchema(generateSpec(), '/json-collection');
+
+    expect($schema['properties'])->toHaveKeys(['data', 'links', 'meta'])
+        ->and($schema['properties']['data']['type'])->toBe('array')
+        ->and($schema['properties']['data']['items']['$ref'])->toBe('#/components/schemas/NestedAuthorResource');
+});
+
+it('leaves a non-resource response()->json(...) at the bare 200', function (): void {
+    Route::get('/json-non-resource', [ReturnExpressionController::class, 'jsonWrappedNonResource']);
+
+    $spec = generateSpec();
+    $response = $spec['paths']['/json-non-resource']['get']['responses']['200'] ?? null;
+
+    expect($response)->not->toBeNull()
+        ->and($response['content'] ?? [])->not->toHaveKey('application/json')
+        ->and($spec['components']['schemas'] ?? [])->not->toHaveKey('NestedAuthorResource');
 });
 
 // endregion
