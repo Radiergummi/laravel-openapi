@@ -11,6 +11,7 @@ use PhpParser\Node;
 use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\Return_;
@@ -20,6 +21,7 @@ use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Core\Support\InlineJsonCallReader;
+use Radiergummi\OpenApi\Plugins\Core\Support\SameClassResponseHelperReader;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
 use Radiergummi\OpenApi\Support\MethodBody\AstLiteralEvaluator;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
@@ -52,6 +54,7 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
     public function __construct(
         private MethodBodyScanner $scanner,
         private InlineJsonCallReader $callReader,
+        private SameClassResponseHelperReader $helperReader,
         private LoggerInterface $logger,
     ) {
         $this->statementNodeFinder = new StatementNodeFinder();
@@ -106,6 +109,12 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
 
         if ($construction instanceof New_) {
             return $this->responseFromCall($construction, $method, $statements);
+        }
+
+        $helperResponse = $this->responseFromSameClassHelper($statements, $method);
+
+        if ($helperResponse !== false) {
+            return $helperResponse;
         }
 
         $conditionalCall = $this->statementNodeFinder->findFirst(
@@ -231,6 +240,100 @@ final readonly class InlineJsonResponseResolver implements PrimaryResponseResolv
         }
 
         return false;
+    }
+
+    // endregion
+
+    // region Same-class status helper
+
+    /**
+     * Reads a directly-returned `$this->helper(...)` for a body-less status (e.g. `$this->empty()`
+     * → 204). Returns the derived contentless response, null when the helper was recognised but
+     * refused (a note is logged), or false when no helper call applies so the caller falls through.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function responseFromSameClassHelper(
+        array $statements,
+        ReflectionMethod $method,
+    ): PrimaryResponse|false|null {
+        $call = $this->findSameClassHelperCall($statements);
+
+        if ($call === false) {
+            // A body-mutating chain on the helper return; refuse rather than guess body-less.
+            $this->note($method, 'is chained into a method that may add a response body', '$this->helper()');
+
+            return null;
+        }
+
+        if ($call === null) {
+            return false;
+        }
+
+        $result = $this->helperReader->read(
+            $method->getDeclaringClass()->getName(),
+            $this->helperName($call),
+            $call->getArgs(),
+        );
+
+        if ($result->status === null) {
+            if ($result->note !== null) {
+                $this->note($method, $result->note, sprintf('$this->%s()', $this->helperName($call)));
+
+                return null;
+            }
+
+            return false;
+        }
+
+        $status = $this->ensureSuccessStatus($result->status, $method, sprintf('$this->%s()', $this->helperName($call)));
+
+        if ($status === null) {
+            return null;
+        }
+
+        return PrimaryResponse::of(
+            new OA\Response([
+                'response' => (string) $status,
+                'description' => HttpFoundationResponse::$statusTexts[$status] ?? sprintf('HTTP %d', $status),
+            ]),
+            statusIsExplicit: true,
+        );
+    }
+
+    /**
+     * The first unconditionally-returned `$this->helper(...)` call (looking through a whitelisted
+     * header/cookie chain), false when such a return is chained into a body-mutating call, or null
+     * when no `$this->` return applies.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function findSameClassHelperCall(array $statements): MethodCall|false|null
+    {
+        foreach ($statements as $statement) {
+            if (!$statement instanceof Return_ || $statement->expr === null) {
+                continue;
+            }
+
+            [$core, $bodyMutatingChain] = SameClassResponseHelperReader::unwrapPreservingChain($statement->expr);
+
+            if (
+                $core instanceof MethodCall
+                && !$core->isFirstClassCallable()
+                && $core->name instanceof Identifier
+                && $core->var instanceof Variable
+                && $core->var->name === 'this'
+            ) {
+                return $bodyMutatingChain ? false : $core;
+            }
+        }
+
+        return null;
+    }
+
+    private function helperName(MethodCall $call): string
+    {
+        return $call->name instanceof Identifier ? $call->name->toString() : '{dynamic}';
     }
 
     // endregion
