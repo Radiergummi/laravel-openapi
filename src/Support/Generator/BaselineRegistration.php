@@ -46,6 +46,7 @@ use Radiergummi\OpenApi\Lint\Rules\OperationIdDuplicate;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdInvalidChars;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdMissing;
 use Radiergummi\OpenApi\Lint\Rules\OperationIdNamingInconsistent;
+use Radiergummi\OpenApi\Lint\Rules\OperationResponseTypeAbstract;
 use Radiergummi\OpenApi\Lint\Rules\OperationSecurityMissing;
 use Radiergummi\OpenApi\Lint\Rules\OperationSummaryEqualsDescription;
 use Radiergummi\OpenApi\Lint\Rules\OperationTagMissing;
@@ -166,6 +167,7 @@ final class BaselineRegistration
         PublicEndpointContradictsMiddleware::class,
         ResponseNoSuccess::class,
         ResponseSuccessEmptyBody::class,
+        OperationResponseTypeAbstract::class,
         ResponseRedirectWithoutLocation::class,
         OperationIdMissing::class,
         SchemaAllOfTypeConflict::class,
