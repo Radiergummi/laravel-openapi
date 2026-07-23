@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\UseResource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use PhpParser\Node;
 use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\ConstFetch;
@@ -32,10 +33,13 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Radiergummi\OpenApi\Enums\PaginatorKind;
 use Radiergummi\OpenApi\Routing\ResourceTarget;
+use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
 use Radiergummi\OpenApi\Support\MethodBody\ResponseJsonCall;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnVariableRefusal;
+use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
+use Radiergummi\OpenApi\Support\MethodBody\VariableRebinding;
 use Radiergummi\OpenApi\Support\PhpDoc\DocBlockParser;
 use Radiergummi\OpenApi\Support\PhpDoc\ParsedDocBlock;
 use Radiergummi\OpenApi\Support\Types\TypeNodeResolver;
@@ -47,6 +51,8 @@ use ReflectionProperty;
 use Reflector;
 
 use function array_key_exists;
+use function array_key_first;
+use function array_slice;
 use function array_values;
 use function class_exists;
 use function class_parents;
@@ -64,14 +70,15 @@ use function sprintf;
  * Resolves the concrete API Resource an action returns when its signature names only a base type.
  * Consulted by {@see ResourceClassLocator} when the return type alone is insufficient.
  *
- * The `@return` generic wins over the body scan. The scan then matches a narrow whitelist in the
- * first {@see self::STATEMENT_LIMIT} statements: one unconditional return (or the variable it
- * names, assigned exactly once on the unconditional path), or several top-level returns that all
- * resolve to the same resource (bare `return;` / `return null;` ignored), unwrapped through
- * resource-preserving chains (`->additional(...)`) and out of a `response()->json(<resource>, …)`
- * wrapper. Recognised shapes: `X::collection(...)`, `X::collect(...)`,
- * `X::make(...)`, `new X(...)`, `->toResource(X::class)`, `->toResourceCollection(X::class)`, bare
- * `$model->toResource()` on a Model-typed parameter, and `new JsonResource($model)` wrapping one.
+ * The `@return` generic wins over the body scan. The scan then matches a narrow whitelist over the
+ * method's statements (bounded by {@see self::RETURN_SCAN_STATEMENT_LIMIT}): one unconditional
+ * return (or the variable it names, assigned exactly once on the unconditional path), or several
+ * top-level returns that all resolve to the same resource (bare `return;` / `return null;`
+ * ignored), unwrapped through resource-preserving chains (`->additional(...)`) and out of a
+ * `response()->json(<resource>, …)` wrapper. Recognised shapes: `X::collection(...)`,
+ * `X::collect(...)`, `X::make(...)`, `new X(...)`, `->toResource(X::class)`,
+ * `->toResourceCollection(X::class)`, bare `$model->toResource()` on a Model-typed parameter, and
+ * `new JsonResource($model)` wrapping one.
  *
  * Pagination evidence is derived from the argument/receiver ending in a `paginate()`-family call.
  * Anything else refuses with one NOTICE per action and run; `#[ResponseResource]` is the escape
@@ -82,7 +89,12 @@ use function sprintf;
 #[Scoped]
 final class ReturnExpressionResourceReader
 {
-    public const int STATEMENT_LIMIT = 10;
+    /**
+     * Pathological-input backstop, not a semantic bound: the guard that makes a resolution sound is
+     * "exactly one unconditional return", not how far the scan looked. Set far above ordinary method
+     * length so an everyday run of guard clauses never hides the trailing return.
+     */
+    private const int RETURN_SCAN_STATEMENT_LIMIT = 100;
 
     /**
      * Chain methods that change neither the resource class nor the response cardinality.
@@ -154,12 +166,20 @@ final class ReturnExpressionResourceReader
      */
     private array $resolutionStatements = [];
 
+    /**
+     * The index, within {@see self::$resolutionStatements}, of the top-level statement containing
+     * the return being resolved. Bounds the region an `assert()` narrowing may dominate. Null when
+     * no such index is known, which leaves that region empty: nothing may be trusted.
+     */
+    private ?int $resolutionReturnIndex = null;
+
     public function __construct(
         private readonly MethodBodyScanner $scanner,
         private readonly DocBlockParser $docBlockParser,
         private readonly TypeNodeResolver $typeNodeResolver,
         private readonly LoggerInterface $logger,
         private readonly ReturnExpressionResolver $returnExpressionResolver = new ReturnExpressionResolver(),
+        private readonly StatementNodeFinder $statementNodeFinder = new StatementNodeFinder(),
     ) {}
 
     public static function create(?LoggerInterface $logger = null): self
@@ -194,14 +214,22 @@ final class ReturnExpressionResourceReader
      */
     private function resolve(ReflectionMethod $method, bool $silent): ?ResourceTarget
     {
+        // Cleared before the docblock path runs: the two fields are read as a pair, and a stale
+        // pair from the previous method would answer for this one.
+        [$this->resolutionStatements, $this->resolutionReturnIndex] = [[], null];
+
         $documented = $this->targetFromReturnTag($method);
 
         if ($documented !== null) {
             return $documented;
         }
 
-        $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
-        $this->resolutionStatements = $statements;
+        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
+
+        [$this->resolutionStatements, $this->resolutionReturnIndex] = [
+            $statements,
+            $this->firstTopLevelReturnIndex($statements),
+        ];
 
         if (count($this->methodLevelReturns($statements)) > 1) {
             return $this->reconcileMultipleReturns($statements, $method, $silent);
@@ -239,10 +267,15 @@ final class ReturnExpressionResourceReader
         ReflectionMethod $method,
         bool $silent,
     ): ?ResourceTarget {
-        $this->resolutionStatements = $statements;
         $resolved = [];
 
         foreach ($this->methodLevelReturns($statements) as $return) {
+            // Each branch is resolved against the region its own return dominates.
+            [$this->resolutionStatements, $this->resolutionReturnIndex] = [
+                $statements,
+                $this->containingStatementIndex($return, $statements),
+            ];
+
             $expression = $return->expr;
 
             if ($expression === null || $this->isNullLiteral($expression)) {
@@ -376,7 +409,7 @@ final class ReturnExpressionResourceReader
      */
     private function paginatedFromBody(ReflectionMethod $method): bool
     {
-        $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
         $returnExpression = $this->canonicalReturnExpression($statements, $method, log: false);
 
         if ($returnExpression === null) {
@@ -495,6 +528,44 @@ final class ReturnExpressionResourceReader
     private function methodLevelReturns(array $statements): array
     {
         return $this->returnExpressionResolver->methodLevelReturns($statements);
+    }
+
+    /**
+     * The index of the first top-level return, or null when there is none.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function firstTopLevelReturnIndex(array $statements): ?int
+    {
+        foreach ($statements as $index => $statement) {
+            if ($statement instanceof Return_) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The index of the top-level statement containing the given return, or null when the return is
+     * not among the scanned statements.
+     *
+     * A branch return lives inside its enclosing `if`/`foreach`/`try`, so it has no index of its
+     * own; the containing statement's index is what positional comparisons can use.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function containingStatementIndex(Return_ $return, array $statements): ?int
+    {
+        foreach ($statements as $index => $statement) {
+            foreach ($this->methodLevelReturns([$statement]) as $candidate) {
+                if ($candidate === $return) {
+                    return $index;
+                }
+            }
+        }
+
+        return null;
     }
 
     // endregion
@@ -860,40 +931,99 @@ final class ReturnExpressionResourceReader
      * assert($x instanceof Customer);`); the assertion states the concrete type the assignment
      * expression alone does not carry.
      *
+     * Three conditions make the narrowing sound, all evaluated against the return being resolved:
+     * the assert must precede it, the name must not be rebound between them, and there must be
+     * exactly one such assert. Refusals here are silent: this path is reached from probes that
+     * must not log, and an unresolved action still gets the outer notice.
+     *
      * @return null|class-string<Model>
      */
     private function assertedModelClass(string $variableName): ?string
     {
-        foreach ($this->resolutionStatements as $statement) {
-            if (!$statement instanceof Stmt\Expression || !$statement->expr instanceof FuncCall) {
-                continue;
+        $returnIndex = $this->resolutionReturnIndex;
+
+        // Fail closed: with no located return there is no region an assert could dominate.
+        if ($returnIndex === null) {
+            return null;
+        }
+
+        $asserted = [];
+
+        foreach ($this->resolutionStatements as $index => $statement) {
+            if ($index >= $returnIndex) {
+                break;
             }
 
-            $call = $statement->expr;
+            $class = $this->assertedModelClassIn($statement, $variableName);
 
-            if (!$call->name instanceof Name || $call->name->toLowerString() !== 'assert') {
-                continue;
-            }
-
-            $argument = $call->getArgs()[0]->value ?? null;
-
-            if (
-                !$argument instanceof Instanceof_
-                || !($argument->expr instanceof Variable && $argument->expr->name === $variableName)
-                || !$argument->class instanceof Name
-            ) {
-                continue;
-            }
-
-            $class = $argument->class->toString();
-
-            if (is_a($class, Model::class, allow_string: true)) {
-                /** @var class-string<Model> $class */
-                return $class;
+            if ($class !== null) {
+                $asserted[$index] = $class;
             }
         }
 
-        return null;
+        // Zero narrowings say nothing; two make the type a guess.
+        if (count($asserted) !== 1) {
+            return null;
+        }
+
+        $assertIndex = array_key_first($asserted);
+
+        // The region runs up to and including the containing statement, because a branch return is
+        // measured by that statement: an exclusive bound would admit a rebinding sitting inside it,
+        // alongside the return itself.
+        return $this->rebindsBetween($variableName, $assertIndex + 1, $returnIndex)
+            ? null
+            : $asserted[$assertIndex];
+    }
+
+    /**
+     * The Model class a single top-level `assert($var instanceof Model)` statement narrows the name
+     * to, or null when the statement is not such an assertion.
+     *
+     * @return null|class-string<Model>
+     */
+    private function assertedModelClassIn(Stmt $statement, string $variableName): ?string
+    {
+        if (!$statement instanceof Stmt\Expression || !$statement->expr instanceof FuncCall) {
+            return null;
+        }
+
+        $call = $statement->expr;
+
+        if (!$call->name instanceof Name || $call->name->toLowerString() !== 'assert') {
+            return null;
+        }
+
+        $argument = $call->getArgs()[0]->value ?? null;
+
+        if (
+            !$argument instanceof Instanceof_
+            || !($argument->expr instanceof Variable && $argument->expr->name === $variableName)
+            || !$argument->class instanceof Name
+        ) {
+            return null;
+        }
+
+        $class = $argument->class->toString();
+
+        if (!is_a($class, Model::class, allow_string: true)) {
+            return null;
+        }
+
+        /** @var class-string<Model> $class */
+        return $class;
+    }
+
+    /**
+     * Whether any statement in the inclusive index range rebinds the name, at any nesting depth.
+     */
+    private function rebindsBetween(string $variableName, int $from, int $through): bool
+    {
+        return $this->statementNodeFinder->findAll(
+            array_values(array_slice($this->resolutionStatements, $from, $through - $from + 1)),
+            ConditionalContextPolicy::IncludeConditionalContexts,
+            static fn(Node $node): bool => VariableRebinding::matches($node, $variableName),
+        ) !== [];
     }
 
     /**
@@ -971,7 +1101,7 @@ final class ReturnExpressionResourceReader
             return null;
         }
 
-        $statements = $this->scanner->firstStatements($callee, self::STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($callee, self::RETURN_SCAN_STATEMENT_LIMIT);
         $returns = $this->methodLevelReturns($statements);
 
         if (count($returns) !== 1 || $returns[0]->expr === null) {
