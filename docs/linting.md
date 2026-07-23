@@ -563,6 +563,16 @@ SpatieData, ApiResources, Fractal, QueryBuilder, SwaggerPhp). `openapi:lint
 --list` is the live source — a plugin's rules are only active when that plugin
 is enabled.
 
+> **`operation.response-type-abstract` and the `->toResource()` caveat.** This rule
+> fires when an action's primary response derives from an abstract or framework
+> API-Resource base (`JsonResource` and friends) rather than a concrete subclass, so
+> the generated schema is empty. The fix is to narrow the return type to the concrete
+> resource. That is not always possible: Laravel types
+> `Model::toResource(): JsonResource`, so an action returning `$model->toResource()`
+> cannot narrow its declared return type without PHPStan errors. The library resolves
+> those cases itself by reading the receiver, so they should not surface here; where one
+> does, treat the finding as informational rather than a required narrowing.
+
 <!-- BEGIN: lint-rule-catalog -->
 | Rule ID | Level | Description |
 |---|---|---|
@@ -633,6 +643,7 @@ is enabled.
 | `header.description-missing` | 2 | Response header has no description. |
 | `info.description-missing` | 2 | The document info.description is empty. |
 | `operation.description-missing` | 2 | Operation has no description (beyond the summary). |
+| `operation.response-type-abstract` | 2 | The primary response refs an abstract or framework resource base (e.g. JsonResource); narrow the return type to the concrete resource subclass to get a schema. |
 | `parameter.description-missing` | 2 | Parameter has no description. |
 | `query-builder.params-undeclared` | 2 | A method injects a QueryBuilder but declares no allowed filter/sort/include attributes. (QueryBuilder plugin.) |
 | `request-body.description-missing` | 2 | requestBody has no description. |

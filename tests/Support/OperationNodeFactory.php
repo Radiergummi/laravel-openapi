@@ -74,17 +74,20 @@ final class OperationNodeFactory
      * payload-class detection path; `$declaredTags` lets api-level rules (e.g., `tag.*`) see a
      * non-empty `ApiNode->declaredTags`.
      *
-     * @param list<class-string>           $payloadClasses
-     * @param list<string>                 $declaredTags
-     * @param array<string, OperationNode> $operationsByOperationId prepopulates the `TreeIndex` lookup used by link /
-     *                                                              security cross-ref rules
-     * @param list<OperationNode>          $operations              populates `ApiNode->operations`; used by api-level
-     *                                                              rules (e.g., `tag.undeclared-at-root`)
-     * @param list<WebhookNode>            $webhooks                populates `ApiNode->webhooks`
-     * @param array<string, string>        $tagDescriptions         tag name → description; used by
-     *                                                              `tags.no-description`
-     * @param list<string>                 $registeredScopes        prepopulates `TreeIndex->registeredScopes`; used by
-     *                                                              security/scope rules
+     * @param list<class-string>                 $payloadClasses
+     * @param list<string>                       $declaredTags
+     * @param array<string, OperationNode>       $operationsByOperationId prepopulates the `TreeIndex` lookup used by link /
+     *                                                                    security cross-ref rules
+     * @param list<OperationNode>                $operations              populates `ApiNode->operations`; used by api-level
+     *                                                                    rules (e.g., `tag.undeclared-at-root`)
+     * @param list<WebhookNode>                  $webhooks                populates `ApiNode->webhooks`
+     * @param array<string, string>              $tagDescriptions         tag name → description; used by
+     *                                                                    `tags.no-description`
+     * @param list<string>                       $registeredScopes        prepopulates `TreeIndex->registeredScopes`; used by
+     *                                                                    security/scope rules
+     * @param array<string, ComponentSchemaNode> $componentsByName        prepopulates the `TreeIndex` schema-name lookup;
+     *                                                                    used by rules resolving a response ref to its
+     *                                                                    source class
      */
     public static function emptyContext(
         array $payloadClasses = [],
@@ -94,14 +97,15 @@ final class OperationNodeFactory
         array $webhooks = [],
         array $tagDescriptions = [],
         array $registeredScopes = [],
+        array $componentsByName = [],
     ): LintContext {
         $spec = new OA\OpenApi(['openapi' => '3.1.0']);
-        $index = $operationsByOperationId === [] && $registeredScopes === []
+        $index = $operationsByOperationId === [] && $registeredScopes === [] && $componentsByName === []
             ? TreeIndex::empty()
             : new TreeIndex(
                 operationsByOperationId: $operationsByOperationId,
                 operationsByRouteKey: [],
-                componentsByName: [],
+                componentsByName: $componentsByName,
                 referencedComponents: [],
                 registeredScopes: $registeredScopes,
                 knownRuleIds: [],
@@ -454,19 +458,22 @@ final class OperationNodeFactory
     /**
      * A `ComponentSchemaNode` with safe defaults.
      *
-     * @param list<FieldNode> $fields
+     * @param list<FieldNode>   $fields
+     * @param null|class-string $sourceClass
      */
     public static function makeComponentSchema(
         string $name = 'Fixture',
         ?string $description = null,
         array $fields = [],
         ?OA\Schema $raw = null,
+        ?string $sourceClass = null,
     ): ComponentSchemaNode {
         return new ComponentSchemaNode(
             name: $name,
             description: $description,
             fields: $fields,
             raw: $raw,
+            sourceClass: $sourceClass,
         );
     }
 
