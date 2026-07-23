@@ -22,6 +22,7 @@ use PhpParser\Node\Stmt\Return_;
 use PhpParser\NodeFinder;
 use Psr\Log\LoggerInterface;
 use Radiergummi\OpenApi\Contracts\Attributes\PrimaryResponseAuthoringAttribute;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\TransformerField;
@@ -107,7 +108,7 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
      * @throws ReflectionException
      */
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $method = $descriptor->method;
 
@@ -161,11 +162,11 @@ final readonly class FractalHelperResponseResolver implements PrimaryResponseRes
             : $this->envelopeFactory->single($ref, $serializer);
         $mediaType = $serializer === Serializer::JsonApi ? MediaType::JsonApi : MediaType::Json;
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [$mediaType->schema($envelope)],
-        ]);
+        ]));
     }
 
     // region Call-shape matching

@@ -6,7 +6,6 @@ namespace Radiergummi\OpenApi\Support\Generator;
 
 use Deprecated as NativeDeprecated;
 use OpenApi\Annotations as OA;
-use OpenApi\Generator;
 use Radiergummi\OpenApi\Attributes\Deprecated as DeprecatedAttribute;
 use Radiergummi\OpenApi\Attributes\Description as DescriptionAttribute;
 use Radiergummi\OpenApi\Attributes\ExternalDocs as ExternalDocsAttribute;
@@ -22,6 +21,7 @@ use Radiergummi\OpenApi\Attributes\Tag as TagAttribute;
 use Radiergummi\OpenApi\Contracts\Lint\Severity;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConvention;
 use Radiergummi\OpenApi\Contracts\Registry\OperationConventionResolver;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Registry\QueryParameterResolver;
 use Radiergummi\OpenApi\Contracts\Registry\RefSchemaResolver;
@@ -67,7 +67,6 @@ use function in_array;
 use function is_array;
 use function is_string;
 use function Radiergummi\OpenApi\is_defined;
-use function Radiergummi\OpenApi\is_undefined;
 
 /**
  * Builds the property array dispatched onto OA\Get/OA\Post/etc. for one route action.
@@ -76,12 +75,6 @@ use function Radiergummi\OpenApi\is_undefined;
  */
 final readonly class OperationBuilder
 {
-    /**
-     * Transient vendor-extension key: signals the resolver read the status from the body, so the
-     * convention must not overwrite it. Stripped before the response reaches the document.
-     */
-    public const string EXPLICIT_STATUS_EXTENSION = 'laravel-openapi-explicit-status';
-
     private readonly RequestParameterApplier $requestParameterApplier;
 
     private readonly ResponseHeaderApplier $responseHeaderApplier;
@@ -231,19 +224,22 @@ final readonly class OperationBuilder
         $requestBody = $this->applyRequestBodyOverride($action, $requestBody);
         $this->exampleApplier->applyRequestExamples($action, $requestBody);
 
-        $autoPrimaryResponse = null;
+        $autoPrimaryResult = null;
 
         foreach ($this->primaryResponseResolvers as $responseResolver) {
-            $autoPrimaryResponse = $this->faultBoundary->isolate(
+            $autoPrimaryResult = $this->faultBoundary->isolate(
                 $responseResolver::class,
                 $action,
-                fn(): ?OA\Response => $responseResolver->resolvePrimaryResponse($action),
+                fn(): ?PrimaryResponse => $responseResolver->resolvePrimaryResponse($action),
             );
 
-            if ($autoPrimaryResponse !== null) {
+            if ($autoPrimaryResult !== null) {
                 break;
             }
         }
+
+        $autoPrimaryResponse = $autoPrimaryResult?->response;
+        $autoStatusIsExplicit = $autoPrimaryResult?->statusIsExplicit === true;
 
         $resolvedConvention = $this->resolveConvention($action);
         $convention = $resolvedConvention?->convention;
@@ -269,9 +265,6 @@ final readonly class OperationBuilder
                 $filteredAdditional[] = $additionalResponse;
             }
         }
-
-        // Strip the transient marker before the response reaches the document.
-        $autoStatusIsExplicit = $this->takeExplicitStatusMarker($autoPrimaryResponse);
 
         $additionalResponses = $filteredAdditional;
 
@@ -826,26 +819,6 @@ final readonly class OperationBuilder
         }
 
         return new OA\ExternalDocumentation($props);
-    }
-
-    /**
-     * Reads and strips the transient {@see self::EXPLICIT_STATUS_EXTENSION} vendor extension.
-     */
-    private function takeExplicitStatusMarker(?OA\Response $response): bool
-    {
-        if ($response === null || is_undefined($response->x) || !is_array($response->x)) {
-            return false;
-        }
-
-        $explicit = ($response->x[self::EXPLICIT_STATUS_EXTENSION] ?? null) === true;
-
-        unset($response->x[self::EXPLICIT_STATUS_EXTENSION]);
-
-        if ($response->x === []) {
-            $response->x = Generator::UNDEFINED; // @phpstan-ignore assign.propertyType (swagger-php clears via the UNDEFINED sentinel)
-        }
-
-        return $explicit;
     }
 
     /** A 204 discards any resolved body. */

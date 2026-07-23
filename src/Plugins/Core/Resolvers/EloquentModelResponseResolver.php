@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use OpenApi\Annotations as OA;
 use Override;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
@@ -39,7 +40,7 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
      * @throws ReflectionException
      */
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $reflector = $descriptor->actionReflector;
 
@@ -89,13 +90,13 @@ final readonly class EloquentModelResponseResolver implements PrimaryResponseRes
         return null;
     }
 
-    private function jsonResponse(OA\Schema $schema): OA\Response
+    private function jsonResponse(OA\Schema $schema): PrimaryResponse
     {
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($schema)],
-        ]);
+        ]));
     }
 
     /**

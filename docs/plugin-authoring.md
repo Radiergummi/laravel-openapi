@@ -37,7 +37,7 @@ instances are resolved from the container when the pipeline runs.
 | `addErrorResponseResolver(string $class)` | An error-response schema resolver | `ErrorResponseResolver` |
 | `addOperationConventionResolver(string $class)` | An operation-level convention resolver (e.g., resourceful-action success codes and summaries derived from Tier-0 signals) | `OperationConventionResolver` |
 | `addPayloadClass(string $class)` | Marks a base class as a request-payload DTO so `PayloadParameterScanner` recognises it | (a base class, not an interface) |
-| `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver | `PrimaryResponseResolver` |
+| `addPrimaryResponseResolver(string $class)` | A 200/204 response resolver, returning a `PrimaryResponse` | `PrimaryResponseResolver` |
 | `addQueryParameterResolver(string $class)` | A query-parameter extractor | `QueryParameterResolver` |
 | `addRefSchemaResolver(string $class)` | A `$ref` resolver for a class shape (e.g., a DTO or resource) | `RefSchemaResolver` |
 | `addRequestSchemaResolver(string $class)` | A request-body schema builder | `RequestSchemaResolver` |
@@ -75,8 +75,11 @@ The resolver interfaces live in `src/Contracts/Registry/`:
 - **`QueryParameterResolver`**: produce query parameters from the
   `ActionDescriptor`. Used for `?filter[…]`, `?include`, `?sort`, paging.
 - **`PrimaryResponseResolver`**: resolve the 2xx response schema from the
-  return type or attributes. If your resolver consumes a custom authoring
-  attribute, have the attribute implement the
+  return type or attributes. Return a `Contracts\Registry\PrimaryResponse`
+  built with `PrimaryResponse::of($response)`, or `null` to pass to the next
+  resolver. Pass `statusIsExplicit: true` when you read the status from the
+  action itself, so the route convention does not overwrite it. If your resolver
+  consumes a custom authoring attribute, have the attribute implement the
   `Contracts\Attributes\PrimaryResponseAuthoringAttribute` marker — body-scan
   resolvers earlier in the chain check for it and step aside, so explicit
   authoring always wins regardless of chain position.
@@ -264,27 +267,35 @@ convention (JSON:API, HAL, Fractal, …) and detection stays aligned with the
 bundled `JsonResource` rules (`#[Collects]`, `$collects`, `#[ResponseResource]`).
 
 ```php
+use OpenApi\Annotations as OA;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Contracts\Routing\ResourceTargetLocator;
 use Radiergummi\OpenApi\Routing\ActionDescriptor;
-use Radiergummi\OpenApi\Routing\ResourceTarget;
 
-final readonly class JsonApiPrimaryResponseResolver
+final readonly class JsonApiPrimaryResponseResolver implements PrimaryResponseResolver
 {
     public function __construct(
         private ResourceTargetLocator $locator,
     ) {}
 
-    public function resolveResponse(ActionDescriptor $descriptor): mixed
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $target = $this->locator->locate($descriptor);
 
-        if ($target === null || $target->isAmbiguous()) {
+        if ($target === null || $target->isAmbiguous) {
             return null;
         }
 
         // $target->resourceClass is the JsonResource subclass; $target->isCollection
         // tells you whether to wrap in a list response.
-        // …
+        $response = new OA\Response([
+            'response' => '200',
+            'description' => 'OK',
+            // 'content' => …
+        ]);
+
+        return PrimaryResponse::of($response);
     }
 }
 ```

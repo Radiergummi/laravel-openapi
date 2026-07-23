@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Override;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\Fractal\Attributes\FractalResponse;
@@ -42,7 +43,7 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
      * @throws ReflectionException
      */
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $reflector = $descriptor->actionReflector;
 
@@ -73,11 +74,11 @@ final readonly class FractalResponseResolver implements PrimaryResponseResolver
             ? MediaType::JsonApi
             : MediaType::Json;
 
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [$mediaType->schema($envelope)],
-        ]);
+        ]));
     }
 
     private function envelopeFor(FractalResponse $response, string $ref): OA\Schema

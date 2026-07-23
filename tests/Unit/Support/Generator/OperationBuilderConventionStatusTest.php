@@ -123,7 +123,7 @@ it('still relabels an empty json([]) store body to the store convention (201)', 
     expect(resourcePrimaryStatus($op))->toBe('201');
 });
 
-it('does not leak the transient explicit-status marker into the serialized response', function (): void {
+it('does not leak an explicit-status marker into the serialized response', function (): void {
     $op = buildResourceOperation('post', '/widgets', ResourceConventionLiteralController::class, 'store');
 
     /** @var array<string, mixed> $serialized */

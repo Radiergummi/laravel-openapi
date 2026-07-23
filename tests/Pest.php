@@ -12,6 +12,7 @@ use PHPStan\PhpDocParser\Parser\TypeParser;
 use PHPStan\PhpDocParser\ParserConfig;
 use PHPUnit\Framework\Assert;
 use Psr\Log\AbstractLogger;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Lint\Finding;
 use Radiergummi\OpenApi\Lint\InferenceView;
 use Radiergummi\OpenApi\Plugins\Core\Support\FormRequestRulesReader;
@@ -184,4 +185,10 @@ function recordingLogger(): AbstractLogger
             $this->records[] = ['level' => $level, 'message' => (string) $message];
         }
     };
+}
+
+/** Unwraps the annotation a primary-response resolver carried, for tests asserting on the response. */
+function primaryResponseAnnotation(?PrimaryResponse $result): ?OA\Response
+{
+    return $result?->response;
 }

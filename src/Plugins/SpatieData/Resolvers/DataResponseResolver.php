@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Scoped;
 use OpenApi\Annotations as OA;
 use Override;
 use Psr\Log\LoggerInterface;
+use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponse;
 use Radiergummi\OpenApi\Contracts\Registry\PrimaryResponseResolver;
 use Radiergummi\OpenApi\Enums\MediaType;
 use Radiergummi\OpenApi\Plugins\SpatieData\Support\DataReturnExpressionReader;
@@ -59,7 +60,7 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
      * @throws UnsupportedException
      */
     #[Override]
-    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?OA\Response
+    public function resolvePrimaryResponse(ActionDescriptor $descriptor): ?PrimaryResponse
     {
         $reflector = $descriptor->actionReflector;
 
@@ -139,7 +140,7 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
         ReflectionFunctionAbstract $reflector,
         ActionDescriptor $descriptor,
         string $returnClass,
-    ): ?OA\Response {
+    ): ?PrimaryResponse {
         $itemClass = $this->returnTypeExtractor->genericArgument($reflector);
 
         if (
@@ -178,7 +179,7 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
      * @throws RuntimeException
      * @throws UnsupportedException
      */
-    private function resolveUnion(ReturnShape $shape): ?OA\Response
+    private function resolveUnion(ReturnShape $shape): ?PrimaryResponse
     {
         $refs = [];
 
@@ -220,12 +221,12 @@ final readonly class DataResponseResolver implements PrimaryResponseResolver
         return $nullable ? NullableSchema::wrap($schema) : $schema;
     }
 
-    private function response(OA\Schema $schema): OA\Response
+    private function response(OA\Schema $schema): PrimaryResponse
     {
-        return new OA\Response([
+        return PrimaryResponse::of(new OA\Response([
             'response' => '200',
             'description' => 'OK',
             'content' => [MediaType::Json->schema($schema)],
-        ]);
+        ]));
     }
 }
