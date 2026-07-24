@@ -27,18 +27,24 @@ use function is_a;
  * Recovers the concrete Spatie {@see Data} class an action returns when its signature names only a
  * generic container (`Collection`, `array`, …). Consulted by `DataResponseResolver` as a fallback.
  *
- * Bounded scan of the first {@see self::STATEMENT_LIMIT} statements: one unconditional return (or
- * the variable it names, assigned exactly once on the unconditional path and never mutated after),
- * matched against two literal-class shapes — `DataClass::collect(...)` (collection) and
- * `new DataClass(...)` (single). Anything else, or a non-Data class, reads back as null and degrades
- * silently. Memoised per method.
+ * Bounded scan of the method's statements (capped by {@see self::RETURN_SCAN_STATEMENT_LIMIT}):
+ * one unconditional return (or the variable it names, assigned exactly once on the unconditional
+ * path and never mutated after), matched against two literal-class shapes:
+ * `DataClass::collect(...)` (collection) and `new DataClass(...)` (single). Anything else, or a
+ * non-Data class, reads back as null and degrades silently. Memoised per method.
  *
  * @internal
  */
 #[Scoped]
 final class DataReturnExpressionReader
 {
-    public const int STATEMENT_LIMIT = 10;
+    /**
+     * Pathological-input backstop, not a semantic bound: the guard that makes a resolution sound is
+     * "exactly one unconditional return", not how far the scan looked. Set far above ordinary method
+     * length so an everyday run of guard clauses never hides the trailing return, and so the
+     * method-level return count is taken over the whole body rather than a truncated prefix.
+     */
+    private const int RETURN_SCAN_STATEMENT_LIMIT = 100;
 
     /**
      * Memoised per `Class::method`.
@@ -70,7 +76,7 @@ final class DataReturnExpressionReader
 
     private function resolve(ReflectionMethod $method): ?DataReturnTarget
     {
-        $statements = $this->scanner->firstStatements($method, self::STATEMENT_LIMIT);
+        $statements = $this->scanner->firstStatements($method, self::RETURN_SCAN_STATEMENT_LIMIT);
         $returnExpression = $this->canonicalReturnExpression($statements);
 
         if ($returnExpression === null) {
