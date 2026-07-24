@@ -347,9 +347,13 @@ and the lookup must be the returned expression itself. A wrapped result
 `return response()->json(Flight::find($id))`), a lookup assigned to a variable
 and returned indirectly, or one only inside an `if`/ternary is **not** read —
 those degrade with a generation-log note (`#[Response]` /
-`#[ResponseField]` are the escape hatch). A `findOrFail()`/`firstOrFail()`
-return also contributes a `404` response, composed onto the same operation. A
-typed `Model` return is handled by the reflection path above, not this scan.
+`#[ResponseField]` are the escape hatch). A method with **more than one**
+directly-returned lookup (e.g. a different model on a legacy branch) is refused
+as ambiguous rather than emitting the first; a single lookup coexisting with
+non-lookup returns (a cache/fast-path guard) still resolves. A
+`findOrFail()`/`firstOrFail()` return also contributes a `404` response,
+composed onto the same operation. A typed `Model` return is handled by the
+reflection path above, not this scan.
 
 ### Known limitations
 

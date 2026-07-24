@@ -23,6 +23,7 @@ use Radiergummi\OpenApi\Support\Extraction\EloquentModelToSchema;
 use Radiergummi\OpenApi\Support\Generator\ComponentSchemaRegistry;
 use Radiergummi\OpenApi\Support\MethodBody\ConditionalContextPolicy;
 use Radiergummi\OpenApi\Support\MethodBody\MethodBodyScanner;
+use Radiergummi\OpenApi\Support\MethodBody\ReturnExpressionResolver;
 use Radiergummi\OpenApi\Support\MethodBody\ReturnScan;
 use Radiergummi\OpenApi\Support\MethodBody\StatementNodeFinder;
 use ReflectionMethod;
@@ -30,7 +31,9 @@ use ReflectionNamedType;
 use Symfony\Component\HttpFoundation\Response as HttpFoundationResponse;
 use Throwable;
 
+use function array_filter;
 use function class_exists;
+use function count;
 use function in_array;
 use function is_a;
 use function sprintf;
@@ -39,7 +42,8 @@ use function sprintf;
  * Infers the success-response schema from a directly-returned `Model::find()` /
  * `findOrFail()` / `firstOrFail()` static call. Only a literal-FQCN, unconditional,
  * direct-return call is matched; dynamic classes, wrappers, and conditional returns degrade
- * gracefully. All three methods produce the same model `$ref`; nullability is not modeled.
+ * gracefully. A method with more than one directly-returned lookup is refused as ambiguous. All
+ * three methods produce the same model `$ref`; nullability is not modeled.
  *
  * @internal
  */
@@ -50,6 +54,8 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
 
     private StatementNodeFinder $statementNodeFinder;
 
+    private ReturnExpressionResolver $returnExpressionResolver;
+
     public function __construct(
         private MethodBodyScanner $scanner,
         private EloquentModelToSchema $modelToSchema,
@@ -57,6 +63,7 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
         private LoggerInterface $logger,
     ) {
         $this->statementNodeFinder = new StatementNodeFinder();
+        $this->returnExpressionResolver = new ReturnExpressionResolver();
     }
 
     #[Override]
@@ -71,6 +78,12 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
         $statements = $this->scanner->firstStatements($method, ReturnScan::STATEMENT_LIMIT);
 
         if ($statements === []) {
+            return null;
+        }
+
+        if ($this->countDirectlyReturnedLookupCalls($statements) > 1) {
+            $this->noteAmbiguousLookup($method);
+
             return null;
         }
 
@@ -154,6 +167,24 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
         return null;
     }
 
+    /**
+     * Counts the method's own returns whose direct expression is a whitelisted lookup call, across
+     * every conditional branch but excluding nested closures (which open their own scope). More than
+     * one leaves the primary response ambiguous.
+     *
+     * @param list<Stmt> $statements
+     */
+    private function countDirectlyReturnedLookupCalls(array $statements): int
+    {
+        $lookupReturns = array_filter(
+            $this->returnExpressionResolver->methodLevelReturns($statements),
+            fn(Return_ $return): bool => $return->expr instanceof StaticCall
+                && $this->isLookupStaticCall($return->expr),
+        );
+
+        return count($lookupReturns);
+    }
+
     /** Whether the node is a whitelisted lookup static call. Class resolution is left to {@see resolveModelClass}. */
     private function isLookupStaticCall(Node $node): bool
     {
@@ -185,6 +216,20 @@ final readonly class FindReturnModelResponseResolver implements PrimaryResponseR
                 'A find()/findOrFail()/firstOrFail() call in %s::%s is not a directly-returned static '
                 . 'model lookup (dynamic class, wrapped, assigned to a variable, or only conditional); '
                 . 'no response inferred. Annotate the action with #[Response] to document it.',
+                $method->getDeclaringClass()->getName(),
+                $method->getName(),
+            ),
+        );
+    }
+
+    /** Logs a notice when a method has more than one directly-returned model lookup, leaving the primary response ambiguous. */
+    private function noteAmbiguousLookup(ReflectionMethod $method): void
+    {
+        $this->logger->notice(
+            sprintf(
+                'Multiple directly-returned model lookups (find()/findOrFail()/firstOrFail()) in %s::%s '
+                . 'make the primary response ambiguous; no response inferred. Annotate the action with '
+                . '#[Response] to document it.',
                 $method->getDeclaringClass()->getName(),
                 $method->getName(),
             ),
