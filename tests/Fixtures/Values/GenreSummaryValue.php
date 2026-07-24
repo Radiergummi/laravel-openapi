@@ -15,6 +15,13 @@ final readonly class GenreSummaryValue
     /** A non-public property a resource key must never type from. */
     protected string $secret;
 
+    /**
+     * A `@var`-refined array shape, typed via the property docblock rather than the native `array`.
+     *
+     * @var array{code: string, size: int}
+     */
+    public array $meta;
+
     public function __construct(
         public string $publicId,
         public string $name,
@@ -23,7 +30,9 @@ final readonly class GenreSummaryValue
         public ?string $note,
         public int|string $mixedKey,
         public mixed $untyped,
+        public array $tags = [],
     ) {
         $this->secret = 'hidden';
+        $this->meta = ['code' => 'pop', 'size' => 3];
     }
 }

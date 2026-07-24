@@ -375,7 +375,7 @@ final readonly class JsonSchemaFromType
      *
      * @param CollectionType<BuiltinType<TypeIdentifier::ARRAY>|BuiltinType<TypeIdentifier::ITERABLE>|ObjectType<class-string>> $type
      */
-    private function isArrayLikeCollection(CollectionType $type): bool
+    public function isArrayLikeCollection(CollectionType $type): bool
     {
         if ($type->isIdentifiedBy(TypeIdentifier::ARRAY) || $type->isIdentifiedBy(TypeIdentifier::ITERABLE)) {
             return true;
