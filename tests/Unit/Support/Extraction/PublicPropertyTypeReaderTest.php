@@ -143,6 +143,21 @@ it('types a date-time property with the date-time format', function (): void {
         ->and($schema->format)->toBe('date-time');
 });
 
+it('keeps a top-level format object as its format even when a leaf callback is present', function (): void {
+    // A DTO consumer always passes a leaf callback; a format leaf (DateTime/UUID/…) must still map to
+    // its format, never route through the callback into a `$ref`.
+    $schema = publicPropertyTypeReader()->propertyFor(
+        PublicPropertyReaderFixture::class,
+        'createdAt',
+        static fn(string $class): OA\Schema => new OA\Schema(['ref' => '#/components/schemas/ShouldNotAppear']),
+    );
+
+    expect($schema)->not->toBeNull()
+        ->and($schema->type)->toBe('string')
+        ->and($schema->format)->toBe('date-time')
+        ->and(is_undefined($schema->ref))->toBeTrue();
+});
+
 it('refers a backed enum property to its component', function (): void {
     $schema = publicPropertyTypeReader()->propertyFor(PublicPropertyReaderFixture::class, 'status');
 
